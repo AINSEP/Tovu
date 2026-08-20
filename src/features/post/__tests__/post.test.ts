@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
+import type { BeforeSaveHookPort } from "../post.js";
 import {
   createPost,
   findPublishedPostById,
+  getAdminPostById,
   getAdminPostByIdOrSlug,
   getPublishedPostBySlug,
   listAdminPages,
@@ -589,4 +591,181 @@ test("listAdminPosts and listAdminPages are disjoint lenses over the same table"
     pagesOnly.map((p) => p.id).sort(),
     ["page-1", "page-2"]
   );
+});
+
+test("getAdminPostById returns the post for a valid, non-trashed id", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+
+  const { post } = await getAdminPostById({
+    deps: { repo },
+    input: { workspaceId: "workspace-1", id: "post-1" },
+  });
+
+  assert.equal(post.id, "post-1");
+  assert.equal(post.title, "Hello World");
+});
+
+// SPEC-005 CIC U-004-B1/F1 — the optional `content.entry.beforeSave` hook, run before the record
+// is built and before `repo.save()`. `post.test.ts`'s other create/update tests never wire one up
+// (the zero-plugin path), so this is the only place the hook is actually invoked and its patch
+// merged into `ext`.
+test("createPost runs the beforeSaveHook and merges its returned patch into ext", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+  let receivedDraft: unknown;
+  const beforeSaveHook: BeforeSaveHookPort = async (draft) => {
+    receivedDraft = draft;
+    return { "plugin-a": { flagged: true } };
+  };
+
+  const result = await createPost({
+    deps: { repo, clock, beforeSaveHook },
+    input: { workspaceId: "workspace-1", id: "post-new", title: "My New Post" },
+  });
+
+  assert.deepEqual(result.post.ext, { "plugin-a": { flagged: true } });
+  // A new entry has no prior ext, so the draft the hook sees starts empty (REQ-05).
+  assert.deepEqual((receivedDraft as { ext: unknown }).ext, {});
+});
+
+test("updatePost runs the beforeSaveHook and merges its patch onto the entry's existing ext", async () => {
+  const repo = new InMemoryPostRepo([{ ...seedPost, ext: { "plugin-a": { seen: 1 } } }]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+  let receivedDraft: unknown;
+  const beforeSaveHook: BeforeSaveHookPort = async (draft) => {
+    receivedDraft = draft;
+    return { "plugin-b": { added: true } };
+  };
+
+  const result = await updatePost({
+    deps: { repo, clock, outbox: noopOutbox, beforeSaveHook },
+    input: {
+      workspaceId: "workspace-1",
+      id: "post-1",
+      title: "Updated Post",
+      slug: "updated-post",
+      bodyJson: { type: "doc", content: [] },
+      status: "published",
+    },
+  });
+
+  // Merging (not replacing) keeps a disabled/uninstalled plugin's namespace intact (INV-03).
+  assert.deepEqual(result.post.ext, { "plugin-a": { seen: 1 }, "plugin-b": { added: true } });
+  // The draft the filter sees carries the entry's already-written ext, per REQ-05.
+  assert.deepEqual((receivedDraft as { ext: unknown }).ext, { "plugin-a": { seen: 1 } });
+});
+
+// The `slugify(title) || "untitled"` fallback: a title that survives the empty-title default
+// (it is not blank) but has no a-z0-9 characters at all still slugifies to "".
+test("createPost falls back to 'untitled' when the title has no alphanumeric characters to slugify", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  const result = await createPost({
+    deps: { repo, clock },
+    input: { workspaceId: "workspace-1", id: "post-new", title: "!!!" },
+  });
+
+  assert.equal(result.post.title, "!!!");
+  assert.equal(result.post.slug, "untitled");
+});
+
+test("updatePost rejects an invalid slug format", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      updatePost({
+        deps: { repo, clock, outbox: noopOutbox },
+        input: {
+          workspaceId: "workspace-1",
+          id: "post-1",
+          title: "Updated Post",
+          slug: "Not A Slug!",
+          bodyJson: { type: "doc", content: [] },
+          status: "published",
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "slug must use lowercase letters, numbers, and dashes");
+      return true;
+    }
+  );
+});
+
+test("updatePost rejects a non-object bodyJson on a doc-format row", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      updatePost({
+        deps: { repo, clock, outbox: noopOutbox },
+        input: {
+          workspaceId: "workspace-1",
+          id: "post-1",
+          title: "Updated Post",
+          slug: "updated-post",
+          bodyJson: [] as unknown as { type: string; content: unknown[] },
+          status: "published",
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "bodyJson must be a JSON object");
+      return true;
+    }
+  );
+});
+
+test("updatePost rejects an invalid status", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      updatePost({
+        deps: { repo, clock, outbox: noopOutbox },
+        input: {
+          workspaceId: "workspace-1",
+          id: "post-1",
+          title: "Updated Post",
+          slug: "updated-post",
+          bodyJson: { type: "doc", content: [] },
+          status: "archived" as unknown as "draft",
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "status must be 'draft' or 'published'");
+      return true;
+    }
+  );
+});
+
+// Post-template-picker feature (2026-08-10) — both fields follow the same "omit to leave
+// unchanged, explicit value to set" contract, exercised together since they're independent
+// conditional spreads in the same record-assembly step.
+test("updatePost sets templateChoice and overridesThemePage when the caller provides them", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  const result = await updatePost({
+    deps: { repo, clock, outbox: noopOutbox },
+    input: {
+      workspaceId: "workspace-1",
+      id: "post-1",
+      title: "Updated Post",
+      slug: "updated-post",
+      bodyJson: { type: "doc", content: [] },
+      status: "published",
+      templateChoice: "blog-post.html",
+      overridesThemePage: true,
+    },
+  });
+
+  assert.equal(result.post.templateChoice, "blog-post.html");
+  assert.equal(result.post.overridesThemePage, true);
 });
