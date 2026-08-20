@@ -1167,18 +1167,29 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   exportOutputRootDir: string;
   /**
-   * Boots a real `Express` app bound to the given `RouteDeps` — the SAME factory `server/app.ts`
-   * exports as `createApp`, injected here rather than imported directly by
-   * `src/export/site-exporter.ts` (`exportSite` needs to boot an in-process copy of the app to crawl
-   * it over real HTTP — see that file's own header). A direct `require("../server/app")` there was
-   * the one runtime edge closing `export -> server` (2026-08-16 architecture audit: dependency-cruiser
-   * flagged module cycle, propagation cost measured at 29.05% with the edge present vs 9.43% with
-   * only this one edge removed). Mirrors `runExportSite`'s injection precedent immediately above —
-   * always the real `createApp` in both `server/app.ts`'s `createRouteDeps()` (direct same-file
-   * reference) and `server/deps.ts`'s `createSqliteRouteDeps()` (lazily `require`d, for the identical
-   * reason `runExportSiteLazily` in both files is — see that field's doc for the full trace).
+   * Boots a real `Express` app — the SAME factory `server/app.ts` exports as `createApp`, injected
+   * here rather than imported directly by `src/export/site-exporter.ts` (`exportSite` needs to boot
+   * an in-process copy of the app to crawl it over real HTTP — see that file's own header). A direct
+   * `require("../server/app")` there was the one runtime edge closing `export -> server` (2026-08-16
+   * architecture audit: dependency-cruiser flagged module cycle, propagation cost measured at 29.05%
+   * with the edge present vs 9.43% with only this one edge removed). Mirrors `runExportSite`'s
+   * injection precedent immediately above — always the real `createApp` in both `server/app.ts`'s
+   * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSqliteRouteDeps()`
+   * (lazily `require`d, for the identical reason `runExportSiteLazily` in both files is — see that
+   * field's doc for the full trace).
+   *
+   * NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — 2026-08-20 RouteDeps-
+   * narrowing fix, same shape and same day as `exportSiteBound` below. Before this change,
+   * `export/site-exporter.ts`'s own `ExportSiteOptions.routeDeps` field had to be typed `RouteDeps`
+   * just to have something to pass into this field's call (`routeDeps.createSiteApp(routeDeps)`),
+   * which was a real, genuine "god type" back-edge (`check:architecture`'s `backEdgesIntoServer`
+   * metric, not a location-only one like `ClockDeps`'s — verified by grep: `createSiteApp` field had
+   * exactly ONE reader, `site-exporter.ts:657`, and no per-call argument this file's `routeDeps` isn't
+   * already the right one for). Bound as `() => createApp(routeDeps)` in both composition roots,
+   * closed over the SAME `const routeDeps` binding `exportSiteBound` already closes over — see the
+   * TEST GOTCHA note on `exportSiteBound` below, now generalized to cover this field too.
    */
-  createSiteApp: (routeDeps: RouteDeps) => Express;
+  createSiteApp: () => Express;
   /**
    * The SAME `resolveStorefrontProducts` (`server/routes/site/products.ts`) `/products` and
    * `/products/:id` render with, injected here for `export/route-manifest.ts` to reuse (2026-08-16,
@@ -1190,8 +1201,18 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * products.ts` is what bridges the two"). Moving this function would violate that existing,
    * documented boundary, so injection (mirroring `createSiteApp` immediately above) is the correct
    * shape here, not a fallback taken for lack of trying — measured, not assumed.
+   *
+   * NULLARY (`() => Promise<SiteProduct[]>`), not `(routeDeps: RouteDeps) => ...` — same 2026-08-20
+   * fix and same reasoning as `createSiteApp` immediately above: this field had exactly ONE reader
+   * (`route-manifest.ts:183`), which always called it with its own already-current `deps`, never a
+   * different one — so a per-call `routeDeps` argument bought nothing except forcing `RouteDeps` into
+   * every caller's own type. `export/route-manifest.ts`'s own `RouteManifestDeps` declares this field
+   * against a minimal local `{id, title}` product shape rather than importing `SiteProduct` itself —
+   * return-type covariance means the real, wider `SiteProduct[]` still satisfies it with no cast; see
+   * that file's own doc for why importing `SiteProduct` there would just relocate this back-edge
+   * rather than remove it.
    */
-  resolveStorefrontProducts: (routeDeps: RouteDeps) => Promise<SiteProduct[]>;
+  resolveStorefrontProducts: () => Promise<SiteProduct[]>;
   /**
    * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
    * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s
@@ -1291,6 +1312,20 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `idGen`/every other field `SourceControlToolDeps`/`StaticPublishToolDeps` read directly (not
    * through this closure) has no such gotcha — only fields the real `exportSite` reads INSIDE this
    * closure's own call are affected.
+   *
+   * GENERALIZED (2026-08-20, RouteDeps-narrowing pass 2): `createSiteApp` and
+   * `resolveStorefrontProducts` immediately above were converted to this SAME closure-bound-at-
+   * construction-time shape (nullary, no `routeDeps` parameter) the same day, for the same "one
+   * reader, no per-call argument it needs" reason this field was. They carry the IDENTICAL gotcha —
+   * both are bound as `() => realFn(routeDeps)` inside `createRouteDeps()`/`createSqliteRouteDeps()`,
+   * closed over that one object identity, so a spread-copy override of either is exactly as silently
+   * inert as a spread-copy override of `createSiteApp` used to be for THIS field's own call. The
+   * general rule, stated once here rather than re-derived per field: **any `RouteDeps` field whose
+   * value is a function bound by closure at construction time — as opposed to a field the closure's
+   * own body reads fresh off `routeDeps` at call time — must be overridden by mutating the object
+   * `createRouteDeps()`/`createSqliteRouteDeps()` returned, never by spreading it into a copy.** As of
+   * this pass that set is `exportSiteBound`, `createSiteApp`, and `resolveStorefrontProducts`; check
+   * this doc first before assuming a new closure-shaped field is safe to spread-override.
    */
   exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
 };

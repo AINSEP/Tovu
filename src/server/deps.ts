@@ -874,8 +874,16 @@ export function createSqliteRouteDeps(
     // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s
     // `exportOutputRootDir` doc.
     exportOutputRootDir: resolveExportOutputRootDir(),
-    createSiteApp: createSiteAppLazily,
-    resolveStorefrontProducts,
+    // 2026-08-20 (RouteDeps-narrowing pass 2) — nullary, closed over the `const routeDeps` binding
+    // below rather than taking it per call; same self-referencing-closure shape `exportSiteBound`
+    // below already uses, same TEST GOTCHA (`routes/types.ts`'s `exportSiteBound` doc, generalized:
+    // spread-override is silently inert; mutate the object in place instead). `createSiteAppLazily`
+    // itself is unchanged — still a reusable `(routeDeps) => Express` helper; wrapped here rather
+    // than converted in place, since nothing else calls it.
+    createSiteApp: () => createSiteAppLazily(routeDeps),
+    // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
+    // TEST GOTCHA.
+    resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).

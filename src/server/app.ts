@@ -654,12 +654,22 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // take (createApp is declared in this same module) closing `export -> server` for the in-memory
     // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
     // equivalent instead, since it cannot take a same-file reference.
-    createSiteApp: createApp,
+    //
+    // 2026-08-20 (RouteDeps-narrowing pass 2) — now NULLARY, closed over the `const routeDeps`
+    // binding below rather than taking it per call. Same self-referencing-closure shape
+    // `exportSiteBound` below already uses (safe for the identical reason: this arrow only runs
+    // after `createRouteDeps()` has returned, by which point `routeDeps` is fully constructed) — see
+    // `routes/types.ts`'s `exportSiteBound` doc, now generalized, for the TEST GOTCHA this closure
+    // shape carries (spread-override is silently inert; mutate the object in place instead).
+    createSiteApp: () => createApp(routeDeps),
     // 2026-08-16 — see `routes/types.ts`'s `resolveStorefrontProducts` doc (edge 2 of the
     // export<->server decoupling): a direct reference, same reasoning as `createSiteApp` above
     // (`resolveStorefrontProducts` is declared in `./routes/site/products`, already imported by
     // this file to register the real product routes).
-    resolveStorefrontProducts,
+    //
+    // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion as `createSiteApp`
+    // immediately above, same reasoning, same TEST GOTCHA.
+    resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
     // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
     // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so

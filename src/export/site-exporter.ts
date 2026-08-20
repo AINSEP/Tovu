@@ -4,6 +4,8 @@ import type { AddressInfo } from "node:net";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import type { Express } from "express";
+
 import { resolveThemeLayout } from "#src/features/theme/index";
 
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
@@ -23,13 +25,19 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 // in place.)
 //
 // The fix that removes the edge instead of merely deferring it: `exportSite` now boots the app via
-// `options.routeDeps.createSiteApp(routeDeps)` — the SAME `createApp` factory, injected through
-// `RouteDeps` (`server/routes/types.ts`'s `createSiteApp` field doc has the full rationale) exactly
-// the way `routeDeps.runExportSite` already injects THIS function the other direction. This file
-// still imports `RouteDeps` as a TYPE below — that import is erased at compile time (zero runtime
-// edge) and was never part of the cycle; only the runtime `require`/`import` of `createApp` was.
-import type { RouteDeps } from "../server/routes/types.js";
-import { buildRouteManifest } from "./route-manifest.js";
+// `options.routeDeps.createSiteApp()` — the SAME `createApp` factory, injected through `RouteDeps`
+// (`server/routes/types.ts`'s `createSiteApp` field doc has the full rationale) exactly the way
+// `routeDeps.runExportSite` already injects THIS function the other direction.
+//
+// 2026-08-20 (RouteDeps-narrowing pass 2): this file no longer imports `RouteDeps` at all, not even
+// as a type. Until this pass, `ExportSiteOptions.routeDeps` had to be typed `RouteDeps` because
+// `createSiteApp` (the field above) took a `(routeDeps: RouteDeps) => Express` shape and needed
+// something to call itself with — the ONE genuine "god type" width back-edge left in this file
+// (`check:architecture`'s `backEdgesIntoServer` metric; not a location-only one). `createSiteApp`
+// is now nullary (bound once per composition root, same shape `exportSiteBound` already uses — see
+// that field's doc in `server/routes/types.ts`), so `ExportSiteRouteDeps` below only needs to name
+// the fields this file and `route-manifest.ts` actually read, never the god type itself.
+import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
 import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports.js";
 
 /**
@@ -223,10 +231,30 @@ export function firstExportFailure(report: ExportReport): ExportFailureSummary |
   return undefined;
 }
 
+/**
+ * Everything {@link exportSite} needs, declared locally rather than importing `server/routes/
+ * types.ts`'s `RouteDeps` (2026-08-20 RouteDeps-narrowing pass 2 — see the file-header note above
+ * for the full trace). A structural superset of `route-manifest.ts`'s own `RouteManifestDeps`
+ * (re-used here via `extends` rather than duplicated — `buildRouteManifest(routeDeps)` below needs
+ * exactly that shape) plus the one extra field this file reads directly.
+ *
+ * `createSiteApp` is NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — see that
+ * field's own doc in `server/routes/types.ts` for why: it is bound to its own `routeDeps` ONCE, at
+ * composition-root construction time, the same way `RouteDeps.exportSiteBound` already binds
+ * `exportSite` itself.
+ *
+ * A real `RouteDeps` object (what `createApp`/`serve.ts` already build) always satisfies this
+ * trivially; only a test needs to assemble one, and every route test in this repo already does via
+ * `createRouteDeps()`.
+ */
+export interface ExportSiteRouteDeps extends RouteManifestDeps {
+  readonly createSiteApp: () => Express;
+}
+
 export interface ExportSiteOptions {
   /** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */
-  routeDeps: RouteDeps;
+  routeDeps: ExportSiteRouteDeps;
   outputDir: string;
   /** When the output directory already has contents, `exportSite` refuses by default (removing
    *  files this process did not write is destructive — see this option's own call site in
@@ -653,8 +681,9 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   const manifest = await buildRouteManifest(routeDeps);
   // Injected via `RouteDeps.createSiteApp` (see the file-header note and that field's own doc in
   // `server/routes/types.ts`) rather than imported from `server/app.ts` — no `require` left here at
-  // all, lazy or otherwise.
-  const server = createServer(routeDeps.createSiteApp(routeDeps));
+  // all, lazy or otherwise. Nullary as of 2026-08-20 (RouteDeps-narrowing pass 2) — already closed
+  // over its own `routeDeps` at composition-root construction time, so no argument is passed here.
+  const server = createServer(routeDeps.createSiteApp());
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;

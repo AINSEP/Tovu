@@ -17,9 +17,19 @@ import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest.js
  * against it would also be wrong against a freshly-installed real site.
  */
 
+/** MUTATES the object `createRouteDeps()` returns rather than spreading a copy — deliberately,
+ *  since 2026-08-20 (RouteDeps-narrowing pass 2): `resolveStorefrontProducts` is a closure bound to
+ *  ONE object identity, at construction time, inside `createRouteDeps()` itself (same shape and same
+ *  gotcha as `RouteDeps.exportSiteBound` — see that field's doc in `server/routes/types.ts`,
+ *  generalized). A spread (`{ ...deps, ...overrides }`) would return a logically-overridden but
+ *  DIFFERENT object identity that closure never sees; none of the overrides this file actually
+ *  passes (`postRepo`) affect what `resolveStorefrontProducts` itself reads, so a spread would not
+ *  have failed any assertion here today — but it would have been silently inert for a future
+ *  override that DID matter, which is the exact failure mode worth refusing on principle rather than
+ *  by luck. */
 function baseDeps(overrides: Partial<RouteManifestDeps> = {}): RouteManifestDeps {
   const deps = createRouteDeps();
-  return { ...deps, ...overrides };
+  return Object.assign(deps, overrides);
 }
 
 test("buildRouteManifest: includes home and every seeded published post/page, and does not depend on sitemap.ts", async () => {
@@ -171,7 +181,16 @@ test("buildRouteManifest: enumerates products only when the storefront actually 
     listProducts: () => [{ id: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
     checkout: () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
   };
-  const withStore = await buildRouteManifest(baseDeps({ store }));
+  // `store` is read only by `resolveStorefrontProducts`'s own real implementation
+  // (`server/routes/site/products.ts`), never by `buildRouteManifest` directly — correctly absent
+  // from `RouteManifestDeps` (2026-08-20 RouteDeps-narrowing pass 2), so `baseDeps`'s narrow
+  // `Partial<RouteManifestDeps>` override param can't name it. Goes through `createRouteDeps()`
+  // directly instead, mutated in place for the same closure-identity reason `baseDeps` itself now
+  // mutates rather than spreads (see that function's own doc above) — `deps` here is structurally a
+  // superset of `RouteManifestDeps`, so passing it to `buildRouteManifest` needs no cast.
+  const deps = createRouteDeps();
+  deps.store = store;
+  const withStore = await buildRouteManifest(deps);
   assert.ok(withStore.routes.find((r) => r.path === "/products" && r.kind === "product-list"));
   assert.ok(withStore.routes.find((r) => r.path === "/products/mug-01" && r.kind === "product"));
 });

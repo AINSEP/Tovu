@@ -232,8 +232,17 @@ test("exportSite: a route that fails to render is reported as a failure, not sil
 
   const base = createRouteDeps();
   const postRepo = new FailingSlugPostRepo(base.postRepo, "welcome");
+  // MUTATED in place, not spread into a copy (`{ ...base, postRepo }`) — 2026-08-20 (RouteDeps-
+  // narrowing pass 2): `base.createSiteApp` is a closure bound to THIS exact object identity, at
+  // construction time, inside `createRouteDeps()` itself (same shape/gotcha as `RouteDeps.
+  // exportSiteBound` — see that field's doc in `server/routes/types.ts`, generalized). A spread here
+  // would produce a logically-overridden but DIFFERENT object identity that closure never sees, so
+  // `exportSite`'s internal `routeDeps.createSiteApp()` call would boot the app against the
+  // ORIGINAL, non-failing `postRepo` — the forced failure below would silently never happen, and
+  // this test would fail loudly at the `welcomeFailure` assertion rather than proving anything.
+  base.postRepo = postRepo;
 
-  const report = await exportSite({ routeDeps: { ...base, postRepo }, outputDir });
+  const report = await exportSite({ routeDeps: base, outputDir });
 
   const welcomeFailure = report.routes.failed.find((r) => r.path === "/welcome");
   if (!welcomeFailure) throw new Error("the forced failure must be reported in routes.failed");
