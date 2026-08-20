@@ -70,12 +70,13 @@
  * their attention.
  *
  * Architectural role:
- * `features/deployments/static-publish` domain logic (agent-tool layer), plus this dispatch's
- * necessary crossing into `#src/server/routes/types`'s `RouteDeps` (type-only) — `publishStaticSite`
- * needs the full composition-root deps bag to run a real `exportSite` pass immediately before
- * publishing, the exact same reason this directory's sibling `tool-registrations.ts` documents for
- * `DeploymentsToolDeps = RouteDeps` and `deployment_trigger_export`. No dependency on this directory's
- * sibling `agent-tools.ts`/`tool-registrations.ts`/`ports.ts`/`types.ts`.
+ * `features/deployments/static-publish` domain logic (agent-tool layer). `publishStaticSite` needs a
+ * real `exportSite` pass immediately before publishing, but (2026-08-20 RouteDeps-narrowing fix) this
+ * file no longer crosses into `#src/server/routes/types`'s `RouteDeps` to get one — see
+ * `StaticPublishToolDeps`'s own doc below for why a pre-bound `exportSiteBound` field replaces that
+ * crossing, the same fix this directory's sibling `tool-registrations.ts` and
+ * `features/source-control/commit-site.ts` apply for the identical shape of problem. No dependency on
+ * this directory's sibling `agent-tools.ts`/`tool-registrations.ts`/`ports.ts`/`types.ts`.
  */
 import {
   buildDomainRegistrations,
@@ -93,11 +94,15 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 
 // TYPE-ONLY — fully erased at compile time, so this creates no runtime require() and cannot recreate
 // the circular-load crash a VALUE import of `#src/export/index` caused inside `export-run.ts` and
-// (via `static-publish/adapter.ts`'s own `exportSiteLazily`) inside this feature's own preview tool
-// wiring — see `adapter.ts`'s header for that trace, and `deployments/tool-registrations.ts`'s
-// `DeploymentsToolDeps` doc for why a `type`-only import of the same symbol is safe where a value one
-// is not.
-import type { RouteDeps } from "#src/server/routes/types";
+// (via `static-publish/adapter.ts`'s own former `exportSiteLazily`) inside this feature's own preview
+// tool wiring — see `adapter.ts`'s header for that trace. `ExportReport` is needed here only to type
+// {@link ExportSiteBoundFn}'s return value — see that type's own doc for why this file declares its
+// own copy rather than naming `RouteDeps` (2026-08-20 RouteDeps-narrowing fix).
+import type { ExportReport } from "#src/export/index";
+import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";
+import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
 import { registerToolContributor } from "#src/assistant/index";
 
@@ -106,8 +111,8 @@ import { listPublishCredentials, type PublishCredentialReadDeps } from "./publis
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
-// Deliberately NO import of any kind (type or value) from `../vendor-credentials/**` here — an
-// earlier revision imported `createVendorCredential`/`listVendorCredentials`/`updateVendorCredential`/
+// Deliberately NO VALUE import of any kind from `../vendor-credentials/**` here — an earlier revision
+// imported `createVendorCredential`/`listVendorCredentials`/`updateVendorCredential`/
 // `PUBLISH_PROVIDER_TO_VENDOR` directly, which closed a real `features/deployments <->
 // features/vendor-credentials` module cycle (`vendor-credentials/dual-read.ts` already imports back
 // into `publish-credentials/store.ts` for its own temporary legacy-fallback — see that file's header).
@@ -118,6 +123,18 @@ import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./
 // `buildAssistantToolRegistrations` (the one file already documented as "the one place that
 // genuinely needs to see every domain at once") via `StaticPublishToolDeps.vendorCredentials` below —
 // never imported here.
+//
+// The `VendorCredentialSetRepoPort` TYPE-only import above (line ~105) is new (2026-08-20
+// RouteDeps-narrowing fix) and does NOT reopen that cycle — verified, not assumed: a type-only edge
+// is erased at compile time, so `development/scripts/check-architecture.ts`'s module-cycle/SCC metric
+// (which is explicitly computed on the runtime-only graph, dropping every `import type` edge — see
+// that script's own `Baseline.moduleCycles` doc) cannot see it at all. Confirmed empirically:
+// `check:architecture --list` reports 0 module cycles / largest SCC 0 with this import in place, same
+// as before it. This was tried in preference to hand-mirroring `VendorCredentialSetRepoPort`'s shape
+// locally (the way `VendorCredentialSummaryLike` below still does, since THAT type has no real
+// counterpart safe to import) — a hand-copied port with no compile-time link to the real one drifts
+// silently, and the real type was available at zero verified cost once the value-import cycle above
+// was already closed by a different fix.
 import {
   composePublishCredentialSource,
   computeBasePath,
@@ -125,6 +142,7 @@ import {
   runPublishAndAwait,
   validateStaticPublishConfig,
   type PublishCredentialSource,
+  type PublishCredentialVerificationCache,
   type PublishHistoryStore,
   type StaticPublishConfig,
   type StaticPublishDeps,
@@ -393,17 +411,24 @@ interface VendorCredentialSummaryLike {
   readonly updatedAt: string;
 }
 
-/** Structural stand-ins for `vendor-credentials/store.ts`'s own `VendorCredentialReadDeps`/
- *  `VendorCredentialWriteDeps` — every field type is an indexed-access off `RouteDeps` (already
- *  imported by this file, so referencing e.g. `RouteDeps["clock"]` introduces no new edge) rather
- *  than a name imported from `vendor-credentials/types.ts`. */
-type VendorCredentialReadDepsLike = { repo: RouteDeps["vendorCredentialSetRepo"] };
+/**
+ * Structural stand-ins for `vendor-credentials/store.ts`'s own `VendorCredentialReadDeps`/
+ * `VendorCredentialWriteDeps`. 2026-08-20 RouteDeps-narrowing fix: these used to be an indexed-access
+ * off `RouteDeps` itself (`RouteDeps["vendorCredentialSetRepo"]` etc.) — that still worked structurally
+ * (an indexed-access type is not, by itself, a runtime edge), but it kept this file's `StaticPublishToolDeps`
+ * from ever dropping its `extends RouteDeps`, since every field here was DERIVED from that name. Typed
+ * directly against the underlying port types instead (`VendorCredentialSetRepoPort`/`SecretSealerPort`/
+ * `KeyringPort`, all already imported by this file for other reasons — see the import block above), the
+ * same "narrow domain ports, never the god type" discipline `comments/tool-registrations.ts`'s
+ * `CommentsToolDeps` already establishes.
+ */
+type VendorCredentialReadDepsLike = { repo: VendorCredentialSetRepoPort };
 type VendorCredentialWriteDepsLike = {
-  repo: RouteDeps["vendorCredentialSetRepo"];
-  sealer: RouteDeps["siteAssistantSecretSealer"];
-  keyring?: RouteDeps["siteAssistantSecretKeyring"];
-  clock: RouteDeps["clock"];
-  idGen: RouteDeps["idGen"];
+  repo: VendorCredentialSetRepoPort;
+  sealer: SecretSealerPort;
+  keyring?: KeyringPort;
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
 };
 
 /**
@@ -437,20 +462,52 @@ export interface VendorCredentialPort {
 }
 
 /**
- * The exact slice of the route-deps bag this domain's tool handlers read. Unlike this file's previous
- * revision (preview-only), this is now `RouteDeps` itself rather than a narrow structural stand-in —
- * `deployment_execute_static_publish`'s confirmed path calls `publishStaticSite`, which needs the
- * FULL composition-root bag to run a real `exportSite` pass (identical reasoning to this directory's
- * sibling `tool-registrations.ts`'s `DeploymentsToolDeps = RouteDeps`; see that file's own doc for why
- * no honest narrower type exists). This also fixes a real, latent gap the preview-only revision left
- * behind: that revision's `dbCredentialDeps?` field was never populated by the one real production
- * caller (`agent-daemon-server.ts` spreads the flat `RouteDeps`-shaped bag with no nested
- * `dbCredentialDeps` key), so the DB-backed credential store was silently never consulted by any
- * static-publish agent tool — only the env-var fallback ever ran. Reading `publishCredentialSetRepo`/
- * `siteAssistantSecretSealer`/`publishExecutionMode` directly off this (now-required) `RouteDeps`
- * shape, exactly as `publish-site.ts`'s own route already does, closes that gap.
+ * The composition-root-bound export call this domain takes instead of `RouteDeps` itself (2026-08-20
+ * RouteDeps-narrowing fix — see `static-publish/adapter.ts`'s identical copy, `commit-site.ts`'s
+ * original fix, and `server/routes/types.ts`'s `RouteDeps.exportSiteBound` doc for the full design
+ * rationale). Declared locally, never imported from either of those two files — same "duplicate the
+ * tiny type, never share across features/files" convention `commit-site.ts`'s own doc establishes.
  */
-export interface StaticPublishToolDeps extends RouteDeps {
+type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
+
+/**
+ * The exact slice of the route-deps bag this domain's tool handlers read, declared structurally
+ * instead of naming `RouteDeps` (2026-08-20 RouteDeps-narrowing fix, superseding `b6144774`'s
+ * config-only attempt — see `ADS-memory/reports/2026-08-19-architecture-step2-boundary-closure.md`
+ * and its 2026-08-20 follow-up report for the full history). This file's previous revision `extends
+ * RouteDeps` outright on the grounds that `deployment_execute_static_publish`'s confirmed path calls
+ * `publishStaticSite`, which needs the FULL composition-root bag to run a real `exportSite` pass —
+ * that reasoning about `publishStaticSite`'s own requirement was correct, but it does not follow that
+ * THIS interface has to name `RouteDeps` to satisfy it. `exportSiteBound` below is the fix: a
+ * pre-bound export call, closed over the full `RouteDeps` at the composition root (`server/app.ts`/
+ * `server/deps.ts`), threaded down as one narrow field instead of the whole bag — see
+ * {@link ExportSiteBoundFn}'s own doc immediately above. `server/routes/*`/`agent-daemon-server.ts`
+ * satisfy this structurally by passing their existing `RouteDeps` object (which now also carries
+ * `exportSiteBound`); nothing there changes.
+ *
+ * Every other field below is a direct port type (never an indexed-access off `RouteDeps`) — see
+ * `VendorCredentialReadDepsLike`/`VendorCredentialWriteDepsLike`'s own doc above for why that
+ * distinction matters even though an indexed-access type alone was not itself a dependency-cruiser
+ * edge.
+ */
+export interface StaticPublishToolDeps {
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+  readonly clock: { nowIso(): string };
+  readonly idGen: { newId(): string };
+  readonly publishCredentialSetRepo: PublishCredentialSetRepoPort;
+  readonly siteAssistantSecretSealer: SecretSealerPort;
+  readonly siteAssistantSecretKeyring: KeyringPort;
+  readonly publishExecutionMode: PublishExecutionMode;
+  readonly publishHistoryStore: PublishHistoryStore;
+  readonly publishCredentialVerificationCache: PublishCredentialVerificationCache;
+  readonly vendorCredentialSetRepo: VendorCredentialSetRepoPort;
+  /** `RouteDeps.publishOutputRootDir`, threaded down for the same reason `exportSiteBound` above is —
+   *  `publishStaticSite`'s `StaticPublishInput.publishOutputRootDir` needs it directly. */
+  readonly publishOutputRootDir: string;
+  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc above for what it is and why
+   *  it replaces the `routeDeps: RouteDeps` field this interface used to carry (via `extends RouteDeps`). */
+  readonly exportSiteBound: ExportSiteBoundFn;
   /** Test-only override — when supplied, replaces the composed `PublishCredentialSource` entirely
    *  (DB-backed + env-fallback composition, `publishCredentialSetRepo`/`siteAssistantSecretSealer`/
    *  `publishExecutionMode` are all ignored). Production never sets this. */
@@ -810,7 +867,7 @@ function buildHostingSetupContent(provider: HostingSetupProvider, bucket: string
  * for why static-publish stays a separate slice rather than folding into this directory's sibling
  * `deployments`/`agent-tools.ts` slice.
  *
- * @param deps - `RouteDeps` plus this file's own test-only overrides (`credentialSource`,
+ * @param deps - `StaticPublishToolDeps` plus this file's own test-only overrides (`credentialSource`,
  *   `buildTarget`). `credentialSource` defaults to the same DB-first, env-fallback-only-in-
  *   `"self-hosted-cli"`-mode composition `publish-site.ts`'s route constructs.
  * @param surfaces - The held-open confirmation exchange store `deployment_execute_static_publish`
@@ -1152,7 +1209,14 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
           const outcome = await runPublishAndAwait(
             { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
-            { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName },
+            {
+              workspaceId: deps.workspaceId,
+              publishOutputRootDir: deps.publishOutputRootDir,
+              idGen: deps.idGen,
+              exportSiteBound: deps.exportSiteBound,
+              config,
+              projectName,
+            },
             deps.clock,
             historyStore
           );

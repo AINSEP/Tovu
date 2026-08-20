@@ -29,9 +29,17 @@ const clock = { nowIso: () => "2026-08-16T12:00:00.000Z" };
 /** The hermetic fixture, with `publishOutputRootDir` redirected to this file's own throwaway temp
  *  dir — `publishStaticSite` reads this field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts
  *  no longer reads env vars at all), so overriding it here is what keeps this suite's real
- *  `exportSite` writes off the checked-out repo. */
+ *  `exportSite` writes off the checked-out repo.
+ *
+ *  MUTATES the object `createRouteDeps()` returns rather than spreading a copy — same
+ *  `RouteDeps.exportSiteBound` closure-identity gotcha `adapter.unit.test.ts`'s identical fixture
+ *  documents (2026-08-20 RouteDeps-narrowing fix); no test in THIS file currently overrides a field
+ *  the closure reads internally, but mutating keeps this fixture consistent with its siblings rather
+ *  than reintroducing the trap for a future test here. */
 function testRouteDeps(): ReturnType<typeof createRouteDeps> {
-  return { ...createRouteDeps(), publishOutputRootDir: publishOutputDir };
+  const deps = createRouteDeps();
+  deps.publishOutputRootDir = publishOutputDir;
+  return deps;
 }
 
 function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string): DeployTarget {
@@ -84,7 +92,9 @@ function fakeCredentialSource(): PublishCredentialSource {
 function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPublishInput {
   return {
     workspaceId: routeDeps.workspaceId,
-    routeDeps,
+    publishOutputRootDir: routeDeps.publishOutputRootDir,
+    idGen: routeDeps.idGen,
+    exportSiteBound: routeDeps.exportSiteBound,
     config: { target: "github-pages", owner: "octo", repo: "my-site" },
     projectName: "my-site-release",
   };
@@ -122,7 +132,7 @@ test("runPublishAndAwait: a non-github-pages target never carries commitSha/bran
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
   const history = new InMemoryPublishHistoryStore();
-  const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, routeDeps, config: { target: "vercel" }, projectName: "demo" };
+  const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" };
 
   await runPublishAndAwait(deps, input, clock, history);
 
@@ -139,7 +149,7 @@ test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is sti
   const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => partialDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
-  const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, routeDeps, config: { target: "s3-compatible" }, projectName: "demo" };
+  const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, publishOutputRootDir: routeDeps.publishOutputRootDir, idGen: routeDeps.idGen, exportSiteBound: routeDeps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" };
 
   const outcome = await runPublishAndAwait(deps, input, clock, history);
   assert.equal(outcome.ok, "partial");
