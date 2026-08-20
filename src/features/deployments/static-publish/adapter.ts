@@ -232,8 +232,11 @@ export function buildS3CompatibleTargetConfig(credential: ResolvedPublishCredent
 /** The real, default `buildTarget` — constructs the actual Jini `DeployTarget` that will hit the
  *  provider's real API. `StaticPublishDeps.buildTarget` exists specifically so a test can substitute
  *  a fake `DeployTarget` here instead (per the brief: "adapter tests with a faked deploy target — do
- *  not hit real GitHub or Vercel in tests"), without needing to stub global `fetch`. */
-function buildJiniTarget(config: StaticPublishConfig, credential: ResolvedPublishCredential): DeployTarget {
+ *  not hit real GitHub or Vercel in tests"), without needing to stub global `fetch`. Exported (not
+ *  merely internal) so this dispatch is directly testable without going through `publishStaticSite`'s
+ *  full export/publish pipeline — same "extract a pure, directly-tested helper" precedent as
+ *  {@link computeBasePath}/{@link buildS3CompatibleTargetConfig}. */
+export function buildJiniTarget(config: StaticPublishConfig, credential: ResolvedPublishCredential): DeployTarget {
   const token = credential.token;
   if (config.target === "github-pages") {
     const githubConfig = config as GitHubPagesPublishConfig;
