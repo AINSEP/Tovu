@@ -79,6 +79,11 @@ import {
 } from "@jini-ai/http-kit";
 import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/http-kit";
 
+/** The `run`/`lifecycle` shape `RunStartHandler` receives — derived rather than imported directly
+ *  from `@jini-ai/daemon`/`@jini-ai/protocol` so this file adds no new package-import edge just to
+ *  name a type its one existing `RunStartHandler` import already carries structurally. */
+type OnStartedContext = Parameters<RunStartHandler>[0];
+
 import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
@@ -498,6 +503,56 @@ let attachmentStore: AttachmentStore | undefined;
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
 
+/**
+ * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
+ * fields the claimed batch contributes (`imagePaths`/`extraAllowedDirs`/`uploadRoot`). Returns
+ * `null` when the run should be aborted instead — this function has already called
+ * `runLifecycle.finish({status: "failed", ...})` and logged why in that case, mirroring the
+ * severity {@link onStarted}'s malformed-`contextRef` branch already gives a failure this early.
+ * A no-op ({} fields) when `attachmentIds` is empty — the common case, no store round trip needed.
+ */
+async function resolveAttachmentRunFields(
+  run: OnStartedContext["run"],
+  attachmentIds: readonly string[],
+  runLifecycle: OnStartedContext["lifecycle"],
+): Promise<{ imagePaths?: readonly string[]; extraAllowedDirs?: readonly string[]; uploadRoot?: string } | null> {
+  if (attachmentIds.length === 0) return {};
+
+  if (!attachmentStore) {
+    // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run, not the
+    // process, if it somehow is.
+    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
+    return null;
+  }
+
+  try {
+    // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
+    // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
+    // recorded at upload time, never from a caller-supplied value. The placeholder `name`/`kind`
+    // below satisfy `StoredAttachment`'s shape without asserting anything the store would actually
+    // trust.
+    const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
+    const claimed = await attachmentStore.claim(refs, run.id);
+    if (claimed.batchDirectory === undefined) return {};
+    return {
+      imagePaths: claimed.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => attachment.path),
+      extraAllowedDirs: [claimed.batchDirectory],
+      uploadRoot: claimed.batchDirectory,
+    };
+  } catch (error) {
+    // Fails the run outright rather than silently continuing without the image: the same severity
+    // this handler already gives a malformed `contextRef` above. A user who attached a screenshot
+    // and gets a run that never saw it (already-claimed, expired past `retentionMs`, or an
+    // integrity check failure) would otherwise get a confusing answer about content the agent never
+    // looked at, with nothing explaining why.
+    const message = error instanceof Error ? error.message : String(error);
+    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+    console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
+    return null;
+  }
+}
+
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
   let prompt: string;
   let principal: Principal;
@@ -566,42 +621,8 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // look at `imagePaths` (per-def prompt augmentation / delivery mode), and augmenting it here
       // too would deliver the same image twice for whichever defs it lands on. This handler's job
       // ends at handing `run()` correct paths.
-      let attachmentRunFields: { imagePaths?: readonly string[]; extraAllowedDirs?: readonly string[]; uploadRoot?: string } = {};
-      if (attachmentIds.length > 0) {
-        if (!attachmentStore) {
-          // Structurally unreachable (see `attachmentStore`'s own doc) but fails only this run,
-          // not the process, if it somehow is.
-          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
-          console.error(`[agent-daemon] run ${run.id}: attachment claim requested before the attachment store was ready`);
-          return;
-        }
-        try {
-          // Only `.path` (the opaque capability id) is ever read by `claim()` — it looks up its own
-          // internal registry by that id and re-derives `name`/`kind`/`size` from what `register()`
-          // recorded at upload time, never from a caller-supplied value. The placeholder
-          // `name`/`kind` below satisfy `StoredAttachment`'s shape without asserting anything the
-          // store would actually trust.
-          const refs: StoredAttachment[] = attachmentIds.map((id) => ({ path: id, name: "", kind: "file" }));
-          const claimed = await attachmentStore.claim(refs, run.id);
-          if (claimed.batchDirectory !== undefined) {
-            attachmentRunFields = {
-              imagePaths: claimed.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => attachment.path),
-              extraAllowedDirs: [claimed.batchDirectory],
-              uploadRoot: claimed.batchDirectory,
-            };
-          }
-        } catch (error) {
-          // Fails the run outright rather than silently continuing without the image: the same
-          // severity this handler already gives a malformed `contextRef` above. A user who attached
-          // a screenshot and gets a run that never saw it (already-claimed, expired past
-          // `retentionMs`, or an integrity check failure) would otherwise get a confusing answer
-          // about content the agent never looked at, with nothing explaining why.
-          const message = error instanceof Error ? error.message : String(error);
-          void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
-          console.error(`[agent-daemon] run ${run.id}: attachment claim failed`, message);
-          return;
-        }
-      }
+      const attachmentRunFields = await resolveAttachmentRunFields(run, attachmentIds, runLifecycle);
+      if (!attachmentRunFields) return;
 
       await agentExecutor.run({
         runId: run.id,
