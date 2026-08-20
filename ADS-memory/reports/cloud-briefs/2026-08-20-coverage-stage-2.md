@@ -29,33 +29,117 @@ this file as your persona.** Confirm in your first output that you read it.
 > modular/composable/testable units first.
 
 **You are the coordinator, not the typist.** You are running on Opus because the judgment calls here
-are hard; the mechanical work is not. **Spawn Sonnet 5 subagents to do the per-domain work** and keep
-yourself for scoping, adjudicating the dead-branch decisions, reviewing what comes back, and writing
-the final report.
+are hard; the mechanical work is not. **Spawn Sonnet 5 subagents to do the work** and keep yourself
+for scoping, adjudicating the dead-branch decisions, reviewing what comes back, and writing the final
+report.
 
-Give each subagent **one domain**, and give it the whole of §4–§8 of this file in its spawn prompt.
-Do not send a correction after dispatch and assume it lands — in this harness a mid-flight message
-arrives at a turn boundary and cannot be relied on to redirect an agent. **Everything a subagent
-needs goes in its spawn prompt.** This cost the local Coordinator a wasted agent-run today.
+### The four personas available to you
+
+`AI-Dev-Shop/` is absent from your clone, so these are distilled here from the real persona files.
+Assign each subagent ONE role explicitly and name it in the spawn prompt.
+
+**TDD — your primary worker role for this task.** Verbatim from the persona:
+
+> Encode the spec into executable tests before implementation. This is a **specification** role, not
+> a verification role — tests define what the system must do, not whether it currently does it.
+
+That distinction is the whole job here. When a test and the code disagree, the test states the
+intended behavior and the disagreement is a **bug report**, not a reason to weaken the test. Most of
+this task is TDD work.
+
+**Programmer — for fixing what TDD finds.** Verbatim:
+
+> Implement production code that satisfies certified tests and architecture constraints. Write the
+> minimum viable change. Do not change behavior outside the assigned scope.
+
+**Refactor — for complexity, and note its default.** Verbatim:
+
+> Propose non-behavioral improvements that reduce complexity and tech debt. Every proposed refactor
+> must leave all tests green before and after. **If tests break, it was a behavior change — that goes
+> back to Programmer.**
+
+Refactor is **propose-only by default.** You may grant it execute authority for a specific file, but
+say so explicitly in its spawn prompt, exactly as the local Coordinator has been doing today.
+
+**Software Architect — escalation only, do not dispatch by default.** Verbatim:
+
+> Select and enforce architecture patterns that satisfy spec constraints, enable safe parallel
+> delivery, and give all downstream agents clear boundaries to work within.
+
+Dispatch it only if the work surfaces a genuine boundary or contract question — a module reaching
+across a layer it should not, or a fix that would require changing a public contract. Do not use it
+to bless routine test-writing.
+
+Give each subagent the whole of §4–§8 of this file in its spawn prompt. **Do not send a correction
+after dispatch and assume it lands** — in this harness a mid-flight message arrives at a turn
+boundary and cannot be relied on to redirect an agent. **Everything a subagent needs goes in its
+spawn prompt.** This cost the local Coordinator a wasted agent-run today.
 
 ---
 
-## 2. Setup
+## 2. Setup — Jini FIRST, then Tovu
 
-Repo is `leonaburime-ucla/Tovu-AI-CMS` (the name is NOT "Tovu"). Work on **`general-work`**, not
-`main`.
+**This is the step most likely to fail. Do it exactly, in this order, and stop-and-report on any
+failure rather than improvising.**
+
+Tovu depends on Jini through **13 `file:` dependencies** pointing at `../Jini/packages/*`:
+
+```
+@jini-ai/agent-runtime  agentic  chat  cms  core  daemon  devops
+http-kit  infra  integrations  mcp  sqlite  ui
+```
+
+Those are compiled TypeScript packages. **Jini is NOT built in a fresh clone**, so Tovu cannot
+typecheck or run its tests until you build Jini. This is the single most common cloud-dispatch
+failure on this project.
+
+### 2a. Directory layout — verify before anything else
+
+Tovu resolves `../Jini`, so the two checkouts must be **siblings**, and the Jini directory must be
+named exactly `Jini`:
+
+```
+<workdir>/Jini             <- must be this exact name
+<workdir>/Tovu-AI-CMS
+```
+
+Check it. If the Jini checkout landed under a different name or a different parent, create a symlink
+so `../Jini` resolves from inside the Tovu checkout, and say in your report that you did.
+
+### 2b. Jini — checkout, install, BUILD
+
+Jini uses **pnpm**, not npm (`packageManager: pnpm@10.33.2`), and is a pnpm workspace
+(`pnpm-workspace.yaml`: `packages/*`, `examples/*`). There is no root `build` script — each package
+has its own `build: tsc -p tsconfig.json` — so build recursively.
 
 ```bash
-git checkout general-work && git pull origin general-work
+cd Jini
+git checkout general-work && git pull origin general-work   # NOT main
+corepack enable
+pnpm install
+pnpm -r build          # builds every package dist/ — required before Tovu works
+```
+
+Jini's work lives on **`general-work`**, the same branch name as Tovu. At dispatch its HEAD was
+`a6113362` and it was in sync with origin. Confirm `pnpm -r build` actually produced `dist/`
+directories — spot-check `packages/core/dist` and `packages/cms/dist` for `.js` and `.d.ts` files.
+**A stale or missing `dist/` is a known trap in this project**: it produces confusing type errors in
+Tovu that look like Tovu bugs and are not.
+
+### 2c. Tovu
+
+```bash
+cd ../Tovu-AI-CMS
+git checkout general-work && git pull origin general-work   # NOT main
 npm install
+npx tsc --noEmit -p tsconfig.json     # smoke test: proves the Jini link resolves
 ```
 
 A HEAD different from what you expect is normal — several agents commit to this branch continuously.
-The sibling `Jini` repo is checked out because Tovu links it via `file:` deps; you should not need to
-modify it. **If `npm install` fails, report exactly what failed and stop** — do not improvise a
-different package manager.
 
----
+**If any step above fails, report the exact command and the exact error and STOP.** Do not switch
+package managers, do not delete lockfiles, do not `--force`. A broken install invalidates every
+number you would otherwise produce.
 
 ## 3. Scope — five ungated domains, one subagent each
 
