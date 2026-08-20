@@ -183,6 +183,53 @@ correct before an architectural migration and was never re-checked afterward.
 
 ---
 
+## 8 — `apps/admin/src/features/posts/PostEditor.tsx:65-74` (pre-refactor line numbers) — "there is nothing to extract"
+
+**Claim (EXEMPTION comment above `Toolbar`'s `useEditorState` selector, dated 2026-08-06/2026-08-11):**
+"ESLint scores this selector's cyclomatic complexity well past a 9 ceiling, but its cognitive
+complexity is 0 ... this is a flat object literal of `editor?.isActive(...) ?? false` fallbacks with
+no control flow between them ... **There is nothing to extract** — splitting the fields across
+multiple selectors would still evaluate the same fallbacks, just spread across more functions, and
+would break `useEditorState`'s single-selector re-render-batching contract for no complexity
+benefit."
+
+**Why it is half true and half false:**
+
+1. **True:** splitting into multiple `useEditorState` calls would break batching for no benefit —
+   correctly identified and correctly rejected as an approach.
+2. **False:** "there is nothing to extract." The selector repeated `editor?.<probe>() ?? <default>`
+   for ~30 fields — every one of those repetitions re-checks the SAME `editor === null` condition
+   (before TipTap mounts). ESLint's cyclomatic rule counts each `?.`/`??` as its own decision point,
+   so ~58 of the reported 62 branch points were that one condition counted 29-30 times over, not 29-30
+   independent decisions. The comment noticed the operator-counting artifact but concluded there was
+   no fix, when hoisting the shared condition to ONE early return — while keeping exactly one
+   `useEditorState` call and one returned object, so batching is untouched — collapses nearly all of
+   it. The second selector on `BubbleFormattingMenu` (line 470, cyclomatic 11) carried the identical
+   pattern at 5 fields.
+
+**Diagnostic:** counted probe-vs-null-check ratio directly against the pre-refactor source: 17 plain
+`isActive(name)` fields + 3 `isActive(name, attrs)` + 4 `isActive(attrs)` + 2 `can().<cmd>()` fields
+each had a `?.`/`??` pair that was *entirely* attributable to the null check (0 real branching once
+`editor` is guaranteed non-null); the remaining 6 `getAttributes(...).field ?? default` fields and 1
+`storage.characterCount?.characters() ?? 0` field each keep one REAL per-field fallback (an unset mark
+attribute or an unregistered extension) even after the null check is hoisted out.
+
+**Fix:** replaced both selectors with a `TOOLBAR_PROBES`/`BUBBLE_MENU_PROBES` lookup table (each entry
+a `(editor: Editor) => value` probe assuming a non-null editor), a `TOOLBAR_DEFAULTS`/
+`BUBBLE_MENU_DEFAULTS` object, and a `probeToolbar`/`probeBubbleMenu` function holding the ONE
+`if (!editor) return DEFAULTS` check plus a loop over the table. Selectors are now one-line
+passthroughs (`selector: ({ editor }) => probeToolbar(editor)`), cyclomatic complexity 1. Every
+per-field probe and both `probe*` functions individually measure 1-3, all far under the 9 ceiling.
+Types preserved exactly via `{ [K in keyof typeof TOOLBAR_PROBES]: ReturnType<(typeof
+TOOLBAR_PROBES)[K]> }` — `tsc --noEmit` is clean, every `s.<field>` call site typechecks unchanged.
+`development/scripts/admin-complexity-debt.json`'s `PostEditor.tsx` entry (which had memorialized this
+same "deliberate, permanent exemption" claim) is deleted; `check:admin-complexity-drift` confirms the
+file no longer needs grandfathering.
+
+**Found and fixed by:** refactor-posteditor dispatch, 2026-08-20.
+
+---
+
 ## Related, not a code comment
 
 `ADS-memory/reports/.../theme-authoring-guide.md` §6's "3-attribute markers" claim is recorded
