@@ -157,38 +157,48 @@ function parseJsonArray(raw: string | null): string[] {
  * @complexity O(n) in the number of lines.
  * @overallScore 100
  */
+/** One line of {@link parseEnvBlock}'s input, parsed and name-validated but not yet checked against
+ *  the running `env` map (dedup/cap are the loop's own job, since they need cross-line state). Split
+ *  out purely to keep `parseEnvBlock`'s cognitive complexity under the shop ceiling — `null` means
+ *  "skip this line" (blank or `#` comment), matching the original inline `continue`. */
+function parseEnvLine(rawLine: string, index: number): { readonly name: string; readonly value: string } | null {
+  const line = rawLine.trim();
+  if (line === "" || line.startsWith("#")) return null;
+
+  const separator = line.indexOf("=");
+  if (separator <= 0) {
+    throw new ExternalMcpValidationError(
+      `line ${index + 1} of the environment block is not \`NAME=VALUE\`: ${JSON.stringify(rawLine.slice(0, 40))}`,
+      "env",
+    );
+  }
+
+  const name = line.slice(0, separator).trim();
+  if (!ENV_NAME_PATTERN.test(name)) {
+    throw new ExternalMcpValidationError(
+      `'${name}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
+      "env",
+    );
+  }
+  return { name, value: line.slice(separator + 1).trim() };
+}
+
 export function parseEnvBlock(text: string): Record<string, string> {
   const env: Record<string, string> = {};
   const lines = text.split(/\r?\n/);
 
   for (const [index, rawLine] of lines.entries()) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) continue;
-
-    const separator = line.indexOf("=");
-    if (separator <= 0) {
-      throw new ExternalMcpValidationError(
-        `line ${index + 1} of the environment block is not \`NAME=VALUE\`: ${JSON.stringify(rawLine.slice(0, 40))}`,
-        "env",
-      );
-    }
-
-    const name = line.slice(0, separator).trim();
-    if (!ENV_NAME_PATTERN.test(name)) {
-      throw new ExternalMcpValidationError(
-        `'${name}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
-        "env",
-      );
-    }
+    const parsed = parseEnvLine(rawLine, index);
+    if (!parsed) continue;
     // Rejected rather than last-write-wins: two lines setting the same variable means the operator
     // believes both are in effect, and picking one silently is the failure mode this guards.
-    if (Object.hasOwn(env, name)) {
-      throw new ExternalMcpValidationError(`environment variable '${name}' is set more than once`, "env");
+    if (Object.hasOwn(env, parsed.name)) {
+      throw new ExternalMcpValidationError(`environment variable '${parsed.name}' is set more than once`, "env");
     }
     if (Object.keys(env).length >= MAX_ENV_VARS) {
       throw new ExternalMcpValidationError(`at most ${MAX_ENV_VARS} environment variables are supported`, "env");
     }
-    env[name] = line.slice(separator + 1).trim();
+    env[parsed.name] = parsed.value;
   }
 
   return env;
@@ -286,6 +296,56 @@ export async function listExternalMcpServerViews(
  * @complexity O(n) in the enabled server count, one unseal each.
  * @overallScore 100
  */
+/** Opens `record`'s sealed env block, or returns `{}` when there is none to open. Split out of
+ *  {@link resolveExternalMcpConfig} purely to keep that function's complexity under the shop
+ *  ceiling — a decrypt failure is reported through the same ok/reason shape the caller already
+ *  threads through, not thrown, since one unreadable server must not abort the whole read. */
+async function openExternalMcpEnv(
+  record: Pick<ExternalMcpServerRecord, "sealedEnv">,
+  sealer: Pick<SecretSealerPort, "open">,
+): Promise<{ readonly ok: true; readonly env: Record<string, string> } | { readonly ok: false; readonly reason: string }> {
+  if (record.sealedEnv === null) return { ok: true, env: {} };
+  try {
+    const opened = await sealer.open({ sealed: record.sealedEnv });
+    const parsed: unknown = JSON.parse(opened);
+    const env = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
+    return { ok: true, env };
+  } catch (err) {
+    return { ok: false, reason: `stored credentials could not be decrypted: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+/** Resolves one ENABLED record into either a usable config or a failure entry, for
+ *  {@link readEnabledExternalMcpConfigs}'s loop. Split out purely to keep that function's
+ *  complexity under the shop ceiling — behavior (including which failures are reported) is
+ *  unchanged. */
+async function resolveExternalMcpConfig(
+  record: ExternalMcpServerRecord,
+  sealer: Pick<SecretSealerPort, "open">,
+): Promise<
+  | { readonly ok: true; readonly config: ExternalMcpServerConfig }
+  | { readonly ok: false; readonly failure: { serverId: string; reason: string } }
+> {
+  if (record.transport !== "stdio" || !record.command) {
+    return { ok: false, failure: { serverId: record.serverId, reason: `unsupported transport '${record.transport}' or missing command` } };
+  }
+  const opened = await openExternalMcpEnv(record, sealer);
+  if (!opened.ok) return { ok: false, failure: { serverId: record.serverId, reason: opened.reason } };
+  return {
+    ok: true,
+    config: {
+      serverId: record.serverId,
+      label: record.label ?? record.serverId,
+      transport: "stdio",
+      enabled: true,
+      command: record.command,
+      args: parseJsonArray(record.args),
+      allowedToolNames: parseJsonArray(record.allowedToolNames),
+      env: opened.env,
+    },
+  };
+}
+
 export async function readEnabledExternalMcpConfigs(
   deps: Pick<ExternalMcpStoreDeps, "repo" | "sealer">,
   workspaceId: UUID,
@@ -296,34 +356,9 @@ export async function readEnabledExternalMcpConfigs(
 
   for (const record of records) {
     if (!record.enabled) continue;
-    if (record.transport !== "stdio" || !record.command) {
-      failures.push({ serverId: record.serverId, reason: `unsupported transport '${record.transport}' or missing command` });
-      continue;
-    }
-    let env: Record<string, string> = {};
-    if (record.sealedEnv !== null) {
-      try {
-        const opened = await deps.sealer.open({ sealed: record.sealedEnv });
-        const parsed: unknown = JSON.parse(opened);
-        env = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, string>) : {};
-      } catch (err) {
-        failures.push({
-          serverId: record.serverId,
-          reason: `stored credentials could not be decrypted: ${err instanceof Error ? err.message : String(err)}`,
-        });
-        continue;
-      }
-    }
-    configs.push({
-      serverId: record.serverId,
-      label: record.label ?? record.serverId,
-      transport: "stdio",
-      enabled: true,
-      command: record.command,
-      args: parseJsonArray(record.args),
-      allowedToolNames: parseJsonArray(record.allowedToolNames),
-      env,
-    });
+    const resolved = await resolveExternalMcpConfig(record, deps.sealer);
+    if (resolved.ok) configs.push(resolved.config);
+    else failures.push(resolved.failure);
   }
 
   return { configs, failures };
@@ -392,66 +427,98 @@ export interface SaveExternalMcpServerInput {
  * @complexity O(n) in the size of the env block.
  * @overallScore 100
  */
+/** Validates `serverId` via the trust tier's own assertion, remapped onto this store's own error
+ *  type. Split out purely to keep {@link saveExternalMcpServer}'s complexity under the shop
+ *  ceiling — reuses `trust.ts`'s rule rather than restating it, since this id becomes part of every
+ *  federated tool id and two copies of that rule could drift. */
+function assertValidExternalMcpServerId(serverId: string): void {
+  try {
+    assertValidConnectionId(serverId);
+  } catch (err) {
+    throw new ExternalMcpValidationError(err instanceof Error ? err.message : String(err), "id");
+  }
+}
+
+function assertSupportedExternalMcpTransport(transport: string): void {
+  if (!SUPPORTED_EXTERNAL_MCP_TRANSPORTS.includes(transport as ExternalMcpTransport)) {
+    throw new ExternalMcpValidationError(
+      `transport '${transport}' is not supported — only ${SUPPORTED_EXTERNAL_MCP_TRANSPORTS.join(", ")} is implemented`,
+      "transport",
+    );
+  }
+}
+
+/** Trims and validates `rawCommand`, returning the trimmed value. Split out purely to keep
+ *  {@link saveExternalMcpServer}'s complexity under the shop ceiling. */
+function assertNonEmptyExternalMcpCommand(rawCommand: string): string {
+  const command = rawCommand.trim();
+  if (command === "") {
+    throw new ExternalMcpValidationError("a stdio server needs a command to launch", "command");
+  }
+  return command;
+}
+
+/** Enforces {@link MAX_SERVERS_PER_WORKSPACE} for a NEW server only — an existing row is always an
+ *  update, never a new slot, so it is exempt. Split out purely to keep
+ *  {@link saveExternalMcpServer}'s complexity under the shop ceiling. */
+async function assertUnderExternalMcpServerCap(
+  deps: Pick<ExternalMcpStoreDeps, "repo">,
+  workspaceId: UUID,
+  existing: ExternalMcpServerRecord | null,
+): Promise<void> {
+  if (existing) return;
+  const count = (await deps.repo.listByWorkspaceId(workspaceId)).length;
+  if (count >= MAX_SERVERS_PER_WORKSPACE) {
+    throw new ExternalMcpValidationError(
+      `this workspace already has the maximum of ${MAX_SERVERS_PER_WORKSPACE} external MCP servers`,
+      "id",
+    );
+  }
+}
+
+/** Resolves the sealed env block and its plaintext variable-name index for one save. `rawEnv ===
+ *  undefined` preserves whatever `existing` already has (see {@link saveExternalMcpServer}'s doc for
+ *  why); an empty parsed block clears the seal to `null` rather than sealing `{}`. Split out purely
+ *  to keep {@link saveExternalMcpServer}'s complexity under the shop ceiling.
+ *  @throws {ExternalMcpValidationError} On a malformed env block (via {@link parseEnvBlock}).
+ *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under. */
+async function resolveExternalMcpSealedEnv(
+  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
+  rawEnv: string | undefined,
+  existing: ExternalMcpServerRecord | null,
+): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[] }> {
+  if (rawEnv === undefined) {
+    return { sealedEnv: existing?.sealedEnv ?? null, envNames: parseJsonArray(existing?.envNames ?? null) };
+  }
+
+  const env = parseEnvBlock(rawEnv);
+  const envNames = Object.keys(env);
+  if (envNames.length === 0) return { sealedEnv: null, envNames };
+
+  try {
+    const sealedEnv = await deps.sealer.seal({ plaintext: JSON.stringify(env), key: await deps.keyring.activeKey() });
+    return { sealedEnv, envNames };
+  } catch (err) {
+    throw new ExternalMcpSecretStoreUnconfiguredError(
+      `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 export async function saveExternalMcpServer(
   deps: ExternalMcpStoreDeps,
   input: SaveExternalMcpServerInput,
 ): Promise<ExternalMcpServerView> {
   const serverId = input.serverId.trim().toLowerCase();
-  try {
-    // Reuses the trust tier's own assertion rather than restating the pattern: this id becomes part
-    // of every federated tool id, and two copies of that rule could drift.
-    assertValidConnectionId(serverId);
-  } catch (err) {
-    throw new ExternalMcpValidationError(err instanceof Error ? err.message : String(err), "id");
-  }
-
-  if (!SUPPORTED_EXTERNAL_MCP_TRANSPORTS.includes(input.transport as ExternalMcpTransport)) {
-    throw new ExternalMcpValidationError(
-      `transport '${input.transport}' is not supported — only ${SUPPORTED_EXTERNAL_MCP_TRANSPORTS.join(", ")} is implemented`,
-      "transport",
-    );
-  }
-
-  const command = input.command.trim();
-  if (command === "") {
-    throw new ExternalMcpValidationError("a stdio server needs a command to launch", "command");
-  }
-
+  assertValidExternalMcpServerId(serverId);
+  assertSupportedExternalMcpTransport(input.transport);
+  const command = assertNonEmptyExternalMcpCommand(input.command);
   const args = parseArgs(input.args);
   const allowedToolNames = parseAllowedToolNames(input.allowedToolNames);
 
   const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId });
-  if (!existing) {
-    const count = (await deps.repo.listByWorkspaceId(input.workspaceId)).length;
-    if (count >= MAX_SERVERS_PER_WORKSPACE) {
-      throw new ExternalMcpValidationError(
-        `this workspace already has the maximum of ${MAX_SERVERS_PER_WORKSPACE} external MCP servers`,
-        "id",
-      );
-    }
-  }
-
-  let sealedEnv: SealedSecret | null = existing?.sealedEnv ?? null;
-  let envNames: string[] = parseJsonArray(existing?.envNames ?? null);
-
-  if (input.env !== undefined) {
-    const env = parseEnvBlock(input.env);
-    envNames = Object.keys(env);
-    if (envNames.length === 0) {
-      sealedEnv = null;
-    } else {
-      try {
-        sealedEnv = await deps.sealer.seal({
-          plaintext: JSON.stringify(env),
-          key: await deps.keyring.activeKey(),
-        });
-      } catch (err) {
-        throw new ExternalMcpSecretStoreUnconfiguredError(
-          `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
-        );
-      }
-    }
-  }
+  await assertUnderExternalMcpServerCap(deps, input.workspaceId, existing);
+  const { sealedEnv, envNames } = await resolveExternalMcpSealedEnv(deps, input.env, existing);
 
   const now = deps.clock.nowIso();
   const record: ExternalMcpServerRecord = {
