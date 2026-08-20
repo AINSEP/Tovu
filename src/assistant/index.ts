@@ -138,7 +138,7 @@ export { runByokProviderTurn } from "./byok-provider-turn.js";
 export type { ByokChatMessage, ByokProviderTurnResult, ByokTurnEvent } from "./byok-provider-turn.js";
 
 export { createByokToolSurface } from "./byok-tool-surface.js";
-export type { ByokToolSurface } from "./byok-tool-surface.js";
+export type { ByokToolSurface, ByokToolSurfaceDeps } from "./byok-tool-surface.js";
 
 // ---------------------------------------------------------------------------------------------
 // D — Admin Daemon Proxy / Process Composition

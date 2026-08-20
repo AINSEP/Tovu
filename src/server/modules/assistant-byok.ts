@@ -58,6 +58,7 @@ import {
   type RequestSuppliedByokConfig,
   createByokToolSurface,
   type ByokToolSurface,
+  type ByokToolSurfaceDeps,
 } from "../../assistant/index.js";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -202,7 +203,33 @@ export function createAssistantByokModule(
   // `agent-daemon-server.ts`, and nowhere else. Idempotent, so a test supplying its own `toolSurface`
   // (built from an already-installed registry) pays nothing extra for this still running.
   installFirstPartyToolContributors();
-  const resolvedToolSurface = toolSurface ?? createByokToolSurface(routeDeps);
+  // `routeDeps`'s declared type here is `RouteDeps` (this function's own parameter above), which is
+  // honestly narrower than what `createByokToolSurface` needs (`ByokToolSurfaceDeps` — every
+  // `AssistantToolRegistryDeps` field, including all 10 of `NewsletterToolDeps`'s own). The real
+  // object this is always called with (`app.ts`'s `createApp(routeDeps: RouteDeps =
+  // createRouteDeps())`) already carries them — `createRouteDeps()`'s actual return type is
+  // `NewsletterRouteDeps`, a superset of `RouteDeps` — the same structural-narrowing gap
+  // `server/app.ts`'s own `newsletterAdminDeps = routeDeps as NewsletterRouteDeps` cast documents and
+  // accepts at the identical seam, a few hundred lines away in the same composition root.
+  //
+  // Unlike that precedent, a SINGLE cast is not available here: `NewsletterRouteDeps extends
+  // RouteDeps` is a declared nominal relationship, so TypeScript accepts `routeDeps as
+  // NewsletterRouteDeps` outright. `ByokToolSurfaceDeps` declares no such relationship to `RouteDeps`
+  // — verified empirically, not assumed: `routeDeps as ByokToolSurfaceDeps` alone fails with TS2352
+  // ("neither type sufficiently overlaps... convert the expression to 'unknown' first"), naming the
+  // exact same `NewsletterToolDeps` fields TS2345 named when this parameter's own type was
+  // `Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter">` outright (`npx tsc -p tsconfig.json
+  // --noEmit`, both checked directly before choosing this form). The `unknown` detour below is
+  // TypeScript's own required spelling for "these two types don't provably overlap, trust the
+  // runtime invariant" — the same one-step escape hatch `byok-tool-surface.ts` used to need
+  // internally before its own signature was made honest; it now lives at the one remaining seam
+  // where the type information is actually insufficient, not two stacked assumptions.
+  //
+  // Widening this function's own `routeDeps: RouteDeps` parameter to close the gap structurally
+  // (instead of casting) would ripple into `app.ts`'s `createApp` signature and every test that
+  // constructs a bare `RouteDeps` fixture for this module — a behavior-preserving but far wider
+  // change than this narrowing pass's scope.
+  const resolvedToolSurface = toolSurface ?? createByokToolSurface(routeDeps as unknown as ByokToolSurfaceDeps);
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
