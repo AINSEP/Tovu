@@ -62,8 +62,39 @@ function okResponse(): Response {
   return new Response("", { status: 200 });
 }
 
+/** The dedicated-prefix manifest key this target must maintain — a literal here (not imported) so a
+ *  test that changes the real constant's value is forced to also re-examine this file's own
+ *  assumptions about it, the same reasoning `CONFIG`/`FILES` above are plain literals rather than
+ *  imports from the production module. Declared here (not only near the CRITICAL FIX section below) so
+ *  the plain default responder immediately below can reference it. */
+const MANAGED_MANIFEST_KEY = ".tovu/managed-keys.json";
+
+/** Default fake response for tests below that don't care about the managed-keys manifest at all — a GET
+ *  for it must be answered with a REAL, verified 404 ("no manifest yet"), never a generic empty 200 body.
+ *  A 200-with-empty-body used to be silently tolerated as "nothing was ever managed" (the exact
+ *  read-failure defect this target's SECOND-ROUND CRITICAL FIX note, finding 2, closes) — this target now
+ *  correctly refuses to guess at an unreadable manifest, so a fixture that doesn't otherwise care about
+ *  manifest behavior must give it a REAL "not found" to stay a realistic simulation. Every other call
+ *  gets the same generic `okResponse()` these tests already relied on. */
+function respondIgnoringManifest(call: Call): Response {
+  if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+  return okResponse();
+}
+
+/** Extracts `{url, method}` from whatever `globalThis.fetch` was actually called with — mirrors
+ *  `installFakeFetch`'s own `Call` builder (see that function's doc): `aws4fetch`'s `AwsClient.fetch`
+ *  always calls the global `fetch` with ONE signed `Request` object, but `checkDeploymentUrl`'s own
+ *  plain unauthenticated reachability probe calls it with a bare string URL and a separate `init` —
+ *  NOT a `Request`. A hand-rolled mock below that blindly casts `input as Request` throws on that second
+ *  shape (`new URL(undefined)` inside `Request.url` access), which `checkDeploymentUrl` then reports as
+ *  "not reachable" rather than the real cause — a mock bug, not a genuine unreachable-link finding. */
+function requestUrlAndMethod(input: RequestInfo | URL): { url: string; method: string } {
+  if (input instanceof Request) return { url: input.url, method: input.method };
+  return { url: typeof input === "string" ? input : input.toString(), method: "GET" };
+}
+
 test("publish: signs and PUTs every file to a path-style object URL, then reports 'ready' when the public URL is reachable", async () => {
-  const fake = installFakeFetch(() => okResponse());
+  const fake = installFakeFetch(respondIgnoringManifest);
   try {
     const target = new S3CompatibleDeployTarget(CONFIG);
     const result = await target.publish({ files: FILES, projectName: "demo" });
@@ -98,7 +129,7 @@ test("publish: signs and PUTs every file to a path-style object URL, then report
 });
 
 test("publish: falls back to application/octet-stream when DeployFile.contentType is absent", async () => {
-  const fake = installFakeFetch(() => okResponse());
+  const fake = installFakeFetch(respondIgnoringManifest);
   try {
     const target = new S3CompatibleDeployTarget(CONFIG);
     await target.publish({ files: [{ file: "robots.txt", data: "User-agent: *" }], projectName: "demo" });
@@ -110,7 +141,7 @@ test("publish: falls back to application/octet-stream when DeployFile.contentTyp
 });
 
 test("publish: an explicit endpoint is used verbatim (trailing slash stripped); a blank/omitted endpoint derives the plain-AWS-S3 host from region", async () => {
-  const fake = installFakeFetch(() => okResponse());
+  const fake = installFakeFetch(respondIgnoringManifest);
   try {
     const target = new S3CompatibleDeployTarget({ ...CONFIG, region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com/" });
     await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
@@ -170,38 +201,36 @@ test("checkReachability: a plain unauthenticated probe against the given URL —
 // CRITICAL FIX (2026-08-19, Codex 5.6-sol audit): stale-object cleanup via a managed-keys manifest
 // ---------------------------------------------------------------------------
 
-/** The dedicated-prefix manifest key this target must maintain — a literal here (not imported) so a
- *  test that changes the real constant's value is forced to also re-examine this file's own
- *  assumptions about it, the same reasoning `CONFIG`/`FILES` above are plain literals rather than
- *  imports from the production module. */
-const MANAGED_MANIFEST_KEY = ".tovu/managed-keys.json";
-
 test("CRITICAL: publish deletes a previously-published key that is no longer part of the export, while an unrelated bucket object is left alone", async () => {
   // Simulates a small slice of real S3 semantics: a bucket that already holds an object this target
   // never wrote ('unrelated/human-uploaded.txt'), plus a manifest recording what Tovu published LAST
   // time — including 'secret-announcement/index.html', a page that has since been unpublished (removed
-  // from this export). Proves the actual mechanism: the stale key gets a real DELETE call, the
-  // unrelated key never does.
+  // from this export), WITH the etag Tovu itself recorded observing when it wrote that key. Proves the
+  // actual mechanism: the stale key's LIVE etag is verified (a HEAD call) to still match before the
+  // stale key gets a real DELETE call; the unrelated key never does.
+  const SECRET_ETAG = '"secret-announcement-etag"';
   const bucket = new Map<string, string>([
     ["unrelated/human-uploaded.txt", "not Tovu's — must never be touched"],
     ["secret-announcement/index.html", "<html>old secret page</html>"],
-    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 1, keys: ["secret-announcement/index.html"] })],
+    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 2, keys: [{ key: "secret-announcement/index.html", etag: SECRET_ETAG }] })],
   ]);
   const deletedKeys: string[] = [];
 
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
-    const req = input as Request;
-    const method = req.method;
-    const key = decodeURIComponent(new URL(req.url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
 
     if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
       const body = bucket.get(MANAGED_MANIFEST_KEY);
       return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
     }
+    if (method === "HEAD" && key === "secret-announcement/index.html") {
+      return new Response("", { status: 200, headers: { etag: SECRET_ETAG } });
+    }
     if (method === "PUT") {
       bucket.set(key, "uploaded");
-      return new Response("", { status: 200 });
+      return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
     }
     if (method === "DELETE") {
       deletedKeys.push(key);
@@ -217,7 +246,7 @@ test("CRITICAL: publish deletes a previously-published key that is no longer par
     // unpublished. Only 'index.html' is published this time.
     await target.publish({ files: [{ file: "index.html", data: "<html>home</html>" }], projectName: "demo" });
 
-    assert.deepEqual(deletedKeys, ["secret-announcement/index.html"], "the removed, previously-managed page must be explicitly deleted");
+    assert.deepEqual(deletedKeys, ["secret-announcement/index.html"], "the removed, previously-managed, etag-VERIFIED page must be explicitly deleted");
     assert.equal(bucket.has("unrelated/human-uploaded.txt"), true, "an object this target never wrote must never be deleted");
     assert.equal(bucket.get("unrelated/human-uploaded.txt"), "not Tovu's — must never be touched", "the unrelated object's content must be untouched, not merely its key");
   } finally {
@@ -226,10 +255,12 @@ test("CRITICAL: publish deletes a previously-published key that is no longer par
 });
 
 test("CRITICAL: the managed-keys manifest is updated to the new export set ONLY AFTER upload and delete both succeed — never before", async () => {
+  const STALE_ETAG = '"stale-etag"';
   const fake = installFakeFetch((call) => {
     if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
-      return new Response(JSON.stringify({ version: 1, keys: ["stale.html"] }), { status: 200 });
+      return new Response(JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] }), { status: 200 });
     }
+    if (call.method === "HEAD" && call.url.endsWith("/stale.html")) return new Response("", { status: 200, headers: { etag: STALE_ETAG } });
     return okResponse();
   });
   try {
@@ -241,7 +272,7 @@ test("CRITICAL: the managed-keys manifest is updated to the new export set ONLY 
     const staleDelete = fake.calls.find((c) => c.method === "DELETE" && c.url.endsWith("/stale.html"));
 
     assert.ok(indexPut, "the current export must be uploaded");
-    assert.ok(staleDelete, "the stale, no-longer-exported key must be deleted");
+    assert.ok(staleDelete, "the stale, no-longer-exported, etag-verified key must be deleted");
     assert.ok(manifestPut, "the manifest must be rewritten to the new export set");
 
     const manifestIndex = fake.calls.indexOf(manifestPut!);
@@ -255,10 +286,12 @@ test("CRITICAL: the managed-keys manifest is updated to the new export set ONLY 
 });
 
 test("CRITICAL: a delete failure for a stale key throws (never silently drops the key from tracking) and does not update the manifest", async () => {
+  const STALE_ETAG = '"stale-etag"';
   const fake = installFakeFetch((call) => {
     if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
-      return new Response(JSON.stringify({ version: 1, keys: ["stale.html"] }), { status: 200 });
+      return new Response(JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] }), { status: 200 });
     }
+    if (call.method === "HEAD" && call.url.endsWith("/stale.html")) return new Response("", { status: 200, headers: { etag: STALE_ETAG } });
     if (call.method === "DELETE" && call.url.endsWith("/stale.html")) return new Response("Forbidden", { status: 403 });
     return okResponse();
   });
@@ -294,12 +327,309 @@ test("CRITICAL: the FIRST publish ever (no prior manifest) deletes nothing — a
   }
 });
 
+// ---------------------------------------------------------------------------
+// SECOND-ROUND CRITICAL FIX (2026-08-19, three independent auditors — Claude Sonnet 5, Codex 5.6-sol,
+// Codex 5.6-terra): ownership-trust, a transient-read-failure data-loss hole, and no cross-publisher
+// concurrency guard at all — all three confirmed independently against the manifest layer above.
+// ---------------------------------------------------------------------------
+
+test("CRITICAL (ownership-trust defect): a LEGACY (pre-provenance) manifest entry with no recorded etag does NOT authorize deletion — the object survives, untouched", async () => {
+  const bucket = new Map<string, string>([
+    ["stale.html", "still here — this target cannot prove it still matches what it once wrote"],
+    // The exact shape this target wrote BEFORE today's fix — a bare key list, no per-key etag. A
+    // hand-edited manifest that merely lists a key (e.g. someone adding 'billing.csv' by hand) is
+    // indistinguishable from this at the wire level — neither can prove ownership.
+    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 1, keys: ["stale.html"] })],
+  ]);
+  const deletedKeys: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      const body = bucket.get(MANAGED_MANIFEST_KEY);
+      return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "PUT") {
+      bucket.set(key, "uploaded");
+      return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    }
+    if (method === "DELETE") {
+      deletedKeys.push(key);
+      bucket.delete(key);
+      return new Response(null, { status: 204 });
+    }
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.deepEqual(deletedKeys, [], "a legacy manifest entry with no recorded etag must never be auto-deleted");
+    assert.equal(bucket.has("stale.html"), true, "content with no verifiable provenance must survive the publish untouched");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded etag no longer matches the LIVE object (something else wrote to that key since) does NOT authorize deletion", async () => {
+  const TOVU_ETAG = '"tovu-original-etag"';
+  const LIVE_ETAG = '"someone-else-wrote-this-etag"';
+  const bucket = new Map<string, string>([
+    ["about.html", "content that changed after Tovu last published it"],
+    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 2, keys: [{ key: "about.html", etag: TOVU_ETAG }] })],
+  ]);
+  const deletedKeys: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      const body = bucket.get(MANAGED_MANIFEST_KEY);
+      return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "HEAD" && key === "about.html") {
+      // The live verification check — reports the CURRENT etag, which no longer matches what Tovu
+      // itself recorded writing.
+      return new Response("", { status: 200, headers: { etag: LIVE_ETAG } });
+    }
+    if (method === "PUT") {
+      bucket.set(key, "uploaded");
+      return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    }
+    if (method === "DELETE") {
+      deletedKeys.push(key);
+      bucket.delete(key);
+      return new Response(null, { status: 204 });
+    }
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.deepEqual(deletedKeys, [], "diverged content (an etag mismatch) must never be auto-deleted");
+    assert.equal(bucket.has("about.html"), true, "content that changed since Tovu wrote it must survive the publish");
+    assert.match(result.statusMessage ?? "", /about\.html/, "the diverged key must be reported to the caller, not silently dropped");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a candidate deletion whose LIVE-verification HEAD itself fails is skipped for THAT key only — never blocks the whole publish", async () => {
+  const ETAG = '"stable-etag"';
+  const bucket = new Map<string, string>([
+    ["flaky-check.html", "content"],
+    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 2, keys: [{ key: "flaky-check.html", etag: ETAG }] })],
+  ]);
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      const body = bucket.get(MANAGED_MANIFEST_KEY);
+      return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "HEAD" && key === "flaky-check.html") throw new TypeError("ECONNRESET");
+    if (method === "PUT") return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    if (method === "DELETE") throw new Error("must never be called for an unverifiable key");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+    assert.equal(bucket.has("flaky-check.html"), true, "an unverifiable candidate must survive, not be guessed-deleted");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("CRITICAL (read-failure defect): a manifest read that fails for a reason OTHER than a verified 404 FAILS THE WHOLE PUBLISH — never silently treated as 'no manifest'", async () => {
+  // 403, not 500/429: `aws4fetch`'s `AwsClient.fetch` has its OWN built-in retry-with-exponential-backoff
+  // for any 5xx/429 response (real `setTimeout` waits, up to 10 attempts by default — verified by reading
+  // `aws4fetch.cjs.js` directly) — pre-existing library behavior, unrelated to and untouched by this fix,
+  // still fully mocked (no real network), but genuinely slow in a test. This target's own code treats
+  // every non-2xx-non-404 identically (see `fetchManagedManifest`'s own doc), so a 403 exercises the
+  // EXACT SAME code path as a 500 would, without paying aws4fetch's real retry delay.
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Forbidden", { status: 403 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        return true;
+      }
+    );
+    // The manifest must NEVER be overwritten off the back of an unreadable read — that would
+    // permanently forget whatever the unreadable manifest used to track.
+    const manifestPut = fake.calls.find((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.equal(manifestPut, undefined, "an unreadable manifest must never be silently overwritten");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a manifest read that returns 200 with a body that is not valid JSON fails the whole publish — distinct from a verified 404", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("not json at all {{{", { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("CRITICAL (concurrency defect): the exact traced race — a manifest write rejected as a conflict (412) retries against the FRESH manifest, never silently overwriting a concurrent publisher's already-completed work", async () => {
+  // The audit's own traced scenario (sol/terra, 2026-08-19): initial manifest {x}; publisher A wants
+  // final set {x} (an unchanged republish); publisher B wants final set {} (x unpublished). Pre-fix,
+  // whichever publisher's manifest write landed SECOND would blindly overwrite the first with no check —
+  // "the manifest says x exists, but the object is gone" was one reachable outcome; the other was two
+  // publishers each stranding half the other's work. This test drives PUBLISHER A (the republisher)
+  // through a SCRIPTED conflict: A's own manifest read observes a state that is stale by the time A's
+  // own write lands, because publisher B has ALREADY raced ahead in between and fully committed {} —
+  // deterministic, not relying on incidental Promise.all interleaving to reproduce the race.
+  const X_ETAG = '"x-etag-original"';
+  const bucket = new Map<string, { body: string; etag: string }>([["x.html", { body: "content", etag: X_ETAG }]]);
+  let manifestGetCount = 0;
+  let manifestPutCount = 0;
+
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    if (!url.startsWith("https://s3.us-east-1.amazonaws.com/my-bucket/")) {
+      // Not a bucket-API call (e.g. `checkDeploymentUrl`'s own plain reachability probe against
+      // `config.publicUrl`, a DIFFERENT virtual-hosted-style host) — generic success.
+      return new Response("", { status: 200 });
+    }
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      manifestGetCount += 1;
+      if (manifestGetCount === 1) {
+        // Publisher A's OWN first read — a snapshot from BEFORE publisher B raced ahead and unpublished
+        // x.html. This is genuinely stale by the time A's own write below is attempted.
+        return new Response(JSON.stringify({ version: 2, keys: [{ key: "x.html", etag: X_ETAG }] }), { status: 200, headers: { etag: '"manifest-etag-stale"' } });
+      }
+      // Every read AFTER the first sees the REAL current bucket state — publisher B has ALREADY deleted
+      // x.html and committed an empty manifest by this point.
+      const obj = bucket.get(MANAGED_MANIFEST_KEY);
+      return obj !== undefined ? new Response(obj.body, { status: 200, headers: { etag: obj.etag } }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "HEAD" && key === "x.html") {
+      const obj = bucket.get("x.html");
+      return obj !== undefined ? new Response("", { status: 200, headers: { etag: obj.etag } }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "PUT" && key === MANAGED_MANIFEST_KEY) {
+      manifestPutCount += 1;
+      const req = input as Request;
+      const ifMatch = req.headers.get("if-match");
+      const current = bucket.get(MANAGED_MANIFEST_KEY);
+      // Real conditional-write semantics, uniformly applied on every attempt — no per-attempt scripting
+      // needed: publisher A's FIRST attempt conditions on its own now-stale read (rejected, since
+      // publisher B already won and rewrote the manifest to a different etag); its retry conditions on
+      // the FRESH etag it just re-read, which naturally matches.
+      if (current === undefined || current.etag !== ifMatch) return new Response("", { status: 412 });
+      const body = await req.text();
+      const newEtag = `"manifest-etag-write-${manifestPutCount}"`;
+      bucket.set(key, { body, etag: newEtag });
+      return new Response("", { status: 200, headers: { etag: newEtag } });
+    }
+    if (method === "PUT") {
+      // Publisher A re-uploading x.html unchanged — a fresh etag every time is realistic (most
+      // providers do not guarantee ETag stability for a re-PUT even of identical bytes).
+      bucket.set(key, { body: "content", etag: '"x-etag-reuploaded"' });
+      return new Response("", { status: 200, headers: { etag: '"x-etag-reuploaded"' } });
+    }
+    if (method === "DELETE") {
+      bucket.delete(key);
+      return new Response(null, { status: 204 });
+    }
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  // Publisher B's own race is not driven through a second `publish()` call — it is PRE-BAKED into the
+  // mock's post-first-write bucket state (empty manifest, x.html gone), exactly what B's own completed
+  // publish would have produced. This isolates the assertion to publisher A's own retry behavior:
+  // simulating B's full independent run through a second live `publish()` call would reintroduce the
+  // same uncontrolled interleaving this rewrite deliberately avoids.
+  bucket.set(MANAGED_MANIFEST_KEY, { body: JSON.stringify({ version: 2, keys: [] }), etag: '"manifest-etag-B-won"' });
+  bucket.delete("x.html");
+  // Restore x.html's pre-race existence for A's OWN read/upload path below (the delete above only
+  // primes what A's SECOND manifest read will observe; A's first read is independently scripted above).
+  bucket.set("x.html", { body: "content", etag: X_ETAG });
+
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    // Publisher A republishes x.html — unchanged, from its own point of view.
+    const result = await target.publish({ files: [{ file: "x.html", data: "content" }], projectName: "demo" });
+
+    assert.equal(result.status, "ready", `publisher A's publish must still succeed after retrying past the conflict, got: ${JSON.stringify(result)}`);
+    assert.equal(manifestGetCount, 2, "a conflict must trigger exactly one fresh re-read, not a blind retry against the same stale state");
+    assert.equal(manifestPutCount, 2, "the first (rejected) attempt plus one successful retry");
+
+    // The core correctness bar this fix exists for: the FINAL manifest must never claim a key that is
+    // actually gone from the bucket, and publisher A's own republished content must survive.
+    assert.equal(bucket.has("x.html"), true, "publisher A's own republished key must survive its own successful publish");
+    const finalManifest = JSON.parse(bucket.get(MANAGED_MANIFEST_KEY)!.body) as { keys: { key: string }[] };
+    for (const { key: trackedKey } of finalManifest.keys) {
+      assert.equal(bucket.has(trackedKey), true, `the manifest claims '${trackedKey}' exists but the object is gone — exactly the traced data-loss race`);
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("CRITICAL (concurrency defect): a provider that does NOT support conditional writes (501) degrades to an unconditional write rather than blocking publishing, and discloses the residual risk", async () => {
+  // 501 is genuinely required here (unlike the read-failure test above) — it IS the exact status this
+  // target's own `writeManagedManifestConditional` keys off to detect "unsupported". But 501 is also
+  // >= 500, which triggers `aws4fetch`'s OWN built-in retry-with-exponential-backoff (real `setTimeout`
+  // waits, up to 10 attempts by default — see the read-failure test's own comment). Stubbing
+  // `globalThis.setTimeout` to fire immediately makes those real (but entirely pre-existing,
+  // library-internal, still fully mocked) retries instant without changing what is actually retried or
+  // how many times — a test-timing fix only, never touching aws4fetch's or this target's own logic.
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((fn: (...args: unknown[]) => void, ..._rest: unknown[]) => {
+    fn();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY) && call.headers.get("if-none-match") === "*") {
+      return new Response("Not Implemented", { status: 501 });
+    }
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready", "publishing must still succeed end-to-end even without conditional-write support");
+    const manifestPuts = fake.calls.filter((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.ok(manifestPuts.length >= 2, "expected an initial conditional attempt plus a fallback unconditional write");
+    assert.equal(manifestPuts.at(-1)!.headers.get("if-none-match"), null, "the fallback write must be unconditional, not repeat the unsupported precondition");
+    assert.match(result.statusMessage ?? "", /conditional|concurrency|precondition/i, "the residual risk must be disclosed to the caller, not silently absorbed");
+  } finally {
+    fake.restore();
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
 test("publish: uploads at most 8 files concurrently (bounded worker pool), even for a large file set", async () => {
   let inFlight = 0;
   let maxInFlight = 0;
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
-    const method = input instanceof Request ? input.method : "GET";
+    const { url, method } = requestUrlAndMethod(input);
+    if (method === "GET" && url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 }); // verified: no manifest yet
     if (method === "PUT") {
       inFlight += 1;
       maxInFlight = Math.max(maxInFlight, inFlight);

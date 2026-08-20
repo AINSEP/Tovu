@@ -64,6 +64,73 @@ import { checkDeploymentUrl, DeployError, type DeployFile, type DeployLinkStatus
  * same "unknown means untouched" default `github-git-provider.ts`'s own manifest-based fix uses for the
  * identical class of finding in that adapter.
  *
+ * SECOND-ROUND CRITICAL FIX (2026-08-19, three independent auditors — Claude Sonnet 5, Codex 5.6-sol,
+ * Codex 5.6-terra, all three converging on overlapping findings with no communication between them): the
+ * manifest layer above closed the "content silently never cleaned up" gap, but had three of its own
+ * defects, all now fixed together (mirroring `github-git-provider.ts`'s own SECOND-ROUND CRITICAL FIX
+ * note for its sibling adapter — see that file's header for the identical reasoning applied to git):
+ *
+ *  1. OWNERSHIP WAS TRUSTED BLINDLY. Any key the manifest LISTED was deleted, with no check that the
+ *     key's LIVE object still matched what this target itself last wrote. A human (or another tool)
+ *     overwriting a Tovu-published object directly in the bucket, then a later export simply no longer
+ *     producing that key, meant the overwrite got silently deleted on the very next publish. Fixed by
+ *     giving the manifest real provenance: it is now `{version: 2, keys: [{key, etag}]}`, recording the
+ *     ETag THIS target itself observed immediately after writing each key, not just the key string.
+ *     {@link publish} now verifies, via {@link fetchLiveETag}, that a candidate deletion's CURRENT live
+ *     ETag still equals the recorded one before ever deleting it — a key is deleted only when this
+ *     target can prove nothing wrote to it since. A key with no recorded etag (a pre-this-fix
+ *     `{version: 1, keys: [...]}` manifest, or a malformed entry) and a key whose live etag has DIVERGED
+ *     from the recorded one are treated identically: never deleted, and reported back to the caller via
+ *     `DeployPublishResult.statusMessage` (`adapter.ts`'s `publishStaticSite` passes this straight
+ *     through to `StaticPublishOutcome`, the same channel every other status note already uses — no
+ *     Jini-defined type could be widened for this, since `DeployPublishResult` is `@jini-ai/devops`'s own
+ *     port, out of this fix's scope). ASSUMPTION, disclosed here rather than silently relied on: this
+ *     comparison trusts that two GETs/HEADs of byte-identical content return the SAME ETag on a given
+ *     provider (true for AWS S3, R2, MinIO, and every other provider in scope for a plain, non-multipart
+ *     `PUT` — the shape every upload in this file always is); a provider whose ETag is not a deterministic
+ *     function of content would make this check unreliable, which is the same class of caveat every
+ *     ETag-based cache-validation scheme in the wild already carries.
+ *
+ *  2. A TRANSIENT MANIFEST READ FAILURE PERMANENTLY FORGOT STALE CONTENT. {@link fetchManagedManifest}
+ *     used to return `undefined` on ANY failure — network, a non-404 HTTP error, or a body that failed to
+ *     parse — and `publish()` treated `undefined` exactly like "verified: nothing was ever managed." The
+ *     very next successful publish then wrote a brand-new manifest reflecting only the current export,
+ *     permanently overwriting the only record of what a prior pass had tracked. A key removed from the
+ *     export during exactly the same window as a manifest-read blip would then survive in the bucket
+ *     forever, publicly reachable, invisible to every subsequent manifest. Fixed: {@link
+ *     fetchManagedManifest} now throws a real {@link DeployError} for every unreadable case, and only a
+ *     VERIFIED 404 is treated as "zero prior keys." `publish()` never uploads-then-silently-forgets on an
+ *     unreadable manifest — the whole publish fails instead, the same fail-loud posture {@link deleteOne}
+ *     already documents for a cleanup failure, extended one step earlier to the read that gates it.
+ *
+ *  3. NO CROSS-PUBLISHER CONCURRENCY GUARD AT ALL. `publish()` used to read the manifest, upload, delete
+ *     stale keys, then unconditionally overwrite the manifest — with no lock, no generation check, no
+ *     precondition. Two publishers racing (traced in the second-round audit): both read manifest `{x}`;
+ *     A's export still includes `x`; B's export no longer does; B deletes `x` and writes `{}`; A then
+ *     writes `{x}` back over top — the manifest now claims `x` exists, but the object is gone, forever
+ *     mismatched. Fixed with a conditional write + bounded retry: {@link writeManagedManifestConditional}
+ *     sends `If-Match` (keyed to the ETag this run observed reading the manifest) or `If-None-Match: *`
+ *     (when no manifest existed yet) on the manifest `PUT` — a real compare-and-swap, the object-storage
+ *     equivalent of the non-force git ref update `github-git-provider.ts`'s own `writeRef` already relies
+ *     on. A precondition failure (412, or 409 on providers that signal conflict that way) means a genuine
+ *     racer won since
+ *     this run's own read — {@link publish} re-reads the manifest, RE-VERIFIES and re-diffs the stale-key
+ *     set against that fresh state (never assumes the old diff is still valid), and retries, bounded to
+ *     {@link MAX_MANIFEST_WRITE_ATTEMPTS} attempts before giving up loudly.
+ *
+ *     RESIDUAL RISK, disclosed rather than pretended closed: conditional writes on `PUT` (`If-Match`/
+ *     `If-None-Match`) are NOT universally supported across every S3-compatible provider in this target's
+ *     own scope — real AWS S3 added them relatively recently, and older MinIO/Backblaze/other
+ *     deployments may still reject them. {@link writeManagedManifestConditional} detects this (a `501`,
+ *     or a `400` whose body names an unsupported/not-implemented operation) and DEGRADES: the rest of
+ *     THIS publish call falls back to a plain, unconditional manifest write rather than refusing to
+ *     publish at all (this feature's own hard requirement — publishing must keep working end to end). A
+ *     degraded publish still SUCCEEDS and still reports its result honestly: `statusMessage` names that
+ *     the concurrency guard was unavailable for this call, so two publishers racing against a
+ *     non-conditional-capable provider can still lose data the same way pre-fix code could — that
+ *     specific residual risk is real, provider-dependent, and disclosed to the caller rather than
+ *     silently absorbed.
+ *
  * Architectural role:
  * `features/deployments/static-publish` domain logic, this feature's second (Tovu-local) seam into
  * the `DeployTarget` port `@jini-ai/devops/deploy` defines.
@@ -88,6 +155,14 @@ const MAX_CONCURRENT_UPLOADS = 8;
  *  for the manifest read/write and stale-key deletes below — none of those are larger than a single
  *  static asset either. */
 const UPLOAD_TIMEOUT_MS = 30_000;
+
+/** Bounds how many times {@link S3CompatibleDeployTarget.publish} retries the read-verify-delete-write
+ *  cycle after a genuine manifest-write conflict (a `412`/`409` from {@link
+ *  writeManagedManifestConditional}) before giving up loudly — this file's header SECOND-ROUND CRITICAL
+ *  FIX note, finding 3. 3 is a small, documented bound: a real conflict resolves in one retry almost
+ *  always (the losing writer simply re-reads the winner's now-current state); repeated conflicts beyond
+ *  that indicate sustained contention this target should surface rather than retry indefinitely against. */
+const MAX_MANIFEST_WRITE_ATTEMPTS = 3;
 
 /** Where this target records exactly which keys IT wrote — see this file's header CRITICAL fix note.
  *  A hidden, Tovu-namespaced key deliberately: a real static export does not produce a dotfile
@@ -154,12 +229,17 @@ async function safeErrorBody(resp: Response): Promise<string> {
 /**
  * Signs and PUTs one `DeployFile` to its object URL, bounded by {@link UPLOAD_TIMEOUT_MS}.
  *
+ * @returns The `ETag` this provider reported for the just-written object, or `undefined` when the
+ *   response carried none — this target's own recorded provenance for the key (this file's header
+ *   SECOND-ROUND CRITICAL FIX note, finding 1). A key uploaded with no observed ETag is recorded in the
+ *   NEXT manifest with `etag: undefined`, meaning a future publish can never verify-and-delete it either
+ *   — the same disclosed, bounded limitation a pre-provenance manifest entry gets.
  * @throws {DeployError} A non-2xx response, or the request timing out/erroring at the network layer.
  *   Never leaks the response body raw — capped to 300 chars, the same "actionable but bounded" shape
  *   `adapter.ts`'s own `catch` uses for provider errors.
  * @complexity O(1) — one signed HTTP request.
  */
-async function uploadOne(client: AwsClient, config: S3CompatibleTargetConfig, file: DeployFile): Promise<void> {
+async function uploadOne(client: AwsClient, config: S3CompatibleTargetConfig, file: DeployFile): Promise<string | undefined> {
   const url = objectUrl(config, file.file);
   let resp: Response;
   try {
@@ -181,6 +261,33 @@ async function uploadOne(client: AwsClient, config: S3CompatibleTargetConfig, fi
     const body = await safeErrorBody(resp);
     throw new DeployError(`Failed to upload '${file.file}' to S3-compatible storage: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
   }
+  return resp.headers.get("etag") ?? undefined;
+}
+
+/**
+ * Reads the CURRENT `ETag` the provider reports for `key` right now, via a signed HEAD, used ONLY to
+ * verify a single candidate deletion still matches what this target itself last recorded writing (this
+ * file's header SECOND-ROUND CRITICAL FIX note,
+ * finding 1). Best-effort: `undefined` on ANY failure (network, non-2xx, or a response with no `ETag`
+ * header) or when the key is genuinely absent (404, e.g. already deleted by a previous pass or a human).
+ * Every one of those outcomes means the same thing to {@link S3CompatibleDeployTarget.publish} — "cannot
+ * confirm this ONE deletion is safe" — which always resolves to skipping just that one key, never to
+ * failing the whole publish. That narrower blast radius is exactly why this read gets the OPPOSITE
+ * tolerance from {@link fetchManagedManifest} itself: a failure here can only ever cost one candidate's
+ * cleanup this pass, never the ownership record as a whole.
+ *
+ * @complexity One signed HTTP request per call — bounded by the (typically small) number of candidate
+ *   deletions, never by the size of the whole bucket.
+ */
+async function fetchLiveETag(client: AwsClient, config: S3CompatibleTargetConfig, key: string): Promise<string | undefined> {
+  let resp: Response;
+  try {
+    resp = await client.fetch(objectUrl(config, key), { method: "HEAD", signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
+  } catch {
+    return undefined;
+  }
+  if (!resp.ok) return undefined;
+  return resp.headers.get("etag") ?? undefined;
 }
 
 /**
@@ -210,59 +317,163 @@ async function deleteOne(client: AwsClient, config: S3CompatibleTargetConfig, ke
   }
 }
 
-/**
- * Reads {@link MANAGED_MANIFEST_KEY} — the previous publish's own record of which keys IT wrote (this
- * file's header CRITICAL fix note). Best-effort ONLY: `undefined` on ANY failure (a 404 — no manifest
- * yet, e.g. the first publish ever to this bucket, or one a human/other tool populated before Tovu
- * touched it — a network hiccup, or a body that does not parse as the expected shape). The caller
- * treats `undefined` exactly like "nothing is known to be Tovu-managed yet," which is always the SAFE
- * direction to fail in: it can only ever mean fewer deletions get computed this pass, never more.
+/** One key this target recorded owning in a previous manifest, together with the ETag it observed
+ *  writing it — or `etag: undefined` when no such provenance exists for this key (this file's header
+ *  SECOND-ROUND CRITICAL FIX note, finding 1): either a pre-this-fix `{version: 1, keys: [...]}` manifest
+ *  (a real, historical shape this target itself used to write, not corruption), or a `v2` entry whose own
+ *  `etag` field was missing/blank. `etag: undefined` is deliberately NOT "safe to delete" — {@link
+ *  S3CompatibleDeployTarget.publish} treats it exactly like a verified mismatch: never auto-deleted,
+ *  always reported. */
+interface PreviouslyManagedKey {
+  readonly key: string;
+  readonly etag: string | undefined;
+}
+
+/** Recognizes both manifest shapes this target has ever written: the CURRENT one (`{version: 2, keys:
+ *  [{key, etag}]}`, real per-key provenance) and the shape it wrote before this file's second-round fix
+ *  (`{version: 1, keys: [...]}`, bare key strings, no per-key etag at all — a real historical format, not
+ *  corruption). Anything else — an unrecognized `version`, an entry of the wrong shape, a hand-edited
+ *  file that merely resembles one of these — is treated as UNRECOGNIZED, never as "zero prior keys": see
+ *  {@link fetchManagedManifest}'s own doc for why an unrecognized shape must fail the whole publish
+ *  (this file's header SECOND-ROUND CRITICAL FIX note, finding 2).
  *
+ * @returns `undefined` when `parsed` matches neither recognized shape.
+ * @complexity O(n) in the manifest's own entry count.
+ */
+function parseManagedManifestShape(parsed: unknown): PreviouslyManagedKey[] | undefined {
+  if (typeof parsed !== "object" || parsed === null) return undefined;
+  const obj = parsed as Record<string, unknown>;
+  if (obj.version === 2 && Array.isArray(obj.keys)) {
+    const files: PreviouslyManagedKey[] = [];
+    for (const entry of obj.keys) {
+      if (typeof entry !== "object" || entry === null) return undefined;
+      const e = entry as Record<string, unknown>;
+      if (typeof e.key !== "string") return undefined;
+      const etag = typeof e.etag === "string" && e.etag.length > 0 ? e.etag : undefined;
+      files.push({ key: e.key, etag });
+    }
+    return files;
+  }
+  if (obj.version === 1 && Array.isArray(obj.keys) && obj.keys.every((key) => typeof key === "string")) {
+    // Legacy, pre-provenance shape — every listed key is KNOWN but UNVERIFIABLE. See this file's header,
+    // SECOND-ROUND CRITICAL FIX note, finding 1.
+    return (obj.keys as string[]).map((key) => ({ key, etag: undefined }));
+  }
+  return undefined;
+}
+
+/** A verified read of {@link MANAGED_MANIFEST_KEY} — either a confirmed absence (a real 404, "no
+ *  manifest yet") or the parsed prior keys together with the manifest OBJECT's own ETag (used as the
+ *  `If-Match` precondition on the next write — this file's header SECOND-ROUND CRITICAL FIX note,
+ *  finding 3). `etag: undefined` on a `"found"` read means this provider did not report one on the GET —
+ *  {@link S3CompatibleDeployTarget.publish} cannot condition a write on a value it never observed, so
+ *  that case degrades to an unconditional write for this one attempt, the same as an explicitly
+ *  `"unsupported"` provider. */
+type ManagedManifestRead = { status: "not-found" } | { status: "found"; files: readonly PreviouslyManagedKey[]; etag: string | undefined };
+
+/**
+ * Reads {@link MANAGED_MANIFEST_KEY} — the previous publish's own record of which keys IT wrote, and
+ * (from `v2` onward) the ETag it observed for each (this file's header CRITICAL fix note, and its
+ * SECOND-ROUND CRITICAL FIX note, finding 2, for why this read is no longer best-effort).
+ *
+ * A VERIFIED 404 is the ONLY case treated as "zero prior keys" — it is a genuinely different fact than
+ * "this object could not be read," and is exactly what the first publish ever to a bucket (or one a
+ * human populated before Tovu ever touched it) looks like. Every OTHER failure (network, a non-404 HTTP
+ * error, a body that fails to parse, or a body that parses but matches neither manifest shape {@link
+ * parseManagedManifestShape} recognizes) now THROWS a real {@link DeployError} — `publish()` fails the
+ * whole call rather than risk writing a new manifest that silently forgets what an unreadable one
+ * recorded. This is the OPPOSITE tolerance from {@link fetchLiveETag}, which stays best-effort per-key —
+ * see that function's own doc for why the two reads get different treatment.
+ *
+ * @throws {DeployError} Any failure other than a verified 404.
  * @complexity One signed HTTP request.
  */
-async function fetchManagedManifest(client: AwsClient, config: S3CompatibleTargetConfig): Promise<string[] | undefined> {
+async function fetchManagedManifest(client: AwsClient, config: S3CompatibleTargetConfig): Promise<ManagedManifestRead> {
   let resp: Response;
   try {
     resp = await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "GET", signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
-  } catch {
-    return undefined;
+  } catch (err) {
+    throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: ${err instanceof Error ? err.message : String(err)}`, 502);
   }
-  if (!resp.ok) return undefined;
+  if (resp.status === 404) return { status: "not-found" };
+  if (!resp.ok) {
+    const body = await safeErrorBody(resp);
+    throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
+  }
+
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(await resp.text()) as { keys?: unknown };
-    return Array.isArray(parsed.keys) && parsed.keys.every((key) => typeof key === "string") ? (parsed.keys as string[]) : undefined;
+    parsed = JSON.parse(await resp.text());
   } catch {
-    return undefined;
+    throw new DeployError("The Tovu-managed object manifest is not valid JSON — cannot confirm which keys this target previously owned.", 502);
   }
+  const files = parseManagedManifestShape(parsed);
+  if (files === undefined) {
+    throw new DeployError("The Tovu-managed object manifest did not match a recognized shape — cannot confirm which keys this target previously owned.", 502);
+  }
+  return { status: "found", files, etag: resp.headers.get("etag") ?? undefined };
 }
 
+/** How {@link writeManagedManifestConditional} asks the provider to accept the write only if the
+ *  manifest object is in the expected state — `"if-match"` for "only if it still has THIS etag" (the one
+ *  this run observed reading it), `"if-none-match"` for "only if it still does not exist at all" (this
+ *  run found no manifest), and `"none"` for an unconditional write — used once a provider has already
+ *  signaled it cannot honor a precondition ({@link ConditionalWriteOutcome}'s own `"unsupported"`), or
+ *  when a `"found"` read carried no ETag to condition on in the first place. */
+type ManifestWritePrecondition = { readonly kind: "if-match"; readonly etag: string } | { readonly kind: "if-none-match" } | { readonly kind: "none" };
+
+/** {@link writeManagedManifestConditional}'s own outcome — `"written"` (the precondition held, or none
+ *  was sent), `"conflict"` (a REAL precondition failure: something else changed the manifest since this
+ *  run's own read — {@link S3CompatibleDeployTarget.publish} re-reads and retries), or `"unsupported"`
+ *  (this provider does not implement conditional `PUT` at all — `publish()` degrades to an unconditional
+ *  write for the rest of this call, see this file's header SECOND-ROUND CRITICAL FIX note, finding 3). */
+type ConditionalWriteOutcome = "written" | "conflict" | "unsupported";
+
 /**
- * Overwrites {@link MANAGED_MANIFEST_KEY} with exactly `keys` — the LAST step of every `publish()` call
- * (this file's header CRITICAL fix note on why the ordering is load-bearing). Unlike
- * {@link fetchManagedManifest}, a failure here is NOT tolerated silently: a manifest write this target
- * cannot confirm means the NEXT publish cannot trust what it reads, so this throws the same as a real
- * upload/delete failure rather than degrading.
+ * Overwrites {@link MANAGED_MANIFEST_KEY} with exactly `files`, honoring `precondition` — the LAST step
+ * of every `publish()` attempt (this file's header CRITICAL fix note on why the ordering is
+ * load-bearing). A GENUINE failure (not a precondition outcome) is NOT tolerated silently: a manifest
+ * write this target cannot confirm means the NEXT publish cannot trust what it reads, so this throws the
+ * same as a real upload/delete failure rather than degrading.
  *
- * @throws {DeployError} A non-2xx response, or the request timing out/erroring at the network layer.
+ * @returns `"written"`, `"conflict"`, or `"unsupported"` — see {@link ConditionalWriteOutcome}'s own doc.
+ *   Never throws for either of the latter two; those are real, expected outcomes the caller decides how
+ *   to act on, not failures.
+ * @throws {DeployError} Any OTHER non-2xx response, or the request timing out/erroring at the network
+ *   layer.
  * @complexity One signed HTTP request.
  */
-async function writeManagedManifest(client: AwsClient, config: S3CompatibleTargetConfig, keys: readonly string[]): Promise<void> {
-  const body = JSON.stringify({ version: 1, keys: [...keys].sort() });
+async function writeManagedManifestConditional(
+  client: AwsClient,
+  config: S3CompatibleTargetConfig,
+  files: readonly PreviouslyManagedKey[],
+  precondition: ManifestWritePrecondition
+): Promise<ConditionalWriteOutcome> {
+  const body = JSON.stringify({ version: 2, keys: files.map((f) => ({ key: f.key, etag: f.etag })).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)) });
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (precondition.kind === "if-match") headers["If-Match"] = precondition.etag;
+  if (precondition.kind === "if-none-match") headers["If-None-Match"] = "*";
+
   let resp: Response;
   try {
-    resp = await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), {
-      method: "PUT",
-      body,
-      headers: { "Content-Type": "application/json" },
-      signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
-    });
+    resp = await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "PUT", body, headers, signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
   } catch (err) {
     throw new DeployError(`Failed to update the Tovu-managed object manifest: ${err instanceof Error ? err.message : String(err)}`, 502);
   }
-  if (!resp.ok) {
-    const errorBody = await safeErrorBody(resp);
-    throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${errorBody ? ` — ${errorBody}` : ""}`, resp.status >= 500 ? 502 : 400);
+  if (resp.ok) return "written";
+  if (resp.status === 412 || resp.status === 409) return "conflict";
+  if (resp.status === 501) return "unsupported";
+  if (resp.status === 400) {
+    // Some S3-compatible providers report an unsupported conditional header as a plain 400 rather than
+    // 501 — recognized only by a body naming the operation as unsupported, never assumed from the bare
+    // status code alone (a genuine 400 — a malformed request for an unrelated reason — must still throw
+    // below, not be silently treated as "this provider just doesn't support preconditions").
+    const body = await safeErrorBody(resp);
+    if (/notimplemented|not implemented|unsupportedoperation/i.test(body)) return "unsupported";
+    throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP 400${body ? ` — ${body}` : ""}`, 400);
   }
+  const errorBody = await safeErrorBody(resp);
+  throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${errorBody ? ` — ${errorBody}` : ""}`, resp.status >= 500 ? 502 : 400);
 }
 
 /**
@@ -272,12 +483,15 @@ async function writeManagedManifest(client: AwsClient, config: S3CompatibleTarge
  * simultaneously). The FIRST rejection wins and is rethrown; in-flight siblings are not explicitly
  * cancelled (their own `AbortSignal.timeout` still bounds them), matching `Promise.all`'s own "first
  * rejection propagates" semantics that every other target's own multi-request internals already rely
- * on. Generic over the item type (not `DeployFile`-specific) — reused for both uploads and deletes,
- * which need the identical bounded-concurrency shape over two different item types.
+ * on. Generic over both the item type AND the result type (not `DeployFile`-specific, not `void`-only) —
+ * reused for uploads (which need each file's own observed ETag back, in order) and deletes (which need
+ * nothing back).
  *
+ * @returns Each item's own result, in the SAME order as `items` — never reordered by completion time.
  * @complexity O(items) requests, bounded to {@link MAX_CONCURRENT_UPLOADS} concurrent in-flight.
  */
-async function runBounded<T>(items: readonly T[], task: (item: T) => Promise<void>): Promise<void> {
+async function runBounded<T, R>(items: readonly T[], task: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = new Array(items.length);
   let nextIndex = 0;
   let firstError: unknown;
   let sawError = false;
@@ -289,7 +503,7 @@ async function runBounded<T>(items: readonly T[], task: (item: T) => Promise<voi
       if (index >= items.length) return;
       if (sawError) return;
       try {
-        await task(items[index]!);
+        results[index] = await task(items[index]!);
       } catch (err) {
         if (!sawError) {
           sawError = true;
@@ -303,6 +517,7 @@ async function runBounded<T>(items: readonly T[], task: (item: T) => Promise<voi
   const poolSize = Math.max(1, Math.min(MAX_CONCURRENT_UPLOADS, items.length));
   await Promise.all(Array.from({ length: poolSize }, () => worker()));
   if (sawError) throw firstError;
+  return results;
 }
 
 /** Maps a reachability probe to `DeployPublishResult.status`'s fixed vocabulary — see this file's
@@ -311,6 +526,30 @@ function toDeployLinkStatus(check: DeploymentUrlCheck): DeployLinkStatus {
   if (check.reachable) return "ready";
   if (check.status === "protected") return "protected";
   return "link-delayed";
+}
+
+/**
+ * Appends this file's own residual-risk/divergence disclosures to a reachability `statusMessage` —
+ * `DeployPublishResult` (a Jini-defined port type, out of scope to widen — see this file's header) has
+ * no dedicated field for either, so both ride the SAME free-text channel every other status note already
+ * uses (`adapter.ts`'s `publishStaticSite` passes it straight through). `divergedKeys` reports which
+ * previously-managed keys survived because their live content could not be verified as still Tovu's own
+ * (this file's header SECOND-ROUND CRITICAL FIX note, finding 1); `concurrencyGuardActive: false` reports
+ * that this specific publish had no compare-and-swap protection because the provider does not support
+ * conditional writes (finding 3) — never silently absorbed into a plain "Reachable." message.
+ *
+ * @complexity O(min(divergedKeys.length, 3)) — only a bounded preview is ever rendered.
+ */
+function buildStatusMessage(base: string, divergedKeys: readonly string[], concurrencyGuardActive: boolean): string {
+  let message = base;
+  if (divergedKeys.length > 0) {
+    const preview = divergedKeys.slice(0, 3).join(", ");
+    message += ` ${divergedKeys.length} previously-managed key(s) were preserved because their live content no longer matched this target's own record (or pre-dates that record): ${preview}${divergedKeys.length > 3 ? ", ..." : ""}.`;
+  }
+  if (!concurrencyGuardActive) {
+    message += " This provider does not support conditional writes; the concurrent-publish safety check (precondition on the managed-object manifest) was skipped for this publish.";
+  }
+  return message;
 }
 
 /**
@@ -338,43 +577,117 @@ export class S3CompatibleDeployTarget implements DeployTarget {
    * `'protected'`, never thrown) — `adapter.ts` is what turns that into `StaticPublishOutcome`'s
    * `ok: "partial"` branch; this method's own job is only to report the honest terminal state.
    *
-   * @throws {DeployError} Any file's upload fails (see {@link uploadOne}), any stale key's delete fails
-   *   (see {@link deleteOne}), or the manifest rewrite itself fails (see {@link writeManagedManifest}).
-   *   A partially-completed run is always SAFE to retry (this file's header CRITICAL fix note): the
-   *   manifest is rewritten last and only on full success, so a crash anywhere before that point is
-   *   self-healing on the next `publish()` call rather than orphaning or over-deleting anything.
-   * @complexity O(files) PUT requests (bounded concurrency, see {@link runBounded}) plus O(stale keys)
-   *   DELETE requests (same bound) plus the manifest read/write (2 requests) plus one reachability
-   *   probe (`checkDeploymentUrl`, itself O(1)-O(2) requests).
+   * Deletion is now a VERIFY-then-delete pass, and the manifest write is a CONDITIONAL, retried one —
+   * see this file's header SECOND-ROUND CRITICAL FIX note for the full reasoning behind both:
+   *  1. Uploads happen ONCE, up front — idempotent (re-running a PUT with the same content is a no-op),
+   *     so a conflict retry below never needs to re-upload.
+   *  2. Each retry attempt re-reads the manifest FRESH (never reuses a stale read across attempts),
+   *     re-verifies every candidate deletion's LIVE etag against what this target itself recorded
+   *     writing, deletes only the ones that verify, then attempts a CONDITIONAL manifest write keyed to
+   *     that same fresh read.
+   *  3. `"conflict"` (a real precondition failure — something else changed the manifest since THIS
+   *     attempt's own read) retries from step 2, bounded to {@link MAX_MANIFEST_WRITE_ATTEMPTS}.
+   *     `"unsupported"` (this provider cannot do conditional writes at all) degrades to an unconditional
+   *     write for the rest of this call and keeps going — publishing must still work end to end.
+   *
+   * @throws {DeployError} Any file's upload fails (see {@link uploadOne}), the manifest cannot be read
+   *   for any reason other than a verified 404 (see {@link fetchManagedManifest}), any verified stale
+   *   key's delete fails (see {@link deleteOne}), the manifest write itself fails for a reason other than
+   *   a precondition outcome (see {@link writeManagedManifestConditional}), or every conflict retry is
+   *   exhausted. A partially-completed run remains SAFE to retry (this file's header CRITICAL fix note):
+   *   the manifest is rewritten only after uploads and verified deletes succeed, so a crash anywhere
+   *   before that point is self-healing on the next `publish()` call rather than orphaning or
+   *   over-deleting anything.
+   * @complexity O(files) PUT requests (bounded concurrency, see {@link runBounded}) plus, PER ATTEMPT
+   *   (bounded to {@link MAX_MANIFEST_WRITE_ATTEMPTS}): one manifest read, O(candidate deletions)
+   *   HEAD requests to verify live content, O(verified stale keys) DELETE requests (bounded
+   *   concurrency), and one manifest write — plus one reachability probe at the end
+   *   (`checkDeploymentUrl`, itself O(1)-O(2) requests).
    */
   async publish(input: DeployPublishInput): Promise<DeployPublishResult> {
-    // Read BEFORE upload — this run's own diff must reflect what the LAST successful publish recorded,
-    // never a manifest this same call is about to overwrite.
-    const previousManagedKeys = await fetchManagedManifest(this.client, this.config);
-
-    await runBounded(input.files, (file) => uploadOne(this.client, this.config, file));
-
-    // Only a key THIS target previously recorded owning, and that the current export no longer
-    // produces, is ever deleted — never a key with no such record. `MANAGED_MANIFEST_KEY` is excluded
-    // defensively (never part of `previousManagedKeys`' own meaning — see its own doc — but a manifest
-    // written by some future/other version should not be able to delete itself via this path).
     const currentKeys = new Set(input.files.map((file) => file.file));
-    const staleKeys = (previousManagedKeys ?? []).filter((key) => !currentKeys.has(key) && key !== MANAGED_MANIFEST_KEY);
-    if (staleKeys.length > 0) {
-      await runBounded(staleKeys, (key) => deleteOne(this.client, this.config, key));
-    }
 
-    // LAST step, and only reached after every upload and delete above has succeeded — see this file's
-    // header CRITICAL fix note on why this ordering is what makes a crash mid-publish self-healing
-    // rather than an over-delete or a permanently orphaned, never-cleaned-up key.
-    await writeManagedManifest(this.client, this.config, [...currentKeys]);
+    // Uploads happen ONCE, up front — a PUT is idempotent, so a conflict retry below never re-uploads.
+    const observedEtags = await runBounded(input.files, (file) => uploadOne(this.client, this.config, file));
+    const currentFiles: PreviouslyManagedKey[] = input.files.map((file, index) => ({ key: file.file, etag: observedEtags[index] }));
+
+    let concurrencyGuardActive = true;
+    let divergedKeys: string[] = [];
+
+    for (let attempt = 1; ; attempt++) {
+      // Read BEFORE verifying/deleting — this attempt's own diff must reflect what the LAST successful
+      // publish recorded, never a manifest this same call is about to overwrite. Re-read on EVERY
+      // attempt (never reused across a retry) — this file's header SECOND-ROUND CRITICAL FIX note,
+      // finding 3: a stale diff computed against an outdated manifest is exactly the race this fix closes.
+      const manifestRead = await fetchManagedManifest(this.client, this.config);
+      const previousFiles = manifestRead.status === "found" ? manifestRead.files : [];
+
+      // Only a key THIS target previously recorded owning, whose CURRENT live etag still matches what
+      // was recorded, and that the current export no longer produces, is ever deleted — never a key
+      // with no such verified record. `MANAGED_MANIFEST_KEY` is excluded defensively (never part of
+      // `previousFiles`' own meaning — see its own doc — but a manifest written by some future/other
+      // version should not be able to delete itself via this path).
+      const staleKeys: string[] = [];
+      divergedKeys = [];
+      for (const previous of previousFiles) {
+        if (currentKeys.has(previous.key) || previous.key === MANAGED_MANIFEST_KEY) continue;
+        if (previous.etag === undefined) {
+          // No recorded provenance (a pre-provenance v1 manifest entry, or a malformed v2 one) — nothing
+          // to verify against, so it is never auto-deleted.
+          divergedKeys.push(previous.key);
+          continue;
+        }
+        const liveEtag = await fetchLiveETag(this.client, this.config, previous.key);
+        if (liveEtag === undefined) {
+          // Already gone, or this ONE key's verification read failed — nothing this pass can safely
+          // delete now. Not reported as a divergence: an absent/unverifiable key in isolation is not
+          // evidence of tampering, just nothing this pass could act on.
+          continue;
+        }
+        if (liveEtag === previous.etag) staleKeys.push(previous.key);
+        else divergedKeys.push(previous.key); // content changed since this target wrote it — never delete unverified content
+      }
+      if (staleKeys.length > 0) {
+        await runBounded(staleKeys, (key) => deleteOne(this.client, this.config, key));
+      }
+
+      // LAST step, and only reached after every upload and verified delete above has succeeded — see
+      // this file's header CRITICAL fix note on why this ordering is what makes a crash mid-publish
+      // self-healing rather than an over-delete or a permanently orphaned, never-cleaned-up key.
+      const precondition: ManifestWritePrecondition = !concurrencyGuardActive
+        ? { kind: "none" }
+        : manifestRead.status === "not-found"
+          ? { kind: "if-none-match" }
+          : manifestRead.etag !== undefined
+            ? { kind: "if-match", etag: manifestRead.etag }
+            : { kind: "none" }; // a "found" read with no ETag reported — nothing to condition on this attempt
+
+      const outcome = await writeManagedManifestConditional(this.client, this.config, currentFiles, precondition);
+      if (outcome === "written") break;
+      if (outcome === "unsupported") {
+        // This provider cannot do conditional writes at all — degrade for the REST of this call and
+        // retry immediately with an unconditional write. Not a real conflict, so it does not need a
+        // fresh manifest re-read; nothing about the bucket's OWN state changed because of this outcome.
+        concurrencyGuardActive = false;
+        continue;
+      }
+      // outcome === "conflict": a real racing publisher changed the manifest since this attempt's own
+      // read. Retry from a fresh read (top of loop) — bounded, so sustained contention surfaces loudly
+      // rather than retrying forever.
+      if (attempt >= MAX_MANIFEST_WRITE_ATTEMPTS) {
+        throw new DeployError(
+          "Concurrent publish detected on the Tovu-managed object manifest and retries were exhausted — another publish updated it while this one was running. Try publishing again.",
+          409
+        );
+      }
+    }
 
     const check = await checkDeploymentUrl(this.config.publicUrl);
     return {
       targetId: this.id,
       url: this.config.publicUrl,
       status: toDeployLinkStatus(check),
-      statusMessage: check.statusMessage ?? (check.reachable ? "Reachable." : "Not yet reachable."),
+      statusMessage: buildStatusMessage(check.statusMessage ?? (check.reachable ? "Reachable." : "Not yet reachable."), divergedKeys, concurrencyGuardActive),
     };
   }
 
