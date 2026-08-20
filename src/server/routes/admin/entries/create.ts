@@ -21,6 +21,23 @@ function statusFor(error: Error): { status: number; code: string } {
   return { status: 500, code: "INTERNAL_ERROR" };
 }
 
+/** This route's required `type`/`slug`/`title` (strings) plus the optional `fieldsJson`/`bodyJson`
+ *  fields, read off an untyped body in one place. `null` means the required strings failed
+ *  validation. @complexity O(1). */
+function parseCreateEntryBody(
+  rawBody: unknown
+): { type: string; slug: string; title: string; fieldsJson: unknown; bodyJson: unknown } | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  if (typeof body.type !== "string" || typeof body.slug !== "string" || typeof body.title !== "string") return null;
+  return {
+    type: body.type,
+    slug: body.slug,
+    title: body.title,
+    fieldsJson: body.fieldsJson ?? { ext: { site: {} } },
+    bodyJson: body.bodyJson,
+  };
+}
+
 /**
  * @file design-spec.md §1.5/§1.9 — `POST /api/admin/v1/entries` (creates a Collection entry,
  * REQ-13/14/19). Gated by `admin.collections.manage`.
@@ -44,8 +61,8 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
         return;
       }
 
-      const body = req.body ?? {};
-      if (typeof body.type !== "string" || typeof body.slug !== "string" || typeof body.title !== "string") {
+      const parsedBody = parseCreateEntryBody(req.body);
+      if (!parsedBody) {
         res.status(400).json({ error: "'type', 'slug', and 'title' (strings) are required", code: "VALIDATION_ERROR" });
         return;
       }
@@ -62,11 +79,7 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
         input: {
           actorId: principal.id,
           workspaceId: deps.workspaceId,
-          type: body.type,
-          slug: body.slug,
-          title: body.title,
-          fieldsJson: body.fieldsJson ?? { ext: { site: {} } },
-          bodyJson: body.bodyJson,
+          ...parsedBody,
         },
       });
 
