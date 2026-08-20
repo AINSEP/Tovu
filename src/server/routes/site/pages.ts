@@ -112,6 +112,18 @@ async function tryRedirectPhase(
     phase === "pre_content"
       ? await runPreContentPhase(path, { workspaceId })
       : await runPostContentPhase(path, { workspaceId });
+  // `outcome.kind !== "redirect"` has two type-level arms — `"resolved"` and `"not_found"`
+  // (`RouteResolvePhaseOutcome`, routing/types.ts) — but only one is reachable through this
+  // codebase's real registrants today: `registerResolvePhase` (routing.ts) has exactly one
+  // non-test caller repo-wide, `registerRedirectsPhaseHandlers` (redirects/phase-handler.ts),
+  // whose own `toOutcome` is the ONLY constructor of this type anywhere in the tree and returns
+  // only `null` or `{ kind: "redirect", ... }` — never `"resolved"`/`"not_found"`. Testing that
+  // sub-arm would require pushing a resolver onto `registerResolvePhase`'s module-level,
+  // append-only `phaseRegistry` (no unregister exists) from a test, permanently polluting every
+  // other test sharing this process for the rest of the run — a worse trade than leaving this
+  // documented rather than covered. A future SECOND registrant that legitimately returns
+  // `"resolved"`/`"not_found"` would make this reachable again; this comment is the disclosure,
+  // not a claim that it can never happen.
   if (!outcome || outcome.kind !== "redirect") return false;
   res.redirect(outcome.statusCode, outcome.location);
   return true;
@@ -564,6 +576,14 @@ export async function renderViaTemplate(
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
+    // `renderStaticPage`'s `| null` return (static-render.ts) is exactly its own `source ===
+    // undefined` case, where `source = htmlOverride ?? theme.pages[pageId]` — reachable only when
+    // BOTH are undefined. `htmlOverride` here is `buildMissingTemplateHtml(...)`'s return value,
+    // typed `string` (never `undefined`), so `source` can never be undefined at this call site and
+    // `renderStaticPage` can never return `null` here. The `?? ""` below is accordingly unreachable
+    // dead code by construction, not merely untested — proper fix is narrowing `renderStaticPage`'s
+    // own return type via an overload keyed on a required `htmlOverride`, which lives outside this
+    // file (static-render.ts) and is out of this pass's scope.
     return (
       renderStaticPage({
         theme,
@@ -591,6 +611,11 @@ export async function renderViaTemplate(
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
   const bodyResolvedHtml = renderHtmlPageBody(withNestedContent, resolved);
+  // Same unreachable-`?? ""` situation as the diagnostic branch above: `bodyResolvedHtml` is
+  // `renderHtmlPageBody`'s `string` return, never `undefined`, so `renderStaticPage`'s own
+  // `source === undefined` null case can't fire here either. See that branch's comment for the
+  // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
+  // `renderStaticPage`'s return type in static-render.ts, outside this file).
   const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
   return injectExtraHeadIntoStaticPage(rendered, extraHead);
 }
