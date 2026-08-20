@@ -396,13 +396,104 @@ test("v2-strict: declaring an object-valued 'engine' (unimplemented — loadThem
   assert.equal(installResult.valid, false);
 });
 
-test("v2-strict: a manifest using only IMPLEMENTED fields (flat 'slots', no partials/renderer/tokens/engine) carries none of the unimplemented findings, at any profile", () => {
+test("v2-strict: a manifest using only IMPLEMENTED fields (flat 'slots', no partials/renderer/tokens/engine-object/scripts/assets/ai/pages) carries none of the unimplemented findings, at any profile", () => {
   const dir = tmpDir("tovu-validate-v2-implemented-only-");
   writeMinimalV2Static(dir, { partials: undefined, slots: { nav: { source: "render/partials/nav.html" } } });
 
   for (const profile of ["author", "install", "publish"] as const) {
     const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile });
-    for (const ruleId of ["v2-partials-unimplemented", "v2-renderer-unimplemented", "v2-tokens-unimplemented", "v2-engine-object-unimplemented"]) {
+    for (const ruleId of [
+      "v2-partials-unimplemented",
+      "v2-renderer-unimplemented",
+      "v2-tokens-unimplemented",
+      "v2-engine-object-unimplemented",
+      "v2-scripts-unimplemented",
+      "v2-assets-unimplemented",
+      "v2-ai-unimplemented",
+      "v2-pages-unimplemented",
+    ]) {
+      assert.equal(findError(result, ruleId), undefined, `${profile}: unexpected error ${ruleId}`);
+      assert.equal(findWarning(result, ruleId), undefined, `${profile}: unexpected warning ${ruleId}`);
+    }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// v2-strict: fields the runtime loader does not implement yet, RE-AUDIT (2026-08-19, `gpt-5.6-sol`
+// and `gpt-5.6-terra` independently) — the four-field policy above was itself incomplete.
+// `manifest-v2.ts`'s own prior header claimed `scripts`/`assets`/`ai` were "accepted as loosely-typed
+// optional objects," but nothing actually checked or flagged them, and dead `pages` had no finding at
+// all. These four now go through the SAME generic, self-maintaining sweep as the bespoke fields above
+// (see `manifest-v2.ts`'s `V2_FIELDS_READ_BY_LOADER`/`V2_RESERVED_METADATA_FIELDS`).
+// ---------------------------------------------------------------------------
+
+test("v2-strict: declaring 'scripts' (unimplemented -- no loader field reads it, theme.ts:661-684) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-scripts-unimplemented-");
+  writeMinimalV2Static(dir, { scripts: { entries: ["scripts/analytics.js"] } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-scripts-unimplemented"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "v2-scripts-unimplemented"), undefined);
+  assert.equal(authorResult.valid, true, "an unimplemented-but-syntactically-present field alone must not fail author");
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-scripts-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false, "install must refuse a package declaring a field the loader will silently ignore");
+});
+
+test("v2-strict: declaring 'assets' (unimplemented -- no loader field reads it, theme.ts:661-684) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-assets-unimplemented-");
+  writeMinimalV2Static(dir, { assets: { previewGallery: ["screenshots/hero.png"] } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-assets-unimplemented"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "v2-assets-unimplemented"), undefined);
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-assets-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: declaring 'ai' (unimplemented -- design doc marks it NOT YET IMPLEMENTED anywhere, §12) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-ai-unimplemented-");
+  writeMinimalV2Static(dir, { ai: { prompt: "generate a hero section" } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-ai-unimplemented"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "v2-ai-unimplemented"), undefined);
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-ai-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: declaring 'pages' (confirmed dead -- loadTheme() never parses it into ThemeManifest) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-pages-unimplemented-");
+  writeMinimalV2Static(dir, { pages: ["index", "about"] });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-pages-unimplemented"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "v2-pages-unimplemented"), undefined);
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-pages-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: descriptive/discovery metadata fields (authors, attributions, category, tags, compatibility -- plus the default fixture's own license) are never flagged unimplemented, at any profile", () => {
+  const dir = tmpDir("tovu-validate-v2-reserved-metadata-");
+  writeMinimalV2Static(dir, {
+    authors: [{ name: "Aurora Themes Co." }],
+    attributions: ["Icons by Foo"],
+    category: "blog",
+    tags: ["minimal", "dark"],
+    compatibility: { tovu: ">=1.0.0" },
+  });
+
+  for (const profile of ["author", "install", "publish"] as const) {
+    const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile });
+    for (const field of ["license", "authors", "attributions", "category", "tags", "compatibility"]) {
+      const ruleId = `v2-${field}-unimplemented`;
       assert.equal(findError(result, ruleId), undefined, `${profile}: unexpected error ${ruleId}`);
       assert.equal(findWarning(result, ruleId), undefined, `${profile}: unexpected warning ${ruleId}`);
     }
