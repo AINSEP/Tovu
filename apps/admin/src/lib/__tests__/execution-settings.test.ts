@@ -204,6 +204,18 @@ describe("loadExecutionConfig", () => {
     const config = await loadExecutionConfig();
     expect(config.byok.providerId).toBeNull();
   });
+
+  // 2026-08-20: a malformed 200 (body with no `data`) used to reach `rows.map(...)` and throw a raw
+  // `Cannot read properties of undefined (reading 'map')` — surfaced live as an unlabeled swallowed
+  // exception inside `AssistantDock`'s `.catch()` (every admin route mounts the dock, so any test's
+  // minimal `fetch` mock that doesn't specifically cover this namespace produced it as noise). The
+  // `.catch()` fallback-to-defaults behavior is deliberate and correct and must be preserved; the fix
+  // is only to make the THROWN error legible before it reaches that catch.
+  it("throws a named, diagnosable error (not a raw property-access TypeError) when the response body has no data", async () => {
+    getSettingsEffective.mockResolvedValue({});
+    const error = await loadExecutionConfig().catch((e: unknown) => e);
+    expect((error as Error).message).toBe("getSettingsEffective response missing data");
+  });
 });
 
 /**
@@ -461,6 +473,21 @@ describe("loadAdminExecutionCredential / saveAdminExecutionCredential — the ex
     setAdminExecutionCredential.mockRejectedValue(new FakeApiError("no master key", 503));
     await expect(saveAdminExecutionCredential({ apiKey: "sk-new" })).rejects.toThrow("no master key");
   });
+
+  // Same class of fix as `loadExecutionConfig`'s own malformed-response test above — see that
+  // test's comment for the live symptom this replaces (there: `Cannot read properties of undefined
+  // (reading 'isSet')`, surfaced from AssistantDock's own stored-credential read).
+  it("loadAdminExecutionCredential throws a named, diagnosable error when the response body has no data", async () => {
+    getAdminExecutionCredential.mockResolvedValue({});
+    const error = await loadAdminExecutionCredential().catch((e: unknown) => e);
+    expect((error as Error).message).toBe("getAdminExecutionCredential response missing data");
+  });
+
+  it("saveAdminExecutionCredential throws a named, diagnosable error when the response body has no data", async () => {
+    setAdminExecutionCredential.mockResolvedValue({});
+    const error = await saveAdminExecutionCredential({ apiKey: "sk-new" }).catch((e: unknown) => e);
+    expect((error as Error).message).toBe("setAdminExecutionCredential response missing data");
+  });
 });
 
 describe("reconcileExecutionConfigRefresh — the 2026-08-05 autosave key-wipe fix", () => {
@@ -522,6 +549,17 @@ describe("createExecutionPort", () => {
     detectExecutionAgents.mockRejectedValue(new FakeApiError("network down", 0));
     const port = createExecutionPort();
     await expect(port.detectLocalAgents()).rejects.toThrow("network down");
+  });
+
+  // Same class of fix as `loadExecutionConfig`'s malformed-response test — see that test's comment.
+  // The error-reporting contract this describe block's header documents (`detectLocalAgents` must
+  // REJECT on any failure) is unchanged by this fix: a malformed body still rejects, just with a
+  // legible message instead of a raw property-access TypeError.
+  it("detectLocalAgents throws a named, diagnosable error when the response body has no data", async () => {
+    detectExecutionAgents.mockResolvedValue({});
+    const port = createExecutionPort();
+    const error = await port.detectLocalAgents().catch((e: unknown) => e);
+    expect((error as Error).message).toBe("detectExecutionAgents response missing data");
   });
 
   it("rescanLocalAgents REJECTS on a transport failure, same as detectLocalAgents", async () => {
