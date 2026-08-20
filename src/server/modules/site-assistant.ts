@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 
-import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
+import { runGoogleToolTurn, type GoogleContent, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
 import {
   createSiteCapabilityRegistry,
@@ -9,6 +9,7 @@ import {
   resolveSiteAssistantMode,
   isPublicAssistantEnabled,
   resolveSiteAssistantApiKey,
+  type SiteAssistantModeResolution,
 } from "../../assistant/index.js";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
@@ -148,6 +149,155 @@ function beginStream(res: Response): void {
   res.flushHeaders?.();
 }
 
+type SiteAssistantPreflight =
+  | { ok: false }
+  | { ok: true; message: string; priorTurns: GoogleContent[]; apiKey: string };
+
+type MessageGuardResult =
+  | { ok: false }
+  | { ok: true; message: string; priorTurns: GoogleContent[] };
+
+/**
+ * The visibility, shape, and budget gates: is the workspace's public assistant on at all, is
+ * `message` a usable non-empty string within bounds, and is this IP still under its rate-limit
+ * window. Each one can end the request on its own before anything downstream (mode, credentials)
+ * is even looked at.
+ */
+async function guardMessageAndRateLimit(req: Request, res: Response, deps: RouteDeps): Promise<MessageGuardResult> {
+  // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
+  // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and exposes NO
+  // assistant endpoint... registers the visitor-facing assistant route(s) conditionally, or has
+  // them 404 when off." Checked first, before parsing anything else in the request, so a disabled
+  // workspace is indistinguishable from this route never having been registered at all — never a
+  // 503/403 that would confirm the feature exists but is off.
+  const enabled = await isPublicAssistantEnabled(
+    { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective },
+    { workspaceId: deps.workspaceId }
+  );
+  if (!enabled) {
+    res.status(404).end();
+    return { ok: false };
+  }
+
+  const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
+  const message = typeof body.message === "string" ? body.message.trim() : "";
+  if (message.length === 0) {
+    res.status(400).json({ error: "message must be a non-empty string", code: "VALIDATION" });
+    return { ok: false };
+  }
+  if (message.length > MAX_MESSAGE_CHARS) {
+    res.status(413).json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters`, code: "TOO_LARGE" });
+    return { ok: false };
+  }
+  // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
+  // is bounded and fail-soft (malformed shapes degrade to less context, never a 4xx) rather
+  // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
+  // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
+  // actively sending; `history` is passive background context they did not just author.
+  const priorTurns = resolveBoundedHistory(body.history);
+
+  // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
+  // budget never reaches the provider call (or its 501/503 config-error branches either) —
+  // the 429 is the cheapest possible response to an excess request. A clean JSON error here
+  // (not an SSE frame — `beginStream` has not run yet) is what lets the widget's transport
+  // read `body.error` off a normal failed `fetch()` the same way it already does for 4xx/5xx.
+  const rateLimitResult = deps.siteAssistantRateLimiter.check(resolveClientIp(req));
+  if (!rateLimitResult.allowed) {
+    res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+    res.status(429).json({
+      error: "too many messages from this address — please wait before trying again",
+      code: "RATE_LIMIT_EXCEEDED",
+      details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+    });
+    return { ok: false };
+  }
+
+  return { ok: true, message, priorTurns };
+}
+
+/**
+ * The mode/config gates: refuses demo `cli` mode (no daemon bridge yet), then resolves the key
+ * that will actually pay for the call. Returns the resolved key, or `null` after already writing
+ * the response.
+ */
+async function resolveApiKeyOrRespond(
+  res: Response,
+  deps: RouteDeps,
+  env: NodeJS.ProcessEnv,
+  resolution: SiteAssistantModeResolution,
+): Promise<string | null> {
+  if (resolution.mode === "cli") {
+    // Demo only. Reaching the daemon means matching its run-start contract, which this route
+    // does not yet do — declared unavailable rather than half-wired, so a demo operator gets a
+    // clear answer instead of a confusing failure deeper in the stack.
+    res.status(501).json({
+      error: "cli demo mode is enabled but its daemon bridge is not implemented yet",
+      code: "NOT_IMPLEMENTED",
+    });
+    return null;
+  }
+
+  // ADR-058: the SITE credential store (admin's "Visitor's AI Assistant" tab) is tried FIRST,
+  // `env.GEMINI_API_KEY` second — additive over the pre-existing env-only path, never a
+  // replacement (existing deployments and the E2E suite that only set the env var are
+  // unaffected). `resolveSiteAssistantApiKey` never throws: a missing row, a missing master
+  // secret, or a corrupt/tampered ciphertext all resolve to `null` here, logged once as a
+  // warning, and this route falls straight through to the env var exactly as it did before
+  // ADR-058 existed. A misconfigured secret store degrades this route to its old behavior: it
+  // must never turn into a 500 for a visitor who did nothing wrong.
+  //
+  // This is a DIFFERENT key from the admin's own Execution-mode BYOK key
+  // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own
+  // assistant dock only) — see ADR-058's "Distinction from BYOK". Only `apiKey` is consumed
+  // from the resolved credential; `resolveModel` below is unchanged by ADR-058 and remains, as
+  // its own doc says, the ONLY thing that decides this route's model.
+  const stored = await resolveSiteAssistantApiKey(
+    { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+    { workspaceId: deps.workspaceId },
+    (error) =>
+      console.warn(
+        "[site-assistant] stored credential could not be opened, falling back to GEMINI_API_KEY",
+        error
+      )
+  );
+  const apiKey = stored?.apiKey ?? env.GEMINI_API_KEY?.trim();
+  if (!apiKey) {
+    // 503, not 500: the service is correctly built and unconfigured, which is an operator
+    // action, and the message says exactly which one.
+    res.status(503).json({
+      error:
+        "site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment",
+      code: "NOT_CONFIGURED",
+    });
+    return null;
+  }
+
+  return apiKey;
+}
+
+/**
+ * Every gate `handleChat` must clear before it is allowed to call the model, run once and in a
+ * fixed order, each one still able to end the request on its own (a disabled workspace, a bad
+ * message, an over-budget IP, demo mode, or no configured key). Consolidated into one function so
+ * `handleChat` itself is a single `if (!preflight.ok) return;` rather than one `if` per gate —
+ * the gates themselves are unchanged, only where they live.
+ */
+async function runSiteAssistantPreflight(
+  req: Request,
+  res: Response,
+  deps: RouteDeps,
+  env: NodeJS.ProcessEnv,
+  resolution: SiteAssistantModeResolution,
+): Promise<SiteAssistantPreflight> {
+  const guard = await guardMessageAndRateLimit(req, res, deps);
+  if (!guard.ok) return { ok: false };
+
+  const apiKey = await resolveApiKeyOrRespond(res, deps, env, resolution);
+  if (!apiKey) return { ok: false };
+
+  return { ok: true, message: guard.message, priorTurns: guard.priorTurns, apiKey };
+}
+
 export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEnv = process.env): ServerModuleHandle {
   const resolution = resolveSiteAssistantMode(env);
 
@@ -184,99 +334,9 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
       });
 
       async function handleChat(req: Request, res: Response): Promise<void> {
-        // `public-assistant-settings.ts`'s file header spells out the contract this line exists to
-        // satisfy: "publicEnabled: false means the public page ships NO assistant bundle and
-        // exposes NO assistant endpoint... registers the visitor-facing assistant route(s)
-        // conditionally, or has them 404 when off." Checked first, before parsing anything else in
-        // the request, so a disabled workspace is indistinguishable from this route never having
-        // been registered at all — never a 503/403 that would confirm the feature exists but is off.
-        const enabled = await isPublicAssistantEnabled(
-          { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective },
-          { workspaceId: deps.workspaceId }
-        );
-        if (!enabled) {
-          res.status(404).end();
-          return;
-        }
-
-        const body = (req.body ?? {}) as { message?: unknown; history?: unknown };
-        const message = typeof body.message === "string" ? body.message.trim() : "";
-        if (message.length === 0) {
-          res.status(400).json({ error: "message must be a non-empty string", code: "VALIDATION" });
-          return;
-        }
-        if (message.length > MAX_MESSAGE_CHARS) {
-          res.status(413).json({ error: `message exceeds ${MAX_MESSAGE_CHARS} characters`, code: "TOO_LARGE" });
-          return;
-        }
-        // SPEC-046 REQ-3: `body.history` is client-supplied and untrusted — it can be forged, so it
-        // is bounded and fail-soft (malformed shapes degrade to less context, never a 4xx) rather
-        // than validated-and-rejected the way `message` above is. See `assistant/site/history.ts`'s
-        // own doc for why that asymmetry is correct: `message` is the live turn the visitor is
-        // actively sending; `history` is passive background context they did not just author.
-        const priorTurns = resolveBoundedHistory(body.history);
-
-        // SPEC-046 REQ-7: checked before any mode/config branch below, so a caller already over
-        // budget never reaches the provider call (or its 501/503 config-error branches either) —
-        // the 429 is the cheapest possible response to an excess request. A clean JSON error here
-        // (not an SSE frame — `beginStream` has not run yet) is what lets the widget's transport
-        // read `body.error` off a normal failed `fetch()` the same way it already does for 4xx/5xx.
-        const rateLimitResult = deps.siteAssistantRateLimiter.check(resolveClientIp(req));
-        if (!rateLimitResult.allowed) {
-          res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-          res.status(429).json({
-            error: "too many messages from this address — please wait before trying again",
-            code: "RATE_LIMIT_EXCEEDED",
-            details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-          });
-          return;
-        }
-
-        if (resolution.mode === "cli") {
-          // Demo only. Reaching the daemon means matching its run-start contract, which this route
-          // does not yet do — declared unavailable rather than half-wired, so a demo operator gets a
-          // clear answer instead of a confusing failure deeper in the stack.
-          res.status(501).json({
-            error: "cli demo mode is enabled but its daemon bridge is not implemented yet",
-            code: "NOT_IMPLEMENTED",
-          });
-          return;
-        }
-
-        // ADR-058: the SITE credential store (admin's "Visitor's AI Assistant" tab) is tried FIRST,
-        // `env.GEMINI_API_KEY` second — additive over the pre-existing env-only path, never a
-        // replacement (existing deployments and the E2E suite that only set the env var are
-        // unaffected). `resolveSiteAssistantApiKey` never throws: a missing row, a missing master
-        // secret, or a corrupt/tampered ciphertext all resolve to `null` here, logged once as a
-        // warning, and this route falls straight through to the env var exactly as it did before
-        // ADR-058 existed. A misconfigured secret store degrades this route to its old behavior: it
-        // must never turn into a 500 for a visitor who did nothing wrong.
-        //
-        // This is a DIFFERENT key from the admin's own Execution-mode BYOK key
-        // (`apps/admin/src/lib/execution-settings.ts`, browser-local, powers the admin's own
-        // assistant dock only) — see ADR-058's "Distinction from BYOK". Only `apiKey` is consumed
-        // from the resolved credential; `resolveModel` below is unchanged by ADR-058 and remains, as
-        // its own doc says, the ONLY thing that decides this route's model.
-        const stored = await resolveSiteAssistantApiKey(
-          { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-          { workspaceId: deps.workspaceId },
-          (error) =>
-            console.warn(
-              "[site-assistant] stored credential could not be opened, falling back to GEMINI_API_KEY",
-              error
-            )
-        );
-        const apiKey = stored?.apiKey ?? env.GEMINI_API_KEY?.trim();
-        if (!apiKey) {
-          // 503, not 500: the service is correctly built and unconfigured, which is an operator
-          // action, and the message says exactly which one.
-          res.status(503).json({
-            error:
-              "site assistant is not configured — save a key on the Visitor's AI Assistant admin tab, or set GEMINI_API_KEY in the server environment",
-            code: "NOT_CONFIGURED",
-          });
-          return;
-        }
+        const preflight = await runSiteAssistantPreflight(req, res, deps, env, resolution);
+        if (!preflight.ok) return;
+        const { message, priorTurns, apiKey } = preflight;
 
         // SPEC-046 D-1: computed ONCE here, from the visitor's own live `message` — before any tool
         // call runs — so `navigate_to_entry`'s auto/propose split (`tools.ts`'s
