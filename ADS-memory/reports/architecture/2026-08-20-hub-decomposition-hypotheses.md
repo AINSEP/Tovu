@@ -25,7 +25,16 @@ after every experiment.
 
 Scratchpad artifacts (not committed, throwaway): `hub-analysis.mjs` (copied graph logic),
 `decompose.mjs`, `simulate.mjs` (split-leverage sweep), `scc-check.mjs` / `scc-runtime.mjs` (Tarjan),
-`api-surface-conflict.mjs`, plus cached `cruise-dump.json` / `baseline-cruise-dump.json`.
+`api-surface-conflict.mjs`, `frozen-median-check.mjs` (§7's validation), plus cached
+`cruise-dump.json` / `baseline-cruise-dump.json`.
+
+**Re-measured after the `plugin-runtime/` session landed** (18 commits + handoff, since that work
+touches `src/features/plugin-runtime/` and `src/server/routes/admin/plugins/**`, both inside this
+investigation's graph). Re-ran `dependency-cruiser` fresh and diffed every module's resolved
+dependency set against the cached dump used for every number below: **0 modules changed** — the
+landing was already included in the tree this investigation started from (its parent commit was
+already `HEAD` when this investigation began). `npm run check:architecture -- --list` re-run live
+also still reports 870 files / 151 hubs, matching. All findings below stand unchanged.
 
 ---
 
@@ -71,7 +80,47 @@ else in the module roll-up (seo, newsletter, assistant, widgets, theme, source-c
 redirects, export, pages, post, comments, custom-credentials, vendor-credentials at their unchanged
 counts) is flat — no real movement.
 
-## 2. Hub files ranked by measured leverage (split-count delta, not fan-in+fan-out)
+## 2. The RouteDeps inversion — a defect in the gate, not the refactor
+
+**This is the single most important finding in this report. If someone runs this gate, sees the
+count go up, and reverts a `types.ts` split on the strength of that number, the gate lied to them.**
+
+`src/server/routes/types.ts` is the single highest combined-degree hub in the graph
+(fanIn=269, fanOut=234) — and `check-architecture.ts`'s own top-of-file comment already names it as
+"the actual defect" behind `back-edges into composition root` (a *hard-constraint* metric, separate
+from hub count). It is the RouteDeps god-type this repo already knows it wants to break up.
+
+Simulated the split — same leaf/top method as every other row in §3's table: `types.ts` becomes
+`types.ts::LEAF` (keeps all 269 inbound edges, 0 outbound) and `types.ts::TOP` (keeps all 234
+outbound edges, 0 inbound), original node removed, full graph recomputed.
+
+```
+before split:  151 hubs
+after split:   179 hubs      <- WORSE, not better
+delta:         −28           <- the single largest movement of any file tested, wrong direction
+```
+
+**The mechanism, precisely**: `bidirectional hub count` is not an absolute threshold — it's
+"fan-in AND fan-out both exceed *this run's own median*." `types.ts` is the single most-connected
+node in the graph: roughly 25 `server/routes/admin/*/deps.ts` files each show `fanOut≈235`, nearly
+identical to `types.ts`'s own 234, because each of them imports `types.ts` directly and inherits
+almost its entire transitive reach that way (confirmed these 25 are *not* a cycle with each other —
+independent fan-out convergence on one shared file, not mutual reachability). Deleting a node with
+that much independent gravitational pull collapses **overall graph reachability** — most files lose
+some fan-in/fan-out because a common through-path is gone. But the *median itself* is computed fresh
+on the post-split graph, and it collapses **even faster** than most individual files' degree does
+(the same mechanism, sharper, as the 0.5-point shift in §1). So the bar drops further than the typical
+file's height drops, and a larger fraction of files end up standing above a much lower bar — hub count
+goes up even though the graph is measurably less tangled by every other lens (propagation cost,
+back-edges, common sense).
+
+**This is not a one-off curiosity — §7 shows it's the general failure mode of a median-relative
+threshold recomputed every run, and proposes and validates a concrete fix.** Until that fix ships,
+treat any `bidirectional hub count` regression triggered by touching a high-degree glue file as
+uninterpretable without re-deriving what actually happened, exactly as done here — the number alone
+is not evidence of anything in either direction for a file like this.
+
+## 3. Hub files ranked by measured leverage (split-count delta, not fan-in+fan-out)
 
 Simulated, for every one of the 151 current hubs: split file X into `X-leaf` (inherits all fan-in,
 zero fan-out) and `X-top` (inherits all fan-out, zero fan-in), delete X, recompute the full hub count
@@ -97,9 +146,10 @@ delta:
 | 15 | 2 | `src/server/routes/site/pages.ts` | server | 12 | 345 |
 
 120 of the 151 hubs have **delta = 1** — splitting them only removes themselves from the count, no
-cascade. **One hub has negative leverage** — see §4, it matters more than the top of this table.
+cascade. **One hub has negative leverage** (`src/server/routes/types.ts`, delta = −28) — see §2, it
+matters more than the top of this table.
 
-## 3. Top-8 detail: what the split looks like, and the risk
+## 4. Top-8 detail: what the split looks like, and the risk
 
 **#1 — `src/assistant/index.ts` (delta 16) is not really "one file."** Tarjan SCC on the current
 all-import graph found a **29-file strongly-connected component**: every feature module's
@@ -128,15 +178,15 @@ producer, every producer imports the aggregator's types" cycle.
 graph)** is a 50-line file, 8 exports, 6 of them `export * from` / `export { } from` — **already a
 thin barrel.** Its hub-ness is close to irreducible: everything imports the module through its front
 door, which is the point of a barrel. Splitting it doesn't have an obvious target — there's very
-little "top" (fanOut=16) to peel off. Flagging this as a likely **§4 structural case**, not a real
+little "top" (fanOut=16) to peel off. Flagging this as a likely **§5 structural case**, not a real
 split candidate, despite the large measured delta — the delta here is coming from the same median
-mechanics as §1, not from real extractable coupling. Do not spend refactor effort here without
-re-verifying against §4's caveat.
+mechanics as §1/§2, not from real extractable coupling. Do not spend refactor effort here without
+re-verifying against §5's caveat.
 
 **#3 — `src/members/index.ts` (delta 9, fanIn=275, fanOut=29)** — 113 lines, 11 exports, only 1
 `export from`. Unlike `post/index.ts`, this one **carries real logic**, not just re-exports.
   - **What the split looks like**: move the non-re-export logic (whatever the other 10 exports are —
-    not traced symbol-by-symbol here, flagged as not fully determined, see §6) into a
+    not traced symbol-by-symbol here, flagged as not fully determined, see §8) into a
     `members/service.ts` or similar, leave `index.ts` as a pure re-export barrel pointing at it and
     the module's other files.
   - **Risk**: medium — real logic extraction, not a mechanical type move; needs the module's own test
@@ -160,38 +210,25 @@ three sandbox implementations to dispatch between them. Same fix shape as #1: ex
 into a zero-dependency leaf, keep the dispatch fan-out in `render.ts` as-is (that fan-out is real and
 wanted — it's a dispatcher).
 
-## 4. Hubs that are hub-shaped for structural reasons — no split fixes them
+## 5. Hubs that are hub-shaped for structural reasons — no split fixes them
 
 - **Every module's own `index.ts` with `fanOut` near zero** (`post/index.ts` fanOut=16 on 50 lines,
   mostly re-exports) is doing exactly its job. High fan-in on a barrel is the *design*, not a defect.
   Splitting it further just relocates the barrel, it doesn't reduce real coupling. The measured
-  leverage numbers for these (rank #2 especially) are median-mechanics, not genuine extractable debt
-  — see the negative-leverage case below for the sharpest version of this same effect.
-- **`src/server/routes/types.ts` (fanIn=269, fanOut=234 — the single highest combined-degree hub in
-  the whole graph, and the file the top-of-file comment in `check-architecture.ts` already names as
-  "the actual defect" behind `back-edges into composition root`)**. Splitting it in the same
-  leaf/top simulation used for the table above does **not** reduce the count — it makes it *worse*:
-  **151 → 179 (delta = −28), the single largest movement of any file tested, in the wrong direction.**
-  This is not evidence the split is bad; it's the median-relative math breaking down when you remove
-  the single most-connected glue node in the graph. Removing `types.ts` collapses overall reachability
-  so broadly (it's the shared dependency of ~25 `server/routes/admin/*/deps.ts` files, each showing
-  `fanOut≈235` — nearly identical to `types.ts`'s own 234, meaning each `deps.ts` inherits almost all
-  of its fan-out by importing `types.ts` directly, not via any cycle — verified these 25 are *not* an
-  SCC, unlike the two clusters above) that the median itself crashes further than most individual
-  files' degree does, so *more* files clear the new, lower bar even though the graph is objectively
-  less tangled. **Read this as: the count-based leverage table cannot be trusted as the sole signal
-  for splitting a structural glue node — it can move in either direction from median effects alone,
-  and this file specifically should be judged on the independent evidence already in this codebase
-  (the file's own doc comment, the RouteDeps back-edges finding) rather than on this metric.**
+  leverage numbers for these (rank #2 especially) are median-mechanics, not genuine extractable debt.
+- **`src/server/routes/types.ts`** — covered in full in §2 (the RouteDeps inversion). Splitting it
+  measures as a −28 regression under today's gate for reasons that have nothing to do with whether the
+  split is good; judge it on the independent evidence already in this codebase (the file's own doc
+  comment, the `back-edges into composition root` finding), not on this metric.
 - **`server` module generally** (45 of 151 hubs, the largest single-module share) — it is the
   composition root. Assembling and wiring every route necessarily produces both high fan-in (routes
   import shared deps/types) and high fan-out (the composition root reaches into every feature). Some
   fraction of this is irreducible by definition of what a composition root does; only the specific
-  concentration on `types.ts` (above) looks like a genuine extractable defect within it.
+  concentration on `types.ts` (§2) looks like a genuine extractable defect within it.
 - **`routing/{index,routing,ports}.ts`** (3 hubs) — routing's entire job is to sit in the structural
   middle. Expect these to stay hub-shaped under any reasonable split.
 
-## 5. Does hub reduction conflict with API-surface reduction — measured, not guessed
+## 6. Does hub reduction conflict with API-surface reduction — measured, not guessed
 
 **The measured conflict is real, but runs the opposite direction from the stated hypothesis, and it
 is much sharper on the metric that actually blocks the build.**
@@ -215,8 +252,10 @@ not export-level, every caller of a now-fatter barrel inherits transitive reacha
 *everything else the barrel re-exports*, whether the caller uses it or not. That explodes fan-*out*
 for every caller of every barrel simultaneously, which explodes the *median* fan-out (9.5 → 350) far
 more than it concentrates any individual file's degree. Once the bar itself is at 350, almost nothing
-clears it — hence 151 → 45. This is the same median-relative distortion as the `types.ts` case in §4,
-just pulling the number the opposite direction.
+clears it — hence 151 → 45. This is the same median-relative distortion as the `types.ts` case in §2,
+just pulling the number the opposite direction — confirmed directly in §7: under the frozen-threshold
+alternative proposed there, this same simulated change scores 141 → 261, correctly showing it makes
+coupling much worse, not better.
 
 **The real, load-bearing finding here is the propagation-cost number, not the hub count**:
 barrel-routing to shrink API surface would roughly **double** `propagation cost (all-import)`
@@ -230,14 +269,64 @@ This is a mechanism finding (verified once, on the full simulated edge set), not
 a targeted routing of only the highest-value modules (rather than all 279 edges at once) was not
 separately measured and could behave differently at smaller scale.
 
-## 6. What could not be determined, and why
+## 7. Verdict — is `bidirectional hub count` worth optimizing at all?
+
+**No, not in its current form. The floating median makes it unreliable as a trend signal — it moves
+for reasons unrelated to coupling (§1), it can score a proven-correct fix as a large regression (§2),
+and it can be driven to look dramatically better by a change that is verifiably worse by the metric
+that actually blocks the build (§6). All three failure modes trace to the same root cause, and there
+is a small, concrete fix.**
+
+**Root cause**: the threshold (`medianFanIn`, `medianFanOut`) is recomputed fresh from the *current*
+run's own distribution, every run. That makes hub membership a property of the whole graph's shape at
+that instant, not a property of the file being measured — the same file, with the same imports, can
+gain or lose hub status purely because something unrelated changed elsewhere in an 870-file graph.
+Compare this to `module API surface (files exposed)`, a genuinely reliable count-based hard constraint
+in the same file: its rule ("is this the target module's `index.ts`, yes or no") is a fixed structural
+check, not a statistic recomputed from the current run. `bidirectional hub count` uses the same
+count-based framing but a *floating* statistic underneath, and that's exactly the part that's broken.
+
+**Proposed fix, and it's validated, not just argued**: freeze `medianFanIn`/`medianFanOut` in the
+baseline JSON at the last `--update`, the same way `moduleApiSurfaceFiles` and every other
+hard-constraint number is already frozen between baselines. Recompute each file's *own* fanIn/fanOut
+fresh every run (that part is fine — it's real, per-file data), but compare against the frozen
+threshold, not a threshold recomputed from this run's graph. Re-ran both adversarial cases from this
+report under that rule (`frozen-median-check.mjs`, frozen at the actual baseline's medians, fanIn>10 /
+fanOut>10):
+
+```
+                                    floating (today)      frozen (proposed)
+current graph, no mutation:        151                    141
+types.ts split (§2):        151 -> 179  (Δ -28)     141 -> 119  (Δ +22)   <- flips to correct sign
+barrel-routing (§6):        151 ->  45  (Δ +106)     141 -> 261  (Δ -120) <- flips to correct sign
+```
+
+Both adversarial cases — the ones that make today's metric actively misleading — flip to the
+*correct* sign under a frozen threshold: the real structural improvement (`types.ts` split) now scores
+as an improvement, and the fake improvement (barrel-routing, which doubles propagation cost) now
+correctly scores as a large regression. This wasn't cherry-picked; these are the two most adversarial
+mutations tested in this entire investigation, and the frozen-threshold version got both of them right
+where the current version got both of them backwards.
+
+**Trade-off to flag honestly**: a frozen threshold no longer self-normalizes as the codebase grows
+organically — over a long enough horizon (years, not this ratchet's typical cadence) the fixed 10/10
+bar would need re-baselining as the median file naturally gains more imports. That's an acceptable
+cost for a ratchet that's already `--update`-able on demand, and it's the same cost every other
+count-based metric in this file already accepts.
+
+**What to do with the current 151 number in the meantime**: treat it as a diagnostic snapshot (the
+`--list` membership enumeration has real value — this whole investigation depended on it), not as a
+trend signal. Don't chase the count down; don't let a future run's count going up block or shame a
+real fix without re-deriving what happened, the way §2 required here.
+
+## 8. What could not be determined, and why
 
 - **Symbol-level split contents for #3-7** (`members/index.ts`, `theme/index.ts`,
   `routing/index.ts`, `redirects/index.ts`, `deployments/static-publish/index.ts`): confirmed each
   carries real logic beyond re-exports (via line count / `export from` ratio, not a full read), but
   did not read each file to name which specific exports move where. Left as a follow-up for whoever
   picks up implementation — do not implement from the module-name-only signal in §3 alone.
-- **Whether the 279-edge, all-at-once barrel-routing simulation in §5 generalizes to a partial/targeted
+- **Whether the 279-edge, all-at-once barrel-routing simulation in §6 generalizes to a partial/targeted
   routing** (e.g. just the `core` and `db` modules, which top the real `deep imports bypassing index.ts`
   list at 129 and 88 edges respectively) — not separately measured. The mechanism (fan-out explosion
   through a fattened barrel) should still apply, but the *magnitude* at smaller scale is unverified.
@@ -249,7 +338,7 @@ separately measured and could behave differently at smaller scale.
   script's module-has-index check and the real tool's; not reconciled exactly).
 - **No fix was proposed for the `server` module's remaining ~20 hubs** outside the `types.ts`
   concentration already covered — `seo`, `newsletter`, `assistant`-site (non-tool-registration),
-  `widgets`, and `deployments` module-internal hub clusters were enumerated (§2/§3 table) but not
+  `widgets`, and `deployments` module-internal hub clusters were enumerated (§3/§4 table) but not
   individually traced for split feasibility given the context budget for one investigation pass.
 
 ## Verification
