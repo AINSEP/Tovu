@@ -201,3 +201,31 @@ test("a doc-format reference is left untouched for the registry resolver, not co
     assert.equal(callCount(), 1, "one fetch to LEARN it is doc-format, then it is left alone — no further recursion");
   })();
 });
+
+test("a mixed body -- one resolvable content marker, one referencing an id that doesn't exist at all, and one non-content marker type -- only splices the resolvable one", async () => {
+  // Exercises three branches the single-marker tests above never reach together:
+  //   - `!entity` (the `missing-id` marker's `findPublishedPostById` call returns null outright,
+  //     not merely a non-html-format hit like the doc-format test above)
+  //   - `marker.type !== "content"` in the final `substituteMarkers` pass (the "menu" marker)
+  //   - both arms of that pass's `replacement === undefined ? undefined : ...` ternary in ONE
+  //     call: "a" gets a real replacement, "missing-id" and the menu marker do not.
+  const { repo } = countingPostRepo([postRecord({ id: "a", bodyHtml: "<p>Real spliced content</p>" })]);
+
+  const startHtml = [
+    `<div data-embed-config='{"type":"content","id":"a"}'></div>`,
+    `<div data-embed-config='{"type":"content","id":"missing-id"}'></div>`,
+    `<div data-embed-config='{"type":"menu","id":"some-menu"}'></div>`,
+  ].join("");
+
+  const result = await resolveHtmlFormatContentMarkers(deps(repo), startHtml, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
+
+  assert.ok(result.includes("Real spliced content"), "the resolvable marker must still splice in");
+  assert.ok(
+    result.includes(`data-embed-config='{"type":"content","id":"missing-id"}'`),
+    "a reference to an id that doesn't exist at all must be left exactly as authored, for the registry resolver's own REQ-28 placeholder"
+  );
+  assert.ok(
+    result.includes(`data-embed-config='{"type":"menu","id":"some-menu"}'`),
+    "a non-content marker type must be left completely untouched by this content-only pass"
+  );
+});
