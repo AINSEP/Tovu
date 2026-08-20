@@ -106,6 +106,35 @@ function readConnectionId(query: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
+/** This callback's three relevant query fields, read off the request in one place.
+ *  @complexity O(1). */
+function parseCallbackQuery(query: Record<string, unknown>): {
+  state: string;
+  status: string | undefined;
+  providerConnectionId: string | undefined;
+} {
+  return {
+    state: typeof query.state === "string" ? query.state : "",
+    status: typeof query.status === "string" ? query.status : undefined,
+    providerConnectionId: readConnectionId(query),
+  };
+}
+
+/** Builds `completeComposioConnection`'s input — `providerConnectionId`/`status` stay
+ *  spreadable-optional rather than `undefined`-valued, matching that call's own contract.
+ *  @complexity O(1). */
+function buildCompletionInput(
+  connectorId: string,
+  parsed: ReturnType<typeof parseCallbackQuery>
+): { connectorId: string; state: string; providerConnectionId?: string; status?: string } {
+  return {
+    connectorId,
+    state: parsed.state,
+    ...(parsed.providerConnectionId === undefined ? {} : { providerConnectionId: parsed.providerConnectionId }),
+    ...(parsed.status === undefined ? {} : { status: parsed.status }),
+  };
+}
+
 export function registerComposioCallbackRoute(app: Express, deps: ComposioCallbackRouteDeps): void {
   app.get(`${COMPOSIO_CALLBACK_PATH}/:connectorId`, async (req, res) => {
     if (!deps.callbackLimiter.check(resolveClientIp(req)).allowed) {
@@ -113,23 +142,17 @@ export function registerComposioCallbackRoute(app: Express, deps: ComposioCallba
       return;
     }
 
-    const state = typeof req.query.state === "string" ? req.query.state : "";
-    if (!state) {
+    const parsedQuery = parseCallbackQuery(req.query as Record<string, unknown>);
+    if (!parsedQuery.state) {
       // No state means this was not reached by a redirect the provider issued. Nothing to complete.
       res.status(400).type("html").send(callbackHtml(false));
       return;
     }
 
-    const status = typeof req.query.status === "string" ? req.query.status : undefined;
-    const providerConnectionId = readConnectionId(req.query as Record<string, unknown>);
-
     try {
-      await deps.composioConnectors.service.completeComposioConnection({
-        connectorId: String(req.params.connectorId ?? ""),
-        state,
-        ...(providerConnectionId === undefined ? {} : { providerConnectionId }),
-        ...(status === undefined ? {} : { status }),
-      });
+      await deps.composioConnectors.service.completeComposioConnection(
+        buildCompletionInput(String(req.params.connectorId ?? ""), parsedQuery)
+      );
       // Await the seal-and-persist before telling the popup it worked: the operator's next action
       // is to close the window, and a write still in flight would be reported as success while the
       // connection was one restart from vanishing.
