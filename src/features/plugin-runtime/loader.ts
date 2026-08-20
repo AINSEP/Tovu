@@ -74,6 +74,16 @@ async function defaultComputeFileHash(absoluteFilePath: string): Promise<string>
   return `sha256-${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
+/** Applies `loadPlugin()`'s three independent option defaults in one place — split out so the
+ *  5-step pipeline itself doesn't also carry these three unrelated `??` branches. */
+function resolveLoadPluginOptions(optional: LoadPluginOptional): Required<LoadPluginOptional> {
+  return {
+    importModule: optional.importModule ?? ((p: string) => import(p)),
+    computeFileHash: optional.computeFileHash ?? defaultComputeFileHash,
+    runtimeSdkVersion: optional.runtimeSdkVersion ?? DEFAULT_RUNTIME_SDK_VERSION,
+  };
+}
+
 export interface LoadPluginRequired {
   /** The plugin's already-discovered, statically-valid record (a plugin with a non-`valid` static
    * `status` must never reach `loadPlugin` at all — that guard lives in the caller, BR-05). */
@@ -158,9 +168,7 @@ export async function loadPlugin(
   _optional: LoadPluginOptional = {}
 ): Promise<LoadPluginResult> {
   const { record, manifest, entryPath, coreDeps } = required;
-  const importModule = _optional.importModule ?? ((p: string) => import(p));
-  const computeFileHash = _optional.computeFileHash ?? defaultComputeFileHash;
-  const runtimeSdkVersion = _optional.runtimeSdkVersion ?? DEFAULT_RUNTIME_SDK_VERSION;
+  const { importModule, computeFileHash, runtimeSdkVersion } = resolveLoadPluginOptions(_optional);
 
   // --- CIC U-001-ORD1: step (1), integrity, MUST complete successfully before step (2)/(3). ---
   const pluginRoot = derivePluginRoot(entryPath);
