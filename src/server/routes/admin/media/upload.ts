@@ -2,6 +2,47 @@ import { MediaValidationError, uploadMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps.js";
+import { parseOptionalStringField } from "./parse.js";
+
+/** The three required upload fields plus the three optional metadata fields, parsed off an untyped
+ *  body in one place, or `null` if a required field is missing or the wrong shape. `dataBase64` must
+ *  be a non-empty string — an absent or non-string value is rejected here rather than reaching
+ *  `Buffer.from`.
+ *  @complexity O(1). */
+function parseUploadRequestFields(rawBody: unknown): {
+  filename: string;
+  contentType: string;
+  dataBase64: string;
+  alt: string | undefined;
+  caption: string | undefined;
+  credit: string | undefined;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const filename = String(body.filename ?? "");
+  const contentType = String(body.contentType ?? "");
+  const dataBase64 = body.dataBase64;
+  if (!filename || !contentType || typeof dataBase64 !== "string" || !dataBase64) {
+    return null;
+  }
+  return {
+    filename,
+    contentType,
+    dataBase64,
+    alt: parseOptionalStringField(body.alt),
+    caption: parseOptionalStringField(body.caption),
+    credit: parseOptionalStringField(body.credit),
+  };
+}
+
+/** Decodes base64 upload bytes, or `null` if `dataBase64` is not valid base64.
+ *  @complexity O(n) in the encoded payload length. */
+function decodeUploadBytes(dataBase64: string): Uint8Array | null {
+  try {
+    return new Uint8Array(Buffer.from(dataBase64, "base64"));
+  } catch {
+    return null;
+  }
+}
 
 /**
  * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
@@ -21,18 +62,15 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       return;
     }
 
-    const filename = String(req.body?.filename ?? "");
-    const contentType = String(req.body?.contentType ?? "");
-    const dataBase64 = req.body?.dataBase64;
-    if (!filename || !contentType || typeof dataBase64 !== "string" || !dataBase64) {
+    const fields = parseUploadRequestFields(req.body);
+    if (!fields) {
       res.status(400).json({ error: "filename, contentType, and dataBase64 are required" });
       return;
     }
+    const { filename, contentType, dataBase64, alt, caption, credit } = fields;
 
-    let bytes: Uint8Array;
-    try {
-      bytes = new Uint8Array(Buffer.from(dataBase64, "base64"));
-    } catch {
+    const bytes = decodeUploadBytes(dataBase64);
+    if (!bytes) {
       res.status(400).json({ error: "dataBase64 is not valid base64" });
       return;
     }
@@ -71,9 +109,9 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
           bytes,
           filename,
           contentType,
-          alt: req.body?.alt !== undefined ? String(req.body.alt) : undefined,
-          caption: req.body?.caption !== undefined ? String(req.body.caption) : undefined,
-          credit: req.body?.credit !== undefined ? String(req.body.credit) : undefined,
+          alt,
+          caption,
+          credit,
           createdByPrincipal: principal.id,
         },
       });
