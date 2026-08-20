@@ -2,9 +2,8 @@ import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/ag
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
-import { resolveProbeCredential } from "./stored-credential-probe.js";
-
-const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "azure", "google"] as const;
+import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "./execution-request-fields.js";
+import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";
 
 interface TestConnectionRequestBody {
   protocol?: unknown;
@@ -16,9 +15,37 @@ interface TestConnectionRequestBody {
   useStoredCredential?: unknown;
 }
 
+/** True if either required connection-target field is blank.
+ *  @complexity O(1). */
+function isMissingConnectionTarget(baseUrl: string, model: string): boolean {
+  return !baseUrl.trim() || !model.trim();
+}
+
 function renderMessage(result: ConnectionTestResponse): string {
   if (result.ok) return result.detail?.trim() ? result.detail : "Connection succeeded";
   return result.detail?.trim() ? result.detail : `Connection failed (${result.kind})`;
+}
+
+/**
+ * Calls `testProviderConnection` and shapes this route's response body — isolated so the
+ * spread-if-present `apiVersion` shape doesn't add to the handler's own branching.
+ *
+ * @complexity O(1).
+ */
+async function fetchTestConnectionResponse(
+  protocol: SupportedExecutionProtocol,
+  credential: Extract<ProbeCredentialResolution, { ok: true }>,
+  model: string,
+  apiVersion: string | undefined
+) {
+  const result = await testProviderConnection({
+    protocol,
+    baseUrl: credential.baseUrl,
+    apiKey: credential.apiKey,
+    model,
+    ...(apiVersion ? { apiVersion } : {}),
+  });
+  return { ok: result.ok, message: renderMessage(result) };
 }
 
 /**
@@ -69,19 +96,17 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       }
 
       const body = (req.body ?? {}) as TestConnectionRequestBody;
-      const protocol = typeof body.protocol === "string" ? body.protocol : "";
-      const baseUrl = typeof body.baseUrl === "string" ? body.baseUrl : "";
-      const model = typeof body.model === "string" ? body.model : "";
-      const apiVersion = typeof body.apiVersion === "string" ? body.apiVersion : undefined;
+      const protocol = readOptionalString(body.protocol, "");
+      const baseUrl = readOptionalString(body.baseUrl, "");
+      const model = readOptionalString(body.model, "");
+      const apiVersion = readOptionalString(body.apiVersion, undefined);
 
-      if (!SUPPORTED_PROTOCOLS.includes(protocol as (typeof SUPPORTED_PROTOCOLS)[number])) {
-        res.status(400).json({
-          error: `protocol must be one of ${SUPPORTED_PROTOCOLS.join("|")}`,
-          code: "VALIDATION_ERROR",
-        });
+      const protocolError = validateSupportedProtocol(protocol);
+      if (protocolError) {
+        res.status(400).json(protocolError);
         return;
       }
-      if (!baseUrl.trim() || !model.trim()) {
+      if (isMissingConnectionTarget(baseUrl, model)) {
         res.status(400).json({ error: "baseUrl and model are required", code: "VALIDATION_ERROR" });
         return;
       }
@@ -92,7 +117,7 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       // one this request body chose. See `stored-credential-probe.ts`'s header.
       const credential = await resolveProbeCredential(deps, {
         requestedBaseUrl: baseUrl,
-        typedKey: typeof body.apiKey === "string" ? body.apiKey : "",
+        typedKey: readOptionalString(body.apiKey, ""),
         useStoredCredential: body.useStoredCredential === true,
       });
       if (!credential.ok) {
@@ -100,14 +125,7 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
         return;
       }
 
-      const result = await testProviderConnection({
-        protocol: protocol as (typeof SUPPORTED_PROTOCOLS)[number],
-        baseUrl: credential.baseUrl,
-        apiKey: credential.apiKey,
-        model,
-        ...(apiVersion ? { apiVersion } : {}),
-      });
-      res.json({ ok: result.ok, message: renderMessage(result) });
+      res.json(await fetchTestConnectionResponse(protocol as SupportedExecutionProtocol, credential, model, apiVersion));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

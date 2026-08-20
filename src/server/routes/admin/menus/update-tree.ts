@@ -7,6 +7,45 @@ import {
 import type { NavItemNode } from "#src/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { Response } from "express";
+
+/** The PUT body's four fields, read off an untyped body, or `null` if `items` is not an array.
+ *  @complexity O(1). */
+function parseMenuTreeRequestBody(rawBody: unknown): {
+  items: NavItemNode[];
+  expectedVersion: number;
+  title: string | undefined;
+  slug: string | undefined;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  if (!Array.isArray(body.items)) {
+    return null;
+  }
+  return {
+    items: body.items as NavItemNode[],
+    expectedVersion: Number(body.expectedVersion ?? 0),
+    title: typeof body.title === "string" ? body.title : undefined,
+    slug: typeof body.slug === "string" ? body.slug : undefined,
+  };
+}
+
+/** Maps `updateMenuTree`'s thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendUpdateMenuTreeError(res: Response, err: unknown): void {
+  if (err instanceof MenuValidationError) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  if (err instanceof MenuConflictError) {
+    res.status(409).json({ error: err.message });
+    return;
+  }
+  if (err instanceof MenuNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * PUT a menu's whole item tree (ADR-029 `updateMenuTree`, whole-tree replace
@@ -30,7 +69,8 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
       return;
     }
 
-    if (!Array.isArray(req.body?.items)) {
+    const parsedBody = parseMenuTreeRequestBody(req.body);
+    if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;
     }
@@ -60,28 +100,16 @@ export const registerAdminMenuUpdateTreeRoute: MenuRouteRegistrar = (app, deps) 
         input: {
           workspaceId: deps.workspaceId,
           id: menuId,
-          expectedVersion: Number(req.body?.expectedVersion ?? 0),
-          title: typeof req.body?.title === "string" ? req.body.title : undefined,
-          slug: typeof req.body?.slug === "string" ? req.body.slug : undefined,
-          items: req.body.items as NavItemNode[],
+          expectedVersion: parsedBody.expectedVersion,
+          title: parsedBody.title,
+          slug: parsedBody.slug,
+          items: parsedBody.items,
         },
       });
 
       res.json(toAdminMenuResponse(menu));
     } catch (err) {
-      if (err instanceof MenuValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-      if (err instanceof MenuConflictError) {
-        res.status(409).json({ error: err.message });
-        return;
-      }
-      if (err instanceof MenuNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      sendUpdateMenuTreeError(res, err);
     }
   });
 };
