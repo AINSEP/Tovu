@@ -680,42 +680,62 @@ async function handleAgUiRun(req: Request, res: Response): Promise<void> {
     return;
   }
 
+  // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
+  // 2026-08-19 Codex sol bug/architecture audit; RE-AUDITED 2026-08-19 by both `gpt-5.6-sol` and
+  // `gpt-5.6-terra`): the first fix armed `res.on("close")` only after BOTH `startDaemonRun` and
+  // `subscribeToDaemonEvents` had already resolved. Two windows still leaked an orphaned daemon run:
+  // (1) a client abort while either of those `await`s was still pending was missed permanently,
+  // since nothing was listening for `"close"` yet; (2) a subscribe HTTP failure (the 502 branch
+  // below) ends this response NORMALLY from the server's own point of view, so it looked identical
+  // to a successful `drainAgUiStream` finish and never triggered a cancel either.
+  //
+  // The handler is registered here, before either daemon call, so no window is uncovered. It cannot
+  // cancel before a daemon run actually exists, so `daemonRunId` starts `null`; if `"close"` fires
+  // in that gap, `closedEarly` remembers it and the check right after `startDaemonRun` resolves
+  // fires the cancel retroactively — the two can't race because JS's single-threaded execution
+  // serializes "close fires first" against "the await resolves first," and either ordering leaves
+  // the daemon run cancelled exactly once.
+  //
+  // `runFinished` (not `res.writableEnded`) is what distinguishes "the run reached its own terminal
+  // state" from "this response ended early while the run is still executing" — both leave
+  // `writableEnded === true`, which is exactly why the previous fix's guard missed case (2) above.
+  // It is set `true` only once `drainAgUiStream` has actually driven the run to completion (terminal
+  // frame, natural stream close, or a read error that already unwound the daemon side), synchronously
+  // before this function returns and therefore strictly before the async `"close"` event can fire —
+  // so an ordinary successful run still issues zero cancel calls, per this fix's own regression test.
+  let daemonRunId: string | null = null;
+  let runFinished = false;
+  let closedEarly = false;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  res.on("close", () => {
+    reader?.cancel().catch(() => undefined);
+    if (runFinished) return;
+    if (daemonRunId) cancelDaemonRunBestEffort(req, res, daemonRunId);
+    else closedEarly = true;
+  });
+
   // Start the real daemon run BEFORE switching this response into SSE mode — a daemon failure at
   // this point can still answer with an ordinary JSON error status, which is no longer possible
   // once headers have been flushed for the event stream below.
   const principal = getAuthedPrincipal(res);
   const started = await startDaemonRun(req, res, run, principal.id);
   if (!started.ok) return;
+  daemonRunId = started.daemonRunId;
+  if (closedEarly) {
+    cancelDaemonRunBestEffort(req, res, daemonRunId);
+    return;
+  }
 
-  const reader = await subscribeToDaemonEvents(req, res, started.daemonRunId);
-  if (!reader) return;
+  const subscribedReader = await subscribeToDaemonEvents(req, res, started.daemonRunId);
+  if (!subscribedReader) return;
+  reader = subscribedReader;
 
   beginAgUiStream(res, run.requestId);
   writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
   const state = createAgUiTranslationState();
-  // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
-  // 2026-08-19 Codex sol bug/architecture audit): before this fix, Stop tore down only the local
-  // `reader` here, leaving the daemon's run — including any in-flight tool call — executing to
-  // completion unobserved, unlike the non-AG-UI (Local CLI) path's own `/api/runs/:runId/cancel`
-  // button, which already reaches the daemon. `cancelDaemonRunBestEffort`'s own doc covers why this
-  // is safe to fire from here (after `res` has already closed) and why every daemon-side outcome is
-  // safe to not await/ignore.
-  //
-  // `res.writableEnded` gates this to a genuine PREMATURE close: Node fires `"close"` after every
-  // response, including a normal `drainAgUiStream`-driven finish (`res.end()` below), not only on a
-  // client abort. Without this guard, every ordinary successful run would ALSO fire a redundant
-  // cancel call after it had already finished — caught by this fix's own regression test, which
-  // failed for OTHER, unrelated tests once background cancel calls from earlier completed runs
-  // started landing on the shared stand-in daemon's request log after those tests had already reset
-  // it. `writableEnded` is `true` the instant `res.end()` is called (synchronous), well before the
-  // async `"close"` event this handler runs in ever fires, so the two can never race.
-  res.on("close", () => {
-    reader.cancel().catch(() => undefined);
-    if (!res.writableEnded) cancelDaemonRunBestEffort(req, res, started.daemonRunId);
-  });
-
-  await drainAgUiStream(reader, { res, threadId: run.threadId, runId: run.runId, state });
+  await drainAgUiStream(subscribedReader, { res, threadId: run.threadId, runId: run.runId, state });
+  runFinished = true;
 }
 
 export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHandle {

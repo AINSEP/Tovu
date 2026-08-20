@@ -4,6 +4,8 @@ import type { AddressInfo } from "node:net";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
+import { resolveThemeLayout } from "#src/features/theme/index";
+
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
 // shared back-edge that every export/publish import cycle ran through — `server/app.ts` (and
 // anything it registers — the export route, the publish route, the deployments agent-tool domain)
@@ -596,12 +598,16 @@ function listFilesRecursively(dir: string): string[] {
  *   a theme folder is a handful of files/folders in practice, never a caller-controlled collection.
  */
 function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRoutes: readonly ManifestRoute[], fetchedAssetUrls: readonly string[]): string[] {
-  // Schema v2 (2026-08-18, `basic`'s own migration was the last static theme to convert) nests
-  // pages under `render/pages/` instead of a theme-root `pages/` — same `apiVersion === 2` branch
-  // `theme.ts`'s `loadStaticTierAssets` uses (`ManifestActiveTheme.apiVersion` is threaded from
-  // `theme.manifest.apiVersion` in `route-manifest.ts` for exactly this), rather than a second,
-  // independently-maintained disk-layout probe that could drift from the loader's own rule.
-  const pagesDir = activeTheme.apiVersion === 2 ? "render/pages" : "pages";
+  // `resolveThemeLayout` (`theme-layout.ts`, 2026-08-19 architecture audit findings 1 & 2) is the one
+  // apiVersion-aware source of truth for schema v2's `render/pages/` vs v1's theme-root `pages/` —
+  // `ManifestActiveTheme.apiVersion` is threaded from `theme.manifest.apiVersion` in
+  // `route-manifest.ts` for exactly this. RE-AUDIT (2026-08-19, `gpt-5.6-sol` and `gpt-5.6-terra`
+  // independently) found this call site still hand-rolled the same `apiVersion === 2 ? "render/pages"
+  // : "pages"` branch the resolver exists to centralize — written in the SAME commit that introduced
+  // the resolver to eliminate exactly this duplication. Values matched today (no live bug), but a
+  // second independently-maintained copy is how the resolver's own six other pre-fix call sites
+  // drifted in the first place.
+  const { pagesDir } = resolveThemeLayout(activeTheme.apiVersion);
   const accountedFor = new Set<string>([`${pagesDir}/index.html`, `${pagesDir}/404.html`]);
   for (const route of manifestRoutes) {
     if (route.kind === "theme-page") accountedFor.add(`${pagesDir}/${route.label}.html`);

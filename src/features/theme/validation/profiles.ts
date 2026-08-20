@@ -48,7 +48,8 @@ const PUBLISH_ONLY_RULES: ReadonlySet<string> = new Set([
 
 /**
  * Rule IDs for v2 manifest fields the runtime loader does not implement yet — `partials`, `renderer`,
- * nested `tokens`, an object-valued `engine` (`theme-authoring-guide-v2.md`'s own `[TARGET]` fields;
+ * nested `tokens`, an object-valued `engine`, and (as of the 2026-08-19 re-audit below) `scripts`,
+ * `assets`, `ai`, and dead `pages` (`theme-authoring-guide-v2.md`'s own `[TARGET]`/"unread" fields;
  * `manifest-v2.ts`'s own header names the exact loader gap for each). A `warning` under `author` (a
  * theme author may draft ahead of the loader catching up — the design doc's own stated intent for
  * `[TARGET]` fields, not a defect to block on mid-authoring); a hard `error` under `install`/`publish`
@@ -58,13 +59,17 @@ const PUBLISH_ONLY_RULES: ReadonlySet<string> = new Set([
  * warning under `install`): that set is about POLISH a WIP package has no reason to carry yet; this
  * one is about a manifest claim the runtime will actively get wrong, which install must not admit
  * regardless of publish-readiness. 2026-08-19 architecture audit finding 3.
+ *
+ * Recognized by NAMING CONVENTION (`v2-<field>-unimplemented`), not a manually maintained id list —
+ * RE-AUDIT (2026-08-19, `gpt-5.6-sol` and `gpt-5.6-terra` independently): the previous four-id `Set`
+ * here was itself a second place a newly unread field had to be remembered, on top of remembering to
+ * add the `err()` call in `manifest-v2.ts` in the first place — that's exactly how `scripts`/`assets`/
+ * `ai`/`pages` went unflagged. `manifest-v2.ts`'s own generic sweep (see its header) now mints every
+ * `v2-*-unimplemented` id from a verified field classification instead of a hand-written list, so this
+ * pattern match is the ONLY place severity for that whole family needs to be declared, and it can't
+ * miss a new one — see `manifest-v2.ts`'s matching self-maintenance note for the other half.
  */
-const UNIMPLEMENTED_V2_FIELD_RULES: ReadonlySet<string> = new Set([
-  "v2-partials-unimplemented",
-  "v2-renderer-unimplemented",
-  "v2-tokens-unimplemented",
-  "v2-engine-object-unimplemented",
-]);
+const UNIMPLEMENTED_V2_FIELD_PATTERN = /^v2-.+-unimplemented$/;
 
 /**
  * Resolve one rule id's severity for one profile. Pure lookup — see this module's own header for why
@@ -80,7 +85,7 @@ export function resolveSeverity(
   if (PUBLISH_ONLY_RULES.has(ruleId)) {
     return profile === "publish" ? "error" : "warning";
   }
-  if (UNIMPLEMENTED_V2_FIELD_RULES.has(ruleId)) {
+  if (UNIMPLEMENTED_V2_FIELD_PATTERN.test(ruleId)) {
     return profile === "author" ? "warning" : "error";
   }
   return "error";

@@ -22,12 +22,15 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * (`engine` as an object, `tokens` as a nested object, `authors`/`license`/`attributions`) nothing
  * else validates yet.
  *
- * Deliberately LIGHT on fields whose target shape is not concretely pinned down enough to enforce
- * strictly without inventing scope beyond what the design doc settled: `scripts.entries`,
- * `assets.previewGallery`, and `ai` are accepted as loosely-typed optional objects (present-and-an-
- * object, or absent) rather than deeply validated — the doc itself marks `ai` "NOT YET IMPLEMENTED
- * anywhere" (§12) and the others "unread" (§15's field table). Tightening these is future work once
- * their own shape is settled by an actual implementation, not a guess made here.
+ * Deliberately LIGHT on shape for `scripts`, `assets`, and `ai`: their target shape is not concretely
+ * pinned down enough to enforce strictly without inventing scope beyond what the design doc settled
+ * (the doc itself marks `ai` "NOT YET IMPLEMENTED anywhere", §12), so none of the three gets a
+ * dedicated `isObject`/field-shape check here — only whatever generic JSON-object closure the
+ * top-level schema already implies. They are NOT light on the unimplemented-field policy, though: all
+ * three (plus dead `pages`) are unread by the loader (§15's field table; verified below) and get the
+ * same `v2-*-unimplemented` treatment as `partials`/`renderer`/`tokens`/`engine`, via the generic sweep
+ * described next. Tightening their SHAPE checking is future work once an actual implementation settles
+ * it; tightening whether declaring them is safe is this fix.
  *
  * `engine` (object-valued), nested `tokens`, `partials`, and `renderer` get a STRONGER treatment than
  * merely "light" (2026-08-19 architecture audit finding 3): each is still schema-checked when present
@@ -35,24 +38,44 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * `v2-*-unimplemented` finding whenever present, valid or not — `loadTheme()` does not read any of
  * these four fields today (see each check's own comment for the exact loader line that proves it), so
  * "schema-valid" must not silently mean "the runtime will honor this." `profiles.ts`'s
- * `UNIMPLEMENTED_V2_FIELD_RULES` makes that a `warning` under `author` (drafting ahead of the loader is
- * the design doc's own stated intent for `[TARGET]` fields) and a hard `error` under `install`/
- * `publish` — a package must not actually be installed or listed while claiming a field the runtime
- * will silently ignore. This closes the exact repro the audit found: a marketplace fixture declaring
- * `partials.hero.source` used to pass `validateThemePackage({ profile: "install" })` cleanly and then
- * render with that partial unresolved, because the runtime reads `slots`, never `partials`.
+ * `resolveSeverity` recognizes any `v2-*-unimplemented` rule id by NAMING CONVENTION (not a manually
+ * maintained list — see its own doc) and makes that a `warning` under `author` (drafting ahead of the
+ * loader is the design doc's own stated intent for `[TARGET]` fields) and a hard `error` under
+ * `install`/`publish` — a package must not actually be installed or listed while claiming a field the
+ * runtime will silently ignore. This closes the exact repro the audit found: a marketplace fixture
+ * declaring `partials.hero.source` used to pass `validateThemePackage({ profile: "install" })` cleanly
+ * and then render with that partial unresolved, because the runtime reads `slots`, never `partials`.
  *
- * `modes`/`defaultMode`/`pages`/`slots` are accepted the same way, for the opposite reason: they are
- * REAL, load-bearing v1 fields `loadTheme()` reads flat off the manifest root, completely
- * apiVersion-agnostic (`theme.ts`'s manifest-parse block) — `slots` drives which root partial file
- * satisfies which named slot, `modes`/`defaultMode` drive dark/light token switching. The design doc's
- * own worked example nests `defaultMode`/`modes` under `tokens` instead — that shape is UNIMPLEMENTED
- * (`readLightTokens` hardcodes the filename `tokens.light.json`, it never reads a `tokens.modes`
- * mapping), so migrating a real theme to the doc's nested shape would silently stop `loadTheme()` from
- * finding `modes`/`defaultMode` at all, breaking dark/light mode for every multi-mode theme. Keeping
- * these flat here matches what the runtime actually does today; `pages` (an array of page ids) is
- * carried the same way even though `loadTheme()` doesn't parse it into `ThemeManifest` either —
- * confirmed dead, not read anywhere in `src/`, so there is nothing to preserve OR break either way.
+ * RE-AUDIT (2026-08-19, `gpt-5.6-sol` and `gpt-5.6-terra` independently): the four-field list above
+ * was itself incomplete — this file's OWN prior header claimed `scripts`, `assets`, and `ai` were
+ * "accepted as loosely-typed optional objects," but no code anywhere actually checked or flagged them,
+ * and `pages` (confirmed dead — not read by `theme.ts` or anywhere else in `src/`) was allowed with no
+ * finding at all. Rather than hand-adding four more one-off checks (the same manual-list pattern that
+ * produced the gap), {@link V2_FIELDS_READ_BY_LOADER} and {@link V2_RESERVED_METADATA_FIELDS} below
+ * make the unimplemented set SELF-MAINTAINING: `validateManifestV2`'s closing sweep flags every
+ * top-level v2 key present in the manifest that isn't on one of those two verified lists, so a future
+ * field can no longer silently skip this policy the way these four did. Both lists were built by
+ * direct inspection of `theme.ts`'s manifest-parse block (`theme.ts:661-684`) and a repo-wide grep for
+ * every other candidate field name — not by trusting this file's own prior comments, which is exactly
+ * how the `scripts`/`assets`/`ai` gap happened in the first place.
+ *
+ * `modes`/`defaultMode`/`slots` are accepted with NO unimplemented finding, for the opposite reason
+ * from the previous paragraph: they are REAL, load-bearing v1 fields `loadTheme()` reads flat off the
+ * manifest root, completely apiVersion-agnostic (`theme.ts`'s manifest-parse block) — `slots` drives
+ * which root partial file satisfies which named slot, `modes`/`defaultMode` drive dark/light token
+ * switching. The design doc's own worked example nests `defaultMode`/`modes` under `tokens` instead —
+ * that shape is UNIMPLEMENTED (`readLightTokens` hardcodes the filename `tokens.light.json`, it never
+ * reads a `tokens.modes` mapping), so migrating a real theme to the doc's nested shape would silently
+ * stop `loadTheme()` from finding `modes`/`defaultMode` at all, breaking dark/light mode for every
+ * multi-mode theme (this is exactly what the nested-`tokens` `v2-tokens-unimplemented` check above
+ * exists to catch). Keeping these flat here matches what the runtime actually does today.
+ *
+ * `pages` (an array of page ids) is NOT grouped with `modes`/`defaultMode`/`slots` above, despite
+ * `theme-authoring-guide-v2.md` §17's worked examples listing it alongside them — `loadTheme()` does
+ * not parse it into `ThemeManifest` at all (confirmed dead: no read anywhere in `src/`, verified by
+ * repo-wide grep, not by trusting this file's own prior claim that it was "carried the same way" as
+ * the three real fields). It gets the generic `v2-pages-unimplemented` sweep finding like `scripts`/
+ * `assets`/`ai` above.
  */
 
 /** Top-level keys schema v2 recognizes (`theme-authoring-guide-v2.md` §5). Anything else in a
@@ -87,6 +110,53 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "pages",
   "slots",
   "templates",
+]);
+
+/**
+ * Top-level v2 fields `loadTheme()` (`theme.ts`) actually reads into `ThemeManifest` — verified by
+ * direct inspection of its manifest-parse block (`theme.ts:661-684`), not by trusting this file's own
+ * prior header comments (a 2026-08-19 re-audit found those stale). `engine` is included even though
+ * only its NUMBER form is honored — an object-valued `engine` still gets its own dedicated
+ * `v2-engine-object-unimplemented` finding below (that check `flaggedUnimplemented.add`s it so the
+ * generic sweep doesn't ALSO double-flag it); this set only decides whether the sweep leaves the KEY
+ * alone by default, not whether every shape it can hold is honored.
+ */
+const V2_FIELDS_READ_BY_LOADER: ReadonlySet<string> = new Set([
+  "id",
+  "name",
+  "version",
+  "apiVersion",
+  "tier",
+  "engine",
+  "author",
+  "build",
+  "description",
+  "fonts",
+  "regions",
+  "templates",
+  "modes",
+  "defaultMode",
+  "slots",
+]);
+
+/**
+ * Top-level v2 fields that are pure descriptive/discovery metadata about the PACKAGE itself (legal
+ * credit, marketplace-browse facets) or JSON-Schema tooling plumbing, rather than a claim about
+ * runtime rendering behavior. None of these reads as "the theme has configured X" the way
+ * `partials`/`renderer`/`scripts`/`assets`/`ai`/`pages` do — declaring a `license` does not imply the
+ * runtime enforces or displays it anywhere, so silently not acting on it is not the same defect class
+ * as silently ignoring a claimed capability. Deliberately exempt from the unimplemented-field sweep
+ * below rather than left to fall through it unnoticed. If any of these gains real runtime behavior
+ * later, move it to {@link V2_FIELDS_READ_BY_LOADER} above in the same change that wires it up.
+ */
+const V2_RESERVED_METADATA_FIELDS: ReadonlySet<string> = new Set([
+  "$schema",
+  "compatibility",
+  "license",
+  "authors",
+  "attributions",
+  "category",
+  "tags",
 ]);
 
 const V2_TIERS: ReadonlySet<string> = new Set(["declarative", "templated", "handlebars", "static", "code"]);
@@ -133,6 +203,11 @@ export function validateManifestV2(
   const err = (ruleId: string, message: string): void => {
     issues.push({ ruleId, message });
   };
+  // Fields the bespoke checks below already gave their own specific `v2-<field>-unimplemented`
+  // finding (with a more useful, field-specific message) — the generic sweep at the bottom of this
+  // function skips these so a field never gets flagged twice. `engine` needs no entry here: it's
+  // excluded from the sweep via `V2_FIELDS_READ_BY_LOADER` instead (see that set's own doc).
+  const flaggedUnimplemented = new Set<string>();
 
   for (const key of Object.keys(raw)) {
     if (!V2_TOP_LEVEL_KEYS.has(key)) {
@@ -173,13 +248,16 @@ export function validateManifestV2(
       // `engine: typeof raw.engine === "number" ? raw.engine : 1` — an object-valued engine is
       // silently coerced to `1`, discarding whatever `{ name, version }` this manifest declared.
       // "Schema-valid" must not mean "the runtime will actually read this" — see `profiles.ts`'s
-      // `UNIMPLEMENTED_V2_FIELD_RULES` for the author-warns/install-errors severity split.
+      // `UNIMPLEMENTED_V2_FIELD_PATTERN` for the author-warns/install-errors severity split.
       err(
         "v2-engine-object-unimplemented",
         "theme.json: engine as an object is not yet read by the runtime loader (theme.ts still coerces any non-number engine to 1) — this declaration will be silently discarded"
       );
     }
   }
+  // `engine` is deliberately NOT added to `flaggedUnimplemented` here — the generic sweep already
+  // skips it unconditionally via `V2_FIELDS_READ_BY_LOADER` (the key itself IS read, in its number
+  // form; only the object shape above is unimplemented, and that already has its own finding).
 
   if (raw.tokens !== undefined) {
     if (!isObject(raw.tokens)) {
@@ -207,6 +285,7 @@ export function validateManifestV2(
       "v2-tokens-unimplemented",
       "theme.json: nested tokens (defaultMode/modes) is not yet read by the runtime loader (theme.ts reads the flat top-level modes/defaultMode fields instead, and hardcodes the tokens.light.json filename) — this declaration will be silently ignored"
     );
+    flaggedUnimplemented.add("tokens");
   }
 
   if (raw.license !== undefined && !isObject(raw.license)) {
@@ -233,6 +312,7 @@ export function validateManifestV2(
       "v2-partials-unimplemented",
       "theme.json: partials is not yet read by the runtime loader (theme.ts still reads the flat slots field) — declare this mapping under slots instead, or this partial will render unresolved"
     );
+    flaggedUnimplemented.add("partials");
   }
   if (raw.regions !== undefined && !Array.isArray(raw.regions)) {
     err("v2-regions-shape", "theme.json: regions must be an array of strings");
@@ -246,6 +326,7 @@ export function validateManifestV2(
       "v2-renderer-unimplemented",
       "theme.json: renderer is not yet read by any runtime code path — declaring it has no effect on how this theme actually renders"
     );
+    flaggedUnimplemented.add("renderer");
   }
 
   // `lineage`/`skipLiquidAllowlist` are the two 2026-08-18 schema decisions: neither is a v2 field at
@@ -255,6 +336,27 @@ export function validateManifestV2(
 
   if (raw.build !== undefined) {
     issues.push(...validateBuildV2(raw.build));
+  }
+
+  // Self-maintaining unimplemented-field sweep (2026-08-19 re-audit of architecture audit finding 3):
+  // every OTHER top-level v2 key actually present in this manifest that the loader does not read
+  // (`V2_FIELDS_READ_BY_LOADER`) and that isn't reserved metadata (`V2_RESERVED_METADATA_FIELDS`) gets
+  // a generic `v2-<field>-unimplemented` finding automatically. This is what currently fires for
+  // `scripts`, `assets`, `ai`, and dead `pages` — none of which had ANY finding before this fix, despite
+  // this file's own prior header claiming otherwise for the first three. Because this loop is driven by
+  // set membership rather than a hand-maintained list of `err()` calls, a field added to
+  // `V2_TOP_LEVEL_KEYS` in the future is flagged by default the moment it's added, unless a change also
+  // classifies it into one of the two allow-lists (or gives it its own bespoke check that
+  // `flaggedUnimplemented.add`s it, like `partials`/`renderer`/`tokens` above) — the opposite failure
+  // mode from before, where a field could be silently allowed until someone remembered to add a check.
+  for (const key of Object.keys(raw)) {
+    if (!V2_TOP_LEVEL_KEYS.has(key)) continue; // already reported as v2-unknown-field above
+    if (V2_FIELDS_READ_BY_LOADER.has(key) || V2_RESERVED_METADATA_FIELDS.has(key)) continue;
+    if (flaggedUnimplemented.has(key)) continue; // already reported with its own specific rule id above
+    err(
+      `v2-${key}-unimplemented`,
+      `theme.json: ${key} is not yet read by the runtime loader (theme.ts) — this declaration will be silently ignored`
+    );
   }
 
   return issues;
