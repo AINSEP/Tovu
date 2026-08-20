@@ -80,6 +80,20 @@ export interface DeployCliStatus {
 /** The publish CLIs worth reporting on — display order. */
 const DEPLOY_CLI_NAMES = ["gh", "vercel"] as const;
 
+/** True if any of `candidates` exists directly inside `dir`. Split out of `isOnPath` so its
+ *  try/catch-per-candidate loop isn't nested inside the outer per-PATH-entry loop.
+ *  @complexity O(C) in the candidate count — bounded (1 or 3), not request data. */
+function candidateExistsInDir(dir: string, candidates: readonly string[]): boolean {
+  for (const candidate of candidates) {
+    try {
+      if (existsSync(join(dir, candidate))) return true;
+    } catch {
+      // An unreadable or malformed PATH entry is not an answer about the binary — keep looking.
+    }
+  }
+  return false;
+}
+
 /**
  * Whether `binary` resolves on this process's PATH.
  *
@@ -100,17 +114,7 @@ function isOnPath(binary: string): boolean {
   const isWindows = process.platform === "win32";
   // On Windows a bare name is not executable; PATHEXT-style suffixes are what actually resolve.
   const candidates = isWindows ? [`${binary}.exe`, `${binary}.cmd`, `${binary}.bat`] : [binary];
-  for (const dir of raw.split(isWindows ? ";" : ":")) {
-    if (dir === "") continue;
-    for (const candidate of candidates) {
-      try {
-        if (existsSync(join(dir, candidate))) return true;
-      } catch {
-        // An unreadable or malformed PATH entry is not an answer about the binary — keep looking.
-      }
-    }
-  }
-  return false;
+  return raw.split(isWindows ? ";" : ":").some((dir) => dir !== "" && candidateExistsInDir(dir, candidates));
 }
 
 /** The four env vars the brief calls out — order here is display order. */

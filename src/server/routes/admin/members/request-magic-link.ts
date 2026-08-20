@@ -1,7 +1,38 @@
+import type { Response } from "express";
+
 import { MemberValidationError, requestSignInLink } from "#src/members/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
+
+/**
+ * Parses the body and checks the per-email rate limit — ADR-PIPE-013 Decision §2-3 / INV-NEW-03:
+ * the shared MAGIC_LINK_PER_EMAIL limiter (same instance the public sign-in route consults, C-015),
+ * which the caller must only invoke strictly AFTER `authorize()` succeeds (an unauthorized caller
+ * must never reach, and therefore never consume, this check). Writes the 429 response itself on a
+ * denial and returns `null`, so the caller can `return` without re-branching.
+ *
+ * @complexity O(1).
+ */
+function parseMagicLinkRequest(
+  deps: Pick<MembersRouteDeps, "magicLinkPerEmailLimiter">,
+  res: Response,
+  rawBody: unknown
+): { rawEmail: string; redirectPath: string | undefined } | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const rawEmail = String(body.email ?? "");
+  const rateLimitResult = deps.magicLinkPerEmailLimiter.check(rawEmail.trim().toLowerCase());
+  if (!rateLimitResult.allowed) {
+    res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+    res.status(429).json({
+      error: "too many sign-in requests for this email",
+      code: "RATE_LIMIT_EXCEEDED",
+      details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+    });
+    return null;
+  }
+  return { rawEmail, redirectPath: body.redirectPath ? String(body.redirectPath) : undefined };
+}
 
 /**
  * POST request a passwordless sign-in link for a member email (operator-
@@ -49,19 +80,8 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, ro
         return;
       }
 
-      // ADR-PIPE-013 Decision §2-3 / INV-NEW-03: the shared MAGIC_LINK_PER_EMAIL
-      // limiter (same instance the public sign-in route consults, C-015),
-      // strictly AFTER authorize() — an unauthorized caller must never reach
-      // (and therefore never consume) this check.
-      const emailKey = String(req.body?.email ?? "").trim().toLowerCase();
-      const rateLimitResult = deps.magicLinkPerEmailLimiter.check(emailKey);
-      if (!rateLimitResult.allowed) {
-        res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-        res.status(429).json({
-          error: "too many sign-in requests for this email",
-          code: "RATE_LIMIT_EXCEEDED",
-          details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-        });
+      const parsed = parseMagicLinkRequest(deps, res, req.body);
+      if (!parsed) {
         return;
       }
 
@@ -69,8 +89,8 @@ export const registerAdminMemberRequestMagicLinkRoute: RouteRegistrar = (app, ro
         deps: toMembersWriteServiceDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
-          email: String(req.body?.email ?? ""),
-          redirectPath: req.body?.redirectPath ? String(req.body.redirectPath) : undefined,
+          email: parsed.rawEmail,
+          redirectPath: parsed.redirectPath,
         },
       });
 

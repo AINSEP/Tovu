@@ -3,6 +3,21 @@ import type { NavItemNode } from "#src/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
+/** This route's three body fields, read off an untyped body in one place, or `null` if a present
+ *  `items` isn't an array.
+ *  @complexity O(1). */
+function parseMenuCreateBody(rawBody: unknown): { title: string; slug: string; items: NavItemNode[] | undefined } | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  if (body.items !== undefined && !Array.isArray(body.items)) {
+    return null;
+  }
+  return {
+    title: String(body.title ?? ""),
+    slug: String(body.slug ?? ""),
+    items: body.items as NavItemNode[] | undefined,
+  };
+}
+
 /**
  * POST a new menu (ADR-029 `createMenu`).
  *
@@ -23,8 +38,8 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
       return;
     }
 
-    const rawItems = req.body?.items;
-    if (rawItems !== undefined && !Array.isArray(rawItems)) {
+    const parsedBody = parseMenuCreateBody(req.body);
+    if (!parsedBody) {
       res.status(400).json({ error: "items must be an array" });
       return;
     }
@@ -53,9 +68,9 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
         input: {
           workspaceId: deps.workspaceId,
-          title: String(req.body?.title ?? ""),
-          slug: String(req.body?.slug ?? ""),
-          items: rawItems as NavItemNode[] | undefined,
+          title: parsedBody.title,
+          slug: parsedBody.slug,
+          items: parsedBody.items,
         },
       });
 
