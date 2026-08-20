@@ -90,15 +90,20 @@ function parseJson(bodyText: string): unknown {
   }
 }
 
+/** Provider error codes that mean the same thing as an HTTP 402: the charge was declined. */
+const DECLINE_CODES = new Set(["card_declined", "insufficient_funds"]);
+
 /**
  * A non-2xx response, classified. `DECLINED` is separated from `PROVIDER_ERROR` because they are
  * different facts to a caller: a decline is a terminal answer about this payment, while a provider
  * error says nothing about whether money moved and may be worth retrying with the same key.
  */
 function classifyHttpFailure(status: number, body: ChargeResponseBody | null, bodyText: string): PaymentError {
-  const code = typeof body?.error?.code === "string" ? body.error.code : null;
-  const message = typeof body?.error?.message === "string" ? body.error.message : bodyText.slice(0, 300);
-  if (status === 402 || code === "card_declined" || code === "insufficient_funds") {
+  // Read the nested `error` object once so both fields below resolve without their own `?.` chain.
+  const err = body?.error ?? {};
+  const code = typeof err.code === "string" ? err.code : "";
+  const message = typeof err.message === "string" ? err.message : bodyText.slice(0, 300);
+  if (status === 402 || DECLINE_CODES.has(code)) {
     return fail("DECLINED", message || `lipay declined the charge (${status})`, { providerStatus: status });
   }
   return fail("PROVIDER_ERROR", `lipay API returned ${status}: ${message}`, {
@@ -122,15 +127,27 @@ function toNextAction(body: ChargeResponseBody): ChargeNextAction | null {
   return null;
 }
 
+type SignatureField = { field: "timestamp"; value: number } | { field: "signature"; value: string } | null;
+
+/** Parses one `key=value` segment of the header into a typed field, or `null` if it names neither. */
+function parseSignaturePart(part: string): SignatureField {
+  const [key, value] = part.trim().split("=", 2);
+  if (value === undefined) return null;
+  if (key === "t" && /^\d+$/.test(value)) return { field: "timestamp", value: Number(value) };
+  if (key === "v1" && /^[0-9a-f]+$/i.test(value)) return { field: "signature", value: value.toLowerCase() };
+  return null;
+}
+
 /** `t=<seconds>,v1=<hex>` — tolerant of ordering and extra future schemes, strict about content. */
 function parseSignatureHeader(raw: string | undefined): { timestamp: number; signature: string } | null {
   if (!raw) return null;
   let timestamp: number | null = null;
   let signature: string | null = null;
   for (const part of raw.split(",")) {
-    const [key, value] = part.trim().split("=", 2);
-    if (key === "t" && value !== undefined && /^\d+$/.test(value)) timestamp = Number(value);
-    if (key === "v1" && value !== undefined && /^[0-9a-f]+$/i.test(value)) signature = value.toLowerCase();
+    const parsed = parseSignaturePart(part);
+    if (!parsed) continue;
+    if (parsed.field === "timestamp") timestamp = parsed.value;
+    else signature = parsed.value;
   }
   return timestamp === null || signature === null ? null : { timestamp, signature };
 }
@@ -185,6 +202,93 @@ function verifySignature(
     };
   }
   return { ok: true };
+}
+
+/**
+ * Turn a completed charge HTTP response into the typed result. Split out of `createCharge` so the
+ * async method itself is just "make the call, hand the response here" — all the response-shape
+ * validation lives in one place with its own complexity budget.
+ */
+function buildChargeResult(
+  status: number,
+  body: ChargeResponseBody | null,
+  bodyText: string
+): ProviderChargeResult {
+  if (status < 200 || status >= 300) {
+    return { ok: false, error: classifyHttpFailure(status, body, bodyText) };
+  }
+  if (!body || typeof body.id !== "string" || body.id.length === 0) {
+    return { ok: false, error: fail("PROVIDER_ERROR", "lipay accepted the charge but returned no charge id") };
+  }
+  if (body.status !== "succeeded" && body.status !== "pending") {
+    return {
+      ok: false,
+      error: fail("PROVIDER_ERROR", `lipay returned an unrecognized charge status '${String(body.status)}'`),
+    };
+  }
+  const next = toNextAction(body);
+  if (next === null) {
+    return { ok: false, error: fail("PROVIDER_ERROR", "lipay returned a malformed next_action") };
+  }
+  return { ok: true, providerRef: body.id, status: body.status, next };
+}
+
+/** Same split as `buildChargeResult`, for the refund response's smaller validation set. */
+function buildRefundResult(
+  status: number,
+  body: ChargeResponseBody | null,
+  bodyText: string
+): ProviderRefundResult {
+  if (status < 200 || status >= 300) {
+    return { ok: false, error: classifyHttpFailure(status, body, bodyText) };
+  }
+  if (!body || typeof body.id !== "string" || body.id.length === 0) {
+    return { ok: false, error: fail("PROVIDER_ERROR", "lipay accepted the refund but returned no refund id") };
+  }
+  const refundStatus = body.status === "pending" ? "pending" : "succeeded";
+  return { ok: true, providerRef: body.id, status: refundStatus };
+}
+
+/** Recognizes the two numeric/string shapes `charge.amount`/`charge.currency` must have to be usable. */
+function resolveChargeAmount(charge: {
+  amount?: unknown;
+  currency?: unknown;
+}): { minorUnits: number; currency: string } | undefined {
+  if (typeof charge.amount !== "number" || !Number.isSafeInteger(charge.amount)) return undefined;
+  if (typeof charge.currency !== "string") return undefined;
+  return { minorUnits: charge.amount, currency: charge.currency.toUpperCase() };
+}
+
+/**
+ * Turns a verified, JSON-parsed webhook body into the typed result. `eventId`/`eventType` are
+ * passed in already narrowed to `string` by the caller so this helper never re-widens them back to
+ * `unknown`.
+ */
+function buildWebhookResult(eventId: string, eventType: string, body: WebhookBody, ctx: ProviderContext): ProviderWebhookResult {
+  const kind = EVENT_KINDS[eventType];
+  // An unrecognized event type is not an error: returning zero events lets core acknowledge
+  // with a 2xx instead of provoking an indefinite retry storm from the gateway.
+  if (!kind) return { ok: true, events: [] };
+
+  const charge = body.data;
+  if (!charge || typeof charge.id !== "string" || charge.id.length === 0) {
+    return { ok: false, error: fail("PROVIDER_ERROR", `lipay ${eventType} event carries no charge id`) };
+  }
+
+  const amount = resolveChargeAmount(charge);
+  return {
+    ok: true,
+    events: [
+      {
+        providerEventId: eventId,
+        providerRef: charge.id,
+        kind,
+        // lipay reports `created` in unix seconds; the event log stores epoch milliseconds.
+        occurredAt: typeof body.created === "number" ? body.created * 1000 : ctx.now(),
+        ...(amount === undefined ? {} : { amount }),
+      },
+    ],
+  };
 }
 
 /**
@@ -245,23 +349,7 @@ export function createLipayGateway(options: { apiBaseUrl?: string } = {}): Payme
       }
 
       const body = parseJson(response.bodyText) as ChargeResponseBody | null;
-      if (response.status < 200 || response.status >= 300) {
-        return { ok: false, error: classifyHttpFailure(response.status, body, response.bodyText) };
-      }
-      if (!body || typeof body.id !== "string" || body.id.length === 0) {
-        return { ok: false, error: fail("PROVIDER_ERROR", "lipay accepted the charge but returned no charge id") };
-      }
-      if (body.status !== "succeeded" && body.status !== "pending") {
-        return {
-          ok: false,
-          error: fail("PROVIDER_ERROR", `lipay returned an unrecognized charge status '${String(body.status)}'`),
-        };
-      }
-      const next = toNextAction(body);
-      if (next === null) {
-        return { ok: false, error: fail("PROVIDER_ERROR", "lipay returned a malformed next_action") };
-      }
-      return { ok: true, providerRef: body.id, status: body.status, next };
+      return buildChargeResult(response.status, body, response.bodyText);
     },
 
     /**
@@ -292,14 +380,7 @@ export function createLipayGateway(options: { apiBaseUrl?: string } = {}): Payme
       }
 
       const body = parseJson(response.bodyText) as ChargeResponseBody | null;
-      if (response.status < 200 || response.status >= 300) {
-        return { ok: false, error: classifyHttpFailure(response.status, body, response.bodyText) };
-      }
-      if (!body || typeof body.id !== "string" || body.id.length === 0) {
-        return { ok: false, error: fail("PROVIDER_ERROR", "lipay accepted the refund but returned no refund id") };
-      }
-      const status = body.status === "pending" ? "pending" : "succeeded";
-      return { ok: true, providerRef: body.id, status };
+      return buildRefundResult(response.status, body, response.bodyText);
     },
 
     /**
@@ -317,34 +398,7 @@ export function createLipayGateway(options: { apiBaseUrl?: string } = {}): Payme
         return { ok: false, error: fail("PROVIDER_ERROR", "lipay webhook body is not a recognizable event") };
       }
 
-      const kind = EVENT_KINDS[body.type];
-      // An unrecognized event type is not an error: returning zero events lets core acknowledge
-      // with a 2xx instead of provoking an indefinite retry storm from the gateway.
-      if (!kind) return { ok: true, events: [] };
-
-      const charge = body.data;
-      if (!charge || typeof charge.id !== "string" || charge.id.length === 0) {
-        return { ok: false, error: fail("PROVIDER_ERROR", `lipay ${body.type} event carries no charge id`) };
-      }
-
-      const amount =
-        typeof charge.amount === "number" && Number.isSafeInteger(charge.amount) && typeof charge.currency === "string"
-          ? { minorUnits: charge.amount, currency: charge.currency.toUpperCase() }
-          : undefined;
-
-      return {
-        ok: true,
-        events: [
-          {
-            providerEventId: body.id,
-            providerRef: charge.id,
-            kind,
-            // lipay reports `created` in unix seconds; the event log stores epoch milliseconds.
-            occurredAt: typeof body.created === "number" ? body.created * 1000 : ctx.now(),
-            ...(amount === undefined ? {} : { amount }),
-          },
-        ],
-      };
+      return buildWebhookResult(body.id, body.type, body, ctx);
     },
   };
 }
