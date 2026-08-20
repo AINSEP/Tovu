@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
 import type { CommentWriteService, CommentStatus, ModerationAction } from "#src/comments/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -41,6 +41,26 @@ function parseExpectedVersion(raw: unknown): number | null {
   return Number.isInteger(n) && n >= 0 ? n : null;
 }
 
+/** This route's `{expectedVersion, note}` body, read once — `null` means `expectedVersion` failed
+ *  validation. @complexity O(1). */
+function parseModerationBody(rawBody: unknown): { expectedVersion: number; note: string | null } | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const expectedVersion = parseExpectedVersion(body.expectedVersion);
+  if (expectedVersion === null) return null;
+  return { expectedVersion, note: typeof body.note === "string" ? body.note : null };
+}
+
+/** Writes the response for a completed `applyModeration` call — 204 on success, the
+ *  not-found/version-conflict split mapped from `result.reason` otherwise. @complexity O(1). */
+function respondToModerationResult(res: Response, result: Awaited<ReturnType<CommentWriteService["applyModeration"]>>): void {
+  if (!result.ok) {
+    const status = result.reason === "not-found" ? 404 : 409;
+    res.status(status).json({ error: result.reason, currentVersion: "currentVersion" in result ? result.currentVersion : undefined });
+    return;
+  }
+  res.status(204).end();
+}
+
 export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCommentsModerateDeps): void {
   for (const spec of ACTIONS) {
     app.post(`/api/admin/v1/workspaces/:workspaceId/comments/:commentId/${spec.path}`, async (req, res) => {
@@ -67,9 +87,8 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
           return;
         }
 
-        const body = req.body as Record<string, unknown>;
-        const expectedVersion = parseExpectedVersion(body.expectedVersion);
-        if (expectedVersion === null) {
+        const parsedBody = parseModerationBody(req.body);
+        if (!parsedBody) {
           res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
           return;
         }
@@ -77,20 +96,14 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
         const result = await deps.commentWriteService.applyModeration({
           workspaceId: deps.workspaceId,
           id: req.params.commentId,
-          expectedVersion,
+          expectedVersion: parsedBody.expectedVersion,
           action: spec.action,
           toStatus: spec.toStatus!,
           actorPrincipalId: principal.id,
-          note: typeof body.note === "string" ? body.note : null,
+          note: parsedBody.note,
         });
 
-        if (!result.ok) {
-          const status = result.reason === "not-found" ? 404 : 409;
-          res.status(status).json({ error: result.reason, currentVersion: "currentVersion" in result ? result.currentVersion : undefined });
-          return;
-        }
-
-        res.status(204).end();
+        respondToModerationResult(res, result);
       } catch (err) {
         console.error(`[comments/moderate] unexpected error applying '${spec.action}'`, err);
         res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
