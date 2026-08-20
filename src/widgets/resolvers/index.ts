@@ -24,6 +24,7 @@ import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolv
 import type {
   WidgetInstanceView,
   WidgetResolveContext,
+  WidgetResolveFailureReason,
   WidgetResolveResult,
   WidgetResolver,
   WidgetTypeKey,
@@ -131,6 +132,50 @@ function clampResolveResult(result: WidgetResolveResult, registration: WidgetTyp
  * registration's `timeoutMs` clamp).
  * @overallScore 100
  */
+/** Sets every instance to the same typed failure — the shared shape behind each "reject the whole batch" branch below. */
+function fillFailure(
+  results: Map<UUID, WidgetResolveResult>,
+  instances: readonly WidgetInstanceView[],
+  reason: WidgetResolveFailureReason
+): void {
+  for (const instance of instances) results.set(instance.id, { ok: false, reason });
+}
+
+/** REQ-10: static capability — validated config renders directly, no resolver invocation. */
+function fillStaticResults(
+  results: Map<UUID, WidgetResolveResult>,
+  instances: readonly WidgetInstanceView[],
+  registration: WidgetTypeRegistration
+): void {
+  for (const instance of instances) {
+    results.set(instance.id, {
+      ok: true,
+      ir: { componentId: registration.typeKey, props: instance.config },
+      dependencyKeys: [instance.id],
+    });
+  }
+}
+
+/** Invokes the resolver under the shared try/catch + timeout boundary (REQ-26/27) and fills `results` per instance. */
+async function fillResolverResults(
+  results: Map<UUID, WidgetResolveResult>,
+  resolver: WidgetResolver,
+  instances: readonly WidgetInstanceView[],
+  context: WidgetResolveContext,
+  registration: WidgetTypeRegistration
+): Promise<void> {
+  try {
+    const resolved = await withResolverTimeout(resolver.resolveMany(instances, context), registration.clamps.timeoutMs);
+    for (const instance of instances) {
+      const result = resolved.get(instance.id);
+      results.set(instance.id, result ? clampResolveResult(result, registration) : { ok: false, reason: "resolver-error" });
+    }
+  } catch (error) {
+    const reason = error instanceof ResolverTimeoutError ? "timeout" : "resolver-error";
+    fillFailure(results, instances, reason);
+  }
+}
+
 export async function resolveWidgetType(required: {
   typeKey: WidgetTypeKey;
   instances: readonly WidgetInstanceView[];
@@ -142,38 +187,21 @@ export async function resolveWidgetType(required: {
 
   const registration = getWidgetTypeRegistration(typeKey);
   if (!registration) {
-    for (const instance of instances) results.set(instance.id, { ok: false, reason: "unknown-type" });
+    fillFailure(results, instances, "unknown-type");
     return results;
   }
 
   if (!registration.resolverId) {
-    // REQ-10: static capability — validated config renders directly, no resolver invocation.
-    for (const instance of instances) {
-      results.set(instance.id, {
-        ok: true,
-        ir: { componentId: registration.typeKey, props: instance.config },
-        dependencyKeys: [instance.id],
-      });
-    }
+    fillStaticResults(results, instances, registration);
     return results;
   }
 
   const resolver = CORE_RESOLVERS[registration.resolverId as WidgetTypeKey];
   if (!resolver) {
-    for (const instance of instances) results.set(instance.id, { ok: false, reason: "resolver-error" });
+    fillFailure(results, instances, "resolver-error");
     return results;
   }
 
-  try {
-    const resolved = await withResolverTimeout(resolver.resolveMany(instances, context), registration.clamps.timeoutMs);
-    for (const instance of instances) {
-      const result = resolved.get(instance.id);
-      results.set(instance.id, result ? clampResolveResult(result, registration) : { ok: false, reason: "resolver-error" });
-    }
-  } catch (error) {
-    const reason = error instanceof ResolverTimeoutError ? "timeout" : "resolver-error";
-    for (const instance of instances) results.set(instance.id, { ok: false, reason });
-  }
-
+  await fillResolverResults(results, resolver, instances, context, registration);
   return results;
 }
