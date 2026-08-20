@@ -11,7 +11,7 @@ import {
   type AuthorizeFn,
 } from "../features/settings/index.js";
 import { SeoSettingsValidationError } from "./errors.js";
-import type { RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
+import type { RobotsDirective, RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
 
 /**
  * @file `getSeoSettings`/`setSeoSettings`/`ensureSeoSettingDefinitions`
@@ -207,74 +207,81 @@ export const TITLE_TEMPLATE_MAX_LENGTH = 500;
 export const DEFAULT_DESCRIPTION_MAX_LENGTH = 500;
 export const DEFAULT_OG_IMAGE_MAX_LENGTH = 2048;
 
-function validateSeoSettingsPatch(patch: Partial<SeoSettings>): void {
-  if (patch.titleTemplate !== undefined) {
-    if (typeof patch.titleTemplate !== "string" || !patch.titleTemplate.includes("%s")) {
-      throw new SeoSettingsValidationError("titleTemplate must contain '%s' at least once");
-    }
-    if (patch.titleTemplate.length > TITLE_TEMPLATE_MAX_LENGTH) {
-      throw new SeoSettingsValidationError(`titleTemplate must be at most ${TITLE_TEMPLATE_MAX_LENGTH} characters`);
-    }
+function validateTitleTemplate(titleTemplate: string | undefined): void {
+  if (titleTemplate === undefined) return;
+  if (typeof titleTemplate !== "string" || !titleTemplate.includes("%s")) {
+    throw new SeoSettingsValidationError("titleTemplate must contain '%s' at least once");
   }
-
-  if (patch.defaultDescription !== undefined && patch.defaultDescription !== null) {
-    if (typeof patch.defaultDescription !== "string") {
-      throw new SeoSettingsValidationError("defaultDescription must be a string");
-    }
-    if (patch.defaultDescription.length > DEFAULT_DESCRIPTION_MAX_LENGTH) {
-      throw new SeoSettingsValidationError(
-        `defaultDescription must be at most ${DEFAULT_DESCRIPTION_MAX_LENGTH} characters`
-      );
-    }
+  if (titleTemplate.length > TITLE_TEMPLATE_MAX_LENGTH) {
+    throw new SeoSettingsValidationError(`titleTemplate must be at most ${TITLE_TEMPLATE_MAX_LENGTH} characters`);
   }
+}
 
-  if (patch.defaultOgImage !== undefined && patch.defaultOgImage !== null) {
-    if (typeof patch.defaultOgImage !== "string") {
-      throw new SeoSettingsValidationError("defaultOgImage must be a string");
-    }
-    if (patch.defaultOgImage.length > DEFAULT_OG_IMAGE_MAX_LENGTH) {
-      throw new SeoSettingsValidationError(`defaultOgImage must be at most ${DEFAULT_OG_IMAGE_MAX_LENGTH} characters`);
-    }
+/** Shared shape of `defaultDescription`/`defaultOgImage`: nullable-on-write (see `SEO_DEFINITIONS`' doc comment), bounded when a string is given. */
+function validateBoundedNullableString(value: string | undefined, fieldLabel: string, maxLength: number): void {
+  if (value === undefined || value === null) return;
+  if (typeof value !== "string") {
+    throw new SeoSettingsValidationError(`${fieldLabel} must be a string`);
   }
-
-  if (patch.defaultRobots !== undefined) {
-    if (
-      typeof patch.defaultRobots !== "object" ||
-      patch.defaultRobots === null ||
-      typeof patch.defaultRobots.noindex !== "boolean" ||
-      typeof patch.defaultRobots.nofollow !== "boolean"
-    ) {
-      throw new SeoSettingsValidationError("defaultRobots requires boolean noindex/nofollow");
-    }
+  if (value.length > maxLength) {
+    throw new SeoSettingsValidationError(`${fieldLabel} must be at most ${maxLength} characters`);
   }
+}
 
-  if (patch.sitemapEnabled !== undefined && typeof patch.sitemapEnabled !== "boolean") {
+function validateDefaultRobots(defaultRobots: RobotsDirective | undefined): void {
+  if (defaultRobots === undefined) return;
+  if (
+    typeof defaultRobots !== "object" ||
+    defaultRobots === null ||
+    typeof defaultRobots.noindex !== "boolean" ||
+    typeof defaultRobots.nofollow !== "boolean"
+  ) {
+    throw new SeoSettingsValidationError("defaultRobots requires boolean noindex/nofollow");
+  }
+}
+
+function validateSitemapEnabled(sitemapEnabled: boolean | undefined): void {
+  if (sitemapEnabled !== undefined && typeof sitemapEnabled !== "boolean") {
     throw new SeoSettingsValidationError("sitemapEnabled must be a boolean");
   }
+}
 
-  if (patch.robotsRules !== undefined) {
-    if (!Array.isArray(patch.robotsRules)) {
-      throw new SeoSettingsValidationError("robotsRules must be an array");
+function validateRobotsRule(rule: RobotsRule): void {
+  if (!rule || typeof rule.userAgent !== "string" || rule.userAgent.trim() === "") {
+    throw new SeoSettingsValidationError("each robots rule requires a non-empty userAgent");
+  }
+  for (const field of ["allow", "disallow"] as const) {
+    const list = rule[field];
+    if (list === undefined) continue;
+    if (!Array.isArray(list)) {
+      throw new SeoSettingsValidationError(`robots rule '${field}' must be an array`);
     }
-    if (patch.robotsRules.length > MAX_ROBOTS_RULES) {
-      throw new SeoSettingsValidationError(`robotsRules may contain at most ${MAX_ROBOTS_RULES} rules`);
-    }
-    for (const rule of patch.robotsRules) {
-      if (!rule || typeof rule.userAgent !== "string" || rule.userAgent.trim() === "") {
-        throw new SeoSettingsValidationError("each robots rule requires a non-empty userAgent");
-      }
-      for (const field of ["allow", "disallow"] as const) {
-        const list = rule[field];
-        if (list === undefined) continue;
-        if (!Array.isArray(list)) {
-          throw new SeoSettingsValidationError(`robots rule '${field}' must be an array`);
-        }
-        if (list.length > MAX_RULE_PATH_ENTRIES) {
-          throw new SeoSettingsValidationError(`robots rule '${field}' may contain at most ${MAX_RULE_PATH_ENTRIES} entries`);
-        }
-      }
+    if (list.length > MAX_RULE_PATH_ENTRIES) {
+      throw new SeoSettingsValidationError(`robots rule '${field}' may contain at most ${MAX_RULE_PATH_ENTRIES} entries`);
     }
   }
+}
+
+function validateRobotsRules(robotsRules: RobotsRule[] | undefined): void {
+  if (robotsRules === undefined) return;
+  if (!Array.isArray(robotsRules)) {
+    throw new SeoSettingsValidationError("robotsRules must be an array");
+  }
+  if (robotsRules.length > MAX_ROBOTS_RULES) {
+    throw new SeoSettingsValidationError(`robotsRules may contain at most ${MAX_ROBOTS_RULES} rules`);
+  }
+  for (const rule of robotsRules) {
+    validateRobotsRule(rule);
+  }
+}
+
+function validateSeoSettingsPatch(patch: Partial<SeoSettings>): void {
+  validateTitleTemplate(patch.titleTemplate);
+  validateBoundedNullableString(patch.defaultDescription, "defaultDescription", DEFAULT_DESCRIPTION_MAX_LENGTH);
+  validateBoundedNullableString(patch.defaultOgImage, "defaultOgImage", DEFAULT_OG_IMAGE_MAX_LENGTH);
+  validateDefaultRobots(patch.defaultRobots);
+  validateSitemapEnabled(patch.sitemapEnabled);
+  validateRobotsRules(patch.robotsRules);
 }
 
 /** REQ-11/15 chokepoint write: validate ALL fields (all-or-nothing) -> decompose -> N ledger `set()` calls. */
