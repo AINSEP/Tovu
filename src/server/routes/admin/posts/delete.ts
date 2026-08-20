@@ -1,9 +1,28 @@
+import type { Response } from "express";
+
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { processOutbox } from "#src/core/events/index";
 import { PostNotFoundError, deletePost, getAdminPostByIdOrSlug, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendPostDeleteError(res: Response, err: unknown): void {
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+    return;
+  }
+  if (err instanceof PostNotFoundError) {
+    res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * DELETE post — routed through the command gateway exactly like `posts/update.ts`.
@@ -101,30 +120,7 @@ export const registerAdminPostDeleteRoute: ContentRouteRegistrar = (app, deps) =
 
       res.json(toAdminPostResponse(result.post));
     } catch (err) {
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof DuplicateCommandError) {
-        res.status(409).json({
-          error: err.message,
-          code: "DUPLICATE_COMMAND",
-          changeSetId: err.changeSetId,
-        });
-        return;
-      }
-
-      if (err instanceof PostNotFoundError) {
-        res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendPostDeleteError(res, err);
     }
   });
 };
