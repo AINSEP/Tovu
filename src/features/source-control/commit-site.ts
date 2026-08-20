@@ -296,38 +296,24 @@ function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | 
   return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
 }
 
-/**
- * Commits Tovu's current site export to `input.owner/input.repo`. Always runs a fresh, `clean` export
- * immediately before committing — never reuses a previously-produced export directory (same
- * "correctness over one extra pass" tradeoff `static-publish/adapter.ts`'s header accepts for its own
- * publish call).
- *
- * Never throws: every failure is returned as `{ok: false, code, message}` — see
- * {@link SourceControlCommitOutcome}'s own header for the full per-code reasoning.
- *
- * This is a REAL contract, not aspirational (live-found 2026-08-16, mirroring `static-publish/
- * adapter.ts`'s own `publishStaticSite` fix for the identical shape): the call to
- * `resolveDefaultForSourceControl` below used to run unguarded, so a genuine decrypt failure (a
- * missing master secret, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
- * comment. `tool-registrations.ts`'s `source_control_execute_commit` handler is written assuming this
- * function never throws, so that was a real crash risk, not just a documentation lie — worse than the
- * publish-credentials sibling's version of this bug, since this call runs inside
- * `agent-daemon-server.ts`, a separate OS process with no process-level `unhandledRejection` guard of
- * its own at the time and no restart supervisor at all (`index.ts`'s `spawnAgentDaemon()` is called
- * exactly once per boot) — an escaping rejection here would have taken the WHOLE daemon down, not
- * just answered one tool call with an error.
- *
- * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) plus
- *   one `GitHubCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
- *   `github-git-provider.ts`).
- */
-export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
-  const configError = validateCommitTarget(input);
-  if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
+type CommitCredentialResult =
+  | { ok: true; credential: ResolvedSourceControlCredential }
+  | { ok: false; code: "NO_CREDENTIALS_CONFIGURED"; message: string };
 
+/**
+ * Resolves and validates the workspace's default GitHub source-control credential. Split out of
+ * `commitSiteToSourceControl` so that function reads as one guard per phase (credential, export,
+ * commit) rather than one long chain — this phase alone covers the decrypt-failure catch, the
+ * missing-credential case, and the (practically unreachable, but explicitly typed) wrong-provider
+ * guard documented at the inline comment below.
+ */
+async function resolveCommitCredential(
+  credentialDeps: CommitSiteDeps["credentialDeps"],
+  workspaceId: UUID
+): Promise<CommitCredentialResult> {
   let credential: Awaited<ReturnType<typeof resolveDefaultForSourceControl>>;
   try {
-    credential = await resolveDefaultForSourceControl(deps.credentialDeps, { workspaceId: input.workspaceId, providerId: "github" });
+    credential = await resolveDefaultForSourceControl(credentialDeps, { workspaceId, providerId: "github" });
   } catch (err) {
     // `resolveDefaultForSourceControl`'s own doc documents this as a real, deliberate possibility
     // (`store.ts`'s `decryptRecord`: a decrypt failure throws rather than degrading to `null`) — this
@@ -358,8 +344,17 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     // loudly here instead of forwarding a GitLab/Bitbucket token to a GitHub API call.
     return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: "The resolved default credential is not a 'github' connection." };
   }
-  const resolvedCredential: ResolvedSourceControlCredential = { token: credential.connection.token };
+  return { ok: true, credential: { token: credential.connection.token } };
+}
 
+type CommitExportResult = { ok: true; files: CommitFile[] } | { ok: false; code: "EXPORT_FAILED"; message: string };
+
+/**
+ * Runs the fresh, isolated export `commitSiteToSourceControl` commits from, and checks it for
+ * failures (both route AND asset failures — see the inline comment below). Split out for the same
+ * one-guard-per-phase reason as {@link resolveCommitCredential}.
+ */
+async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResult> {
   const outputDir = commitExportDir(input.sourceControlExportRootDir, input.idGen.newId());
   let report: ExportReport;
   try {
@@ -385,6 +380,43 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   }
 
   const files: CommitFile[] = [...report.routes.succeeded.map(toCommitFile), ...report.assets.succeeded.map(toCommitFile)];
+  return { ok: true, files };
+}
+
+/**
+ * Commits Tovu's current site export to `input.owner/input.repo`. Always runs a fresh, `clean` export
+ * immediately before committing — never reuses a previously-produced export directory (same
+ * "correctness over one extra pass" tradeoff `static-publish/adapter.ts`'s header accepts for its own
+ * publish call).
+ *
+ * Never throws: every failure is returned as `{ok: false, code, message}` — see
+ * {@link SourceControlCommitOutcome}'s own header for the full per-code reasoning.
+ *
+ * This is a REAL contract, not aspirational (live-found 2026-08-16, mirroring `static-publish/
+ * adapter.ts`'s own `publishStaticSite` fix for the identical shape): the call to
+ * `resolveDefaultForSourceControl` below used to run unguarded, so a genuine decrypt failure (a
+ * missing master secret, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
+ * comment. `tool-registrations.ts`'s `source_control_execute_commit` handler is written assuming this
+ * function never throws, so that was a real crash risk, not just a documentation lie — worse than the
+ * publish-credentials sibling's version of this bug, since this call runs inside
+ * `agent-daemon-server.ts`, a separate OS process with no process-level `unhandledRejection` guard of
+ * its own at the time and no restart supervisor at all (`index.ts`'s `spawnAgentDaemon()` is called
+ * exactly once per boot) — an escaping rejection here would have taken the WHOLE daemon down, not
+ * just answered one tool call with an error.
+ *
+ * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) plus
+ *   one `GitHubCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
+ *   `github-git-provider.ts`).
+ */
+export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: CommitSiteInput): Promise<SourceControlCommitOutcome> {
+  const configError = validateCommitTarget(input);
+  if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
+
+  const credentialResult = await resolveCommitCredential(deps.credentialDeps, input.workspaceId);
+  if (!credentialResult.ok) return credentialResult;
+
+  const exportResult = await exportForCommit(input);
+  if (!exportResult.ok) return exportResult;
 
   const gitAdapter = deps.gitAdapter;
   if (!gitAdapter) {
@@ -395,12 +427,12 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   }
 
   const result = await gitAdapter.commit({
-    token: resolvedCredential.token,
+    token: credentialResult.credential.token,
     owner: input.owner,
     repo: input.repo,
     ...(input.branch !== undefined ? { branch: input.branch } : {}),
     commitMessage: input.commitMessage,
-    files,
+    files: exportResult.files,
   });
 
   if (!result.ok) {
