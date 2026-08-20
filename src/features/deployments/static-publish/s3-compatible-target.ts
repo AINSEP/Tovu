@@ -340,26 +340,43 @@ interface PreviouslyManagedKey {
  * @returns `undefined` when `parsed` matches neither recognized shape.
  * @complexity O(n) in the manifest's own entry count.
  */
+/** One `v2` manifest `keys[]` entry: `{key, etag}`, `etag` blank/missing normalized to `undefined`. */
+function parseManagedManifestV2Entry(entry: unknown): PreviouslyManagedKey | undefined {
+  if (typeof entry !== "object" || entry === null) return undefined;
+  const e = entry as Record<string, unknown>;
+  if (typeof e.key !== "string") return undefined;
+  const etag = typeof e.etag === "string" && e.etag.length > 0 ? e.etag : undefined;
+  return { key: e.key, etag };
+}
+
+/** The current `{version: 2, keys: [{key, etag}]}` shape — real per-key provenance. */
+function parseManagedManifestV2(obj: Record<string, unknown>): PreviouslyManagedKey[] | undefined {
+  if (obj.version !== 2 || !Array.isArray(obj.keys)) return undefined;
+  const files: PreviouslyManagedKey[] = [];
+  for (const entry of obj.keys) {
+    const parsedEntry = parseManagedManifestV2Entry(entry);
+    if (parsedEntry === undefined) return undefined;
+    files.push(parsedEntry);
+  }
+  return files;
+}
+
+/** The legacy `{version: 1, keys: [...]}` shape — bare key strings, no per-key provenance. Every
+ * listed key is KNOWN but UNVERIFIABLE. See this file's header, SECOND-ROUND CRITICAL FIX note,
+ * finding 1. */
+function parseManagedManifestV1(obj: Record<string, unknown>): PreviouslyManagedKey[] | undefined {
+  if (obj.version !== 1 || !Array.isArray(obj.keys) || !obj.keys.every((key) => typeof key === "string")) {
+    return undefined;
+  }
+  return (obj.keys as string[]).map((key) => ({ key, etag: undefined }));
+}
+
 function parseManagedManifestShape(parsed: unknown): PreviouslyManagedKey[] | undefined {
   if (typeof parsed !== "object" || parsed === null) return undefined;
   const obj = parsed as Record<string, unknown>;
-  if (obj.version === 2 && Array.isArray(obj.keys)) {
-    const files: PreviouslyManagedKey[] = [];
-    for (const entry of obj.keys) {
-      if (typeof entry !== "object" || entry === null) return undefined;
-      const e = entry as Record<string, unknown>;
-      if (typeof e.key !== "string") return undefined;
-      const etag = typeof e.etag === "string" && e.etag.length > 0 ? e.etag : undefined;
-      files.push({ key: e.key, etag });
-    }
-    return files;
-  }
-  if (obj.version === 1 && Array.isArray(obj.keys) && obj.keys.every((key) => typeof key === "string")) {
-    // Legacy, pre-provenance shape — every listed key is KNOWN but UNVERIFIABLE. See this file's header,
-    // SECOND-ROUND CRITICAL FIX note, finding 1.
-    return (obj.keys as string[]).map((key) => ({ key, etag: undefined }));
-  }
-  return undefined;
+  // `parseManagedManifestV1` re-checks `obj.version === 1` itself, so it can never accidentally
+  // match a `v2` object whose `keys[]` failed entry validation above.
+  return parseManagedManifestV2(obj) ?? parseManagedManifestV1(obj);
 }
 
 /** A verified read of {@link MANAGED_MANIFEST_KEY} — either a confirmed absence (a real 404, "no
@@ -388,19 +405,18 @@ type ManagedManifestRead = { status: "not-found" } | { status: "found"; files: r
  * @throws {DeployError} Any failure other than a verified 404.
  * @complexity One signed HTTP request.
  */
-async function fetchManagedManifest(client: AwsClient, config: S3CompatibleTargetConfig): Promise<ManagedManifestRead> {
-  let resp: Response;
+/** The GET half of {@link fetchManagedManifest} — network/transport failures only; HTTP-status and
+ * body handling stay with the caller. */
+async function fetchManagedManifestResponse(client: AwsClient, config: S3CompatibleTargetConfig): Promise<Response> {
   try {
-    resp = await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "GET", signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
+    return await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "GET", signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
   } catch (err) {
     throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: ${err instanceof Error ? err.message : String(err)}`, 502);
   }
-  if (resp.status === 404) return { status: "not-found" };
-  if (!resp.ok) {
-    const body = await safeErrorBody(resp);
-    throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
-  }
+}
 
+/** The parse-and-validate half of {@link fetchManagedManifest}, for an already-`ok` response. */
+async function parseManagedManifestBody(resp: Response): Promise<{ files: readonly PreviouslyManagedKey[]; etag: string | undefined }> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(await resp.text());
@@ -411,7 +427,18 @@ async function fetchManagedManifest(client: AwsClient, config: S3CompatibleTarge
   if (files === undefined) {
     throw new DeployError("The Tovu-managed object manifest did not match a recognized shape — cannot confirm which keys this target previously owned.", 502);
   }
-  return { status: "found", files, etag: resp.headers.get("etag") ?? undefined };
+  return { files, etag: resp.headers.get("etag") ?? undefined };
+}
+
+async function fetchManagedManifest(client: AwsClient, config: S3CompatibleTargetConfig): Promise<ManagedManifestRead> {
+  const resp = await fetchManagedManifestResponse(client, config);
+  if (resp.status === 404) return { status: "not-found" };
+  if (!resp.ok) {
+    const body = await safeErrorBody(resp);
+    throw new DeployError(`Failed to read the Tovu-managed object manifest — cannot confirm which keys this target previously owned: HTTP ${resp.status}${body ? ` — ${body}` : ""}`, resp.status >= 500 ? 502 : 400);
+  }
+  const { files, etag } = await parseManagedManifestBody(resp);
+  return { status: "found", files, etag };
 }
 
 /** How {@link writeManagedManifestConditional} asks the provider to accept the write only if the
@@ -443,37 +470,65 @@ type ConditionalWriteOutcome = "written" | "conflict" | "unsupported";
  *   layer.
  * @complexity One signed HTTP request.
  */
+function buildManifestBody(files: readonly PreviouslyManagedKey[]): string {
+  return JSON.stringify({
+    version: 2,
+    keys: files.map((f) => ({ key: f.key, etag: f.etag })).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+  });
+}
+
+function buildManifestHeaders(precondition: ManifestWritePrecondition): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (precondition.kind === "if-match") headers["If-Match"] = precondition.etag;
+  if (precondition.kind === "if-none-match") headers["If-None-Match"] = "*";
+  return headers;
+}
+
+/** The PUT half of {@link writeManagedManifestConditional} — network/transport failures only;
+ * status-code interpretation stays with the caller. */
+async function putManagedManifest(
+  client: AwsClient,
+  config: S3CompatibleTargetConfig,
+  body: string,
+  headers: Record<string, string>
+): Promise<Response> {
+  try {
+    return await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "PUT", body, headers, signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
+  } catch (err) {
+    throw new DeployError(`Failed to update the Tovu-managed object manifest: ${err instanceof Error ? err.message : String(err)}`, 502);
+  }
+}
+
+/** Classifies a `400` manifest-write response. Some S3-compatible providers report an unsupported
+ * conditional header this way rather than `501` — recognized only by a body naming the operation
+ * as unsupported, never assumed from the bare status code alone (a genuine 400 — a malformed
+ * request for an unrelated reason — must still throw, not be silently treated as "this provider
+ * just doesn't support preconditions"). */
+async function classifyManifestWrite400(resp: Response): Promise<ConditionalWriteOutcome> {
+  const body = await safeErrorBody(resp);
+  if (/notimplemented|not implemented|unsupportedoperation/i.test(body)) return "unsupported";
+  throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP 400${body ? ` — ${body}` : ""}`, 400);
+}
+
+async function classifyManifestWriteResponse(resp: Response): Promise<ConditionalWriteOutcome> {
+  if (resp.ok) return "written";
+  if (resp.status === 412 || resp.status === 409) return "conflict";
+  if (resp.status === 501) return "unsupported";
+  if (resp.status === 400) return classifyManifestWrite400(resp);
+  const errorBody = await safeErrorBody(resp);
+  throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${errorBody ? ` — ${errorBody}` : ""}`, resp.status >= 500 ? 502 : 400);
+}
+
 async function writeManagedManifestConditional(
   client: AwsClient,
   config: S3CompatibleTargetConfig,
   files: readonly PreviouslyManagedKey[],
   precondition: ManifestWritePrecondition
 ): Promise<ConditionalWriteOutcome> {
-  const body = JSON.stringify({ version: 2, keys: files.map((f) => ({ key: f.key, etag: f.etag })).sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)) });
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-  if (precondition.kind === "if-match") headers["If-Match"] = precondition.etag;
-  if (precondition.kind === "if-none-match") headers["If-None-Match"] = "*";
-
-  let resp: Response;
-  try {
-    resp = await client.fetch(objectUrl(config, MANAGED_MANIFEST_KEY), { method: "PUT", body, headers, signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS) });
-  } catch (err) {
-    throw new DeployError(`Failed to update the Tovu-managed object manifest: ${err instanceof Error ? err.message : String(err)}`, 502);
-  }
-  if (resp.ok) return "written";
-  if (resp.status === 412 || resp.status === 409) return "conflict";
-  if (resp.status === 501) return "unsupported";
-  if (resp.status === 400) {
-    // Some S3-compatible providers report an unsupported conditional header as a plain 400 rather than
-    // 501 — recognized only by a body naming the operation as unsupported, never assumed from the bare
-    // status code alone (a genuine 400 — a malformed request for an unrelated reason — must still throw
-    // below, not be silently treated as "this provider just doesn't support preconditions").
-    const body = await safeErrorBody(resp);
-    if (/notimplemented|not implemented|unsupportedoperation/i.test(body)) return "unsupported";
-    throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP 400${body ? ` — ${body}` : ""}`, 400);
-  }
-  const errorBody = await safeErrorBody(resp);
-  throw new DeployError(`Failed to update the Tovu-managed object manifest: HTTP ${resp.status}${errorBody ? ` — ${errorBody}` : ""}`, resp.status >= 500 ? 502 : 400);
+  const body = buildManifestBody(files);
+  const headers = buildManifestHeaders(precondition);
+  const resp = await putManagedManifest(client, config, body, headers);
+  return classifyManifestWriteResponse(resp);
 }
 
 /**
@@ -496,21 +551,34 @@ async function runBounded<T, R>(items: readonly T[], task: (item: T) => Promise<
   let firstError: unknown;
   let sawError = false;
 
-  async function worker(): Promise<void> {
-    for (;;) {
-      const index = nextIndex;
-      nextIndex += 1;
-      if (index >= items.length) return;
-      if (sawError) return;
-      try {
-        results[index] = await task(items[index]!);
-      } catch (err) {
-        if (!sawError) {
-          sawError = true;
-          firstError = err;
-        }
-        return;
+  // Claims the next unclaimed index, or `undefined` once the queue is drained or a sibling worker
+  // has already recorded a failure (no further claims once `sawError` — a claimed-but-unprocessed
+  // index is harmless since `results` is discarded whenever `sawError` ends up true).
+  const claimNextIndex = (): number | undefined => {
+    if (sawError || nextIndex >= items.length) return undefined;
+    const index = nextIndex;
+    nextIndex += 1;
+    return index;
+  };
+
+  // Runs `task` for one claimed index, recording only the FIRST failure across every worker.
+  const runOne = async (index: number): Promise<void> => {
+    try {
+      results[index] = await task(items[index]!);
+    } catch (err) {
+      if (!sawError) {
+        sawError = true;
+        firstError = err;
       }
+    }
+  };
+
+  async function worker(): Promise<void> {
+    let index = claimNextIndex();
+    while (index !== undefined) {
+      await runOne(index);
+      if (sawError) return;
+      index = claimNextIndex();
     }
   }
 
@@ -540,6 +608,114 @@ function toDeployLinkStatus(check: DeploymentUrlCheck): DeployLinkStatus {
  *
  * @complexity O(min(divergedKeys.length, 3)) — only a bounded preview is ever rendered.
  */
+/** One {@link diffManagedKeys} candidate's classification: `"skip"` (current export still produces
+ * it, it's the manifest key itself, or its live-verification read couldn't confirm anything this
+ * pass), `"diverged"` (known but not safe to delete — no recorded provenance, or live content no
+ * longer matches what was recorded), or `"stale"` (verified safe to delete). */
+type ManagedKeyClassification = "skip" | "diverged" | "stale";
+
+/**
+ * Classifies one previously-managed key against `currentKeys`, verifying its LIVE etag against
+ * what this target recorded writing before ever calling it stale (this file's header SECOND-ROUND
+ * CRITICAL FIX note, finding 1). `MANAGED_MANIFEST_KEY` is excluded defensively (never part of
+ * `previousFiles`' own meaning, but a manifest written by some future/other version should not be
+ * able to delete itself via this path).
+ *
+ * @complexity One HEAD request when the key has a recorded etag to verify; O(1) otherwise.
+ */
+async function classifyManagedKey(
+  client: AwsClient,
+  config: S3CompatibleTargetConfig,
+  previous: PreviouslyManagedKey,
+  currentKeys: ReadonlySet<string>
+): Promise<ManagedKeyClassification> {
+  if (currentKeys.has(previous.key) || previous.key === MANAGED_MANIFEST_KEY) return "skip";
+  if (previous.etag === undefined) {
+    // No recorded provenance (a pre-provenance v1 manifest entry, or a malformed v2 one) — nothing
+    // to verify against, so it is never auto-deleted.
+    return "diverged";
+  }
+  const liveEtag = await fetchLiveETag(client, config, previous.key);
+  if (liveEtag === undefined) {
+    // Already gone, or this ONE key's verification read failed — nothing this pass can safely
+    // delete now. Not reported as a divergence: an absent/unverifiable key in isolation is not
+    // evidence of tampering, just nothing this pass could act on.
+    return "skip";
+  }
+  // content changed since this target wrote it — never delete unverified content
+  return liveEtag === previous.etag ? "stale" : "diverged";
+}
+
+/**
+ * Diffs `previousFiles` (the last publish's own manifest) against `currentKeys` (this export) —
+ * {@link S3CompatibleDeployTarget.publish}'s per-attempt read/verify step, extracted so the retry
+ * loop above it doesn't carry this nesting itself. Only a key {@link classifyManagedKey} verifies
+ * `"stale"` is ever returned for deletion.
+ *
+ * @complexity O(previousFiles.length) HEAD requests (one per candidate whose etag is known).
+ */
+async function diffManagedKeys(
+  client: AwsClient,
+  config: S3CompatibleTargetConfig,
+  previousFiles: readonly PreviouslyManagedKey[],
+  currentKeys: ReadonlySet<string>
+): Promise<{ staleKeys: string[]; divergedKeys: string[] }> {
+  const staleKeys: string[] = [];
+  const divergedKeys: string[] = [];
+  for (const previous of previousFiles) {
+    const classification = await classifyManagedKey(client, config, previous, currentKeys);
+    if (classification === "stale") staleKeys.push(previous.key);
+    else if (classification === "diverged") divergedKeys.push(previous.key);
+  }
+  return { staleKeys, divergedKeys };
+}
+
+/** The manifest-write `precondition` for one {@link attemptManifestSync} attempt: no condition once
+ * the concurrency guard has degraded, `if-none-match` for "I saw no manifest," `if-match` keyed to
+ * the etag this attempt's own read observed, or `none` when a `"found"` read reported no etag to
+ * condition on. */
+function buildWritePrecondition(concurrencyGuardActive: boolean, manifestRead: ManagedManifestRead): ManifestWritePrecondition {
+  if (!concurrencyGuardActive) return { kind: "none" };
+  if (manifestRead.status === "not-found") return { kind: "if-none-match" };
+  if (manifestRead.etag !== undefined) return { kind: "if-match", etag: manifestRead.etag };
+  return { kind: "none" };
+}
+
+/**
+ * Runs one full read-verify-delete-write attempt at reconciling the managed-object manifest with
+ * `currentFiles` — the body of {@link S3CompatibleDeployTarget.publish}'s retry loop, extracted so
+ * the loop's own break/continue/throw control flow isn't nested three deep with this attempt's own
+ * work. Reads the manifest FRESH on every call (never reused across a retry — this file's header
+ * SECOND-ROUND CRITICAL FIX note, finding 3: a stale diff computed against an outdated manifest is
+ * exactly the race this fix closes), diffs and deletes verified-stale keys, then attempts the
+ * conditional manifest write.
+ *
+ * @complexity One manifest read, {@link diffManagedKeys}'s own cost, O(stale keys) DELETE requests
+ *   (bounded concurrency, see {@link runBounded}), and one manifest write.
+ */
+async function attemptManifestSync(
+  client: AwsClient,
+  config: S3CompatibleTargetConfig,
+  currentKeys: ReadonlySet<string>,
+  currentFiles: readonly PreviouslyManagedKey[],
+  concurrencyGuardActive: boolean
+): Promise<{ outcome: ConditionalWriteOutcome; divergedKeys: string[] }> {
+  const manifestRead = await fetchManagedManifest(client, config);
+  const previousFiles = manifestRead.status === "found" ? manifestRead.files : [];
+
+  const { staleKeys, divergedKeys } = await diffManagedKeys(client, config, previousFiles, currentKeys);
+  if (staleKeys.length > 0) {
+    await runBounded(staleKeys, (key) => deleteOne(client, config, key));
+  }
+
+  // LAST step, and only reached after every upload and verified delete above has succeeded — see
+  // this file's header CRITICAL fix note on why this ordering is what makes a crash mid-publish
+  // self-healing rather than an over-delete or a permanently orphaned, never-cleaned-up key.
+  const precondition = buildWritePrecondition(concurrencyGuardActive, manifestRead);
+  const outcome = await writeManagedManifestConditional(client, config, currentFiles, precondition);
+  return { outcome, divergedKeys };
+}
+
 function buildStatusMessage(base: string, divergedKeys: readonly string[], concurrencyGuardActive: boolean): string {
   let message = base;
   if (divergedKeys.length > 0) {
@@ -615,56 +791,11 @@ export class S3CompatibleDeployTarget implements DeployTarget {
     let divergedKeys: string[] = [];
 
     for (let attempt = 1; ; attempt++) {
-      // Read BEFORE verifying/deleting — this attempt's own diff must reflect what the LAST successful
-      // publish recorded, never a manifest this same call is about to overwrite. Re-read on EVERY
-      // attempt (never reused across a retry) — this file's header SECOND-ROUND CRITICAL FIX note,
-      // finding 3: a stale diff computed against an outdated manifest is exactly the race this fix closes.
-      const manifestRead = await fetchManagedManifest(this.client, this.config);
-      const previousFiles = manifestRead.status === "found" ? manifestRead.files : [];
+      const attempted = await attemptManifestSync(this.client, this.config, currentKeys, currentFiles, concurrencyGuardActive);
+      divergedKeys = attempted.divergedKeys;
 
-      // Only a key THIS target previously recorded owning, whose CURRENT live etag still matches what
-      // was recorded, and that the current export no longer produces, is ever deleted — never a key
-      // with no such verified record. `MANAGED_MANIFEST_KEY` is excluded defensively (never part of
-      // `previousFiles`' own meaning — see its own doc — but a manifest written by some future/other
-      // version should not be able to delete itself via this path).
-      const staleKeys: string[] = [];
-      divergedKeys = [];
-      for (const previous of previousFiles) {
-        if (currentKeys.has(previous.key) || previous.key === MANAGED_MANIFEST_KEY) continue;
-        if (previous.etag === undefined) {
-          // No recorded provenance (a pre-provenance v1 manifest entry, or a malformed v2 one) — nothing
-          // to verify against, so it is never auto-deleted.
-          divergedKeys.push(previous.key);
-          continue;
-        }
-        const liveEtag = await fetchLiveETag(this.client, this.config, previous.key);
-        if (liveEtag === undefined) {
-          // Already gone, or this ONE key's verification read failed — nothing this pass can safely
-          // delete now. Not reported as a divergence: an absent/unverifiable key in isolation is not
-          // evidence of tampering, just nothing this pass could act on.
-          continue;
-        }
-        if (liveEtag === previous.etag) staleKeys.push(previous.key);
-        else divergedKeys.push(previous.key); // content changed since this target wrote it — never delete unverified content
-      }
-      if (staleKeys.length > 0) {
-        await runBounded(staleKeys, (key) => deleteOne(this.client, this.config, key));
-      }
-
-      // LAST step, and only reached after every upload and verified delete above has succeeded — see
-      // this file's header CRITICAL fix note on why this ordering is what makes a crash mid-publish
-      // self-healing rather than an over-delete or a permanently orphaned, never-cleaned-up key.
-      const precondition: ManifestWritePrecondition = !concurrencyGuardActive
-        ? { kind: "none" }
-        : manifestRead.status === "not-found"
-          ? { kind: "if-none-match" }
-          : manifestRead.etag !== undefined
-            ? { kind: "if-match", etag: manifestRead.etag }
-            : { kind: "none" }; // a "found" read with no ETag reported — nothing to condition on this attempt
-
-      const outcome = await writeManagedManifestConditional(this.client, this.config, currentFiles, precondition);
-      if (outcome === "written") break;
-      if (outcome === "unsupported") {
+      if (attempted.outcome === "written") break;
+      if (attempted.outcome === "unsupported") {
         // This provider cannot do conditional writes at all — degrade for the REST of this call and
         // retry immediately with an unconditional write. Not a real conflict, so it does not need a
         // fresh manifest re-read; nothing about the bucket's OWN state changed because of this outcome.
