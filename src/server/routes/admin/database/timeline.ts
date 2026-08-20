@@ -1,8 +1,39 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
 import { getTimeline } from "#src/features/database/timeline";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+
+/** A query field, read as a string if present, or `undefined`.
+ *  @complexity O(1). */
+function readOptionalQueryString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** This route's six filter fields, read off `req.query` in one place.
+ *  @complexity O(1). */
+function parseTimelineFilter(query: Record<string, unknown>) {
+  return {
+    kind: readOptionalQueryString(query.kind),
+    outcome: readOptionalQueryString(query.outcome),
+    fromDate: readOptionalQueryString(query.fromDate),
+    toDate: readOptionalQueryString(query.toDate),
+    cursor: readOptionalQueryString(query.cursor),
+    limit: typeof query.limit === "string" ? Number(query.limit) : undefined,
+  };
+}
+
+/** Maps `getTimeline`'s thrown errors onto the admin error envelope — a `TimelineValidationError`
+ *  (matched by `name` since it isn't an exported class here) is a 400, everything else a 500.
+ *  @complexity O(1). */
+function sendTimelineError(res: Response, err: unknown): void {
+  const isValidationError = err instanceof Error && err.name === "TimelineValidationError";
+  const message = err instanceof Error ? err.message : "internal error";
+  res.status(isValidationError ? 400 : 500).json({
+    error: message,
+    code: isValidationError ? "VALIDATION_ERROR" : "INTERNAL_ERROR",
+  });
+}
 
 /**
  * @file SPEC-017 C-101 / REQ-01 / REQ-04 — `GET /api/admin/v1/database/timeline` (ADR-041 §1's
@@ -35,25 +66,14 @@ export function registerAdminDatabaseTimelineRoute(app: Express, deps: DatabaseR
         return;
       }
 
-      const kind = typeof req.query.kind === "string" ? req.query.kind : undefined;
-      const outcome = typeof req.query.outcome === "string" ? req.query.outcome : undefined;
-      const fromDate = typeof req.query.fromDate === "string" ? req.query.fromDate : undefined;
-      const toDate = typeof req.query.toDate === "string" ? req.query.toDate : undefined;
-      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
-      const limit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
-
       const result = await getTimeline({
         ledger: deps.databaseLedgerRepo,
-        filter: { kind, outcome, fromDate, toDate, cursor, limit },
+        filter: parseTimelineFilter(req.query as Record<string, unknown>),
       });
 
       res.json(result);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(err instanceof Error && err.name === "TimelineValidationError" ? 400 : 500).json({
-        error: message,
-        code: err instanceof Error && err.name === "TimelineValidationError" ? "VALIDATION_ERROR" : "INTERNAL_ERROR",
-      });
+      sendTimelineError(res, err);
     }
   });
 }

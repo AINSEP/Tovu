@@ -1,13 +1,12 @@
-import { updateRedirect } from "#src/redirects/index";
-import {
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectNotFoundError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "#src/redirects/index";
+import { updateRedirect, RedirectNotFoundError } from "#src/redirects/index";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError, type RedirectErrorMapping } from "./shared.js";
+
+const REDIRECT_UPDATE_ERROR_MAPPINGS: readonly RedirectErrorMapping[] = [
+  { matches: (e) => e instanceof RedirectNotFoundError, status: 404, code: "REDIRECT_NOT_FOUND" },
+  ...REDIRECT_WRITE_ERROR_MAPPINGS,
+];
 
 /**
  * PATCH mutable fields on an existing redirect rule (api.spec.md
@@ -59,27 +58,7 @@ export const registerAdminRedirectUpdateRoute: RedirectRouteRegistrar = (app, de
 
       res.json(toAdminRedirectResponse(record));
     } catch (err) {
-      if (err instanceof RedirectNotFoundError) {
-        res.status(404).json({ error: err.message, code: "REDIRECT_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof RedirectValidationError) {
-        res.status(400).json({ error: err.message, code: "REDIRECT_VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof RedirectTargetNotAllowedError) {
-        res.status(400).json({ error: err.message, code: "REDIRECT_TARGET_NOT_ALLOWED" });
-        return;
-      }
-      if (err instanceof RedirectConflictError) {
-        res.status(409).json({ error: err.message, code: "REDIRECT_CONFLICT" });
-        return;
-      }
-      if (err instanceof RedirectLoopError) {
-        res.status(409).json({ error: err.message, code: "REDIRECT_LOOP_DETECTED" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToRedirectError(res, err, REDIRECT_UPDATE_ERROR_MAPPINGS);
     }
   });
 };
