@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
-import type { AdminPost } from "../../lib/api";
+import type { AdminPost, ThemeTier } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
@@ -20,6 +20,7 @@ import {
   LINE_HEIGHT_OPTIONS,
   CODE_LANGUAGE_OPTIONS,
   degradeUnplayableEmbedsForRawPreview,
+  overridesThemePageFromSelectValue,
 } from "./rules";
 
 /**
@@ -642,6 +643,314 @@ function PostEditorHeader({
   );
 }
 
+/**
+ * The toolbar's right-hand group — the post-template picker (Posts has no device-width control the
+ * way `features/pages/PageEditor.tsx`'s `PageEditorToolbarEnd` does; this is the Post-only
+ * equivalent of that same extraction).
+ *
+ * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) because this is where most of
+ * that component's remaining branching lived once `PostEditorHeader` had already absorbed the header
+ * row: the `bodyFormat`-eligibility check, and the has-templates check nested inside it. As a
+ * top-level function its own branches are scored in their own scope instead of accumulating onto
+ * `PostEditor`'s — same split `PageEditorToolbarEnd` already uses.
+ *
+ * Post-template-picker feature (2026-08-10) — rendered whenever this is a Post/formulaic-body record
+ * (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body IS its own design already (see
+ * `resolveHtmlEmbedsForRender`'s own doc), so it has nothing to pick between. Untranslated (`t()`
+ * falls back to the raw key, same graceful-degrade every other string on this screen already relies
+ * on) — this repo's i18n dictionaries cover 19 locales and adding this feature's strings to all of
+ * them is out of scope for this pass; disclosed rather than silently skipped.
+ *
+ * Options list real templates FIRST, "No template chosen" LAST (owner's own ordering request) —
+ * matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right choice"): opting OUT is
+ * the one deliberate action, not the default you land on. The SELECTED value defaults to the first
+ * template too when nothing has been chosen yet (see the load effect in `use-post-editor.hooks.ts`)
+ * — an author only ever sees "No template chosen" selected if they (or a prior save) explicitly
+ * picked it.
+ *
+ * When the active theme declares zero templates, the row previously vanished entirely (owner
+ * feedback, 2026-08-09: "it makes sense... but it should still be there" — an empty theme should
+ * read as "nothing to choose" in the UI, not disappear as if the feature itself weren't there).
+ * Renders a disabled control with a one-line explanation instead.
+ *
+ * Rendered regardless of `view` — same as Pages' own picker — because the template choice is a
+ * publish-time setting, not something specific to either tab.
+ */
+function PostEditorToolbarEnd({
+  bodyFormat,
+  availableTemplates,
+  templateChoice,
+  setTemplateChoice,
+  onViewTemplateClick,
+  t,
+}: {
+  bodyFormat: "doc" | "html" | undefined;
+  availableTemplates: string[];
+  templateChoice: string | null;
+  setTemplateChoice: (templateChoice: string) => void;
+  onViewTemplateClick: () => void;
+  t: Translate;
+}) {
+  if ((bodyFormat ?? "doc") !== "doc") return null;
+  return (
+    <div className="page-editor-toolbar-end">
+      <div className="editor-template-picker">
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("Template")}</span>
+        </label>
+        {availableTemplates.length > 0 ? (
+          <>
+            <select
+              value={templateChoice ?? ""}
+              // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
+              // (explicitly opted out), which `resolveTemplate` treats differently from `null`
+              // (never chosen → falls back to the first template). Coercing to `null` here is what
+              // made the two indistinguishable and served 15 posts a diagnostic page.
+              onChange={(e) => setTemplateChoice(e.target.value)}
+              {...agentHandle("post-template-choice", {
+                role: "field",
+                label:
+                  "Which theme page template this post renders through on the public site. " +
+                  "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
+                  "not a silent fallback to generic rendering.",
+              })}
+            >
+              {availableTemplates.map((template) => (
+                <option key={template} value={template}>
+                  {template}
+                </option>
+              ))}
+              <option value="">{t("No template chosen")}</option>
+            </select>
+            {/* Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
+                "I just wanna see it" is the owner's own framing). Disabled rather than hidden
+                when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
+                still sees the control, just inert, matching this screen's own precedent for the
+                theme-with-zero-templates `<select>` below rather than the row disappearing. */}
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={!templateChoice}
+              onClick={onViewTemplateClick}
+              {...agentHandle("post-view-template", {
+                role: "button",
+                label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
+              })}
+            >
+              {t("View Template")}
+            </button>
+          </>
+        ) : (
+          <select
+            disabled
+            value=""
+            {...agentHandle("post-template-choice", {
+              role: "field",
+              label: "The active theme declares no post templates, so there is nothing to choose here.",
+            })}
+          >
+            <option value="">{t("No templates for this theme")}</option>
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Slug-collision override, tri-state (2026-08-10, tri-state default flip 2026-08-15) — surfaced live
+ * 2026-08-10: a post at slug "about" was silently unreachable because the active theme ships its own
+ * pages/about.html at the same slug. Warn explicitly rather than let an author discover this by
+ * visiting the public URL.
+ *
+ * As of 2026-08-15 the DEFAULT winner flipped to the post (previously the theme page), and the
+ * stored flag became tri-state (`AdminPost.overridesThemePage: boolean | null` — see that field's
+ * own doc, `lib/api.ts`) so a two-state checkbox can no longer represent every state: `null` ("never
+ * decided", the default applies), `true` (explicitly always this post — same outcome as the default
+ * today, but pinned regardless of future default changes), `false` (explicitly always the theme's
+ * page). A `<select>` is the smallest control that can express three mutually-exclusive states
+ * without inventing a custom widget.
+ *
+ * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) — this block was the other
+ * major source of that component's own branching (whether to render at all, then the tri-state
+ * value/onChange mapping nested inside), same "top-level function scores its own branches
+ * independently" reasoning `PostEditorToolbarEnd` above states. `overridesThemePageFromSelectValue`
+ * (`rules.ts`) is the onChange half of the tri-state mapping, pulled out as a pure function so it has
+ * exactly one implementation shared with that function's own test fixture — see its doc.
+ */
+function PostEditorSlugCollisionWarning({
+  hasSlugCollision,
+  overridesThemePage,
+  setOverridesThemePage,
+  t,
+}: {
+  hasSlugCollision: boolean;
+  overridesThemePage: boolean | null;
+  setOverridesThemePage: (overridesThemePage: boolean | null) => void;
+  t: Translate;
+}) {
+  if (!hasSlugCollision) return null;
+  return (
+    <div
+      className="notice warning"
+      {...agentHandle("post-slug-collision-warning", {
+        role: "region",
+        label: "This post's slug is also claimed by the active theme's own page — choose which one wins",
+      })}
+    >
+      <p>
+        {t("This post's slug matches one of the active theme's own pages. By default, this post is shown at that URL instead of the theme's page.")}
+      </p>
+      <label>
+        {t("Which page wins at this URL")}
+        {" "}
+        <select
+          value={overridesThemePage === null ? "default" : overridesThemePage ? "post" : "theme"}
+          // Only "default" maps to `null`; both other options are an explicit, permanent choice
+          // (`true`/`false`) that keeps winning even if the default policy changes later — see this
+          // control's own file-header doc for the tri-state contract.
+          onChange={(e) => setOverridesThemePage(overridesThemePageFromSelectValue(e.target.value))}
+          {...agentHandle("post-override-theme-page", {
+            role: "field",
+            label:
+              "Which page is shown at this shared URL: the default (currently this post), always this post " +
+              "regardless of future default changes, or always the active theme's own same-slug page.",
+          })}
+        >
+          <option value="default">{t("Use the default (currently: this post)")}</option>
+          <option value="post">{t("Always show this post")}</option>
+          <option value="theme">{t("Always show the theme's page")}</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
+/**
+ * The Edit-view pane — formatting toolbar, bubble menu, drag handle, and the TipTap body itself.
+ * Extracted out of `PostEditor` (complexity-ceiling pass, 2026-08-20) as the `view === "preview"`
+ * ternary's alternate branch: three independent `editor ? ... : null` gates (the toolbar, the
+ * bubble menu, and the drag handle all wait on the same "has TipTap mounted yet" condition) were the
+ * last cluster of `PostEditor`'s own branching once the toolbar-end/slug-collision blocks above were
+ * pulled out — same "top-level function scores its own branches independently" reasoning those two
+ * already state.
+ */
+function PostEditorBody({
+  editor,
+  mentionablePosts,
+  currentPostId,
+}: {
+  editor: Editor | null;
+  mentionablePosts: AdminPost[];
+  currentPostId: string;
+}) {
+  return (
+    <div
+      className="editor-shell post-editor-pane"
+      {...agentHandle("post-editor-shell", {
+        role: "region",
+        label: "Formatting toolbar and the post body editor",
+      })}
+    >
+      {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={currentPostId} /> : null}
+      {editor ? <BubbleFormattingMenu editor={editor} /> : null}
+      {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
+          beside whichever top-level block the cursor is hovering, letting an author reorder
+          blocks by dragging instead of cut/paste. `nested` left at its `false` default: this is
+          the "quickest thing that works" pass every other plain-toggle-button addition this
+          dispatch made follows, not a stated requirement for reordering INSIDE a list/table/etc. */}
+      {editor ? (
+        <DragHandle editor={editor}>
+          <div className="editor-drag-handle" title="Drag to reorder" aria-hidden="true">
+            <svg viewBox="0 0 18 18" fill="currentColor">
+              <circle cx="6" cy="4" r="1.3" />
+              <circle cx="12" cy="4" r="1.3" />
+              <circle cx="6" cy="9" r="1.3" />
+              <circle cx="12" cy="9" r="1.3" />
+              <circle cx="6" cy="14" r="1.3" />
+              <circle cx="12" cy="14" r="1.3" />
+            </svg>
+          </div>
+        </DragHandle>
+      ) : null}
+      {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
+          page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
+          agent can read and write the body through the same field verbs it uses for an input. */}
+      <div
+        className="editor-body"
+        {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
+      >
+        <EditorContent editor={editor} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The "View Template" modal's mount gate — pulled out of `PostEditor` (complexity-ceiling pass,
+ * 2026-08-20) as its own top-level function so the three-condition `&&` chain scores in its own
+ * scope. Conditionally mounted, not always-mounted-with-`open`: `PreviewModalShell` (the shell
+ * `PostTemplateModal` renders through) is a plain fixed-position overlay `<div>`, not the native
+ * `<dialog>` `ConfirmDialog` wraps — there is no `open` prop to toggle, so this follows
+ * `AgentPluginDetailsModal`'s own call site (`AgentPlugins.tsx`) instead. `templateChoice` and
+ * `activeThemeId` are re-checked here (not just at the "View Template" button's `disabled`) so this
+ * can never render with an empty/`null` URL segment even if state changes out from under an
+ * already-open modal.
+ */
+function PostEditorTemplateModalGate({
+  show,
+  templateChoice,
+  activeThemeId,
+  activeThemeTier,
+  activeThemeApiVersion,
+  onClose,
+}: {
+  show: boolean;
+  templateChoice: string | null;
+  activeThemeId: string | null;
+  activeThemeTier: ThemeTier | null;
+  activeThemeApiVersion: 2 | undefined;
+  onClose: () => void;
+}) {
+  if (!show || !templateChoice || !activeThemeId) return null;
+  return (
+    <PostTemplateModal
+      themeId={activeThemeId}
+      themeTier={activeThemeTier}
+      themeApiVersion={activeThemeApiVersion}
+      templateFilename={templateChoice}
+      onClose={onClose}
+    />
+  );
+}
+
+/**
+ * The delete-confirmation dialog's body copy — pulled out of `PostEditor` (complexity-ceiling pass,
+ * 2026-08-20) so its two `kindLabel` ternaries (post vs. page phrasing) score in their own scope,
+ * same "top-level function scores its own branches independently" reasoning the other extractions in
+ * this file already state.
+ */
+function PostDeleteConfirmBody({
+  kindLabel,
+  postTitle,
+  t,
+}: {
+  kindLabel: "post" | "page";
+  postTitle: string;
+  t: Translate;
+}) {
+  return (
+    <p>
+      {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{postTitle}&quot;){" "}
+      {t(
+        kindLabel === "page"
+          ? "to trash? It will disappear from the site and from the pages list."
+          : "to trash? It will disappear from the site and from the posts list.",
+      )}
+    </p>
+  );
+}
+
 export interface PostEditorProps {
   postId: string;
   /**
@@ -680,7 +989,6 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     message,
     error,
     confirmingDelete,
-    setConfirmingDelete,
     deleting,
     confirmLeave,
     dirty,
@@ -688,12 +996,16 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     templatePreviewUrl,
     bodyJson,
     showTemplateModal,
-    setShowTemplateModal,
     previewFormRef,
     previewFormTarget,
-    save,
     remove,
     t,
+    onPublish,
+    onSave,
+    onDeleteClick,
+    onDeleteCancel,
+    onViewTemplateClick,
+    onCloseTemplateModal,
   } = usePostEditorHook(postId);
 
   if (error && !post) return <div className="notice error">{error}</div>;
@@ -710,9 +1022,9 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         error={error}
         status={status}
         setStatus={setStatus}
-        onPublish={() => save("published")}
-        onSave={() => save()}
-        onDeleteClick={() => setConfirmingDelete(true)}
+        onPublish={onPublish}
+        onSave={onSave}
+        onDeleteClick={onDeleteClick}
         t={t}
       />
       {/* Audit finding: placeholder-only, no `<label>` — a screen reader gets nothing (title) or
@@ -792,144 +1104,32 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
             </button>
           ))}
         </div>
-        <div className="page-editor-toolbar-end">
-          {/* Post-template-picker feature (2026-08-10) — rendered whenever this is a Post/
-              formulaic-body record (`bodyFormat: "doc"`), not an `"html"`-format Page — a Page's body
-              IS its own design already (see `resolveHtmlEmbedsForRender`'s own doc), so it has nothing
-              to pick between. Untranslated (`t()` falls back to the raw key, same graceful-degrade
-              every other string on this screen already relies on) — this repo's i18n dictionaries
-              cover 19 locales and adding this feature's strings to all of them is out of scope for
-              this pass; disclosed rather than silently skipped.
-
-              Options list real templates FIRST, "No template chosen" LAST (owner's own ordering
-              request) — matches `theme.json`'s own `postTemplate` doc ("ordered to nudge the right
-              choice"): opting OUT is the one deliberate action, not the default you land on. The
-              SELECTED value defaults to the first template too when nothing has been chosen yet (see
-              the load effect below) — an author only ever sees "No template chosen" selected if they
-              (or a prior save) explicitly picked it.
-
-              When the active theme declares zero templates, the row previously vanished entirely
-              (owner feedback, 2026-08-09: "it makes sense... but it should still be there" — an empty
-              theme should read as "nothing to choose" in the UI, not disappear as if the feature
-              itself weren't there). Renders a disabled control with a one-line explanation instead.
-
-              Rendered regardless of `view` — same as Pages' own picker — because the template choice
-              is a publish-time setting, not something specific to either tab. */}
-          {(post.bodyFormat ?? "doc") === "doc" ? (
-            <div className="editor-template-picker">
-              <label className="a11y-label-wrap">
-                <span className="visually-hidden">{t("Template")}</span>
-              </label>
-              {availableTemplates.length > 0 ? (
-                <select
-                  value={templateChoice ?? ""}
-                  // `e.target.value`, NOT `|| null` — "No template chosen" must persist as `""`
-                  // (explicitly opted out), which `resolveTemplate` treats differently from `null`
-                  // (never chosen → falls back to the first template). Coercing to `null` here is what
-                  // made the two indistinguishable and served 15 posts a diagnostic page.
-                  onChange={(e) => setTemplateChoice(e.target.value)}
-                  {...agentHandle("post-template-choice", {
-                    role: "field",
-                    label:
-                      "Which theme page template this post renders through on the public site. " +
-                      "Setting this to \"No template chosen\" shows a diagnostic page instead of the post, " +
-                      "not a silent fallback to generic rendering.",
-                  })}
-                >
-                  {availableTemplates.map((template) => (
-                    <option key={template} value={template}>
-                      {template}
-                    </option>
-                  ))}
-                  <option value="">{t("No template chosen")}</option>
-                </select>
-              ) : null}
-              {availableTemplates.length > 0 ? (
-                // Read-only inspection, not editing (`PostTemplateModal.tsx`'s own file header —
-                // "I just wanna see it" is the owner's own framing). Disabled rather than hidden
-                // when nothing is chosen: an operator who opted out via "No template chosen" (`""`)
-                // still sees the control, just inert, matching this screen's own precedent for the
-                // theme-with-zero-templates `<select>` above rather than the row disappearing.
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={!templateChoice}
-                  onClick={() => setShowTemplateModal(true)}
-                  {...agentHandle("post-view-template", {
-                    role: "button",
-                    label: "Open a read-only view of the selected template's HTML source. Nothing here is editable.",
-                  })}
-                >
-                  {t("View Template")}
-                </button>
-              ) : (
-                <select
-                  disabled
-                  value=""
-                  {...agentHandle("post-template-choice", {
-                    role: "field",
-                    label: "The active theme declares no post templates, so there is nothing to choose here.",
-                  })}
-                >
-                  <option value="">{t("No templates for this theme")}</option>
-                </select>
-              )}
-            </div>
-          ) : null}
-        </div>
+        {/* Template picker (Post-template-picker feature, 2026-08-10) — see `PostEditorToolbarEnd`'s
+            own doc for the full eligibility/ordering/empty-theme rules this extracts. */}
+        <PostEditorToolbarEnd
+          bodyFormat={post.bodyFormat}
+          availableTemplates={availableTemplates}
+          templateChoice={templateChoice}
+          setTemplateChoice={setTemplateChoice}
+          onViewTemplateClick={onViewTemplateClick}
+          t={t}
+        />
       </div>
-      {/* Slug-collision override (2026-08-10, tri-state default flip 2026-08-15) — surfaced live
-          2026-08-10: a post at slug "about" was silently unreachable because the active theme ships
-          its own pages/about.html at the same slug. Warn explicitly rather than let an author
-          discover this by visiting the public URL.
-
-          As of 2026-08-15 the DEFAULT winner flipped to the post (previously the theme page), and the
-          stored flag became tri-state (`AdminPost.overridesThemePage: boolean | null` — see that
-          field's own doc, `lib/api.ts`) so a two-state checkbox can no longer represent every state:
-          `null` ("never decided", the default applies), `true` (explicitly always this post — same
-          outcome as the default today, but pinned regardless of future default changes), `false`
-          (explicitly always the theme's page). A `<select>` is the smallest control that can express
-          three mutually-exclusive states without inventing a custom widget. */}
-      {hasSlugCollision ? (
-        <div className="notice warning" {...agentHandle("post-slug-collision-warning", {
-          role: "region",
-          label: "This post's slug is also claimed by the active theme's own page — choose which one wins",
-        })}>
-          <p>
-            {t("This post's slug matches one of the active theme's own pages. By default, this post is shown at that URL instead of the theme's page.")}
-          </p>
-          <label>
-            {t("Which page wins at this URL")}
-            {" "}
-            <select
-              value={overridesThemePage === null ? "default" : overridesThemePage ? "post" : "theme"}
-              // Only "default" maps to `null`; both other options are an explicit, permanent choice
-              // (`true`/`false`) that keeps winning even if the default policy changes later — see
-              // this control's own file-header doc for the tri-state contract.
-              onChange={(e) => setOverridesThemePage(e.target.value === "default" ? null : e.target.value === "post")}
-              {...agentHandle("post-override-theme-page", {
-                role: "field",
-                label:
-                  "Which page is shown at this shared URL: the default (currently this post), always this post " +
-                  "regardless of future default changes, or always the active theme's own same-slug page.",
-              })}
-            >
-              <option value="default">{t("Use the default (currently: this post)")}</option>
-              <option value="post">{t("Always show this post")}</option>
-              <option value="theme">{t("Always show the theme's page")}</option>
-            </select>
-          </label>
-        </div>
-      ) : null}
+      {/* Slug-collision override — see `PostEditorSlugCollisionWarning`'s own doc for the tri-state
+          contract and history this extracts. */}
+      <PostEditorSlugCollisionWarning
+        hasSlugCollision={hasSlugCollision}
+        overridesThemePage={overridesThemePage}
+        setOverridesThemePage={setOverridesThemePage}
+        t={t}
+      />
       {view === "preview" ? (
-        // `editor.getHTML()` read fresh every render, same idiom the hook already uses for
-        // `editor.getJSON()` in its own dirty comparison — TipTap's content lives in the editor's
-        // own imperative state, and `onUpdate`'s `bodyVersion` bump is what makes this re-evaluate
-        // after a keystroke rather than going stale. `bodyJson`/`templatePreviewUrl`/`previewFormRef`/
-        // `previewFormTarget` come straight off the hook now (2026-08-14) — see
-        // `use-post-editor.hooks.ts`'s own docs on each for why they moved out of this component.
+        // `bodyJson`/`templatePreviewUrl`/`previewFormRef`/`previewFormTarget` come straight off the
+        // hook now (2026-08-14) — see `use-post-editor.hooks.ts`'s own docs on each for why they
+        // moved out of this component. `editor` itself (not a pre-computed `bodyHtml`) is passed
+        // straight through — see `PostPreview`'s own doc for why it reads `editor.getHTML()` itself.
         <PostPreview
-          bodyHtml={degradeUnplayableEmbedsForRawPreview(editor?.getHTML() ?? "")}
+          editor={editor}
           bodyJson={bodyJson}
           slug={slug}
           status={status}
@@ -940,80 +1140,28 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           previewFormTarget={previewFormTarget}
         />
       ) : (
-        <div
-          className="editor-shell post-editor-pane"
-          {...agentHandle("post-editor-shell", {
-            role: "region",
-            label: "Formatting toolbar and the post body editor",
-          })}
-        >
-          {editor ? <Toolbar editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} /> : null}
-          {editor ? <BubbleFormattingMenu editor={editor} /> : null}
-          {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
-              beside whichever top-level block the cursor is hovering, letting an author reorder
-              blocks by dragging instead of cut/paste. `nested` left at its `false` default: this is
-              the "quickest thing that works" pass every other plain-toggle-button addition this
-              dispatch made follows, not a stated requirement for reordering INSIDE a list/table/etc. */}
-          {editor ? (
-            <DragHandle editor={editor}>
-              <div className="editor-drag-handle" title="Drag to reorder" aria-hidden="true">
-                <svg viewBox="0 0 18 18" fill="currentColor">
-                  <circle cx="6" cy="4" r="1.3" />
-                  <circle cx="12" cy="4" r="1.3" />
-                  <circle cx="6" cy="9" r="1.3" />
-                  <circle cx="12" cy="9" r="1.3" />
-                  <circle cx="6" cy="14" r="1.3" />
-                  <circle cx="12" cy="14" r="1.3" />
-                </svg>
-              </div>
-            </DragHandle>
-          ) : null}
-          {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
-              page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
-              agent can read and write the body through the same field verbs it uses for an input. */}
-          <div
-            className="editor-body"
-            {...agentHandle("post-body", { role: "field", label: "The post's rich-text body content" })}
-          >
-            <EditorContent editor={editor} />
-          </div>
-        </div>
+        <PostEditorBody editor={editor} mentionablePosts={mentionablePosts} currentPostId={post.id} />
       )}
       <ConfirmDialog
         open={confirmingDelete}
         title={t("Move to trash?")}
-        body={
-          <p>
-            {t(kindLabel === "page" ? "Move this page" : "Move this post")} (&quot;{post.title}&quot;){" "}
-            {t(
-              kindLabel === "page"
-                ? "to trash? It will disappear from the site and from the pages list."
-                : "to trash? It will disappear from the site and from the posts list.",
-            )}
-          </p>
-        }
+        body={<PostDeleteConfirmBody kindLabel={kindLabel} postTitle={post.title} t={t} />}
         confirmLabel={t("Move to trash")}
         destructive
         pending={deleting}
         onConfirm={remove}
-        onCancel={() => setConfirmingDelete(false)}
+        onCancel={onDeleteCancel}
       />
-      {/* Conditionally mounted, not always-mounted-with-`open`: `PreviewModalShell` is a plain
-          fixed-position overlay `<div>` (see its own file header), not the native `<dialog>`
-          `ConfirmDialog` above wraps — there is no `open` prop to toggle, so this follows
-          `AgentPluginDetailsModal`'s own call site (`AgentPlugins.tsx`) instead. `templateChoice`
-          and `activeThemeId` are re-checked here (not just at the button's `disabled`) so this can
-          never render with an empty/`null` URL segment even if state changes out from under an
-          already-open modal. */}
-      {showTemplateModal && templateChoice && activeThemeId ? (
-        <PostTemplateModal
-          themeId={activeThemeId}
-          themeTier={activeThemeTier}
-          themeApiVersion={activeThemeApiVersion}
-          templateFilename={templateChoice}
-          onClose={() => setShowTemplateModal(false)}
-        />
-      ) : null}
+      {/* See `PostEditorTemplateModalGate`'s own doc for why this is conditionally mounted rather
+          than always-mounted-with-`open`, and why all three conditions are re-checked here. */}
+      <PostEditorTemplateModalGate
+        show={showTemplateModal}
+        templateChoice={templateChoice}
+        activeThemeId={activeThemeId}
+        activeThemeTier={activeThemeTier}
+        activeThemeApiVersion={activeThemeApiVersion}
+        onClose={onCloseTemplateModal}
+      />
     </div>
   );
 }
@@ -1077,7 +1225,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  * it always has.
  */
 function PostPreview({
-  bodyHtml,
+  editor,
   bodyJson,
   slug,
   status,
@@ -1087,7 +1235,14 @@ function PostPreview({
   previewFormRef,
   previewFormTarget,
 }: {
-  bodyHtml: string;
+  /** `editor.getHTML()` read fresh every render — same idiom `use-post-editor.hooks.ts` already
+   *  uses for `editor.getJSON()` in its own dirty comparison: TipTap's content lives in the
+   *  editor's own imperative state, and `onUpdate`'s `bodyVersion` bump is what makes this
+   *  re-evaluate after a keystroke rather than going stale. Received as the raw `Editor` (not a
+   *  pre-computed string) so the `?.`/`??` read and `degradeUnplayableEmbedsForRawPreview` call
+   *  score in THIS function's own scope, not `PostEditor`'s (complexity-ceiling pass, 2026-08-20).
+   *  `null` before TipTap has mounted, same as every other `editor`-typed prop in this file. */
+  editor: Editor | null;
   /** Loosely typed like `PostFormState.bodyJson` (`use-post-editor.hooks.ts`) for the same stated
    *  reason: this only ever gets `JSON.stringify`'d into a hidden form field below, never read for
    *  its shape. `null` means the editor hasn't mounted yet — see the call site's own comment. */
@@ -1105,6 +1260,7 @@ function PostPreview({
   /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
   previewFormTarget: string;
 }) {
+  const bodyHtml = degradeUnplayableEmbedsForRawPreview(editor?.getHTML() ?? "");
   const canShowLiveSite = status === "published" && !dirty;
   // Template-preview fix (2026-08-11) — see this function's own doc, branch 2, for why `status ===
   // "published"` is required here rather than just `!contentDirty`.
@@ -1118,56 +1274,104 @@ function PostPreview({
   return (
     <>
       <div className="editor-shell post-editor-pane">
-        {canShowLiveSite ? (
-          <iframe
-            src={siteUrl(`/${slug}`)}
-            title="Post preview"
-            className="editor-preview-iframe"
-            referrerPolicy="no-referrer"
-          />
-        ) : canShowTemplatePreview ? (
-          <iframe
-            src={templatePreviewUrl}
-            title="Post preview"
-            className="editor-preview-iframe"
-            referrerPolicy="no-referrer"
-          />
-        ) : canShowPendingContentPreview ? (
-          <>
-            {/* `hidden`, not left out of the DOM — a hidden form still submits fine, and this keeps
-                it out of layout without relying on CSS. Posts to the SAME endpoint branch 2's iframe
-                `src` above points `GET` at; `templateChoice` rides the query string exactly as it
-                does there, so a pending template choice AND pending content are both honored by one
-                submit. */}
-            <form
-              ref={previewFormRef}
-              method="post"
-              target={previewFormTarget}
-              action={templatePreviewUrl}
-              hidden
-            >
-              <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
-            </form>
-            <iframe
-              name={previewFormTarget}
-              title="Post preview"
-              className="editor-preview-iframe"
-              referrerPolicy="no-referrer"
-            />
-          </>
-        ) : (
-          <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />
-        )}
+        <PostPreviewFrame
+          canShowLiveSite={canShowLiveSite}
+          canShowTemplatePreview={canShowTemplatePreview}
+          canShowPendingContentPreview={canShowPendingContentPreview}
+          bodyHtml={bodyHtml}
+          bodyJson={bodyJson}
+          slug={slug}
+          templatePreviewUrl={templatePreviewUrl}
+          previewFormRef={previewFormRef}
+          previewFormTarget={previewFormTarget}
+        />
       </div>
       {canShowLiveSite ? null : (
         <p className="editor-preview-notice">
-          {canShowTemplatePreview
-            ? "Previewing your saved content through the newly selected template — save to update the live post."
-            : canShowPendingContentPreview
-              ? "Previewing your unsaved edits through the live template — this updates a moment after you stop typing."
-              : "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."}
+          {postPreviewNotice({ canShowTemplatePreview, canShowPendingContentPreview })}
         </p>
       )}
     </>
   );
+}
+
+/**
+ * The four-way surface choice from `PostPreview`'s own doc comment (live site / template preview /
+ * pending-content preview / raw sandbox), as a top-level function so its branching scores
+ * independently of `PostPreview`'s own complexity — same pattern `features/pages/PageEditor.tsx`'s
+ * `PagePreviewFrame` uses for its own three-way equivalent.
+ */
+function PostPreviewFrame({
+  canShowLiveSite,
+  canShowTemplatePreview,
+  canShowPendingContentPreview,
+  bodyHtml,
+  bodyJson,
+  slug,
+  templatePreviewUrl,
+  previewFormRef,
+  previewFormTarget,
+}: {
+  canShowLiveSite: boolean;
+  canShowTemplatePreview: boolean;
+  canShowPendingContentPreview: boolean;
+  bodyHtml: string;
+  /** See `PostPreview`'s own `bodyJson` prop doc — only ever `JSON.stringify`'d into the hidden
+   *  form field below. */
+  bodyJson: unknown;
+  slug: string;
+  /** Pre-built by `usePostEditor` — see `PostPreview`'s own doc, branch 2. */
+  templatePreviewUrl: string;
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  previewFormTarget: string;
+}) {
+  if (canShowLiveSite) {
+    return (
+      <iframe src={siteUrl(`/${slug}`)} title="Post preview" className="editor-preview-iframe" referrerPolicy="no-referrer" />
+    );
+  }
+  if (canShowTemplatePreview) {
+    return (
+      <iframe
+        src={templatePreviewUrl}
+        title="Post preview"
+        className="editor-preview-iframe"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  if (canShowPendingContentPreview) {
+    return (
+      <>
+        {/* `hidden`, not left out of the DOM — a hidden form still submits fine, and this keeps
+            it out of layout without relying on CSS. Posts to the SAME endpoint branch 2's iframe
+            `src` above points `GET` at; `templateChoice` rides the query string exactly as it
+            does there, so a pending template choice AND pending content are both honored by one
+            submit. */}
+        <form ref={previewFormRef} method="post" target={previewFormTarget} action={templatePreviewUrl} hidden>
+          <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
+        </form>
+        <iframe name={previewFormTarget} title="Post preview" className="editor-preview-iframe" referrerPolicy="no-referrer" />
+      </>
+    );
+  }
+  return <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />;
+}
+
+/** The notice text under a preview that isn't the live site — one branch per `PostPreviewFrame` case
+ *  minus the live-site one (which shows no notice at all; `PostPreview` skips calling this then). */
+function postPreviewNotice({
+  canShowTemplatePreview,
+  canShowPendingContentPreview,
+}: {
+  canShowTemplatePreview: boolean;
+  canShowPendingContentPreview: boolean;
+}): string {
+  if (canShowTemplatePreview) {
+    return "Previewing your saved content through the newly selected template — save to update the live post.";
+  }
+  if (canShowPendingContentPreview) {
+    return "Previewing your unsaved edits through the live template — this updates a moment after you stop typing.";
+  }
+  return "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS.";
 }
