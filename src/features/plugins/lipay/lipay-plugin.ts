@@ -47,6 +47,7 @@ import type {
   PaymentProvider,
   PaymentProviderCapabilities,
   PaymentProviderId,
+  ProviderChargeInput,
   ProviderContext,
 } from "./ports.js";
 
@@ -354,6 +355,155 @@ function isUniqueViolation(err: unknown): boolean {
   return typeof code === "string" && code.startsWith("SQLITE_CONSTRAINT");
 }
 
+/** The three request-shape checks `charge()` needs before it may touch the database at all. */
+function validateChargeInput(provider: PaymentProvider, input: ChargeRequest): PaymentError | null {
+  if (input.idempotencyKey.trim().length === 0) {
+    return error("INVALID_REQUEST", "idempotencyKey must be a non-empty string");
+  }
+  const amountProblem = invalidAmount(input.amount);
+  if (amountProblem) return error("INVALID_REQUEST", amountProblem);
+  if (!supportsCurrency(provider.capabilities, input.amount.currency)) {
+    return error("CURRENCY_UNSUPPORTED", `provider '${provider.id}' does not accept ${input.amount.currency}`);
+  }
+  return null;
+}
+
+/** Outbound idempotency: `undefined` when no row exists yet, otherwise the final `ChargeResult`
+ * for the replay (a mismatched request is a conflict, a matching one is the original payment). */
+function resolveExistingCharge(existing: PaymentRow | undefined, input: ChargeRequest): ChargeResult | undefined {
+  if (!existing) return undefined;
+  const sameRequest =
+    existing.provider_id === input.providerId &&
+    existing.amount_minor === input.amount.minorUnits &&
+    existing.currency === input.amount.currency;
+  if (!sameRequest) {
+    return {
+      ok: false,
+      payment: toPaymentRecord(existing),
+      error: error(
+        "IDEMPOTENCY_CONFLICT",
+        `idempotency key '${input.idempotencyKey}' was already used for a different provider/amount/currency`
+      ),
+    };
+  }
+  return { ok: true, payment: toPaymentRecord(existing), next: null, replayed: true };
+}
+
+/** Shapes the outbound `ProviderChargeInput`, dropping the optional fields the caller omitted
+ * rather than forwarding them as `undefined`. */
+function buildChargeProviderRequest(input: ChargeRequest): ProviderChargeInput {
+  return {
+    amount: input.amount,
+    // The caller's key, forwarded verbatim to providers that support it (Stripe's
+    // `Idempotency-Key` header), so a retry is deduplicated on BOTH sides of the seam.
+    idempotencyKey: input.idempotencyKey,
+    ...(input.reference === undefined ? {} : { reference: input.reference }),
+    ...(input.customer === undefined ? {} : { customer: input.customer }),
+    ...(input.providerOptions === undefined ? {} : { providerOptions: input.providerOptions }),
+  };
+}
+
+/** A refund is only legal from a payment that has settled money to refund in the first place. */
+function validateRefundStatus(payment: PaymentRecord): PaymentError | null {
+  if (payment.status !== "succeeded" && payment.status !== "partially_refunded") {
+    return error("INVALID_REQUEST", `a payment in status '${payment.status}' cannot be refunded`);
+  }
+  return null;
+}
+
+/**
+ * Resolves the refund amount (defaulting to "everything still remaining") and every money
+ * invariant it must satisfy: well-formed, same currency as the payment, not more than what
+ * remains, and — for a "full refunds only" provider — not a partial amount at all.
+ */
+function resolveRefundAmount(
+  input: RefundRequest,
+  payment: PaymentRecord,
+  provider: PaymentProvider
+): { ok: true; amount: Money } | { ok: false; error: PaymentError } {
+  const remaining = payment.amount.minorUnits - payment.amountRefundedMinor;
+  const amount = input.amount ?? { minorUnits: remaining, currency: payment.amount.currency };
+
+  const amountProblem = invalidAmount(amount);
+  if (amountProblem) return { ok: false, error: error("INVALID_REQUEST", amountProblem) };
+  if (amount.currency !== payment.amount.currency) {
+    return {
+      ok: false,
+      error: error(
+        "CURRENCY_UNSUPPORTED",
+        `refund currency ${amount.currency} does not match the payment's ${payment.amount.currency}`
+      ),
+    };
+  }
+  // The aggregate invariant `amount_refunded_minor <= amount_minor`, which the schema itself
+  // cannot express (no CHECK constraint in the declared grammar).
+  if (amount.minorUnits > remaining) {
+    return {
+      ok: false,
+      error: error(
+        "INVALID_REQUEST",
+        `refund of ${amount.minorUnits} exceeds the ${remaining} still refundable on payment ${payment.id}`
+      ),
+    };
+  }
+  if (provider.capabilities.refunds === "full" && amount.minorUnits !== payment.amount.minorUnits) {
+    return { ok: false, error: error("CAPABILITY_UNSUPPORTED", `provider '${provider.id}' supports full refunds only`) };
+  }
+  return { ok: true, amount };
+}
+
+/** Inbound refund idempotency — same shape as `resolveExistingCharge`, one layer down. */
+function resolveExistingRefund(
+  existing: RefundRow | undefined,
+  input: RefundRequest,
+  amount: Money,
+  payment: PaymentRecord
+): RefundResult | undefined {
+  if (!existing) return undefined;
+  const sameRequest =
+    existing.payment_id === input.paymentId && existing.amount_minor === amount.minorUnits && existing.currency === amount.currency;
+  if (!sameRequest) {
+    return {
+      ok: false,
+      error: error("IDEMPOTENCY_CONFLICT", `idempotency key '${input.idempotencyKey}' was already used for a different refund`),
+    };
+  }
+  return { ok: true, refund: toRefundRecord(existing), payment, replayed: true };
+}
+
+/** How much of `event`'s refund applies — the event's own amount when it carries one, otherwise
+ * "the whole charge" (a provider that reports refunds without a partial amount). */
+function incomingRefundAmount(event: NormalizedPaymentEvent, paymentRow: PaymentRow): number {
+  return event.amount?.minorUnits ?? paymentRow.amount_minor;
+}
+
+/**
+ * Pure decision: given an already-persisted event, should it actually move the payment forward?
+ * `apply: false` covers every reason it should not (stale ordering, a terminal payment, or a
+ * transition the state machine itself rejects) — `applyEvent()` treats all three identically
+ * (`"recorded"`), so this collapses them into one result shape instead of one branch each.
+ */
+function computeEventTransition(
+  paymentRow: PaymentRow,
+  event: NormalizedPaymentEvent,
+  lastAppliedAt: number | null
+): { apply: false } | { apply: true; next: PaymentStatus; refundedTotal: number } {
+  if (lastAppliedAt !== null && event.occurredAt < lastAppliedAt) return { apply: false };
+
+  const current = paymentRow.status as PaymentStatus;
+  if (isTerminalPaymentStatus(current)) return { apply: false };
+
+  const refundedTotal =
+    event.kind === "refunded"
+      ? Math.min(paymentRow.amount_refunded_minor + incomingRefundAmount(event, paymentRow), paymentRow.amount_minor)
+      : paymentRow.amount_refunded_minor;
+
+  const next = statusForEventKind(event.kind, { refundedMinor: refundedTotal, totalMinor: paymentRow.amount_minor });
+  if (next === null || !canTransition(current, next)) return { apply: false };
+
+  return { apply: true, next, refundedTotal };
+}
+
 /**
  * Declare lipay's tables through core (snapshot → DDL) and return the payments API.
  *
@@ -420,66 +570,15 @@ export async function activateLipay(
     return credentials.getCredentials({ workspaceId: scope, providerId: provider.id, keys: provider.credentialKeys });
   }
 
-  async function charge(input: ChargeRequest): Promise<ChargeResult> {
-    const provider = registry.get(input.providerId);
-    if (!provider) {
-      return {
-        ok: false,
-        payment: null,
-        error: error("PROVIDER_NOT_REGISTERED", `no payment provider registered for '${input.providerId}'`),
-      };
-    }
-
-    if (input.idempotencyKey.trim().length === 0) {
-      return { ok: false, payment: null, error: error("INVALID_REQUEST", "idempotencyKey must be a non-empty string") };
-    }
-
-    const amountProblem = invalidAmount(input.amount);
-    if (amountProblem) {
-      return { ok: false, payment: null, error: error("INVALID_REQUEST", amountProblem) };
-    }
-
-    if (!supportsCurrency(provider.capabilities, input.amount.currency)) {
-      return {
-        ok: false,
-        payment: null,
-        error: error("CURRENCY_UNSUPPORTED", `provider '${provider.id}' does not accept ${input.amount.currency}`),
-      };
-    }
-
-    // Outbound idempotency, checked BEFORE the provider is called. The case a naive
-    // "just return the stored row" implementation gets wrong is the second branch.
-    const existing = selectPaymentByKey.get(input.workspaceId, input.idempotencyKey) as PaymentRow | undefined;
-    if (existing) {
-      const sameRequest =
-        existing.provider_id === input.providerId &&
-        existing.amount_minor === input.amount.minorUnits &&
-        existing.currency === input.amount.currency;
-      if (!sameRequest) {
-        return {
-          ok: false,
-          payment: toPaymentRecord(existing),
-          error: error(
-            "IDEMPOTENCY_CONFLICT",
-            `idempotency key '${input.idempotencyKey}' was already used for a different provider/amount/currency`
-          ),
-        };
-      }
-      return { ok: true, payment: toPaymentRecord(existing), next: null, replayed: true };
-    }
-
-    const resolved = await resolveCredentials(provider, input.workspaceId);
-    if (!resolved) {
-      // Nothing is persisted: a payment that could never be attempted is not a payment attempt.
-      return {
-        ok: false,
-        payment: null,
-        error: error("NO_CREDENTIALS_CONFIGURED", `no credentials configured for payment provider '${provider.id}'`),
-      };
-    }
-
-    const id = idGen.newId();
-    const createdAt = clock.now();
+  /**
+   * Inserts the pending payment row, absorbing the race where a concurrent request holding the
+   * same idempotency key wins the UNIQUE index first (see the module-level idempotency contract).
+   */
+  function insertPendingPayment(
+    id: string,
+    input: ChargeRequest,
+    createdAt: number
+  ): { kind: "inserted" } | { kind: "raced"; row: PaymentRow } {
     try {
       db.prepare(
         `INSERT INTO "${PAYMENTS}" (id, workspace_id, provider_id, idempotency_key, status, amount_minor, currency,
@@ -496,28 +595,57 @@ export async function activateLipay(
         createdAt,
         createdAt
       );
+      return { kind: "inserted" };
     } catch (err) {
       // Lost the race to a concurrent request holding the same key — the unique index is the
       // arbiter, so re-read and treat it as the replay it is.
       if (isUniqueViolation(err)) {
         const raced = selectPaymentByKey.get(input.workspaceId, input.idempotencyKey) as PaymentRow | undefined;
-        if (raced) return { ok: true, payment: toPaymentRecord(raced), next: null, replayed: true };
+        if (raced) return { kind: "raced", row: raced };
       }
       throw err;
     }
+  }
 
-    const result = await provider.createCharge(
-      {
-        amount: input.amount,
-        // The caller's key, forwarded verbatim to providers that support it (Stripe's
-        // `Idempotency-Key` header), so a retry is deduplicated on BOTH sides of the seam.
-        idempotencyKey: input.idempotencyKey,
-        ...(input.reference === undefined ? {} : { reference: input.reference }),
-        ...(input.customer === undefined ? {} : { customer: input.customer }),
-        ...(input.providerOptions === undefined ? {} : { providerOptions: input.providerOptions }),
-      },
-      contextFor(provider, resolved)
-    );
+  async function charge(input: ChargeRequest): Promise<ChargeResult> {
+    const provider = registry.get(input.providerId);
+    if (!provider) {
+      return {
+        ok: false,
+        payment: null,
+        error: error("PROVIDER_NOT_REGISTERED", `no payment provider registered for '${input.providerId}'`),
+      };
+    }
+
+    const validationError = validateChargeInput(provider, input);
+    if (validationError) {
+      return { ok: false, payment: null, error: validationError };
+    }
+
+    // Outbound idempotency, checked BEFORE the provider is called. The case a naive
+    // "just return the stored row" implementation gets wrong is the second branch.
+    const existing = selectPaymentByKey.get(input.workspaceId, input.idempotencyKey) as PaymentRow | undefined;
+    const existingResult = resolveExistingCharge(existing, input);
+    if (existingResult) return existingResult;
+
+    const resolved = await resolveCredentials(provider, input.workspaceId);
+    if (!resolved) {
+      // Nothing is persisted: a payment that could never be attempted is not a payment attempt.
+      return {
+        ok: false,
+        payment: null,
+        error: error("NO_CREDENTIALS_CONFIGURED", `no credentials configured for payment provider '${provider.id}'`),
+      };
+    }
+
+    const id = idGen.newId();
+    const createdAt = clock.now();
+    const insertOutcome = insertPendingPayment(id, input, createdAt);
+    if (insertOutcome.kind === "raced") {
+      return { ok: true, payment: toPaymentRecord(insertOutcome.row), next: null, replayed: true };
+    }
+
+    const result = await provider.createCharge(buildChargeProviderRequest(input), contextFor(provider, resolved));
 
     const updatedAt = clock.now();
     if (!result.ok) {
@@ -540,92 +668,46 @@ export async function activateLipay(
     return { ok: true, payment, next: result.next, replayed: false };
   }
 
-  async function refund(input: RefundRequest): Promise<RefundResult> {
-    const paymentRow = selectPaymentById.get(input.workspaceId, input.paymentId) as PaymentRow | undefined;
-    if (!paymentRow) {
-      return { ok: false, error: error("INVALID_REQUEST", `no payment '${input.paymentId}' in this workspace`) };
-    }
-    const payment = toPaymentRecord(paymentRow);
-
+  /** Provider lookup plus its refund-capability gate — the two checks every refund needs before
+   * anything else can be resolved. */
+  function resolveRefundProvider(payment: PaymentRecord): { ok: true; provider: PaymentProvider } | { ok: false; error: PaymentError } {
     const provider = registry.get(payment.providerId);
     if (!provider) {
-      return {
-        ok: false,
-        error: error("PROVIDER_NOT_REGISTERED", `no payment provider registered for '${payment.providerId}'`),
-      };
+      return { ok: false, error: error("PROVIDER_NOT_REGISTERED", `no payment provider registered for '${payment.providerId}'`) };
     }
     if (provider.capabilities.refunds === "none" || typeof provider.refund !== "function") {
       return { ok: false, error: error("CAPABILITY_UNSUPPORTED", `provider '${provider.id}' does not support refunds`) };
     }
-    if (payment.status !== "succeeded" && payment.status !== "partially_refunded") {
-      return {
-        ok: false,
-        error: error("INVALID_REQUEST", `a payment in status '${payment.status}' cannot be refunded`),
-      };
-    }
+    return { ok: true, provider };
+  }
 
-    const remaining = payment.amount.minorUnits - payment.amountRefundedMinor;
-    const amount = input.amount ?? { minorUnits: remaining, currency: payment.amount.currency };
-    const amountProblem = invalidAmount(amount);
-    if (amountProblem) return { ok: false, error: error("INVALID_REQUEST", amountProblem) };
-    if (amount.currency !== payment.amount.currency) {
-      return {
-        ok: false,
-        error: error(
-          "CURRENCY_UNSUPPORTED",
-          `refund currency ${amount.currency} does not match the payment's ${payment.amount.currency}`
-        ),
-      };
-    }
-    // The aggregate invariant `amount_refunded_minor <= amount_minor`, which the schema itself
-    // cannot express (no CHECK constraint in the declared grammar).
-    if (amount.minorUnits > remaining) {
-      return {
-        ok: false,
-        error: error(
-          "INVALID_REQUEST",
-          `refund of ${amount.minorUnits} exceeds the ${remaining} still refundable on payment ${payment.id}`
-        ),
-      };
-    }
-    if (provider.capabilities.refunds === "full" && amount.minorUnits !== payment.amount.minorUnits) {
-      return {
-        ok: false,
-        error: error("CAPABILITY_UNSUPPORTED", `provider '${provider.id}' supports full refunds only`),
-      };
-    }
-
-    const existing = selectRefundByKey.get(input.workspaceId, input.idempotencyKey) as RefundRow | undefined;
-    if (existing) {
-      const sameRequest =
-        existing.payment_id === input.paymentId &&
-        existing.amount_minor === amount.minorUnits &&
-        existing.currency === amount.currency;
-      if (!sameRequest) {
-        return {
-          ok: false,
-          error: error(
-            "IDEMPOTENCY_CONFLICT",
-            `idempotency key '${input.idempotencyKey}' was already used for a different refund`
-          ),
-        };
-      }
-      return { ok: true, refund: toRefundRecord(existing), payment, replayed: true };
-    }
-
-    const resolved = await resolveCredentials(provider, input.workspaceId);
+  /** Credentials plus the provider-ref precondition — both must hold before a refund attempt can
+   * be persisted and dispatched. */
+  async function resolveRefundPrereqs(
+    provider: PaymentProvider,
+    payment: PaymentRecord,
+    workspaceId: string
+  ): Promise<{ ok: true; credentials: Readonly<Record<string, string>> } | { ok: false; error: PaymentError }> {
+    const resolved = await resolveCredentials(provider, workspaceId);
     if (!resolved) {
-      return {
-        ok: false,
-        error: error("NO_CREDENTIALS_CONFIGURED", `no credentials configured for payment provider '${provider.id}'`),
-      };
+      return { ok: false, error: error("NO_CREDENTIALS_CONFIGURED", `no credentials configured for payment provider '${provider.id}'`) };
     }
     if (!payment.providerRef) {
       return { ok: false, error: error("INVALID_REQUEST", `payment ${payment.id} has no provider reference to refund`) };
     }
+    return { ok: true, credentials: resolved };
+  }
 
-    const refundId = idGen.newId();
-    const createdAt = clock.now();
+  /**
+   * Inserts the pending refund row, absorbing the same UNIQUE-index race `insertPendingPayment`
+   * absorbs on the charge side.
+   */
+  function insertPendingRefund(
+    refundId: string,
+    input: RefundRequest,
+    amount: Money,
+    createdAt: number
+  ): { kind: "inserted" } | { kind: "raced"; row: RefundRow } {
     try {
       db.prepare(
         `INSERT INTO "${REFUNDS}" (id, workspace_id, payment_id, idempotency_key, provider_ref, amount_minor,
@@ -642,22 +724,48 @@ export async function activateLipay(
         createdAt,
         createdAt
       );
+      return { kind: "inserted" };
     } catch (err) {
       if (isUniqueViolation(err)) {
         const raced = selectRefundByKey.get(input.workspaceId, input.idempotencyKey) as RefundRow | undefined;
-        if (raced) return { ok: true, refund: toRefundRecord(raced), payment, replayed: true };
+        if (raced) return { kind: "raced", row: raced };
       }
       throw err;
     }
+  }
 
-    const result = await provider.refund(
+  /**
+   * Everything from "the refund row now exists" onward: call the provider, mark the row on
+   * failure, or move the refund row and the payment's refunded total together on success. Split
+   * out of `refund()` because this is the one stretch that cannot be reduced to a single guard
+   * clause — it is the actual attempt, not a precondition on it.
+   */
+  async function executeRefundAttempt(args: {
+    refundId: string;
+    input: RefundRequest;
+    amount: Money;
+    payment: PaymentRecord;
+    provider: PaymentProvider;
+    resolvedCredentials: Readonly<Record<string, string>>;
+    createdAt: number;
+  }): Promise<RefundResult> {
+    const { refundId, input, amount, payment, provider, resolvedCredentials, createdAt } = args;
+
+    const insertOutcome = insertPendingRefund(refundId, input, amount, createdAt);
+    if (insertOutcome.kind === "raced") {
+      return { ok: true, refund: toRefundRecord(insertOutcome.row), payment, replayed: true };
+    }
+
+    // `resolveRefundPrereqs` already rejected a payment with no `providerRef`, so this call is
+    // reached only when one is set — the assertion documents that instead of re-deriving it.
+    const result = await provider.refund!(
       {
-        providerRef: payment.providerRef,
+        providerRef: payment.providerRef as string,
         amount,
         idempotencyKey: input.idempotencyKey,
         ...(input.reason === undefined ? {} : { reason: input.reason }),
       },
-      contextFor(provider, resolved)
+      contextFor(provider, resolvedCredentials)
     );
 
     const updatedAt = clock.now();
@@ -701,6 +809,68 @@ export async function activateLipay(
     return { ok: true, refund: toRefundRecord(refundRow), payment: after, replayed: false };
   }
 
+  async function refund(input: RefundRequest): Promise<RefundResult> {
+    const paymentRow = selectPaymentById.get(input.workspaceId, input.paymentId) as PaymentRow | undefined;
+    if (!paymentRow) {
+      return { ok: false, error: error("INVALID_REQUEST", `no payment '${input.paymentId}' in this workspace`) };
+    }
+    const payment = toPaymentRecord(paymentRow);
+
+    const providerResolution = resolveRefundProvider(payment);
+    if (!providerResolution.ok) return { ok: false, error: providerResolution.error };
+    const { provider } = providerResolution;
+
+    const statusError = validateRefundStatus(payment);
+    if (statusError) return { ok: false, error: statusError };
+
+    const amountResolution = resolveRefundAmount(input, payment, provider);
+    if (!amountResolution.ok) return { ok: false, error: amountResolution.error };
+    const { amount } = amountResolution;
+
+    const existing = selectRefundByKey.get(input.workspaceId, input.idempotencyKey) as RefundRow | undefined;
+    const existingResult = resolveExistingRefund(existing, input, amount, payment);
+    if (existingResult) return existingResult;
+
+    const prereqs = await resolveRefundPrereqs(provider, payment, input.workspaceId);
+    if (!prereqs.ok) return { ok: false, error: prereqs.error };
+
+    return executeRefundAttempt({
+      refundId: idGen.newId(),
+      input,
+      amount,
+      payment,
+      provider,
+      resolvedCredentials: prereqs.credentials,
+      createdAt: clock.now(),
+    });
+  }
+
+  /**
+   * Inserts one inbound event row, absorbing the UNIQUE-index dedupe on `(provider_id,
+   * provider_event_id)` — the whole inbound idempotency mechanism (see the module-level doc
+   * comment on `isUniqueViolation`).
+   */
+  function insertPaymentEvent(
+    providerId: PaymentProviderId,
+    event: NormalizedPaymentEvent,
+    payload: string,
+    paymentId: string | null
+  ): { kind: "duplicate" } | { kind: "inserted"; eventId: string; receivedAt: number } {
+    const eventId = idGen.newId();
+    const receivedAt = clock.now();
+    try {
+      db.prepare(
+        `INSERT INTO "${EVENTS}" (id, workspace_id, provider_id, provider_event_id, payment_id, kind,
+           occurred_at, received_at, applied, payload)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
+      ).run(eventId, workspaceId, providerId, event.providerEventId, paymentId, event.kind, event.occurredAt, receivedAt, payload);
+      return { kind: "inserted", eventId, receivedAt };
+    } catch (err) {
+      if (isUniqueViolation(err)) return { kind: "duplicate" };
+      throw err;
+    }
+  }
+
   /**
    * Apply one normalized event. Everything below the INSERT runs only because the INSERT succeeded,
    * i.e. only for an event this install has never seen — which is why no code path here needs its
@@ -709,28 +879,8 @@ export async function activateLipay(
   function applyEvent(providerId: PaymentProviderId, event: NormalizedPaymentEvent, payload: string): "duplicate" | "applied" | "recorded" {
     return db.transaction((): "duplicate" | "applied" | "recorded" => {
       const paymentRow = selectPaymentByRef.get(providerId, event.providerRef, workspaceId) as PaymentRow | undefined;
-      const eventId = idGen.newId();
-      const receivedAt = clock.now();
-      try {
-        db.prepare(
-          `INSERT INTO "${EVENTS}" (id, workspace_id, provider_id, provider_event_id, payment_id, kind,
-             occurred_at, received_at, applied, payload)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)`
-        ).run(
-          eventId,
-          workspaceId,
-          providerId,
-          event.providerEventId,
-          paymentRow?.id ?? null,
-          event.kind,
-          event.occurredAt,
-          receivedAt,
-          payload
-        );
-      } catch (err) {
-        if (isUniqueViolation(err)) return "duplicate";
-        throw err;
-      }
+      const inserted = insertPaymentEvent(providerId, event, payload, paymentRow === undefined ? null : paymentRow.id);
+      if (inserted.kind === "duplicate") return "duplicate";
 
       if (!paymentRow) return "recorded";
 
@@ -739,29 +889,14 @@ export async function activateLipay(
       const lastApplied = db
         .prepare(`SELECT MAX(occurred_at) AS at FROM "${EVENTS}" WHERE payment_id = ? AND applied = 1`)
         .get(paymentRow.id) as { at: number | null };
-      if (lastApplied.at !== null && event.occurredAt < lastApplied.at) return "recorded";
 
-      const current = paymentRow.status as PaymentStatus;
-      if (isTerminalPaymentStatus(current)) return "recorded";
-
-      const refundedTotal =
-        event.kind === "refunded"
-          ? Math.min(
-              paymentRow.amount_refunded_minor + (event.amount?.minorUnits ?? paymentRow.amount_minor),
-              paymentRow.amount_minor
-            )
-          : paymentRow.amount_refunded_minor;
-
-      const next = statusForEventKind(event.kind, {
-        refundedMinor: refundedTotal,
-        totalMinor: paymentRow.amount_minor,
-      });
-      if (next === null || !canTransition(current, next)) return "recorded";
+      const transition = computeEventTransition(paymentRow, event, lastApplied.at);
+      if (!transition.apply) return "recorded";
 
       db.prepare(
         `UPDATE "${PAYMENTS}" SET status = ?, amount_refunded_minor = ?, updated_at = ? WHERE id = ?`
-      ).run(next, refundedTotal, receivedAt, paymentRow.id);
-      db.prepare(`UPDATE "${EVENTS}" SET applied = 1 WHERE id = ?`).run(eventId);
+      ).run(transition.next, transition.refundedTotal, inserted.receivedAt, paymentRow.id);
+      db.prepare(`UPDATE "${EVENTS}" SET applied = 1 WHERE id = ?`).run(inserted.eventId);
       return "applied";
     })();
   }
