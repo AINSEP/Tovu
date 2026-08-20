@@ -2,6 +2,21 @@ import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
 export type TestAgentOutcome = { ok: boolean; message: string };
 
+/** Formats "<name> <version>" (version omitted when unknown), trimmed. @complexity O(1). */
+function describeAgent(agent: DetectedAgent): string {
+  return `${agent.name} ${agent.version ?? ""}`.trim();
+}
+
+/**
+ * True when the operator's saved model pick no longer appears in the agent's current model list.
+ * See the caller's own comment for why this is checked separately from auth status.
+ *
+ * @complexity O(models on the agent).
+ */
+function modelNoLongerOffered(agent: DetectedAgent, model: string): boolean {
+  return Boolean(model && agent.models?.length && !agent.models.some((option) => option.id === model));
+}
+
 /**
  * Pure decision logic behind `test-agent.ts`'s POST route — split out of that route handler so the
  * installed/authenticated/model-mismatch/success branches (everything AFTER "the CLI was found on
@@ -34,7 +49,7 @@ export function resolveTestAgentOutcome(agent: DetectedAgent, model: string): Te
     // was not verified.
     return {
       ok: true,
-      message: `${agent.name} ${agent.version ?? ""}`.trim() + " responded, but its sign-in status could not be verified.",
+      message: describeAgent(agent) + " responded, but its sign-in status could not be verified.",
     };
   }
 
@@ -43,7 +58,7 @@ export function resolveTestAgentOutcome(agent: DetectedAgent, model: string): Te
   // rather than silently snapping to another model), which means "the CLI is authenticated" and
   // "the model you chose still exists" are different questions. Answering only the first with a
   // green result would tell the operator a run will work when it cannot.
-  if (model && agent.models?.length && !agent.models.some((option) => option.id === model)) {
+  if (modelNoLongerOffered(agent, model)) {
     return {
       ok: false,
       message:
@@ -54,8 +69,6 @@ export function resolveTestAgentOutcome(agent: DetectedAgent, model: string): Te
 
   return {
     ok: true,
-    message:
-      `${agent.name} ${agent.version ?? ""}`.trim() +
-      (model ? ` is installed and authenticated, and offers '${model}'.` : " is installed and authenticated."),
+    message: describeAgent(agent) + (model ? ` is installed and authenticated, and offers '${model}'.` : " is installed and authenticated."),
   };
 }
