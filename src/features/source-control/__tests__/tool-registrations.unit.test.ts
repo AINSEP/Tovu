@@ -110,7 +110,7 @@ async function raiseDialog(executeTool: ToolRegistration, input: Record<string, 
   return { pending, html, exchangeId };
 }
 
-const FAKE_SUCCESS: GitHubCommitAdapterResult = { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2 };
+const FAKE_SUCCESS: GitHubCommitAdapterResult = { ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 2, filesDeleted: 0 };
 
 function fakeGitAdapter(result: GitHubCommitAdapterResult): GitHubCommitAdapter {
   return { async commit() { return result; } };
@@ -365,13 +365,14 @@ test("confirm: a successful commit reports committed:true with every field from 
   const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" });
   surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
 
-  const result = (await pending) as { committed: boolean; owner: string; repo: string; branch: string; commitSha: string; filesChanged: number };
+  const result = (await pending) as { committed: boolean; owner: string; repo: string; branch: string; commitSha: string; filesChanged: number; filesDeleted: number };
   assert.equal(result.committed, true);
   assert.equal(result.owner, "octo");
   assert.equal(result.repo, "demo");
   assert.equal(result.branch, "main");
   assert.equal(result.commitSha, "abc123");
   assert.equal(result.filesChanged, 2);
+  assert.equal(result.filesDeleted, 0);
 });
 
 test("confirm: a DIVERGED_BRANCH result from the adapter is surfaced distinctly, never overwritten silently", async () => {

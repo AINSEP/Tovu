@@ -138,7 +138,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   const deps = await withGithubCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
-    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1 }, captured) },
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
     { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
   );
 
@@ -164,7 +164,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   const deps = await withGithubCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
-    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1 }, captured) },
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
     { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   const passedInput = captured.input as { branch?: string };
