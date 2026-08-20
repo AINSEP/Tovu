@@ -1,22 +1,26 @@
 {
   "meta": {
-    "fileCount": 862,
+    "fileCount": 870,
     "moduleCount": 49
   },
-  "propagationCostPct": 12.2,
-  "propagationCostRuntimePct": 1.85,
-  "backEdgesIntoServer": 11,
+  "propagationCostPct": 11.62,
+  "propagationCostRuntimePct": 1.84,
+  "backEdgesIntoServer": 0,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
     "mutualCycleCount": 0,
     "largestScc": 0,
     "pairs": []
   },
-  "moduleApiSurfaceFiles": 201,
-  "deepImportsBypassingIndex": 518,
+  "moduleApiSurfaceFiles": 202,
+  "deepImportsBypassingIndex": 517,
   "bidirectionalHubs": {
-    "count": 139,
-    "total": 862,
-    "pct": 16.13
+    "count": 151,
+    "total": 870,
+    "pct": 17.36,
+    "medians": {
+      "fanIn": 10,
+      "fanOut": 9.5
+    }
   }
 }
