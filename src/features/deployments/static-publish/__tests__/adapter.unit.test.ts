@@ -4,12 +4,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import express from "express";
+
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 
-import { createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { publishStaticSite, toDeployFile, computeBasePath, validateStaticPublishConfig, buildS3CompatibleTargetConfig } from "../adapter.js";
+import {
+  publishStaticSite,
+  toDeployFile,
+  computeBasePath,
+  publishOutputDir as computePublishOutputDir,
+  validateStaticPublishConfig,
+  buildS3CompatibleTargetConfig,
+} from "../adapter.js";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 
 /**
@@ -51,6 +60,23 @@ function fakeDeployTarget(capturedFiles: { value: DeployFile[] | null }): Deploy
     async checkReachability() {
       return { reachable: true, status: "ready" as const };
     },
+  };
+}
+
+/** Wraps the real `createApp` so ONE exact asset path always 500s, while every other route/asset
+ *  still round-trips through the real app unchanged — the asset-side analog of
+ *  `site-exporter.test.ts`'s own `FailingSlugPostRepo` (routes), injected via
+ *  `RouteDeps.createSiteApp` since neither `/theme-assets/*` nor `/agent-icons/*` is backed by an
+ *  injectable Port (only `/m/...` media renditions are, and the seeded demo workspace never
+ *  references one — confirmed by discovery pass before writing this test). */
+function createSiteAppWithFailingAsset(failingPath: string): (routeDeps: RouteDeps) => ReturnType<typeof createApp> {
+  return (routeDeps) => {
+    const wrapper = express();
+    wrapper.get(failingPath, (_req, res) => {
+      res.status(500).json({ error: "forced failure for export-engine asset regression test" });
+    });
+    wrapper.use(createApp(routeDeps));
+    return wrapper;
   };
 }
 
@@ -191,6 +217,106 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
   assert.equal(result.basePath, undefined);
   assert.ok(captured.value, "the fake deploy target must have been invoked");
   assert.ok(!captured.value!.some((f) => f.file === ".nojekyll"), ".nojekyll must never be published to vercel");
+});
+
+/**
+ * HIGH audit finding (2026-08-19, Codex sol bug/architecture audit): `publishStaticSite` used to
+ * reject only `report.routes.failed`, ignoring `report.assets.failed` entirely — a page could
+ * export fine while its stylesheet or hero image 404s, and publishing would still report success
+ * and deploy the broken HTML. Mirrors the existing "a missing token fails cleanly... before any
+ * export or publish attempt" test's proof style: the FAKE deploy target must never fire.
+ */
+test("publishStaticSite: an asset that fails to export blocks publishing, the same as a failed route", async () => {
+  const deps: RouteDeps = {
+    ...testRouteDeps(),
+    createSiteApp: createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css"),
+  };
+
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => {
+        throw new Error("buildTarget must not be called when the export had a failed asset");
+      },
+    },
+    {
+      workspaceId: deps.workspaceId,
+      routeDeps: deps,
+      config: { target: "github-pages", owner: "octo", repo: "demo" },
+      projectName: "demo",
+    }
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "EXPORT_FAILED");
+  assert.equal(
+    result.message,
+    "refused to publish: 1 asset(s) failed to export (first: '/theme-assets/basic/css/theme.css' — GET /theme-assets/basic/css/theme.css -> 500)"
+  );
+});
+
+/**
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): `publishOutputDir` used to
+ * return one FIXED directory per target, so two publishes overlapping for the SAME target — the
+ * admin UI and a confirmed agent tool call, or two processes (`publish-run.ts`'s own header
+ * discloses its single-flight guard is process-local only) — shared one on-disk directory that
+ * either could `clean:true` and rewrite out from under the other.
+ *
+ * `publishOutputDir` now takes a per-run id and is exported specifically so this is a direct,
+ * deterministic proof of the actual fix mechanism (unique isolation), not an attempt to reproduce
+ * the underlying race's on-disk symptom through timing — a same-process concurrent-corruption test
+ * was tried and deliberately dropped: `ExportedRoute`/`ExportedAsset.data` (`site-exporter.ts`) are
+ * captured in memory at write time and never re-read from disk afterward, and Node's synchronous
+ * `mkdirSync`/`writeFileSync`/`rmSync` calls cannot interleave with each other WITHIN one process
+ * (only the `await fetch()` points yield), so two same-process runs never actually corrupted the
+ * returned `DeployFile[]` payload even before this fix — only the on-disk artifact, which is
+ * disposable (see {@link cleanupPublishRunDir}'s own doc) and never read again by this function. The
+ * REAL, previously-disclosed exposure is CROSS-process (the admin server and the agent daemon each
+ * hold an independent, unguarded slot — `publish-run.ts`'s own header) and a genuine OS-level
+ * concurrent-write race, which a single Node test process cannot reproduce directly; unique-per-run
+ * isolation closes that gap structurally (no two runs, same or different process, ever share a
+ * directory) without needing a lock.
+ */
+test("publishOutputDir: two different run ids for the SAME target produce two DIFFERENT, non-overlapping directories", () => {
+  const a = computePublishOutputDir("/publish-root", "github-pages", "run-a");
+  const b = computePublishOutputDir("/publish-root", "github-pages", "run-b");
+  assert.notEqual(a, b);
+  assert.equal(a, path.join("/publish-root", "github-pages", "run-a"));
+  assert.equal(b, path.join("/publish-root", "github-pages", "run-b"));
+  assert.ok(!a.startsWith(b) && !b.startsWith(a), "neither run's directory may be a parent/child of the other's");
+});
+
+/** End-to-end smoke test alongside the direct `publishOutputDir` proof above — two concurrent runs
+ *  against the identical fixture must both still succeed with a correct, non-empty file set once
+ *  `idGen.newId()` is a required part of computing `outputDir`. */
+test("publishStaticSite: two concurrent publishes to the SAME target both still succeed with correct file sets", async () => {
+  const capturedA: { value: DeployFile[] | null } = { value: null };
+  const capturedB: { value: DeployFile[] | null } = { value: null };
+  const deps: RouteDeps = testRouteDeps();
+  const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo-repo" };
+
+  const [resultA, resultB] = await Promise.all([
+    publishStaticSite(
+      { credentialSource: { async resolve() { return { ok: true, token: "fake-token-a" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
+      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo-a" }
+    ),
+    publishStaticSite(
+      { credentialSource: { async resolve() { return { ok: true, token: "fake-token-b" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
+      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo-b" }
+    ),
+  ]);
+
+  assert.equal(resultA.ok, true, `run A must succeed: ${JSON.stringify(resultA)}`);
+  assert.equal(resultB.ok, true, `run B must succeed: ${JSON.stringify(resultB)}`);
+  assert.ok(capturedA.value && capturedA.value.length > 0, "run A's deploy target must have received a non-empty file set");
+  assert.ok(capturedB.value && capturedB.value.length > 0, "run B's deploy target must have received a non-empty file set");
+  // Both runs export the SAME hermetic fixture, so a shared, colliding directory (one run's
+  // clean:true deleting the other's in-flight writes) is exactly what would make these counts
+  // diverge — a per-run isolated directory keeps them identical regardless of interleaving.
+  assert.equal(capturedA.value!.length, capturedB.value!.length, "both concurrent runs against the identical fixture must produce the SAME file count");
+  assert.ok(capturedA.value!.some((f) => f.file === "index.html"), "run A must still have its home page");
+  assert.ok(capturedB.value!.some((f) => f.file === "index.html"), "run B must still have its home page");
 });
 
 test("validateStaticPublishConfig: rejects a blank teamId for vercel and an out-of-pattern branch for github-pages", () => {

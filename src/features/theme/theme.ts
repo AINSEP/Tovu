@@ -10,6 +10,7 @@ import { lintLiquidTemplate } from "./liquid-allowlist.js";
 // is a pre-existing module pair, now cyclic in the other direction too — safe because both of these
 // are consumed only inside `loadTheme`'s function body below, never at module-evaluation time.
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files.js";
+import { resolveThemeLayout } from "./theme-layout.js";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -119,10 +120,14 @@ export interface ThemeManifest {
    * Schema version this manifest declares (`theme-authoring-guide-v2.md` §5/§11). `2` means the
    * theme's on-disk shape uses v2 paths (`css/theme.css`, `scripts/`, `render/pages/`) — read by
    * `static-asset-contract.ts`'s `tokenStylesheetSentinel`/`rewriteAssetPaths`/
-   * `findUnrewrittenAssetPaths` (via `static-render.ts` and `build-conformance.ts`) to pick the
-   * matching sentinel/folder names at request/install time. Absent (every theme on disk today, and
-   * any value other than `2`) means v1's flat `css/styles.css`/`js/` shape — the only behavior this
-   * field had before the Milestone 3 migration work introduced it, preserved exactly.
+   * `findUnrewrittenAssetPaths` (via `static-render.ts` and `build-conformance.ts`), and by
+   * `resolveThemeLayout` (`theme-layout.ts`, 2026-08-19 architecture audit findings 1 & 2 — the one
+   * apiVersion-aware source of truth every other consumer routes through) to pick the matching
+   * sentinel/folder names at request/install time. As of the 2026-08-18 Milestone 3 migration, all
+   * seven built-in static themes (`src/themes/static/*`) declare `2` — this is the live, common case,
+   * not a forward-looking one. Absent (or any value other than `2` — still fully supported for a
+   * site-authored or marketplace theme) means v1's flat `css/styles.css`/`js/` shape, preserved
+   * exactly, the only behavior this field had before Milestone 3 introduced `2`.
    */
   apiVersion?: 2;
   /** ADR-020 capability tier (defaults to `declarative` when omitted). */
@@ -605,9 +610,11 @@ function loadStaticTierAssets(
   const tokensLight = readLightTokens({ themeDir, errors });
 
   // REQ-01's spirit, not its exact home+entry pair: a static theme's minimum is one page to
-  // actually show, not a route id a templating engine would fill in. v2 nests this one level
-  // deeper (`render/pages/`, theme-authoring-guide-v2.md §3) — v1 keeps `pages/` at the theme root.
-  const pagesDirName = apiVersion === 2 ? "render/pages" : "pages";
+  // actually show, not a route id a templating engine would fill in. `resolveThemeLayout` is the one
+  // apiVersion-aware source of truth for this folder name — v2 nests it one level deeper
+  // (`render/pages/`, theme-authoring-guide-v2.md §3) — v1 keeps `pages/` at the theme root.
+  const layout = resolveThemeLayout(apiVersion);
+  const pagesDirName = layout.pagesDir;
   const pages: Record<string, string> = {};
   const pagesDir = join(themeDir, pagesDirName);
   if (existsSync(pagesDir)) {
@@ -624,9 +631,11 @@ function loadStaticTierAssets(
   // Partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root in v1,
   // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
   // renderer resolves rather than a template-include directive baked in at author time. v2 moves this
-  // to `render/partials/`, alongside `render/pages/`. A theme with no `slots` block gets
-  // DEFAULT_THEME_SLOTS, which is the nav/footer pair this scan used to hardcode.
-  const partialsDir = apiVersion === 2 ? join(themeDir, "render/partials") : themeDir;
+  // to `render/partials/`, alongside `render/pages/` — `layout.partialsDir` is `""` for v1 (the theme
+  // root itself, see `ThemeLayout.partialsDir`'s own doc), which `join(themeDir, "")` resolves back to
+  // `themeDir` unchanged. A theme with no `slots` block gets DEFAULT_THEME_SLOTS, which is the
+  // nav/footer pair this scan used to hardcode.
+  const partialsDir = join(themeDir, layout.partialsDir);
   const partials = loadSlotPartials({ partialsDir, slots: slots ?? DEFAULT_THEME_SLOTS });
 
   return { tokensLight, pages, partials, errors };

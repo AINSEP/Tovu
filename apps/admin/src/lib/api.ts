@@ -775,6 +775,12 @@ export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | 
 export interface AdminThemeSummary {
   id: string;
   tier: ThemeTier;
+  /** Manifest schema version (`2`, or `undefined` for v1) — mirrored client-side from
+   *  `#src/headless`'s `HeadlessThemeSummary.apiVersion` (2026-08-19 architecture audit finding 1),
+   *  same decoupling precedent as `ThemeTier`'s own doc comment. Feeds `PostTemplateModal`'s "View
+   *  Template" fetch, which needs to know whether this theme's page templates live under `pages/`
+   *  or `render/pages/`. */
+  apiVersion?: 2;
 }
 
 export interface AdminMember {
@@ -1723,6 +1729,9 @@ export const api = {
       id: string;
       name: string;
       tier: string;
+      /** Manifest schema version (`2`, or `undefined` for v1) — see `ThemeExplorePort.getThemeDetail`'s
+       *  own doc for why the Explore screen needs this (2026-08-19 architecture audit findings 1 & 2). */
+      apiVersion?: 2;
       status: string;
       errors: string[];
       pages: string[];

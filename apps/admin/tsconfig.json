@@ -11,8 +11,9 @@
     "isolatedModules": true,
     "types": ["vite/client"],
     "paths": {
-      "@tovu/headless": ["../../src/headless/index.ts"]
+      "@tovu/headless": ["../../src/headless/index.ts"],
+      "@tovu/theme-layout": ["../../src/features/theme/theme-layout.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../../src/headless/**/*.ts"]
+  "include": ["src", "vite.config.ts", "../../src/headless/**/*.ts", "../../src/features/theme/theme-layout.ts"]
 }

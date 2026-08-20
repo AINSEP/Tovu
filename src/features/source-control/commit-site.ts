@@ -1,10 +1,11 @@
+import { rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
-import type { ExportReport, ExportSiteOptions } from "#src/export/index";
+import type { ExportFailureSummary, ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { resolveDefaultForSourceControl } from "./store.js";
@@ -176,10 +177,22 @@ export interface CommitSiteInput {
   readonly commitMessage: string;
 }
 
-/** Each source-control export gets its OWN directory under `infra/` (the Docker-volume-mounted
- *  directory every other export/publish artifact already lives under), separate from
- *  `static-publish/adapter.ts`'s own `infra/publish/<target>` so the two features never race over the
- *  same on-disk output.
+/**
+ * Each source-control export RUN gets its OWN directory under `infra/` (the Docker-volume-mounted
+ * directory every other export/publish artifact already lives under) — `<parent>/github/<runId>`,
+ * not merely `<parent>/github`. Exported (not merely internal) specifically so this per-run
+ * isolation is directly testable — this file's own copy of `static-publish/adapter.ts`'s identical
+ * `publishOutputDir` fix, for the identical reason.
+ *
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): a fixed `<parent>/github`
+ * directory meant this feature had NO concurrency guard at all — not even the process-local
+ * single-flight `publish-run.ts` gives `static-publish/adapter.ts` — so two commits (the assistant's
+ * confirmed `source_control_execute_commit` tool call firing twice, or overlapping with a future
+ * second trigger) could `clean:true` and rewrite the same directory out from under each other.
+ * `runId` (always a fresh `RouteDeps.idGen.newId()` value, minted once per
+ * {@link commitSiteToSourceControl} call) makes that collision structurally impossible. The
+ * directory is disposable once `exportSiteLazily` returns — see {@link cleanupCommitRunDir}'s own
+ * doc for why nothing downstream re-reads it from disk.
  *
  * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
  * `infra/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
@@ -187,9 +200,26 @@ export interface CommitSiteInput {
  * threaded through {@link commitSiteToSourceControl}'s `input.routeDeps` — never read from
  * `process.env` in this file. A test overrides it the same way every other `RouteDeps` field is
  * overridden: by setting `sourceControlExportRootDir` on the fake `RouteDeps` it constructs, not by
- * mutating real process env vars. */
-function commitExportDir(parent: string): string {
-  return path.join(parent, "github");
+ * mutating real process env vars.
+ * @complexity O(1) — fixed-shape path join, no I/O.
+ */
+export function commitExportDir(parent: string, runId: string): string {
+  return path.join(parent, "github", runId);
+}
+
+/** Best-effort cleanup of one run's isolated export directory (see {@link commitExportDir}'s own
+ *  doc) — this file's own copy of `static-publish/adapter.ts`'s identical `cleanupPublishRunDir`.
+ *  Safe to call once `exportSiteLazily` has returned or thrown: every byte
+ *  `commitSiteToSourceControl` still needs travels through `report.routes.succeeded`/
+ *  `report.assets.succeeded`'s own `data` fields, never by re-reading this directory. Never throws —
+ *  same best-effort, disclosed-rather-than-silent posture as its `static-publish` twin.
+ * @complexity O(n) in the (typically small) exported file count — a recursive directory removal. */
+function cleanupCommitRunDir(outputDir: string): void {
+  try {
+    rmSync(outputDir, { recursive: true, force: true });
+  } catch {
+    // Swallowed deliberately — see this function's own doc.
+  }
 }
 
 /**
@@ -207,6 +237,17 @@ function commitExportDir(parent: string): string {
 function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
   return (require("#src/export/index") as typeof import("#src/export/index")).exportSite(options);
+}
+
+/**
+ * `firstExportFailure`, resolved the same lazy way as {@link exportSiteLazily} immediately above —
+ * this file's own copy of `static-publish/adapter.ts`'s identical helper, NOT a second static
+ * import of `#src/export/index` (which would reopen the exact cycle `exportSiteLazily`'s own doc
+ * traces), just a second call through the already-lazily-required module.
+ */
+function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
+  return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
 }
 
 /**
@@ -273,19 +314,27 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   }
   const resolvedCredential: ResolvedSourceControlCredential = { token: credential.connection.token };
 
+  const outputDir = commitExportDir(input.routeDeps.sourceControlExportRootDir, input.routeDeps.idGen.newId());
   let report: ExportReport;
   try {
-    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir: commitExportDir(input.routeDeps.sourceControlExportRootDir), clean: true });
+    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir, clean: true });
   } catch (err) {
+    cleanupCommitRunDir(outputDir);
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
   }
+  cleanupCommitRunDir(outputDir);
 
-  if (report.routes.failed.length > 0) {
-    const first = report.routes.failed[0]!;
+  // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
+  // architecture audit) — this used to check only `routes.failed`, so a page could export fine
+  // while its own stylesheet or hero image 404s and the commit would still go through. See
+  // `firstExportFailure`'s own doc (`#src/export/index`) for the shared check both this function
+  // and `static-publish/adapter.ts`'s `publishStaticSite` now use.
+  const failure = firstExportFailureLazily(report);
+  if (failure) {
     return {
       ok: false,
       code: "EXPORT_FAILED",
-      message: `refused to commit: ${report.routes.failed.length} route(s) failed to export (first: '${first.path}' — ${first.reason})`,
+      message: `refused to commit: ${failure.count} ${failure.kind}(s) failed to export (first: '${failure.identifier}' — ${failure.reason})`,
     };
   }
 

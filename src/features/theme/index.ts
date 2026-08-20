@@ -133,3 +133,13 @@ export {
   ThemePathError,
   type ThemeFileWriteScope,
 } from "./theme-files.js";
+
+// 2026-08-19 architecture audit findings 1 & 2 — the one apiVersion-aware theme-layout resolver,
+// shared by `server/routes/admin/themes/explore.ts` and (via the `@tovu/theme-layout` alias,
+// `apps/admin/vite.config.ts`) the admin SPA. See `theme-layout.ts`'s own file header.
+export { resolveThemeLayout, isPageFilePath, isPartialFilePath, type ThemeLayout } from "./theme-layout.js";
+
+// 2026-08-19 architecture audit finding 4 — re-exported so `routes/site/pages.ts`'s missing-template
+// diagnostic builder can pick the same apiVersion-correct `<link>` sentinel `renderStaticPage` itself
+// already matches against, instead of a hardcoded v1-only literal.
+export { tokenStylesheetSentinel } from "./static-asset-contract.js";

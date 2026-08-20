@@ -80,6 +80,68 @@ function loadFixture(dir: string): DiscoveredTheme {
   return loaded;
 }
 
+/**
+ * A minimal static-tier v1 theme (`apiVersion` absent) — the flat layout `writeStaticFixture`'s v2
+ * shape replaced. 2026-08-19 architecture audit finding 5: `buildStaticPortabilityIndex` always
+ * emitted v2's `css/theme.css`/`scripts/` regardless of the source theme's own `apiVersion`, so
+ * running it against a real v1 theme produced a "valid" portability page whose stylesheet/script
+ * URLs both pointed at files that do not exist for a v1 theme (`css/styles.css`, `js/*.js`).
+ */
+function writeStaticFixtureV1(dir: string, overrides: { defaultMode?: string } = {}): void {
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "css"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "js"), { recursive: true });
+
+  fs.writeFileSync(
+    path.join(dir, "pages", "index.html"),
+    `<!doctype html>
+<html lang="en">
+<head>
+<link rel="stylesheet" href="../css/styles.css" />
+<script src="../js/main.js"></script>
+</head>
+<body>
+<div data-embed-config='{"type":"partial","id":"nav"}'></div>
+<main>
+<div data-embed-config='{"type":"content"}'>fallback text</div>
+</main>
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+</body>
+</html>`,
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(dir, "nav.html"),
+    `<nav class="main-nav" data-embed-config='{"type":"menu","id":"main-nav"}'><a href="#">Fallback link</a></nav>`,
+    "utf8"
+  );
+  fs.writeFileSync(path.join(dir, "footer.html"), `<footer>Static footer copy</footer>`, "utf8");
+  fs.writeFileSync(path.join(dir, "css", "styles.css"), "body{color:var(--fg)}", "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), JSON.stringify({ "--fg": "#111", "--bg": "#fff" }), "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.light.json"), JSON.stringify({ "--fg": "#fff", "--bg": "#111" }), "utf8");
+
+  const manifest = {
+    id: "fixture-static-v1",
+    name: "Fixture Static V1",
+    version: "0.1.0",
+    tier: "static",
+    engine: 1,
+    modes: ["dark", "light"],
+    defaultMode: overrides.defaultMode ?? "dark",
+    slots: {
+      nav: { source: "nav.html" },
+      footer: { source: "footer.html" },
+    },
+  };
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify(manifest), "utf8");
+}
+
+function loadV1Fixture(dir: string): DiscoveredTheme {
+  const loaded = loadTheme({ themeDir: dir, id: "fixture-static-v1", source: "built-in" });
+  assert.equal(loaded.status, "valid", `v1 fixture failed to load: ${JSON.stringify(loaded.errors)}`);
+  return loaded;
+}
+
 // ---------------------------------------------------------------------------
 // buildStaticPortabilityIndex — guard clauses
 // ---------------------------------------------------------------------------
@@ -135,6 +197,35 @@ test("rewrites v1-shaped ../css/ and ../js/ references to root-relative css/them
   assert.match(html!, /<script src="scripts\/main\.js">/);
   assert.equal(html!.includes('href="../css/'), false);
   assert.equal(html!.includes('src="../js/'), false);
+});
+
+// 2026-08-19 architecture audit finding 5: `buildStaticPortabilityIndex` must branch on the source
+// theme's OWN `apiVersion`, not always emit v2's asset shape. A v1 theme's real stylesheet is
+// `css/styles.css` and its real script folder is `js/` — different filenames/folders than v2's
+// `css/theme.css`/`scripts/`, and neither exists on disk for the other schema version.
+test("v1 fixture: rewrites ../css/ and ../js/ references to root-relative css/styles.css and js/ (v1's OWN real filenames, not v2's)", () => {
+  const dir = tmpDir("tovu-portability-v1-assets-");
+  writeStaticFixtureV1(dir);
+  const html = buildStaticPortabilityIndex(loadV1Fixture(dir));
+  assert.ok(html);
+  assert.match(html!, /<link rel="stylesheet" href="css\/styles\.css" \/>/, `expected v1's css/styles.css, got: ${html}`);
+  assert.match(html!, /<script src="js\/main\.js">/, `expected v1's js/ folder, got: ${html}`);
+  assert.equal(html!.includes("theme.css"), false, "must not emit v2's theme.css filename for a v1 theme");
+  assert.equal(html!.includes("scripts/"), false, "must not emit v2's scripts/ folder for a v1 theme");
+});
+
+test("v1 fixture: injects design tokens as real CSS before the (v1-shaped) stylesheet link", () => {
+  const dir = tmpDir("tovu-portability-v1-tokens-");
+  writeStaticFixtureV1(dir, { defaultMode: "light" });
+  const html = buildStaticPortabilityIndex(loadV1Fixture(dir));
+  assert.ok(html);
+  assert.match(html!, /:root \{\n {2}--fg: #111;\n {2}--bg: #fff;\n\}/);
+  const styleIndex = html!.indexOf("<style>");
+  const linkIndex = html!.indexOf('<link rel="stylesheet"');
+  assert.ok(
+    styleIndex >= 0 && styleIndex < linkIndex,
+    "the token <style> block must come before the v1 stylesheet link too, not only the v2 one"
+  );
 });
 
 test("splices the real partial content in place of a partial marker, leaving no marker syntax behind", () => {

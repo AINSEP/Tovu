@@ -331,3 +331,80 @@ test("profiles: install is at least as strict as author — a containment violat
   assert.equal(result.valid, false);
   assert.ok(findError(result, "v2-unknown-field"), JSON.stringify(result.errors));
 });
+
+// ---------------------------------------------------------------------------
+// v2-strict: fields the runtime loader does not implement yet (2026-08-19 architecture audit
+// finding 3) — `partials`, `renderer`, nested `tokens`, an object-valued `engine`. Each is still
+// schema-checked (the existing `v2-partials-shape`/`v2-engine-shape`/etc tests above are unaffected)
+// but now ALSO carries an "unimplemented" finding: a WARNING under `author` (a theme author may draft
+// ahead of the loader catching up — theme-authoring-guide-v2.md's own stated intent for [TARGET]
+// fields) and a hard ERROR under `install`/`publish` (the last chance to refuse a package that will
+// silently mis-render before it becomes local files — same profiles.ts reasoning `license-missing`
+// already uses for `publish`, extended to a THIRD severity shape rather than reusing that one, since
+// install must ALSO refuse it).
+// ---------------------------------------------------------------------------
+
+test("v2-strict: declaring 'partials' (unimplemented — loader still reads flat 'slots') warns under author, but is a hard error under install", () => {
+  const dir = tmpDir("tovu-validate-v2-partials-unimplemented-");
+  // The default fixture already declares `partials`; that's the point of this test's own fixture,
+  // not incidental — see the field's own audit-finding-3 repro.
+  writeMinimalV2Static(dir);
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-partials-unimplemented"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "v2-partials-unimplemented"), undefined);
+  assert.equal(authorResult.valid, true, "an unimplemented-but-syntactically-valid field alone must not fail author");
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-partials-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false, "install must refuse a package declaring a field the loader will silently ignore");
+});
+
+test("v2-strict: declaring 'renderer' (unimplemented — no renderer branch exists anywhere) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-renderer-unimplemented-");
+  writeMinimalV2Static(dir, { renderer: { adapter: "html@1", pages: { home: { source: "render/pages/index.html" } } } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-renderer-unimplemented"), JSON.stringify(authorResult.warnings));
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-renderer-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: declaring nested 'tokens' (unimplemented — loader reads flat modes/defaultMode, hardcodes tokens.light.json) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-tokens-unimplemented-");
+  writeMinimalV2Static(dir, { tokens: { defaultMode: "dark", modes: { dark: "tokens.json", light: "tokens.light.json" } } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-tokens-unimplemented"), JSON.stringify(authorResult.warnings));
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-tokens-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: declaring an object-valued 'engine' (unimplemented — loadTheme coerces any non-number engine to 1, discarding it) warns under author, errors under install", () => {
+  const dir = tmpDir("tovu-validate-v2-engine-object-unimplemented-");
+  writeMinimalV2Static(dir, { engine: { name: "liquid", version: "1" } });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "v2-engine-object-unimplemented"), JSON.stringify(authorResult.warnings));
+
+  const installResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "install" });
+  assert.ok(findError(installResult, "v2-engine-object-unimplemented"), JSON.stringify(installResult.errors));
+  assert.equal(installResult.valid, false);
+});
+
+test("v2-strict: a manifest using only IMPLEMENTED fields (flat 'slots', no partials/renderer/tokens/engine) carries none of the unimplemented findings, at any profile", () => {
+  const dir = tmpDir("tovu-validate-v2-implemented-only-");
+  writeMinimalV2Static(dir, { partials: undefined, slots: { nav: { source: "render/partials/nav.html" } } });
+
+  for (const profile of ["author", "install", "publish"] as const) {
+    const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile });
+    for (const ruleId of ["v2-partials-unimplemented", "v2-renderer-unimplemented", "v2-tokens-unimplemented", "v2-engine-object-unimplemented"]) {
+      assert.equal(findError(result, ruleId), undefined, `${profile}: unexpected error ${ruleId}`);
+      assert.equal(findWarning(result, ruleId), undefined, `${profile}: unexpected warning ${ruleId}`);
+    }
+  }
+});

@@ -135,3 +135,61 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
     expect(result.current.source).toBe("");
   });
 });
+
+/**
+ * 2026-08-19 architecture audit findings 1 & 2: `startRename`'s client-side pre-check
+ * (`LOCKED_RENAME_PATHS`) used to hardcode v1's `pages/index.html` unconditionally — no test in this
+ * file exercised it before this addition. Now derived from `resolveThemeLayout` (the same
+ * `@tovu/theme-layout` resolver the server route uses), keyed off `detail.apiVersion` from the port's
+ * own response, so a v2 theme's `render/pages/index.html` is locked too instead of silently allowing
+ * an inline rename the server would then refuse with a round trip.
+ */
+describe("useThemeExplore — startRename's client-side lock mirrors the server's apiVersion-aware required files", () => {
+  it("v1 (apiVersion undefined): locks pages/index.html, allows an ordinary page", async () => {
+    const port = createFakeThemeExplorePort({
+      detail: { id: "t", name: "T", tier: "static", status: "valid", errors: [], lineage: null, hasOriginal: true },
+      files: [
+        { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "pages/about.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+    });
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("pages/index.html"));
+    expect(result.current.renamingPath).toBeNull();
+    expect(result.current.error).toMatch(/can't be renamed/);
+
+    act(() => result.current.startRename("pages/about.html"));
+    expect(result.current.renamingPath).toBe("pages/about.html");
+  });
+
+  it("v2 (apiVersion: 2): locks render/pages/index.html, allows an ordinary render/pages page", async () => {
+    const port = createFakeThemeExplorePort({
+      detail: {
+        id: "basic",
+        name: "Basic",
+        tier: "static",
+        status: "valid",
+        errors: [],
+        lineage: null,
+        hasOriginal: true,
+        apiVersion: 2,
+      },
+      files: [
+        { path: "render/pages/index.html", group: "page", readable: true, editable: true, resettable: true },
+        { path: "render/pages/about.html", group: "page", readable: true, editable: true, resettable: true },
+      ],
+    });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    act(() => result.current.startRename("render/pages/index.html"));
+    expect(result.current.renamingPath).toBeNull();
+    expect(result.current.error).toMatch(/can't be renamed/);
+
+    act(() => result.current.startRename("render/pages/about.html"));
+    // A v2 theme's ordinary page must still be renamable — only its required index page is locked.
+    expect(result.current.renamingPath).toBe("render/pages/about.html");
+  });
+});

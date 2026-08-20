@@ -46,6 +46,7 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
       id: "novice",
       name: "Novice",
       tier: "static",
+      apiVersion: undefined,
       status: "valid",
       errors: [],
       lineage: null,

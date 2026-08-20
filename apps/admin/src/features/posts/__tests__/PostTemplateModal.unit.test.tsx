@@ -30,6 +30,7 @@ describe("theme tier gates the fetch", () => {
       <PostTemplateModal
         themeId="handlebars-theme"
         themeTier="handlebars"
+        themeApiVersion={undefined}
         templateFilename="post.html"
         onClose={vi.fn()}
       />,
@@ -43,7 +44,15 @@ describe("theme tier gates the fetch", () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy);
 
-    render(<PostTemplateModal themeId="mystery" themeTier={null} templateFilename="post.html" onClose={vi.fn()} />);
+    render(
+      <PostTemplateModal
+        themeId="mystery"
+        themeTier={null}
+        themeApiVersion={undefined}
+        templateFilename="post.html"
+        onClose={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/could not determine/i)).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
@@ -51,7 +60,7 @@ describe("theme tier gates the fetch", () => {
 });
 
 describe("a static-tier theme", () => {
-  it("fetches /theme-assets/{themeId}/pages/{templateFilename} and renders the raw text", async () => {
+  it("fetches /theme-assets/{themeId}/pages/{templateFilename} for a v1 (apiVersion undefined) theme and renders the raw text", async () => {
     const fetchSpy = vi.fn(() => Promise.resolve(jsonOk("<h1>Hello template</h1>")));
     vi.stubGlobal("fetch", fetchSpy);
 
@@ -59,6 +68,7 @@ describe("a static-tier theme", () => {
       <PostTemplateModal
         themeId="basic"
         themeTier="static"
+        themeApiVersion={undefined}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
       />,
@@ -71,10 +81,39 @@ describe("a static-tier theme", () => {
     expect(screen.queryByRole("heading", { name: "Hello template" })).not.toBeInTheDocument();
   });
 
+  // 2026-08-19 architecture audit finding 1: every real static theme on disk today
+  // (`src/themes/static/basic` and its six siblings) is `apiVersion: 2`, whose page templates live
+  // under `render/pages/`, not `pages/` — the shape the test above alone used to leave unexercised.
+  it("fetches /theme-assets/{themeId}/render/pages/{templateFilename} for an apiVersion: 2 theme", async () => {
+    const fetchSpy = vi.fn(() => Promise.resolve(jsonOk("<h1>Hello template</h1>")));
+    vi.stubGlobal("fetch", fetchSpy);
+
+    render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        themeApiVersion={2}
+        templateFilename="blog-post.html"
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(fetchSpy).toHaveBeenCalledWith("/theme-assets/basic/render/pages/blog-post.html");
+    await waitFor(() => expect(screen.getByText("<h1>Hello template</h1>")).toBeInTheDocument());
+  });
+
   it("shows a loading state before the fetch settles", () => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
 
-    render(<PostTemplateModal themeId="basic" themeTier="static" templateFilename="x.html" onClose={vi.fn()} />);
+    render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        themeApiVersion={2}
+        templateFilename="x.html"
+        onClose={vi.fn()}
+      />,
+    );
 
     expect(screen.getByText(/loading template/i)).toBeInTheDocument();
   });
@@ -82,7 +121,15 @@ describe("a static-tier theme", () => {
   it("shows an error message on a non-2xx response, naming the status", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response("not found", { status: 404 }))));
 
-    render(<PostTemplateModal themeId="basic" themeTier="static" templateFilename="missing.html" onClose={vi.fn()} />);
+    render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        themeApiVersion={2}
+        templateFilename="missing.html"
+        onClose={vi.fn()}
+      />,
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/404/);
   });
@@ -90,7 +137,15 @@ describe("a static-tier theme", () => {
   it("shows an error message on a network failure", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("network down"))));
 
-    render(<PostTemplateModal themeId="basic" themeTier="static" templateFilename="x.html" onClose={vi.fn()} />);
+    render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        themeApiVersion={2}
+        templateFilename="x.html"
+        onClose={vi.fn()}
+      />,
+    );
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/network down/);
   });
@@ -111,6 +166,7 @@ describe("PostTemplateModal template-source-hook injection", () => {
       <PostTemplateModal
         themeId="basic"
         themeTier="static"
+        themeApiVersion={2}
         templateFilename="blog-post.html"
         onClose={vi.fn()}
         useTemplateSourceHook={useFakeTemplateSource}

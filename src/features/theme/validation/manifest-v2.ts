@@ -8,10 +8,12 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * `development/docs/themes/theme-authoring-guide-v2.md` §5, made `additionalProperties: false` at the
  * top level (§16: "Unknown top-level manifest fields REJECTED (fail-closed)").
  *
- * ONLY invoked when `raw.apiVersion === 2` (see `validate-theme-package.ts`'s orchestrator) — every
- * theme on disk today has no `apiVersion` field at all and is validated through `loadTheme()`'s own
- * existing (loose, v1) parsing instead, unchanged. This module never runs against, and therefore can
- * never break, an existing v1 theme.
+ * ONLY invoked when `raw.apiVersion === 2` (see `validate-theme-package.ts`'s orchestrator). As of the
+ * 2026-08-18 Milestone 3 migration, all seven built-in static themes (`src/themes/static/*`) declare
+ * `apiVersion: 2` and run through THIS module — it is production-critical, not speculative. A theme
+ * with no `apiVersion` field (a v1 theme, none of which remain among the built-ins, but a site-authored
+ * or marketplace one still can be) is unaffected, validated through `loadTheme()`'s own existing
+ * (loose, v1) parsing instead, unchanged.
  *
  * Deliberately does NOT re-implement `loadTheme()`'s own already-enforced rules (tier validity,
  * `build.source: "compiled"`'s three conditional requirements, the `sourceDir`/generated-directory
@@ -21,11 +23,24 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * else validates yet.
  *
  * Deliberately LIGHT on fields whose target shape is not concretely pinned down enough to enforce
- * strictly without inventing scope beyond what the design doc settled: `renderer`, `scripts.entries`,
+ * strictly without inventing scope beyond what the design doc settled: `scripts.entries`,
  * `assets.previewGallery`, and `ai` are accepted as loosely-typed optional objects (present-and-an-
  * object, or absent) rather than deeply validated — the doc itself marks `ai` "NOT YET IMPLEMENTED
  * anywhere" (§12) and the others "unread" (§15's field table). Tightening these is future work once
  * their own shape is settled by an actual implementation, not a guess made here.
+ *
+ * `engine` (object-valued), nested `tokens`, `partials`, and `renderer` get a STRONGER treatment than
+ * merely "light" (2026-08-19 architecture audit finding 3): each is still schema-checked when present
+ * (an actually malformed one is a hard error at any profile), but ALSO carries its own
+ * `v2-*-unimplemented` finding whenever present, valid or not — `loadTheme()` does not read any of
+ * these four fields today (see each check's own comment for the exact loader line that proves it), so
+ * "schema-valid" must not silently mean "the runtime will honor this." `profiles.ts`'s
+ * `UNIMPLEMENTED_V2_FIELD_RULES` makes that a `warning` under `author` (drafting ahead of the loader is
+ * the design doc's own stated intent for `[TARGET]` fields) and a hard `error` under `install`/
+ * `publish` — a package must not actually be installed or listed while claiming a field the runtime
+ * will silently ignore. This closes the exact repro the audit found: a marketplace fixture declaring
+ * `partials.hero.source` used to pass `validateThemePackage({ profile: "install" })` cleanly and then
+ * render with that partial unresolved, because the runtime reads `slots`, never `partials`.
  *
  * `modes`/`defaultMode`/`pages`/`slots` are accepted the same way, for the opposite reason: they are
  * REAL, load-bearing v1 fields `loadTheme()` reads flat off the manifest root, completely
@@ -154,6 +169,15 @@ export function validateManifestV2(
       if (raw.engine.version !== undefined && typeof raw.engine.version !== "string") {
         err("v2-engine-version", "theme.json: engine.version must be a string when present");
       }
+      // 2026-08-19 architecture audit finding 3: `loadTheme()` (`theme.ts`) still parses
+      // `engine: typeof raw.engine === "number" ? raw.engine : 1` — an object-valued engine is
+      // silently coerced to `1`, discarding whatever `{ name, version }` this manifest declared.
+      // "Schema-valid" must not mean "the runtime will actually read this" — see `profiles.ts`'s
+      // `UNIMPLEMENTED_V2_FIELD_RULES` for the author-warns/install-errors severity split.
+      err(
+        "v2-engine-object-unimplemented",
+        "theme.json: engine as an object is not yet read by the runtime loader (theme.ts still coerces any non-number engine to 1) — this declaration will be silently discarded"
+      );
     }
   }
 
@@ -174,6 +198,15 @@ export function validateManifestV2(
         );
       }
     }
+    // 2026-08-19 architecture audit finding 3: `loadTheme()` reads mode/token-file information only
+    // from the FLAT `modes`/`defaultMode` top-level fields and hardcodes the light-variant filename
+    // `tokens.light.json` — it never reads this nested `tokens` object at all, valid or not. A theme
+    // declaring only this (and no flat `modes`/`defaultMode`) renders with no error but the wrong (or
+    // no) mode switching.
+    err(
+      "v2-tokens-unimplemented",
+      "theme.json: nested tokens (defaultMode/modes) is not yet read by the runtime loader (theme.ts reads the flat top-level modes/defaultMode fields instead, and hardcodes the tokens.light.json filename) — this declaration will be silently ignored"
+    );
   }
 
   if (raw.license !== undefined && !isObject(raw.license)) {
@@ -185,11 +218,34 @@ export function validateManifestV2(
   if (raw.attributions !== undefined && !Array.isArray(raw.attributions)) {
     err("v2-attributions-shape", "theme.json: attributions must be an array in schema v2");
   }
-  if (raw.partials !== undefined && !isObject(raw.partials)) {
-    err("v2-partials-shape", "theme.json: partials must be an object keyed by partial id");
+  if (raw.partials !== undefined) {
+    if (!isObject(raw.partials)) {
+      err("v2-partials-shape", "theme.json: partials must be an object keyed by partial id");
+    }
+    // 2026-08-19 architecture audit finding 3: `partials` is `theme-authoring-guide-v2.md` §10's
+    // `[TARGET]` rename of the REAL field `loadTheme()` actually reads — `slots` (`theme.ts`, flat,
+    // apiVersion-agnostic). A marketplace theme declaring `partials.hero.source` installs successfully
+    // (this field's own `checkDeclaredReferences` pass in `validate-theme-package.ts` only checks that
+    // the referenced FILE exists, never that anything resolves it) and then renders with that partial
+    // unresolved — the runtime looks up `manifest.slots`, never `manifest.partials`. Declare the SAME
+    // mapping under `slots` for it to actually take effect.
+    err(
+      "v2-partials-unimplemented",
+      "theme.json: partials is not yet read by the runtime loader (theme.ts still reads the flat slots field) — declare this mapping under slots instead, or this partial will render unresolved"
+    );
   }
   if (raw.regions !== undefined && !Array.isArray(raw.regions)) {
     err("v2-regions-shape", "theme.json: regions must be an array of strings");
+  }
+  if (raw.renderer !== undefined) {
+    // 2026-08-19 architecture audit finding 3: no loader or renderer branch anywhere in this codebase
+    // reads `renderer` yet (`theme-authoring-guide-v2.md` §15's own field table: "unread";
+    // `code-tier-asset-normalizer.ts` is the closest real code and has zero callers for this field).
+    // Declared for forward-authoring only; see `profiles.ts` for why `author` still just warns.
+    err(
+      "v2-renderer-unimplemented",
+      "theme.json: renderer is not yet read by any runtime code path — declaring it has no effect on how this theme actually renders"
+    );
   }
 
   // `lineage`/`skipLiquidAllowlist` are the two 2026-08-18 schema decisions: neither is a v2 field at

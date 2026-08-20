@@ -52,7 +52,8 @@ type EventsBehavior =
   | "error-frame-no-message"
   | "end-frame-no-reason"
   | "end-frame-max-tool-turns"
-  | "keepalive-frame";
+  | "keepalive-frame"
+  | "stays-open-until-aborted";
 let startRunBehavior: StartRunBehavior = "ok";
 let eventsBehavior: EventsBehavior = "normal";
 
@@ -109,6 +110,13 @@ const EVENTS_SCRIPTS: Record<Exclude<EventsBehavior, "http-failure">, (req: Inco
     res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "after keepalive" })}\n\n`);
     res.write(`event: end\ndata: ${wireFrame("end", { reason: "stop" })}\n\n`);
     res.end();
+  },
+  "stays-open-until-aborted": (_req, res) => {
+    // Deliberately never ends — this script's whole point is a run that's genuinely still in
+    // progress when the client (the "Stop" button) aborts, so a test can prove `res.on("close")`
+    // reaching the daemon's own `/cancel` endpoint, not merely the local SSE reader being torn down.
+    res.writeHead(200, { "content-type": "text/event-stream" });
+    res.write(`event: agent\ndata: ${wireFrame("agent", { type: "text_delta", delta: "partial" })}\n\n`);
   },
   "socket-reset-mid-stream": (req, res) => {
     res.writeHead(200, { "content-type": "text/event-stream" });
@@ -598,4 +606,48 @@ test("a bare keepalive frame (no data: line) from the daemon is silently skipped
   const events = parseAgUiResponseBody(await res.text());
   const types = events.map((e) => e.type);
   assert.deepEqual(types, ["RUN_STARTED", "TEXT_MESSAGE_START", "TEXT_MESSAGE_CONTENT", "TEXT_MESSAGE_END", "RUN_FINISHED"]);
+});
+
+/** Polls `recorded` for the daemon's own `/cancel` endpoint — the fix under test fires it from a
+ *  `res.on("close")` handler, an async event the client-side `fetch()` above cannot itself await. */
+async function waitForRecordedCancelCall(daemonRunId: string): Promise<RecordedRequest | undefined> {
+  const deadline = Date.now() + 2000;
+  for (;;) {
+    const found = recorded.find((r) => r.method === "POST" && r.url === `/api/runs/${daemonRunId}/cancel`);
+    if (found || Date.now() >= deadline) return found;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+}
+
+/**
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): the AG-UI Stop action used
+ * to abort only the browser's own SSE subscription (`reader.cancel()`); it never called the
+ * daemon's own `/api/runs/:runId/cancel` endpoint the way the non-AG-UI (Local CLI) path already
+ * does (`assistant.ts`'s `/api/runs/:runId/cancel` route). A user pressing Stop saw the UI detach
+ * while the daemon kept executing the run — including tool calls with real side effects — to
+ * completion, unobserved.
+ */
+test("Stop (the client aborting mid-stream) calls the daemon's own /cancel endpoint, not just the local SSE reader", async (t) => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+  eventsBehavior = "stays-open-until-aborted";
+
+  const controller = new AbortController();
+  const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
+    signal: controller.signal,
+  });
+  assert.equal(res.status, 200);
+
+  // Read the first frame so the stream is provably open and mid-run before aborting — proves this
+  // is a genuine "Stop while running" abort, not a race against the response never having started.
+  const reader = res.body!.getReader();
+  await reader.read();
+  controller.abort();
+  await reader.cancel().catch(() => undefined);
+
+  const cancelCall = await waitForRecordedCancelCall("daemon-run-1");
+  assert.ok(cancelCall, `expected a POST /api/runs/daemon-run-1/cancel call; recorded requests: ${JSON.stringify(recorded.map((r) => `${r.method} ${r.url}`))}`);
+  assert.equal(cancelCall?.headers.authorization, `Bearer ${TOKEN}`, "the cancel call must carry the same daemon bearer token every other proxied call does");
 });

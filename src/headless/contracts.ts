@@ -98,6 +98,13 @@ export type HeadlessThemeTier = "declarative" | "templated" | "handlebars" | "st
 export interface HeadlessThemeSummary {
   id: HeadlessThemeId;
   tier: HeadlessThemeTier;
+  /**
+   * The theme's manifest `apiVersion` (`2`, or `undefined` for v1) — 2026-08-19 architecture audit
+   * finding 1: without this, the admin's "View Template" fetch had no way to know whether a theme's
+   * page templates live under `pages/` (v1) or `render/pages/` (v2, every built-in static theme
+   * today), so it 404ed unconditionally. Mirrors `ThemeManifest.apiVersion`'s own doc (`theme.ts`).
+   */
+  apiVersion?: 2;
 }
 
 export interface AdminPresentation {

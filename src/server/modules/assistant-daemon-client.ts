@@ -224,6 +224,30 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
   return fetchAgentDaemon(req, res, { body });
 }
 
+/**
+ * Best-effort, fire-and-forget cancellation of one daemon run — for callers whose OWN response
+ * (`res`) has already ended by the time they learn cancellation is needed (a `res.on("close")`
+ * handler, firing after the response is fully torn down), where writing to `res` again is unsafe.
+ * Deliberately does NOT go through {@link fetchAgentDaemon}: that function answers `res` itself on
+ * failure (`respondIfDaemonKnownFailed`'s 503, or a genuinely-unreachable daemon's 502) — exactly
+ * the kind of write this function's callers can no longer make.
+ *
+ * Every outcome the daemon's own `/api/runs/:runId/cancel` route can produce is safe to ignore here
+ * (`@jini-ai/http-kit`'s `runCancelRoute`/`@jini-ai/daemon`'s `RunLifecycle.cancel` — confirmed
+ * against the real packages): a run already finished is an explicitly documented no-op (still
+ * `200`), an unknown run id is a well-formed `404`, and neither ever rejects the `fetch()` itself —
+ * only a genuine network failure (daemon down, connection reset) does that, which `.catch()` below
+ * swallows for the same "nothing left to report it to" reason.
+ *
+ * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
+ */
+export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRunId: string): void {
+  fetch(`${AGENT_DAEMON_URL}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
+    method: "POST",
+    headers: outboundHeaders(req, res),
+  }).catch(() => undefined);
+}
+
 /** True for the "nothing is listening on that port yet" shape from a raw `node:http` request error
  *  (`error.code` directly) — the `node:http` equivalent of {@link isConnectionRefused}, which reads
  *  `error.cause.code` because `fetch`'s own errors wrap the underlying cause one level deeper. */

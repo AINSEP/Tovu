@@ -24,6 +24,7 @@ export interface FakeThemeExplorePortOptions {
     id: string;
     name: string;
     tier: string;
+    apiVersion?: 2;
     status: string;
     errors: string[];
     lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;

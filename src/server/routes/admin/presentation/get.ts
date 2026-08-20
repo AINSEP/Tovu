@@ -59,7 +59,7 @@ export const registerAdminPresentationGetRoute: ContentRouteRegistrar = (app, de
       // to match `validThemeIds`'s own filter above (an invalid theme is not one an operator can pick).
       const availableThemes = deps.themes
         .filter((t) => t.status === "valid")
-        .map((t) => ({ id: t.manifest.id, tier: t.manifest.tier }));
+        .map((t) => ({ id: t.manifest.id, tier: t.manifest.tier, apiVersion: t.manifest.apiVersion }));
 
       res.json(
         toAdminPresentationResponse({

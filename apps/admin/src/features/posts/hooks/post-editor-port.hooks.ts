@@ -23,7 +23,7 @@ export interface PostEditorPort {
   getPost(id: string): Promise<{ post: AdminPost }>;
   getPresentation(): Promise<{
     settings: PresentationSettings;
-    availableThemes: AdminThemeSummary[];
+    availableThemes: AdminThemeSummary[]; // includes `apiVersion` — see that interface's own doc.
     activeThemeTemplates: string[];
     activeThemeStaticPageIds: string[];
   }>;

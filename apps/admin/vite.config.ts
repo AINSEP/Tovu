@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
@@ -35,6 +35,20 @@ const redirectBareAdmin: Plugin = {
   },
 };
 
+// Chrome caps a plain-HTTP origin at 6 simultaneous connections; the settings SSE feed, the
+// assistant-run SSE feed, Vite's own HMR socket, and its ESM module burst all share that budget at
+// :5173, so a handful of admin tabs exhausts it and every other request queues silently. HTTP/2
+// (available for free once the dev server has TLS) multiplexes all of those over one connection.
+// mkcert-issued certs (`mkcert -install && mkcert localhost 127.0.0.1 ::1`, output into `.certs/`)
+// give locally-trusted TLS with no browser warnings; falls back to plain HTTP/1.1 when a
+// contributor hasn't generated one yet, so `npm run dev` still boots instead of crashing.
+const certPath = path.resolve(__dirname, ".certs/localhost.pem");
+const keyPath = path.resolve(__dirname, ".certs/localhost-key.pem");
+const httpsOptions =
+  existsSync(certPath) && existsSync(keyPath)
+    ? { cert: readFileSync(certPath), key: readFileSync(keyPath) }
+    : undefined;
+
 export default defineConfig({
   base: "/admin/",
   define: {
@@ -57,9 +71,16 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     alias: {
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),
+      // Same cross-runtime precedent as `@tovu/headless` just above, extended to a pure resolver
+      // FUNCTION rather than wire-contract types: `theme-layout.ts` has zero `node:fs`/`node:path`
+      // imports (see its own file header), so this browser bundle can import the exact same
+      // apiVersion-aware path facts the server route uses — 2026-08-19 architecture audit findings
+      // 1 & 2, "one shared resolver, not six independent copies that can drift."
+      "@tovu/theme-layout": path.resolve(__dirname, "../../src/features/theme/theme-layout.ts"),
     },
   },
   server: {
+    https: httpsOptions,
     // The `@jini-ai/*` deps are `file:` links straight into a sibling checkout (ADR-049 Decision
     // 7's temporary state, not the intended published-package boundary — see F1 in the fulldiff
     // audit). Vite resolves symlinks to their real path before checking `fs.allow`, so serving any

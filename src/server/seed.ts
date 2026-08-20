@@ -150,18 +150,21 @@ const themesDoc = doc(
   p("The tiers run in a straight line from safe to powerful. A declarative theme does less, but you can install one from a stranger without a second thought. A code theme can do anything — which means it runs JavaScript on your machine, so you install it the way you'd add a dependency: from an author you trust."),
   p("We will always tell you which tier a theme is before you install it, and we will never dress a code theme up as ", t("safe", "italic"), ". That honesty is the whole point — ", t("you", "italic"), " choose the ceiling."),
   h(2, "What ships in a theme"),
+  p("Every theme starts with the same two files, then its own tier decides the rest — a themeable ", t("declarative", "bold"), "/", t("templated", "bold"), "/", t("code", "bold"), " theme arranges JSON template blocks; a ", t("static", "bold"), " theme (Tovu's fully hand-editable HTML/CSS/JS tier) ships whole pages instead."),
   ul(
     li(p(t("theme.json", "code"), t(" — the manifest: id, version, fonts, and the theme's "), t("tier", "code"), t("."))),
     li(p(t("tokens.json", "code"), t(" — design tokens: color, type, spacing, radii."))),
-    li(p(t("templates/", "code"), t(" — how the page is arranged (home, entry, …)."))),
-    li(p(t("styles.css", "code"), t(" — a sanitized stylesheet. No imports from foreign origins."))),
+    li(p(t("templates/", "code"), t(" — declarative/templated/code tiers: how the page is arranged (home, entry, …)."))),
+    li(p(t("render/pages/, render/partials/", "code"), t(" — the static tier: full page HTML plus nav/footer partials, every byte editable."))),
+    li(p(t("css/theme.css", "code"), t(" — a sanitized stylesheet. No imports from foreign origins."))),
   ),
   h(2, "Where behavior comes from"),
   p("Whatever the tier, a theme gains new capability the same safe way — from a ", t("plugin", "bold"), ", the trusted plane where code lives with its permissions shown up front. A theme never has to become dangerous just to earn a feature."),
   p("When a design needs one — a newsletter box, a pricing table, a live search — the theme can ship as a ", t("bundle", "bold"), " that declares the plugins it needs and installs them in one consented step, instead of leaving you to hunt them down. See ", link("How Plugins Work", "/how-plugins-work"), " and ", link("The Plugin API", "/plugin-api"), "."),
   h(2, "Trying it"),
   p("Every page here renders through the active theme — because in Tovu, ", t("content is data and the theme is arrangement", "italic"), ". Switch between Tovu Official, Column, and Signal in the admin's Appearance section and watch this exact page change shape."),
-  code("themes/\n  tovu-official/\n    theme.json      # id, version, fonts, tier\n    tokens.json\n    templates/{home,entry}.json\n    styles.css"),
+  code("themes/\n  tovu-official/           # declarative/templated/code tier\n    theme.json           # id, version, fonts, tier\n    tokens.json\n    templates/{home,entry}.json\n    css/theme.css"),
+  code("themes/\n  basic/                   # static tier\n    theme.json           # id, version, fonts, tier\n    tokens.json\n    render/\n      pages/index.html   # every page, full HTML\n      partials/nav.html  # nav, footer, ...\n    css/theme.css\n    scripts/"),
 );
 
 const pluginsDoc = doc(

@@ -6,6 +6,7 @@ export type { ManifestRoute, ManifestRouteKind, ManifestSkip, RouteManifest, Rou
 export { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "./route-manifest.js";
 export {
   exportSite,
+  firstExportFailure,
   ExportOutputNotEmptyError,
   type ExportSiteOptions,
   type ExportReport,
@@ -13,4 +14,5 @@ export {
   type FailedRoute,
   type ExportedAsset,
   type FailedAsset,
+  type ExportFailureSummary,
 } from "./site-exporter.js";

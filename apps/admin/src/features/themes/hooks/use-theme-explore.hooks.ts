@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { resolveThemeLayout } from "@tovu/theme-layout";
+
 import { ApiError } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
@@ -63,6 +65,9 @@ export interface ThemeExploreDetail {
   id: string;
   name: string;
   tier: string;
+  /** Manifest schema version (`2`, or `undefined` for v1) — feeds {@link lockedRenamePaths} below,
+   *  so the rename-lock pre-check resolves the same layout the server used to classify `files`. */
+  apiVersion: 2 | undefined;
   status: string;
   errors: string[];
   lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
@@ -70,14 +75,23 @@ export interface ThemeExploreDetail {
 }
 
 /**
- * Mirrors the server's `REQUIRED_THEME_FILES` (`explore.ts`) — `loadTheme` fails without any of
- * these (missing `pages/index.html`, or a `theme.json`/`tokens.json` that no longer parses), so
- * renaming one away reproduces that same breakage. The SERVER is the actual enforcement point (it
- * refuses the rename with `code: "REQUIRED_FILE_LOCKED"` regardless of what the client does); this
- * client-side copy only avoids a pointless round trip for the common case of double-clicking one of
- * these three files directly.
+ * Mirrors the server's `requiredThemeFiles` (`explore.ts`) — `loadTheme` fails without any of
+ * these (a missing index page, or a `theme.json`/`tokens.json` that no longer parses), so renaming
+ * one away reproduces that same breakage. The SERVER is the actual enforcement point (it refuses the
+ * rename with `code: "REQUIRED_FILE_LOCKED"` regardless of what the client does); this client-side
+ * copy only avoids a pointless round trip for the common case of double-clicking one of these files
+ * directly.
+ *
+ * 2026-08-19 architecture audit findings 1 & 2: this used to be a fixed `Set` naming v1's
+ * `pages/index.html` unconditionally, so a v2 theme's `render/pages/index.html` (every real static
+ * theme on disk today) was never actually locked client-side — the operator's rename would start
+ * inline, then fail with a round trip instead of an immediate inline refusal. Derived from
+ * `resolveThemeLayout` (`@tovu/theme-layout` — the SAME resolver `explore.ts`'s server route uses)
+ * so the two cannot drift apart again.
  */
-const LOCKED_RENAME_PATHS: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
+function lockedRenamePaths(apiVersion: 2 | undefined): readonly string[] {
+  return resolveThemeLayout(apiVersion).requiredFiles;
+}
 
 /**
  * Groups whose files can never be renamed — mirrors the server's own `READ_ONLY_GROUPS` rename block
@@ -90,11 +104,11 @@ const LOCKED_RENAME_PATHS: ReadonlySet<string> = new Set(["pages/index.html", "t
  */
 const READ_ONLY_RENAME_GROUPS: ReadonlySet<ThemeFileGroup> = new Set(["script", "other"]);
 
-function lockedRenameReason(path: string, kind: ThemeFileGroup): string {
-  if (path === "pages/index.html") {
-    return "pages/index.html can't be renamed — every theme requires this exact page to load at all.";
+function lockedRenameReason(path: string, kind: ThemeFileGroup, apiVersion: 2 | undefined): string {
+  if (path === resolveThemeLayout(apiVersion).indexPagePath) {
+    return `${path} can't be renamed — every theme requires this exact page to load at all.`;
   }
-  if (LOCKED_RENAME_PATHS.has(path)) {
+  if (lockedRenamePaths(apiVersion).includes(path)) {
     return `${path} can't be renamed — every theme requires this exact file to load at all.`;
   }
   return `${path} can't be renamed — this file type is read-only in Explore, and renaming it could break a page or script that still refers to it by this name.`;
@@ -148,7 +162,8 @@ export interface ThemeExploreController {
   /** The inline rename input's current text. */
   renameDraft: string;
   setRenameDraft: (value: string) => void;
-  /** Begin renaming `path` — refused inline (with `error` set to why) for `LOCKED_RENAME_PATHS`. */
+  /** Begin renaming `path` — refused inline (with `error` set to why) for one of
+   *  {@link lockedRenamePaths}. */
   startRename: (path: string) => void;
   /** Abandon the in-progress rename with no server call. */
   cancelRename: () => void;
@@ -234,6 +249,7 @@ async function fetchThemeExploreState(
       id: r.id,
       name: r.name,
       tier: r.tier,
+      apiVersion: r.apiVersion,
       status: r.status,
       errors: r.errors,
       lineage: r.lineage,
@@ -404,15 +420,16 @@ export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDepend
   const startRename = useCallback(
     (path: string) => {
       const kind = files.find((f) => f.path === path)?.kind;
-      if (LOCKED_RENAME_PATHS.has(path) || (kind !== undefined && READ_ONLY_RENAME_GROUPS.has(kind))) {
-        setError(lockedRenameReason(path, kind ?? "config"));
+      const apiVersion = detail?.apiVersion;
+      if (lockedRenamePaths(apiVersion).includes(path) || (kind !== undefined && READ_ONLY_RENAME_GROUPS.has(kind))) {
+        setError(lockedRenameReason(path, kind ?? "config", apiVersion));
         return;
       }
       setError(null);
       setRenamingPath(path);
       setRenameDraft(basenameOf(path));
     },
-    [files]
+    [files, detail]
   );
 
   const cancelRename = useCallback(() => {

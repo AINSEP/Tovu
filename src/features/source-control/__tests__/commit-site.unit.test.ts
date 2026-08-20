@@ -4,13 +4,23 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createRouteDeps } from "#src/server/app";
+import express from "express";
+
+import { createApp, createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { createSourceControlCredential } from "../store.js";
-import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type CommitFile, type GitHubCommitAdapter, type GitHubCommitAdapterResult } from "../commit-site.js";
+import {
+  commitSiteToSourceControl,
+  toCommitFile,
+  validateCommitTarget,
+  commitExportDir,
+  type CommitFile,
+  type GitHubCommitAdapter,
+  type GitHubCommitAdapterResult,
+} from "../commit-site.js";
 
 /**
  * @file `commit-site.ts`'s business-logic proof — mirrors
@@ -31,6 +41,23 @@ test.after(() => rmSync(exportDir, { recursive: true, force: true }));
  *  repo. */
 function testRouteDeps(): RouteDeps {
   return { ...createRouteDeps(), sourceControlExportRootDir: exportDir };
+}
+
+/** Wraps the real `createApp` so ONE exact asset path always 500s, while every other route/asset
+ *  still round-trips through the real app unchanged — this file's own copy of
+ *  `static-publish/adapter.unit.test.ts`'s identical helper (same "no dependency on
+ *  `features/deployments/**`" reason `commit-site.ts` itself gives for its own duplicated
+ *  `exportSiteLazily`), injected via `RouteDeps.createSiteApp` since neither `/theme-assets/*` nor
+ *  `/agent-icons/*` is backed by an injectable Port. */
+function createSiteAppWithFailingAsset(failingPath: string): (routeDeps: RouteDeps) => ReturnType<typeof createApp> {
+  return (routeDeps) => {
+    const wrapper = express();
+    wrapper.get(failingPath, (_req, res) => {
+      res.status(500).json({ error: "forced failure for export-engine asset regression test" });
+    });
+    wrapper.use(createApp(routeDeps));
+    return wrapper;
+  };
 }
 
 function neverCalledGitAdapter(): GitHubCommitAdapter {
@@ -202,4 +229,76 @@ test("commitSiteToSourceControl: a network-unreachable result is NEVER conflated
     ADAPTER_FAILURE_CASES.find((c) => c.adapterCode === "network-unreachable")?.expected,
     ADAPTER_FAILURE_CASES.find((c) => c.adapterCode === "provider-error")?.expected
   );
+});
+
+/**
+ * HIGH audit finding (2026-08-19, Codex sol bug/architecture audit): `commitSiteToSourceControl`
+ * used to reject only `report.routes.failed`, ignoring `report.assets.failed` entirely — a page
+ * could export fine while its stylesheet or hero image 404s, and the commit would still go
+ * through, silently dropping the broken asset from the committed tree. Mirrors this file's own
+ * "no saved credential fails cleanly... before any export or commit attempt" proof style: the FAKE
+ * git adapter must never fire.
+ */
+test("commitSiteToSourceControl: an asset that fails to export blocks the commit, the same as a failed route", async () => {
+  const base = await withGithubCredential(testRouteDeps());
+  const deps: RouteDeps = { ...base, createSiteApp: createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css") };
+
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
+    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "EXPORT_FAILED");
+  assert.equal(
+    result.message,
+    "refused to commit: 1 asset(s) failed to export (first: '/theme-assets/basic/css/theme.css' — GET /theme-assets/basic/css/theme.css -> 500)"
+  );
+});
+
+/**
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): `commitExportDir` used to
+ * return one FIXED directory (`<parent>/github`) for every commit, and this feature has no
+ * concurrency guard at all — not even the process-local single-flight `static-publish/adapter.ts`
+ * gets from `publish-run.ts`. Two overlapping commits could `clean:true` and rewrite the same
+ * directory out from under each other. See `adapter.unit.test.ts`'s identical `publishOutputDir`
+ * test for why this is a direct proof of the fix mechanism (unique per-run isolation) rather than an
+ * attempted same-process corruption reproduction — `ExportedRoute`/`ExportedAsset.data` are captured
+ * in memory at write time and never re-read from disk, so a same-process race never actually
+ * corrupted the returned `CommitFile[]` payload even before this fix.
+ */
+test("commitExportDir: two different run ids produce two DIFFERENT, non-overlapping directories", () => {
+  const a = commitExportDir("/source-control-root", "run-a");
+  const b = commitExportDir("/source-control-root", "run-b");
+  assert.notEqual(a, b);
+  assert.equal(a, path.join("/source-control-root", "github", "run-a"));
+  assert.equal(b, path.join("/source-control-root", "github", "run-b"));
+  assert.ok(!a.startsWith(b) && !b.startsWith(a), "neither run's directory may be a parent/child of the other's");
+});
+
+/** End-to-end smoke test alongside the direct `commitExportDir` proof above — two concurrent commits
+ *  against the identical fixture must both still succeed with a correct, non-empty file set once
+ *  `idGen.newId()` is a required part of computing `outputDir`. */
+test("commitSiteToSourceControl: two concurrent commits both still succeed with correct file sets", async () => {
+  const deps = await withGithubCredential(testRouteDeps());
+  const capturedA: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
+  const capturedB: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
+
+  const [resultA, resultB] = await Promise.all([
+    commitSiteToSourceControl(
+      { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://github.com/octo/demo/commit/sha-a", filesChanged: 1 }, capturedA) },
+      { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "run a" }
+    ),
+    commitSiteToSourceControl(
+      { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://github.com/octo/demo/commit/sha-b", filesChanged: 1 }, capturedB) },
+      { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "run b" }
+    ),
+  ]);
+
+  assert.equal(resultA.ok, true, `run A must succeed: ${JSON.stringify(resultA)}`);
+  assert.equal(resultB.ok, true, `run B must succeed: ${JSON.stringify(resultB)}`);
+  assert.ok(capturedA.files && capturedA.files.length > 0, "run A's git adapter must have received a non-empty file set");
+  assert.ok(capturedB.files && capturedB.files.length > 0, "run B's git adapter must have received a non-empty file set");
+  assert.equal(capturedA.files!.length, capturedB.files!.length, "both concurrent runs against the identical fixture must produce the SAME file count");
 });

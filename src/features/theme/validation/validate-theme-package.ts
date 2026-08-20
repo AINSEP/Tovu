@@ -23,17 +23,20 @@ export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSever
  *
  * ## Schema-version branching — why this exists at all
  *
- * No theme on disk today declares `apiVersion: 2` (no migration has run — see
- * `theme-authoring-guide-v2.md`'s own status banner). Running a v2-strict, `additionalProperties:
- * false` schema against every real theme unconditionally would fail 100% of them on day one. So:
+ * Written when no theme on disk yet declared `apiVersion: 2` — that status changed with the
+ * 2026-08-18 Milestone 3 migration: all seven built-in static themes (`src/themes/static/*`) now
+ * declare it and run through the v2-strict path below in normal operation, not just in tests. A v1
+ * theme (absent `apiVersion`) is still fully supported — a site-authored or marketplace theme can be
+ * either — which is why this module still branches rather than assuming v2 unconditionally:
  *
  * - `raw.apiVersion === 2` → the v2-strict path: `validateManifestV2` (schema closure + restructured
  *   fields), `checkApprovedRoots`/`checkSourceDirContainment` (v2's `render/`-nested package shape),
- *   `checkDeclaredReferences` against `partials`/`renderer.pages` (fields nothing else parses yet).
- * - anything else (absent `apiVersion`, i.e. every theme on disk today) → the v1 fallback: this
- *   module does NOT re-derive tier/build/template/slot rules `loadTheme()` already enforces maturely
- *   (`theme.ts`) — it calls `loadTheme()` and surfaces its `errors` directly, the same "keep it where
- *   it is, call it from here" reuse the brief specifies for `checkBuiltThemeConformance`.
+ *   `checkDeclaredReferences` against `partials`/`renderer.pages` (fields nothing else parses yet —
+ *   see `manifest-v2.ts`'s own header on the `v2-*-unimplemented` findings this now also produces).
+ * - anything else (absent `apiVersion`) → the v1 fallback: this module does NOT re-derive tier/build/
+ *   template/slot rules `loadTheme()` already enforces maturely (`theme.ts`) — it calls `loadTheme()`
+ *   and surfaces its `errors` directly, the same "keep it where it is, call it from here" reuse the
+ *   brief specifies for `checkBuiltThemeConformance`.
  *
  * Markup checks (`data-agent-element`, embed vocabulary) and the package-wide bounds/symlink walk
  * (`structure.ts`'s `walkThemePackage`) run identically for both — those rules do not depend on which
@@ -46,9 +49,11 @@ export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSever
  * checker's own file-discovery still scans v1's flat `pages/`/`css/`/`js/` layout — the v2 design's
  * `render/`-nested generated tree (`theme-authoring-guide-v2.md` §4) is `[TARGET]`, not something
  * `build-conformance.ts` understands yet, and updating its own scanning logic for `render/` is outside
- * this validator's scope. No real v2-declared compiled theme exists yet to validate against either
- * way (Milestone 3's migration hasn't run). The v1 fallback path is unaffected: `loadTheme()` already
- * runs the real conformance check internally for a v1 compiled theme, and this module surfaces that.
+ * this validator's scope. No real theme declares `build.source: "compiled"` at all today (none of the
+ * seven migrated static themes are built releases), so there is nothing to validate against either
+ * way yet — but that is a separate fact from Milestone 3's own migration, which HAS run (see this
+ * file's own header above). The v1 fallback path is unaffected: `loadTheme()` already runs the real
+ * conformance check internally for a v1 compiled theme, and this module surfaces that.
  */
 
 const MARKUP_EXTENSIONS: ReadonlySet<string> = new Set([".html", ".liquid", ".hbs", ".handlebars"]);
