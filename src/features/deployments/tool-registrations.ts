@@ -13,15 +13,12 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import type { AuthorizeFn } from "../../core/commands/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
+import type { DeploymentsReadRepoPort } from "./read-repo.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
-import { getExportRunSnapshot, startExportRun } from "./export-run.js";
-// TYPE-ONLY — fully erased at compile time, so this creates NO runtime require() and cannot
-// recreate the circular-load crash a VALUE import of `#src/export/index` caused inside
-// `export-run.ts` (see that file's header for the full trace). See `DeploymentsToolDeps`'s own doc
-// below for why this domain needs the named type at all, unlike every sibling domain.
-import type { RouteDeps } from "#src/server/routes/types";
+import { getExportRunSnapshot, startExportRun, type ExportEngine, type ExportRunReportLike } from "./export-run.js";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps
@@ -43,29 +40,49 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 
 /**
- * The route-deps bag this domain's tool handlers read — the full `RouteDeps`, not a narrow slice.
+ * The exact slice of the route-deps bag this domain's tool handlers read. Declared structurally,
+ * never naming `server/routes/types`'s `RouteDeps` — same discipline every OTHER domain's
+ * `tool-registrations.ts` already follows (see `features/recovery/tool-registrations.ts`'s file
+ * header), now including this one.
  *
- * Every OTHER domain's `tool-registrations.ts` declares a narrow structural interface instead of
- * naming `server/routes/types`'s `RouteDeps`, to avoid a `features/<domain> -> src/server/**`
- * back-edge (`development/scripts/check-architecture.ts`'s metric; see
- * `features/recovery/tool-registrations.ts`'s file header). This domain cannot follow that pattern
- * for `deployment_trigger_export`: `startExportRun` (`export-run.ts`) hands its `routeDeps`
- * parameter straight through to `RouteDeps.runExportSite` (the real `exportSite`), which boots an
- * entirely separate in-process copy of `createApp(routeDeps)` to fetch every route — it genuinely
- * needs the WHOLE deps bag, so there is no honest narrower type to declare (a self-referential
- * attempt at one — `ExportEngine<DeploymentsToolDeps>` instead of `ExportEngine<RouteDeps>` — fails
- * `tsc` outright: `RouteDeps.runExportSite`'s real value is contravariant in its parameter, so it is
- * only assignable to a slot expecting the FULL `RouteDeps`, never a narrower stand-in).
- *
- * The import below is `type`-only, which matters for a different reason than the metric: an eager
- * VALUE import reaching from this file into `#src/export/index` closed a real circular require back
- * into the still-loading `assistant/tool-registrations.ts` and crashed with `ReferenceError: Cannot
- * access 'DOMAIN_SLICES' before initialization` the first time this domain wired
- * `deployment_trigger_export` (see `export-run.ts`'s file header for the full trace). A `type`-only
- * import is fully erased at compile time — no `require()` is ever emitted for it — so it cannot
- * reproduce that crash regardless of what `RouteDeps` itself pulls in.
+ * 2026-08-20 RouteDeps-narrowing fix (supersedes `b6144774`'s config-only attempt, which the owner
+ * rejected — see `ADS-memory/reports/2026-08-20-architecture-step2-routedeps-narrowing.md`): this
+ * used to be a bare `export type DeploymentsToolDeps = RouteDeps` alias, on the grounds that
+ * `deployment_trigger_export` genuinely needs the full composition-root bag to boot a real
+ * `createApp(routeDeps)` and crawl every route — that part was, and remains, true. What changed is
+ * `startExportRun` no longer has to receive the REAL `RouteDeps.runExportSite` (`ExportEngine<RouteDeps>`,
+ * which contravariantly requires the FULL bag on every call): `exportSiteBound` below is a pre-bound
+ * export call, closed over `RouteDeps` once at the composition root (`server/app.ts`/`server/deps.ts`
+ * — see `routes/types.ts`'s own doc on that field), so this domain only ever has to describe the
+ * narrow slice it directly touches. The adapter passed to `startExportRun` (in
+ * `deployment_trigger_export` below) EXPLICITLY DESTRUCTURES `{outputDir, clean, basePath}` off the
+ * `ExportEngine`-shaped options object rather than forwarding it wholesale — `ExportEngine<T>`'s own
+ * options ALWAYS carry a `routeDeps: T` field (`export-run.ts`), and forwarding that bag straight into
+ * `exportSiteBound` (whose own type has no `routeDeps` parameter at all, so an excess one on a
+ * non-literal argument passes `tsc` silently) would let a NARROW `DeploymentsToolDeps` value reach the
+ * real `exportSite` in place of the actual `RouteDeps` — caught during this fix, closed at both the
+ * composition root (spread-ordering fix, `routes/types.ts`'s `exportSiteBound` doc) AND here, and
+ * covered by a regression test in `__tests__/integration/tool-registrations.integration.test.ts`.
  */
-export type DeploymentsToolDeps = RouteDeps;
+export interface DeploymentsToolDeps {
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+  readonly clock: { nowIso(): string };
+  readonly exportOutputRootDir: string;
+  readonly deploymentsReadRepo: DeploymentsReadRepoPort;
+  /**
+   * The pre-bound export call this domain uses for `deployment_trigger_export` — see this
+   * interface's own doc above for the fuller design reasoning, and `routes/types.ts`'s
+   * `exportSiteBound` for what this really is and why it is named differently from
+   * `RouteDeps.runExportSite`. Returns `ExportRunReportLike` (`export-run.ts`'s own structural
+   * mirror of the real `ExportReport`) rather than the real type, deliberately: this domain already
+   * imports `ExportRunReportLike` from its sibling `export-run.ts`, so reusing it here avoids a
+   * fresh `#src/export/index` type import — the real `RouteDeps.exportSiteBound` (which returns the
+   * real `ExportReport`) already satisfies this structurally (same reasoning `ExportEngine`'s own
+   * doc gives for its return type).
+   */
+  readonly exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportRunReportLike>;
+}
 
 const CATALOG_BY_ID = indexCatalogById(deploymentsAgentToolCatalog);
 
@@ -105,7 +122,16 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 
       const clean = optionalBoolean(input, "clean") ?? false;
       const basePath = optionalString(input, "basePath");
-      return startExportRun(routeDeps, routeDeps.runExportSite, { clean, basePath });
+      // Explicit destructuring, not `(opts) => routeDeps.exportSiteBound(opts)` — `ExportEngine`'s
+      // own options object always carries a `routeDeps` field (`export-run.ts`), and forwarding it
+      // wholesale would let that narrow `DeploymentsToolDeps` value reach `exportSiteBound` under a
+      // `routeDeps` key nobody asked for (its own type has no such parameter, so `tsc` would not
+      // catch the excess property on this non-literal argument). Picking only the three fields
+      // `exportSiteBound` actually declares means the narrow deps here never travel at all — see
+      // `DeploymentsToolDeps`'s own doc above and this file's regression test.
+      const engine: ExportEngine<DeploymentsToolDeps> = ({ outputDir, clean: runClean, basePath: runBasePath }) =>
+        routeDeps.exportSiteBound({ outputDir, ...(runClean !== undefined ? { clean: runClean } : {}), ...(runBasePath !== undefined ? { basePath: runBasePath } : {}) });
+      return startExportRun(routeDeps, engine, { clean, basePath });
     },
 
     deployment_get_export_status: async (ctx) => {

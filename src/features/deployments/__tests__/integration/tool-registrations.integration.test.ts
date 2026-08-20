@@ -214,6 +214,39 @@ test("deployment_get_export_status reports idle before any trigger in this proce
   assert.deepEqual(result, { status: "idle", startedAtIso: null, finishedAtIso: null, outputDir: null });
 });
 
+test("RouteDeps.exportSiteBound ignores a caller-forwarded 'routeDeps' key and always exports with its own closed-over RouteDeps — regression for the composition-root spread-ordering bug", async (t) => {
+  // Not a `deployment_trigger_export` handler call — it targets `exportSiteBound` directly, one
+  // level below the tool wiring, because that is where the actual bug class lives (see
+  // `DeploymentsToolDeps`'s own doc in `../../tool-registrations.js`). Placed in this file anyway
+  // (not a new test file) because this is `deployment_trigger_export`'s own dependency and this
+  // suite already has the exact hermetic `createRouteDeps()` harness a real `exportSite` pass needs.
+  const outputDir = mkdtempSync(path.join(tmpdir(), "tovu-export-site-bound-ordering-test-"));
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const deps = createRouteDeps();
+
+  // Simulates the exact shape a naive caller could forward: `ExportEngine<T>`'s own options object
+  // (`export-run.ts`) ALWAYS carries a `routeDeps` field — a caller who forwards that whole bag
+  // straight into `exportSiteBound` instead of destructuring `{outputDir, clean, basePath}`
+  // explicitly (the way `deployment_trigger_export`'s own handler does) would carry an extra
+  // `routeDeps` key that `exportSiteBound`'s own type declares no parameter for, so `tsc` would not
+  // catch it (excess properties on a non-literal argument pass silently). Built as a `const` rather
+  // than an inline literal for the same reason — passing it as a fresh literal argument WOULD trip
+  // excess-property checking and defeat the point of this test.
+  const bogusRouteDepsMarker = { bogus: "not-a-real-RouteDeps" };
+  const maliciousOptions = { outputDir, clean: true, routeDeps: bogusRouteDepsMarker };
+
+  // If the composition root's binding ever regresses to `{ routeDeps, ...opts }` (closed-over value
+  // FIRST, so a caller-supplied one wins on spread), `maliciousOptions.routeDeps` overwrites the
+  // real one and the real `exportSite` receives a bare `{bogus: ...}` object in place of `RouteDeps`
+  // — which satisfies none of the ~50 fields `createApp`/every route needs, so the run rejects
+  // instead of completing. With the fix (`{ ...opts, routeDeps }`, closed-over value LAST), the
+  // bogus key is simply overwritten back to the real `RouteDeps` and the export succeeds normally.
+  const report = await deps.exportSiteBound(maliciousOptions);
+  assert.equal(report.routes.failed.length, 0, "the real, closed-over RouteDeps must be what exportSite actually uses — a forwarded 'routeDeps' key must never win");
+  assert.ok(report.routes.succeeded.length > 0, "the hermetic fixture's own routes must have actually exported using the real RouteDeps, not the bogus forwarded one");
+});
+
 test("deployment_trigger_export starts a real run, a concurrent second call is refused, and status settles to completed", async (t) => {
   t.after(() => rmSync(exportOutputDir, { recursive: true, force: true }));
 

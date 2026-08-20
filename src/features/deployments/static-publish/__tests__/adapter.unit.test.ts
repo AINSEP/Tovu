@@ -43,9 +43,20 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
  *  dir — `publishStaticSite` reads this field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts
  *  no longer reads env vars at all), so overriding it here is what keeps this suite's real
  *  `exportSite` writes off the checked-out repo, same as every other `RouteDeps` field a test
- *  overrides. */
+ *  overrides.
+ *
+ *  MUTATES the object `createRouteDeps()` returns rather than spreading a copy — deliberately, since
+ *  2026-08-20 (RouteDeps-narrowing fix): `RouteDeps.exportSiteBound` is a closure bound to ONE object
+ *  identity, at construction time, inside `createRouteDeps()` itself. A spread here would produce a
+ *  logically-overridden but DIFFERENT object that closure never sees, so ANY later override of a
+ *  field the real `exportSite` reads internally (e.g. `createSiteApp`, see the "an asset that fails
+ *  to export" test below) would silently never apply. See `routes/types.ts`'s `exportSiteBound` doc
+ *  for this same gotcha, generalized. Every call site below therefore also takes `testRouteDeps()`'s
+ *  return value directly (`const deps = testRouteDeps()`), never re-spreading it a second time. */
 function testRouteDeps(): RouteDeps {
-  return { ...createRouteDeps(), publishOutputRootDir: publishOutputDir };
+  const deps = createRouteDeps();
+  deps.publishOutputRootDir = publishOutputDir;
+  return deps;
 }
 
 /** Records every `publish()` call's file set and returns a canned success result — the "faked deploy
@@ -110,11 +121,14 @@ test("toDeployFile: preserves deploy-relative path and data, normalizing to forw
 });
 
 test("publishStaticSite: an invalid config is rejected before credentials or the deploy target are ever touched", async () => {
+  const deps = testRouteDeps();
   const result = await publishStaticSite(
     { credentialSource: neverCalledCredentialSource() },
     {
       workspaceId: "does-not-matter",
-      routeDeps: testRouteDeps(),
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
       config: { target: "github-pages", owner: "not valid owner!!", repo: "demo" },
       projectName: "demo",
     }
@@ -127,7 +141,7 @@ test("publishStaticSite: an invalid config is rejected before credentials or the
 
 test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or publish attempt", async () => {
   let exportAttempted = false;
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   // Wrapping workspaceRepo.findById (an arbitrary read exportSite touches early) would be fragile
   // to internal exportSite ordering; instead this test proves the STRONGER claim — the deploy
   // target is never even constructed — via `buildTarget` below never firing.
@@ -142,7 +156,9 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
     },
     {
       workspaceId: deps.workspaceId,
-      routeDeps: deps,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
       config: { target: "github-pages", owner: "octo", repo: "demo" },
       projectName: "demo",
     }
@@ -161,7 +177,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
 
 test("publishStaticSite: injects .nojekyll for github-pages and maps real exported files to deploy-relative DeployFile[]", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
 
   const result = await publishStaticSite(
     {
@@ -170,7 +186,9 @@ test("publishStaticSite: injects .nojekyll for github-pages and maps real export
     },
     {
       workspaceId: deps.workspaceId,
-      routeDeps: deps,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
       config: { target: "github-pages", owner: "octo", repo: "demo-repo" },
       projectName: "demo",
     }
@@ -197,7 +215,7 @@ test("publishStaticSite: injects .nojekyll for github-pages and maps real export
 
 test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a base path", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
 
   const result = await publishStaticSite(
     {
@@ -206,7 +224,9 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
     },
     {
       workspaceId: deps.workspaceId,
-      routeDeps: deps,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
       config: { target: "vercel" },
       projectName: "demo",
     }
@@ -227,10 +247,11 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
  * export or publish attempt" test's proof style: the FAKE deploy target must never fire.
  */
 test("publishStaticSite: an asset that fails to export blocks publishing, the same as a failed route", async () => {
-  const deps: RouteDeps = {
-    ...testRouteDeps(),
-    createSiteApp: createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css"),
-  };
+  const deps = testRouteDeps();
+  // MUTATED in place, not spread into a copy — `deps.exportSiteBound` is a closure bound to THIS
+  // exact object identity (see `testRouteDeps`'s own doc above). A spread here would silently lose
+  // the override, the same gotcha `commit-site.unit.test.ts`'s identical fixture documents.
+  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css");
 
   const result = await publishStaticSite(
     {
@@ -241,7 +262,9 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
     },
     {
       workspaceId: deps.workspaceId,
-      routeDeps: deps,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: deps.exportSiteBound,
       config: { target: "github-pages", owner: "octo", repo: "demo" },
       projectName: "demo",
     }
@@ -299,11 +322,11 @@ test("publishStaticSite: two concurrent publishes to the SAME target both still 
   const [resultA, resultB] = await Promise.all([
     publishStaticSite(
       { credentialSource: { async resolve() { return { ok: true, token: "fake-token-a" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedA) },
-      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo-a" }
+      { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-a" }
     ),
     publishStaticSite(
       { credentialSource: { async resolve() { return { ok: true, token: "fake-token-b" }; }, async isConfigured() { return { configured: true }; } }, buildTarget: () => fakeDeployTarget(capturedB) },
-      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo-b" }
+      { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo-b" }
     ),
   ]);
 
@@ -342,7 +365,7 @@ test("computeBasePath: netlify and cloudflare-pages never carry a base path, sam
 test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path", async () => {
   for (const config of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
     const captured: { value: DeployFile[] | null } = { value: null };
-    const deps: RouteDeps = { ...testRouteDeps() };
+    const deps: RouteDeps = testRouteDeps();
 
     const result = await publishStaticSite(
       {
@@ -356,7 +379,7 @@ test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pag
         },
         buildTarget: () => fakeDeployTarget(captured),
       },
-      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo" }
+      { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config, projectName: "demo" }
     );
 
     assert.equal(result.ok, true);
@@ -367,7 +390,7 @@ test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pag
 });
 
 test("publishStaticSite: passes the resolved credential's accountId through to buildTarget for cloudflare-pages", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   let observedCredential: { token: string; accountId?: string } | null = null;
 
   const result = await publishStaticSite(
@@ -385,7 +408,7 @@ test("publishStaticSite: passes the resolved credential's accountId through to b
         return fakeDeployTarget({ value: null });
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "cloudflare-pages" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "cloudflare-pages" }, projectName: "demo" }
   );
 
   assert.equal(result.ok, true);
@@ -393,7 +416,7 @@ test("publishStaticSite: passes the resolved credential's accountId through to b
 });
 
 test("publishStaticSite: a resolved credential for vercel/github-pages/netlify never carries accountId through to buildTarget", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   let observedCredential: { token: string; accountId?: string } | null = null;
 
   await publishStaticSite(
@@ -411,7 +434,7 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
         return fakeDeployTarget({ value: null });
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" }
   );
 
   assert.equal("accountId" in (observedCredential as object), false);
@@ -467,7 +490,7 @@ test("computeBasePath: s3-compatible never carries a base path — a bucket serv
 });
 
 test("publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   let observedCredential: Record<string, unknown> | null = null;
 
   const result = await publishStaticSite(
@@ -493,7 +516,7 @@ test("publishStaticSite: forwards all six s3-compatible credential fields throug
         return fakeDeployTarget({ value: null });
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" }
   );
 
   assert.equal(result.ok, true);
@@ -508,7 +531,7 @@ test("publishStaticSite: forwards all six s3-compatible credential fields throug
 });
 
 test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget as an explicit undefined key", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   let observedCredential: Record<string, unknown> | null = null;
 
   await publishStaticSite(
@@ -526,14 +549,14 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
         return fakeDeployTarget({ value: null });
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" }
   );
 
   assert.equal("endpoint" in (observedCredential as object), false);
 });
 
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite(
     {
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
@@ -547,14 +570,14 @@ test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true
         },
       }),
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" }
   );
   assert.equal(result.ok, true);
 });
 
 for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
-    const deps: RouteDeps = { ...testRouteDeps() };
+    const deps: RouteDeps = testRouteDeps();
     const result = await publishStaticSite(
       {
         credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
@@ -568,7 +591,7 @@ for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
           },
         }),
       },
-      { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+      { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" }
     );
 
     assert.equal(result.ok, "partial");
@@ -595,7 +618,7 @@ test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine dec
   // on a real decrypt failure (bad AAD, tampered ciphertext, missing master key) rather than resolving
   // a silent `null` — this is the exact shape that failure takes once it reaches the composed
   // `PublishCredentialSource.resolve()` this function calls.
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite(
     {
       credentialSource: {
@@ -610,7 +633,7 @@ test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine dec
         throw new Error("buildTarget must not be called when credential resolution itself failed");
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" }
   );
 
   assert.equal(result.ok, false);
@@ -624,7 +647,7 @@ test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential m
   // required field" defense-in-depth behavior — this test uses a plain throw (not a real
   // `buildS3CompatibleTargetConfig` call) to isolate the claim under test to `publishStaticSite`'s own
   // catch, not that helper's specific validation logic (already covered by its own dedicated test).
-  const deps: RouteDeps = { ...testRouteDeps() };
+  const deps: RouteDeps = testRouteDeps();
   const result = await publishStaticSite(
     {
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
@@ -632,7 +655,7 @@ test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential m
         throw new Error("s3-compatible credential is missing required field 'bucket'");
       },
     },
-    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "s3-compatible" }, projectName: "demo" }
   );
 
   assert.equal(result.ok, false);

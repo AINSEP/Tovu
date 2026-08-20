@@ -12,8 +12,7 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import type { ExportFailureSummary, ExportReport, ExportSiteOptions } from "#src/export/index";
-import type { RouteDeps } from "#src/server/routes/types";
+import type { ExportFailureSummary, ExportReport } from "#src/export/index";
 
 const require = createRequire(import.meta.url);
 
@@ -134,17 +133,19 @@ export function computeBasePath(config: StaticPublishConfig): string | undefined
  * agent tool call, or two OS processes (`publish-run.ts`'s own header discloses its single-flight
  * guard is process-local only, a DELIBERATE, disclosed gap this fix closes as a side effect) — could
  * `clean:true` and rewrite the same directory out from under each other. `runId` (always a fresh
- * `RouteDeps.idGen.newId()` value, minted once per {@link publishStaticSite} call) makes that
+ * `input.idGen.newId()` value, minted once per {@link publishStaticSite} call) makes that
  * collision structurally impossible: no lock is needed because there is no longer anything shared to
- * lock. The directory is disposable once `exportSiteLazily` returns — see
+ * lock. The directory is disposable once `exportSiteBound` returns — see
  * {@link cleanupPublishRunDir}'s own doc for why nothing downstream re-reads it from disk.
  *
  * `parent` is `RouteDeps.publishOutputRootDir` (`TOVU_PUBLISH_DIR` env, then `infra/publish` —
  * mirroring `export-site.ts`'s own `TOVU_EXPORT_DIR` knob), resolved ONCE by the composition root
- * (`server/app.ts`/`server/deps.ts`) and threaded through {@link publishStaticSite}'s
- * `input.routeDeps` — never read from `process.env` in this file. A test overrides it the same way
- * every other `RouteDeps` field is overridden: by setting `publishOutputRootDir` on the fake
- * `RouteDeps` it constructs, not by mutating real process env vars.
+ * (`server/app.ts`/`server/deps.ts`) and threaded through as {@link StaticPublishInput.publishOutputRootDir}
+ * (2026-08-20 RouteDeps-narrowing fix — this used to be `input.routeDeps.publishOutputRootDir`; the
+ * field moved, the value and its single-resolution-point discipline did not) — never read from
+ * `process.env` in this file. A test overrides it the same way it always did: by setting
+ * `publishOutputRootDir` on the fake `StaticPublishInput` it constructs, not by mutating real process
+ * env vars.
  * @complexity O(1) — fixed-shape path join, no I/O.
  */
 export function publishOutputDir(parent: string, target: StaticPublishTargetId, runId: string): string {
@@ -152,7 +153,7 @@ export function publishOutputDir(parent: string, target: StaticPublishTargetId, 
 }
 
 /** Best-effort cleanup of one run's isolated export directory (see {@link publishOutputDir}'s own
- *  doc). Safe to call once `exportSiteLazily` has returned or thrown: every byte `publishStaticSite`
+ *  doc). Safe to call once `exportSiteBound` has returned or thrown: every byte `publishStaticSite`
  *  still needs travels through `report.routes.succeeded`/`report.assets.succeeded`'s own `data`
  *  fields (captured in memory at write time — `site-exporter.ts`'s own "reachable as DATA" header),
  *  never by re-reading this directory, so removing it here cannot affect anything downstream. Never
@@ -277,12 +278,28 @@ export interface StaticPublishDeps {
   readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
 }
 
+/**
+ * The composition-root-bound export call this domain takes instead of `RouteDeps` itself (2026-08-20
+ * RouteDeps-narrowing fix, continuing `src/features/source-control/commit-site.ts`'s own
+ * `ExportSiteBoundFn` fix onto this sibling domain — see that file's doc for the fuller design
+ * rationale, and `server/routes/types.ts`'s `RouteDeps.exportSiteBound` doc for why this shape is
+ * deliberately NOT the same as `RouteDeps.runExportSite`/`ExportEngine<RouteDeps>`).
+ *
+ * Declared locally, never imported from `RouteDeps` or from `commit-site.ts`'s identical copy — same
+ * "duplicate the tiny type, never share across features" convention that file's own doc documents,
+ * and the same one this file already followed for `OWNER_PATTERN`/`REPO_PATTERN`/`BRANCH_PATTERN`.
+ */
+export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
+
 export interface StaticPublishInput {
-  readonly workspaceId: RouteDeps["workspaceId"];
-  /** The same composition-root object `exportSite` itself needs (`ExportSiteOptions.routeDeps`) —
-   *  this function boots and fetches the real app exactly like a plain export does, immediately
-   *  before publishing. */
-  readonly routeDeps: RouteDeps;
+  readonly workspaceId: string;
+  /** `RouteDeps.publishOutputRootDir`, threaded down rather than the whole `RouteDeps` bag — see
+   *  {@link ExportSiteBoundFn}'s own doc immediately above for why. */
+  readonly publishOutputRootDir: string;
+  readonly idGen: { newId(): string };
+  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc for what it is and why it
+   *  replaces the `routeDeps: RouteDeps` field this input used to carry. */
+  readonly exportSiteBound: ExportSiteBoundFn;
   readonly config: StaticPublishConfig;
   /** Human-facing label — becomes the GitHub commit message subject / the Vercel project-name seed.
    *  Sanitized further by Jini's own `safeProjectLabel`/`safeVercelProjectName`; validated here only
@@ -291,40 +308,26 @@ export interface StaticPublishInput {
 }
 
 /**
- * `exportSite`, resolved at CALL time instead of at import time — mirrors `server/app.ts`'s own
- * `runExportSiteLazily` (see that function's doc for the fuller crash trace this is the same class
- * of bug as). A static `import { exportSite } from "#src/export/index"` at the top of THIS file
- * closes a cycle the moment anything reachable from `src/assistant` imports this module:
+ * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
+ * `commit-site.ts`'s identical helper. A static `import { firstExportFailure } from
+ * "#src/export/index"` at the top of THIS file would close a cycle the moment anything reachable
+ * from `src/assistant` imports this module:
  *
  *     assistant/tool-registrations.ts -> features/deployments/publish-agent-tools.ts ->
  *     static-publish/index.ts -> static-publish/adapter.ts -> export/index.ts ->
  *     export/site-exporter.ts -> server/app.ts -> ... (back into `src/assistant`)
  *
- * That edge went live 2026-08-15 when `deployment_preview_static_publish` was wired into
- * `assistant/tool-registrations.ts`'s `DOMAIN_SLICES` — this file was never reachable from
- * `src/assistant` before that. Observed failure importing `assistant/tool-registrations.ts` with
- * the eager import still in place: `ReferenceError: Cannot access 'staticPublishDerivedRisk' before
- * initialization` (this file's own top-level exports were still mid-initialisation when the cycle
- * looped back). The preview tool never calls this at all — only {@link publishStaticSite} does, and
- * only a real publish (never agent-reachable; see `publish-agent-tools.ts`'s header) reaches it.
- *
- * `require` (via `createRequire`) rather than `await import`: a synchronous resolution keeps this
- * function's signature a plain `(options) => Promise<ExportReport>` rather than forcing every
- * caller to await an extra layer. By the time anything calls this, both modules are fully loaded,
- * so there is no partial-initialisation window left to fall into.
- */
-function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  return (require("#src/export/index") as typeof import("#src/export/index")).exportSite(options);
-}
-
-/**
- * `firstExportFailure`, resolved the same lazy way as {@link exportSiteLazily} immediately above —
- * NOT a second static import of `#src/export/index` (which would reopen the exact cycle that
- * function's own doc traces), just a second call through the already-lazily-required module.
+ * the same class of `ReferenceError: Cannot access 'staticPublishDerivedRisk' before initialization`
+ * this file previously observed for its own now-removed `exportSiteLazily`. `exportSite` itself no
+ * longer needs this treatment here (2026-08-20 RouteDeps-narrowing fix): this file never calls it
+ * directly anymore — {@link StaticPublishInput.exportSiteBound} is already the composition root's own
+ * lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so threading a second lazy `require` for
+ * the same function here would be redundant, not merely stylistic. `firstExportFailure` still needs
+ * its own lazy resolution, since it is a SEPARATE named export of the same `#src/export/index` module
+ * and importing it eagerly would reopen the identical cycle regardless of `exportSite`'s own fix.
  */
 function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
   return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
 }
 
@@ -382,11 +385,11 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   }
 
   const basePath = computeBasePath(input.config);
-  const outputDir = publishOutputDir(input.routeDeps.publishOutputRootDir, input.config.target, input.routeDeps.idGen.newId());
+  const outputDir = publishOutputDir(input.publishOutputRootDir, input.config.target, input.idGen.newId());
 
   let report: ExportReport;
   try {
-    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
+    report = await input.exportSiteBound({ outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
   } catch (err) {
     cleanupPublishRunDir(outputDir);
     return {
