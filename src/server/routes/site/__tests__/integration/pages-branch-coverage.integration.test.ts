@@ -183,6 +183,85 @@ class UnresolvableCanonicalPostRepo extends InMemoryPostRepo {
   }
 }
 
+test("integration: GET /:slug a normal published post renders through the generic (non-template) path, with both a real and a legacy image node in its body", async (t) => {
+  const post: PostRecord = {
+    id: "post-generic-int",
+    workspaceId: WORKSPACE_ID,
+    title: "A generic post",
+    slug: "a-generic-post-int",
+    bodyJson: {
+      type: "doc",
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "hello" }] },
+        // A real ref-based image node — exercises collectImageAssetIds's full `node.type ===
+        // "image" && isPlainObject(attrs) && typeof assetId === "string"` true arm.
+        { type: "image", attrs: { assetId: "asset-int-1", transformName: "public" } },
+        // A legacy src-only image node (no assetId) — exercises the same chain's false arm.
+        { type: "image", attrs: { src: "legacy.jpg" } },
+      ],
+    },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1,
+  } as unknown as PostRecord;
+
+  const app = createApp(testDeps({ postRepo: new InMemoryPostRepo([post]) }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/a-generic-post-int`);
+  assert.equal(res.status, 200);
+});
+
+test("integration: GET /:slug a static theme with an empty templateChoice renders the missing-template diagnostic page", async (t) => {
+  const theme: DiscoveredTheme = {
+    manifest: {
+      id: "static-diagnostic-integration-theme",
+      name: "Static Diagnostic Integration Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: ["blog-post.html"],
+    },
+    dir: "/nonexistent/diagnostic-integration-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: { index: "<html><body><main>home</main></body></html>" },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+
+  const post: PostRecord = {
+    id: "post-diagnostic-int",
+    workspaceId: WORKSPACE_ID,
+    title: "Diagnostic post",
+    slug: "diagnostic-post-int",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    templateChoice: "",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1,
+  } as unknown as PostRecord;
+
+  const app = createApp(testDeps({ themes: [theme], postRepo: new InMemoryPostRepo([post]) }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/diagnostic-post-int`);
+  assert.equal(res.status, 200);
+  assert.ok((await res.text()).includes("Not configured"));
+});
+
 test("integration: GET /:slug (post route) buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef", async (t) => {
   const deps = testDeps();
   const post: PostRecord = {
