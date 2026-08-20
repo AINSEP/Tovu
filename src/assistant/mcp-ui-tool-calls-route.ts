@@ -163,6 +163,105 @@ function respondToExecutionResult(res: Response, toolName: string, principalId: 
  * @complexity O(1) request handling plus the invoked tool handler's own cost.
  * @overallScore 100
  */
+interface ParsedMcpUiToolCallRequest {
+  readonly toolName: string;
+  readonly params: Record<string, unknown>;
+  /** Present only when this callback names an open exchange (Shape 1) — see this file's own
+   *  "Two shapes, one path" doc. */
+  readonly exchangeId: string | undefined;
+}
+
+/**
+ * Validates and shapes `req`'s body, writing the 400/403 response and returning `null` on the
+ * first invalid field — a direct extraction of {@link registerMcpUiToolCallsRoute}'s original
+ * inline validation, split out purely to keep that function's complexity under the shop ceiling.
+ */
+function parseMcpUiToolCallRequest(req: Request, res: Response): ParsedMcpUiToolCallRequest | null {
+  const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
+  const toolName = body.toolName;
+  if (typeof toolName !== "string" || toolName.length === 0) {
+    res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
+    return null;
+  }
+  // The security-critical check this whole route exists to enforce — see `mcp-ui-tool-calls.ts`.
+  // Checked again here even though Tovu's proxy (`server/modules/assistant.ts`) already checks it,
+  // because this route — not the proxy — is the one call site that can actually reach
+  // `toolExecutor.execute`. A proxy-only check would be a suggestion, not a boundary.
+  if (!isMcpUiToolCallAllowed(toolName)) {
+    res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
+    return null;
+  }
+  const params = isPlainObject(body.params) ? body.params : {};
+  // Read from a top-level `exchangeId` first, falling back to the callback param. The param is
+  // MCP-UI's carrier specifically — an mcp-ui surface can only answer by issuing a tool call, so
+  // its correlation has to ride inside that call's params. A channel that can name the exchange
+  // directly uses the top-level field and never touches the tool-call shape at all, which is what
+  // keeps this route from being MCP-only.
+  const rawExchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
+  const exchangeId = typeof rawExchangeId === "string" && rawExchangeId.length > 0 ? rawExchangeId : undefined;
+  return { toolName, params, exchangeId };
+}
+
+/**
+ * Shape 1: an open exchange is waiting for this message. Delivers into it and writes the response.
+ * Split out of {@link registerMcpUiToolCallsRoute} purely to keep that function's complexity under
+ * the shop ceiling.
+ */
+function deliverMcpUiExchange(
+  res: Response,
+  deps: Pick<McpUiToolCallsRouteDeps, "surfaceExchanges">,
+  input: { exchangeId: string; params: Record<string, unknown>; toolId: string; principalId: string },
+): void {
+  const delivered = deps.surfaceExchanges.deliver(input);
+  if (!delivered.ok) {
+    // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
+    // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.
+    // The distinction between them is not the human's to act on, and reporting it would only
+    // describe server state they cannot change.
+    res.status(409).json({
+      error: "that dialog is no longer waiting for an answer",
+      code: "SURFACE_NOT_PENDING",
+      reason: delivered.reason,
+    });
+    return;
+  }
+  // Deliberately not the tool's result. The agent's own call is what returns that, to the
+  // model, where it belongs — echoing it here would make this response a second copy of an
+  // answer the human already gave, and hand the iframe output it has no use for.
+  res.status(202).json({ delivered: true });
+}
+
+/**
+ * Shape 2: legacy two-call redemption (ADR-053) — executes the tool through the same
+ * `ToolExecutor.execute` a model-issued call uses, and maps the outcome onto the HTTP response.
+ * Split out of {@link registerMcpUiToolCallsRoute} purely to keep that function's complexity under
+ * the shop ceiling.
+ */
+async function executeMcpUiToolCall(
+  res: Response,
+  deps: Pick<McpUiToolCallsRouteDeps, "toolExecutor">,
+  input: { toolName: string; params: Record<string, unknown>; principalId: string },
+): Promise<void> {
+  const principal: Principal = { id: input.principalId };
+  const run = { id: `mcp-ui-redemption:${randomUUID()}` };
+
+  let result: ToolExecutionResult;
+  try {
+    result = await deps.toolExecutor.execute(principal, run, input.toolName, input.params);
+  } catch (error) {
+    // `ToolExecutor.execute` throws only for an unregistered `toolId` (`tool-executor.ts`) — and
+    // `isMcpUiToolCallAllowed` only lets through ids `buildAssistantToolRegistrations` guarantees
+    // are registered (it fails the daemon's own boot otherwise), so this is unreachable in
+    // practice. Reported rather than left to crash the process, in case that guarantee is ever
+    // violated by a future refactor.
+    const message = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+    return;
+  }
+
+  respondToExecutionResult(res, input.toolName, input.principalId, result);
+}
+
 export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRouteDeps): void {
   app.post(MCP_UI_TOOL_CALLS_PATH, async (req: Request, res: Response) => {
     const principalId = readPrincipalId(req);
@@ -171,68 +270,16 @@ export function registerMcpUiToolCallsRoute(app: Express, deps: McpUiToolCallsRo
       return;
     }
 
-    const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
-    const toolName = body.toolName;
-    if (typeof toolName !== "string" || toolName.length === 0) {
-      res.status(400).json({ error: "'toolName' must be a non-empty string", code: "VALIDATION_ERROR" });
-      return;
-    }
-    // The security-critical check this whole route exists to enforce — see `mcp-ui-tool-calls.ts`.
-    // Checked again here even though Tovu's proxy (`server/modules/assistant.ts`) already checks it,
-    // because this route — not the proxy — is the one call site that can actually reach
-    // `toolExecutor.execute`. A proxy-only check would be a suggestion, not a boundary.
-    if (!isMcpUiToolCallAllowed(toolName)) {
-      res.status(403).json({ error: `'${toolName}' is not an MCP-UI-redeemable tool`, code: "TOOL_NOT_ALLOWLISTED" });
-      return;
-    }
-    const params = isPlainObject(body.params) ? body.params : {};
+    const parsed = parseMcpUiToolCallRequest(req, res);
+    if (!parsed) return;
 
     // ---- Shape 1: an open exchange is waiting for this message. ----
-    // Read from a top-level `exchangeId` first, falling back to the callback param. The param is
-    // MCP-UI's carrier specifically — an mcp-ui surface can only answer by issuing a tool call, so
-    // its correlation has to ride inside that call's params. A channel that can name the exchange
-    // directly uses the top-level field and never touches the tool-call shape at all, which is what
-    // keeps this route from being MCP-only.
-    const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
-    if (typeof exchangeId === "string" && exchangeId.length > 0) {
-      const delivered = deps.surfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
-      if (!delivered.ok) {
-        // 409, not 404: from the browser's side both reasons mean "this dialog is no longer the
-        // one waiting on you" — a second click, a reload of stale scrollback, or an expired form.
-        // The distinction between them is not the human's to act on, and reporting it would only
-        // describe server state they cannot change.
-        res.status(409).json({
-          error: "that dialog is no longer waiting for an answer",
-          code: "SURFACE_NOT_PENDING",
-          reason: delivered.reason,
-        });
-        return;
-      }
-      // Deliberately not the tool's result. The agent's own call is what returns that, to the
-      // model, where it belongs — echoing it here would make this response a second copy of an
-      // answer the human already gave, and hand the iframe output it has no use for.
-      res.status(202).json({ delivered: true });
+    if (parsed.exchangeId !== undefined) {
+      deliverMcpUiExchange(res, deps, { exchangeId: parsed.exchangeId, params: parsed.params, toolId: parsed.toolName, principalId });
       return;
     }
 
     // ---- Shape 2: legacy two-call redemption (ADR-053). ----
-    const principal: Principal = { id: principalId };
-    const run = { id: `mcp-ui-redemption:${randomUUID()}` };
-
-    let result: ToolExecutionResult;
-    try {
-      result = await deps.toolExecutor.execute(principal, run, toolName, params);
-    } catch (error) {
-      // `ToolExecutor.execute` throws only for an unregistered `toolId` (`tool-executor.ts`) — and
-      // `isMcpUiToolCallAllowed` only lets through ids `buildAssistantToolRegistrations` guarantees
-      // are registered (it fails the daemon's own boot otherwise), so this is unreachable in
-      // practice. Reported rather than left to crash the process, in case that guarantee is ever
-      // violated by a future refactor.
-      const message = error instanceof Error ? error.message : String(error);
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
-      return;
-    }
-
-    respondToExecutionResult(res, toolName, principalId, result);
+    await executeMcpUiToolCall(res, deps, { toolName: parsed.toolName, params: parsed.params, principalId });
   });
 }
