@@ -73,6 +73,44 @@ export type AdminPublishSiteDeps = RouteDeps;
  *  {@link registerAdminPublishSiteRoutes} — see that function's own first lines for where this is now
  *  built. */
 
+type TriggerTargetParseResult = { ok: true; config: StaticPublishConfig } | { ok: false; error: string };
+
+/**
+ * One parser per trigger-body target, keyed by `target` — replaces what used to be a single
+ * `if (raw.target === ...) { ... }` chain in `parsePublishRequestBody` below. Purely a
+ * decision-count fix (this repo's complexity gate counts each independent `if`/`||`/`?:` in a
+ * function, however flat): every message and computed value is unchanged from the pre-extraction
+ * chain, just regrouped one function per target so each stays small on its own.
+ */
+const TRIGGER_TARGET_PARSERS: Record<string, (raw: Record<string, unknown>) => TriggerTargetParseResult> = {
+  "github-pages": (raw) => {
+    if (typeof raw.owner !== "string" || raw.owner.trim() === "") {
+      return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
+    }
+    if (typeof raw.repo !== "string" || raw.repo.trim() === "") {
+      return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
+    }
+    if (raw.branch !== undefined && typeof raw.branch !== "string") {
+      return { ok: false, error: "'branch' must be a string" };
+    }
+    return {
+      ok: true,
+      config: { target: "github-pages", owner: raw.owner, repo: raw.repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) },
+    };
+  },
+  vercel: (raw) => {
+    if (raw.teamId !== undefined && typeof raw.teamId !== "string") {
+      return { ok: false, error: "'teamId' must be a string" };
+    }
+    return { ok: true, config: { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) } };
+  },
+  netlify: () => ({ ok: true, config: { target: "netlify" } }),
+  // No target-specific field to parse — `accountId` lives on the CREDENTIAL, resolved by
+  // `credentialSource` below, never on the publish config; see `static-publish/types.ts`'s
+  // `CloudflarePagesPublishConfig` doc.
+  "cloudflare-pages": () => ({ ok: true, config: { target: "cloudflare-pages" } }),
+};
+
 /**
  * Parses and shape-validates the trigger request body. Never throws — every malformed shape maps to
  * a `{ok:false, error}` result this route turns into a `400`, matching `export-site.ts`'s own
@@ -91,35 +129,43 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
     return { ok: false, error: "'projectName' (non-empty string) is required" };
   }
 
-  if (raw.target === "github-pages") {
-    if (typeof raw.owner !== "string" || raw.owner.trim() === "") return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
-    if (typeof raw.repo !== "string" || raw.repo.trim() === "") return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
-    if (raw.branch !== undefined && typeof raw.branch !== "string") return { ok: false, error: "'branch' must be a string" };
-    return {
-      ok: true,
-      config: { target: "github-pages", owner: raw.owner, repo: raw.repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) },
-      projectName: raw.projectName,
-    };
+  const parseTarget = typeof raw.target === "string" ? TRIGGER_TARGET_PARSERS[raw.target] : undefined;
+  if (!parseTarget) {
+    return { ok: false, error: "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages" };
   }
-  if (raw.target === "vercel") {
-    if (raw.teamId !== undefined && typeof raw.teamId !== "string") return { ok: false, error: "'teamId' must be a string" };
-    return {
-      ok: true,
-      config: { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) },
-      projectName: raw.projectName,
-    };
-  }
-  if (raw.target === "netlify") {
-    return { ok: true, config: { target: "netlify" }, projectName: raw.projectName };
-  }
-  if (raw.target === "cloudflare-pages") {
-    // No target-specific field to parse — `accountId` lives on the CREDENTIAL, resolved by
-    // `credentialSource` below, never on the publish config; see `static-publish/types.ts`'s
-    // `CloudflarePagesPublishConfig` doc.
-    return { ok: true, config: { target: "cloudflare-pages" }, projectName: raw.projectName };
-  }
-  return { ok: false, error: "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages" };
+
+  const result = parseTarget(raw);
+  if (!result.ok) return result;
+  return { ok: true, config: result.config, projectName: raw.projectName };
 }
+
+type PreviewTargetParseResult = { ok: true; config: StaticPublishConfig } | { ok: false; error: string };
+
+/**
+ * One parser per preview-query target, keyed by `target` — same decision-count-only extraction as
+ * {@link TRIGGER_TARGET_PARSERS} above, and for the same reason: this repo's complexity gate counts
+ * every independent `if`/`||`/`&&`/`?:` in a function regardless of nesting depth, and this
+ * function's four target branches used to all live in one place. Every computed value and error
+ * message is unchanged from the pre-extraction `if (query.target === ...) { ... }` chain.
+ */
+const PREVIEW_TARGET_PARSERS: Record<string, (query: Record<string, unknown>) => PreviewTargetParseResult> = {
+  "github-pages": (query) => {
+    const owner = typeof query.owner === "string" ? query.owner : "";
+    const repo = typeof query.repo === "string" ? query.repo : "";
+    if (owner.trim() === "") return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
+    if (repo.trim() === "") return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
+    const branch = typeof query.branch === "string" && query.branch.trim() !== "" ? query.branch : undefined;
+    return { ok: true, config: { target: "github-pages", owner, repo, ...(branch !== undefined ? { branch } : {}) } };
+  },
+  vercel: (query) => {
+    const teamId = typeof query.teamId === "string" && query.teamId.trim() !== "" ? query.teamId : undefined;
+    return { ok: true, config: { target: "vercel", ...(teamId !== undefined ? { teamId } : {}) } };
+  },
+  netlify: () => ({ ok: true, config: { target: "netlify" } }),
+  // No target-specific field — same reasoning as `TRIGGER_TARGET_PARSERS`'s own cloudflare-pages
+  // entry above.
+  "cloudflare-pages": () => ({ ok: true, config: { target: "cloudflare-pages" } }),
+};
 
 /**
  * Parses the preview GET's query string into a {@link StaticPublishConfig} — the same
@@ -134,27 +180,11 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
  * @complexity O(1) — fixed-size field reads, no iteration.
  */
 function parsePreviewQuery(query: Record<string, unknown>): { ok: true; config: StaticPublishConfig } | { ok: false; error: string } {
-  if (query.target === "github-pages") {
-    const owner = typeof query.owner === "string" ? query.owner : "";
-    const repo = typeof query.repo === "string" ? query.repo : "";
-    if (owner.trim() === "") return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
-    if (repo.trim() === "") return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
-    const branch = typeof query.branch === "string" && query.branch.trim() !== "" ? query.branch : undefined;
-    return { ok: true, config: { target: "github-pages", owner, repo, ...(branch !== undefined ? { branch } : {}) } };
+  const parseTarget = typeof query.target === "string" ? PREVIEW_TARGET_PARSERS[query.target] : undefined;
+  if (!parseTarget) {
+    return { ok: false, error: "'target' query param must be one of: github-pages, vercel, netlify, cloudflare-pages" };
   }
-  if (query.target === "vercel") {
-    const teamId = typeof query.teamId === "string" && query.teamId.trim() !== "" ? query.teamId : undefined;
-    return { ok: true, config: { target: "vercel", ...(teamId !== undefined ? { teamId } : {}) } };
-  }
-  if (query.target === "netlify") {
-    return { ok: true, config: { target: "netlify" } };
-  }
-  if (query.target === "cloudflare-pages") {
-    // No target-specific field — same reasoning as `parsePublishRequestBody`'s own cloudflare-pages
-    // branch above.
-    return { ok: true, config: { target: "cloudflare-pages" } };
-  }
-  return { ok: false, error: "'target' query param must be one of: github-pages, vercel, netlify, cloudflare-pages" };
+  return parseTarget(query);
 }
 
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
