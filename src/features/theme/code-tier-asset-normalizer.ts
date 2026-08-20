@@ -148,21 +148,37 @@ export interface AssetRelocationPlan {
  * @throws {RangeError} If any entry in `fileNames` contains a path separator.
  * @complexity O(n) over `fileNames`.
  */
+/** Extensions that relocate to `css/` — a sourcemap counts as its bundle's own extension, per this
+ *  function's own header. */
+const RELOCATED_CSS_EXTENSIONS: readonly string[] = [".css", ".css.map"];
+/** Extensions that relocate to `js/`. */
+const RELOCATED_JS_EXTENSIONS: readonly string[] = [".js", ".mjs", ".js.map", ".mjs.map"];
+
+/** One flat-output filename's relocation, or `null` if it stays exactly where the build put it — the
+ *  per-entry classification `planAssetRelocation`'s loop applies. Split out so the loop itself carries
+ *  none of the extension-matching branches. */
+function classifyAssetRelocation(name: string): AssetRelocation | null {
+  if (name.includes("/") || name.includes("\\")) {
+    throw new RangeError(
+      `planAssetRelocation expects a FLAT build-output root, but got '${name}' — a build whose output already has subdirectories is not the flat-output case this normalizer exists to fix; verify the build config (see this module's file header)`
+    );
+  }
+  if (RELOCATED_CSS_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+    return { from: name, to: `css/${name}` };
+  }
+  if (RELOCATED_JS_EXTENSIONS.some((ext) => name.endsWith(ext))) {
+    return { from: name, to: `js/${name}` };
+  }
+  return null;
+}
+
 export function planAssetRelocation(required: { fileNames: readonly string[] }, _optional: Record<string, never> = {}): AssetRelocationPlan {
   const { fileNames } = required;
   const relocations: AssetRelocation[] = [];
 
   for (const name of fileNames) {
-    if (name.includes("/") || name.includes("\\")) {
-      throw new RangeError(
-        `planAssetRelocation expects a FLAT build-output root, but got '${name}' — a build whose output already has subdirectories is not the flat-output case this normalizer exists to fix; verify the build config (see this module's file header)`
-      );
-    }
-    if (name.endsWith(".css") || name.endsWith(".css.map")) {
-      relocations.push({ from: name, to: `css/${name}` });
-    } else if (name.endsWith(".js") || name.endsWith(".mjs") || name.endsWith(".js.map") || name.endsWith(".mjs.map")) {
-      relocations.push({ from: name, to: `js/${name}` });
-    }
+    const relocation = classifyAssetRelocation(name);
+    if (relocation) relocations.push(relocation);
   }
 
   return { relocations };
