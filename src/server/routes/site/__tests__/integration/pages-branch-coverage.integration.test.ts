@@ -172,3 +172,36 @@ test("integration: resolveHtmlEmbedsForRender/resolveMediaAssetMetadataForRender
   assert.equal(await resolveHtmlEmbedsForRender(deps, undefined), undefined);
   assert.equal((await resolveMediaAssetMetadataForRender(deps, undefined)).size, 0);
 });
+
+/** Mirrors `pages.route.test.ts`'s unit-tier `UnresolvableCanonicalPostRepo` — a post repo whose
+ *  `findById` always misses regardless of what `findBySlug`/`list` return, forcing
+ *  `buildExtraHead`'s own `urlFor` entryRef re-fetch to fail so its `/<slug>` canonical fallback
+ *  actually runs. */
+class UnresolvableCanonicalPostRepo extends InMemoryPostRepo {
+  async findById(): Promise<PostRecord | null> {
+    return null;
+  }
+}
+
+test("integration: GET /:slug (post route) buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef", async (t) => {
+  const deps = testDeps();
+  const post: PostRecord = {
+    id: "post-broken-canonical-int",
+    workspaceId: deps.workspaceId,
+    title: "Broken canonical post (integration)",
+    slug: "broken-canonical-int",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1,
+  } as unknown as PostRecord;
+
+  const app = createApp(testDeps({ postRepo: new UnresolvableCanonicalPostRepo([post]) }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/broken-canonical-int`);
+  assert.equal(res.status, 200);
+});
