@@ -23,9 +23,11 @@
  *
  * Architectural role:
  * Design-frozen contract for the extension-glue-tier work (ADR-057, Implementation Outline slice
- * 1). Depends only on `./manifest`'s `GlueCapability` type — no host-specific dependency.
+ * 1). Depends on `./manifest`'s `GlueCapability` type and `core/`'s shared capability vocabulary
+ * — no host-specific dependency.
  */
 import type { GlueCapability } from "./manifest.js";
+import { SHARED_EXTENSION_CAPABILITIES } from "../../core/extension-capability-vocabulary.js";
 
 /** Thrown synchronously when a glue module invokes a capability it did not declare (mirrors the
  * sibling mechanism's `CapabilityDeniedError` shape, generalized to `GlueCapability`). */
@@ -50,9 +52,7 @@ export type GlueCapabilityDelegate = (...args: readonly unknown[]) => unknown;
  * grant set (CIC-1's "always present" property, made an iterable constant so the gate and its
  * tests share one source of truth for "every position"). */
 export const GLUE_CAPABILITIES: readonly GlueCapability[] = [
-  "content.read",
-  "content.extend",
-  "hooks.attach",
+  ...SHARED_EXTENSION_CAPABILITIES,
   "tools.register",
   "events.subscribe",
   "admin.nav.register",
