@@ -14,7 +14,7 @@
   },
   "moduleApiSurfaceFiles": 201,
   "deepImportsBypassingIndex": 518,
-  "coreSize": {
+  "bidirectionalHubs": {
     "count": 139,
     "total": 862,
     "pct": 16.13

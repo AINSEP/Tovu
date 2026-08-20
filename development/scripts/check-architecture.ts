@@ -35,8 +35,18 @@
  *                              as informational only — see the note on `deepImports()` below for why.
  *                              All-import graph — a module's declared surface doesn't shrink because a
  *                              caller only needed a type from it.
- *   5. Core size             — files above-median in both transitive fan-in and fan-out (churn blast
- *                              radius). All-import graph, same reasoning as propagation cost above.
+ *   5. Bidirectional hub count — files above-median in BOTH transitive fan-in and transitive
+ *                              fan-out (churn blast radius). All-import graph, same reasoning as
+ *                              propagation cost above. Renamed from "core size" 2026-08-19 — that
+ *                              name read as "files under `src/core`", but the check never looks at
+ *                              `moduleOf()` or any directory at all; it is a bidirectional-hub
+ *                              detector over the whole file graph, with no membership list printed
+ *                              even under `--list`. That made every claim about "the core" in
+ *                              `ADS-memory/reports/swarm-consensus/runs/2026-08-19-tovu-architecture-redesign-consensus.md`
+ *                              unfalsifiable. `--list` now prints every hub file with its owning
+ *                              module, transitive fan-in, and transitive fan-out; the enumeration
+ *                              is also committed at
+ *                              `ADS-memory/reports/architecture/2026-08-19-bidirectional-hub-census.md`.
  *   6. Martin instability    — Ce/(Ca+Ce) per module; informational gradient, not ratcheted (see below).
  *                              All-import graph.
  *
@@ -80,8 +90,9 @@ function roundPct(value: number): number {
  *   - HARD CONSTRAINTS measure coupling — the real cost paid on every future change to this
  *     codebase (propagation cost, module cycles, largest strongly-connected component). These
  *     must never regress; regressing them makes the codebase measurably harder to change.
- *   - RATCHETS measure hygiene — module API surface and core size are a proxy for discipline,
- *     not a cost anyone pays today, because nothing under `src/` is a published package: nobody
+ *   - RATCHETS measure hygiene — module API surface and bidirectional hub count are a proxy
+ *     for discipline, not a cost anyone pays today, because nothing under `src/` is a published
+ *     package: nobody
  *     imports `src/forms/` the way an npm consumer imports a package's `exports` map. A
  *     regression here is a signal worth fixing, not a reason to break the build.
  *
@@ -93,7 +104,7 @@ function roundPct(value: number): number {
  *
  * "back-edges into composition root" is classified HARD below by inference, not by explicit
  * instruction — flag this for confirmation before relying on it. It is not a surface-hygiene
- * concern like API surface or core size; this file's own top-of-file comment already calls it
+ * concern like API surface or bidirectional hub count; this file's own top-of-file comment already calls it
  * "the actual defect" (an import reaching into `src/server/**` from outside it), which is a
  * structural coupling violation in the same family as propagation cost and module cycles.
  *
@@ -124,11 +135,13 @@ function roundPct(value: number): number {
  * test theme), and each cost a `--update` that a reader six months from now would reasonably
  * mistake for someone quietly widening the budget.
  *
- * So: count-based structural metrics BLOCK; ratio-based ones WARN. `core size` additionally now
- * ratchets on `coreSize.count`, not `coreSize.pct` — the count is the number that means "how much
- * of this repo is load-bearing", and it is immune to denominator drift.
+ * So: count-based structural metrics BLOCK; ratio-based ones WARN. `bidirectional hub count`
+ * additionally now ratchets on `bidirectionalHubs.count`, not `bidirectionalHubs.pct` — the count
+ * is the number that means "how much of this repo is a structural chokepoint", and it is immune
+ * to denominator drift. (Renamed from `core size` / `coreSize` 2026-08-19 — same field shape, same
+ * values, new name; see the metric-5 doc comment at the top of this file for why.)
  *
- * TO PUT PROPAGATION COST / CORE SIZE BACK ON THE BLOCKING PATH: move their labels from
+ * TO PUT PROPAGATION COST / BIDIRECTIONAL HUB COUNT BACK ON THE BLOCKING PATH: move their labels from
  * `RATCHET_METRICS` to `HARD_CONSTRAINT_METRICS` below. Nothing else needs to change — they are
  * still computed, still printed, still compared, still `--update`d. The only difference is whether
  * a regression exits non-zero. Do that once the ratio metrics stop moving on file-count churn (or
@@ -150,7 +163,7 @@ const RATCHET_METRICS = new Set<string>([
   // Ratio-based: move whenever the file count moves. Warn-only until denominator-stable.
   "propagation cost (all-import)",
   "propagation cost (runtime-only)",
-  "core size",
+  "bidirectional hub count",
 ]);
 
 /** Fail-safe default: a metric absent from both sets above is treated as `"hard"` so a newly
@@ -193,8 +206,10 @@ interface Baseline {
    * private file is the thing that should fail, and that is `moduleApiSurfaceFiles`. */
   deepImportsBypassingIndex: number;
   /** All-import graph — churn blast radius is a change-coupling concept, same reasoning as
-   * `propagationCostPct`. */
-  coreSize: { count: number; total: number; pct: number };
+   * `propagationCostPct`. Files above-median in BOTH transitive fan-in and transitive fan-out —
+   * a bidirectional structural hub, not a test of `src/core` (or any directory) membership.
+   * Renamed from `coreSize` 2026-08-19; same shape, same values. */
+  bidirectionalHubs: { count: number; total: number; pct: number };
 }
 
 /** `src/features/post/x.ts` → `features/post`; `src/seo/y.ts` → `seo`. */
@@ -309,7 +324,8 @@ function cruise(): CruiseModule[] {
  * codebase looks like even though they now answer two different questions (Sol's step 5):
  *
  *   - `{ runtimeOnly: false }` (all-import): every edge, including `import type`-only ones. This
- *     is the CHANGE-COUPLING graph — propagation cost and core size use it, because a type-only
+ *     is the CHANGE-COUPLING graph — propagation cost and bidirectional hub count use it, because
+ *     a type-only
  *     edit still forces `tsc` to re-check every importing file, and API surface / deep-import
  *     hygiene are about what a module's contract exposes regardless of whether a caller uses it
  *     for a type or a value.
@@ -327,7 +343,8 @@ function cruise(): CruiseModule[] {
  * `node_modules` packages, `--do-not-follow node_modules` doesn't stop it walking into the
  * sibling Jini repo's compiled `dist/*.js` output either. Left unfiltered, that pulled in 313
  * extra nodes (980 vs. the real 667 production files) and silently corrupted every metric that
- * runs a transitive-reachability BFS over "the system" — propagation cost and core size — since
+ * runs a transitive-reachability BFS over "the system" — propagation cost and bidirectional hub
+ * count — since
  * both are direct functions of how many nodes exist and how far each file's imports reach into
  * them. Module-scoped metrics (cycles, deep imports, instability) were unaffected: they already
  * gate on `moduleOf()`, which returns `null` for anything outside `src/`.
@@ -386,13 +403,18 @@ function median(values: number[]): number {
 }
 
 /**
- * Metric 1 (propagation cost) and metric 5 (core size) share one BFS pass: both are functions of
- * transitive fan-out (propagation cost's numerator) and transitive fan-in (core size's other axis).
- * Computing them once and handing back both avoids running the same O(N·(V+E)) sweep twice.
+ * Metric 1 (propagation cost) and metric 5 (bidirectional hub count) share one BFS pass: both are
+ * functions of transitive fan-out (propagation cost's numerator) and transitive fan-in (the hub
+ * count's other axis). Computing them once and handing back both avoids running the same
+ * O(N·(V+E)) sweep twice. Also returns `hubMembers` — every file that clears both medians, with
+ * its owning module and both degree numbers — so `--list` can print real membership instead of
+ * just a count (2026-08-19; see the metric-5 doc comment at the top of this file for why that
+ * mattered).
  */
-function propagationAndCore(forward: Map<string, Set<string>>): {
+function propagationAndHubs(forward: Map<string, Set<string>>): {
   propagationCostPct: number;
-  coreSize: { count: number; total: number; pct: number };
+  bidirectionalHubs: { count: number; total: number; pct: number };
+  hubMembers: { file: string; module: string | null; fanIn: number; fanOut: number }[];
 } {
   const reverse = reverseOf(forward);
   const nodes = [...forward.keys()];
@@ -410,11 +432,17 @@ function propagationAndCore(forward: Map<string, Set<string>>): {
 
   const medianFanOut = median([...fanOut.values()]);
   const medianFanIn = median([...fanIn.values()]);
-  const coreCount = nodes.filter((n) => fanOut.get(n)! > medianFanOut && fanIn.get(n)! > medianFanIn).length;
+  const hubNodes = nodes.filter((n) => fanOut.get(n)! > medianFanOut && fanIn.get(n)! > medianFanIn);
+  // Sorted by combined degree (fan-in + fan-out) descending, tie-broken by path — the files that
+  // sit at the busiest structural chokepoints read first.
+  const hubMembers = hubNodes
+    .map((file) => ({ file, module: moduleOf(file), fanIn: fanIn.get(file)!, fanOut: fanOut.get(file)! }))
+    .sort((a, b) => b.fanIn + b.fanOut - (a.fanIn + a.fanOut) || a.file.localeCompare(b.file));
 
   return {
     propagationCostPct: roundPct(meanReachableFraction * 100),
-    coreSize: { count: coreCount, total, pct: roundPct((coreCount / total) * 100) },
+    bidirectionalHubs: { count: hubNodes.length, total, pct: roundPct((hubNodes.length / total) * 100) },
+    hubMembers,
   };
 }
 
@@ -563,8 +591,8 @@ function main(): void {
   const forwardRuntime = buildFileGraph(modules, { runtimeOnly: true });
   const fileCount = forwardAll.size;
 
-  const { propagationCostPct, coreSize } = propagationAndCore(forwardAll);
-  const { propagationCostPct: propagationCostRuntimePct } = propagationAndCore(forwardRuntime);
+  const { propagationCostPct, bidirectionalHubs, hubMembers } = propagationAndHubs(forwardAll);
+  const { propagationCostPct: propagationCostRuntimePct } = propagationAndHubs(forwardRuntime);
   const backEdges = backEdgesIntoServer(forwardAll);
   const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
   const deep = deepImports(forwardAll);
@@ -585,7 +613,7 @@ function main(): void {
     moduleCycles: { mutualCycleCount: pairs.length, largestScc, pairs },
     moduleApiSurfaceFiles: apiSurfaceFiles,
     deepImportsBypassingIndex: deep.total,
-    coreSize,
+    bidirectionalHubs,
   };
 
   const scope = INCLUDE_TESTS ? "including tests" : "production files only";
@@ -600,7 +628,7 @@ function main(): void {
     { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
     { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
     { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
-    { label: "core size", value: `${coreSize.pct.toFixed(2)}% (${coreSize.count}/${coreSize.total})` },
+    { label: "bidirectional hub count", value: `${bidirectionalHubs.pct.toFixed(2)}% (${bidirectionalHubs.count}/${bidirectionalHubs.total})` },
   ];
   const labelWidth = Math.max(...rows.map((r) => r.label.length)) + 2;
   for (const row of rows) console.log(`  ${pad(row.label, labelWidth)}${row.value}`);
@@ -636,6 +664,27 @@ function main(): void {
       console.log(
         `    I=${row.instability.toFixed(2)}  Ca=${String(row.ca).padStart(4)} Ce=${String(row.ce).padStart(4)}  ${row.module}`,
       );
+    }
+
+    // Membership for "bidirectional hub count" (formerly "core size") — every file above-median in
+    // BOTH transitive fan-in and transitive fan-out, all-import graph. Printing this was the whole
+    // point of the 2026-08-19 rename: the old name implied `src/core` membership, but nothing about
+    // the check ever tested that, and no version of this script printed which files it counted.
+    console.log(`\n--- bidirectional hubs (fan-in > median AND fan-out > median, all-import), by combined degree ---`);
+    for (const hub of hubMembers) {
+      console.log(
+        `    fanIn=${String(hub.fanIn).padStart(4)} fanOut=${String(hub.fanOut).padStart(4)}  [${hub.module ?? "(no module)"}]  ${hub.file}`,
+      );
+    }
+
+    console.log(`\n--- bidirectional hub membership by module ---`);
+    const hubsByModule = new Map<string, number>();
+    for (const hub of hubMembers) {
+      const key = hub.module ?? "(no module)";
+      hubsByModule.set(key, (hubsByModule.get(key) ?? 0) + 1);
+    }
+    for (const [mod, count] of [...hubsByModule.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`    ${count}  ${mod}`);
     }
   }
 
@@ -679,13 +728,15 @@ function main(): void {
     // Index` is recorded in the baseline and printed, but deliberately not checked here.
     { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles, unit: "count", tier: tierOf("module API surface (files exposed)") },
     // Ratchets on COUNT, not PCT (changed 2026-08-19 — see the tier block at the top of this file).
-    // `coreSize.pct` is a ratio over the whole file graph, so deleting unrelated dead files raises
-    // it while the core itself shrinks: on the mui-marketing removal the pct "regressed"
+    // `bidirectionalHubs.pct` is a ratio over the whole file graph, so deleting unrelated dead files
+    // raises it while the hub set itself shrinks: on the mui-marketing removal the pct "regressed"
     // 17.05 -> 16.13 in the wrong direction of interest while the count genuinely improved
-    // 149 -> 139. The count is what "how much of this repo is load-bearing" actually means, and it
-    // does not move when the denominator does. `pct` is still computed, printed, and stored in the
-    // baseline — it is just no longer the ratcheted value.
-    { label: "core size", verdict: compare(coreSize.count, baseline.coreSize.count), current: coreSize.count, baseline: baseline.coreSize.count, unit: "count", tier: tierOf("core size") },
+    // 149 -> 139. The count is what "how much of this repo is a structural chokepoint" actually
+    // means, and it does not move when the denominator does. `pct` is still computed, printed, and
+    // stored in the baseline — it is just no longer the ratcheted value. (Field and label renamed
+    // from `coreSize` / "core size" 2026-08-19; same numbers, see the metric-5 doc comment at the
+    // top of this file for why.)
+    { label: "bidirectional hub count", verdict: compare(bidirectionalHubs.count, baseline.bidirectionalHubs.count), current: bidirectionalHubs.count, baseline: baseline.bidirectionalHubs.count, unit: "count", tier: tierOf("bidirectional hub count") },
   ];
 
   const regressed = checks.filter((c) => c.verdict === "regressed");
