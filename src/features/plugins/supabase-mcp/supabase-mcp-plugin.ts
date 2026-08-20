@@ -191,6 +191,29 @@ const PROJECT_REF_PATTERN = /^[a-z0-9]{8,40}$/;
  * @complexity O(a) in the configured allowlist size.
  * @overallScore 100
  */
+/** The independently-defaulted (non-required) fields of the resolved connection — every one of
+ *  these is `env value ?? default`, none derived from another, so they're resolved together in one
+ *  place rather than each contributing their own branch to `resolveSupabaseMcpConnection` itself. */
+interface SupabaseMcpEnvDefaults {
+  readonly allowedToolNames: readonly string[];
+  readonly features: string;
+  readonly packageSpec: string;
+  readonly connectTimeoutMs: number;
+  readonly callTimeoutMs: number;
+  readonly maxResultBytes: number;
+}
+
+function resolveSupabaseMcpEnvDefaults(env: NodeJS.ProcessEnv): SupabaseMcpEnvDefaults {
+  return {
+    allowedToolNames: parseAllowedToolNames(env.TOVU_SUPABASE_MCP_ALLOWED_TOOLS) ?? SUPABASE_DEFAULT_ALLOWED_TOOLS,
+    features: env.TOVU_SUPABASE_MCP_FEATURES ?? SUPABASE_DEFAULT_FEATURES,
+    packageSpec: env.TOVU_SUPABASE_MCP_PACKAGE ?? SUPABASE_MCP_PACKAGE,
+    connectTimeoutMs: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS, FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs),
+    callTimeoutMs: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS, FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs),
+    maxResultBytes: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_MAX_RESULT_BYTES, FEDERATED_CONNECTION_DEFAULTS.maxResultBytes),
+  };
+}
+
 export function resolveSupabaseMcpConnection(env: NodeJS.ProcessEnv = process.env): ResolvedFederatedConnection | null {
   if (!isFederationEnabled(env.TOVU_SUPABASE_MCP_ENABLED)) return null;
 
@@ -208,18 +231,16 @@ export function resolveSupabaseMcpConnection(env: NodeJS.ProcessEnv = process.en
     );
   }
 
-  const allowedToolNames = parseAllowedToolNames(env.TOVU_SUPABASE_MCP_ALLOWED_TOOLS) ?? SUPABASE_DEFAULT_ALLOWED_TOOLS;
-  const features = env.TOVU_SUPABASE_MCP_FEATURES ?? SUPABASE_DEFAULT_FEATURES;
-  const packageSpec = env.TOVU_SUPABASE_MCP_PACKAGE ?? SUPABASE_MCP_PACKAGE;
+  const defaults = resolveSupabaseMcpEnvDefaults(env);
 
   return {
     config: {
       connectionId: SUPABASE_CONNECTION_ID,
       label: `Supabase (project ${projectRef})`,
-      allowedToolNames,
-      connectTimeoutMs: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_CONNECT_TIMEOUT_MS, FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs),
-      callTimeoutMs: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_CALL_TIMEOUT_MS, FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs),
-      maxResultBytes: positiveIntOrDefault(env.TOVU_SUPABASE_MCP_MAX_RESULT_BYTES, FEDERATED_CONNECTION_DEFAULTS.maxResultBytes),
+      allowedToolNames: defaults.allowedToolNames,
+      connectTimeoutMs: defaults.connectTimeoutMs,
+      callTimeoutMs: defaults.callTimeoutMs,
+      maxResultBytes: defaults.maxResultBytes,
       maxTools: FEDERATED_CONNECTION_DEFAULTS.maxTools,
     },
     launch: {
@@ -227,7 +248,7 @@ export function resolveSupabaseMcpConnection(env: NodeJS.ProcessEnv = process.en
       // `--read-only` is not conditional — see this file's header. The PAT is deliberately NOT
       // passed as `--access-token`: argv is world-readable via `/proc/<pid>/cmdline` and `ps`, so
       // the token goes in `env` and only in `env`.
-      args: ["-y", packageSpec, "--read-only", `--project-ref=${projectRef}`, `--features=${features}`],
+      args: ["-y", defaults.packageSpec, "--read-only", `--project-ref=${projectRef}`, `--features=${defaults.features}`],
       env: { SUPABASE_ACCESS_TOKEN: accessToken },
     },
   };
