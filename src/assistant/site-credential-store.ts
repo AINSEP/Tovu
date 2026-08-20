@@ -148,13 +148,17 @@ function maskOf(apiKey: string): string {
  * @complexity O(1) — one keyring derivation (only when `apiKey` is provided) plus one upsert.
  * @overallScore 100
  */
-export async function setSiteAssistantCredential(
-  deps: SiteAssistantCredentialWriteDeps,
-  input: SetSiteAssistantCredentialInput
-): Promise<SiteAssistantCredentialView> {
-  if (input.apiKey !== undefined && input.apiKey.trim().length === 0) {
+/** {@link setSiteAssistantCredential}'s `apiKey` check, split out purely to keep that function's
+ *  validation under the shop complexity ceiling. */
+function assertValidSiteAssistantCredentialApiKey(apiKey: string | undefined): void {
+  if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new SiteAssistantCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
+}
+
+/** {@link setSiteAssistantCredential}'s `provider`/`baseUrl`/`model` string checks, split out
+ *  purely to keep that function's validation under the shop complexity ceiling. */
+function assertValidSiteAssistantCredentialStringFields(input: Pick<SetSiteAssistantCredentialInput, "provider" | "baseUrl" | "model">): void {
   for (const [field, value] of [
     ["provider", input.provider],
     ["baseUrl", input.baseUrl],
@@ -164,37 +168,89 @@ export async function setSiteAssistantCredential(
       throw new SiteAssistantCredentialValidationError(`${field} must be a string`);
     }
   }
+}
 
-  const existing = await deps.repo.findByWorkspaceId(input.workspaceId);
-  const now = deps.clock.nowIso();
+/** Runs every {@link SetSiteAssistantCredentialInput} validation, in the same order as the
+ *  original inline checks, before any write. Split out of {@link setSiteAssistantCredential}
+ *  purely to keep that function's complexity under the shop ceiling — behavior (including message
+ *  text and ordering) is unchanged. */
+function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCredentialInput): void {
+  assertValidSiteAssistantCredentialApiKey(input.apiKey);
+  assertValidSiteAssistantCredentialStringFields(input);
+}
 
-  let sealed: SealedSecret | null = existing?.sealed ?? null;
-  let masked: string | null = existing?.masked ?? null;
-  if (input.apiKey !== undefined) {
-    try {
-      const activeKey = await deps.keyring.activeKey();
-      sealed = await deps.sealer.seal({ plaintext: input.apiKey, key: activeKey });
-    } catch (err) {
-      // Any failure deriving/sealing under the current root key is treated as "the secret store is
-      // unconfigured" (ADR-058 §4) — the realistic failure mode here is a missing
-      // `TOVU_INTEGRATIONS_ROOT_KEY`, and this must never fall through to a plaintext write.
-      throw new SiteAssistantSecretStoreUnconfiguredError(
-        `site assistant secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-    masked = maskOf(input.apiKey);
+/** Resolves the sealed key and its masked label for one save: a fresh seal when `apiKey` is
+ *  provided (never a re-wrap of the old ciphertext, so rotation is a plain overwrite — ADR-058
+ *  §8), or the existing sealed value carried forward unchanged when it is omitted. Split out of
+ *  {@link setSiteAssistantCredential} purely to keep that function's complexity under the shop
+ *  ceiling.
+ *  @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the master secret
+ *  is unavailable. */
+async function resolveSiteAssistantCredentialSeal(
+  deps: Pick<SiteAssistantCredentialWriteDeps, "sealer" | "keyring">,
+  apiKey: string | undefined,
+  existing: SiteAssistantCredentialRecord | null,
+): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null }> {
+  if (apiKey === undefined) return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null };
+  try {
+    const activeKey = await deps.keyring.activeKey();
+    const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey });
+    return { sealed, masked: maskOf(apiKey) };
+  } catch (err) {
+    // Any failure deriving/sealing under the current root key is treated as "the secret store is
+    // unconfigured" (ADR-058 §4) — the realistic failure mode here is a missing
+    // `TOVU_INTEGRATIONS_ROOT_KEY`, and this must never fall through to a plaintext write.
+    throw new SiteAssistantSecretStoreUnconfiguredError(
+      `site assistant secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
+}
 
-  const record: SiteAssistantCredentialRecord = {
+/** `explicit ?? existing ?? fallback`, named for {@link buildSiteAssistantCredentialRecord}'s
+ *  `provider` field — split out purely to keep that function's complexity under the shop ceiling. */
+function mergeSiteAssistantCredentialField<T>(explicit: T | undefined, existingValue: T | null | undefined, fallback: T): T {
+  return explicit ?? existingValue ?? fallback;
+}
+
+/** `(explicit ?? existing) ?? null`, named for {@link buildSiteAssistantCredentialRecord}'s
+ *  `baseUrl`/`model` fields — split out purely to keep that function's complexity under the shop
+ *  ceiling. */
+function mergeSiteAssistantCredentialOptionalField<T>(explicit: T | undefined, existingValue: T | null | undefined): T | null {
+  return (explicit ?? existingValue) ?? null;
+}
+
+/** Merges `input`'s explicit fields over `existing`'s stored values (omitted = keep existing) plus
+ *  the resolved seal, into the record {@link setSiteAssistantCredential} persists. Split out
+ *  purely to keep that function's complexity under the shop ceiling — behavior is unchanged. */
+function buildSiteAssistantCredentialRecord(
+  input: SetSiteAssistantCredentialInput,
+  existing: SiteAssistantCredentialRecord | null,
+  seal: { readonly sealed: SealedSecret | null; readonly masked: string | null },
+  now: ISODateTime,
+): SiteAssistantCredentialRecord {
+  return {
     workspaceId: input.workspaceId,
-    provider: input.provider ?? existing?.provider ?? DEFAULT_PROVIDER,
-    baseUrl: (input.baseUrl ?? existing?.baseUrl) ?? null,
-    model: (input.model ?? existing?.model) ?? null,
-    sealed,
-    masked,
+    provider: mergeSiteAssistantCredentialField(input.provider, existing?.provider, DEFAULT_PROVIDER),
+    baseUrl: mergeSiteAssistantCredentialOptionalField(input.baseUrl, existing?.baseUrl),
+    model: mergeSiteAssistantCredentialOptionalField(input.model, existing?.model),
+    sealed: seal.sealed,
+    masked: seal.masked,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
+}
+
+export async function setSiteAssistantCredential(
+  deps: SiteAssistantCredentialWriteDeps,
+  input: SetSiteAssistantCredentialInput
+): Promise<SiteAssistantCredentialView> {
+  assertValidSetSiteAssistantCredentialInput(input);
+
+  const existing = await deps.repo.findByWorkspaceId(input.workspaceId);
+  const now = deps.clock.nowIso();
+  const seal = await resolveSiteAssistantCredentialSeal(deps, input.apiKey, existing);
+  const record = buildSiteAssistantCredentialRecord(input, existing, seal, now);
+
   await deps.repo.upsert(record);
   return toView(record);
 }
