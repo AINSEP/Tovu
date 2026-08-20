@@ -47,6 +47,7 @@
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
     "check:route-test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/route-test-failure-baseline.json",
     "triage:coverage-gaps": "tsx development/scripts/classify-coverage-gaps.ts",
+    "triage:churn-hotspots": "tsx development/scripts/report-churn-hotspots.ts",
     "lint": "biome lint .",
     "complexity": "eslint --no-error-on-unmatched-pattern .",
     "admin:install": "npm --prefix apps/admin install",

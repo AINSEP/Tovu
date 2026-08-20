@@ -1349,6 +1349,34 @@ function renderExtraFieldAttrs(o: JsonObject): string {
   return `${classAttr}${attrsHtml}`;
 }
 
+/** One `<textarea>`/checkbox/text-or-email `<input>` for a contact-form field descriptor — pulled out
+ *  of {@link renderContactFormField}'s old three-way nested ternary so each shape is a flat, separately
+ *  readable branch rather than one expression whose nesting depth drove the field-renderer's cognitive
+ *  complexity. `requiredAttr` is computed once and reused across all three shapes, same value the old
+ *  nested ternary recomputed per-branch. */
+function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string): string {
+  const requiredAttr = required ? " required" : "";
+  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}></textarea>`;
+  if (kind === "checkbox") return `<input type="checkbox" name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}/>`;
+  const inputType = kind === "email" ? "email" : "text";
+  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}/>`;
+}
+
+/** One contact-form field descriptor -> its `<div class="widget-form-field">` markup — extracted from
+ *  {@link renderWidgetContactForm}'s old inline `.map()` callback so the field's own render logic is a
+ *  named, independently measured function rather than an anonymous closure. */
+function renderContactFormField(f: JsonValue): string {
+  const o = obj(f);
+  if (!o) return "";
+  const id = escapeHtml(str(o.id));
+  const label = escapeHtml(str(o.label));
+  const required = o.required === true;
+  const kind = str(o.type, "text");
+  const extraAttrs = renderExtraFieldAttrs(o);
+  const inputEl = renderContactFormInput(kind, id, required, extraAttrs);
+  return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}</div>`;
+}
+
 /** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
  * hardcoded field-type list), posting to Forms' existing public route unmodified (`POST
  * /forms/:slug/submit`, `routes/site/forms-submit.ts`) — this widget type introduces no new
@@ -1356,24 +1384,7 @@ function renderExtraFieldAttrs(o: JsonObject): string {
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
-  const fields = arr(props.fields)
-    .map((f) => {
-      const o = obj(f);
-      if (!o) return "";
-      const id = escapeHtml(str(o.id));
-      const label = escapeHtml(str(o.label));
-      const required = o.required === true;
-      const kind = str(o.type, "text");
-      const extraAttrs = renderExtraFieldAttrs(o);
-      const inputEl =
-        kind === "textarea"
-          ? `<textarea name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}></textarea>`
-          : kind === "checkbox"
-            ? `<input type="checkbox" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}/>`
-            : `<input type="${kind === "email" ? "email" : "text"}" name="${id}" id="widget-contact-${id}"${required ? " required" : ""}${extraAttrs}/>`;
-      return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}</div>`;
-    })
-    .join("");
+  const fields = arr(props.fields).map(renderContactFormField).join("");
   return `<form class="widget widget-contact-form" method="post" action="/forms/${escapeHtml(slug)}/submit">${fields}<button type="submit">Send</button></form>`;
 }
 
@@ -1478,6 +1489,19 @@ function readMediaTransformVersions(value: JsonValue | undefined): ReadonlyMap<s
   return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_TRANSFORM_VERSIONS;
 }
 
+/** One raw per-asset JSON value -> {@link MediaAssetRenderMeta}, or `null` when `raw` isn't even an
+ *  object — pulled out of {@link readMediaAssetMetadata}'s old for-loop body so the three field-level
+ *  ternaries are counted once, at nesting depth 0, instead of once each inside the loop's own nesting.
+ *  Same "malformed entry skipped, missing field degrades to `null`" contract as before. */
+function parseMediaAssetMeta(raw: JsonValue): MediaAssetRenderMeta | null {
+  if (!isObject(raw)) return null;
+  return {
+    width: typeof raw.width === "number" ? raw.width : null,
+    height: typeof raw.height === "number" ? raw.height : null,
+    cssClass: typeof raw.cssClass === "string" ? raw.cssClass : null,
+  };
+}
+
 /** Same reconstruction as {@link readMediaTransformVersions}, for `mediaAssetMetadata` — see that
  *  function's own doc for why this crosses the `widgets/`-to-`render.ts` boundary as plain JSON
  *  rather than a real `Map`. A malformed per-asset entry (not an object) is skipped, not thrown;
@@ -1487,15 +1511,8 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
   if (!isObject(value)) return EMPTY_MEDIA_ASSET_METADATA;
   const entries: [string, MediaAssetRenderMeta][] = [];
   for (const [assetId, raw] of Object.entries(value)) {
-    if (!isObject(raw)) continue;
-    entries.push([
-      assetId,
-      {
-        width: typeof raw.width === "number" ? raw.width : null,
-        height: typeof raw.height === "number" ? raw.height : null,
-        cssClass: typeof raw.cssClass === "string" ? raw.cssClass : null,
-      },
-    ]);
+    const meta = parseMediaAssetMeta(raw);
+    if (meta) entries.push([assetId, meta]);
   }
   return entries.length > 0 ? new Map(entries) : EMPTY_MEDIA_ASSET_METADATA;
 }
@@ -1551,6 +1568,23 @@ function renderWidgetPostContent(props: JsonObject): string {
   );
 }
 
+/** One renderer per resolvable `componentId` — a lookup instead of a `switch` so the number of widget
+ *  types stops being what drives {@link renderWidgetIr}'s own complexity (each `case` in a `switch`
+ *  counts as a branch the same way each entry here does NOT, since the entries live in data, not
+ *  control flow). `"widget-placeholder"` deliberately has no entry: it already gets the exact same
+ *  {@link renderWidgetPlaceholder} output via the lookup's own miss path, same as any other
+ *  unrecognized id. */
+const WIDGET_IR_RENDERERS: Record<string, (ir: WidgetRenderIR) => string> = {
+  text: (ir) => `<div class="widget widget-text">${escapeHtml(str(ir.props.body)).replaceAll("\n", "<br/>")}</div>`,
+  "social-links": (ir) => renderWidgetSocialLinks(ir.props),
+  "recent-entries": (ir) => renderWidgetRecentEntries(ir.children),
+  "entry-summary": (ir) => renderWidgetEntrySummary(ir.props),
+  menu: (ir) => renderWidgetMenu(ir.props),
+  "contact-form": (ir) => renderWidgetContactForm(ir.props),
+  "media-image": (ir) => renderWidgetMediaImage(ir.props),
+  "post-content": (ir) => renderWidgetPostContent(ir.props),
+};
+
 /**
  * Renders one resolved widget IR node to HTML. Never throws: an unrecognized `componentId` (a
  * resolver shape this renderer doesn't yet know, or the REQ-27 failure taxonomy reaching here some
@@ -1563,27 +1597,8 @@ function renderWidgetPostContent(props: JsonObject): string {
  * second implementation.
  */
 export function renderWidgetIr(ir: WidgetRenderIR): string {
-  switch (ir.componentId) {
-    case "text":
-      return `<div class="widget widget-text">${escapeHtml(str(ir.props.body)).replaceAll("\n", "<br/>")}</div>`;
-    case "social-links":
-      return renderWidgetSocialLinks(ir.props);
-    case "recent-entries":
-      return renderWidgetRecentEntries(ir.children);
-    case "entry-summary":
-      return renderWidgetEntrySummary(ir.props);
-    case "menu":
-      return renderWidgetMenu(ir.props);
-    case "contact-form":
-      return renderWidgetContactForm(ir.props);
-    case "media-image":
-      return renderWidgetMediaImage(ir.props);
-    case "post-content":
-      return renderWidgetPostContent(ir.props);
-    case "widget-placeholder":
-    default:
-      return renderWidgetPlaceholder();
-  }
+  const renderer = WIDGET_IR_RENDERERS[ir.componentId];
+  return renderer ? renderer(ir) : renderWidgetPlaceholder();
 }
 
 /**
@@ -1749,33 +1764,47 @@ function renderSlot(name: string, ctx: SiteRenderContext): string {
 // Template block tree
 // ---------------------------------------------------------------------------
 
+function renderComponentBlock(node: JsonObject, ctx: SiteRenderContext): string {
+  const id = typeof node.id === "string" ? node.id : "";
+  const component = COMPONENTS[id];
+  if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
+  return component(ctx, isObject(node.props) ? node.props : {});
+}
+
+function renderSlotBlock(node: JsonObject, ctx: SiteRenderContext): string {
+  return renderSlot(typeof node.name === "string" ? node.name : "", ctx);
+}
+
+/** SPEC-043/ADR-047 W-004: `{"type":"region","key":"footer"}` — a theme-authored reference to a
+ *  theme-declared widget region (REQ-13/`ThemeManifest.regions`), resolved server-side ahead of the
+ *  block walk (`resolvePageWidgets`, threaded in via `ctx.widgetRegions`). Dispatched by `node.type`
+ *  through {@link BLOCK_TYPE_HANDLERS} rather than sequential `if`s, so a region node is never
+ *  mistaken for unknown content-doc vocabulary (which would try to walk its `content`, not its
+ *  `key`) — the two shapes never share a code path regardless of dispatch order. */
+function renderRegionBlock(node: JsonObject, ctx: SiteRenderContext): string {
+  return renderWidgetRegion({ ctx, regionKey: typeof node.key === "string" ? node.key : "" });
+}
+
+function renderDocTypeBlock(node: JsonObject, ctx: SiteRenderContext): string {
+  return (Array.isArray(node.content) ? node.content : []).map((child) => renderBlock(child, ctx)).join("");
+}
+
+/** One handler per theme-authored block `type` — a lookup instead of a sequential `if`/`if`/`if`
+ *  chain, so the number of block kinds stops being what drives {@link renderBlock}'s own complexity.
+ *  A `type` with no entry here (including every plain content-doc vocabulary type, e.g. `paragraph`)
+ *  falls through to `renderBlock`'s own default: this node tree is content-doc vocabulary, handled by
+ *  {@link renderDocNode}. */
+const BLOCK_TYPE_HANDLERS: Record<string, (node: JsonObject, ctx: SiteRenderContext) => string> = {
+  component: renderComponentBlock,
+  slot: renderSlotBlock,
+  region: renderRegionBlock,
+  doc: renderDocTypeBlock,
+};
+
 function renderBlock(node: TemplateNode, ctx: SiteRenderContext): string {
   if (!isObject(node)) return "";
-
-  if (node.type === "component") {
-    const id = typeof node.id === "string" ? node.id : "";
-    const component = COMPONENTS[id];
-    if (!component) return `<!-- unknown component: ${escapeHtml(id)} -->`;
-    return component(ctx, isObject(node.props) ? node.props : {});
-  }
-
-  if (node.type === "slot") {
-    return renderSlot(typeof node.name === "string" ? node.name : "", ctx);
-  }
-
-  // SPEC-043/ADR-047 W-004: `{"type":"region","key":"footer"}` — a theme-authored reference to a
-  // theme-declared widget region (REQ-13/`ThemeManifest.regions`), resolved server-side ahead of
-  // this walk (`resolvePageWidgets`, threaded in via `ctx.widgetRegions`). Checked before the
-  // generic doc-vocabulary fallthrough so a region node is never mistaken for unknown content-doc
-  // vocabulary (which would try to walk its `content`, not its `key`).
-  if (node.type === "region") {
-    return renderWidgetRegion({ ctx, regionKey: typeof node.key === "string" ? node.key : "" });
-  }
-
-  if (node.type === "doc") {
-    return (Array.isArray(node.content) ? node.content : []).map((child) => renderBlock(child, ctx)).join("");
-  }
-
+  const handler = typeof node.type === "string" ? BLOCK_TYPE_HANDLERS[node.type] : undefined;
+  if (handler) return handler(node, ctx);
   // Anything else is content-doc vocabulary.
   return renderDocNode(node, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
 }
