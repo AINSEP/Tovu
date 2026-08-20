@@ -6,6 +6,7 @@ import {
   PostValidationError,
   updatePost,
   type PostRecord,
+  type UpdatePostInput,
 } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import {
@@ -13,7 +14,47 @@ import {
   rejectOversizedJsonBody,
 } from "#src/server/middleware/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+
+/** This route's four writable PUT fields, read off an untyped body in one place.
+ *  @complexity O(1). */
+function parsePageUpdateBody(
+  rawBody: unknown
+): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status"> {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    title: String(body.title ?? ""),
+    slug: String(body.slug ?? ""),
+    bodyJson: body.bodyJson as UpdatePostInput["bodyJson"],
+    status: body.status as UpdatePostInput["status"],
+  };
+}
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendPageUpdateError(res: Response, err: unknown): void {
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+    return;
+  }
+  if (err instanceof PostValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof PostConflictError) {
+    res.status(409).json({ error: err.message, code: "SLUG_CONFLICT" });
+    return;
+  }
+  if (err instanceof PostNotFoundError) {
+    res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * PUT page (SPEC-002 api.spec.md `PAGE_UPDATE`) — routed through the command
@@ -110,10 +151,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 input: {
                   workspaceId: deps.workspaceId,
                   id: pageId,
-                  title: String(req.body?.title ?? ""),
-                  slug: String(req.body?.slug ?? ""),
-                  bodyJson: req.body?.bodyJson,
-                  status: req.body?.status,
+                  ...parsePageUpdateBody(req.body),
                 },
               }),
             captureEntityVersion: (r) => r.post.version,
@@ -130,40 +168,7 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
 
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
-        if (err instanceof ForbiddenError) {
-          res.status(403).json({
-            error: err.message,
-            code: "FORBIDDEN",
-            details: { permission: err.permission, reason: err.reason },
-          });
-          return;
-        }
-
-        if (err instanceof DuplicateCommandError) {
-          res.status(409).json({
-            error: err.message,
-            code: "DUPLICATE_COMMAND",
-            changeSetId: err.changeSetId,
-          });
-          return;
-        }
-
-        if (err instanceof PostValidationError) {
-          res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-          return;
-        }
-
-        if (err instanceof PostConflictError) {
-          res.status(409).json({ error: err.message, code: "SLUG_CONFLICT" });
-          return;
-        }
-
-        if (err instanceof PostNotFoundError) {
-          res.status(404).json({ error: err.message, code: "ENTRY_NOT_FOUND" });
-          return;
-        }
-
-        res.status(500).json({ error: "internal error" });
+        sendPageUpdateError(res, err);
       }
     }
   );
