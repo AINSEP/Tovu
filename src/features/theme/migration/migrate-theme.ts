@@ -215,6 +215,113 @@ function buildV2Manifest(raw: Record<string, unknown>, tier: ThemeTier): Record<
   };
 }
 
+/** {@link resolveMigrationPlan}'s result — one variant per way `migrateThemeToV2` can stop before
+ *  ever touching disk, plus `"ready"` carrying everything the staging phase needs. */
+type MigrationPlanResult =
+  | { status: "already-migrated" }
+  | { status: "plan-failed"; reason: string }
+  | { status: "unrecognized"; plan: ThemeMigrationPlan; reason: string }
+  | { status: "ready"; raw: Record<string, unknown>; tier: ThemeTier; plan: ThemeMigrationPlan };
+
+/**
+ * Steps 1-2 of {@link migrateThemeToV2}'s sequencing: read the real manifest, short-circuit on
+ * `apiVersion: 2` (idempotent), build the tier's move plan, and refuse an unrecognized root-level
+ * file — all read-only, the real theme directory is never touched here.
+ */
+function resolveMigrationPlan(themeDir: string): MigrationPlanResult {
+  const raw = readRawManifest(themeDir);
+  if (raw.apiVersion === 2) return { status: "already-migrated" };
+
+  const tier = typeof raw.tier === "string" ? (raw.tier as ThemeTier) : "declarative";
+  let plan: ThemeMigrationPlan;
+  try {
+    plan = planV2Migration({ themeDir, tier });
+  } catch (err) {
+    return { status: "plan-failed", reason: (err as Error).message };
+  }
+  if (plan.unrecognized.length > 0) {
+    return {
+      status: "unrecognized",
+      plan,
+      reason: `refusing to migrate: ${plan.unrecognized.length} root-level file(s) with no known v2 destination: ${plan.unrecognized.join(", ")}`,
+    };
+  }
+  return { status: "ready", raw, tier, plan };
+}
+
+/** One staged-and-verified migration attempt, ready for {@link finalizeMigration} to decide what to
+ *  do with it. */
+interface StagedMigration {
+  readonly stagingDir: string;
+  readonly validation: ValidateThemePackageResult;
+  readonly loadErrors: readonly string[];
+  readonly loadValid: boolean;
+}
+
+/**
+ * Step 3-4 of {@link migrateThemeToV2}'s sequencing: stage every moved/carried-over file into a
+ * fresh temp directory, rewrite asset references, write the v2 manifest, then verify the staged
+ * output two ways (structural validation AND a real `loadTheme()` call). The real theme directory
+ * is never touched here.
+ */
+function stageAndVerifyMigration(
+  themeDir: string,
+  id: string,
+  raw: Record<string, unknown>,
+  tier: ThemeTier,
+  plan: ThemeMigrationPlan
+): StagedMigration {
+  const stagingDir = createStagingDir(themeDir, id);
+  applyMoves(themeDir, stagingDir, plan);
+  copyCarryOverFiles(themeDir, stagingDir);
+  applyAssetPathRewrites(stagingDir, id, plan);
+  rewriteRelativeStaticAssetReferences(stagingDir, plan);
+  writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
+
+  const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
+  const loaded = loadTheme({ themeDir: stagingDir, id, source: "site" });
+
+  return { stagingDir, validation, loadErrors: loaded.errors, loadValid: loaded.status === "valid" };
+}
+
+/**
+ * Steps 5-6 of {@link migrateThemeToV2}'s sequencing: `dryRun` stops here regardless of outcome
+ * (staging directory left on disk either way); otherwise, on verification success, atomically
+ * replaces the real theme directory with the staged one, keeping a timestamped v1 backup.
+ */
+function finalizeMigration(themeDir: string, id: string, plan: ThemeMigrationPlan, staged: StagedMigration, dryRun: boolean): MigrateThemeResult {
+  const { stagingDir, validation, loadErrors, loadValid } = staged;
+
+  if (dryRun) {
+    return {
+      themeId: id,
+      status: validation.valid && loadValid ? "staged-dry-run" : "failed",
+      plan,
+      validation,
+      loadErrors,
+      outputDir: stagingDir,
+    };
+  }
+
+  if (!validation.valid || !loadValid) {
+    return {
+      themeId: id,
+      status: "failed",
+      plan,
+      validation,
+      loadErrors,
+      outputDir: stagingDir,
+      reason: "staged output failed verification — real theme directory left untouched",
+    };
+  }
+
+  const backupDir = `${themeDir}.v1-backup-${Date.now()}`;
+  renameSync(themeDir, backupDir);
+  renameSync(stagingDir, themeDir);
+
+  return { themeId: id, status: "migrated", plan, validation, loadErrors, outputDir: themeDir, backupDir };
+}
+
 /**
  * Migrate one theme directory to schema v2. Sequencing (never deviates, see file header for why each
  * step exists):
@@ -249,74 +356,19 @@ export function migrateThemeToV2(
   const { themeDir, id } = required;
   const { dryRun = false } = optional;
 
-  const raw = readRawManifest(themeDir);
-  if (raw.apiVersion === 2) {
+  const planResult = resolveMigrationPlan(themeDir);
+  if (planResult.status === "already-migrated") {
     return { themeId: id, status: "already-migrated" };
   }
-
-  const tier = typeof raw.tier === "string" ? (raw.tier as ThemeTier) : "declarative";
-  let plan: ThemeMigrationPlan;
-  try {
-    plan = planV2Migration({ themeDir, tier });
-  } catch (err) {
-    return { themeId: id, status: "failed", reason: (err as Error).message };
+  if (planResult.status === "plan-failed") {
+    return { themeId: id, status: "failed", reason: planResult.reason };
   }
-  if (plan.unrecognized.length > 0) {
-    return {
-      themeId: id,
-      status: "failed",
-      plan,
-      reason: `refusing to migrate: ${plan.unrecognized.length} root-level file(s) with no known v2 destination: ${plan.unrecognized.join(", ")}`,
-    };
+  if (planResult.status === "unrecognized") {
+    return { themeId: id, status: "failed", plan: planResult.plan, reason: planResult.reason };
   }
 
-  const stagingDir = createStagingDir(themeDir, id);
-  applyMoves(themeDir, stagingDir, plan);
-  copyCarryOverFiles(themeDir, stagingDir);
-  applyAssetPathRewrites(stagingDir, id, plan);
-  rewriteRelativeStaticAssetReferences(stagingDir, plan);
-  writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
-
-  const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
-  const loaded = loadTheme({ themeDir: stagingDir, id, source: "site" });
-  const loadValid = loaded.status === "valid";
-
-  if (dryRun) {
-    return {
-      themeId: id,
-      status: validation.valid && loadValid ? "staged-dry-run" : "failed",
-      plan,
-      validation,
-      loadErrors: loaded.errors,
-      outputDir: stagingDir,
-    };
-  }
-
-  if (!validation.valid || !loadValid) {
-    return {
-      themeId: id,
-      status: "failed",
-      plan,
-      validation,
-      loadErrors: loaded.errors,
-      outputDir: stagingDir,
-      reason: "staged output failed verification — real theme directory left untouched",
-    };
-  }
-
-  const backupDir = `${themeDir}.v1-backup-${Date.now()}`;
-  renameSync(themeDir, backupDir);
-  renameSync(stagingDir, themeDir);
-
-  return {
-    themeId: id,
-    status: "migrated",
-    plan,
-    validation,
-    loadErrors: loaded.errors,
-    outputDir: themeDir,
-    backupDir,
-  };
+  const staged = stageAndVerifyMigration(themeDir, id, planResult.raw, planResult.tier, planResult.plan);
+  return finalizeMigration(themeDir, id, planResult.plan, staged, dryRun);
 }
 
 /** Test/CLI convenience — remove a `staged-dry-run`/`failed` run's leftover staging directory once a
