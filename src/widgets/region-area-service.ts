@@ -183,6 +183,43 @@ export interface MutateWidgetAreaPlacementsRequired {
   input: MutateWidgetAreaPlacementsInput;
 }
 
+/** REQ-16/AC-10: every referenced widgetEntryId must exist, be a live (non-trashed) widget instance,
+ *  in this same workspace — checked before any write. Throws the first violation found. */
+async function validatePlacementWidgetsExist(
+  deps: RegionAreaServiceDeps,
+  workspaceId: UUID,
+  placements: readonly WidgetPlacementNode[]
+): Promise<void> {
+  for (const placement of placements) {
+    const widget = await deps.entryRepo.findById({ workspaceId, id: placement.widgetEntryId });
+    if (!widget || widget.type !== WIDGET_CONTENT_TYPE) {
+      throw new WidgetInstanceNotFoundError(
+        `placement references widget '${placement.widgetEntryId}', which does not exist in workspace '${workspaceId}' (REQ-16)`
+      );
+    }
+    const widgetPayload = parseWidgetInstancePayload(widget.fieldsJson);
+    if (widgetPayload.status === "trash" || widgetPayload.status === "purged") {
+      throw new WidgetInstanceNotFoundError(`placement references widget '${placement.widgetEntryId}', which is trashed (REQ-16)`);
+    }
+  }
+}
+
+/** Converts a rejected `updateEntry` result into the matching typed error — a version conflict
+ *  reports the CURRENT (post-conflict) version, any other failure propagates as-is. Never returns. */
+async function rejectMutateWidgetAreaPlacementsWrite(
+  deps: RegionAreaServiceDeps,
+  workspaceId: UUID,
+  areaEntryId: UUID,
+  current: EntryRecord,
+  error: Error
+): Promise<never> {
+  if (error instanceof VersionConflictError) {
+    const latest = await deps.entryRepo.findById({ workspaceId, id: areaEntryId });
+    throw new WidgetAreaConflictError(error.message, latest?.version ?? current.version);
+  }
+  throw error;
+}
+
 /** REQ-15/16: one atomic, version-guarded write; rejects placements referencing a nonexistent/trashed/cross-workspace widget. */
 export async function mutateWidgetAreaPlacements(
   required: MutateWidgetAreaPlacementsRequired
@@ -202,20 +239,7 @@ export async function mutateWidgetAreaPlacements(
       throw new WidgetAreaNotFoundError(`widget_area '${input.areaEntryId}' was not found`);
     }
 
-    // REQ-16: every referenced widgetEntryId must exist, be a live (non-trashed) widget instance,
-    // in this same workspace — checked before any write (REQ-16, AC-10).
-    for (const placement of input.placements) {
-      const widget = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: placement.widgetEntryId });
-      if (!widget || widget.type !== WIDGET_CONTENT_TYPE) {
-        throw new WidgetInstanceNotFoundError(
-          `placement references widget '${placement.widgetEntryId}', which does not exist in workspace '${input.workspaceId}' (REQ-16)`
-        );
-      }
-      const widgetPayload = parseWidgetInstancePayload(widget.fieldsJson);
-      if (widgetPayload.status === "trash" || widgetPayload.status === "purged") {
-        throw new WidgetInstanceNotFoundError(`placement references widget '${placement.widgetEntryId}', which is trashed (REQ-16)`);
-      }
-    }
+    await validatePlacementWidgetsExist(deps, input.workspaceId, input.placements);
 
     const currentPayload = parseWidgetAreaPayload(current.fieldsJson);
     const nextDoc = areaDocWithPlacements({ doc: currentPayload.doc, placements: input.placements });
@@ -233,11 +257,7 @@ export async function mutateWidgetAreaPlacements(
     });
 
     if (!result.ok) {
-      if (result.error instanceof VersionConflictError) {
-        const latest = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: input.areaEntryId });
-        throw new WidgetAreaConflictError(result.error.message, latest?.version ?? current.version);
-      }
-      throw result.error;
+      return rejectMutateWidgetAreaPlacementsWrite(deps, input.workspaceId, input.areaEntryId, current, result.error);
     }
 
     // regionKey never changes on a placement mutation — refresh the derived row's audit timestamp
