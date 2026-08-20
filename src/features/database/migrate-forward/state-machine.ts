@@ -83,49 +83,54 @@ const REQUIRES_QUIESCE_WATERMARK = new Set<TransitionEvent["type"]>([
   "VERIFY_FAILURE",
 ]);
 
+/** Return shape shared by every per-event transition handler below. */
+type TransitionResult = { status: MigrationRunStatus; blueTouched?: boolean };
+
+/** One handler per `TransitionEvent["type"]` — only `status`/`dialect` are ever consulted, so the
+ * handler needs no access to the event payload itself. */
+type TransitionHandler = (state: MigrationRunState) => TransitionResult | undefined;
+
+function resolveVerifySuccess(state: MigrationRunState): TransitionResult | undefined {
+  if (state.status !== "VERIFYING") return undefined;
+  // Dialect-conditional (ADR-041 §3, M6): Postgres inserts a CUTOVER phase; SQLite applies
+  // in-place and moves straight to JOURNALING.
+  return { status: state.dialect === "postgres" ? "CUTOVER" : "JOURNALING" };
+}
+
+/**
+ * One entry per `TransitionEvent["type"]`, replacing what was a 12-case switch. Each handler
+ * keeps its own precondition local instead of sharing a single function's control flow — see
+ * `resolveNextStatus()` for the (now trivial) dispatch.
+ */
+const TRANSITION_HANDLERS: Record<TransitionEvent["type"], TransitionHandler> = {
+  QUIESCE_COMPLETE: (state) => (state.status === "CONFIRMED" || state.status === "QUIESCING" ? { status: "QUIESCING" } : undefined),
+  SNAPSHOT_SUCCESS: (state) => (state.status === "SNAPSHOTTING" ? { status: "APPLYING" } : undefined),
+  // The intermediate SNAPSHOT_FAILED status is conceptual (ADR-041 §3's narration) — this single
+  // event resolves directly to the terminal-for-this-attempt ABORTED_SAFE state, never entering
+  // RESTORING (AC-15).
+  SNAPSHOT_FAILURE: (state) => (state.status === "SNAPSHOTTING" ? { status: "ABORTED_SAFE" } : undefined),
+  APPLY_SUCCESS: (state) => (state.status === "APPLYING" ? { status: "VERIFYING" } : undefined),
+  APPLY_FAILURE: (state) => (state.status === "APPLYING" ? { status: "RESTORING" } : undefined),
+  VERIFY_SUCCESS: resolveVerifySuccess,
+  VERIFY_FAILURE: (state) => (state.status === "VERIFYING" ? { status: "RESTORING" } : undefined),
+  CUTOVER_SUCCESS: (state) => (state.status === "CUTOVER" ? { status: "JOURNALING", blueTouched: true } : undefined),
+  // Structurally distinct from the APPLYING/VERIFYING -> RESTORING edge (U-001-B2): only reachable
+  // by firing this event from CUTOVER, never conflated with a snapshot/apply/verify failure.
+  CUTOVER_FAILURE: (state) => (state.status === "CUTOVER" ? { status: "ROLLBACK_TO_BLUE" } : undefined),
+  RESTORE_SUCCESS: (state) => (state.status === "RESTORING" ? { status: "RESTORED" } : undefined),
+  RESTORE_FAILURE: (state) => (state.status === "RESTORING" ? { status: "RESTORE_FAILED" } : undefined),
+  JOURNAL_COMPLETE: (state) => (state.status === "JOURNALING" ? { status: "DONE" } : undefined),
+};
+
 /**
  * Resolves the next status for a legal `(status, event)` pair, or `undefined` if the pair is not
  * a modeled transition. Kept separate from `advance()` so the precondition/error-shaping logic
  * (below) stays uncluttered by the transition table itself.
+ *
+ * @complexity O(1) — a single lookup into `TRANSITION_HANDLERS` plus the handler's own O(1) check.
  */
-function resolveNextStatus(state: MigrationRunState, event: TransitionEvent): { status: MigrationRunStatus; blueTouched?: boolean } | undefined {
-  switch (event.type) {
-    case "QUIESCE_COMPLETE":
-      return state.status === "CONFIRMED" || state.status === "QUIESCING" ? { status: "QUIESCING" } : undefined;
-    case "SNAPSHOT_SUCCESS":
-      return state.status === "SNAPSHOTTING" ? { status: "APPLYING" } : undefined;
-    case "SNAPSHOT_FAILURE":
-      // The intermediate SNAPSHOT_FAILED status is conceptual (ADR-041 §3's narration) — this
-      // single event resolves directly to the terminal-for-this-attempt ABORTED_SAFE state,
-      // never entering RESTORING (AC-15).
-      return state.status === "SNAPSHOTTING" ? { status: "ABORTED_SAFE" } : undefined;
-    case "APPLY_SUCCESS":
-      return state.status === "APPLYING" ? { status: "VERIFYING" } : undefined;
-    case "APPLY_FAILURE":
-      return state.status === "APPLYING" ? { status: "RESTORING" } : undefined;
-    case "VERIFY_SUCCESS":
-      if (state.status !== "VERIFYING") return undefined;
-      // Dialect-conditional (ADR-041 §3, M6): Postgres inserts a CUTOVER phase; SQLite applies
-      // in-place and moves straight to JOURNALING.
-      return { status: state.dialect === "postgres" ? "CUTOVER" : "JOURNALING" };
-    case "VERIFY_FAILURE":
-      return state.status === "VERIFYING" ? { status: "RESTORING" } : undefined;
-    case "CUTOVER_SUCCESS":
-      return state.status === "CUTOVER" ? { status: "JOURNALING", blueTouched: true } : undefined;
-    case "CUTOVER_FAILURE":
-      // Structurally distinct from the APPLYING/VERIFYING -> RESTORING edge (U-001-B2): only
-      // reachable by firing this event from CUTOVER, never conflated with a snapshot/apply/verify
-      // failure.
-      return state.status === "CUTOVER" ? { status: "ROLLBACK_TO_BLUE" } : undefined;
-    case "RESTORE_SUCCESS":
-      return state.status === "RESTORING" ? { status: "RESTORED" } : undefined;
-    case "RESTORE_FAILURE":
-      return state.status === "RESTORING" ? { status: "RESTORE_FAILED" } : undefined;
-    case "JOURNAL_COMPLETE":
-      return state.status === "JOURNALING" ? { status: "DONE" } : undefined;
-    default:
-      return undefined;
-  }
+function resolveNextStatus(state: MigrationRunState, event: TransitionEvent): TransitionResult | undefined {
+  return TRANSITION_HANDLERS[event.type](state);
 }
 
 /**
