@@ -4,6 +4,53 @@ import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
+ * `undefined` means "field omitted, leave it alone"; only a genuinely-provided value gets
+ * `String(...)`'d. Unlike `parseOptionalNullableField` below, there is no `null`-clear case here —
+ * `updateMediaMetadata` gives title/alt/caption/credit no clear semantics, so a literal `null` is
+ * stringified to `"null"` same as any other value, matching the route's pre-extraction behavior.
+ *
+ * @complexity O(1).
+ */
+function parseOptionalStringField(raw: unknown): string | undefined {
+  return raw === undefined ? undefined : String(raw);
+}
+
+/**
+ * `undefined` (omitted) survives as `undefined`, `null` (explicit clear) survives as `null` rather
+ * than coercing through `convert`, and anything else is passed through `convert` — matching
+ * `updateMediaMetadata`'s width/height/cssClass undefined/null/value contract (see that input
+ * type's doc).
+ *
+ * @complexity O(1).
+ */
+function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) => T): T | null | undefined {
+  if (raw === undefined) return undefined;
+  if (raw === null) return null;
+  return convert(raw);
+}
+
+/**
+ * Reads the seven metadata fields `updateMediaMetadata` accepts off an untyped request body,
+ * applying the two field-level parse rules above. A missing body coerces to `{}` so every field
+ * reads as omitted rather than throwing on a property access — the pre-extraction route made the
+ * same allowance via `req.body?.field`.
+ *
+ * @complexity O(1) — reads seven fixed properties.
+ */
+function parseMediaMetadataPatch(rawBody: unknown) {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    title: parseOptionalStringField(body.title),
+    alt: parseOptionalStringField(body.alt),
+    caption: parseOptionalStringField(body.caption),
+    credit: parseOptionalStringField(body.credit),
+    width: parseOptionalNullableField(body.width, Number),
+    height: parseOptionalNullableField(body.height, Number),
+    cssClass: parseOptionalNullableField(body.cssClass, String),
+  };
+}
+
+/**
  * PATCH media metadata (title/alt/caption/credit only — `source.sha256` is
  * write-once and this route's input shape has no field for it, matching
  * `updateMediaMetadata`'s contract). Gated by `media.update` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).
@@ -33,28 +80,12 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
         return;
       }
 
-      // width/height/cssClass: `null` (explicit clear) must survive as `null`, not coerce to the
-      // string `"null"` — only a genuinely-provided width/height gets `Number(...)`'d, matching
-      // `updateMediaMetadata`'s own undefined/null/value contract (see that input type's doc).
-      const width =
-        req.body?.width === undefined ? undefined : req.body.width === null ? null : Number(req.body.width);
-      const height =
-        req.body?.height === undefined ? undefined : req.body.height === null ? null : Number(req.body.height);
-      const cssClass =
-        req.body?.cssClass === undefined ? undefined : req.body.cssClass === null ? null : String(req.body.cssClass);
-
       const { media } = await updateMediaMetadata({
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: {
           workspaceId: deps.workspaceId,
           id: String(req.params.mediaId ?? ""),
-          title: req.body?.title !== undefined ? String(req.body.title) : undefined,
-          alt: req.body?.alt !== undefined ? String(req.body.alt) : undefined,
-          caption: req.body?.caption !== undefined ? String(req.body.caption) : undefined,
-          credit: req.body?.credit !== undefined ? String(req.body.credit) : undefined,
-          width,
-          height,
-          cssClass,
+          ...parseMediaMetadataPatch(req.body),
         },
       });
       res.json({ media: toAdminMediaResponse(media) });
