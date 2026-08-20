@@ -9,13 +9,100 @@ import {
   RenameRetypeConflictError,
   SecretNotSupportedError,
   type DefinitionInput,
+  type DefinitionOpContext,
+  type DefinitionOpRequestItem,
   type SettingOwnerKind,
   type SettingValueSchema,
   registerDefinitions,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { toWriteServiceDeps } from "./shared.js";
+import { respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
+
+const REGISTER_DEFINITIONS_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
+  { matches: (e) => e instanceof SecretNotSupportedError, status: 400, code: "SECRET_NOT_SUPPORTED" },
+  { matches: (e) => e instanceof DefinitionInvalidError, status: 400, code: "DEFINITION_INVALID" },
+  { matches: (e) => e instanceof RenameRetypeConflictError, status: 409, code: "RENAME_RETYPE_CONFLICT" },
+  { matches: (e) => e instanceof AliasDepthExceededError, status: 409, code: "ALIAS_DEPTH_EXCEEDED" },
+  { matches: (e) => e instanceof DefinitionTombstonedError, status: 409, code: "DEFINITION_TOMBSTONED" },
+  { matches: (e) => e instanceof ForbiddenError, status: 403, code: "FORBIDDEN" },
+];
+
+/** Coerces a possibly-absent field to a string, matching this route's `?? ""`/`?? "register"`
+ *  fallback shape everywhere it reads a field off an untrusted batch item.
+ *  @complexity O(1). */
+function readString(value: unknown, fallback = ""): string {
+  return String(value ?? fallback);
+}
+
+/** Body's `definitions` array, or `null` if it's missing or not an array.
+ *  @complexity O(1). */
+function parseDefinitionItems(body: unknown): unknown[] | null {
+  const definitions = (body as { definitions?: unknown } | null)?.definitions;
+  return Array.isArray(definitions) ? definitions : null;
+}
+
+/** One batch item's outcome: queued for the batched `register` call, or already applied via its
+ *  non-register op's write-service call. `unknownOp` carries the rejected op string so the caller
+ *  can 400 without this function touching `res`. */
+type DefinitionItemOutcome =
+  | { readonly applied: { key: string; op: string; status: string } }
+  | { readonly unknownOp: string };
+
+/**
+ * Normalizes one request item and either queues it for the batched `registerDefinitions` call below
+ * (see the module doc for why `register` is not dispatched immediately) or runs its non-register op
+ * now via the Phase-2 dispatch table (`NON_REGISTER_DEFINITION_OPS`).
+ *
+ * @complexity O(1) plus, for non-register ops, one write-service call.
+ */
+async function applyDefinitionItem(
+  raw: unknown,
+  opCtx: DefinitionOpContext,
+  toRegister: DefinitionInput[]
+): Promise<DefinitionItemOutcome> {
+  const item = raw as Record<string, unknown>;
+  const ownerKind = item.ownerKind as SettingOwnerKind;
+  const namespace = readString(item.namespace);
+  const key = readString(item.key);
+  const op = readString(item.op, "register");
+  // Platform defs (core/theme) are workspace_id=null; site-owned defs carry this workspace's
+  // id (REQ-02 namespace fence, `settings.ts`'s `NAMESPACE_FENCE`).
+  const workspaceId = ownerKind === "site" ? opCtx.authWorkspaceId : null;
+  const defaultValue = (item.defaultJson ?? null) as JsonValue | null;
+
+  if (op === "register") {
+    toRegister.push({
+      namespace,
+      key,
+      ownerKind,
+      workspaceId,
+      schema: item.schemaJson as SettingValueSchema,
+      defaultValue,
+      scopes: Number(item.scopes),
+      secret: Boolean(item.secret ?? false),
+    });
+    return { applied: { key: `${namespace}.${key}`, op, status: "applied" } };
+  }
+
+  const parsedOp = parseNonRegisterDefinitionOp(op);
+  if (!parsedOp) {
+    return { unknownOp: op };
+  }
+  const opItem: DefinitionOpRequestItem = {
+    namespace,
+    key,
+    ownerKind,
+    workspaceId,
+    newNamespace: item.newNamespace as string | undefined,
+    newKey: item.newKey as string | undefined,
+    schemaJson: item.schemaJson as SettingValueSchema,
+    defaultJson: defaultValue,
+    coercionJson: item.coercionJson as string | { tag?: string } | undefined,
+  };
+  await NON_REGISTER_DEFINITION_OPS[parsedOp](opCtx, opItem);
+  return { applied: { key: `${namespace}.${key}`, op, status: "applied" } };
+}
 
 /**
  * POST register/rename/retype/deprecate/tombstone setting definitions
@@ -71,61 +158,24 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
         return;
       }
 
-      const items: unknown[] | null = Array.isArray(req.body?.definitions) ? req.body.definitions : null;
+      const items = parseDefinitionItems(req.body);
       if (!items) {
         res.status(400).json({ error: "'definitions' must be an array", code: "VALIDATION_ERROR" });
         return;
       }
 
       const writeDeps = toWriteServiceDeps(deps);
-      const opCtx = { deps: writeDeps, callerPrincipalId: principal.id, authWorkspaceId: deps.workspaceId };
+      const opCtx: DefinitionOpContext = { deps: writeDeps, callerPrincipalId: principal.id, authWorkspaceId: deps.workspaceId };
       const applied: Array<{ key: string; op: string; status: string }> = [];
       const toRegister: DefinitionInput[] = [];
 
       for (const raw of items) {
-        const item = raw as Record<string, unknown>;
-        const ownerKind = item.ownerKind as SettingOwnerKind;
-        const namespace = String(item.namespace ?? "");
-        const key = String(item.key ?? "");
-        const op = String(item.op ?? "register");
-        // Platform defs (core/theme) are workspace_id=null; site-owned defs carry this workspace's
-        // id (REQ-02 namespace fence, `settings.ts`'s `NAMESPACE_FENCE`).
-        const workspaceId = ownerKind === "site" ? deps.workspaceId : null;
-
-        if (op === "register") {
-          toRegister.push({
-            namespace,
-            key,
-            ownerKind,
-            workspaceId,
-            schema: item.schemaJson as SettingValueSchema,
-            defaultValue: (item.defaultJson ?? null) as JsonValue | null,
-            scopes: Number(item.scopes),
-            secret: Boolean(item.secret ?? false),
-          });
-          applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
-          continue;
-        }
-
-        const parsedOp = parseNonRegisterDefinitionOp(op);
-        if (!parsedOp) {
-          res.status(400).json({ error: `unknown op '${op}'`, code: "VALIDATION_ERROR" });
+        const outcome = await applyDefinitionItem(raw, opCtx, toRegister);
+        if ("unknownOp" in outcome) {
+          res.status(400).json({ error: `unknown op '${outcome.unknownOp}'`, code: "VALIDATION_ERROR" });
           return;
         }
-        const handler = NON_REGISTER_DEFINITION_OPS[parsedOp];
-
-        await handler(opCtx, {
-          namespace,
-          key,
-          ownerKind,
-          workspaceId,
-          newNamespace: item.newNamespace as string | undefined,
-          newKey: item.newKey as string | undefined,
-          schemaJson: item.schemaJson as SettingValueSchema,
-          defaultJson: (item.defaultJson ?? null) as JsonValue | null,
-          coercionJson: item.coercionJson as string | { tag?: string } | undefined,
-        });
-        applied.push({ key: `${namespace}.${key}`, op, status: "applied" });
+        applied.push(outcome.applied);
       }
 
       if (toRegister.length > 0) {
@@ -137,31 +187,7 @@ export const registerAdminSettingsRegisterDefinitionsRoute: SettingsRouteRegistr
 
       res.json({ applied });
     } catch (err) {
-      if (err instanceof SecretNotSupportedError) {
-        res.status(400).json({ error: err.message, code: "SECRET_NOT_SUPPORTED" });
-        return;
-      }
-      if (err instanceof DefinitionInvalidError) {
-        res.status(400).json({ error: err.message, code: "DEFINITION_INVALID" });
-        return;
-      }
-      if (err instanceof RenameRetypeConflictError) {
-        res.status(409).json({ error: err.message, code: "RENAME_RETYPE_CONFLICT" });
-        return;
-      }
-      if (err instanceof AliasDepthExceededError) {
-        res.status(409).json({ error: err.message, code: "ALIAS_DEPTH_EXCEEDED" });
-        return;
-      }
-      if (err instanceof DefinitionTombstonedError) {
-        res.status(409).json({ error: err.message, code: "DEFINITION_TOMBSTONED" });
-        return;
-      }
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({ error: err.message, code: "FORBIDDEN" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToSettingsError(res, err, REGISTER_DEFINITIONS_ERROR_MAPPINGS);
     }
   });
 };

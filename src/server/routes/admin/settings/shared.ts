@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import type { SettingScope, SettingsWriteServiceDeps } from "#src/features/settings/index";
 import type { SettingsRouteDeps } from "./deps.js";
 
@@ -130,4 +132,34 @@ export async function resolveUserLayerReadTarget(
     entityType: "setting-value",
   });
   return result.allowed ? { allowed: true, principalId: requestedPrincipalId } : { allowed: false, reason: result.reason };
+}
+
+/**
+ * One entry in a settings route's `catch` block: which thrown error class maps to which HTTP
+ * status/code pair. `matches` stays a plain predicate rather than a type-guard — every error class
+ * these routes throw is a bare `class XError extends Error {}` with no fields beyond `message`, so
+ * narrowing buys nothing here.
+ */
+export interface SettingsErrorMapping {
+  readonly matches: (err: unknown) => boolean;
+  readonly status: number;
+  readonly code: string;
+}
+
+/**
+ * Writes the first matching mapping's status/code, or a generic 500 if none match. Replaces the
+ * `set.ts`/`clear.ts`/`register-definitions.ts` catch blocks' repeated `if (err instanceof X) {...}`
+ * chains — same shape three times, differing only in which error classes and codes each route owns.
+ *
+ * @complexity O(n) in the mapping table length, which is a small fixed list per caller.
+ */
+export function respondToSettingsError(res: Response, err: unknown, mappings: readonly SettingsErrorMapping[]): void {
+  const message = err instanceof Error ? err.message : String(err);
+  for (const mapping of mappings) {
+    if (mapping.matches(err)) {
+      res.status(mapping.status).json({ error: message, code: mapping.code });
+      return;
+    }
+  }
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
