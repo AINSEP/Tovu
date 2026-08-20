@@ -1,3 +1,14 @@
+> **SUPERSEDED 2026-08-20.** This report's config-only conclusion (widen `feature-no-express-or-admin-imports`'s
+> `from`, exempt type-only edges via `dependencyTypesNot`) was **reviewed and rejected by the owner**:
+> the rule's blindness to `RouteDeps`-typed edges was not the problem to fix — the coupling it was
+> (correctly) flagging was. That coupling is now actually closed, with the config reverted back to this
+> report's own pre-widened shape (`from: "^src/features"`, no `dependencyTypesNot` exemption). See
+> `ADS-memory/reports/2026-08-20-architecture-step2-routedeps-narrowing.md` for the real fix: a
+> composition-root-bound `RouteDeps.exportSiteBound` field plus narrowing all 6 production coupling
+> sites to domain-owned port types. The rest of this report — its per-edge `dependencyTypes`
+> verification table in particular — is still accurate, useful evidence of what the 9 original
+> violations actually were; only the "no source changes needed" conclusion built on top of it was wrong.
+
 # Architecture plan step 2 of 3 — `feature-no-express-or-admin-imports` boundary closure
 
 **Date:** 2026-08-19
