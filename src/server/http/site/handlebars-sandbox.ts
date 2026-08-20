@@ -60,6 +60,9 @@ export interface HandlebarsSandboxOptions {
   resourceLimits?: ResourceLimits;
 }
 
+const DEFAULT_RENDER_TIMEOUT_MS = 5000;
+const MAX_RENDER_TIMEOUT_MS = 300_000;
+
 /**
  * Wall-clock budget for one sandboxed Handlebars render before the worker is force-terminated.
  *
@@ -81,13 +84,22 @@ export interface HandlebarsSandboxOptions {
  * their own budgets (500ms to prove termination, 15000ms for the memory-blowup case) precisely so
  * they never depend on this default.
  */
-function resolveDefaultTimeoutMs(): number {
+export function resolveDefaultTimeoutMs(): number {
   const raw = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
-  if (!raw) return 5000;
-  const parsed = Number.parseInt(raw, 10);
-  // A malformed value falls back to the safe default rather than NaN (which would make every
-  // `Date.now() < deadline` comparison false and terminate every render instantly).
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+  if (!raw) return DEFAULT_RENDER_TIMEOUT_MS;
+  // STRICT digits-only, deliberately not `Number.parseInt`: parseInt stops at the first non-digit and
+  // silently accepts a malformed prefix, which is worse than rejecting it. Measured 2026-08-19 during
+  // an adversarial audit of this very function: `"5e3"` -> 5 (a 5 MILLISECOND budget, so every render
+  // on the site fails) and `"1e10"` -> 1; `"60000ms"` -> 60000, quietly bypassing the fallback the
+  // comment claimed to provide. A typo in an operator's env var must degrade to the safe default, not
+  // to a value that looks deliberate.
+  if (!/^\d+$/.test(raw.trim())) return DEFAULT_RENDER_TIMEOUT_MS;
+  const parsed = Number(raw.trim());
+  // Upper bound as well as lower: this guard exists to stop a runaway template wedging a request, so
+  // an absurd budget defeats its purpose as surely as a zero one. 5 minutes is far past any legitimate
+  // slow-VPS render and still finite.
+  if (!Number.isSafeInteger(parsed) || parsed <= 0 || parsed > MAX_RENDER_TIMEOUT_MS) return DEFAULT_RENDER_TIMEOUT_MS;
+  return parsed;
 }
 const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
   maxOldGenerationSizeMb: 64,
