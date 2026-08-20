@@ -124,6 +124,30 @@ test("v2-strict: an unrecognized tier is rejected (fail-closed)", () => {
   assert.ok(findError(result, "v2-tier"), JSON.stringify(result.errors));
 });
 
+test("v2-strict: an absent tier is accepted — schema v2 tier is optional (loadTheme() defaults to declarative)", () => {
+  const dir = tmpDir("tovu-validate-v2-tier-absent-");
+  writeMinimalV2Static(dir, { tier: undefined });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "v2-tier"), undefined, JSON.stringify(result.errors));
+});
+
+test("v2-strict: an empty/missing manifest id is rejected (v2-id, independent of the folder-name-match check)", () => {
+  const dir = tmpDir("tovu-validate-v2-id-empty-");
+  writeMinimalV2Static(dir, { id: "" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-id"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: an empty/missing name is rejected (v2-name)", () => {
+  const dir = tmpDir("tovu-validate-v2-name-empty-");
+  writeMinimalV2Static(dir, { name: "" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-name"), JSON.stringify(result.errors));
+});
+
 test("v2-strict: engine as a bare number (v1 shape) is rejected — v2 requires the { name, version } object", () => {
   const dir = tmpDir("tovu-validate-v2-engine-number-");
   writeMinimalV2Static(dir, { engine: 1 });
@@ -138,6 +162,22 @@ test("v2-strict: engine.name must be a known template engine", () => {
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
   assert.ok(findError(result, "v2-engine-name"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: engine.version must be a string when present (v2-engine-version)", () => {
+  const dir = tmpDir("tovu-validate-v2-engine-version-");
+  writeMinimalV2Static(dir, { engine: { name: "liquid", version: 1 } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-engine-version"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: a non-object build is rejected (v2-build-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-build-shape-");
+  writeMinimalV2Static(dir, { build: "compiled" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-build-shape"), JSON.stringify(result.errors));
 });
 
 test("v2-strict: a compiled build missing sourceDir/artifactHashes is rejected", () => {
@@ -170,6 +210,86 @@ test("v2-strict: build.sourceDir naming the reserved preview/ directory is rejec
     findError(result, "v2-build-sourcedir-conflict") || findError(result, "structure-sourcedir-generated-conflict"),
     JSON.stringify(result.errors)
   );
+});
+
+test("v2-strict: an unrecognized build.source is rejected", () => {
+  const dir = tmpDir("tovu-validate-v2-build-source-");
+  writeMinimalV2Static(dir, { build: { source: "downloaded" } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-build-source"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: an unrecognized build.framework is rejected", () => {
+  const dir = tmpDir("tovu-validate-v2-build-framework-");
+  writeMinimalV2Static(dir, { build: { framework: "ember" } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-build-framework"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: license must be an object when present (v2-license-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-license-shape-");
+  writeMinimalV2Static(dir, { license: "MIT" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-license-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: authors must be an array when present (v2-authors-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-authors-shape-");
+  writeMinimalV2Static(dir, { authors: { name: "Someone" } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-authors-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: attributions must be an array when present (v2-attributions-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-attributions-shape-");
+  writeMinimalV2Static(dir, { attributions: { work: "Some Work" } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-attributions-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: regions must be an array when present (v2-regions-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-regions-shape-");
+  writeMinimalV2Static(dir, { regions: "header" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-regions-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: partials must be an object keyed by partial id (v2-partials-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-partials-shape-");
+  writeMinimalV2Static(dir, { partials: ["nav"] });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-partials-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: tokens.defaultMode not listed in tokens.modes is rejected (v2-tokens-default-mode)", () => {
+  const dir = tmpDir("tovu-validate-v2-tokens-default-mode-");
+  writeMinimalV2Static(dir, { tokens: { defaultMode: "sepia", modes: { dark: "tokens.json", light: "tokens.light.json" } } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-tokens-default-mode"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: a non-object tokens is rejected (v2-tokens-shape)", () => {
+  const dir = tmpDir("tovu-validate-v2-tokens-shape-");
+  writeMinimalV2Static(dir, { tokens: "dark" });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-tokens-shape"), JSON.stringify(result.errors));
+});
+
+test("v2-strict: tokens missing a modes object is rejected (v2-tokens-modes)", () => {
+  const dir = tmpDir("tovu-validate-v2-tokens-modes-");
+  writeMinimalV2Static(dir, { tokens: { defaultMode: "dark" } });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findError(result, "v2-tokens-modes"), JSON.stringify(result.errors));
 });
 
 // ---------------------------------------------------------------------------
