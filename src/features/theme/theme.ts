@@ -1083,61 +1083,68 @@ export function findTheme(
 }
 
 /**
- * Resolve a page route to a template id, with the SPEC-004 REQ-03 fallthrough
- * chain trimmed to the spike's routes:
- *   home → `home`
- *   post → `post` else `entry` (built-ins ship `entry`; `post` is an optional
- *          override a theme may add to specialize posts — AC-07)
- *   products/product → own-named template only, no fallthrough — a theme
- *          that doesn't declare one simply has no product pages (renderSite's
- *          fallbackBody degrades gracefully, same REQ-10 spirit as any other
- *          undeclared template).
+ * SPEC-004 REQ-03 fallthrough chain, keyed by route, trimmed to the spike's routes: `home` and
+ * `products`/`product` are own-named only (no fallthrough — a theme that doesn't declare one
+ * simply has no such page, REQ-10 spirit); `post` tries `post` first, then falls through to
+ * `entry` (built-ins ship `entry`; `post` is an optional override a theme may add to specialize
+ * posts — AC-07). One candidate list per route rather than a route-shaped if/else chain, so
+ * {@link resolveRouteTemplateId} stays a single loop instead of re-deriving this same shape three
+ * times (once per source-map type below).
+ */
+const ROUTE_TEMPLATE_CANDIDATES: Readonly<Record<"home" | "post" | "products" | "product", readonly string[]>> = {
+  home: ["home"],
+  post: ["post", "entry"],
+  products: ["products"],
+  product: ["product"],
+};
+
+/**
+ * Shared REQ-03 resolution core behind `resolveTemplateId`/`resolveLiquidTemplateId`/
+ * `resolveHandlebarsTemplateId` — the three differ only in which source-map type they resolve
+ * against (declarative block trees, raw `.liquid` source, raw `.hbs` source), never in the
+ * fallthrough logic itself, so that logic lives here once. `templates` is read generically
+ * (presence/truthiness only, via `Record<string, unknown>`) because none of the three callers'
+ * value types matter to this decision — only whether a given template id exists.
+ */
+function resolveRouteTemplateId(
+  route: "home" | "post" | "products" | "product",
+  templates: Readonly<Record<string, unknown>>
+): string | null {
+  for (const candidateId of ROUTE_TEMPLATE_CANDIDATES[route]) {
+    if (templates[candidateId]) return candidateId;
+  }
+  return null;
+}
+
+/**
+ * Resolve a page route to a template id — see {@link ROUTE_TEMPLATE_CANDIDATES} for the REQ-03
+ * fallthrough chain this applies.
  */
 export function resolveTemplateId(
   required: { route: "home" | "post" | "products" | "product"; templates: Record<string, TemplateNode> },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { route, templates } = required;
-  if (route === "home") return templates.home ? "home" : null;
-  if (route === "products") return templates.products ? "products" : null;
-  if (route === "product") return templates.product ? "product" : null;
-  if (templates.post) return "post";
-  if (templates.entry) return "entry";
-  return null;
+  return resolveRouteTemplateId(required.route, required.templates);
 }
 
 /**
- * Templated-tier (LiquidJS) analogue of `resolveTemplateId`: same REQ-03
- * fallthrough (`home` → `home`; `post` → `post` else `entry`; `products`/
- * `product` → own-named template only) over the raw `.liquid` source map.
+ * Templated-tier (LiquidJS) analogue of `resolveTemplateId`: same REQ-03 fallthrough over the raw
+ * `.liquid` source map.
  */
 export function resolveLiquidTemplateId(
   required: { route: "home" | "post" | "products" | "product"; liquidTemplates: Record<string, string> },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { route, liquidTemplates } = required;
-  if (route === "home") return liquidTemplates.home ? "home" : null;
-  if (route === "products") return liquidTemplates.products ? "products" : null;
-  if (route === "product") return liquidTemplates.product ? "product" : null;
-  if (liquidTemplates.post) return "post";
-  if (liquidTemplates.entry) return "entry";
-  return null;
+  return resolveRouteTemplateId(required.route, required.liquidTemplates);
 }
 
 /**
- * Handlebars-tier analogue of `resolveTemplateId`: same REQ-03 fallthrough
- * (`home` → `home`; `post` → `post` else `entry`; `products`/`product` → own-named
- * template only) over the raw `.hbs` source map.
+ * Handlebars-tier analogue of `resolveTemplateId`: same REQ-03 fallthrough over the raw `.hbs`
+ * source map.
  */
 export function resolveHandlebarsTemplateId(
   required: { route: "home" | "post" | "products" | "product"; handlebarsTemplates: Record<string, string> },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { route, handlebarsTemplates } = required;
-  if (route === "home") return handlebarsTemplates.home ? "home" : null;
-  if (route === "products") return handlebarsTemplates.products ? "products" : null;
-  if (route === "product") return handlebarsTemplates.product ? "product" : null;
-  if (handlebarsTemplates.post) return "post";
-  if (handlebarsTemplates.entry) return "entry";
-  return null;
+  return resolveRouteTemplateId(required.route, required.handlebarsTemplates);
 }
