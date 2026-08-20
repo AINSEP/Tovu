@@ -258,6 +258,90 @@ export async function installAgentPlugin(
   }
 }
 
+/** The `(target '...')` suffix on the symlink-rejection message, or nothing when the entry carries
+ * no `linkTarget` at all — split out purely to keep that `&&`/ternary pair out of
+ * {@link extractOneEntry}'s own branch count. */
+function symlinkRejectionMessage(entry: AgentPluginArchiveEntry): string {
+  const targetSuffix = "linkTarget" in entry && entry.linkTarget ? ` (target '${entry.linkTarget}')` : "";
+  return `archive entry '${entry.entryPath}' has kind '${entry.kind}', which Agent Plugin packages are not permitted to contain${targetSuffix}`;
+}
+
+/** `normalizePackageEntryPath()`, with its thrown error re-shaped into the module's own
+ * `AgentPluginInstallError` vocabulary. */
+function normalizeEntryPathOrThrow(entryPath: string): string {
+  try {
+    return normalizePackageEntryPath(entryPath);
+  } catch (error) {
+    throw new AgentPluginInstallError("UNSAFE_ENTRY_PATH", `archive entry path is unsafe: '${entryPath}'`, { cause: error });
+  }
+}
+
+/** `assertContainedOnDisk()`, with its thrown error re-shaped the same way. */
+async function resolveContainedDestinationOrThrow(extractionRoot: string, normalized: string): Promise<string> {
+  try {
+    return await assertContainedOnDisk(extractionRoot, normalized);
+  } catch (error) {
+    throw new AgentPluginInstallError("UNSAFE_ENTRY_PATH", `archive entry resolves outside the package root: '${normalized}'`, {
+      cause: error instanceof PackagePathViolation ? error : undefined,
+    });
+  }
+}
+
+/**
+ * Applies every hardening rule in this module's header to one archive entry: symlink rejection,
+ * path normalization, duplicate detection, containment, the per-file size cap, and (for a file
+ * entry) the actual write. Returns the running total-extracted-bytes count, since that is the one
+ * piece of `extractEntries`'s loop state a single entry's processing can change.
+ */
+async function extractOneEntry(args: {
+  entry: AgentPluginArchiveEntry;
+  extractionRoot: string;
+  seen: Set<string>;
+  executablePaths: Set<string>;
+  totalBytesSoFar: number;
+}): Promise<number> {
+  const { entry, extractionRoot, seen, executablePaths, totalBytesSoFar } = args;
+
+  // Refused BEFORE path normalization: a symlink entry is never acceptable regardless of how
+  // "safe" its own name looks, matching the ecosystem fix this module's header cites — validating
+  // where a permitted symlink might point is more attack surface than refusing the entry kind.
+  if (entry.kind !== "file" && entry.kind !== "directory") {
+    throw new AgentPluginInstallError("SYMLINK_ENTRY_REJECTED", symlinkRejectionMessage(entry));
+  }
+
+  const normalized = normalizeEntryPathOrThrow(entry.entryPath);
+
+  if (seen.has(normalized)) {
+    throw new AgentPluginInstallError(
+      "DUPLICATE_ENTRY",
+      `duplicate archive entry '${normalized}' — refusing a second write over an already-vetted first one`,
+    );
+  }
+  seen.add(normalized);
+
+  const destination = await resolveContainedDestinationOrThrow(extractionRoot, normalized);
+
+  if (entry.kind === "directory") {
+    await mkdir(destination, { recursive: true, mode: 0o700 });
+    return totalBytesSoFar;
+  }
+
+  if ((entry.declaredSize ?? 0) > LIMITS.maxFileBytes) {
+    throw new AgentPluginInstallError("FILE_TOO_LARGE", `archive file '${normalized}' declares ${entry.declaredSize} bytes, over the ${LIMITS.maxFileBytes}-byte cap`);
+  }
+
+  await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
+  const totalBytes = await writeContainedFile({
+    destination,
+    normalized,
+    stream: entry.openReadStream(),
+    totalBytesSoFar,
+  });
+
+  if (entry.executable) executablePaths.add(normalized);
+  return totalBytes;
+}
+
 /** Extracts every entry into `extractionRoot`, enforcing every hardening rule in this module's
  * header. Returns the set of archive-relative paths the archive marked executable, for
  * {@link freezeTree} to preserve the `+x` bit on. */
@@ -276,57 +360,7 @@ async function extractEntries(
       throw new AgentPluginInstallError("TOO_MANY_ENTRIES", `archive exceeds the ${LIMITS.maxEntries}-entry cap`);
     }
 
-    // Refused BEFORE path normalization: a symlink entry is never acceptable regardless of how
-    // "safe" its own name looks, matching the ecosystem fix this module's header cites — validating
-    // where a permitted symlink might point is more attack surface than refusing the entry kind.
-    if (entry.kind !== "file" && entry.kind !== "directory") {
-      throw new AgentPluginInstallError(
-        "SYMLINK_ENTRY_REJECTED",
-        `archive entry '${entry.entryPath}' has kind '${entry.kind}', which Agent Plugin packages are not permitted to contain` +
-          ("linkTarget" in entry && entry.linkTarget ? ` (target '${entry.linkTarget}')` : ""),
-      );
-    }
-
-    let normalized: string;
-    try {
-      normalized = normalizePackageEntryPath(entry.entryPath);
-    } catch (error) {
-      throw new AgentPluginInstallError("UNSAFE_ENTRY_PATH", `archive entry path is unsafe: '${entry.entryPath}'`, { cause: error });
-    }
-
-    if (seen.has(normalized)) {
-      throw new AgentPluginInstallError(
-        "DUPLICATE_ENTRY",
-        `duplicate archive entry '${normalized}' — refusing a second write over an already-vetted first one`,
-      );
-    }
-    seen.add(normalized);
-
-    let destination: string;
-    try {
-      destination = await assertContainedOnDisk(extractionRoot, normalized);
-    } catch (error) {
-      throw new AgentPluginInstallError("UNSAFE_ENTRY_PATH", `archive entry resolves outside the package root: '${normalized}'`, { cause: error instanceof PackagePathViolation ? error : undefined });
-    }
-
-    if (entry.kind === "directory") {
-      await mkdir(destination, { recursive: true, mode: 0o700 });
-      continue;
-    }
-
-    if ((entry.declaredSize ?? 0) > LIMITS.maxFileBytes) {
-      throw new AgentPluginInstallError("FILE_TOO_LARGE", `archive file '${normalized}' declares ${entry.declaredSize} bytes, over the ${LIMITS.maxFileBytes}-byte cap`);
-    }
-
-    await mkdir(path.dirname(destination), { recursive: true, mode: 0o700 });
-    totalBytes = await writeContainedFile({
-      destination,
-      normalized,
-      stream: entry.openReadStream(),
-      totalBytesSoFar: totalBytes,
-    });
-
-    if (entry.executable) executablePaths.add(normalized);
+    totalBytes = await extractOneEntry({ entry, extractionRoot, seen, executablePaths, totalBytesSoFar: totalBytes });
   }
 
   return executablePaths;
