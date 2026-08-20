@@ -208,8 +208,33 @@ interface Baseline {
   /** All-import graph — churn blast radius is a change-coupling concept, same reasoning as
    * `propagationCostPct`. Files above-median in BOTH transitive fan-in and transitive fan-out —
    * a bidirectional structural hub, not a test of `src/core` (or any directory) membership.
-   * Renamed from `coreSize` 2026-08-19; same shape, same values. */
-  bidirectionalHubs: { count: number; total: number; pct: number };
+   * Renamed from `coreSize` 2026-08-19; same shape, same values.
+   *
+   * `medians` is FROZEN at `--update` time and reused on every subsequent check (added 2026-08-20).
+   * Before that, both medians were recomputed fresh each run, which made this the only count-based
+   * metric here whose *threshold* moved between baseline and check — every other one applies a fixed
+   * rule (`moduleApiSurfaceFiles` asks "is this index.ts?", the same question forever). A floating
+   * threshold wearing count-based framing produced two measured inversions, both reproduced against
+   * this exact graph and written up in
+   * `ADS-memory/reports/architecture/2026-08-20-hub-decomposition-hypotheses.md`:
+   *
+   *   - splitting `server/routes/types.ts` — the RouteDeps god-type this file's own header calls
+   *     "the actual defect" — scored 151 → 179 (a 28-point REGRESSION) floating, vs 141 → 119
+   *     (a correct improvement) frozen. The gate was telling a reader to revert a correct fix.
+   *   - routing all 279 deep imports through their target `index.ts` scored 151 → 45 (a huge
+   *     apparent WIN) floating, vs 141 → 261 frozen — and that same mutation roughly doubles
+   *     `propagationCostPct`, 11.62% → 24.38%, which is a hard-constraint metric. The gate was
+   *     endorsing a change that would fail the build on a metric that can actually block.
+   *
+   * Mechanism: removing a large glue node collapses overall reachability so broadly that the median
+   * falls faster than most individual files' degree does, so MORE files clear a LOWER bar even
+   * though the graph is objectively less tangled. Freezing removes the inversion entirely.
+   *
+   * Trade-off, stated honestly: a frozen bar stops self-normalizing as the repo grows organically,
+   * so it needs periodic re-baselining — the same cost every other count-based metric here already
+   * pays. `--update` re-freezes it. Absent (older baselines) → falls back to fresh medians with a
+   * warning, so this change cannot silently alter a verdict. */
+  bidirectionalHubs: { count: number; total: number; pct: number; medians?: { fanIn: number; fanOut: number } };
 }
 
 /** `src/features/post/x.ts` → `features/post`; `src/seo/y.ts` → `seo`. */
@@ -411,9 +436,48 @@ function median(values: number[]): number {
  * just a count (2026-08-19; see the metric-5 doc comment at the top of this file for why that
  * mattered).
  */
+type HubDegrees = { fanIn: Map<string, number>; fanOut: Map<string, number> };
+
+/** Applies a fan-in/fan-out threshold pair to already-computed degrees. Split out from
+ * `propagationAndHubs()` so the ratchet can re-threshold against the baseline's FROZEN medians
+ * without paying for a second O(N·(V+E)) BFS sweep — see `Baseline.bidirectionalHubs`'s comment for
+ * why the threshold is frozen at all. */
+function hubsAtThresholds(
+  degrees: HubDegrees,
+  thresholds: { fanIn: number; fanOut: number },
+): {
+  bidirectionalHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number } };
+  hubMembers: { file: string; module: string | null; fanIn: number; fanOut: number }[];
+} {
+  const nodes = [...degrees.fanOut.keys()];
+  const total = nodes.length;
+  const hubNodes = nodes.filter(
+    (n) => degrees.fanOut.get(n)! > thresholds.fanOut && degrees.fanIn.get(n)! > thresholds.fanIn,
+  );
+  // Sorted by combined degree (fan-in + fan-out) descending, tie-broken by path — the files that
+  // sit at the busiest structural chokepoints read first.
+  const hubMembers = hubNodes
+    .map((file) => ({ file, module: moduleOf(file), fanIn: degrees.fanIn.get(file)!, fanOut: degrees.fanOut.get(file)! }))
+    .sort((a, b) => b.fanIn + b.fanOut - (a.fanIn + a.fanOut) || a.file.localeCompare(b.file));
+
+  return {
+    bidirectionalHubs: {
+      count: hubNodes.length,
+      total,
+      pct: roundPct((hubNodes.length / total) * 100),
+      medians: thresholds,
+    },
+    hubMembers,
+  };
+}
+
 function propagationAndHubs(forward: Map<string, Set<string>>): {
   propagationCostPct: number;
-  bidirectionalHubs: { count: number; total: number; pct: number };
+  degrees: HubDegrees;
+  /** Medians of THIS graph. Written to the baseline by `--update`; on a plain check the baseline's
+   * frozen medians take precedence. */
+  freshMedians: { fanIn: number; fanOut: number };
+  bidirectionalHubs: { count: number; total: number; pct: number; medians: { fanIn: number; fanOut: number } };
   hubMembers: { file: string; module: string | null; fanIn: number; fanOut: number }[];
 } {
   const reverse = reverseOf(forward);
@@ -430,19 +494,14 @@ function propagationAndHubs(forward: Map<string, Set<string>>): {
   const meanReachableFraction =
     nodes.reduce((sum, node) => sum + fanOut.get(node)! / Math.max(total - 1, 1), 0) / total;
 
-  const medianFanOut = median([...fanOut.values()]);
-  const medianFanIn = median([...fanIn.values()]);
-  const hubNodes = nodes.filter((n) => fanOut.get(n)! > medianFanOut && fanIn.get(n)! > medianFanIn);
-  // Sorted by combined degree (fan-in + fan-out) descending, tie-broken by path — the files that
-  // sit at the busiest structural chokepoints read first.
-  const hubMembers = hubNodes
-    .map((file) => ({ file, module: moduleOf(file), fanIn: fanIn.get(file)!, fanOut: fanOut.get(file)! }))
-    .sort((a, b) => b.fanIn + b.fanOut - (a.fanIn + a.fanOut) || a.file.localeCompare(b.file));
+  const degrees: HubDegrees = { fanIn, fanOut };
+  const freshMedians = { fanIn: median([...fanIn.values()]), fanOut: median([...fanOut.values()]) };
 
   return {
     propagationCostPct: roundPct(meanReachableFraction * 100),
-    bidirectionalHubs: { count: hubNodes.length, total, pct: roundPct((hubNodes.length / total) * 100) },
-    hubMembers,
+    degrees,
+    freshMedians,
+    ...hubsAtThresholds(degrees, freshMedians),
   };
 }
 
@@ -591,8 +650,32 @@ function main(): void {
   const forwardRuntime = buildFileGraph(modules, { runtimeOnly: true });
   const fileCount = forwardAll.size;
 
-  const { propagationCostPct, bidirectionalHubs, hubMembers } = propagationAndHubs(forwardAll);
+  const {
+    propagationCostPct,
+    degrees: hubDegrees,
+    bidirectionalHubs: freshHubs,
+    hubMembers: freshHubMembers,
+  } = propagationAndHubs(forwardAll);
   const { propagationCostPct: propagationCostRuntimePct } = propagationAndHubs(forwardRuntime);
+
+  // Hub thresholds are FROZEN in the baseline — see `Baseline.bidirectionalHubs` for the two
+  // measured inversions that motivated this. Loaded here, before any reporting, so the printed
+  // number and the ratchet verdict are the same number. `--update` deliberately uses the FRESH
+  // medians: that is what re-freezing the bar means.
+  const priorBaseline: Baseline | null = fs.existsSync(BASELINE_PATH)
+    ? (JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8")) as Baseline)
+    : null;
+  const frozenMedians = priorBaseline?.bidirectionalHubs?.medians ?? null;
+  const useFrozen = !UPDATE && frozenMedians !== null;
+  if (!UPDATE && priorBaseline !== null && frozenMedians === null) {
+    console.warn(
+      `\n  WARNING: baseline predates frozen hub medians — falling back to this run's own medians,\n` +
+        `  which is the pre-2026-08-20 floating-threshold behaviour. Run --update to freeze them.`,
+    );
+  }
+  const { bidirectionalHubs, hubMembers } = useFrozen
+    ? hubsAtThresholds(hubDegrees, frozenMedians!)
+    : { bidirectionalHubs: freshHubs, hubMembers: freshHubMembers };
   const backEdges = backEdgesIntoServer(forwardAll);
   const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
   const deep = deepImports(forwardAll);
@@ -613,7 +696,9 @@ function main(): void {
     moduleCycles: { mutualCycleCount: pairs.length, largestScc, pairs },
     moduleApiSurfaceFiles: apiSurfaceFiles,
     deepImportsBypassingIndex: deep.total,
-    bidirectionalHubs,
+    // FRESH hubs + fresh medians on purpose: `current` is only ever written by `--update`, and
+    // re-freezing the threshold to this graph is exactly what an update is meant to do.
+    bidirectionalHubs: freshHubs,
   };
 
   const scope = INCLUDE_TESTS ? "including tests" : "production files only";
@@ -699,7 +784,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const baseline: Baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, "utf8"));
+  const baseline: Baseline = priorBaseline!;
 
   const introducedPairs = pairs.filter((p) => !baseline.moduleCycles.pairs.includes(p));
   const removedPairs = baseline.moduleCycles.pairs.filter((p) => !pairs.includes(p));
