@@ -281,15 +281,34 @@ async function checkProviderCredential(
   });
 }
 
+/** The 3 providers with a name that isn't just their target id capitalized — every other target
+ *  (`vercel`, `netlify`) falls through to the capitalized-id default in {@link providerLabel}. */
+const PROVIDER_DISPLAY_LABELS: Partial<Record<StaticPublishTargetId, string>> = {
+  "github-pages": "GitHub",
+  "cloudflare-pages": "Cloudflare",
+  "s3-compatible": "the storage provider",
+};
+
+function providerLabel(target: StaticPublishTargetId): string {
+  return PROVIDER_DISPLAY_LABELS[target] ?? target[0]!.toUpperCase() + target.slice(1);
+}
+
+/** The optional `(HTTP <code>)` suffix shared by both failure messages in {@link buildVerificationMessage}. */
+function statusCodeSuffix(statusCode: number | undefined): string {
+  return statusCode ? ` (HTTP ${statusCode})` : "";
+}
+
 /** Human-facing text for one check outcome — built centrally (not per-checker) so every provider's
  *  wording stays consistent, and so no checker needs to know how its own result will be phrased.
  *  Never includes the credential, a raw response body, or any request/account detail beyond a bare
  *  HTTP status — see this file's header for why that boundary matters even for a CACHED result. */
 function buildVerificationMessage(target: StaticPublishTargetId, check: ProviderCredentialCheckResult): string {
-  const providerLabel = target === "github-pages" ? "GitHub" : target === "cloudflare-pages" ? "Cloudflare" : target === "s3-compatible" ? "the storage provider" : target[0]!.toUpperCase() + target.slice(1);
-  if (check.ok) return `${providerLabel} accepted this credential.`;
-  if (check.reason === "rejected") return `${providerLabel} rejected this credential${check.statusCode ? ` (HTTP ${check.statusCode})` : ""} — it is invalid, expired, or missing the required permissions.`;
-  return `Could not reach ${providerLabel} to verify this credential${check.statusCode ? ` (HTTP ${check.statusCode})` : ""} — this does not necessarily mean the credential is bad.`;
+  const label = providerLabel(target);
+  if (check.ok) return `${label} accepted this credential.`;
+  if (check.reason === "rejected") {
+    return `${label} rejected this credential${statusCodeSuffix(check.statusCode)} — it is invalid, expired, or missing the required permissions.`;
+  }
+  return `Could not reach ${label} to verify this credential${statusCodeSuffix(check.statusCode)} — this does not necessarily mean the credential is bad.`;
 }
 
 /** One cached verification outcome. Never carries the credential, its ciphertext, or any raw
@@ -536,18 +555,33 @@ const GITHUB_REPOS_URL = `https://api.github.com/user/repos?affiliation=owner,or
  *
  * @complexity O(1) per entry.
  */
-function extractGitHubRepoSummary(raw: unknown): GitHubRepoSummary | undefined {
-  if (typeof raw !== "object" || raw === null) return undefined;
-  const value = raw as Record<string, unknown>;
-  const name = value.name;
-  const fullName = value.full_name;
-  const owner = typeof value.owner === "object" && value.owner !== null ? (value.owner as Record<string, unknown>).login : undefined;
-  const isPrivate = value.private;
-  const defaultBranch = value.default_branch;
+/** Resolves the nested `owner.login` field, or `undefined` if `owner` isn't itself an object. */
+function readGitHubRepoOwnerLogin(value: Record<string, unknown>): unknown {
+  const owner = value.owner;
+  if (typeof owner !== "object" || owner === null) return undefined;
+  return (owner as Record<string, unknown>).login;
+}
+
+/** Narrows the five raw fields to {@link GitHubRepoSummary}'s exact shape, or `undefined` if any of
+ *  them doesn't match GitHub's documented type — split out of {@link extractGitHubRepoSummary} so
+ *  that function only needs to unwrap the raw object and resolve the nested owner login. */
+function buildGitHubRepoSummary(
+  name: unknown,
+  fullName: unknown,
+  owner: unknown,
+  isPrivate: unknown,
+  defaultBranch: unknown
+): GitHubRepoSummary | undefined {
   if (typeof name !== "string" || typeof fullName !== "string" || typeof owner !== "string" || typeof isPrivate !== "boolean" || typeof defaultBranch !== "string") {
     return undefined;
   }
   return { owner, name, fullName, private: isPrivate, defaultBranch };
+}
+
+function extractGitHubRepoSummary(raw: unknown): GitHubRepoSummary | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const value = raw as Record<string, unknown>;
+  return buildGitHubRepoSummary(value.name, value.full_name, readGitHubRepoOwnerLogin(value), value.private, value.default_branch);
 }
 
 /** `true` iff GitHub's own pagination `Link` header names a `rel="next"` page — the authoritative
