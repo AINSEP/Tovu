@@ -150,31 +150,9 @@ function malformed(message: string): GlueManifestValidationError {
   return { code: "MANIFEST_MALFORMED", file: null, message };
 }
 
-/**
- * Validates one already-parsed glue manifest, collecting every applicable error rather than
- * stopping at the first. Pure — no I/O, no mutation of `manifest`.
- *
- * @throws Nothing — validation failures are reported via the returned `errors` array, never a
- * thrown error (a malformed top-level shape, e.g. `manifest` being `null` or an array, is itself a
- * `MANIFEST_MALFORMED` entry in the result, not a throw).
- * @complexity O(capabilities.length + attachments.length) — bounded by one manifest's own declared
- * arrays, never by external/unbounded input.
- * @overallScore 100/100
- */
-export function validateGlueManifest(
-  required: ValidateGlueManifestRequired,
-  _optional: ValidateGlueManifestOptional = {}
-): ValidateGlueManifestResult {
-  const { manifest } = required;
+/** Unknown-key and missing-required-key checks. */
+function validateKeys(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
   const errors: GlueManifestValidationError[] = [];
-
-  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
-    return { errors: [malformed("glue manifest must be a JSON object")] };
-  }
-
-  // Treat the input as a read-only bag of unknown values — never assigned back into.
-  const raw = manifest as Readonly<Record<string, unknown>>;
-
   for (const key of Object.keys(raw)) {
     if (!ALLOWED_KEYS.has(key)) {
       errors.push(malformed(`unknown manifest key '${key}'`));
@@ -185,9 +163,13 @@ export function validateGlueManifest(
       errors.push(malformed(`missing required manifest field '${key}'`));
     }
   }
+  return errors;
+}
 
-  // --- id: format only (no folder-match/shadow check — those are the loader's on-disk concern,
-  // a later slice; this manifest's closed contract carries no folderName/builtInIds input). ---
+/** id: format only (no folder-match/shadow check — those are the loader's on-disk concern, a
+ * later slice; this manifest's closed contract carries no folderName/builtInIds input). */
+function validateId(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
+  const errors: GlueManifestValidationError[] = [];
   const id = typeof raw.id === "string" ? raw.id : undefined;
   if (raw.id !== undefined && id === undefined) {
     errors.push(malformed("'id' must be a string"));
@@ -195,18 +177,26 @@ export function validateGlueManifest(
   if (id !== undefined && (!ID_PATTERN.test(id) || id.length < 1 || id.length > MAX_ID_LENGTH)) {
     errors.push(malformed(`id '${id}' must match ${ID_PATTERN} and be 1-${MAX_ID_LENGTH} characters`));
   }
+  return errors;
+}
 
-  // --- version / sdkRange: presence-checked above only, same as the sibling validator's own
-  // choice not to format-check these two fields (sdkRange's actual compatibility check is a
-  // load-time, not a validation-time, concern). ---
+/** version / sdkRange: presence-checked only, same as the sibling validator's own choice not to
+ * format-check these two fields (sdkRange's actual compatibility check is a load-time, not a
+ * validation-time, concern). */
+function validateVersionAndSdkRange(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
+  const errors: GlueManifestValidationError[] = [];
   if (raw.version !== undefined && typeof raw.version !== "string") {
     errors.push(malformed("'version' must be a string"));
   }
   if (raw.sdkRange !== undefined && typeof raw.sdkRange !== "string") {
     errors.push(malformed("'sdkRange' must be a string"));
   }
+  return errors;
+}
 
-  // --- capabilities (REQ-1) ---
+/** capabilities (REQ-1). */
+function validateCapabilities(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
+  const errors: GlueManifestValidationError[] = [];
   const capabilities = Array.isArray(raw.capabilities) ? raw.capabilities : [];
   if (raw.capabilities !== undefined && !Array.isArray(raw.capabilities)) {
     errors.push(malformed("'capabilities' must be an array"));
@@ -220,27 +210,72 @@ export function validateGlueManifest(
       });
     }
   }
+  return errors;
+}
 
-  // --- attachments (ADR-057 Decision 2: all six call sites accepted here; only three are wired
-  // for DISPATCH — that distinction is resolveCallSiteDispatch()'s job, not this function's). ---
+/** One `attachments[]` entry (ADR-057 Decision 2: all six call sites accepted here; only three
+ * are wired for DISPATCH — that distinction is {@link resolveCallSiteDispatch}'s job, not this
+ * one's). */
+function validateAttachment(attachment: unknown): GlueManifestValidationError[] {
+  if (typeof attachment !== "object" || attachment === null || Array.isArray(attachment)) {
+    return [malformed("each 'attachments' entry must be an object")];
+  }
+  const callSite = (attachment as Readonly<Record<string, unknown>>).callSite;
+  if (typeof callSite !== "string" || !VALID_CALL_SITES.has(callSite as GlueCallSite)) {
+    return [
+      {
+        code: "CALL_SITE_UNKNOWN",
+        file: null,
+        message: `call site '${String(callSite)}' is outside the closed six-member vocabulary`,
+      },
+    ];
+  }
+  return [];
+}
+
+/** attachments (REQ-1/ADR-057 Decision 2). */
+function validateAttachments(raw: Readonly<Record<string, unknown>>): GlueManifestValidationError[] {
+  const errors: GlueManifestValidationError[] = [];
   const attachments = Array.isArray(raw.attachments) ? raw.attachments : [];
   if (raw.attachments !== undefined && !Array.isArray(raw.attachments)) {
     errors.push(malformed("'attachments' must be an array"));
   }
   for (const attachment of attachments) {
-    if (typeof attachment !== "object" || attachment === null || Array.isArray(attachment)) {
-      errors.push(malformed("each 'attachments' entry must be an object"));
-      continue;
-    }
-    const callSite = (attachment as Readonly<Record<string, unknown>>).callSite;
-    if (typeof callSite !== "string" || !VALID_CALL_SITES.has(callSite as GlueCallSite)) {
-      errors.push({
-        code: "CALL_SITE_UNKNOWN",
-        file: null,
-        message: `call site '${String(callSite)}' is outside the closed six-member vocabulary`,
-      });
-    }
+    errors.push(...validateAttachment(attachment));
   }
+  return errors;
+}
+
+/**
+ * Validates one already-parsed glue manifest, collecting every applicable error rather than
+ * stopping at the first. Pure — no I/O, no mutation of `manifest`.
+ *
+ * @throws Nothing — validation failures are reported via the returned `errors` array, never a
+ * thrown error (a malformed top-level shape, e.g. `manifest` being `null` or an array, is itself a
+ * `MANIFEST_MALFORMED` entry in the result, not a throw).
+ * @complexity O(capabilities.length + attachments.length) — bounded by one manifest's own declared
+ * arrays, never by external/unbounded input.
+ */
+export function validateGlueManifest(
+  required: ValidateGlueManifestRequired,
+  _optional: ValidateGlueManifestOptional = {}
+): ValidateGlueManifestResult {
+  const { manifest } = required;
+
+  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+    return { errors: [malformed("glue manifest must be a JSON object")] };
+  }
+
+  // Treat the input as a read-only bag of unknown values — never assigned back into.
+  const raw = manifest as Readonly<Record<string, unknown>>;
+
+  const errors: GlueManifestValidationError[] = [
+    ...validateKeys(raw),
+    ...validateId(raw),
+    ...validateVersionAndSdkRange(raw),
+    ...validateCapabilities(raw),
+    ...validateAttachments(raw),
+  ];
 
   return { errors };
 }
