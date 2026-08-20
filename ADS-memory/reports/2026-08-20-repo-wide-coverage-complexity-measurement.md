@@ -264,7 +264,95 @@ prioritization evidence in this document.
 
 ---
 
-## 7. Open items, not yet decided
+## 7. Refactor backlog — ranked candidate list (2026-08-20, post-wave-1)
+
+Wave 1 is complete: `src/server/http/site/render.ts` and `src/features/theme/theme.ts` are both at
+**0 violations**, 184/184 and 383/383 tests green respectively. 13 functions brought under the 9/9
+ceiling, `renderDocNode` 76→8 and `loadTheme` 56→2 being the two extremes. Both files have dropped
+off this list entirely.
+
+Reproduce with `npm run triage:churn-hotspots -- --json --top=500`.
+
+**115 non-FLAT_WIRING violating files remain** (56 more are FLAT_WIRING and excluded — see §6; those
+are flat wiring lists where a high cyclomatic score is the correct shape, not debt).
+
+| # | score | churn | cyc | cog | lines | file |
+|--:|--:|--:|--:|--:|--:|---|
+| 1 | 1750 | 35 | 22 | 28 | 897 | `src/server/routes/site/pages.ts` |
+| 2 | 800 | 25 | 14 | 18 | 1549 | `src/features/deployments/publish-agent-tools.ts` |
+| 3 | 620 | 10 | 31 | 31 | 492 | `src/features/deployments/static-publish/adapter.ts` |
+| 4 | 570 | 6 | 43 | 52 | 402 | `src/features/theme/validation/manifest-v2.ts` |
+| 5 | 546 | 7 | 31 | 47 | 334 | `src/seo/settings.ts` |
+| 6 | 512 | 16 | 17 | 15 | 902 | `src/features/post/post.ts` |
+| 7 | 494 | 19 | 12 | 14 | 893 | `src/widgets/resolver-service.ts` |
+| 8 | 459 | 9 | 25 | 26 | 383 | `src/assistant/byok-tool-surface.ts` |
+| 9 | 437 | 19 | 12 | 11 | 458 | `src/server/modules/assistant.ts` |
+| 10 | 400 | 8 | 25 | 25 | 167 | `src/server/routes/admin/settings/register-definitions.ts` |
+| 11 | 378 | 9 | 20 | 22 | 338 | `src/server/routes/admin/system/publish-site.ts` |
+| 12 | 376 | 8 | 17 | 30 | 261 | `src/export/route-manifest.ts` |
+| 13 | 360 | 12 | 13 | 17 | 736 | `src/export/site-exporter.ts` |
+| 14 | 350 | 14 | 13 | 12 | 183 | `src/server/routes/admin/posts/update.ts` |
+| 15 | 342 | 9 | 20 | 18 | 153 | `src/server/routes/admin/settings/set.ts` |
+| 16 | 315 | 7 | 24 | 21 | 274 | `src/comments/settings.ts` |
+| 17 | 315 | 7 | 17 | 28 | 228 | `src/features/theme/migration/theme-migration-plan.ts` |
+| 18 | 312 | 12 | 13 | 13 | 429 | `src/features/source-control/commit-site.ts` |
+| 19 | 308 | 28 | 0 | 11 | 808 | `src/server/agent-daemon/agent-daemon-server.ts` |
+| 20 | 297 | 11 | 14 | 13 | 576 | `src/features/deployments/publish-credentials/store.ts` |
+| 21 | 282 | 6 | 20 | 27 | 186 | `src/seo/write-service.ts` |
+| 22 | 276 | 6 | 26 | 20 | 73 | `src/server/routes/admin/media/update.ts` |
+| 23 | 276 | 12 | 13 | 10 | 649 | `src/features/post/tool-registrations.ts` |
+| 24 | 264 | 4 | 25 | 41 | 223 | `src/forms/forms.ts` |
+| 25 | 252 | 7 | 15 | 21 | 907 | `src/db/migration/manifest.ts` |
+| 26 | 234 | 9 | 11 | 15 | 295 | `src/core/entry-refs/extractor.ts` |
+| 27 | 234 | 9 | 13 | 13 | 618 | `src/features/theme/theme-files.ts` |
+| 28 | 231 | 7 | 12 | 21 | 299 | `src/features/plugin-runtime/hook-registry.ts` |
+| 29 | 224 | 8 | 14 | 14 | 471 | `src/features/source-control/tool-registrations.ts` |
+| 30 | 216 | 4 | 36 | 18 | 299 | `src/assistant/execution-credential-store.ts` |
+| 31 | 212 | 4 | 20 | 33 | 149 | `src/server/routes/admin/connectors/put-config.ts` |
+| 32 | 204 | 6 | 18 | 16 | 114 | `src/server/routes/admin/settings/clear.ts` |
+| 33 | 200 | 8 | 15 | 10 | 160 | `src/server/http/admin/widgets.ts` |
+| 34 | 196 | 2 | 51 | 47 | 277 | `src/features/plugin-runtime/manifest.ts` |
+| 35 | 196 | 7 | 11 | 17 | 467 | `src/features/theme/build-conformance.ts` |
+| 36 | 196 | 7 | 13 | 15 | 154 | `src/server/routes/admin/plugins/set-enabled.ts` |
+| 37 | 189 | 9 | 10 | 11 | 659 | `src/features/deployments/static-publish/verify.ts` |
+| 38 | 186 | 6 | 17 | 14 | 79 | `src/server/routes/admin/users/write-policy-permission.ts` |
+| 39 | 186 | 6 | 13 | 18 | 179 | `src/widgets/resolvers/index.ts` |
+| 40 | 180 | 3 | 22 | 38 | 188 | `src/features/theme/validation/validate-theme-package.ts` |
+| 41 | 168 | 6 | 16 | 12 | 123 | `src/server/routes/admin/assistant/list-models.ts` |
+| 42 | 168 | 6 | 16 | 12 | 115 | `src/server/routes/admin/assistant/test-connection.ts` |
+| 43 | 162 | 3 | 18 | 36 | 701 | `src/features/deployments/static-publish/s3-compatible-target.ts` |
+| 44 | 162 | 6 | 14 | 13 | 198 | `src/features/plugin-runtime/activation.ts` |
+| 45 | 160 | 4 | 15 | 25 | 495 | `src/features/agent-plugins/install.ts` |
+
+### Notes on specific entries
+
+- **#1 `pages.ts`** is the strongest single candidate in the repo: top of this list AND one of the
+  four files currently failing `check-route-coverage-diff` (unit 85.86%, integration 55.74%). It is
+  also the only file on the failing-gate list that is also ARCHITECTURE_DEBT — the other three are
+  ordinary test gaps.
+- **#19 `agent-daemon-server.ts`** is cyclomatic **0** with cognitive 11 — the inverse of
+  FLAT_WIRING. Pure nesting, no operator counting. Nesting is the shape most worth removing, so its
+  modest score understates it.
+- **#34 `manifest.ts`** (cyc 51 / cog 47) and **#4 `manifest-v2.ts`** (43/52) are the two most tangled
+  files left by raw complexity. Their churn is low (2 and 6), so they rank mid-table — worth doing,
+  but not before the high-churn entries above them.
+- **#22 `media/update.ts`** is 26/20 in **73 lines**. Density that high in a file that short usually
+  means one function is doing everything; likely a fast win.
+
+### Suggested wave structure
+
+Three files per wave, one agent each, so no two agents share a directory:
+
+- **Wave 2:** #1 `pages.ts`, #2 `publish-agent-tools.ts`, #3 `static-publish/adapter.ts`
+- **Wave 3:** #4 `manifest-v2.ts`, #5 `seo/settings.ts`, #6 `post/post.ts`
+- **Wave 4:** #7 `widgets/resolver-service.ts`, #8 `byok-tool-surface.ts`, #10 `register-definitions.ts`
+
+Wave 1's measured cost: two agents, ~13 functions, 26 new tests, zero regressions, one recoverable
+git incident (§ see `reference_shared_git_index_across_agents`). Budget similarly.
+
+---
+
+## 8. Open items, not yet decided
 
 1. Bring the 4 failing changed files up to threshold (`presentation/get.ts`,
    `presentation/patch-active-theme.ts`, `system/publish-site.ts`, `site/pages.ts`).
