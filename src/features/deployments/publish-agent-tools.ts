@@ -107,6 +107,11 @@ import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js
 import { registerToolContributor } from "#src/assistant/index";
 
 import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges.js";
+// `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
+// functions that use it, but not the type) — imported directly here so the extracted
+// `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`
+// helpers below can name their own `askThenReport`-shaped return type explicitly.
+import type { SurfaceEmission } from "@jini-ai/core";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
@@ -146,6 +151,7 @@ import {
   type PublishHistoryStore,
   type StaticPublishConfig,
   type StaticPublishDeps,
+  type StaticPublishOutcome,
   type StaticPublishTargetId,
 } from "./static-publish/index.js";
 
@@ -555,15 +561,25 @@ function requireVendorCredentialPort(deps: StaticPublishToolDeps): VendorCredent
   return deps.vendorCredentials;
 }
 
+/** {@link buildPreviewConfig}'s github-pages branch — see that function's own doc. */
+function buildGitHubPagesPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
+  const owner = typeof raw.owner === "string" ? raw.owner : "";
+  const repo = typeof raw.repo === "string" ? raw.repo : "";
+  return { target: "github-pages", owner, repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) };
+}
+
+/** {@link buildPreviewConfig}'s vercel branch — see that function's own doc. */
+function buildVercelPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
+  return { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) };
+}
+
 function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
   const target = raw.target as StaticPublishTargetId;
   if (target === "github-pages") {
-    const owner = typeof raw.owner === "string" ? raw.owner : "";
-    const repo = typeof raw.repo === "string" ? raw.repo : "";
-    return { target, owner, repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) };
+    return buildGitHubPagesPreviewConfig(raw);
   }
   if (target === "vercel") {
-    return { target, ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) };
+    return buildVercelPreviewConfig(raw);
   }
   if (target === "netlify") {
     return { target };
@@ -858,6 +874,510 @@ function buildHostingSetupContent(provider: HostingSetupProvider, bucket: string
   };
 }
 
+/** The closed `StaticPublishTargetId` set both `deployment_preview_static_publish` and
+ *  `deployment_execute_static_publish` validate their `target` input against — kept as one list so
+ *  the two handlers' error messages can never drift apart. */
+const VALID_STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetId[] = ["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"];
+
+/** Shared `target` field validation for `deployment_preview_static_publish` and
+ *  `deployment_execute_static_publish` — extracted so neither handler's own complexity carries this
+ *  fixed 5-way check inline.
+ *  @throws {Error} `raw.target` is not one of {@link VALID_STATIC_PUBLISH_TARGETS}. */
+function requireStaticPublishTarget(raw: Record<string, unknown>): StaticPublishTargetId {
+  const target = requireString(raw, "target");
+  if (!VALID_STATIC_PUBLISH_TARGETS.includes(target as StaticPublishTargetId)) {
+    throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
+  }
+  return target as StaticPublishTargetId;
+}
+
+/** `deployment_preview_static_publish`'s result shape — extracted purely to keep that handler's
+ *  own body a flat sequence of steps. */
+function buildStaticPublishPreviewResult(
+  target: StaticPublishTargetId,
+  validationError: string | null,
+  basePath: string | undefined,
+  credential: { readonly configured: boolean; readonly reason?: string }
+) {
+  return {
+    target,
+    valid: validationError === null,
+    ...(validationError !== null ? { validationError } : {}),
+    basePath: basePath ?? null,
+    credentialsConfigured: credential.configured,
+    ...(!credential.configured ? { credentialGuidance: credential.reason } : {}),
+    willInjectNojekyll: target === "github-pages",
+  };
+}
+
+/** Per-provider dependencies {@link buildProviderCapability} needs — bundles the two already-fetched
+ *  credential-summary lists plus every port it reads, so `deployment_get_static_publish_capabilities`'s
+ *  `PROVIDER_IDS.map()` callback stays a single call per provider rather than a long inline closure. */
+interface ProviderCapabilityContext {
+  readonly deps: StaticPublishToolDeps;
+  readonly credentialSource: PublishCredentialSource;
+  readonly historyStore: PublishHistoryStore;
+  readonly vendorCredentials: VendorCredentialPort;
+  readonly saved: Awaited<ReturnType<typeof listPublishCredentials>>;
+  readonly savedVendor: VendorCredentialSummaryLike[];
+}
+
+/** {@link buildProviderCapability}'s `savedCredentials` mapping — new-table rows when the vendor
+ *  table has any row for this provider, legacy-table rows otherwise (see that function's own doc for
+ *  the "new table wins" precedence). Legacy `publish_credential_sets` rows have no `token_tail`
+ *  column (Phase 1 added it only to the new table) — `null` there is an honest "not known", never
+ *  derived by decrypting (this handler's own "never decrypts" contract, unchanged by this cutover). */
+function mapSavedCredentials(
+  usingVendorTable: boolean,
+  savedForVendor: VendorCredentialSummaryLike[],
+  savedForProvider: Awaited<ReturnType<typeof listPublishCredentials>>
+) {
+  if (usingVendorTable) {
+    return savedForVendor.map((credential) => ({
+      id: credential.id,
+      label: credential.label,
+      isDefault: credential.isDefault,
+      createdAt: credential.createdAt,
+      updatedAt: credential.updatedAt,
+      tokenTail: credential.tokenTail,
+    }));
+  }
+  return savedForProvider.map((credential) => ({
+    id: credential.id,
+    label: credential.label,
+    isDefault: credential.isDefault,
+    createdAt: credential.createdAt,
+    updatedAt: credential.updatedAt,
+    tokenTail: null as string | null,
+  }));
+}
+
+/**
+ * {@link buildProviderCapability}'s result-object assembly, split out from the value computation so
+ * neither half alone carries every branch in the original 100-line closure. `verifiedAt`/`accountLabel`
+ * are the two fields this handler still needs beyond what {@link buildCapabilityGuidance} itself reads.
+ *
+ * Migration `0044` (2026-08-16, Defect B fix): `accountLabel` prefers the DEFAULT credential's own DB
+ * column (`publishCredentialSets.accountLabel`, healed by the admin route's post-save verify — see
+ * `store.ts`'s `healAccountLabel`) over the in-memory verification cache, falling back to the cache
+ * only when the column is null (an older row this migration has not yet healed, or an env-var-sourced
+ * credential with no DB row at all). This is what makes the identity survive a process restart: the
+ * cache alone (`verification?.accountLabel`) is wiped by every restart, but a saved row's column is
+ * not. 2026-08-16, Defect 1: the assistant used to have no way to learn which GitHub account its own
+ * verified token belongs to, so it guessed one from the human's email address and published to the
+ * wrong owner — `accountLabel` is the fix, see this tool's own catalog description for how the model
+ * is told to use it.
+ */
+function buildProviderCapabilityResult(spec: {
+  readonly providerId: StaticPublishTargetId;
+  readonly ready: boolean;
+  readonly readiness: { configured: true } | { configured: false; reason: string };
+  readonly verified: "valid" | "invalid" | "unreachable" | null;
+  readonly verification: ReturnType<PublishCredentialVerificationCache["get"]>;
+  readonly defaultCredential: { readonly accountLabel: string | null } | undefined;
+  readonly lastPublish: Awaited<ReturnType<PublishHistoryStore["getLast"]>>;
+  readonly savedCredentials: ReturnType<typeof mapSavedCredentials>;
+  readonly guidance: string | undefined;
+}) {
+  const { providerId, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance } = spec;
+  return {
+    providerId,
+    ready,
+    credentialConfigured: readiness.configured,
+    verified,
+    verifiedAt: verification?.checkedAt ?? null,
+    // The verified credential's own public account login/username (GitHub `login`, Vercel
+    // `username`) — `null` when not yet verified, or for a provider `verify.ts` has no reviewed
+    // field to read (Netlify, Cloudflare Pages, s3-compatible; see that file's header).
+    accountLabel: defaultCredential?.accountLabel ?? verification?.accountLabel ?? null,
+    lastPublish,
+    savedCredentials,
+    ...(guidance !== undefined ? { guidance } : {}),
+  };
+}
+
+/**
+ * Computes one provider's `deployment_get_static_publish_capabilities` entry — extracted from that
+ * handler's own `PROVIDER_IDS.map()` callback purely to keep this domain's complexity gates: this was
+ * previously a single ~100-line inline async arrow.
+ *
+ * `providerToVendor` is exhaustive over every `StaticPublishTargetId` by `VendorCredentialPort`'s own
+ * type doc, so `vendorId` is never undefined for any member of `PROVIDER_IDS` — asserted rather than
+ * defensively guarded, matching how this handler already treats its own fixed, closed inputs.
+ *
+ * New table wins the moment it has ANY row for this vendor — same per-vendor precedence
+ * `dual-read.ts` documents ("new table FIRST, legacy only when the new group is genuinely empty"). A
+ * provider whose vendor group has migrated (or was only ever saved through the new
+ * `deployment_propose_custom_provider_credential` write path) is reported from the new table
+ * exclusively; any stale legacy row for the same provider is simply not looked at, matching the write
+ * side's own "new table wins" behavior.
+ *
+ * `readiness`/`credentialConfigured` merges the new table's "is anything saved" signal (checked
+ * first) with the existing old-table-or-env-var mechanism (`credentialSource`, untouched by this
+ * cutover) for when the new table's group for this vendor is empty. Without this merge, a credential
+ * saved ONLY through the new write path would show up in `savedCredentials` while `credentialConfigured`
+ * still reported `false` — a self-contradictory result this merge exists to prevent.
+ *
+ * `ready` means "will actually work," not merely "a credential is saved" (2026-08-16 fix: a saved
+ * GitHub token GitHub rejected outright with 401 used to still report `ready: true`) — a credential
+ * that is configured but never verified, that failed its last verification, or whose last check could
+ * not reach the provider is NOT ready.
+ *
+ * `verification` is a cached, non-decrypting read only — NEVER `verifyPublishCredential` from here
+ * (that decrypts and makes a real provider call; see `static-publish/verify.ts`'s own header for why
+ * this handler must never be its caller).
+ */
+async function buildProviderCapability(providerId: StaticPublishTargetId, ctx: ProviderCapabilityContext) {
+  const vendorId = ctx.vendorCredentials.providerToVendor[providerId];
+  const savedForVendor = ctx.savedVendor.filter((credential) => credential.vendorId === vendorId);
+  const savedForProvider = ctx.saved.filter((credential) => credential.providerId === providerId);
+  const usingVendorTable = savedForVendor.length > 0;
+  const savedCredentials = mapSavedCredentials(usingVendorTable, savedForVendor, savedForProvider);
+  const defaultCredential = usingVendorTable ? savedForVendor.find((credential) => credential.isDefault) : savedForProvider.find((credential) => credential.isDefault);
+  const readiness = usingVendorTable ? ({ configured: true } as const) : await ctx.credentialSource.isConfigured({ workspaceId: ctx.deps.workspaceId, target: providerId });
+  // 2026-08-16, Defect 2: the last successful publish to this provider, if any — see
+  // `publish-history.ts`'s own header for the storage design. `null` means never published (from
+  // this server, in this history store) rather than an absent key, so an agent-facing JSON result
+  // always carries the field.
+  const lastPublish = await ctx.historyStore.getLast({ workspaceId: ctx.deps.workspaceId, target: providerId });
+  const verification = readiness.configured ? ctx.deps.publishCredentialVerificationCache.get({ workspaceId: ctx.deps.workspaceId, target: providerId }) : undefined;
+  const verified = verification ? verification.status : null;
+  const ready = readiness.configured && verified === "valid";
+  const guidance = buildCapabilityGuidance(providerId, readiness, verification);
+
+  return buildProviderCapabilityResult({ providerId, ready, readiness, verified, verification, defaultCredential, lastPublish, savedCredentials, guidance });
+}
+
+/** Every dependency {@link handlePublishConfirmationAnswer} needs to run the confirmed publish and
+ *  report its result — bundled so `deployment_execute_static_publish`'s own `askThenReport` call
+ *  passes a single object instead of the handler's whole closure. */
+interface PublishConfirmationContext {
+  readonly deps: StaticPublishToolDeps;
+  readonly credentialSource: PublishCredentialSource;
+  readonly historyStore: PublishHistoryStore;
+  readonly exchange: SurfaceExchange;
+  readonly config: StaticPublishConfig;
+  readonly target: StaticPublishTargetId;
+  readonly projectName: string;
+}
+
+/** ADR-055 Decision 6: the no-answer path (`expired`/`abandoned`) is a result, not an exception.
+ *  Nothing was published either way, and the model is still alive to read this and say something
+ *  sensible. {@link handlePublishConfirmationAnswer} sends no `outcome` for this branch either: the
+ *  exchange itself already ended, so `askThenReport`'s own send would just be swallowed regardless. */
+function buildNoAnswerToolResult(status: "expired" | "abandoned"): { published: false; cancelled: false; reason: string; note: string } {
+  return {
+    published: false,
+    cancelled: false,
+    reason: status,
+    note:
+      status === "expired"
+        ? "The user did not respond to the publish confirmation dialog before it expired. Nothing was published."
+        : "The confirmation dialog was closed because the run ended. Nothing was published.",
+  };
+}
+
+/**
+ * No `await` between the single-flight check this builds a result for and `runPublishAndAwait` in
+ * {@link handlePublishConfirmationAnswer} — same single-synchronous-stretch contract `publish-site.ts`'s
+ * HTTP trigger route documents for the identical check, against the SAME shared slot
+ * (`static-publish/publish-run.ts`): checked immediately before the actual publish call, rather than
+ * earlier (e.g. before opening the confirmation dialog), because the dialog can sit open for an
+ * arbitrary time awaiting a human answer, during which another publish could start AND finish, so a
+ * check made before that point would not actually close the race.
+ *
+ * This IS a "Done." would-be-lie moment too (see {@link handlePublishConfirmationAnswer}'s own header
+ * for the defect `askThenReport` fixes): the human clicked Publish, the confirming call is about to
+ * resolve, and nothing published. Corrected the same way a real publish failure is, not left to the
+ * confirmation script's generic "Done.".
+ */
+function buildAlreadyRunningResult(exchange: SurfaceExchange, config: StaticPublishConfig, projectName: string): { result: unknown; outcome: SurfaceEmission } {
+  const message =
+    "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.";
+  return {
+    result: { published: false, cancelled: false, reason: "already-running", message },
+    outcome: {
+      channel: "mcp-ui",
+      payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message }) },
+    },
+  };
+}
+
+/**
+ * Maps `publishStaticSite`'s own `StaticPublishOutcome` (via {@link handlePublishConfirmationAnswer}'s
+ * `runPublishAndAwait` call) to `deployment_execute_static_publish`'s agent-facing result plus the
+ * `outcome` emission that corrects the confirmation dialog with the truth (see
+ * {@link handlePublishConfirmationAnswer}'s own header for why that emission exists at all).
+ *
+ * "Uploaded, but not yet reachable" (spec `custom-publish-provider-contract.md` §3a) — a `"partial"`
+ * outcome's files DID upload (so `published: true`, never a hard failure), but the site is not
+ * confirmed live yet (so `reachable: false`, never a plain success either). Structurally a distinct
+ * branch from both — see `static-publish/types.ts`'s `StaticPublishOutcome` header for why
+ * `outcome.ok` itself is `true | false | "partial"`, not merely a boolean.
+ *
+ * Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
+ * `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable, credential-free
+ * message: `NO_CREDENTIALS_CONFIGURED` names the provider via the resolved credential source's own
+ * reason text, a Cloudflare-Pages-credential-missing-its-account-id failure names the exact missing
+ * field (`buildJiniTarget`'s own `DeployError`), and `PROVIDER_ERROR` is `err.message` only — never a
+ * raw response body, never a credential. Passed straight through rather than re-wrapped, and straight
+ * into the outcome surface too — the same actionable text a human would need either way.
+ */
+function mapPublishOutcomeToToolResult(
+  outcome: StaticPublishOutcome,
+  exchange: SurfaceExchange,
+  config: StaticPublishConfig,
+  projectName: string
+): { result: unknown; outcome: SurfaceEmission } {
+  if (outcome.ok === "partial") {
+    return {
+      result: {
+        published: true,
+        reachable: false,
+        target: outcome.targetId,
+        url: outcome.url,
+        status: outcome.status,
+        message: outcome.message,
+        ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+        ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+      },
+      outcome: {
+        channel: "mcp-ui",
+        payload: {
+          resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "partial", message: outcome.message, url: outcome.url }),
+        },
+      },
+    };
+  }
+  if (!outcome.ok) {
+    return {
+      result: { published: false, cancelled: false, code: outcome.code, message: outcome.message },
+      outcome: {
+        channel: "mcp-ui",
+        payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message: outcome.message }) },
+      },
+    };
+  }
+  return {
+    result: {
+      published: true,
+      reachable: true,
+      target: outcome.targetId,
+      url: outcome.url,
+      status: outcome.status,
+      ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+      ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+    },
+    outcome: {
+      channel: "mcp-ui",
+      payload: {
+        resource: buildPublishOutcomeResource({
+          exchangeId: exchange.id,
+          config,
+          projectName,
+          state: "success",
+          message: `Published live at ${outcome.url}.`,
+          url: outcome.url,
+        }),
+      },
+    },
+  };
+}
+
+/**
+ * `deployment_execute_static_publish`'s `askThenReport` handler — extracted to a top-level function
+ * (previously a ~135-line closure) so its own complexity is measured independently of the handler
+ * that constructs {@link PublishConfirmationContext} and passes it in.
+ *
+ * `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — a click resolving this tool's
+ * `tools/call` proves the click was DELIVERED, never that the publish it triggered actually succeeded
+ * (see that function's own doc for the full defect this closes: for a held-open exchange, the click's
+ * round trip resolves the instant `mcp-ui-tool-calls-route.ts` delivers it to this parked call — `202
+ * {delivered:true}` — long before this function has even started running). `askOnce` cannot be
+ * patched to fix this in place: it closes the exchange the moment `receive()` resolves, so a second
+ * `exchange.send()` after doing the real work here would already be talking to a dead exchange. This
+ * function is exactly the body `askOnce` would have wrapped; the only new thing each `return` does is
+ * also hand back an `outcome` emission when there is a genuine publish result to correct the record
+ * with — `askThenReport` sends it AFTER the confirm dialog, on the SAME `ui://` URI
+ * (`publishConfirmationUri(exchange.id)`, reused by `buildPublishOutcomeResource`), which is what
+ * makes the transcript replace the dialog with the truth in place rather than opening a second card.
+ */
+async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: PublishConfirmationContext): Promise<{ result: unknown; outcome?: SurfaceEmission }> {
+  if (answer.status !== "received") {
+    return { result: buildNoAnswerToolResult(answer.status) };
+  }
+
+  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
+  if (decision !== "confirm") {
+    // No outcome surface for a cancel: the confirmation's own script already reports
+    // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth for a
+    // cancel (unlike a publish, nothing async happens afterward that could still fail).
+    return { result: { published: false, cancelled: true, target: ctx.target, projectName: ctx.projectName } };
+  }
+
+  if (getPublishRunSnapshot().status === "running") {
+    return buildAlreadyRunningResult(ctx.exchange, ctx.config, ctx.projectName);
+  }
+
+  const outcome = await runPublishAndAwait(
+    { credentialSource: ctx.credentialSource, ...(ctx.deps.buildTarget !== undefined ? { buildTarget: ctx.deps.buildTarget } : {}) },
+    {
+      workspaceId: ctx.deps.workspaceId,
+      publishOutputRootDir: ctx.deps.publishOutputRootDir,
+      idGen: ctx.deps.idGen,
+      exportSiteBound: ctx.deps.exportSiteBound,
+      config: ctx.config,
+      projectName: ctx.projectName,
+    },
+    ctx.deps.clock,
+    ctx.historyStore
+  );
+
+  return mapPublishOutcomeToToolResult(outcome, ctx.exchange, ctx.config, ctx.projectName);
+}
+
+/** Shared `protocol` field validation for `deployment_propose_custom_provider_credential` and
+ *  `deployment_generate_bucket_hosting_setup` — both currently support only `'s3-compatible'`.
+ *  @param toolId - Named explicitly (not inferred) so each tool's error message still names itself.
+ *  @throws {Error} `raw.protocol` is not `'s3-compatible'`. */
+function requireS3CompatibleProtocol(raw: Record<string, unknown>, toolId: string): void {
+  const protocol = requireString(raw, "protocol");
+  if (protocol !== "s3-compatible") {
+    throw new Error(`${toolId}: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.`);
+  }
+}
+
+/** `deployment_propose_custom_provider_credential`'s prefill — the caller's own non-secret hints
+ *  (`endpoint`/`region`/`bucket`/`publicUrl`), forwarded into the form as pre-filled `value`s. Blank
+ *  strings are treated as absent, same as every other optional-string field this file reads from raw
+ *  tool input. */
+function buildS3CompatiblePrefill(raw: Record<string, unknown>): Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>> {
+  const prefill: Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>> = {};
+  for (const field of ["endpoint", "region", "bucket", "publicUrl"] as const) {
+    if (typeof raw[field] === "string" && (raw[field] as string).trim() !== "") {
+      prefill[field] = raw[field] as string;
+    }
+  }
+  return prefill;
+}
+
+/** Builds `deployment_propose_custom_provider_credential`'s form surface — extracted purely to keep
+ *  that handler's own body a flat sequence of steps. Posts back on cancel rather than a silent close
+ *  — same reasoning `demo-choices-tool.ts`'s own form cancel action documents: with the call parked, a
+ *  silent close would strand the handler for the full TTL staring at a form the human already walked
+ *  away from. */
+function buildProposeCredentialForm(exchange: SurfaceExchange, prefill: Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>>): UIResource {
+  return buildFormSurface({
+    uri: customProviderCredentialFormUri(exchange.id),
+    title: "Connect S3-compatible storage",
+    description: S3_COMPATIBLE_FORM_DESCRIPTION,
+    submitLabel: "Save connection",
+    toolName: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID,
+    baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
+    fields: S3_COMPATIBLE_FIELD_GUIDANCE.map((field) => ({
+      kind: "string",
+      name: field.name,
+      label: field.label,
+      hint: field.hint,
+      required: field.required,
+      ...(field.secret ? { secret: true } : {}),
+      ...(prefill[field.name as keyof typeof prefill] !== undefined ? { value: prefill[field.name as keyof typeof prefill] } : {}),
+    })),
+    cancel: {
+      label: "Cancel",
+      toolName: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID,
+      params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
+    },
+    app: { appName: "tovu-deployment-propose-custom-provider-credential", appVersion: "1" },
+    preferredFrameSize: ["100%", "560px"],
+  });
+}
+
+/** Maps the submitted form's raw params to `createVendorCredential`/`updateVendorCredential`'s own
+ *  `connection` input shape. Passes the raw params straight through (rather than hand-building a
+ *  typed object with fallback empty strings) so there is exactly ONE place (`vendor-credentials/
+ *  store.ts`'s `validateConnection`) that decides what "valid" means — this function only decides
+ *  which fields are even candidates to forward. Never trusts the client-side `required` attribute:
+ *  `form.ts` ships `novalidate` on purpose (its own doc: the browser's bubble UI is unusable in the
+ *  surface's small iframe), so server-side validation is the ACTUAL enforcement point. */
+function buildS3CompatibleConnectionInput(params: Record<string, unknown>): Record<string, unknown> {
+  const connectionInput: Record<string, unknown> = { vendorId: "s3-compatible" };
+  for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl", "endpoint"] as const) {
+    if (typeof params[field] === "string") connectionInput[field] = params[field];
+  }
+  return connectionInput;
+}
+
+/**
+ * "One flat row per vendor" (spec §9's label-UX resolution, restated at §4c, now applied to the
+ * unified table's own `(workspaceId, vendorId)` grouping): finds this workspace's existing
+ * `s3-compatible` VENDOR row (a non-decrypting repo read) and UPDATEs it if one exists, otherwise
+ * CREATEs. A workspace whose only existing s3-compatible credential still sits in the OLD
+ * `publish_credential_sets` table (not yet migrated, or saved before Phase 3's cutover) is NOT found
+ * here — `findDefaultByVendor` only ever looks at the new table — so this creates a fresh vendor-table
+ * row rather than updating the stale legacy one. That legacy row is simply left behind, unread from
+ * now on: `deployment_get_static_publish_capabilities`'s own Phase 3 cutover reports the new table's
+ * row exclusively the moment it has ANY row for a vendor, so this never produces two
+ * simultaneously-authoritative credentials from the model's point of view — only one harmless
+ * orphaned row, the same temporary cost `vendor-credentials/dual-read.ts`'s own header already
+ * accepts for the read side.
+ *
+ * `PublishCredentialValidationError`'s own messages never carry a field VALUE, only field NAMES and
+ * the provider id (`store.ts`'s `requireNonEmptyString`/`optionalString`) — safe to relay. Any other
+ * store error (e.g. the secret store being unconfigured) still gets `err.message` only, matching
+ * `deployment_execute_static_publish`'s own "message, never the raw error" boundary discipline.
+ */
+async function saveS3CompatibleCredential(deps: StaticPublishToolDeps, connectionInput: Record<string, unknown>): Promise<{ ok: true } | { ok: false; message: string }> {
+  const vendorCredentials = requireVendorCredentialPort(deps);
+  const writeDeps: VendorCredentialWriteDepsLike = {
+    repo: deps.vendorCredentialSetRepo,
+    sealer: deps.siteAssistantSecretSealer,
+    keyring: deps.siteAssistantSecretKeyring,
+    clock: deps.clock,
+    idGen: deps.idGen,
+  };
+  try {
+    const existing = await deps.vendorCredentialSetRepo.findDefaultByVendor({ workspaceId: deps.workspaceId, vendorId: "s3-compatible" });
+    if (existing) {
+      await vendorCredentials.update(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
+    } else {
+      await vendorCredentials.create(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, message: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
+ * `deployment_propose_custom_provider_credential`'s `askOnce` answer handling — extracted to a
+ * top-level function so its own complexity is measured independently of the handler that opens the
+ * exchange and builds the form.
+ */
+async function handleProposeCredentialAnswer(answer: SurfaceMessage, deps: StaticPublishToolDeps) {
+  if (answer.status !== "received") {
+    return {
+      saved: false,
+      cancelled: false,
+      reason: answer.status,
+      note: answer.status === "expired" ? "The user did not respond to the credential form before it expired. Nothing was saved." : "The credential form was closed because the run ended. Nothing was saved.",
+    };
+  }
+  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
+    return { saved: false, cancelled: true };
+  }
+
+  const connectionInput = buildS3CompatibleConnectionInput(answer.params);
+  const saveResult = await saveS3CompatibleCredential(deps, connectionInput);
+  if (!saveResult.ok) {
+    return { saved: false, cancelled: false, reason: "invalid", message: saveResult.message };
+  }
+
+  // NEVER echoes a field value, secret or not — the structural guarantee this handler's own doc
+  // comment states up front.
+  return { saved: true, providerId: "s3-compatible", connected: true };
+}
+
 /**
  * Builds this domain's `ToolRegistration[]` — the same shape every other domain's
  * `build<Domain>Registrations` produces (see e.g. `recovery/tool-registrations.ts`'s
@@ -891,10 +1411,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const target = requireString(raw, "target");
-      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages" && target !== "s3-compatible") {
-        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
-      }
+      const target = requireStaticPublishTarget(raw);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
@@ -906,15 +1423,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // never be able to resolve a real credential, even indirectly by reading `.ok` off it.
       const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
 
-      return {
-        target,
-        valid: validationError === null,
-        ...(validationError !== null ? { validationError } : {}),
-        basePath: basePath ?? null,
-        credentialsConfigured: credential.configured,
-        ...(!credential.configured ? { credentialGuidance: credential.reason } : {}),
-        willInjectNojekyll: target === "github-pages",
-      };
+      return buildStaticPublishPreviewResult(target, validationError, basePath, credential);
     },
 
     /**
@@ -954,110 +1463,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       // read (never a decrypting resolve) rather than a call into `vendor-credentials/dual-read.ts`.
       const savedVendor = await vendorCredentials.list({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
 
-      const providers = await Promise.all(
-        PROVIDER_IDS.map(async (providerId) => {
-          // `providerToVendor` is exhaustive over every `StaticPublishTargetId` by this port's own
-          // type (`VendorCredentialPort.providerToVendor`'s doc), so this is never undefined for any
-          // member of `PROVIDER_IDS` — asserted rather than defensively guarded, matching how the rest
-          // of this handler already treats its own fixed, closed inputs.
-          const vendorId = vendorCredentials.providerToVendor[providerId];
-          const savedForVendor = savedVendor.filter((credential) => credential.vendorId === vendorId);
-          const savedForProvider = saved.filter((credential) => credential.providerId === providerId);
-          // New table wins the moment it has ANY row for this vendor — same per-vendor precedence
-          // `dual-read.ts` documents ("new table FIRST, legacy only when the new group is genuinely
-          // empty"). A provider whose vendor group has migrated (or was only ever saved through the
-          // new `deployment_propose_custom_provider_credential` write path — see this file's other
-          // handler) is reported from the new table exclusively; any stale legacy row for the same
-          // provider is simply not looked at, matching the write side's own "new table wins" behavior.
-          const usingVendorTable = savedForVendor.length > 0;
-          const savedCredentials = usingVendorTable
-            ? savedForVendor.map((credential) => ({
-                id: credential.id,
-                label: credential.label,
-                isDefault: credential.isDefault,
-                createdAt: credential.createdAt,
-                updatedAt: credential.updatedAt,
-                tokenTail: credential.tokenTail,
-              }))
-            : savedForProvider.map((credential) => ({
-                id: credential.id,
-                label: credential.label,
-                isDefault: credential.isDefault,
-                createdAt: credential.createdAt,
-                updatedAt: credential.updatedAt,
-                // Legacy `publish_credential_sets` rows have no `token_tail` column (Phase 1 added it
-                // only to the new table) — `null` here is an honest "not known", never derived by
-                // decrypting (this handler's own "never decrypts" contract, unchanged by this cutover).
-                tokenTail: null as string | null,
-              }));
-          // The row a real publish would actually use — same "default row" resolution
-          // `resolveDefaultForPublish`/`resolveDefaultForVendor` perform, just never decrypting to get
-          // there (this is a plain field off whichever already-fetched summary list won above).
-          const defaultCredential = usingVendorTable ? savedForVendor.find((credential) => credential.isDefault) : savedForProvider.find((credential) => credential.isDefault);
-          // Merged "is anything saved" signal: the new table (just checked above) first, the existing
-          // old-table-or-env-var mechanism (`credentialSource`, untouched by this cutover — see this
-          // file's header for why `deployment_execute_static_publish`'s own real resolve path is out
-          // of scope here) only when the new table's group for this vendor is empty. Without this
-          // merge, a credential saved ONLY through the new write path (e.g. a fresh
-          // `deployment_propose_custom_provider_credential` save) would show up in `savedCredentials`
-          // above while `credentialConfigured` still reported `false` — a self-contradictory result
-          // this merge exists to prevent.
-          const readiness = usingVendorTable ? ({ configured: true } as const) : await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: providerId });
-          // 2026-08-16, Defect 2: the last successful publish to this provider, if any — see
-          // `publish-history.ts`'s own header for the storage design. `null` means never published
-          // (from this server, in this history store) rather than an absent key, so an agent-facing
-          // JSON result always carries the field.
-          const lastPublish = await historyStore.getLast({ workspaceId: deps.workspaceId, target: providerId });
-
-          // Cached, non-decrypting read only — NEVER `verifyPublishCredential` from here (that
-          // decrypts and makes a real provider call; see `static-publish/verify.ts`'s own header
-          // for why this handler must never be its caller). `undefined` means "configured but never
-          // verified" — deliberately distinct from both `"valid"`/`"invalid"` (the last check
-          // actually ran) and, per code review, `"unreachable"` (a network failure/timeout says
-          // NOTHING about whether the credential is good) stays its own state too — collapsing it
-          // into `"invalid"` would risk telling a human to replace a perfectly fine credential over
-          // a transient blip. `verified` mirrors the cached `status` field verbatim (never a
-          // boolean) so every consumer of this tool's result sees the same closed three-way enum
-          // `verify.ts` itself defines, all the way out to this agent-facing boundary — only a
-          // verdict and a short reason ever cross it, never the provider's raw response.
-          const verification = readiness.configured ? deps.publishCredentialVerificationCache.get({ workspaceId: deps.workspaceId, target: providerId }) : undefined;
-          const verified = verification ? verification.status : null;
-          // `ready` now means "will actually work," not merely "a credential is saved" — the fix for
-          // this defect (2026-08-16: a saved GitHub token GitHub rejected outright with 401 still
-          // reported `ready: true`). A credential that is configured but never verified, that failed
-          // its last verification, or whose last check could not reach the provider is NOT ready —
-          // see this tool's own catalog description for the human-facing contract this enforces.
-          const ready = readiness.configured && verified === "valid";
-          const guidance = buildCapabilityGuidance(providerId, readiness, verification);
-
-          return {
-            providerId,
-            ready,
-            credentialConfigured: readiness.configured,
-            verified,
-            verifiedAt: verification?.checkedAt ?? null,
-            // The verified credential's own public account login/username (GitHub `login`, Vercel
-            // `username`) — `null` when not yet verified, or for a provider `verify.ts` has no
-            // reviewed field to read (Netlify, Cloudflare Pages, s3-compatible; see that file's
-            // header). 2026-08-16, Defect 1: the assistant used to have no way to learn which GitHub
-            // account its own verified token belongs to, so it guessed one from the human's email
-            // address and published to the wrong owner. This is the fix — see this tool's own catalog
-            // description for how the model is told to use it.
-            //
-            // Migration `0044` (same day, Defect B fix): prefers the DEFAULT credential's own DB
-            // column (`publishCredentialSets.accountLabel`, healed by the admin route's post-save
-            // verify — see `store.ts`'s `healAccountLabel`) over the in-memory verification cache,
-            // falling back to the cache only when the column is null (an older row this migration has
-            // not yet healed, or an env-var-sourced credential with no DB row at all). This is what
-            // makes the identity survive a process restart: the cache alone (`verification
-            // ?.accountLabel`) is wiped by every restart, but a saved row's column is not.
-            accountLabel: defaultCredential?.accountLabel ?? verification?.accountLabel ?? null,
-            lastPublish,
-            savedCredentials,
-            ...(guidance !== undefined ? { guidance } : {}),
-          };
-        })
-      );
+      const providerCapabilityContext: ProviderCapabilityContext = { deps, credentialSource, historyStore, vendorCredentials, saved, savedVendor };
+      const providers = await Promise.all(PROVIDER_IDS.map((providerId) => buildProviderCapability(providerId, providerCapabilityContext)));
 
       return { executionMode: deps.publishExecutionMode, providers };
     },
@@ -1089,10 +1496,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_execute_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const target = requireString(raw, "target");
-      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages" && target !== "s3-compatible") {
-        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
-      }
+      const target = requireStaticPublishTarget(raw);
       const projectName = requireString(raw, "projectName");
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.publish", entityType: "site-publish" });
@@ -1135,170 +1539,20 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        // `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — a click resolving this
-        // tool's `tools/call` proves the click was DELIVERED, never that the publish it triggered
-        // actually succeeded (see that function's own doc for the full defect this closes: for a
-        // held-open exchange, the click's round trip resolves the instant
-        // `mcp-ui-tool-calls-route.ts` delivers it to this parked call — `202 {delivered:true}` —
-        // long before the code below has even started running). `askOnce` cannot be patched to fix
-        // this in place: it closes the exchange the moment `receive()` resolves, so a second
-        // `exchange.send()` after doing the real work below would already be talking to a dead
-        // exchange. `handle` below is exactly the body `askOnce` would have wrapped; the only new
-        // thing each `return` does is also hand back an `outcome` emission when there is a genuine
-        // publish result to correct the record with — `askThenReport` sends it AFTER the confirm
-        // dialog, on the SAME `ui://` URI (`publishConfirmationUri(exchange.id)`, reused by
-        // `buildPublishOutcomeResource` below), which is what makes the transcript replace the
-        // dialog with the truth in place rather than opening a second card.
-        // Declared separately rather than inlined as `askThenReport`'s third argument (see that call
-        // below, which also pins the type argument explicitly) — this function's several `return`
-        // statements are genuinely different shapes (a no-answer result looks nothing like a success
-        // result), the same union `askOnce`'s own removed call site implicitly returned before this
-        // change.
-        const handle = async (answer: SurfaceMessage) => {
-          // ADR-055 Decision 6: the no-answer path is a result, not an exception. Nothing was
-          // published either way, and the model is still alive to read this and say something
-          // sensible. No `outcome` to send either: the exchange itself already ended (expired/
-          // abandoned), so `askThenReport`'s own send would just be swallowed regardless.
-          if (answer.status !== "received") {
-            return {
-              result: {
-                published: false,
-                cancelled: false,
-                reason: answer.status,
-                note:
-                  answer.status === "expired"
-                    ? "The user did not respond to the publish confirmation dialog before it expired. Nothing was published."
-                    : "The confirmation dialog was closed because the run ended. Nothing was published.",
-              },
-            };
-          }
-
-          const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
-          if (decision !== "confirm") {
-            // No outcome surface for a cancel: the confirmation's own script already reports
-            // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth
-            // for a cancel (unlike a publish, nothing async happens afterward that could still fail).
-            return { result: { published: false, cancelled: true, target, projectName } };
-          }
-
-          // No `await` between this check and `runPublishAndAwait` below — same single-synchronous-
-          // stretch contract `publish-site.ts`'s HTTP trigger route documents for the identical check,
-          // against the SAME shared slot (`static-publish/publish-run.ts`): this used to call
-          // `publishStaticSite` directly with nothing to check at all, so a human using the admin UI's
-          // Static Site tab and this tool in the same running server could both start a real publish at
-          // once and race each other's clean export into the same output directory (Terra audit
-          // finding #1). Checked here, immediately before the actual publish call, rather than earlier
-          // in this handler (e.g. before opening the confirmation dialog) — the dialog can sit open for
-          // an arbitrary time awaiting a human answer, during which another publish could start AND
-          // finish, so a check made before this point would not actually close the race; this is the
-          // last synchronous point before the real work starts.
-          if (getPublishRunSnapshot().status === "running") {
-            const message =
-              "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.";
-            return {
-              result: { published: false, cancelled: false, reason: "already-running", message },
-              // This IS a "Done." would-be-lie moment too: the human clicked Publish, the dialog is
-              // about to resolve, and nothing published. Corrected the same way a real publish
-              // failure is, not left to the confirmation script's generic "Done.".
-              outcome: {
-                channel: "mcp-ui",
-                payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message }) },
-              },
-            };
-          }
-
-          const outcome = await runPublishAndAwait(
-            { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
-            {
-              workspaceId: deps.workspaceId,
-              publishOutputRootDir: deps.publishOutputRootDir,
-              idGen: deps.idGen,
-              exportSiteBound: deps.exportSiteBound,
-              config,
-              projectName,
-            },
-            deps.clock,
-            historyStore
-          );
-
-          if (outcome.ok === "partial") {
-            // "Uploaded, but not yet reachable" (spec `custom-publish-provider-contract.md` §3a) — the
-            // files DID upload (so `published: true`, never a hard failure), but the site is not
-            // confirmed live yet (so `reachable: false`, never a plain success either). Structurally a
-            // distinct branch from both — see `static-publish/types.ts`'s `StaticPublishOutcome` header
-            // for why `outcome.ok` itself is `true | false | "partial"`, not merely a boolean.
-            return {
-              result: {
-                published: true,
-                reachable: false,
-                target: outcome.targetId,
-                url: outcome.url,
-                status: outcome.status,
-                message: outcome.message,
-                ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-                ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-              },
-              outcome: {
-                channel: "mcp-ui",
-                payload: {
-                  resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "partial", message: outcome.message, url: outcome.url }),
-                },
-              },
-            };
-          }
-
-          if (!outcome.ok) {
-            // Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
-            // `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable,
-            // credential-free message: `NO_CREDENTIALS_CONFIGURED` names the provider via the resolved
-            // credential source's own reason text, a Cloudflare-Pages-credential-missing-its-account-id
-            // failure names the exact missing field (`buildJiniTarget`'s own `DeployError`), and
-            // `PROVIDER_ERROR` is `err.message` only — never a raw response body, never a credential.
-            // Passed straight through rather than re-wrapped, and straight into the outcome surface
-            // too — the same actionable text a human would need either way.
-            return {
-              result: { published: false, cancelled: false, code: outcome.code, message: outcome.message },
-              outcome: {
-                channel: "mcp-ui",
-                payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message: outcome.message }) },
-              },
-            };
-          }
-
-          return {
-            result: {
-              published: true,
-              reachable: true,
-              target: outcome.targetId,
-              url: outcome.url,
-              status: outcome.status,
-              ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-              ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-            },
-            outcome: {
-              channel: "mcp-ui",
-              payload: {
-                resource: buildPublishOutcomeResource({
-                  exchangeId: exchange.id,
-                  config,
-                  projectName,
-                  state: "success",
-                  message: `Published live at ${outcome.url}.`,
-                  url: outcome.url,
-                }),
-              },
-            },
-          };
-        };
-
-        // `<unknown>`, not left to infer: `handle`'s return type is a real union across its several
-        // `return` statements (a no-answer result looks nothing like a success result), and
-        // TypeScript's generic inference does not distribute a callback's union return type across
-        // `askThenReport`'s single type parameter — it narrows to one branch and then rejects the
-        // others. `unknown` is safe here specifically because `ToolHandler` (`@jini-ai/core`) already
-        // declares every handler's own return as `Promise<unknown>`, so nothing downstream of this
-        // call needed `result`'s precise shape anyway.
-        return await askThenReport<unknown>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, handle);
+        // `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — see
+        // `handlePublishConfirmationAnswer`'s own header for the full defect this closes and why the
+        // handler is a separate top-level function rather than inlined here.
+        const confirmationContext: PublishConfirmationContext = { deps, credentialSource, historyStore, exchange, config, target, projectName };
+        // `<unknown>`, not left to infer: `handlePublishConfirmationAnswer`'s return type is a real
+        // union across its several `return` statements (a no-answer result looks nothing like a
+        // success result), and TypeScript's generic inference does not distribute a callback's union
+        // return type across `askThenReport`'s single type parameter — it narrows to one branch and
+        // then rejects the others. `unknown` is safe here specifically because `ToolHandler`
+        // (`@jini-ai/core`) already declares every handler's own return as `Promise<unknown>`, so
+        // nothing downstream of this call needed `result`'s precise shape anyway.
+        return await askThenReport<unknown>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) =>
+          handlePublishConfirmationAnswer(answer, confirmationContext)
+        );
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
@@ -1321,10 +1575,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_propose_custom_provider_credential: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const protocol = requireString(raw, "protocol");
-      if (protocol !== "s3-compatible") {
-        throw new Error("deployment_propose_custom_provider_credential: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.");
-      }
+      requireS3CompatibleProtocol(raw, PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.credentials.write", entityType: "site-publish" });
 
@@ -1337,130 +1588,18 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         );
       }
 
-      const prefill: Partial<Record<"endpoint" | "region" | "bucket" | "publicUrl", string>> = {};
-      for (const field of ["endpoint", "region", "bucket", "publicUrl"] as const) {
-        if (typeof raw[field] === "string" && (raw[field] as string).trim() !== "") {
-          prefill[field] = raw[field] as string;
-        }
-      }
-
+      const prefill = buildS3CompatiblePrefill(raw);
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open(
         { toolId: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID, principalId: ctx.principal.id },
         ctx.emitSurface
       );
-
-      const ui = buildFormSurface({
-        uri: customProviderCredentialFormUri(exchange.id),
-        title: "Connect S3-compatible storage",
-        description: S3_COMPATIBLE_FORM_DESCRIPTION,
-        submitLabel: "Save connection",
-        toolName: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID,
-        baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id },
-        fields: S3_COMPATIBLE_FIELD_GUIDANCE.map((field) => ({
-          kind: "string",
-          name: field.name,
-          label: field.label,
-          hint: field.hint,
-          required: field.required,
-          ...(field.secret ? { secret: true } : {}),
-          ...(prefill[field.name as keyof typeof prefill] !== undefined ? { value: prefill[field.name as keyof typeof prefill] } : {}),
-        })),
-        // Posts back rather than a silent close — same reasoning `demo-choices-tool.ts`'s own form
-        // cancel action documents: with the call parked, a silent close would strand this handler for
-        // the full TTL staring at a form the human already walked away from.
-        cancel: {
-          label: "Cancel",
-          toolName: PROPOSE_CUSTOM_PROVIDER_CREDENTIAL_TOOL_ID,
-          params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
-        },
-        app: { appName: "tovu-deployment-propose-custom-provider-credential", appVersion: "1" },
-        preferredFrameSize: ["100%", "560px"],
-      });
+      const ui = buildProposeCredentialForm(exchange, prefill);
 
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
         const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-
-        if (answer.status !== "received") {
-          return {
-            saved: false,
-            cancelled: false,
-            reason: answer.status,
-            note:
-              answer.status === "expired"
-                ? "The user did not respond to the credential form before it expired. Nothing was saved."
-                : "The credential form was closed because the run ended. Nothing was saved.",
-          };
-        }
-        if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-          return { saved: false, cancelled: true };
-        }
-
-        // Re-validate server-side, never trust the client-side `required` attribute — `form.ts` ships
-        // `novalidate` on purpose (its own doc: the browser's bubble UI is unusable in the surface's
-        // small iframe), so `createVendorCredential`/`updateVendorCredential`'s own `validateConnection`
-        // (`vendor-credentials/store.ts`) is the ACTUAL enforcement point, not a redundant
-        // belt-and-braces check. Passing the raw params straight through (rather than hand-building a
-        // typed object with fallback empty strings) means there is exactly ONE place that decides what
-        // "valid" means.
-        //
-        // Phase 3 cutover (this dispatch): `vendorId`, not `providerId` — this now writes through
-        // `vendor_credential_sets` (`vendor-credentials/store.ts`), NOT the legacy
-        // `publish_credential_sets` table `createPublishCredential`/`updatePublishCredential` still
-        // serve. This tool's OWN model-facing wire contract (its catalog description, and the
-        // `{ providerId: 's3-compatible' }` it returns on success below) is deliberately left
-        // unchanged — only the storage this save lands in moves, not what the model sees. Safe for
-        // `probeAccountLabel` (`vendor-credentials/store.ts`): it returns `null` unconditionally for
-        // every vendor but `github`, with no network call made, so this s3-compatible-only handler can
-        // never trigger it.
-        const params = answer.params;
-        const connectionInput: Record<string, unknown> = { vendorId: "s3-compatible" };
-        for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl", "endpoint"] as const) {
-          if (typeof params[field] === "string") connectionInput[field] = params[field];
-        }
-
-        const vendorCredentials = requireVendorCredentialPort(deps);
-        const writeDeps: VendorCredentialWriteDepsLike = {
-          repo: deps.vendorCredentialSetRepo,
-          sealer: deps.siteAssistantSecretSealer,
-          keyring: deps.siteAssistantSecretKeyring,
-          clock: deps.clock,
-          idGen: deps.idGen,
-        };
-
-        try {
-          // "One flat row per vendor" (spec §9's label-UX resolution, restated at §4c, now applied to
-          // the unified table's own `(workspaceId, vendorId)` grouping): find this workspace's
-          // existing `s3-compatible` VENDOR row (a non-decrypting repo read) and UPDATE it if one
-          // exists, otherwise CREATE. A workspace whose only existing s3-compatible credential still
-          // sits in the OLD `publish_credential_sets` table (not yet migrated, or saved before this
-          // cutover) is NOT found here — `findDefaultByVendor` only ever looks at the new table — so
-          // this creates a fresh vendor-table row rather than updating the stale legacy one. That
-          // legacy row is simply left behind, unread from now on: `deployment_get_static_publish_
-          // capabilities`'s own Phase 3 cutover (this same dispatch) reports the new table's row
-          // exclusively the moment it has ANY row for a vendor, so this never produces two
-          // simultaneously-authoritative credentials from the model's point of view — only one
-          // harmless orphaned row, the same temporary cost `vendor-credentials/dual-read.ts`'s own
-          // header already accepts for the read side.
-          const existing = await deps.vendorCredentialSetRepo.findDefaultByVendor({ workspaceId: deps.workspaceId, vendorId: "s3-compatible" });
-          if (existing) {
-            await vendorCredentials.update(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
-          } else {
-            await vendorCredentials.create(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
-          }
-        } catch (err) {
-          // `PublishCredentialValidationError`'s own messages never carry a field VALUE, only field
-          // NAMES and the provider id (`store.ts`'s `requireNonEmptyString`/`optionalString`) — safe
-          // to relay. Any other store error (e.g. the secret store being unconfigured) still gets
-          // `err.message` only, matching `deployment_execute_static_publish`'s own "message, never the
-          // raw error" boundary discipline.
-          return { saved: false, cancelled: false, reason: "invalid", message: err instanceof Error ? err.message : String(err) };
-        }
-
-        // NEVER echoes a field value, secret or not — the structural guarantee this handler's own doc
-        // comment states up front.
-        return { saved: true, providerId: "s3-compatible", connected: true };
+        return await handleProposeCredentialAnswer(answer, deps);
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
@@ -1474,10 +1613,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      */
     deployment_generate_bucket_hosting_setup: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const protocol = requireString(raw, "protocol");
-      if (protocol !== "s3-compatible") {
-        throw new Error("deployment_generate_bucket_hosting_setup: 'protocol' must be 's3-compatible' — no other Custom-tab protocol exists yet.");
-      }
+      requireS3CompatibleProtocol(raw, "deployment_generate_bucket_hosting_setup");
       const bucket = requireString(raw, "bucket");
       const region = requireString(raw, "region");
       const endpoint = typeof raw.endpoint === "string" ? raw.endpoint : undefined;
