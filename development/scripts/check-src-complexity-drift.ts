@@ -1,5 +1,5 @@
 /**
- * `src/server/routes/**` complexity-ceiling drift check (2026-08-17, following the
+ * `src/server/**` + `src/assistant/**` complexity-ceiling drift check (2026-08-17, following the
  * 2026-08-16 server-routes coverage/complexity audit — see
  * `ADS-memory/reports/2026-08-16-server-routes-coverage-complexity-audit.md` §1 for the
  * measurement that triggered this and `ADS-memory/reports/2026-08-17-src-complexity-gate.md`
@@ -12,10 +12,21 @@
  * `eslint .`) cannot fail CI on complexity regardless of content — see that config's own
  * comments. `apps/admin/src` already has a hard `error`/9 gate plus a grandfathered debt list
  * (`admin-complexity-debt.json` / `check-admin-complexity-drift.ts`); this file is that same
- * pattern applied to `src/server/routes/**` — the ONLY subtree of `src/` this gate covers.
- * Scope is deliberately narrow: the audit above only measured route files (234 of them), and a
- * repo-wide `src/` sweep would need its own fresh measurement before it could be gated the same
- * way. Extending past `src/server/routes` is a separate, larger follow-up, not this task.
+ * pattern applied to `src/`.
+ *
+ * SCOPE HISTORY — read before citing any older count from this file's git history:
+ *   2026-08-17  created covering `src/server/routes/**` ONLY (98 violations / 64 files today).
+ *   2026-08-20  widened to `src/server/**` + `src/assistant/**` at the owner's direction. The
+ *               widening added 21 violations in `src/server` outside routes and 31 in
+ *               `src/assistant` — 52 that had accumulated unseen, because `eslint.config.mjs`
+ *               sets these two rules to `warn`/15 repo-wide and a warning cannot fail CI.
+ * `src/server` subsumes `src/server/routes`, so pre-existing route baseline entries keep matching
+ * unchanged — widening the scan cannot orphan them.
+ *
+ * Still NOT covered by this gate: `src/features/**`, `src/export/**`, `src/seo/**`,
+ * `src/widgets/**`, `packages/**`, `apps/site-chat/**`. `apps/admin/src` has its own equivalent
+ * gate (`check-admin-complexity-drift.ts`). Each remaining area needs its own fresh measurement
+ * before it is added to `SCOPES`.
  *
  * Tool and threshold are IDENTICAL to `apps/admin`'s gate — plain ESLint `complexity` (cyclomatic)
  * and `sonarjs/cognitive-complexity`, both hard-overridden to `error`/9 via `--rule`, ignoring
@@ -23,7 +34,7 @@
  * `ADS-memory/reports/continuity/2026-08-16-session-8-handoff.md`'s "two complexity metrics on
  * apps/admin" note): there is a SEPARATE per-scope numbering scheme elsewhere and nesting does
  * NOT fold across tools. This script uses exactly one tool (ESLint, per-function, no custom
- * folding) and one scope (`src/server/routes/**`, excluding `__tests__`/`__measurements__` —
+ * folding) and the `SCOPES` list below (excluding `__tests__`/`__measurements__` —
  * same exclusion `check-admin-complexity-drift.ts` applies, for the same reason: test/measurement
  * code is out of scope for this ceiling, not silently-tracked debt). Do not compare this script's
  * counts to any other complexity number in this repo without checking both use the same tool,
@@ -53,7 +64,7 @@
  * may already be stale by the time this is read; re-run to check.
  *
  * Usage: npx tsx development/scripts/check-src-complexity-drift.ts
- * Exit codes: 0 = no src/server/routes file outside the debt list violates 9/9 complexity.
+ * Exit codes: 0 = no file under `SCOPES` outside the debt list violates 9/9 complexity.
  *             1 = at least one does.
  */
 import { pathToFileURL } from "node:url";
@@ -63,7 +74,22 @@ import path from "node:path";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DEBT_PATH = path.join(import.meta.dirname, "src-complexity-debt.json");
-const SCOPE = "src/server/routes";
+/**
+ * Scanned subtrees. `src/server` subsumes the original `src/server/routes` scope, so routes stay
+ * covered by the same baseline entries they always were — widening the scan cannot orphan them.
+ * ESLint accepts multiple path patterns, so adding an area here is the whole change.
+ */
+const SCOPES = [
+  "src/server",
+  "src/assistant",
+  "src/features",
+  "src/widgets",
+  "src/seo",
+  "src/export",
+  "src/analytics",
+  "src/media",
+  "apps/site-chat/src",
+] as const;
 const THRESHOLD = 9;
 
 export interface Violation {
@@ -165,7 +191,27 @@ export function findViolations(): Violation[] {
   try {
     raw = execFileSync(
       "npx",
-      ["eslint", "--no-error-on-unmatched-pattern", "--rule", ruleOverride, "-f", "json", SCOPE],
+      [
+        "eslint",
+        "--no-error-on-unmatched-pattern",
+        // Load-bearing, NOT cosmetic. Without these, scanning `src/features` makes ESLint exit 2
+        // with EMPTY stdout and `could not find plugin "sonarjs"` — caused by local build debris at
+        // `src/features/theme/__tests__/fixtures/astro-bundler-probe/` (a real node_modules tree
+        // with .vite prebundles, gitignored by that fixture's own .gitignore, so CI never has it).
+        // Exit 2 is not exit 1: the `catch` below only recovers a report when stdout exists, so an
+        // unguarded scan would throw rather than silently pass — but a caller reading only the exit
+        // code could still misread 2 as "not 1, therefore fine". Same category as the
+        // `apps/admin/dist-debug` and `.claude/worktrees` entries in eslint.config.mjs.
+        "--ignore-pattern",
+        "**/__tests__/**",
+        "--ignore-pattern",
+        "**/__measurements__/**",
+        "--rule",
+        ruleOverride,
+        "-f",
+        "json",
+        ...SCOPES,
+      ],
       { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 16 }
     );
   } catch (err) {
@@ -216,7 +262,7 @@ function main(): void {
   }
 
   console.error(
-    `check:src-complexity-drift — ${added.length} NEW ${SCOPE} complexity violation(s), not covered by src-complexity-debt.json:`
+    `check:src-complexity-drift — ${added.length} NEW ${SCOPES.join(" / ")} complexity violation(s), not covered by src-complexity-debt.json:`
   );
   for (const violation of added) console.error(`  - [${violation.rule}] ${violation.file}: ${violation.reason}`);
   console.error(
