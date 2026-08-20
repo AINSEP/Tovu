@@ -65,6 +65,21 @@ function toGoogleRole(role: unknown): GoogleContent["role"] | null {
  *   narrower bound specific to this function's own surface.
  * @overallScore 100
  */
+/** Converts one raw history entry into a `GoogleContent` turn, or `null` for any shape this
+ *  function does not recognize — see this file's module doc for why a bad entry costs only itself.
+ *  Split out of {@link resolveBoundedHistory} purely to keep that function's complexity under the
+ *  shop ceiling; behavior is unchanged. */
+function toBoundedHistoryTurn(entry: unknown, maxMessageChars: number): GoogleContent | null {
+  if (!isPlainRecord(entry)) return null;
+  const role = toGoogleRole(entry.role);
+  if (role === null) return null;
+  if (typeof entry.content !== "string") return null;
+  const trimmed = entry.content.trim();
+  if (trimmed.length === 0) return null;
+  const bounded = trimmed.length > maxMessageChars ? `${trimmed.slice(0, maxMessageChars)}…` : trimmed;
+  return { role, parts: [{ text: bounded }] };
+}
+
 export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBoundedHistoryOptions = {}): GoogleContent[] {
   const maxMessages = options.maxMessages ?? DEFAULT_MAX_HISTORY_MESSAGES;
   const maxMessageChars = options.maxMessageChars ?? DEFAULT_MAX_HISTORY_MESSAGE_CHARS;
@@ -75,14 +90,8 @@ export function resolveBoundedHistory(rawHistory: unknown, options: ResolveBound
 
   const turns: GoogleContent[] = [];
   for (const entry of recent) {
-    if (!isPlainRecord(entry)) continue;
-    const role = toGoogleRole(entry.role);
-    if (role === null) continue;
-    if (typeof entry.content !== "string") continue;
-    const trimmed = entry.content.trim();
-    if (trimmed.length === 0) continue;
-    const bounded = trimmed.length > maxMessageChars ? `${trimmed.slice(0, maxMessageChars)}…` : trimmed;
-    turns.push({ role, parts: [{ text: bounded }] });
+    const turn = toBoundedHistoryTurn(entry, maxMessageChars);
+    if (turn) turns.push(turn);
   }
   return turns;
 }
