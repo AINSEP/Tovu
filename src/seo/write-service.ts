@@ -64,55 +64,67 @@ const UNSAFE_URL_SCHEME_PATTERN = /^\s*(javascript|data|vbscript|file):/i;
  * exercise it directly if needed, though `setEntrySeoOverrides` is the only
  * caller.
  */
-function validateSeoExtFieldsPatch(patch: Record<string, unknown>): void {
+/** Every patch key must be a known `SeoExtFields` key (INV-01) — checked before any per-field rule. */
+function validateRegisteredKeys(patch: Record<string, unknown>): void {
   for (const key of Object.keys(patch)) {
     if (!REGISTERED_KEYS.has(key)) {
       throw new SeoFieldValidationError(`'${key}' is not a registered SEO field`);
     }
   }
+}
 
-  for (const key of STRING_FIELDS) {
+/** Shared shape for both STRING_FIELDS and URL_FIELDS: optional string, bounded by `maxLength`. */
+function validateStringLikeFields(
+  patch: Record<string, unknown>,
+  fields: ReadonlyArray<keyof SeoExtFields>,
+  maxLength: number
+): void {
+  for (const key of fields) {
     const value = patch[key];
     if (value === undefined) continue;
     if (typeof value !== "string") {
       throw new SeoFieldValidationError(`'${key}' must be a string`);
     }
-    if (value.length > STRING_FIELD_MAX_LENGTH) {
-      throw new SeoFieldValidationError(`'${key}' must be at most ${STRING_FIELD_MAX_LENGTH} characters`);
+    if (value.length > maxLength) {
+      throw new SeoFieldValidationError(`'${key}' must be at most ${maxLength} characters`);
     }
   }
+}
 
-  for (const key of URL_FIELDS) {
-    const value = patch[key];
-    if (value === undefined) continue;
-    if (typeof value !== "string") {
-      throw new SeoFieldValidationError(`'${key}' must be a string`);
-    }
-    if (value.length > URL_FIELD_MAX_LENGTH) {
-      throw new SeoFieldValidationError(`'${key}' must be at most ${URL_FIELD_MAX_LENGTH} characters`);
-    }
-  }
-
-  // Canonical's unsafe-scheme check is its own typed error (SEO_INVALID_CANONICAL_URL),
-  // distinct from the generic length/type SEO_FIELD_VALIDATION_ERROR above.
+// Canonical's unsafe-scheme check is its own typed error (SEO_INVALID_CANONICAL_URL),
+// distinct from the generic length/type SEO_FIELD_VALIDATION_ERROR the other field checks throw.
+function validateCanonicalScheme(patch: Record<string, unknown>): void {
   const canonical = patch.canonical;
   if (typeof canonical === "string" && UNSAFE_URL_SCHEME_PATTERN.test(canonical)) {
     throw new SeoInvalidCanonicalUrlError(`'canonical' uses an unsafe URL scheme`);
   }
+}
 
+function validateBooleanFields(patch: Record<string, unknown>): void {
   for (const key of BOOLEAN_FIELDS) {
     const value = patch[key];
     if (value !== undefined && typeof value !== "boolean") {
       throw new SeoFieldValidationError(`'${key}' must be a boolean`);
     }
   }
+}
 
+function validateEnumFields(patch: Record<string, unknown>): void {
   if (patch.ogType !== undefined && !(OG_TYPE_VALUES as readonly unknown[]).includes(patch.ogType)) {
     throw new SeoFieldValidationError(`'ogType' must be one of ${OG_TYPE_VALUES.join(", ")}`);
   }
   if (patch.twitterCard !== undefined && !(TWITTER_CARD_VALUES as readonly unknown[]).includes(patch.twitterCard)) {
     throw new SeoFieldValidationError(`'twitterCard' must be one of ${TWITTER_CARD_VALUES.join(", ")}`);
   }
+}
+
+function validateSeoExtFieldsPatch(patch: Record<string, unknown>): void {
+  validateRegisteredKeys(patch);
+  validateStringLikeFields(patch, STRING_FIELDS, STRING_FIELD_MAX_LENGTH);
+  validateStringLikeFields(patch, URL_FIELDS, URL_FIELD_MAX_LENGTH);
+  validateCanonicalScheme(patch);
+  validateBooleanFields(patch);
+  validateEnumFields(patch);
 }
 
 /** Fields whose change can flip sitemap eligibility (INV-04/INV-05) — a direct, non-outbox cache-invalidation trigger. */

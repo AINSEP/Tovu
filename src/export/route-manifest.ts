@@ -8,7 +8,7 @@ import { resolveActiveTheme } from "#src/features/theme/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
-import type { RedirectRepoPort } from "#src/redirects/index";
+import type { RedirectRecord, RedirectRepoPort } from "#src/redirects/index";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
 
 /**
@@ -150,6 +150,98 @@ function chooseNotFoundProbePath(claimedPaths: ReadonlySet<string>): string {
  *   already loaded in full by their own repos (no pagination exists yet anywhere in this codebase),
  *   so this makes no additional query-shape assumption beyond what those repos already commit to.
  */
+/**
+ * Enumerates a static theme's own pages as routes, skipping `index`/`404` (handled elsewhere) and
+ * template shells (see file header), and skipping any page whose slug a post has claimed (per the
+ * same `overridesThemePage` tri-state the live resolver uses). Non-static themes contribute none.
+ */
+function buildThemePageRoutes(
+  theme: DiscoveredTheme,
+  postBySlug: ReadonlyMap<string, PostRecord>
+): { routes: ManifestRoute[]; shadowedSlugs: ReadonlySet<string> } {
+  const routes: ManifestRoute[] = [];
+  const shadowedSlugs = new Set<string>();
+  if (theme.manifest.tier !== "static") return { routes, shadowedSlugs };
+
+  const templateShellStems = new Set((theme.manifest.templates ?? []).map((file) => file.replace(/\.html$/, "")));
+  for (const pageId of Object.keys(theme.pages)) {
+    if (pageId === "index" || pageId === "404" || templateShellStems.has(pageId)) continue;
+
+    const collidingPost = postBySlug.get(pageId);
+    if (collidingPost && collidingPost.overridesThemePage !== false) continue; // the post loop adds it instead.
+
+    routes.push({ path: `/${pageId}`, kind: "theme-page", label: pageId });
+    shadowedSlugs.add(pageId);
+  }
+  return { routes, shadowedSlugs };
+}
+
+/** Every published post/page not shadowed by a theme-owned static page at the same slug. */
+function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySet<string>): ManifestRoute[] {
+  const routes: ManifestRoute[] = [];
+  for (const post of posts) {
+    if (shadowedSlugs.has(post.slug)) continue;
+    routes.push({ path: `/${post.slug}`, kind: post.kind === "page" ? "page" : "post", label: post.title });
+  }
+  return routes;
+}
+
+/**
+ * Resolves theme + post routes together (the post loop needs the theme's shadowed-slug set). When
+ * no theme was discovered, records the `no-theme` skip and returns no routes/`activeTheme` — a real,
+ * reportable state rather than a crash (see file header).
+ */
+function resolveThemeAndPostRoutes(
+  theme: DiscoveredTheme | undefined,
+  posts: readonly PostRecord[],
+  skipped: ManifestSkip[]
+): { activeTheme?: RouteManifest["activeTheme"]; routes: ManifestRoute[] } {
+  if (!theme) {
+    skipped.push({
+      reason: "no-theme",
+      detail: "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
+    });
+    return { routes: [] };
+  }
+
+  const activeTheme: RouteManifest["activeTheme"] = { id: theme.manifest.id, dir: theme.dir, apiVersion: theme.manifest.apiVersion };
+  const postBySlug = new Map<string, PostRecord>(posts.map((post) => [post.slug, post]));
+  const { routes: themeRoutes, shadowedSlugs } = buildThemePageRoutes(theme, postBySlug);
+  return { activeTheme, routes: [...themeRoutes, ...buildPostRoutes(posts, shadowedSlugs)] };
+}
+
+/** The product grid + one detail route per storefront product — omitted entirely when there are none. */
+function buildProductRoutes(products: readonly RouteManifestProduct[]): ManifestRoute[] {
+  if (products.length === 0) return [];
+  const routes: ManifestRoute[] = [{ path: "/products", kind: "product-list", label: "products" }];
+  for (const product of products) {
+    routes.push({ path: `/products/${product.id}`, kind: "product", label: product.title });
+  }
+  return routes;
+}
+
+/** `exact` redirect rules become routes; every other match type is recorded in `skipped` (see file header). */
+function buildRedirectRoutes(redirectRules: readonly RedirectRecord[], skipped: ManifestSkip[]): ManifestRoute[] {
+  const routes: ManifestRoute[] = [];
+  for (const rule of redirectRules) {
+    if (rule.matchType !== "exact") {
+      skipped.push({
+        reason: "non-exact-redirect",
+        detail: `${rule.matchType} rule '${rule.fromPattern}' -> '${rule.toTarget}' matches a family of paths, not one enumerable path`,
+      });
+      continue;
+    }
+    routes.push({
+      path: rule.fromPattern,
+      kind: "redirect",
+      label: rule.fromPattern,
+      redirectTarget: rule.toTarget,
+      redirectStatusCode: rule.statusCode,
+    });
+  }
+  return routes;
+}
+
 export async function buildRouteManifest(deps: RouteManifestDeps): Promise<RouteManifest> {
   const routes: ManifestRoute[] = [
     { path: "/", kind: "home", label: "home" },
@@ -181,72 +273,19 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   ]);
 
   const theme = resolveActiveTheme(deps, activeThemeId);
-  let activeTheme: RouteManifest["activeTheme"];
-  if (!theme) {
-    skipped.push({
-      reason: "no-theme",
-      detail: "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
-    });
-  } else {
-    activeTheme = { id: theme.manifest.id, dir: theme.dir, apiVersion: theme.manifest.apiVersion };
-    const postBySlug = new Map<string, PostRecord>(posts.map((post) => [post.slug, post]));
-    // Slugs claimed by a theme-owned static page THIS pass, so the post loop below can skip a post
-    // that is shadowed at its own slug (pages.ts:765-786: tri-state `overridesThemePage` — post wins
-    // unless the stored value is explicitly `false`; see that resolver's own doc for the full
-    // contract). Mirrored here rather than shared code so the exported manifest matches exactly what
-    // the live site would serve for the same row — a mismatch here would make an exported site
-    // disagree with its own live preview about which resource wins a collision.
-    const shadowedSlugs = new Set<string>();
-
-    if (theme.manifest.tier === "static") {
-      const templateShellStems = new Set((theme.manifest.templates ?? []).map((file) => file.replace(/\.html$/, "")));
-      for (const pageId of Object.keys(theme.pages)) {
-        // "index"/"404" are home and the not-found page respectively — both handled elsewhere in
-        // this function, never as their own `/index` or `/404` route. Template shells (see file
-        // header) are never their own route regardless of tier.
-        if (pageId === "index" || pageId === "404" || templateShellStems.has(pageId)) continue;
-
-        const collidingPost = postBySlug.get(pageId);
-        // `null`/absent (never decided) and explicit `true` both mean the post wins, same as the
-        // live resolver; only an explicit `false` keeps the theme page winning.
-        if (collidingPost && collidingPost.overridesThemePage !== false) continue; // the post loop below will add it instead.
-
-        routes.push({ path: `/${pageId}`, kind: "theme-page", label: pageId });
-        shadowedSlugs.add(pageId);
-      }
-    }
-
-    for (const post of posts) {
-      if (shadowedSlugs.has(post.slug)) continue;
-      routes.push({ path: `/${post.slug}`, kind: post.kind === "page" ? "page" : "post", label: post.title });
-    }
-  }
+  // Slugs claimed by a theme-owned static page THIS pass are tracked inside `resolveThemeAndPostRoutes`
+  // so the post loop can skip a post shadowed at its own slug (pages.ts:765-786: tri-state
+  // `overridesThemePage` — post wins unless the stored value is explicitly `false`; see that
+  // resolver's own doc for the full contract). Mirrored here rather than shared code so the exported
+  // manifest matches exactly what the live site would serve for the same row.
+  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(theme, posts, skipped);
+  routes.push(...themeAndPostRoutes);
 
   const products = await deps.resolveStorefrontProducts();
-  if (products.length > 0) {
-    routes.push({ path: "/products", kind: "product-list", label: "products" });
-    for (const product of products) {
-      routes.push({ path: `/products/${product.id}`, kind: "product", label: product.title });
-    }
-  }
+  routes.push(...buildProductRoutes(products));
 
   const redirectRules = await deps.redirectRepo.list({ workspaceId: deps.workspaceId, status: "active" });
-  for (const rule of redirectRules) {
-    if (rule.matchType !== "exact") {
-      skipped.push({
-        reason: "non-exact-redirect",
-        detail: `${rule.matchType} rule '${rule.fromPattern}' -> '${rule.toTarget}' matches a family of paths, not one enumerable path`,
-      });
-      continue;
-    }
-    routes.push({
-      path: rule.fromPattern,
-      kind: "redirect",
-      label: rule.fromPattern,
-      redirectTarget: rule.toTarget,
-      redirectStatusCode: rule.statusCode,
-    });
-  }
+  routes.push(...buildRedirectRoutes(redirectRules, skipped));
 
   const claimedPaths = new Set(routes.map((route) => route.path));
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });

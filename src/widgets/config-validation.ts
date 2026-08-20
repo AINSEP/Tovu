@@ -42,53 +42,89 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Reports every key in `schema.required` that is missing from `value`. */
+function validateRequiredKeys(
+  value: Record<string, unknown>,
+  schema: WidgetConfigJsonSchema,
+  path: string,
+  errors: WidgetConfigFieldError[]
+): void {
+  for (const key of schema.required ?? []) {
+    if (!(key in value)) errors.push({ field: `${path}.${key}`, reason: "required field is missing" });
+  }
+}
+
+/** Recurses into each `value` key that has a declared `schema.properties` entry; flags the rest when `additionalProperties` is `false`. */
+function walkObjectProperties(
+  value: Record<string, unknown>,
+  schema: WidgetConfigJsonSchema,
+  path: string,
+  errors: WidgetConfigFieldError[]
+): void {
+  for (const [key, fieldValue] of Object.entries(value)) {
+    const propSchema = schema.properties?.[key];
+    if (!propSchema) {
+      if (schema.additionalProperties === false) {
+        errors.push({ field: `${path}.${key}`, reason: "unrecognized field: not present in the registered schema" });
+      }
+      continue;
+    }
+    walk(fieldValue, propSchema, `${path}.${key}`, errors);
+  }
+}
+
+/** Checks `required` keys are present and recurses into each declared property (schema.type === "object"). */
+function walkObject(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
+  if (!isPlainObject(value)) {
+    errors.push({ field: path, reason: "expected an object" });
+    return;
+  }
+  validateRequiredKeys(value, schema, path, errors);
+  walkObjectProperties(value, schema, path, errors);
+}
+
+/** schema.type === "string": type check only, no length/pattern constraint in this subset. */
+function walkString(value: unknown, path: string, errors: WidgetConfigFieldError[]): void {
+  if (typeof value !== "string") errors.push({ field: path, reason: "expected a string" });
+}
+
+/** schema.type === "integer": type check plus optional `minimum`/`maximum` bounds. */
+function walkInteger(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    errors.push({ field: path, reason: "expected an integer" });
+    return;
+  }
+  if (schema.minimum !== undefined && value < schema.minimum) {
+    errors.push({ field: path, reason: `below the minimum of ${schema.minimum}` });
+  }
+  if (schema.maximum !== undefined && value > schema.maximum) {
+    errors.push({ field: path, reason: `above the maximum of ${schema.maximum}` });
+  }
+}
+
+/** schema.type === "array": type check, optional `maxItems` bound, and recursion into `items`. */
+function walkArray(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
+  if (!Array.isArray(value)) {
+    errors.push({ field: path, reason: "expected an array" });
+    return;
+  }
+  if (schema.maxItems !== undefined && value.length > schema.maxItems) {
+    errors.push({ field: path, reason: `exceeds the maximum item count of ${schema.maxItems}` });
+  }
+  if (schema.items) value.forEach((item, index) => walk(item, schema.items as WidgetConfigJsonSchema, `${path}[${index}]`, errors));
+}
+
+/** Dispatches to the per-type walker for `schema.type` (object/string/integer/array); unspecified or boolean types accept anything. */
 function walk(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
   switch (schema.type) {
-    case "object": {
-      if (!isPlainObject(value)) {
-        errors.push({ field: path, reason: "expected an object" });
-        return;
-      }
-      for (const key of schema.required ?? []) {
-        if (!(key in value)) errors.push({ field: `${path}.${key}`, reason: "required field is missing" });
-      }
-      for (const [key, fieldValue] of Object.entries(value)) {
-        const propSchema = schema.properties?.[key];
-        if (!propSchema) {
-          if (schema.additionalProperties === false) {
-            errors.push({ field: `${path}.${key}`, reason: "unrecognized field: not present in the registered schema" });
-          }
-          continue;
-        }
-        walk(fieldValue, propSchema, `${path}.${key}`, errors);
-      }
-      return;
-    }
+    case "object":
+      return walkObject(value, schema, path, errors);
     case "string":
-      if (typeof value !== "string") errors.push({ field: path, reason: "expected a string" });
-      return;
+      return walkString(value, path, errors);
     case "integer":
-      if (typeof value !== "number" || !Number.isInteger(value)) {
-        errors.push({ field: path, reason: "expected an integer" });
-        return;
-      }
-      if (schema.minimum !== undefined && value < schema.minimum) {
-        errors.push({ field: path, reason: `below the minimum of ${schema.minimum}` });
-      }
-      if (schema.maximum !== undefined && value > schema.maximum) {
-        errors.push({ field: path, reason: `above the maximum of ${schema.maximum}` });
-      }
-      return;
+      return walkInteger(value, schema, path, errors);
     case "array":
-      if (!Array.isArray(value)) {
-        errors.push({ field: path, reason: "expected an array" });
-        return;
-      }
-      if (schema.maxItems !== undefined && value.length > schema.maxItems) {
-        errors.push({ field: path, reason: `exceeds the maximum item count of ${schema.maxItems}` });
-      }
-      if (schema.items) value.forEach((item, index) => walk(item, schema.items as WidgetConfigJsonSchema, `${path}[${index}]`, errors));
-      return;
+      return walkArray(value, schema, path, errors);
     default:
       // boolean / unspecified schema type: accept anything (no v1 registration needs this).
       return;
