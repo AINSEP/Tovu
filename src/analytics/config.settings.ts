@@ -141,6 +141,14 @@ const BOOT_ORDERING_FALLBACK: Omit<AnalyticsSiteConfig, "workspaceId"> = {
   sink: "local",
 };
 
+/** All 6 keys are registered atomically by `ensureAnalyticsSettingDefinitions`, so a `null`
+ *  resolution on ANY of them means the whole namespace is still unregistered (boot ordering — see
+ *  `BOOT_ORDERING_FALLBACK`'s doc comment), not a per-field gap. Hoisted into a `.some` scan rather
+ *  than a 6-term `||` chain so the caller checks one guard, not a repeated comparison per key. */
+function anyEffectiveValueUnregistered(values: ReadonlyArray<Awaited<ReturnType<typeof getEffective>>>): boolean {
+  return values.some((value) => value === null);
+}
+
 /** Total narrowing for the two `{type:"json"}` array fields: keeps only
  *  string entries, never casts. A non-array or mixed-type stored value
  *  (should not happen — the ledger schema only accepts a JSON value, not a
@@ -172,30 +180,27 @@ export function createSettingsAnalyticsConfig(deps: CreateSettingsAnalyticsConfi
       const read = (key: AnalyticsSettingKey) =>
         getEffective({ repo: deps.settingsRepo }, { namespace: ANALYTICS_NAMESPACE, key, scopeContext });
 
-      const [enabled, honorDoNotTrack, honorGlobalPrivacyControl, rawRetentionDays, excludedPaths, excludedIpRanges] =
-        await Promise.all([
-          read("enabled"),
-          read("honorDoNotTrack"),
-          read("honorGlobalPrivacyControl"),
-          read("rawRetentionDays"),
-          read("excludedPaths"),
-          read("excludedIpRanges"),
-        ]);
+      const resolved = await Promise.all([
+        read("enabled"),
+        read("honorDoNotTrack"),
+        read("honorGlobalPrivacyControl"),
+        read("rawRetentionDays"),
+        read("excludedPaths"),
+        read("excludedIpRanges"),
+      ]);
 
-      // All 6 keys are registered atomically by `ensureAnalyticsSettingDefinitions`, so a null
-      // resolution on ANY of them means the whole namespace is still unregistered (boot ordering —
-      // see `BOOT_ORDERING_FALLBACK`'s doc comment), not a per-field gap. Fall back together rather
-      // than mixing partially-resolved live values with fallback ones.
-      if (
-        enabled === null ||
-        honorDoNotTrack === null ||
-        honorGlobalPrivacyControl === null ||
-        rawRetentionDays === null ||
-        excludedPaths === null ||
-        excludedIpRanges === null
-      ) {
+      // Fall back together rather than mixing partially-resolved live values with fallback ones —
+      // see `anyEffectiveValueUnregistered`'s own doc for why this is a whole-namespace check.
+      if (anyEffectiveValueUnregistered(resolved)) {
         return { workspaceId, ...BOOT_ORDERING_FALLBACK };
       }
+
+      // Every element shares the same `getEffective` return type (its shape does not vary by key),
+      // and the guard above has just proven none of the 6 is null — narrowed by cast, not by a
+      // per-variable `=== null` check, which is exactly the chain `anyEffectiveValueUnregistered`
+      // replaced.
+      const [enabled, honorDoNotTrack, honorGlobalPrivacyControl, rawRetentionDays, excludedPaths, excludedIpRanges] =
+        resolved as NonNullable<(typeof resolved)[number]>[];
 
       return {
         workspaceId,
