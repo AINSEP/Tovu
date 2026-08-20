@@ -118,6 +118,32 @@ function extractPendingBodyJson(body: unknown): JsonObject | undefined {
   return undefined;
 }
 
+/**
+ * Tri-state query contract, matching `templateChoice`'s own tri-state (see `resolveTemplate`'s
+ * doc): the key absent entirely means "never chosen" (`null`), present but empty
+ * (`?templateChoice=`) means the explicit "No template chosen" opt-out (`""`), present with a
+ * value means that template filename. The admin client always sends one of the first two shapes
+ * explicitly — see `templatePreviewUrl` in `apps/admin/src/lib/api.ts`.
+ *
+ * @complexity O(1).
+ */
+function resolveOverrideTemplateChoice(rawTemplateChoice: unknown): string | null {
+  return rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
+}
+
+/**
+ * Never persisted — a shallow clone rendered once for this response and discarded.
+ *
+ * @complexity O(1).
+ */
+function buildPreviewPost(post: PostRecord, overrideTemplateChoice: string | null, pendingBodyJson: JsonObject | undefined): PostRecord {
+  return {
+    ...post,
+    templateChoice: overrideTemplateChoice,
+    ...(pendingBodyJson !== undefined ? { bodyJson: pendingBodyJson } : {}),
+  };
+}
+
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
   const handlePreviewRequest: RequestHandler = async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -152,13 +178,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
         return;
       }
 
-      // Tri-state query contract, matching `templateChoice`'s own tri-state (see
-      // `resolveTemplate`'s doc): the key absent entirely means "never chosen" (`null`), present but
-      // empty (`?templateChoice=`) means the explicit "No template chosen" opt-out (`""`), present
-      // with a value means that template filename. The admin client always sends one of the first
-      // two shapes explicitly — see `templatePreviewUrl` in `apps/admin/src/lib/api.ts`.
-      const rawTemplateChoice = req.query.templateChoice;
-      const overrideTemplateChoice = rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
+      const overrideTemplateChoice = resolveOverrideTemplateChoice(req.query.templateChoice);
 
       // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
       // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
@@ -167,12 +187,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       // existed" behavior this file's header promises for `GET`.
       const pendingBodyJson = extractPendingBodyJson(req.body);
 
-      // Never persisted — a shallow clone rendered once for this response and discarded.
-      const previewPost: PostRecord = {
-        ...post,
-        templateChoice: overrideTemplateChoice,
-        ...(pendingBodyJson !== undefined ? { bodyJson: pendingBodyJson } : {}),
-      };
+      const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson);
 
       const staticMenus = await resolveStaticMenusForRender(deps, theme, `/${post.slug}`);
       const html = await renderViaTemplate(deps, theme, previewPost, staticMenus, pendingBodyJson);
