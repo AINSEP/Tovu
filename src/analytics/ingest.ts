@@ -61,6 +61,29 @@ const PII_KEY_NAME_PATTERN =
  * @complexity O(k) over the number of properties (bounded by `MAX_EVENT_PROP_COUNT`).
  * @overallScore 100/100
  */
+/** A PII-suggestive key name is rejected regardless of its value's type or shape. */
+function validatePropKeyName(key: string): void {
+  if (PII_KEY_NAME_PATTERN.test(key)) {
+    throw new AnalyticsPiiRejectedError(`event property key '${key}' looks PII-shaped`);
+  }
+}
+
+/** String values additionally get a length bound and an email-shape rejection. */
+function validatePropStringValue(key: string, value: string): void {
+  if (value.length > MAX_EVENT_PROP_STRING_LENGTH) {
+    throw new AnalyticsPiiRejectedError(`event property '${key}' exceeds ${MAX_EVENT_PROP_STRING_LENGTH} characters`);
+  }
+  if (EMAIL_SHAPE_PATTERN.test(value)) {
+    throw new AnalyticsPiiRejectedError(`event property '${key}' looks like an email address`);
+  }
+}
+
+function validateEventPropEntry(key: string, value: unknown): void {
+  validatePropKeyName(key);
+  if (typeof value !== "string") return;
+  validatePropStringValue(key, value);
+}
+
 export function validateEventProps(props: JsonObject | null | undefined): JsonObject | null {
   if (props === null || props === undefined) return null;
 
@@ -72,21 +95,7 @@ export function validateEventProps(props: JsonObject | null | undefined): JsonOb
   }
 
   for (const key of keys) {
-    if (PII_KEY_NAME_PATTERN.test(key)) {
-      throw new AnalyticsPiiRejectedError(`event property key '${key}' looks PII-shaped`);
-    }
-
-    const value = props[key];
-    if (typeof value !== "string") continue;
-
-    if (value.length > MAX_EVENT_PROP_STRING_LENGTH) {
-      throw new AnalyticsPiiRejectedError(
-        `event property '${key}' exceeds ${MAX_EVENT_PROP_STRING_LENGTH} characters`
-      );
-    }
-    if (EMAIL_SHAPE_PATTERN.test(value)) {
-      throw new AnalyticsPiiRejectedError(`event property '${key}' looks like an email address`);
-    }
+    validateEventPropEntry(key, props[key]);
   }
 
   return props;
@@ -123,36 +132,44 @@ const MOBILE_UA_PATTERN = /mobi|iphone|android/i;
  * @complexity O(1) — a fixed, small sequence of regex tests.
  * @overallScore 100/100
  */
+function classifyDeviceClass(ua: string): DeviceClass {
+  if (!ua) return "unknown";
+  if (BOT_UA_PATTERN.test(ua)) return "bot";
+  if (TABLET_UA_PATTERN.test(ua)) return "tablet";
+  if (MOBILE_UA_PATTERN.test(ua)) return "mobile";
+  return "desktop";
+}
+
+function classifyBrowserFamily(ua: string): string | null {
+  if (/edg\//i.test(ua)) return "edge";
+  if (/chrome\//i.test(ua)) return "chrome";
+  if (/firefox\//i.test(ua)) return "firefox";
+  if (/safari\//i.test(ua) && !/chrome/i.test(ua)) return "safari";
+  if (ua) return "other";
+  return null;
+}
+
+function classifyOsFamily(ua: string): string | null {
+  if (/windows/i.test(ua)) return "windows";
+  if (/mac os|macintosh/i.test(ua)) return "macos";
+  if (/android/i.test(ua)) return "android";
+  if (/iphone|ipad|ios/i.test(ua)) return "ios";
+  if (/linux/i.test(ua)) return "linux";
+  if (ua) return "other";
+  return null;
+}
+
 function classifyUserAgent(userAgent: string): {
   deviceClass: DeviceClass;
   browserFamily: string | null;
   osFamily: string | null;
 } {
   const ua = userAgent ?? "";
-
-  let deviceClass: DeviceClass = "unknown";
-  if (!ua) deviceClass = "unknown";
-  else if (BOT_UA_PATTERN.test(ua)) deviceClass = "bot";
-  else if (TABLET_UA_PATTERN.test(ua)) deviceClass = "tablet";
-  else if (MOBILE_UA_PATTERN.test(ua)) deviceClass = "mobile";
-  else deviceClass = "desktop";
-
-  let browserFamily: string | null = null;
-  if (/edg\//i.test(ua)) browserFamily = "edge";
-  else if (/chrome\//i.test(ua)) browserFamily = "chrome";
-  else if (/firefox\//i.test(ua)) browserFamily = "firefox";
-  else if (/safari\//i.test(ua) && !/chrome/i.test(ua)) browserFamily = "safari";
-  else if (ua) browserFamily = "other";
-
-  let osFamily: string | null = null;
-  if (/windows/i.test(ua)) osFamily = "windows";
-  else if (/mac os|macintosh/i.test(ua)) osFamily = "macos";
-  else if (/android/i.test(ua)) osFamily = "android";
-  else if (/iphone|ipad|ios/i.test(ua)) osFamily = "ios";
-  else if (/linux/i.test(ua)) osFamily = "linux";
-  else if (ua) osFamily = "other";
-
-  return { deviceClass, browserFamily, osFamily };
+  return {
+    deviceClass: classifyDeviceClass(ua),
+    browserFamily: classifyBrowserFamily(ua),
+    osFamily: classifyOsFamily(ua),
+  };
 }
 
 /**
