@@ -272,6 +272,20 @@ describe("Template picker", () => {
     await waitFor(() => expect(select).toHaveValue("blog-post.html"));
   });
 
+  // Characterization test (2026-08-20, `PostEditorToolbarEnd` extraction pass) — pins a branch that
+  // had no prior coverage in this file: an `"html"`-format record (a Page routed through this same
+  // `/admin/posts/{id}` screen — see `PostEditor.tsx`'s own file header) has nothing to pick a Post
+  // template for, so the whole picker must not render at all, not just show empty/disabled.
+  it("renders no template picker at all for an html-format record (a Page)", async () => {
+    activeThemeTemplates = ["blog-post.html"];
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: { ...DRAFT_PAGE, bodyFormat: "html" } }));
+
+    render(<PostEditor postId="pg1" />);
+
+    await screen.findByRole("button", { name: /^save$/i });
+    expect(document.querySelector(".editor-template-picker")).not.toBeInTheDocument();
+  });
+
   it("the View Template button is disabled once 'No template chosen' is selected", async () => {
     const user = userEvent.setup();
     activeThemeTemplates = ["blog-post.html"];
@@ -360,7 +374,20 @@ describe("Template picker", () => {
 function postController(overrides: Partial<PostEditorController> = {}): PostEditorController {
   const post = overrides.post ?? (DRAFT_POST as AdminPost);
   const templateChoice = overrides.templateChoice ?? null;
+  // Computed ahead of the returned object so the derived `onX` handlers below (the UI-subhook
+  // fields, `usePostEditorUi`'s own real wiring — see that hook's file header) forward to
+  // whichever `save`/`setConfirmingDelete`/`setShowTemplateModal` mock a test actually overrode,
+  // same as the real hook composing them from its own live values.
+  const save = overrides.save ?? vi.fn();
+  const setConfirmingDelete = overrides.setConfirmingDelete ?? vi.fn();
+  const setShowTemplateModal = overrides.setShowTemplateModal ?? vi.fn();
   return {
+    onPublish: () => save("published"),
+    onSave: () => save(),
+    onDeleteClick: () => setConfirmingDelete(true),
+    onDeleteCancel: () => setConfirmingDelete(false),
+    onViewTemplateClick: () => setShowTemplateModal(true),
+    onCloseTemplateModal: () => setShowTemplateModal(false),
     post,
     editor: null,
     title: "Hello world",
@@ -384,7 +411,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     message: null,
     error: null,
     confirmingDelete: false,
-    setConfirmingDelete: vi.fn(),
+    setConfirmingDelete,
     deleting: false,
     confirmLeave: () => true,
     dirty: false,
@@ -398,10 +425,10 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     // why a `null` `bodyJson` means the debounced auto-submit effect never fires in this DI harness.
     bodyJson: null,
     showTemplateModal: false,
-    setShowTemplateModal: vi.fn(),
+    setShowTemplateModal,
     previewFormRef: { current: null },
     previewFormTarget: post ? `post-preview-pending-${post.id}` : "",
-    save: vi.fn(),
+    save,
     remove: vi.fn(),
     t: (key: string) => key,
     ...overrides,
