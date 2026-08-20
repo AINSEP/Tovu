@@ -4,6 +4,21 @@ import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
 
+/** True when `scheduledAt` is a valid request value: absent, `null`, or a string.
+ *  @complexity O(1). */
+function isValidScheduledAt(rawBody: unknown): boolean {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return body.scheduledAt === undefined || body.scheduledAt === null || typeof body.scheduledAt === "string";
+}
+
+/** Resolves the request's `scheduledAt` to the caller's string, or `nowIso` when absent/null —
+ *  see the route doc above for why "as soon as the pipeline picks it up" defaults to "now" here.
+ *  @complexity O(1). */
+function resolveScheduledAt(rawBody: unknown, nowIso: string): string {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return typeof body.scheduledAt === "string" ? body.scheduledAt : nowIso;
+}
+
 /**
  * `SCHEDULE_CAMPAIGN` (api.spec.md §1/§4) — `POST .../campaigns/:id/schedule`, `draft` ->
  * `scheduled`. `scheduledAt` is optional (absent/null = send as soon as the pipeline picks it up);
@@ -21,8 +36,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = (app
       return;
     }
 
-    const body = req.body ?? {};
-    if (body.scheduledAt !== undefined && body.scheduledAt !== null && typeof body.scheduledAt !== "string") {
+    if (!isValidScheduledAt(req.body)) {
       res.status(400).json({ error: "scheduledAt must be a date-time string when provided", code: "NEWSLETTER_VALIDATION_ERROR" });
       return;
     }
@@ -38,7 +52,7 @@ export const registerAdminNewsletterScheduleCampaignRoute: RouteRegistrar = (app
       if (!principal) return;
 
       await deps.newsletterReady;
-      const scheduledAt = typeof body.scheduledAt === "string" ? body.scheduledAt : deps.clock.nowIso();
+      const scheduledAt = resolveScheduledAt(req.body, deps.clock.nowIso());
       const { campaign } = await scheduleCampaign({
         deps: toCampaignWriteServiceDeps(deps),
         input: { workspaceId: deps.workspaceId, id: String(req.params.id), actorId: getAuthedPrincipal(res).id, scheduledAt },
