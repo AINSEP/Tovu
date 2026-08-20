@@ -23,6 +23,33 @@ function setMemberSessionCookie(res: Response, rawToken: string, expiresAtIso: s
   );
 }
 
+/** Enforces `MAGIC_LINK_COMPLETE_ATTEMPT` on this public route. Writes the 429 itself and returns
+ *  whether the caller should proceed. @complexity O(1). */
+function checkCompleteSignInRateLimit(deps: MemberPublicRouteDeps, clientIp: string, res: Response): boolean {
+  const rateLimitResult = deps.magicLinkCompleteAttemptLimiter.check(clientIp);
+  if (rateLimitResult.allowed) return true;
+  res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+  res.status(429).json({
+    error: "too many sign-in completion attempts from this address",
+    code: "RATE_LIMIT_EXCEEDED",
+    details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+  });
+  return false;
+}
+
+/** Maps this route's thrown error types onto the public error envelope. @complexity O(1). */
+function sendCompleteSignInError(res: Response, err: unknown): void {
+  if (err instanceof MemberAuthError) {
+    res.status(401).json({ error: err.message, code: "MEMBER_AUTH_ERROR" });
+    return;
+  }
+  if (err instanceof MemberNotFoundError) {
+    res.status(404).json({ error: err.message, code: "MEMBER_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
+
 /**
  * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in/complete` — the
  * new PUBLIC complete-sign-in route (ADR-PIPE-013 Decision §2-3, C-013).
@@ -48,23 +75,17 @@ export function registerPublicMemberCompleteSignInRoute(app: Express, deps: Memb
     }
 
     const clientIp = resolveClientIp(req);
-    const rateLimitResult = deps.magicLinkCompleteAttemptLimiter.check(clientIp);
-    if (!rateLimitResult.allowed) {
-      res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-      res.status(429).json({
-        error: "too many sign-in completion attempts from this address",
-        code: "RATE_LIMIT_EXCEEDED",
-        details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-      });
+    if (!checkCompleteSignInRateLimit(deps, clientIp, res)) {
       return;
     }
 
     try {
+      const body = (req.body ?? {}) as Record<string, unknown>;
       const result = await completeSignIn({
         deps: toPublicMembersWriteServiceDeps(deps),
         input: {
           workspaceId: deps.workspaceId,
-          token: String(req.body?.token ?? ""),
+          token: String(body.token ?? ""),
           userAgent: req.get("user-agent") ?? undefined,
           ip: clientIp,
         },
@@ -73,17 +94,7 @@ export function registerPublicMemberCompleteSignInRoute(app: Express, deps: Memb
       setMemberSessionCookie(res, result.rawSessionToken, result.session.expiresAt);
       res.json({ member: toPublicMemberResponse(result.member) });
     } catch (err) {
-      if (err instanceof MemberAuthError) {
-        res.status(401).json({ error: err.message, code: "MEMBER_AUTH_ERROR" });
-        return;
-      }
-
-      if (err instanceof MemberNotFoundError) {
-        res.status(404).json({ error: err.message, code: "MEMBER_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendCompleteSignInError(res, err);
     }
   });
 }
