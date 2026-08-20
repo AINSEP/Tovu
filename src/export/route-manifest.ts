@@ -278,7 +278,14 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   // `overridesThemePage` — post wins unless the stored value is explicitly `false`; see that
   // resolver's own doc for the full contract). Mirrored here rather than shared code so the exported
   // manifest matches exactly what the live site would serve for the same row.
-  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(theme, posts, skipped);
+  // `resolveActiveTheme` returns `null` for "no active theme"; this helper's parameter is optional
+  // (`| undefined`). Both mean the same absent-theme case, so normalize rather than widening the
+  // helper's signature to accept two spellings of nothing.
+  const { activeTheme, routes: themeAndPostRoutes } = resolveThemeAndPostRoutes(
+    theme ?? undefined,
+    posts,
+    skipped
+  );
   routes.push(...themeAndPostRoutes);
 
   const products = await deps.resolveStorefrontProducts();
