@@ -225,7 +225,14 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       // actually settled.
       const snapshot = startPublishRun(
         { credentialSource },
-        { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName },
+        {
+          workspaceId: deps.workspaceId,
+          publishOutputRootDir: deps.publishOutputRootDir,
+          idGen: deps.idGen,
+          exportSiteBound: deps.exportSiteBound,
+          config: parsed.config,
+          projectName: parsed.projectName,
+        },
         deps.clock,
         deps.publishHistoryStore
       );
