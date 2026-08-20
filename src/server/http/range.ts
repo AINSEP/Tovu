@@ -46,6 +46,33 @@ export interface ParseRangeHeaderRequired {
 }
 
 /**
+ * Suffix range: `bytes=-500` -> the last 500 bytes.
+ *
+ * @complexity O(1)
+ */
+function resolveSuffixRange(endText: string, totalLength: number): ParsedRange {
+  const suffixLength = Number(endText);
+  if (!Number.isFinite(suffixLength) || suffixLength <= 0) return { kind: "unsatisfiable" };
+  const start = Math.max(0, totalLength - suffixLength);
+  return { kind: "range", start, end: totalLength - 1 };
+}
+
+/**
+ * Bounded (or open-ended) range: `bytes=100-`, `bytes=100-200`.
+ *
+ * @complexity O(1)
+ */
+function resolveBoundedRange(startText: string, endText: string, totalLength: number): ParsedRange {
+  const start = Number(startText);
+  if (!Number.isFinite(start) || start >= totalLength) return { kind: "unsatisfiable" };
+
+  const end = endText === "" ? totalLength - 1 : Math.min(Number(endText), totalLength - 1);
+  if (!Number.isFinite(end) || end < start) return { kind: "unsatisfiable" };
+
+  return { kind: "range", start, end };
+}
+
+/**
  * @complexity O(1) — one regex match against a bounded-shape string and a handful of comparisons;
  * no work proportional to `totalLength` or to the header's length beyond the regex engine's own
  * linear scan of the (short, request-header-sized) input.
@@ -72,19 +99,7 @@ export function parseRangeHeader(
   // guarded anyway) resource can ever satisfy a range.
   if (totalLength <= 0) return { kind: "unsatisfiable" };
 
-  if (startText === "") {
-    // Suffix range: "bytes=-500" -> the last 500 bytes.
-    const suffixLength = Number(endText);
-    if (!Number.isFinite(suffixLength) || suffixLength <= 0) return { kind: "unsatisfiable" };
-    const start = Math.max(0, totalLength - suffixLength);
-    return { kind: "range", start, end: totalLength - 1 };
-  }
-
-  const start = Number(startText);
-  if (!Number.isFinite(start) || start >= totalLength) return { kind: "unsatisfiable" };
-
-  const end = endText === "" ? totalLength - 1 : Math.min(Number(endText), totalLength - 1);
-  if (!Number.isFinite(end) || end < start) return { kind: "unsatisfiable" };
-
-  return { kind: "range", start, end };
+  return startText === ""
+    ? resolveSuffixRange(endText, totalLength)
+    : resolveBoundedRange(startText, endText, totalLength);
 }
