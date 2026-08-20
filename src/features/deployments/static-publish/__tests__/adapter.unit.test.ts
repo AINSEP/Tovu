@@ -6,7 +6,18 @@ import test from "node:test";
 
 import express from "express";
 
-import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
+import {
+  CloudflarePagesDeployTarget,
+  DeployError,
+  GitHubPagesDeployTarget,
+  NetlifyDeployTarget,
+  VercelDeployTarget,
+  type DeployFile,
+  type DeployPublishInput,
+  type DeployPublishResult,
+  type DeployTarget,
+} from "@jini-ai/devops/deploy";
+import { S3CompatibleDeployTarget } from "../s3-compatible-target.js";
 
 import { createApp, createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -18,6 +29,7 @@ import {
   publishOutputDir as computePublishOutputDir,
   validateStaticPublishConfig,
   buildS3CompatibleTargetConfig,
+  buildJiniTarget,
 } from "../adapter.js";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 
@@ -670,4 +682,149 @@ test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential m
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.match(result.message, /missing required field 'bucket'/);
+});
+
+// ---------------------------------------------------------------------------
+// Characterization tests, added ahead of a complexity-reduction refactor of
+// `validateStaticPublishConfig`, `buildJiniTarget`, and `publishStaticSite` — pinning branches the
+// existing suite above never exercised (confirmed via `c8` branch coverage: 86.25% on this file
+// before this block). Every assertion here must pass unchanged before AND after the refactor.
+// ---------------------------------------------------------------------------
+
+test("validateStaticPublishConfig: rejects an out-of-pattern github-pages repo name", () => {
+  const badRepo: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "" };
+  assert.match(validateStaticPublishConfig(badRepo) ?? "", /invalid GitHub repo/);
+
+  const dotRepo: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "." };
+  assert.match(validateStaticPublishConfig(dotRepo) ?? "", /invalid GitHub repo/);
+});
+
+// ---- buildJiniTarget: the real, default DeployTarget constructor (every test above injects a
+// fake `buildTarget`, so this dispatch itself has never run) ----
+
+test("buildJiniTarget: github-pages builds a GitHubPagesDeployTarget, forwarding owner/repo/token and omitting branch when not supplied", () => {
+  const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo" };
+  const target = buildJiniTarget(config, { token: "gh-token" });
+  assert.ok(target instanceof GitHubPagesDeployTarget);
+  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "gh-token", owner: "octo", repo: "demo" });
+});
+
+test("buildJiniTarget: github-pages forwards an explicit branch when supplied", () => {
+  const config: StaticPublishConfig = { target: "github-pages", owner: "octo", repo: "demo", branch: "release" };
+  const target = buildJiniTarget(config, { token: "gh-token" });
+  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "gh-token", owner: "octo", repo: "demo", branch: "release" });
+});
+
+test("buildJiniTarget: vercel builds a VercelDeployTarget, omitting teamId when not supplied and forwarding it when present", () => {
+  const withoutTeam = buildJiniTarget({ target: "vercel" }, { token: "v-token" });
+  assert.ok(withoutTeam instanceof VercelDeployTarget);
+  assert.deepEqual((withoutTeam as unknown as { config: unknown }).config, { token: "v-token" });
+
+  const withTeam = buildJiniTarget({ target: "vercel", teamId: "team_1" }, { token: "v-token" });
+  assert.deepEqual((withTeam as unknown as { config: unknown }).config, { token: "v-token", teamId: "team_1" });
+});
+
+test("buildJiniTarget: netlify builds a NetlifyDeployTarget carrying only the token", () => {
+  const target = buildJiniTarget({ target: "netlify" }, { token: "nt-token" });
+  assert.ok(target instanceof NetlifyDeployTarget);
+  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "nt-token" });
+});
+
+test("buildJiniTarget: cloudflare-pages builds a CloudflarePagesDeployTarget from the resolved accountId", () => {
+  const target = buildJiniTarget({ target: "cloudflare-pages" }, { token: "cf-token", accountId: "acct-1" });
+  assert.ok(target instanceof CloudflarePagesDeployTarget);
+  assert.deepEqual((target as unknown as { config: unknown }).config, { token: "cf-token", accountId: "acct-1" });
+});
+
+test("buildJiniTarget: cloudflare-pages throws DeployError when the resolved credential has no accountId", () => {
+  assert.throws(
+    () => buildJiniTarget({ target: "cloudflare-pages" }, { token: "cf-token" }),
+    (err: unknown) => {
+      assert.ok(err instanceof DeployError);
+      assert.match(err.message, /Cloudflare account ID is required/);
+      return true;
+    }
+  );
+});
+
+test("buildJiniTarget: s3-compatible builds an S3CompatibleDeployTarget via buildS3CompatibleTargetConfig", () => {
+  const target = buildJiniTarget(
+    { target: "s3-compatible" },
+    { token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://x.test" }
+  );
+  assert.ok(target instanceof S3CompatibleDeployTarget);
+});
+
+// ---- publishStaticSite: branches no existing test above exercises ----
+
+test("publishStaticSite: rejects a blank projectName before credentials or export are touched", async () => {
+  const deps = testRouteDeps();
+  const result = await publishStaticSite(
+    { credentialSource: neverCalledCredentialSource() },
+    { workspaceId: "w", publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "   " }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "INVALID_CONFIG");
+  assert.match(result.message, /projectName must be 1-200 characters/);
+});
+
+test("publishStaticSite: rejects a projectName over the 200-character limit", async () => {
+  const deps = testRouteDeps();
+  const result = await publishStaticSite(
+    { credentialSource: neverCalledCredentialSource() },
+    { workspaceId: "w", publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "x".repeat(201) }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "INVALID_CONFIG");
+  assert.match(result.message, /projectName must be 1-200 characters/);
+});
+
+test("publishStaticSite: exportSiteBound itself throwing (not merely returning failed routes) is caught as EXPORT_FAILED, and the run directory is still cleaned up", async () => {
+  const deps: RouteDeps = testRouteDeps();
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => {
+        throw new Error("buildTarget must not be called when exportSiteBound itself threw");
+      },
+    },
+    {
+      workspaceId: deps.workspaceId,
+      publishOutputRootDir: deps.publishOutputRootDir,
+      idGen: deps.idGen,
+      exportSiteBound: async () => {
+        throw new Error("simulated exportSiteBound crash");
+      },
+      config: { target: "vercel" },
+      projectName: "demo",
+    }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "EXPORT_FAILED");
+  assert.match(result.message, /export failed before publishing could start: simulated exportSiteBound crash/);
+});
+
+test("publishStaticSite: a partial outcome with no statusMessage falls back to the default not-yet-reachable message", async () => {
+  const deps: RouteDeps = testRouteDeps();
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => ({
+        id: "fake",
+        async publish() {
+          return { targetId: "fake", url: "https://example.test/published", status: "link-delayed" as const };
+        },
+        async checkReachability() {
+          return { reachable: false };
+        },
+      }),
+    },
+    { workspaceId: deps.workspaceId, publishOutputRootDir: deps.publishOutputRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, config: { target: "vercel" }, projectName: "demo" }
+  );
+  assert.equal(result.ok, "partial");
+  if (result.ok !== "partial") throw new Error("unreachable");
+  assert.equal(result.message, "Published to vercel, but the public URL is not confirmed reachable yet (status: link-delayed).");
 });
