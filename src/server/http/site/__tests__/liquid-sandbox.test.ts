@@ -96,11 +96,31 @@ test("a memory-blowup template (range within the lint cap, accumulating retained
   // A range well under `MAX_FOR_RANGE_SPAN` that RETAINS what it allocates —
   // each iteration appends to a variable that stays live — so heap pressure
   // actually accumulates instead of streaming straight out. This is the shape
-  // the worker's memory guards catch, and it is caught by LiquidJS's own
-  // `memoryLimit` (`liquid-worker.ts`) before V8's `resourceLimits` ceiling is
-  // ever reached, which is the intended defense-in-depth ordering: the cheaper,
-  // more precise limit fires first and reports a clean error rather than
-  // killing the worker.
+  // the worker's memory guards catch: in the common case LiquidJS's own
+  // `memoryLimit` (`liquid-worker.ts`) trips first, well under V8's
+  // `resourceLimits` ceiling, and reports a clean "memory alloc limit
+  // exceeded" error rather than killing the worker.
+  //
+  // Which guard actually fires is a genuine race, not a guaranteed ordering —
+  // verified empirically 2026-08-20 (ADS-memory/reports/2026-08-20-liquid-sandbox-memory-guard-race.md).
+  // LiquidJS's `memoryLimit` is a synchronous per-append byte counter
+  // (`node_modules/liquidjs/dist/liquid.node.js`'s `Limiter`, driven by
+  // `context.memoryLimit.use(str.length)` on every `append`) that only
+  // advances as fast as the JS loop runs. V8's real old-gen heap can balloon
+  // faster than that counter under GC pressure, because repeated string
+  // concatenation (`s | append: ...` rebuilding `s` each iteration) generates
+  // quadratic garbage that a lagging collector may not reclaim in time. 58/58
+  // runs of this exact test at `maxOldGenerationSizeMb: 32` threw LiquidJS's
+  // guard even under an artificially induced load average of 74 on this
+  // 8-core/16GB box (well above the 38-55 range logged when the race was
+  // first observed), but a single documented run elsewhere threw V8's
+  // `ERR_WORKER_OUT_OF_MEMORY` instead. Both are correct outcomes: the worker
+  // is force-terminated either way and `renderInWorkerSandbox`'s caller falls
+  // back to the built-in body regardless of which error it catches (see that
+  // function's `@throws` doc in `worker-sandbox.ts`) — so a real visitor is
+  // protected identically. The assertion below accepts either guard's exact
+  // error shape rather than asserting an ordering the code does not actually
+  // guarantee.
   //
   // KNOWN GAP, deliberately not asserted here because it is not currently true:
   // the same loop STREAMING its output instead of retaining it
@@ -134,7 +154,22 @@ test("a memory-blowup template (range within the lint cap, accumulating retained
       // below still throws `memory alloc limit exceeded` (LiquidJS's own guard, not V8's) at 32/40/48MB.
       { timeoutMs: 15000, resourceLimits: { maxOldGenerationSizeMb: 32, maxYoungGenerationSizeMb: 8 } }
     ),
-    /memory alloc limit exceeded/
+    // Accept either defense-in-depth guard's exact error shape (see the race explanation above) —
+    // not a looser shared regex, so a message from neither guard still fails this test.
+    (err: Error & { code?: string }) => {
+      // LiquidJS appends the offending token's position (e.g. ", line:1, col:46") to its own
+      // "memory alloc limit exceeded" `Limiter` message (node_modules/liquidjs/dist/liquid.node.js's
+      // `AssertionError`) — a prefix match, not exact equality, same tolerance the original regex had.
+      const isLiquidGuard = err.message.startsWith("memory alloc limit exceeded");
+      const isV8Ceiling =
+        err.message === "Worker terminated due to reaching memory limit: JS heap out of memory" &&
+        err.code === "ERR_WORKER_OUT_OF_MEMORY";
+      assert.ok(
+        isLiquidGuard || isV8Ceiling,
+        `expected LiquidJS's memory guard or V8's resourceLimits ceiling, got: ${err.message} (code: ${err.code})`
+      );
+      return true;
+    }
   );
 });
 
