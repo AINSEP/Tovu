@@ -287,3 +287,54 @@ after each commit throughout this report and in the SendMessage trail during the
 All three jobs' back-edges are closed (0 remaining), every claim above is backed by a quoted,
 freshly-reproduced compiler diagnostic or test run, and the working tree is clean of every file
 this dispatch touched.
+
+---
+
+## Where this work is less than certain
+
+Recorded from the executing agent's own final account, appended by the dispatching Coordinator
+because these caveats were reported in conversation and would otherwise not survive in the record.
+A report that reads as more certain than the work was is its own kind of inaccuracy.
+
+1. **The test-fixture audit was grep-scoped, not call-graph-traced.** The four affected test files
+   were found by grepping for literal calls to `exportSite(` / `buildRouteManifest(` and for direct
+   field names. That is sound but not exhaustive: a fixture constructed three hops from the actual
+   call would not have surfaced. Confidence that nothing else touches the closure-bound fields is
+   high, not total.
+
+2. **The full test suite was not run** — deliberately, per the standing rule (it measures 5.4 GB
+   across 13 workers). Only the specifically affected files were run, plus `ci:local`'s typecheck and
+   build gates for everything else. **A runtime-only regression in an untouched test file would be
+   caught by neither.**
+
+3. **Job 1's inline doc comments are dense.** They were optimised for quoting real compiler
+   diagnostics over brevity, per the standing "do not assert, quote the diagnostic" instruction.
+   Worth a tightening pass if anyone revisits that file.
+
+4. **Pre-existing `__tests__` type errors that nobody is tracking.** Found during this work, verified
+   present in untouched HEAD content via `git show`, outside every hunk this dispatch produced, and
+   deliberately left alone:
+   - `commit-site.unit.test.ts` / `adapter.unit.test.ts` — `GitHubCommitAdapterResult.filesDeleted`
+     missing; a `never`-typed array-literal quirk.
+   - `assistant-byok-routes.test.ts` — `PostRecord` missing `bodyFormat` / `bodyHtml`; an optional
+     `registerRoutes?.()` call.
+
+   None block runtime (`tsx` strips types) and none were in scope here. They matter because
+   `tsconfig` **excludes `__tests__`**, so `tsc` never sees them and no gate reports them. This is a
+   real, untracked hole in type coverage — not a finding about this dispatch, but about the repo.
+
+## Tripwire proof — which perturbation fired where
+
+The two perturbations fired at **different** locations, and the distinction matters:
+
+- **A** — dropped `canonicalUrl` from the duplicate's `PageHeadContext` (a field `seo/` reads).
+  Did **NOT** reach the wiring call; failed earlier and more locally at the point of use:
+  `src/seo/page-head-contributor.ts(34,55): error TS2339: Property 'canonicalUrl' does not exist on type 'PageHeadContext'.`
+- **B** — retyped `PageHeadEntryRef.ext` (a field nothing in `seo/` reads, chosen to isolate whether
+  the wiring call is an independent backstop). **DID** fire at the wiring call:
+  `src/server/app.ts(796,5): error TS2345` on `registerPageHeadContributor(createSeoPageHeadHook({...}))`.
+
+Both reverted; `tsc` clean afterward. The Coordinator's original framing — "the wiring call catches
+drift" — was half wrong: it is a genuine independent backstop for drift the local file does not read,
+but it is not the only, nor usually the first, tripwire. Both layers are stated in the duplicate's
+own comment in `seo/types.ts` so no one reads only half the story.
