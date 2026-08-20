@@ -283,12 +283,14 @@ export interface CreateSqliteRouteDepsOverrides {
   uploadsDir: string;
 }
 
-export function createSqliteRouteDeps(
-  dbPath: string = defaultContentDbPath(),
-  overrides?: Partial<CreateSqliteRouteDepsOverrides>
-): NewsletterRouteDeps {
-  // CIC U-001 / Contract Map C-010: `overrides.db` and `overrides.workspaceId` must be supplied
-  // together or not at all — a single-field partial override is not a legal call shape.
+/**
+ * 2026-08-20 (complexity pass) — CIC U-001 / Contract Map C-010's paired-override guard, hoisted
+ * out of `createSqliteRouteDeps`. Each `overrides?.field` read is its own branch under ESLint's
+ * `complexity` rule; splitting the two reads plus the comparison `if` into their own 4-line
+ * function moves those 3 points of complexity here instead of onto the composition root, without
+ * changing what gets checked or when.
+ */
+function assertOverridesPairedOrAbsent(overrides?: Partial<CreateSqliteRouteDepsOverrides>): void {
   const hasOverrideDb = overrides?.db !== undefined;
   const hasOverrideWorkspaceId = overrides?.workspaceId !== undefined;
   if (hasOverrideDb !== hasOverrideWorkspaceId) {
@@ -296,6 +298,26 @@ export function createSqliteRouteDeps(
       "createSqliteRouteDeps: overrides.db and overrides.workspaceId must be supplied together or not at all"
     );
   }
+}
+
+/**
+ * Builds `composePluginRuntime`'s optional `failureThreshold` field from `overrides` — the exact
+ * undefined-check-and-conditional-spread shape `server/app.ts`'s `createRouteDeps` repeats for its
+ * own optional `composePluginRuntime` fields, hoisted here for the same reason
+ * {@link assertOverridesPairedOrAbsent} is: one ternary counted once, not inline in the composition
+ * root.
+ */
+function pluginFailureThresholdOverride(
+  overrides?: Partial<CreateSqliteRouteDepsOverrides>
+): { failureThreshold?: number } {
+  return overrides?.pluginFailureThreshold === undefined ? {} : { failureThreshold: overrides.pluginFailureThreshold };
+}
+
+export function createSqliteRouteDeps(
+  dbPath: string = defaultContentDbPath(),
+  overrides?: Partial<CreateSqliteRouteDepsOverrides>
+): NewsletterRouteDeps {
+  assertOverridesPairedOrAbsent(overrides);
 
   // When `overrides.db` is supplied (the install-dir `serve` path), reuse that SAME handle rather
   // than opening/migrating a second db — `bootSiteDir` has already validated, migrated, and
@@ -342,9 +364,7 @@ export function createSqliteRouteDeps(
     // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
     // invisible to every real boot of this composition root, no matter how it got there.
     installDir: pluginsInstallDir(),
-    ...(overrides?.pluginFailureThreshold === undefined
-      ? {}
-      : { failureThreshold: overrides.pluginFailureThreshold }),
+    ...pluginFailureThresholdOverride(overrides),
   });
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
