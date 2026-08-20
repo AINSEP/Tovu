@@ -12,20 +12,69 @@ tested, so you **will** find real bugs. Finding them is the point. The coverage 
 not the goal. Put bugs in their own section of your report, separate from coverage numbers, and do
 not bury them.
 
-## Setup
+## Setup — Jini FIRST, then Tovu
 
-Repo is `leonaburime-ucla/Tovu-AI-CMS` (the name is NOT "Tovu"). Work on **`general-work`**, not
-`main`.
+**This is the step most likely to fail. Do it exactly, in this order, and stop-and-report on any
+failure rather than improvising.**
 
-```bash
-git checkout general-work && git pull origin general-work
-npm install
+Tovu depends on Jini through **13 `file:` dependencies** pointing at `../Jini/packages/*`:
+
+```
+@jini-ai/agent-runtime  agentic  chat  cms  core  daemon  devops
+http-kit  infra  integrations  mcp  sqlite  ui
 ```
 
-A HEAD different from `ac5fd87d` is expected and fine — other agents commit to this branch
-continuously. The sibling `Jini` repo is checked out because Tovu links it via `file:` deps; you
-should not need to modify it. **If `npm install` fails, report exactly what failed and stop** — do
-not improvise a different package manager.
+Those are compiled TypeScript packages. **Jini is NOT built in a fresh clone**, so Tovu cannot
+typecheck or run its tests until you build Jini. This is the single most common cloud-dispatch
+failure on this project.
+
+### 2a. Directory layout — verify before anything else
+
+Tovu resolves `../Jini`, so the two checkouts must be **siblings**, and the Jini directory must be
+named exactly `Jini`:
+
+```
+<workdir>/Jini             <- must be this exact name
+<workdir>/Tovu-AI-CMS
+```
+
+Check it. If the Jini checkout landed under a different name or a different parent, create a symlink
+so `../Jini` resolves from inside the Tovu checkout, and say in your report that you did.
+
+### 2b. Jini — checkout, install, BUILD
+
+Jini uses **pnpm**, not npm (`packageManager: pnpm@10.33.2`), and is a pnpm workspace
+(`pnpm-workspace.yaml`: `packages/*`, `examples/*`). There is no root `build` script — each package
+has its own `build: tsc -p tsconfig.json` — so build recursively.
+
+```bash
+cd Jini
+git checkout general-work && git pull origin general-work   # NOT main
+corepack enable
+pnpm install
+pnpm -r build          # builds every package dist/ — required before Tovu works
+```
+
+Jini's work lives on **`general-work`**, the same branch name as Tovu. At dispatch its HEAD was
+`a6113362` and it was in sync with origin. Confirm `pnpm -r build` actually produced `dist/`
+directories — spot-check `packages/core/dist` and `packages/cms/dist` for `.js` and `.d.ts` files.
+**A stale or missing `dist/` is a known trap in this project**: it produces confusing type errors in
+Tovu that look like Tovu bugs and are not.
+
+### 2c. Tovu
+
+```bash
+cd ../Tovu-AI-CMS
+git checkout general-work && git pull origin general-work   # NOT main
+npm install
+npx tsc --noEmit -p tsconfig.json     # smoke test: proves the Jini link resolves
+```
+
+A HEAD different from what you expect is normal — several agents commit to this branch continuously.
+
+**If any step above fails, report the exact command and the exact error and STOP.** Do not switch
+package managers, do not delete lockfiles, do not `--force`. A broken install invalidates every
+number you would otherwise produce.
 
 ## Targets
 
