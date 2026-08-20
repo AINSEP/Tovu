@@ -20,10 +20,12 @@
 
 ## Result summary
 
-**0 SAFE (clean) / 4 SAFE WITH CLAMPS / 4 UNSAFE FOR PLUGIN PROPS**, of 8 total `WIDGET_IR_RENDERERS`
-entries. Every renderer that reaches a shared helper inherits that helper's verdict — I did not
-double-count the same root cause as N independent findings, but I did apply it to every renderer that
-reaches it.
+**3 SAFE (clean) / 1 SAFE WITH CLAMPS / 4 UNSAFE FOR PLUGIN PROPS**, of 8 total `WIDGET_IR_RENDERERS`
+entries — `text`, `contact-form`, `media-image` are clean; `post-content` is safe against injection but
+needs a size clamp added; `social-links`, `entry-summary`, `menu`, `recent-entries` have concrete,
+traced defects (detailed below). Every renderer that reaches a shared helper inherits that helper's
+verdict — I did not double-count the same root cause as N independent findings, but I did apply it to
+every renderer that reaches it.
 
 ## Root-cause finding (drives 3 of the 4 UNSAFE verdicts): `safeHref` accepts protocol-relative URLs
 
