@@ -60,6 +60,8 @@
     "theme": "tsx development/scripts/theme-tool.ts",
     "agent-plugin:package": "tsx development/scripts/package-agent-plugin.ts",
     "agent-plugin:install": "tsx development/scripts/install-agent-plugin.ts",
+    "agent-plugin:proof": "playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts",
+    "agent-plugin:proof:watch": "playwright test --config=development/playwright.composer-agent-plugin-chip.config.ts --headed",
     "ci:local": "bash development/scripts/ci-local.sh",
     "ci:local:tests": "bash development/scripts/ci-local.sh --with-tests",
     "ci:local:route-coverage": "bash development/scripts/ci-local.sh --route-coverage",
