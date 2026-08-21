@@ -332,6 +332,29 @@ jobs:
         continue-on-error: true
         run: npm run check:src-complexity-drift
 
+      - name: Check seed-content drift
+        # Added 2026-08-21 (Sol audit finding, MEDIUM): development/scripts/ci-local.sh has run
+        # this gate since 2026-08-21 but this workflow never did — 0 occurrences before this
+        # commit. Same report-only-on-genuine-drift posture as the other `tsx`-run checks above:
+        # `generate-seed-content.ts --check` exits 0 when src/templates/starter/seed-content.json
+        # already matches what src/server/seed.ts generates, and exits 1 (this step then fails,
+        # caught by the Gate summary step) on drift. Not a ratchet — there is no tolerated debt
+        # here, the two files must always match exactly.
+        #
+        # Why this exists: seed-content.json was hand-synced against seed.ts before the generator
+        # did, and drifted twice in a single day — `0f0de930` (2026-08-19) fixed a drift, then
+        # `8c7effea`, hours later the same day, re-broke it. See generate-seed-content.ts's own
+        # header for the full incident. Command name verified against package.json's
+        # `check:seed-content-drift` script (`tsx development/scripts/generate-seed-content.ts
+        # --check`) and confirmed locally: exits 0, "seed-content.json is up to date with seed.ts".
+        #
+        # UNVALIDATED against a live GitHub Actions run — Actions is billing-blocked on this repo
+        # (see ci-local.sh's own header), so this step has only been checked by parsing the YAML
+        # and running the underlying npm script locally, not by an actual CI execution.
+        id: gate-seed-content-drift
+        continue-on-error: true
+        run: npm run check:seed-content-drift
+
       - name: Lint
         # No lint tool existed in this repo before this workflow. Added Biome (single
         # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
@@ -405,6 +428,7 @@ jobs:
           check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
+          check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
           check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
           check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
