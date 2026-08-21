@@ -369,7 +369,6 @@ async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredential
     await port.saveMediaProviders(rebuildMediaProviderMap(current, itemId, { apiKey }));
     return;
   }
-  throw new Error(`${storeId} does not support Replace`);
 }
 
 /** Dispatches one store's Remove write — mirrors {@link writeReplace}'s dispatch, but every store

@@ -189,7 +189,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     // `<dialog>`'s identically-labeled confirm button is accessibility-hidden (no `open` attribute),
     // same as `access-tokens-revoke-copy.unit.test.tsx`'s own dialog tests document.
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
-    const dialog = container.querySelector("dialog.confirm-dialog")!;
+    const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
     expect(dialog.textContent).toContain('Remove "Site assistant model key" from Tovu?');
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancel", hidden: true }));
@@ -203,7 +203,7 @@ describe("OtherCredentialsSection — OtherCredentialReplaceableRow + remove con
     const { container } = render(<OtherCredentialsSection controller={makeController({ groups: [groupFixture("site-assistant", [row])], remove })} query="" />);
 
     fireEvent.click(screen.getByRole("button", { name: "Remove from Tovu" }));
-    const dialog = container.querySelector("dialog.confirm-dialog")!;
+    const dialog = container.querySelector<HTMLDialogElement>("dialog.confirm-dialog")!;
     // Two buttons read "Remove from Tovu" in this dialog's DOM (the row's own trigger button, and the
     // dialog's own confirm button) — scope to the dialog itself, with `hidden: true` since the dialog
     // has no `open` attribute in jsdom (its own `showModal()` is not implemented there).

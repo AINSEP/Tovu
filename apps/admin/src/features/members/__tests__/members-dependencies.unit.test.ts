@@ -30,6 +30,7 @@ function member(overrides: Partial<AdminMember> = {}): AdminMember {
     workspaceId: "ws1",
     email: "reader@example.com",
     status: "active",
+    version: 1,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
     ...overrides,
