@@ -228,6 +228,16 @@ test("an out-of-vocabulary status is refused rather than silently ignored", asyn
   );
 });
 
+test("a valid 'disabled' status is accepted through the tool", async () => {
+  const { deps } = fakeRouteDeps();
+  const { id } = await seedDefinition(deps);
+
+  const result = (await wired("forms_set_definition_status", deps).handler(executionContext({ formId: id, status: "disabled" }))) as {
+    definition: { status: string };
+  };
+  assert.equal(result.definition.status, "disabled");
+});
+
 // ---------------------------------------------------------------------------
 // 3. Output projection
 // ---------------------------------------------------------------------------
@@ -423,6 +433,30 @@ test("forms_list_submissions: an out-of-range limit is refused", async () => {
     () => wired("forms_list_submissions", deps).handler(executionContext({ formId, limit: 500 })),
     /'limit' must be an integer between 1 and 100/,
   );
+});
+
+test("forms_list_submissions: an unknown formId is reported not found", async () => {
+  const { deps } = fakeRouteDeps();
+  await assert.rejects(
+    () => wired("forms_list_submissions", deps).handler(executionContext({ formId: "no-such-form" })),
+    /form definition 'no-such-form' was not found/,
+  );
+});
+
+test("forms_list_submissions: a provided cursor is threaded through to the repo read", async () => {
+  const { deps, submissionRepo } = fakeRouteDeps();
+  const { id: formId } = await seedDefinition(deps);
+  await seedSubmission(submissionRepo, formId, { id: "s-1" });
+
+  let observedCursor: string | undefined;
+  const originalList = submissionRepo.listByDefinition.bind(submissionRepo);
+  submissionRepo.listByDefinition = (async (r: { workspaceId: string; formDefinitionId: string; limit: number; cursor?: string }) => {
+    observedCursor = r.cursor;
+    return originalList(r);
+  }) as typeof submissionRepo.listByDefinition;
+
+  await wired("forms_list_submissions", deps).handler(executionContext({ formId, cursor: "cursor-abc" }));
+  assert.equal(observedCursor, "cursor-abc");
 });
 
 test("forms_get_submission: calls authorize() with admin.forms.submissions.read and an entityId, and returns the one submission", async () => {
