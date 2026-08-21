@@ -458,10 +458,25 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
   return [...found];
 }
 
-/** Maps a fetched asset's site-relative URL to its output file, refusing anything that would
- *  escape `outputDir` — mirrors `theme-static-assets.ts`'s own containment check (a URL extracted
- *  from rendered HTML is still, transitively, request-shaped input, not a trusted literal). */
-function assetOutputFile(url: string, outputDir: string): string | null {
+/**
+ * Maps a fetched asset's site-relative URL to its output file, refusing (returning `null`) anything
+ * that would escape `outputDir` — mirrors `theme-static-assets.ts`'s own containment check (a URL
+ * extracted from rendered HTML is still, transitively, request-shaped input, not a trusted literal).
+ *
+ * Exported so this security boundary is independently verifiable against a hostile payload (a
+ * `../`-laden traversal, or an `outputDir` that is not itself absolute) directly, in isolation — the
+ * crawl (`extractAssetUrls`/`extractCssUrls`) only ever hands this function URLs already pre-filtered
+ * to `ASSET_URL_PREFIXES` and normalized through `URL.pathname`/`decodeURIComponent`, so no value the
+ * real pipeline produces today can trigger either refusal below. That is a property of today's
+ * callers, not of this function's contract, which is why the check stays enforced and testable on its
+ * own terms rather than deleted as unreachable. Two DIFFERENT escapes are checked, not a duplicate of
+ * one: `resolved !== path.join(outputDir, trimmed)` catches `path.resolve` diverging from a naive
+ * join — the case where `outputDir` itself was not already absolute, so `resolve` silently anchors
+ * against `process.cwd()` instead; `!resolved.startsWith(outputDir + sep)` catches `trimmed`
+ * containing enough `../` segments to walk back out of an (already-absolute) `outputDir` even though
+ * both functions agree on the normalized result.
+ */
+export function resolveAssetPathWithinOutputDir(url: string, outputDir: string): string | null {
   // `String.prototype.split` always returns at least one element, so index 0 is always defined.
   const pathname = decodeURIComponent(url.split("?")[0]);
   const trimmed = pathname.replace(/^\/+/, "");
@@ -479,8 +494,9 @@ function closeServer(server: Server): Promise<void> {
  *  all three uniformly without a discriminated-union narrowing dance. `html` is populated only by
  *  {@link writeContentRoute} — it is the one kind whose body is worth crawling for asset refs; a
  *  redirect stub and a raw 404 body are both written verbatim already, nothing about them needs
- *  crawling for cross-references this exporter must additionally fetch. */
-interface RouteWriteOutcome {
+ *  crawling for cross-references this exporter must additionally fetch. Exported only because
+ *  {@link writeRedirectRoute} is (see that function's own doc for why). */
+export interface RouteWriteOutcome {
   succeeded?: ExportedRoute;
   failed?: FailedRoute;
   html?: string;
@@ -530,7 +546,24 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
   };
 }
 
-async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+/**
+ * Writes a `kind: "redirect"` manifest route by re-requesting it (see this function's own inline
+ * comment on `location` for why the manifest's `redirectTarget` is only ever a fallback, never the
+ * primary source). Two of its three failure modes — a live 3xx with no `Location` header, and that
+ * SAME response combined with a manifest route that also carries no `redirectTarget` — have no seam
+ * in today's real pipeline: `route-manifest.ts` only ever builds a `kind: "redirect"` route from a
+ * real, validated redirect rule (`rule.toTarget` always non-empty), and the live redirect-serving
+ * middleware always sets `Location` on a real 3xx it emits, so neither state is producible by driving
+ * the actual app end-to-end without reaching into and weakening either of those (both outside this
+ * file, both correct as they stand).
+ *
+ * Exported so this function's own contract — "given this response and this route, produce this
+ * outcome" — is directly testable against a hand-built `ManifestRoute` and a small local HTTP server
+ * that returns exactly the response shape a test needs, the same "this is a real invariant nothing can
+ * reach today, so make it independently verifiable rather than deleting it" reasoning applied to
+ * {@link resolveAssetPathWithinOutputDir}.
+ */
+export async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
   const res = await fetch(`${baseUrl}${route.path}`, { redirect: "manual" });
   if (res.status < 300 || res.status >= 400) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected a 3xx redirect response, got ${res.status}` } };
@@ -585,13 +618,18 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
  * Fetches and writes one asset URL to disk. Never throws — every failure mode (path escapes the
  * output dir, non-OK response) comes back as a typed `failure` for the caller to record. `cssRefs`
  * is the one-hop `url(...)` harvest from a `.css` asset's own body (empty for every other kind).
+ *
+ * Exported for the same reason as {@link resolveAssetPathWithinOutputDir}: the refusal branch below
+ * is reachable and directly testable with a hostile `url` WITHOUT any network I/O — `fetch` is never
+ * called until after the containment check passes, so a test exercising only the refusal never
+ * touches `baseUrl` at all.
  */
-async function fetchOneAsset(
+export async function fetchOneAsset(
   url: string,
   baseUrl: string,
   outputDir: string
 ): Promise<{ ok: true; asset: ExportedAsset; cssRefs: string[] } | { ok: false; failure: FailedAsset }> {
-  const outFile = assetOutputFile(url, outputDir);
+  const outFile = resolveAssetPathWithinOutputDir(url, outputDir);
   if (!outFile) {
     return { ok: false, failure: { url, reason: "asset URL resolved outside the output directory — refused" } };
   }
