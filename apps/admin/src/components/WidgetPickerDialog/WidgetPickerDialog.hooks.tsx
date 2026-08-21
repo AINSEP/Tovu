@@ -105,7 +105,7 @@ export function useWidgetPickerDialog(
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [props.onCancel]);
 
   const typeLabel = WIDGET_TYPE_OPTIONS.find((o) => o.value === props.widgetType)?.label ?? props.widgetType;
   const hasExisting = (instances?.length ?? 0) > 0;
