@@ -604,6 +604,7 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     const { useWiredCollectionEntryEditor } = await import("../features/collections/hooks/use-collection-entry-editor.hooks");
 
     function Panel({ open }: { open: boolean }) {
+      // biome-ignore lint/correctness/useHookAtTopLevel: this is a MEASUREMENT file, not a correctness test (see file header) — the conditional call is standing in for a real unmount/remount. Measured both forms directly: this conditional-hook shortcut and the Rules-of-Hooks-correct form (mount/unmount the whole `Panel` via `rerender(<FetchQueryProvider>{null}</FetchQueryProvider>)`, matching the "redirects" convention above) produce IDENTICAL numbers (visit1=3, visit2=0). The correct form is not used here because it currently hangs in TipTap/ProseMirror teardown under jsdom (a pre-existing environment gap, unrelated to this hook — out of scope for a lint fix).
       const editor = open ? useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }) : null;
       return <div data-testid="loaded">{editor?.loaded ? "yes" : "no"}</div>;
     }
