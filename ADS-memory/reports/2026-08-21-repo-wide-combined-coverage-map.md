@@ -82,6 +82,34 @@ __toCommonJS | __copyProps | __toESM | __export
 **Never quote an area aggregate from either run without applying this per file first.** Every per-area
 figure in the table below predates this rule and none of it has been re-derived.
 
+### Marker presence flags RISK, not MAGNITUDE
+
+Do not short-circuit the rule by counting markers. On the line axis the corruption's severity is
+file-dependent even at identical marker counts (found by `cov-aem`):
+
+| file | shim markers | combined line | scoped line | delta |
+|---|---:|---|---|---|
+| `media/provider-credential-store.ts` | 6 | 294/357 | 357/357 | **−63** |
+| `export/site-exporter.ts` | 6 | 762/764 | 762/764 | 0 |
+| `export/route-manifest.ts` | 6 | 306/307 | 307/307 | −1 |
+
+Same marker count, wildly different damage. The grep tells you *"cross-check this file against a scoped
+run"* — it does not tell you how wrong the number is, and it cannot be used to estimate a correction.
+
+### A third, separate misreport: empty-body error classes
+
+Found by `cov-core-db`. `class X extends Error {}` with **no explicit constructor** gets **no `FN:`
+entry at all** in some transpilation contexts, while a class *with* a constructor does. Consequence: a
+scoped lcov omits such a class entirely while a combined lcov lists it at zero — so it reads as
+"nonexistent" in one run and "never covered" in the other. Three of four checked
+(`PlanStaleError`, `TokenAlreadyRedeemedError`, `TokenExpiredError`) were being constructed and thrown
+by passing tests the whole time. The fourth, `UnauthenticatedError`, has **zero throw sites anywhere**
+and its doc comment reserves it for a future caller — leave it: unreachable here is a property of
+today's callers, not of the class.
+
+That makes **three distinct misreport mechanisms** in this one tool: `FN:` concatenation,
+dual-instantiation line deflation, and missing `FN:` entries for constructor-less error classes.
+
 ## Corroborating agent findings
 
 - `cov-aem`: all 14 AEM source files show **exactly 6 shim marker lines each** — a 100% hit rate,
