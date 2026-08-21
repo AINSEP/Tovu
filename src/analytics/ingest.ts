@@ -151,9 +151,13 @@ function classifyBrowserFamily(ua: string): string | null {
 
 function classifyOsFamily(ua: string): string | null {
   if (/windows/i.test(ua)) return "windows";
+  // Checked BEFORE "mac os|macintosh": a real iPhone/iPad Safari UA always contains the literal
+  // substring "like Mac OS X" (WebKit compatibility convention), so testing macOS first would
+  // classify every genuine mobile Safari visitor as "macos" and this branch would never fire on
+  // real traffic (see ingest.test.ts's real-device-UA regression tests).
+  if (/iphone|ipad|ios/i.test(ua)) return "ios";
   if (/mac os|macintosh/i.test(ua)) return "macos";
   if (/android/i.test(ua)) return "android";
-  if (/iphone|ipad|ios/i.test(ua)) return "ios";
   if (/linux/i.test(ua)) return "linux";
   if (ua) return "other";
   return null;
