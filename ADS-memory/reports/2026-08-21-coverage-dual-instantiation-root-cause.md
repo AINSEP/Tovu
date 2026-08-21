@@ -176,3 +176,36 @@ just a scoped run of `src/media/**` + `commit-site.unit.test.ts` alone.
 — from the `src/http` immunity finding's original author. Read/tool-call counts in the sibling reports;
 stopped all coverage runs mid-task per the team lead's memory-pressure redirect, this section is
 grep/read-only from that point forward.
+
+## Round 6a result: CLEAN
+
+`src/media/**/*.test.ts` + `src/server/__tests__/routes/*.test.ts` (63 files, the largest untested bucket from round 5): 0 shim markers, `LH:357 LF:357`. Includes `publish-site-route.test.ts`, which I had flagged mid-investigation as a live candidate for exercising `app.ts`'s `exportSiteBound` (`require("../export/index.js")`) — staying clean here confirms that IN-PROCESS path really is harmless, consistent with the finding below rather than contradicting it (that route test builds its `routeDeps` via `app.ts`'s own `createRouteDeps()`, whose `exportSiteBound`/`createSiteApp` fields are NOT the lazy ones — see `app.ts:674`).
+
+## SUPERSEDED — the "no test constructs SQLite deps and then exports" claim (kept below for the record, wrong for an instructive reason)
+
+The claim from earlier in this report — "no test anywhere constructs a `routeDeps` from `createSqliteRouteDeps()` and then calls `exportSite`/`.createSiteApp()` on it" — **is false**, and it is wrong for a reason worth recording rather than just fixing quietly: **a repo-wide grep/trace of `.createSiteApp(` call sites, restricted to "which TEST FILES call this," cannot see a call made by production code that only runs inside a CHILD PROCESS spawned by a test.** My trace found `site-exporter.ts:738` as a real (non-test) call site, correctly identified it as live, and then incorrectly concluded its only in-process test caller (`site-exporter.test.ts`) was the only way to reach it — never checking whether other production code called `exportSite` with a *different* `routeDeps` from a process my grep never executed inside.
+
+**Root cause, found by an external auditor (`gpt-5.6-sol`) and independently verified hop-by-hop by both the coordinator and me, reading the code directly rather than trusting the report:**
+
+```
+src/cli/__tests__/integration/export-command.integration.test.ts
+  runCli() -> spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding, timeout })
+                                                    ^ no `env` override -> child INHERITS NODE_V8_COVERAGE
+  -> src/cli/commands/export.ts:104   createSqliteRouteDeps(dbPath, {...})       [SQLite-backed, real factory]
+  -> src/cli/commands/export.ts:112   await exportSite({ routeDeps, ... })
+  -> src/export/site-exporter.ts:738  createServer(routeDeps.createSiteApp())
+  -> src/server/deps.ts:926           createSiteApp: () => createSiteAppLazily(routeDeps)
+  -> src/server/deps.ts:1048-1050     (require("./app.js") as ...).createApp(routeDeps)
+```
+
+I verified every hop myself directly against the source (not just the auditor's claim): `export-command.integration.test.ts:36`'s `runCli()` calls `spawnSync` with `{ encoding: "utf8", timeout: timeoutMs }` — no `env` key at all, so the child inherits the full parent environment. `src/cli/commands/export.ts:3` imports `createSqliteRouteDeps` from `../../server/deps.js` (NOT `app.ts`'s in-memory `createRouteDeps`) and calls `exportSite({ routeDeps, ... })` at line 112. The remaining three hops were already independently confirmed earlier in this same report (`site-exporter.ts:738`, `deps.ts:926`, `deps.ts:1048-1050` — the exact `createSiteAppLazily`/`require("./app.js")` code I read and quoted above while tracing the "5 untraced require() files").
+
+**Mechanism** (not a per-file "two identities" story — cross-PROCESS coverage-profile merging): the child process inherits `NODE_V8_COVERAGE` and writes its own V8 coverage profile into the same directory the parent's `--experimental-test-coverage` collector reads from. Inside the child, `CLI_MAIN` loads as ESM via `--import tsx`, but the child's own `require("./app.js")` sends `app.ts` and its entire import graph (including the media adapter, including `provider-credential-store.ts`) through tsx's CJS transpilation hook — never exercised in the child (the export command doesn't call routes that read media credentials). The PARENT's own `src/media/**` tests separately load the same file as ESM, real and exercised. The final merge unions both images under one `SF:` path: `FN:` entries concatenate, `DA:` line hits get partly clobbered by the never-exercised CJS image's zero-hit shadow entries, and esbuild's `__toCommonJS`/`__copyProps` helpers — present only in the CJS image — leak into the merged block.
+
+This also explains the immune set structurally rather than by coincidence: `src/cli/**` source is loaded ESM-only inside the child and is not independently loaded by the parent's media tests at all — one image, nothing to merge, clean. `apps/site-chat` and `src/http` fit the same "single resolved image" shape for other reasons (`src/http/client.ts`'s only importer repo-wide is its own test file, per the sibling agent's finding above).
+
+**The generalizable lesson**: an in-process call-site trace — even a correct, exhaustive one — cannot see a call made inside a spawned child process. "No test calls X" needs to be "no test calls X, AND no test spawns a child process whose own code calls X" before it can be trusted as an elimination.
+
+## Next: Sol's discriminator (not yet run — coordinating with the coordinator on machine load first)
+
+`src/media/**/*.test.ts` + **only** `src/cli/__tests__/integration/export-command.integration.test.ts`. If shim markers appear on `provider-credential-store.ts`, the finding is confirmed empirically, not just by code trace.
