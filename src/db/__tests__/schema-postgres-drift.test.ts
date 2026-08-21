@@ -14,11 +14,21 @@
  */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const GENERATOR = path.join("development", "scripts", "generate-postgres-schema.ts");
+
+/** See `cli/__tests__/integration/export-command.integration.test.ts`'s identical constant for why
+ * this exists: the generator runs as a real `npx tsx` child process and must not dump its own V8
+ * coverage profile into this runner's aggregation directory. */
+const WORKER_COVERAGE_DIR = mkdtempSync(path.join(os.tmpdir(), "tovu-schema-postgres-drift-worker-coverage-"));
+after(() => rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
 
 test("schema.postgres.ts is up to date with schema.ts (run the generator and commit if this fails)", () => {
   const run = (): string =>
@@ -26,6 +36,7 @@ test("schema.postgres.ts is up to date with schema.ts (run the generator and com
       cwd: REPO_ROOT,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
     });
 
   // `--check` exits non-zero on drift, which execFileSync surfaces as a throw. Asserting on the
