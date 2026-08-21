@@ -114,6 +114,16 @@ describe("projectComposerCapabilities", () => {
   });
 });
 
+describe("bundled catalog label uniqueness", () => {
+  it("gives every bundled discovery item a distinct visible label — two rows with the same label are indistinguishable when scanning the composer menu", async () => {
+    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const labels = projection.groups.flatMap((group) => group.items.map((item) => item.label));
+    const duplicates = labels.filter((label, index) => labels.indexOf(label) !== index);
+
+    expect(duplicates).toEqual([]);
+  });
+});
+
 describe("resolveTovuComposerDiscoveryRoute", () => {
   it("routes only the mcp:settings id, unchanged from before the async projection", () => {
     expect(resolveTovuComposerDiscoveryRoute("mcp:settings")).toBe("/settings?tab=external-mcp");
