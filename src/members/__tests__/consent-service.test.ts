@@ -77,6 +77,34 @@ test("T028/INV-NEW-02: requestConsent creates exactly one pending value row + on
   assert.equal(revisions[0].originModule, "newsletter");
 });
 
+test("requestConsent re-requesting a GRANTED purpose resets it to pending (existing-row branch), clearing grantedAt and bumping version", async () => {
+  const deps = makeDeps();
+  const { consent: firstRequest } = await requestConsent({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" },
+  });
+  const { consent: granted } = await confirmConsent({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form" }, originModule: "newsletter" },
+  });
+  assert.equal(granted.status, "granted");
+  assert.ok(granted.grantedAt);
+
+  const { consent: reReq } = await requestConsent({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE, evidence: { source: "form-again" }, originModule: "newsletter" },
+  });
+  assert.equal(reReq.status, "pending");
+  assert.equal(reReq.id, firstRequest.id, "resets the SAME row, does not create a second one");
+  assert.equal(reReq.grantedAt, undefined, "grantedAt must be cleared on a reset");
+  assert.equal(reReq.version, granted.version + 1);
+
+  const revisions = await deps.consents.listRevisions({ workspaceId: WORKSPACE_ID, memberId: MEMBER_ID, purpose: PURPOSE });
+  assert.equal(revisions.length, 3);
+  assert.equal(revisions[2].op, "consent_request");
+  assert.deepEqual(revisions[2].beforeJson, { status: "granted" }, "the reset revision's beforeJson must reflect the prior granted state");
+});
+
 test("requestConsent throws MemberNotFoundError for an unknown memberId and creates no row", async () => {
   const deps = makeDeps();
 

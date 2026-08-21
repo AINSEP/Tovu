@@ -84,6 +84,31 @@ test("send truncates a long body in the log line", async () => {
   assert.match(loggedLine, /…/);
 });
 
+test("send falls back to the html body when text is absent", async () => {
+  const adapter = new ConsoleMailerAdapter();
+  const message: OutboundEmail = {
+    workspaceId: "ws-1",
+    to: { email: "member@example.com" },
+    from: { email: "no-reply@members.local" },
+    subject: "HTML-only email",
+    html: "<p>hello html body</p>",
+  };
+
+  const originalLog = console.log;
+  const logCalls: unknown[][] = [];
+  console.log = (...args: unknown[]) => {
+    logCalls.push(args);
+  };
+  try {
+    await adapter.send(message, SEND_OPTIONS);
+  } finally {
+    console.log = originalLog;
+  }
+
+  const loggedLine = String(logCalls[0][0]);
+  assert.match(loggedLine, /hello html body/);
+});
+
 test("send fails closed with ATTACHMENTS_UNSUPPORTED instead of silently dropping attachments (/debate D6, 2026-07-15)", async () => {
   const adapter = new ConsoleMailerAdapter();
   const message: OutboundEmail = {

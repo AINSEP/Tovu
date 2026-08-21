@@ -230,3 +230,54 @@ test("resolveContext returns an authenticated context with activeTierIds + isPai
   assert.deepEqual(context.activeTierIds, ["tier-gold"]);
   assert.equal(context.isPaid, true);
 });
+
+test("resolveContext: a valid session with an active subscription to a NON-paid tier reports isPaid:false", async () => {
+  const sessions = new InMemoryMemberSessionRepo([
+    {
+      id: "session-free",
+      workspaceId: WORKSPACE_ID,
+      memberId: "member-1",
+      tokenHash: hashToken("free-token"),
+      createdAt: "2026-01-01T00:00:00.000Z",
+      expiresAt: "2027-01-01T00:00:00.000Z",
+    },
+  ]);
+  const tiers = new InMemoryMemberTierRepo([
+    {
+      id: "tier-free",
+      workspaceId: WORKSPACE_ID,
+      name: "Free",
+      slug: "free",
+      type: "free",
+      status: "active",
+      visibleInPortal: true,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      version: 1,
+    },
+  ]);
+  const subscriptions = new InMemoryMemberSubscriptionRepo([
+    {
+      id: "sub-free",
+      workspaceId: WORKSPACE_ID,
+      memberId: "member-1",
+      tierId: "tier-free",
+      status: "active",
+      source: "signup",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      version: 1,
+    },
+  ]);
+  const resolver = new DefaultMemberAccessResolver({ sessions, subscriptions, tiers });
+
+  const context = await resolver.resolveContext({
+    workspaceId: WORKSPACE_ID,
+    sessionToken: "free-token",
+    nowIso: NOW,
+  });
+
+  assert.deepEqual(context.activeTierIds, ["tier-free"]);
+  assert.equal(context.isPaid, false, "a resolved tier that is not type 'paid' must not flip isPaid");
+});
