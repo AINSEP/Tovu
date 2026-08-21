@@ -206,3 +206,72 @@ that had **zero tests** now tested · **11 areas measured that no handoff had ev
   and several untracked `ADS-memory/reports/2026-08-1x-*.md`. Also **PID 8967**,
   `codex --dangerously-bypass-approvals-and-sandbox`, up 1d 6h, not this session's.
 - **Suggested next assignee:** Coordinator → `refactor-exporter` continuation for §1, then §2.
+
+---
+
+# ADDENDUM — session ended by owner ("do not spawn any more subagents, we need to restart")
+
+All agents stood down. Uncommitted work rescued and pushed. State at cut:
+
+## ⚠️ OPEN DECISION — `d4ef2941` needs review before it is treated as accepted
+
+`refactor-exporter` was working the last 6 branches in `site-exporter.ts`. Commit `d4ef2941`
+("export the containment/redirect primitives for direct testing") **exported two pre-existing private
+functions — `writeRedirectRoute` and `fetchOneAsset` — for direct testing.** The dispatch explicitly
+banned adding production surface purely to make something testable.
+
+**What was actually approved was narrower:**
+1. Extract a shared containment helper used by **BOTH** `site-exporter.ts` and
+   `src/server/middleware/theme-static-assets.ts` — justified because those two carry a **near-literal
+   duplicate of the same security check**, so one tested implementation replacing two untested copies is
+   good engineering independent of coverage.
+2. Extract the redirect **response→route decision** into a pure function, leaving the real-HTTP
+   transport alone.
+
+**Only half happened.** `resolveAssetPathWithinOutputDir` is a genuine new extraction and looks right —
+but **`theme-static-assets.ts` was never touched**, so the duplicate-check justification that made the
+extraction sound was not realised. And `writeRedirectRoute`/`fetchOneAsset` appear to have been exported
+wholesale rather than having their decisions extracted.
+
+Its tests are committed at `aa758927` (27/27 pass) — **committed to preserve the work, not to endorse
+it.**
+
+**Next session must decide:** finish the extraction properly (touch `theme-static-assets.ts`, extract the
+redirect decision rather than exporting the function), or revert `d4ef2941` + `aa758927` and accept 6
+documented branches. **Do not leave it half-done** — a `export`-for-testing that was never justified is
+exactly the kind of thing that becomes precedent by accident.
+
+Branch state at cut: `site-exporter.ts` 118/124 (95.16%), area 98.63% branch. **The owner's 100% goal is
+NOT met.**
+
+## Coverage root cause — final state, no fix shipped
+
+**Two confirmed and separate mechanisms:**
+- **Layer 1** — Sol's CLI-child path. **Deterministic, empirically reproduced from 2 files**
+  (media + `export-command.integration.test.ts` → 6 markers, LH 294/357, exact full-repo match).
+  Unaffected by concurrency (3/3).
+- **Layer 2** — the 12-file `src/server/http/**` cluster. FN-table corruption reliable at 5/5; the
+  line-deflation half **flips between runs** — 3 full / 4 partial across 7 runs. **`TEST_CONCURRENCY=2`
+  is NOT implicated** (same rate at `=1`), so the owner's memory mitigation is cleared. Two independent
+  agents read the code and found **no static cause**.
+
+**⚠️ The most important open lead, untested:** every "identical repeat" in the entire bisection built its
+file list from an **unsorted `find`**, and `find`'s enumeration order was confirmed **not stable across
+invocations** on this filesystem. So the non-determinism may be an **order-of-module-load dependency**
+(controllable, tractable) rather than an internal Node coverage-merge race (unfixable here).
+**Rounds 8/10/10b/11/12 and all three `=1` runs are therefore uncontrolled and should be distrusted.**
+
+**The test that closes this**, designed but never run — two arms, both `TEST_CONCURRENCY=1`, same 12 files:
+sorted order ×3, then reversed order ×3. Arms internally consistent but disagreeing ⇒ order-dependency
+confirmed. Either arm flipping internally ⇒ real evidence for the internal race. (A single "sorted ×3
+deterministic" result is **weak** — three runs can be one coin landing the same way, the exact trap that
+produced the original 1-of-2.)
+
+**Do not ship a fix on Layer 1 while Layer 2 is unexplained** — a partial fix makes the remainder harder
+to find. A second suspected Layer-1 site is already recorded: `daemon-boots.integration.test.ts`.
+
+## Completed since the main handoff was written
+- All 4 remaining Sol audit findings fixed (`ee45f50f`, `f5324d4d`, `72b77057`, `1f6d1cf7`) — seed gate
+  now in GitHub Actions and genuinely blocking (verified: outcome is checked in the gate summary).
+- `noUncheckedIndexedAccess` is **NOT** set in this repo. The main handoff's §1 says it is — **that is
+  wrong**, corrected here. 4 of the 7 "type-required" branches were plain dead code and were deleted.
