@@ -624,6 +624,59 @@ export function useComposerCapabilities(): UseComposerCapabilities {
  * @example
  * const chatI18n = useChatI18n(locale);
  */
+export interface UseSelectedAgentPlugins {
+  /** Every currently-pinned Agent Plugin ref, in pin order — see {@link addPluginRef}. */
+  readonly selectedPluginRefIds: readonly string[];
+  /**
+   * Pins one plugin ref as a removable chip. Deduplicated by id: pinning an already-pinned ref is
+   * a no-op (selecting the same composer row twice must not produce two chips), matching the
+   * de-dup posture `composer.attachments` gets for free from `@jini-ai/chat`'s own upload batching.
+   */
+  readonly addPluginRef: (pluginRefId: string) => void;
+  /** Unpins one plugin ref — the chip's own remove-button handler. Removing an id that is not
+   *  currently pinned is also a no-op. */
+  readonly removePluginRef: (pluginRefId: string) => void;
+}
+
+/**
+ * Owns which Agent Plugins the operator has pinned onto the composer as removable chips
+ * (`composer-capabilities.ts`'s `pluginRefId` field, resolved into this state by
+ * `resolveComposerDiscoveryOutcome`'s `addPluginRef` dep). Host-owned state, not part of
+ * `@jini-ai/chat`'s own `useComposer()` attachment tray: a pinned plugin ref is a Tovu concept the
+ * package does not know about, the same "package owns mechanism, host owns taxonomy" boundary
+ * `composer-capabilities.ts`'s module doc states for `kind`.
+ *
+ * Deliberately NOT cleared on send, unlike `composer.attachments` (which `useChatPane`'s own
+ * `composer.reset()` clears every turn): a pinned plugin stays in front of the agent for every
+ * later turn in the same conversation until the operator removes its chip. There is no send-time
+ * hook this dock can observe to clear it automatically either — `ChatPane`'s `runContext` prop is
+ * called and its result captured BEFORE `composer.reset()` runs (`useChatPane.hooks.ts`'s
+ * `sendPrompt`), and `onDiscoverySelect` only fires on a discovery selection, never on send — so
+ * "clear after the turn that used it" was never a reachable design without a new seam Jini does
+ * not expose today. Sticky-until-removed is the simplest behavior consistent with what IS
+ * reachable, and matches a plain reading of "pin a plugin, use it for a while, then remove it."
+ *
+ * @returns `selectedPluginRefIds` (for rendering the chip tray and feeding `useRunContext`) plus
+ *   `addPluginRef`/`removePluginRef` (the chip tray's add/remove handlers).
+ * @example
+ * const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
+ */
+export function useSelectedAgentPlugins(): UseSelectedAgentPlugins {
+  const [selectedPluginRefIds, setSelectedPluginRefIds] = useState<readonly string[]>([]);
+
+  const addPluginRef = useCallback((pluginRefId: string) => {
+    setSelectedPluginRefIds((previous) =>
+      previous.includes(pluginRefId) ? previous : [...previous, pluginRefId],
+    );
+  }, []);
+
+  const removePluginRef = useCallback((pluginRefId: string) => {
+    setSelectedPluginRefIds((previous) => previous.filter((id) => id !== pluginRefId));
+  }, []);
+
+  return { selectedPluginRefIds, addPluginRef, removePluginRef };
+}
+
 export function useChatI18n(locale: string): I18nAdapter {
   return useMemo(() => createChatI18nAdapter(locale), [locale]);
 }
@@ -779,6 +832,16 @@ export interface ResolveComposerDiscoveryOutcomeDeps {
    * for MCP-UI surface rendering in `AssistantDock.tsx` (`mcpUiToolCaller`), reused rather than
    * re-instantiated. */
   readonly callAllowlistedTool: (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown> | unknown;
+  /**
+   * Pins a selected capability's `pluginRefId` (`composer-capabilities.ts`'s own doc on that
+   * field) as a removable chip — {@link UseSelectedAgentPlugins.addPluginRef}. Optional so every
+   * existing caller of this function (including `agent-plugin-capability-adapter.unit.test.ts`'s
+   * fixtures, none of which project a `pluginRefId` capability) keeps compiling and passing
+   * unchanged; a selection that resolves to a `pluginRefId` capability with this omitted is simply
+   * a no-op rather than a crash, matching `resolveTovuComposerDiscoveryRoute`'s own "no route, no
+   * effect" posture for an id nothing recognizes.
+   */
+  readonly addPluginRef?: (pluginRefId: string) => void;
 }
 
 /**
@@ -812,6 +875,17 @@ export async function resolveComposerDiscoveryOutcome(
   }
 
   const capability = deps.capabilities.byItemId.get(selection.item.id);
+
+  // Pinning a plugin ref never touches the draft — the chip IS the visible effect, rendered by
+  // `AssistantDock.tsx`'s own `leadingAccessories` slot from `useSelectedAgentPlugins` state, not
+  // by anything Jini's `Composer` applies. Checked before `capability?.resolve` below: today's
+  // bundled catalog never sets both on the same capability, but if a future one did, pinning the
+  // chip should not be skipped just because a `resolve` binding also exists.
+  if (capability?.pluginRefId) {
+    deps.addPluginRef?.(capability.pluginRefId);
+    return;
+  }
+
   if (!capability?.resolve) return;
 
   const binding = capability.resolve(selection.argument);
@@ -837,23 +911,31 @@ export async function resolveComposerDiscoveryOutcome(
  * @param input.composerCapabilities - {@link UseComposerCapabilities.composerCapabilities} — the
  *   live discovery-catalog projection.
  * @param input.callAllowlistedTool - {@link ResolveComposerDiscoveryOutcomeDeps.callAllowlistedTool}.
+ * @param input.addPluginRef - {@link ResolveComposerDiscoveryOutcomeDeps.addPluginRef}.
  * @returns The memoized `onDiscoverySelect` callback.
  * @example
  * const handleComposerDiscoverySelect = useComposerDiscoverySelect({
  *   composerCapabilities,
  *   callAllowlistedTool: mcpUiToolCaller,
+ *   addPluginRef,
  * });
  */
 export function useComposerDiscoverySelect(
-  { composerCapabilities, callAllowlistedTool }: {
+  { composerCapabilities, callAllowlistedTool, addPluginRef }: {
     composerCapabilities: ComposerCapabilityProjection;
     callAllowlistedTool: ResolveComposerDiscoveryOutcomeDeps["callAllowlistedTool"];
+    addPluginRef?: ResolveComposerDiscoveryOutcomeDeps["addPluginRef"];
   },
 ): (selection: ComposerDiscoverySelection) => Promise<ComposerDiscoveryOutcome | void> {
   return useCallback(
     (selection: ComposerDiscoverySelection) =>
-      resolveComposerDiscoveryOutcome(selection, { capabilities: composerCapabilities, navigate, callAllowlistedTool }),
-    [composerCapabilities, callAllowlistedTool],
+      resolveComposerDiscoveryOutcome(selection, {
+        capabilities: composerCapabilities,
+        navigate,
+        callAllowlistedTool,
+        addPluginRef,
+      }),
+    [composerCapabilities, callAllowlistedTool, addPluginRef],
   );
 }
 
@@ -957,16 +1039,22 @@ export function useMessagesChangeHandler(
  * @param input.bindToken - The current tab's page-control bind token, or `undefined` if unbound.
  * @param input.model - The Local CLI picker's live model selection, or `undefined` before a
  *   selection has resolved (e.g. no agents detected yet).
+ * @param input.pluginRefIds - {@link UseSelectedAgentPlugins.selectedPluginRefIds} — the
+ *   composer's currently-pinned Agent Plugin chips.
  * @returns The context object to merge into a run's `contextRef`.
  * @example
- * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model });
+ * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds });
  */
 export function resolveRunContext(
-  { bindToken, model }: { bindToken: string | undefined; model?: string },
-): { frontendBindToken?: string; model?: string } {
+  { bindToken, model, pluginRefIds }: { bindToken: string | undefined; model?: string; pluginRefIds?: readonly string[] },
+): { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[] } {
   return {
     ...(bindToken === undefined ? {} : { frontendBindToken: bindToken }),
     ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+    // Omitted entirely when empty, same "absent means none" convention as the two fields above —
+    // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
+    // `assistant-transport.ts`'s `buildLocalCliContextRef`.
+    ...(pluginRefIds && pluginRefIds.length > 0 ? { pluginRefIds } : {}),
   };
 }
 
@@ -991,16 +1079,24 @@ export function resolveRunContext(
  * @param input.agentBridge - This tab's page-control connection, or `null`/`undefined` if unbound.
  * @param input.model - {@link UseLocalCliSelection.localCliSelection}`.model`, the live picker
  *   value.
+ * @param input.pluginRefIds - {@link UseSelectedAgentPlugins.selectedPluginRefIds}, read fresh on
+ *   every rebuild — same "never captured, always the live value" posture as `model`, so pinning or
+ *   removing a chip mid-session takes effect on the NEXT message without forcing a new callback
+ *   identity mid-render.
  * @returns The memoized `runContext` callback.
  * @example
- * const runContext = useRunContext({ agentBridge, model: localCliSelection.model });
+ * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds });
  */
 export function useRunContext(
-  { agentBridge, model }: { agentBridge: FrontendSessionBridge | null | undefined; model?: string },
-): () => { frontendBindToken?: string; model?: string } {
+  { agentBridge, model, pluginRefIds }: {
+    agentBridge: FrontendSessionBridge | null | undefined;
+    model?: string;
+    pluginRefIds?: readonly string[];
+  },
+): () => { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[] } {
   return useMemo(
-    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model }),
-    [agentBridge, model],
+    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model, pluginRefIds }),
+    [agentBridge, model, pluginRefIds],
   );
 }
 

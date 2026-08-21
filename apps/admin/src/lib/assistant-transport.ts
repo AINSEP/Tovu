@@ -540,6 +540,24 @@ export function buildLocalCliContextRef(input: StartRunInput, prompt: string): R
     contextRef.attachmentIds = input.attachments.map((attachment) => attachment.path);
   }
 
+  /**
+   * Opaque Agent Plugin ids (`plugin.json`'s own `name`, e.g. `"ui-ux-design"`) the operator has
+   * pinned as composer chips — `AssistantDock.tsx`'s `useSelectedAgentPlugins`, threaded here via
+   * `ChatPane`'s `runContext` prop the same way `frontendBindToken`/`model` above already are.
+   * Same "read by name, not spread" and "omit when absent" conventions as those two fields: this
+   * is not the plugin's CONTENT, only a reference to it — `agent-daemon-server.ts`'s `onStarted`
+   * is where a ref gets resolved against the real installed package on disk and its own text
+   * prepended to the prompt (see that function's own doc for the resolution/failure rules).
+   * Filtered to non-empty strings for the same reason `attachmentIds` is filtered on the decode
+   * side (`run-start-context.ts`'s `parseRunStartContextRef`) — this is the encode side of the
+   * same wire value, and a malformed entry here should not silently become a malformed one there.
+   */
+  const pluginRefIds = input.context?.["pluginRefIds"];
+  if (Array.isArray(pluginRefIds)) {
+    const filtered = pluginRefIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+    if (filtered.length > 0) contextRef.pluginRefIds = filtered;
+  }
+
   return contextRef;
 }
 

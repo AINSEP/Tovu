@@ -95,6 +95,20 @@ export interface TovuComposerCapability {
    * carried through so a future source doesn't need a second contract change to add one.
    */
   readonly revision?: string;
+  /**
+   * When set, selecting this capability pins a removable chip to the composer instead of doing
+   * anything to the draft — added 2026-08-21 so the "UI/UX Design (Agent Plugin)" row actually
+   * reaches the agent (previously `insertText` typed an inert label string into the draft; the
+   * agent had no way to tell that apart from the user having typed the same words themselves).
+   * The value is the installed Agent Plugin's own `plugin.json` `name` (e.g. `"ui-ux-design"`),
+   * carried opaque through `AssistantDock`'s composer state, `onSend`'s `contextRef.pluginRefIds`,
+   * and finally resolved against the on-disk package by `agent-daemon-server.ts`'s `onStarted` —
+   * see that function's own doc for the resolution/failure rules. Never combined with `resolve` in
+   * the bundled catalog today (a capability either composes text/calls a tool, or pins a plugin
+   * ref), but the two fields are not mutually exclusive by type — a future capability could
+   * plausibly want a compose-text default AND a pinnable chip.
+   */
+  readonly pluginRefId?: string;
 }
 
 /**
@@ -116,9 +130,15 @@ export interface ComposerCapabilityProjection {
   readonly groups: readonly ComposerDiscoveryGroup[];
   /** Keyed by `ComposerDiscoveryItem.id` — what `AssistantDock`'s `onDiscoverySelect` looks a selection up in. */
   readonly byItemId: ReadonlyMap<string, TovuComposerCapability>;
+  /**
+   * Keyed by `TovuComposerCapability.pluginRefId` — what `AssistantDock.tsx`'s chip tray looks a
+   * pinned ref back up in, to render the capability's own `label` on the chip rather than a bare
+   * id. Only capabilities that set `pluginRefId` are indexed here; most never do.
+   */
+  readonly byPluginRefId: ReadonlyMap<string, TovuComposerCapability>;
 }
 
-const EMPTY_PROJECTION: ComposerCapabilityProjection = { groups: [], byItemId: new Map() };
+const EMPTY_PROJECTION: ComposerCapabilityProjection = { groups: [], byItemId: new Map(), byPluginRefId: new Map() };
 
 /** The projection an as-yet-unresolved source set renders as: no groups, nothing selectable. */
 export function emptyComposerCapabilityProjection(): ComposerCapabilityProjection {
@@ -145,6 +165,7 @@ export async function projectComposerCapabilities(
   const groupOrder: string[] = [];
   const itemsByGroup = new Map<string, { label: string; items: ComposerDiscoveryItem[] }>();
   const byItemId = new Map<string, TovuComposerCapability>();
+  const byPluginRefId = new Map<string, TovuComposerCapability>();
 
   for (const capability of capabilities) {
     const existing = byItemId.get(capability.item.id);
@@ -155,6 +176,21 @@ export async function projectComposerCapabilities(
       );
     }
     byItemId.set(capability.item.id, capability);
+
+    if (capability.pluginRefId) {
+      const existingByRef = byPluginRefId.get(capability.pluginRefId);
+      if (existingByRef) {
+        // Same "fail closed on a collision" posture as the item-id guard above — a silent second
+        // capability claiming the same plugin ref would make the chip tray's label lookup
+        // non-deterministic depending on source order, which is the exact hazard that guard
+        // already exists to prevent for item ids.
+        throw new Error(
+          `composer-capabilities: duplicate pluginRefId "${capability.pluginRefId}" ` +
+            `(items "${existingByRef.item.id}" and "${capability.item.id}")`,
+        );
+      }
+      byPluginRefId.set(capability.pluginRefId, capability);
+    }
 
     let group = itemsByGroup.get(capability.groupId);
     if (!group) {
@@ -168,6 +204,7 @@ export async function projectComposerCapabilities(
   return {
     groups: groupOrder.map((id) => ({ id, label: itemsByGroup.get(id)!.label, items: itemsByGroup.get(id)!.items })),
     byItemId,
+    byPluginRefId,
   };
 }
 
@@ -204,11 +241,15 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
       // scan time; see ComposerDiscovery.tsx's own doc), so two bare "UI/UX Design" rows were
       // indistinguishable by sight.
       label: "UI/UX Design (Agent Plugin)",
-      description: "UI/UX Design Agent Plugin bundled with Tovu; not executed from the composer",
+      description: "UI/UX Design Agent Plugin bundled with Tovu — pins its skill as context for the agent",
       kind: "agent-plugin",
       keywords: ["agent plugin", "design", "ui", "ux"],
-      insertText: "UI/UX Design agent plugin",
+      // No `insertText` (removed 2026-08-21): this row used to type the literal string "UI/UX
+      // Design agent plugin" into the draft, indistinguishable from the operator having typed
+      // those words themselves and never read by the agent as anything else — see
+      // `pluginRefId` below for the real wiring that replaces it.
     },
+    pluginRefId: "ui-ux-design",
   },
   {
     groupId: "skills",

@@ -17,15 +17,17 @@
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
  *
  * `prompt`/`principalId` are required (a malformed value means the run cannot proceed at all);
- * `attachmentIds`/`model` are optional and silently degrade to "none"/`undefined` on a malformed
- * or absent value — an attachment or a model pick is optional, unlike `prompt`/`principalId`.
+ * `attachmentIds`/`model`/`pluginRefIds` are optional and silently degrade to "none"/`undefined`
+ * on a malformed or absent value — an attachment, a model pick, or a pinned Agent Plugin is
+ * optional, unlike `prompt`/`principalId`.
  *
  * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
- * @returns The four fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
- *   attachment claim step, and `AgentExecutor.run()`'s `model` respectively.
+ * @returns The five fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
+ *   attachment claim step, `AgentExecutor.run()`'s `model`, and the Agent Plugin resolution step
+ *   respectively.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
- * @complexity O(n) in `attachmentIds` length; O(1) otherwise.
+ * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined; O(1) otherwise.
  * @overallScore 100/100
  */
 export function parseRunStartContextRef(contextRef: string): {
@@ -33,12 +35,14 @@ export function parseRunStartContextRef(contextRef: string): {
   principalId: string;
   attachmentIds: readonly string[];
   model?: string;
+  pluginRefIds: readonly string[];
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
     principalId?: unknown;
     attachmentIds?: unknown;
     model?: unknown;
+    pluginRefIds?: unknown;
   };
   if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
     throw new Error("contextRef did not decode to a non-empty 'prompt'");
@@ -49,10 +53,17 @@ export function parseRunStartContextRef(contextRef: string): {
   const attachmentIds = Array.isArray(parsed.attachmentIds)
     ? parsed.attachmentIds.filter((id): id is string => typeof id === "string" && id.length > 0)
     : [];
+  // Same shape as `attachmentIds` immediately above — filtered to non-empty strings, defaulted to
+  // an empty array rather than `undefined`, so `onStarted` never has to special-case "the field
+  // was omitted" vs. "the field was an empty/malformed array".
+  const pluginRefIds = Array.isArray(parsed.pluginRefIds)
+    ? parsed.pluginRefIds.filter((id): id is string => typeof id === "string" && id.length > 0)
+    : [];
   return {
     prompt: parsed.prompt,
     principalId: parsed.principalId,
     attachmentIds,
+    pluginRefIds,
     ...(typeof parsed.model === "string" && parsed.model.length > 0 ? { model: parsed.model } : {}),
   };
 }

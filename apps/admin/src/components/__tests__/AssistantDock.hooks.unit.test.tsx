@@ -89,6 +89,7 @@ import {
   useMessagesChangeHandler,
   useRunContext,
   useRuntimeAccess,
+  useSelectedAgentPlugins,
 } from "../AssistantDock/hooks/AssistantDock.hooks";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -715,6 +716,17 @@ describe("resolveRunContext", () => {
       model: "opus",
     });
   });
+
+  it("carries pinned pluginRefIds through when at least one is pinned", () => {
+    expect(resolveRunContext({ bindToken: undefined, pluginRefIds: ["ui-ux-design"] })).toEqual({
+      pluginRefIds: ["ui-ux-design"],
+    });
+  });
+
+  it("omits pluginRefIds entirely when the array is empty or absent", () => {
+    expect(resolveRunContext({ bindToken: undefined, pluginRefIds: [] })).toEqual({});
+    expect(resolveRunContext({ bindToken: undefined })).toEqual({});
+  });
 });
 
 /**
@@ -991,6 +1003,56 @@ describe("useComposerDiscoverySelect", () => {
 
     expect(result.current).not.toBe(first);
   });
+
+  /**
+   * 2026-08-21: the "UI/UX Design (Agent Plugin)" row used to carry `insertText` and no
+   * `pluginRefId` — selecting it typed an inert string into the draft. This is the regression
+   * test proving the replacement: a `pluginRefId` capability pins a chip via `addPluginRef`
+   * instead, and never touches the draft the way a `resolve` binding would.
+   */
+  it("pins a pluginRefId capability via addPluginRef instead of composing draft text", async () => {
+    const capabilities = await projectionWith([
+      {
+        groupId: "agent-plugins",
+        groupLabel: "Agent Plugins",
+        item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+        pluginRefId: "ui-ux-design",
+      },
+    ]);
+    const addPluginRef = vi.fn();
+    const { result } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn(), addPluginRef }),
+    );
+
+    const outcome = await result.current({
+      item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+      source: "plus",
+    });
+
+    expect(addPluginRef).toHaveBeenCalledWith("ui-ux-design");
+    expect(outcome).toBeUndefined();
+  });
+
+  it("does not throw when addPluginRef is omitted for a pluginRefId capability — a documented no-op", async () => {
+    const capabilities = await projectionWith([
+      {
+        groupId: "agent-plugins",
+        groupLabel: "Agent Plugins",
+        item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+        pluginRefId: "ui-ux-design",
+      },
+    ]);
+    const { result } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn() }),
+    );
+
+    const outcome = await result.current({
+      item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+      source: "plus",
+    });
+
+    expect(outcome).toBeUndefined();
+  });
 });
 
 describe("useMessagesChangeHandler", () => {
@@ -1099,5 +1161,63 @@ describe("useRunContext", () => {
     rerender({ model: "opus" });
 
     expect(result.current).not.toBe(first);
+  });
+
+  it("carries pluginRefIds through, read fresh at call time like the bind token", () => {
+    const agentBridge = { bindToken: () => "tok" } as unknown as FrontendSessionBridge;
+    const { result, rerender } = renderHook(
+      ({ pluginRefIds }: { pluginRefIds: readonly string[] }) =>
+        useRunContext({ agentBridge, model: "sonnet", pluginRefIds }),
+      { initialProps: { pluginRefIds: [] as readonly string[] } },
+    );
+
+    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet" });
+
+    rerender({ pluginRefIds: ["ui-ux-design"] });
+
+    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet", pluginRefIds: ["ui-ux-design"] });
+  });
+});
+
+describe("useSelectedAgentPlugins", () => {
+  it("starts with no pinned plugin refs", () => {
+    const { result } = renderHook(() => useSelectedAgentPlugins());
+    expect(result.current.selectedPluginRefIds).toEqual([]);
+  });
+
+  it("pins a plugin ref, in pin order", () => {
+    const { result } = renderHook(() => useSelectedAgentPlugins());
+
+    act(() => result.current.addPluginRef("ui-ux-design"));
+    act(() => result.current.addPluginRef("second-plugin"));
+
+    expect(result.current.selectedPluginRefIds).toEqual(["ui-ux-design", "second-plugin"]);
+  });
+
+  it("de-duplicates: pinning an already-pinned ref is a no-op, not a second chip", () => {
+    const { result } = renderHook(() => useSelectedAgentPlugins());
+
+    act(() => result.current.addPluginRef("ui-ux-design"));
+    act(() => result.current.addPluginRef("ui-ux-design"));
+
+    expect(result.current.selectedPluginRefIds).toEqual(["ui-ux-design"]);
+  });
+
+  it("removes a pinned ref by id", () => {
+    const { result } = renderHook(() => useSelectedAgentPlugins());
+
+    act(() => result.current.addPluginRef("ui-ux-design"));
+    act(() => result.current.addPluginRef("second-plugin"));
+    act(() => result.current.removePluginRef("ui-ux-design"));
+
+    expect(result.current.selectedPluginRefIds).toEqual(["second-plugin"]);
+  });
+
+  it("removing a ref that was never pinned is a no-op", () => {
+    const { result } = renderHook(() => useSelectedAgentPlugins());
+
+    act(() => result.current.removePluginRef("never-pinned"));
+
+    expect(result.current.selectedPluginRefIds).toEqual([]);
   });
 });
