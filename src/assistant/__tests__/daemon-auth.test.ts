@@ -251,3 +251,31 @@ test("ensureAgentDaemonToken preserves an operator-supplied token and overwrites
 test("two mints are distinct — the token is random per boot, not a fixed constant", () => {
   assert.notEqual(ensureAgentDaemonToken({}), ensureAgentDaemonToken({}));
 });
+
+test("omitting options.env entirely falls back to the real process.env, not just an explicitly-passed one", async (t) => {
+  // Every other test in this file passes `env` explicitly, which never exercises the factory's own
+  // `options.env ?? process.env` default — this is the one case that does, by calling the factory
+  // exactly the way `agent-daemon-server.ts` does at module scope: with no options object at all.
+  const previous = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+  process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
+  t.after(() => {
+    if (previous === undefined) delete process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+    else process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = previous;
+  });
+
+  const app = express();
+  app.use(requireAgentDaemonToken());
+  app.post("/api/runs", (_req, res) => res.status(201).json({ started: true }));
+  const server: Server = createServer(app);
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const { port } = server.address() as AddressInfo;
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`http://127.0.0.1:${port}/api/runs`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${TOKEN}` },
+  });
+
+  assert.equal(res.status, 201, "the real process.env token must be honored with no injected env override");
+});
