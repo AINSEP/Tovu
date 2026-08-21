@@ -164,6 +164,54 @@ function runContractSuite(
     assert.equal(found?.deadAt, "2026-07-10T00:11:00.000Z");
   });
 
+  test(`[${adapterName}] markFailed on a non-existent row is a silent no-op`, async () => {
+    const repo = makeRepo();
+
+    // Must not throw, and must not create a row -- nothing was enqueued for this id.
+    await repo.markFailed({
+      workspaceId: "workspace-1",
+      id: "does-not-exist",
+      error: "timeout",
+      responseStatus: null,
+      nextStatus: "failed",
+      nextAttemptAt: "2026-07-10T00:10:00.000Z",
+    });
+
+    assert.equal(await repo.findById({ workspaceId: "workspace-1", id: "does-not-exist" }), null);
+  });
+
+  test(`[${adapterName}] marking dead WITHOUT deadAtIso keeps the row's existing deadAt rather than clearing it`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(makeDelivery());
+
+    // First: mark dead WITH deadAtIso, so the row has a real deadAt to test the fallback against.
+    await repo.markFailed({
+      workspaceId: "workspace-1",
+      id: "delivery-1",
+      error: "first failure",
+      responseStatus: 500,
+      nextStatus: "dead",
+      nextAttemptAt: "2026-07-10T00:10:00.000Z",
+      deadAtIso: "2026-07-10T00:11:00.000Z",
+    });
+
+    // Second: mark dead again, this time WITHOUT deadAtIso -- must fall back to the existing deadAt,
+    // not overwrite it with undefined/null.
+    await repo.markFailed({
+      workspaceId: "workspace-1",
+      id: "delivery-1",
+      error: "second failure",
+      responseStatus: 500,
+      nextStatus: "dead",
+      nextAttemptAt: "2026-07-10T00:20:00.000Z",
+    });
+
+    const found = await repo.findById({ workspaceId: "workspace-1", id: "delivery-1" });
+    assert.equal(found?.status, "dead");
+    assert.equal(found?.deadAt, "2026-07-10T00:11:00.000Z", "deadAt must carry over from the first mark-dead");
+    assert.equal(found?.lastError, "second failure");
+  });
+
   test(`[${adapterName}] listBySubscription scopes by workspace + subscription and respects limit`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery({ id: "d-1" }));
