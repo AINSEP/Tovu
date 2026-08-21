@@ -414,3 +414,51 @@ snapshot flagged was either the already-known dedup artifact, snapshot staleness
 `revert.ts`/`memory-bus.ts` fixes not yet reflected), or a third instrumentation-context artifact
 (empty-body error classes). Zero production code touched this round either. All tests green
 (`TEST_CONCURRENCY=2`, same scoped command, full re-run after every commit in this round).
+
+---
+
+# READ THIS BEFORE TRUSTING ANY FUNCTION NUMBER IN THIS DOCUMENT
+
+**Every "functions: X/Y" figure above (scoped or combined) is a range, not a number, and must never be
+used as a gate threshold.** Team-lead independently deduped every area with per-name max-hits plus
+bundler-noise exclusion and found the correction is **not uniform in direction** — most areas move up
+(`src/db` 59.23%→75.51%, `src/core` 73.65%→87.67%), but `analytics+export+media` moved DOWN
+(71.63%→67.25%) because its excluded noise names were mostly hit. Raw over-counts noise; dedup can
+merge two genuinely distinct functions that happen to share an inferred name. Neither is exact. This
+document's own "100% functions" claims for `src/core`/`src/db` are from a SCOPED run specifically to
+sidestep this artifact family (a scoped run's single, consistent instrumentation context doesn't
+duplicate-instantiate the same file the way a combined run's parallel workers can) — but even that is a
+methodological choice to trust one measurement context over another, not a proof of the Platonic true
+number. Treat every function percentage anywhere in this repo's coverage tooling accordingly.
+
+**`src/db/schema.ts` is SETTLED — do not write tests there, and do not let a future session re-open
+it.** 301 raw FN entries in the combined lcov decompose EXACTLY (verified by count, not sampling) into
+79 esbuild `__export()` table-name getters + 74 Drizzle FK-reference closures + 144 anonymous column/
+check/index-builder closures + 3 esbuild CJS-interop helpers = 301. Zero hand-written functions exist
+in this 2589-line file (grepped: every export is `sqliteTable(...)`, nothing else). The function-
+coverage metric structurally does not apply to a purely declarative schema file. Line coverage is the
+only meaningful axis here, and even that mostly reflects "was this table's definition ever imported"
+rather than any test author's choices.
+
+## A THIRD lcov corruption axis, found after team-lead's numbers: LINE counts can be deflated too, not just functions
+
+Team-lead's newest priority pick — `media-repo.sqlite.ts` (177 "missing lines") and
+`webhook-repo.sqlite.ts` (154 "missing lines") — turned out to be the same family of artifact hitting a
+DIFFERENT axis. Per the now-corrected `reference_scoped_run_omits_unloaded_files` memory: a full-repo run
+instantiates an affected file TWICE under two module formats (native ESM, actually exercised, and a CJS
+`require()`/interop path that never is), merging both into one `SF:` block — and unlike the function
+axis (which concatenates, inflating the denominator), the LINE axis merges by line number and the
+**zero-hit shadow instance wins**, silently deflating `LH`. Decision rule: grep the file's `SF:` block for
+`__toCommonJS`/`__copyProps`/`__toESM`/`__export`; present = combined line number for that file is
+corrupt, use a scoped measurement instead.
+
+Verified directly on both files (markers present in both):
+
+| File | Combined (claimed, corrupt) | Real (scoped, clean, 0 markers) |
+|---|---|---|
+| `webhook-repo.sqlite.ts` | 57.0% line, 154 missing | **99.72% line (357/358), 100% functions, 90.20% branches** |
+| `media-repo.sqlite.ts` | 38.8% line, 177 missing | **98.96% line (286/289), 100% functions, 95.35% branches** |
+
+Neither file needed anywhere close to the effort "154/177 missing lines" implies. The real remaining gap
+across both is ~4 lines and 7 branches total, not 331 lines. **Do not re-rank a worklist on raw combined
+line/branch numbers without this same per-file marker check — it is not only a function-axis problem.**
