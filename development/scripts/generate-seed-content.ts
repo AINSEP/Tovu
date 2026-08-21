@@ -44,6 +44,60 @@ import type { TemplateSeedContent } from "../../src/site-dir/types.js";
 const OUT_PATH = path.resolve(import.meta.dirname, "../../src/templates/starter/seed-content.json");
 
 /**
+ * Throws if any own-enumerable property anywhere in `value` (recursively, through plain objects
+ * and arrays) holds `undefined`.
+ *
+ * Why this exists: `JSON.stringify` silently DROPS an own-enumerable property whose value is
+ * `undefined` — it does not error and does not emit `"key":null`, the key simply vanishes from the
+ * output (this repo does not set `exactOptionalPropertyTypes`, so TypeScript does not catch this
+ * either). That means changing a seeded post from omitting a field entirely to setting it to
+ * `undefined` produces byte-IDENTICAL `generate()` output, so `--check` passes even though the live
+ * seed object and the parsed JSON now disagree structurally (`"key" in post` and `Object.keys`
+ * both differ). `generate()` calls this before stringifying specifically to turn that silent
+ * false-pass into a loud failure — see this file's header for the incident that motivated adding
+ * it (Sol audit, 2026-08-21).
+ *
+ * @param value - The data to walk. Only plain objects and arrays are recursed into; other types
+ *   (including `null`) are ignored.
+ * @param label - Prefix for the thrown error message, identifying which generator/input this
+ *   guard is protecting.
+ * @throws {Error} On the first `undefined`-valued property found, naming its path (e.g.
+ *   `$.entries[1].ext`).
+ * @complexity O(n) in the total number of object/array entries in `value`. Cycle-safe via a
+ *   `WeakSet` of visited objects (seed data has no cycles today, but this guard has no reason to
+ *   assume that forever).
+ */
+export function assertNoUndefinedProperties(value: unknown, label: string): void {
+  const visited = new WeakSet<object>();
+
+  function walk(node: unknown, path: string): void {
+    if (node === null || typeof node !== "object") return;
+    if (visited.has(node)) return;
+    visited.add(node);
+
+    if (Array.isArray(node)) {
+      node.forEach((item, index) => walk(item, `${path}[${index}]`));
+      return;
+    }
+
+    for (const [key, entryValue] of Object.entries(node)) {
+      const entryPath = `${path}.${key}`;
+      if (entryValue === undefined) {
+        throw new Error(
+          `${label}: property '${entryPath}' is undefined -- JSON.stringify silently drops ` +
+            "undefined-valued properties, which would make generated output byte-identical to a " +
+            "version WITHOUT this property and hide real structural drift from `--check`. Remove " +
+            "the property entirely instead of setting it to undefined."
+        );
+      }
+      walk(entryValue, entryPath);
+    }
+  }
+
+  walk(value, "$");
+}
+
+/**
  * Renders `seed.ts`'s three live exports into `seed-content.json`'s exact on-disk text.
  *
  * Deliberately a plain `JSON.stringify` of the exports in their own declared field order (no
@@ -54,6 +108,8 @@ const OUT_PATH = path.resolve(import.meta.dirname, "../../src/templates/starter/
  *
  * @returns The full file text, 2-space indented, one trailing newline — matches
  *   `generate-postgres-schema.ts`'s own convention and the checked-in file's current formatting.
+ * @throws {Error} Via `assertNoUndefinedProperties`, if any seeded field is `undefined` rather
+ *   than omitted — see that function's own doc for why this must fail loudly here.
  * @complexity O(n) in the seed content's own size (fixed, not caller-controlled).
  * @overallScore 100
  */
@@ -63,6 +119,7 @@ export function generate(): string {
     entries: seededPosts,
     presentation: seededPresentation,
   };
+  assertNoUndefinedProperties(content, "seed-content generator input");
   return `${JSON.stringify(content, null, 2)}\n`;
 }
 
@@ -90,8 +147,8 @@ function main(): void {
 
 // Only run when invoked directly, never as a side effect of import — mirrors
 // generate-postgres-schema.ts's own guard, for the same reason: `generate()` is also imported
-// directly by this script's own unit test, which must never write or drift-check the real
-// checked-in file as a side effect of importing a pure function.
+// directly by development/scripts/__tests__/generate-seed-content.unit.test.ts, which must never
+// write or drift-check the real checked-in file as a side effect of importing a pure function.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
