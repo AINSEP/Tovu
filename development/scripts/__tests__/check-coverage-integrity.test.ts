@@ -4,10 +4,15 @@ import path from "node:path";
 import test from "node:test";
 
 import {
+  applyBaseline,
   checkCoverageIntegrity,
   classifyBlock,
   isFirstPartySourcePath,
+  parseArgs,
+  parseBaseline,
   parseLcovBlocks,
+  serializeBaseline,
+  type BlockVerdict,
   type LcovBlock,
 } from "../check-coverage-integrity.js";
 
@@ -279,4 +284,125 @@ test("checkCoverageIntegrity: contaminated[] includes both severe and non-severe
   const nonSevereFiles = report.contaminated.filter((v) => !v.severe).map((v) => v.file);
   assert.deepEqual(severeFiles, ["src/a-severe.ts"]);
   assert.deepEqual(nonSevereFiles, ["src/b-contaminated-only.ts"]);
+});
+
+// ---------------------------------------------------------------------------------------------
+// The --baseline ratchet, per the team lead's second correction: CONTAMINATED alone must not fail
+// every run forever (63/93 first-party blocks on today's tree, per the acceptance-criterion runs
+// above -- a gate that always fails gets ignored). A known path is reported but does not fail; SEVERE
+// always fails, baseline or not.
+// ---------------------------------------------------------------------------------------------
+
+function contaminatedVerdict(file: string, severe: boolean): BlockVerdict {
+  return { file, status: "contaminated", severe, reason: `stub reason for ${file}` };
+}
+
+test("applyBaseline: a non-severe contaminated block whose path IS in the baseline does not fail", () => {
+  const [gated] = applyBaseline([contaminatedVerdict("src/known.ts", false)], new Set(["src/known.ts"]));
+  assert.equal(gated.baselined, true);
+  assert.equal(gated.fails, false);
+});
+
+test("applyBaseline: a non-severe contaminated block whose path is NOT in the baseline fails (new contamination)", () => {
+  const [gated] = applyBaseline([contaminatedVerdict("src/new.ts", false)], new Set(["src/other.ts"]));
+  assert.equal(gated.baselined, false);
+  assert.equal(gated.fails, true);
+});
+
+test("applyBaseline: a SEVERE block fails even when its path IS in the baseline -- no baseline escape", () => {
+  const [gated] = applyBaseline([contaminatedVerdict("src/severe.ts", true)], new Set(["src/severe.ts"]));
+  assert.equal(gated.baselined, true, "membership fact is still recorded accurately");
+  assert.equal(gated.fails, true, "but SEVERE always fails regardless of membership");
+});
+
+test("applyBaseline: an empty baseline set fails every contaminated (non-severe) block -- the no-flag default", () => {
+  const gated = applyBaseline(
+    [contaminatedVerdict("src/a.ts", false), contaminatedVerdict("src/b.ts", false)],
+    new Set()
+  );
+  assert.deepEqual(
+    gated.map((v) => v.fails),
+    [true, true]
+  );
+});
+
+test("real fixture acceptance criterion: baselining src/media/provider-credential-store.ts's path makes run1/2/4/5/6 pass and leaves run3 failing on SEVERE", () => {
+  const baselineSet = new Set(["src/media/provider-credential-store.ts"]);
+  for (const run of [1, 2, 4, 5, 6]) {
+    const { contaminated } = checkCoverageIntegrity(readFixture(`clean-run${run}-provider-credential-store.lcov.info`));
+    const gated = applyBaseline(contaminated, baselineSet);
+    assert.deepEqual(
+      gated.map((v) => v.fails),
+      [false],
+      `run${run} should be fully baselined away (non-severe, path known)`
+    );
+  }
+  const { contaminated: run3Contaminated } = checkCoverageIntegrity(
+    readFixture("corrupt-run3-provider-credential-store.lcov.info")
+  );
+  const run3Gated = applyBaseline(run3Contaminated, baselineSet);
+  assert.deepEqual(run3Gated.map((v) => v.fails), [true], "run3 stays failing -- SEVERE is never baseline-suppressible");
+});
+
+test("parseBaseline: extracts the knownContaminated set from real baseline JSON shape", () => {
+  const json = JSON.stringify({ _comment: ["some note"], knownContaminated: ["src/a.ts", "src/b.ts"] });
+  const set = parseBaseline(json);
+  assert.deepEqual([...set].sort(), ["src/a.ts", "src/b.ts"]);
+});
+
+test("parseBaseline: a missing knownContaminated field reads as an empty set, not a throw", () => {
+  assert.deepEqual(parseBaseline(JSON.stringify({ _comment: ["x"] })), new Set());
+});
+
+test("serializeBaseline: dedupes and alphabetically sorts paths for a stable, reviewable diff", () => {
+  const json = serializeBaseline(["src/z.ts", "src/a.ts", "src/a.ts", "src/m.ts"], ["note"]);
+  const parsed = JSON.parse(json) as { _comment: string[]; knownContaminated: string[] };
+  assert.deepEqual(parsed.knownContaminated, ["src/a.ts", "src/m.ts", "src/z.ts"]);
+  assert.deepEqual(parsed._comment, ["note"]);
+});
+
+test("serializeBaseline: round-trips through parseBaseline", () => {
+  const json = serializeBaseline(["src/b.ts", "src/a.ts"]);
+  assert.deepEqual([...parseBaseline(json)].sort(), ["src/a.ts", "src/b.ts"]);
+});
+
+test("parseArgs: lcovArg, --baseline <path>, and --update-baseline all parsed together", () => {
+  const parsed = parseArgs(["development/coverage/lcov.info", "--baseline", "development/scripts/x.json", "--update-baseline"]);
+  assert.deepEqual(parsed, {
+    lcovArg: "development/coverage/lcov.info",
+    baselinePath: "development/scripts/x.json",
+    updateBaseline: true,
+  });
+});
+
+test("parseArgs: --baseline's value is not mistaken for the positional lcovArg", () => {
+  const parsed = parseArgs(["--baseline", "development/scripts/x.json", "development/coverage/lcov.info"]);
+  assert.equal(parsed.baselinePath, "development/scripts/x.json");
+  assert.equal(parsed.lcovArg, "development/coverage/lcov.info");
+});
+
+test("parseArgs: no arguments at all yields all-undefined/false, not a throw", () => {
+  assert.deepEqual(parseArgs([]), { lcovArg: undefined, baselinePath: undefined, updateBaseline: false });
+});
+
+test("parseArgs: a second positional argument is ignored, matching this repo's other check-*.ts scripts' permissive argv handling", () => {
+  const parsed = parseArgs(["first.lcov", "second.lcov"]);
+  assert.equal(parsed.lcovArg, "first.lcov");
+});
+
+test("real committed baseline: development/scripts/coverage-integrity-baseline.json is valid and baselines run1 (its own source) away entirely", () => {
+  const baselineJson = readFileSync(
+    path.join(import.meta.dirname, "..", "coverage-integrity-baseline.json"),
+    "utf8"
+  );
+  const baselineSet = parseBaseline(baselineJson);
+  assert.ok(baselineSet.size > 0, "the committed baseline must not be empty");
+
+  const { contaminated } = checkCoverageIntegrity(readFixture("clean-run1-provider-credential-store.lcov.info"));
+  const gated = applyBaseline(contaminated, baselineSet);
+  assert.deepEqual(
+    gated.map((v) => v.fails),
+    [false],
+    "run1 is the baseline's own capture source -- every path it reports must already be known"
+  );
 });
