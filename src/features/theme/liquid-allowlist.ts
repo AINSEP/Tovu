@@ -156,7 +156,7 @@ parser.registerTag("render_block", {
   parse(this: any, token: TagToken) {
     this.hash = new Hash(token.args);
   },
-  *render(): Generator<unknown, string, unknown> {
+  render(): string {
     return "";
   },
 });
