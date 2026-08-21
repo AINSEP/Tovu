@@ -40,6 +40,7 @@ const NODE_CHILD_SPAWNING_FILES = [
   "src/cli/__tests__/integration/serve-command.integration.test.ts",
   "src/server/agent-daemon/__tests__/integration/daemon-boots.integration.test.ts",
   "src/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts",
+  "src/__tests__/integration/port-in-use.integration.test.ts",
 ];
 
 const IMPORTS_HELPER = /from\s+["']#src\/core\/child-process-coverage-env["']/;
