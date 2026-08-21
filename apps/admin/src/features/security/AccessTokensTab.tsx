@@ -119,6 +119,7 @@ export function AccessTokensTab(props: AccessTokensTabProps) {
  *  filter and the row list on screen a beat before Tier 2's own rows could ever appear under it,
  *  which reads as those rows being silently absent rather than still loading. */
 function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
+  const addCustomDialogRef = useRef<HTMLDialogElement>(null);
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle("security-access-tokens-load-error", { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -136,7 +137,6 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
   if (controller.groups === undefined || otherController.groups === undefined) {
     return <p className="access-tokens-loading">{controller.t("Loading access tokens…")}</p>;
   }
-  const addCustomDialogRef = useRef<HTMLDialogElement>(null);
   return (
     <>
       <AccessTokensSearch controller={controller} otherController={otherController} />
