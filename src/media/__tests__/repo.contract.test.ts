@@ -163,6 +163,16 @@ function runRenditionSuite(label: string, makeRepo: () => AssetRenditionRepoPort
     assert.deepEqual(found, makeRendition());
   });
 
+  test(`[${label}] save() upserts (a second save with the same id replaces the prior row, not a duplicate)`, async () => {
+    const repo = makeRepo();
+    await repo.save(makeRendition());
+    await repo.save(makeRendition({ storageKey: "ws/workspace-1/renditions/blob-1/thumb.v2" }));
+
+    const list = await repo.listByAsset({ workspaceId: WORKSPACE_ID, assetId: "blob-1" });
+    assert.equal(list.length, 1, "the same id must update in place, not create a second row");
+    assert.equal(list[0].storageKey, "ws/workspace-1/renditions/blob-1/thumb.v2");
+  });
+
   test(`[${label}] listByAsset returns every rendition for that asset`, async () => {
     const repo = makeRepo();
     await repo.save(makeRendition({ id: "r-1", transformName: "thumb" }));
@@ -222,6 +232,23 @@ function runTransformDefSuite(label: string, makeRepo: () => TransformDefinition
 
 runTransformDefSuite("memory", () => new InMemoryTransformDefinitionRepo());
 runTransformDefSuite("sqlite", () => new SqliteTransformDefinitionRepo(openContentDb(":memory:")));
+
+test("SqliteTransformDefinitionRepo.insert() re-throws a non-unique-violation error raw, rather than wrapping it as the append-only error", async () => {
+  const repo = new SqliteTransformDefinitionRepo(openContentDb(":memory:"));
+
+  // `name` is NOT NULL with no default -- omitting it produces a real SQLite constraint error whose
+  // message does NOT match /UNIQUE constraint failed/, so isUniqueConstraintViolation() must return
+  // false and the raw error must propagate, never mistaken for the append-only duplicate case.
+  await assert.rejects(
+    () => repo.insert(makeTransformDef({ name: undefined as unknown as string })),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.doesNotMatch((err as Error).message, /already exists — append-only violation/);
+      assert.match((err as Error).message, /NOT NULL constraint failed/);
+      return true;
+    }
+  );
+});
 
 test("ADR-046 Phase 1: media + asset_blobs + asset_renditions + transform_registry all survive a simulated process restart (real on-disk file)", async () => {
   const dir = mkdtempSync(join(tmpdir(), "tovu-media-restart-test-"));
