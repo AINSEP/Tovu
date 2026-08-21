@@ -6,7 +6,7 @@ import { createRouteDeps } from "../../server/app.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import { InMemoryRedirectRepo } from "../../redirects/index.js";
 import type { RedirectRecord } from "../../redirects/index.js";
-import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest.js";
+import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
 
 /**
  * @file Regression coverage for `buildRouteManifest` (SPEC — static site exporter, 2026-08-15).
@@ -242,4 +242,39 @@ test("buildRouteManifest: the not-found probe path never collides with a real en
 
   const realPaths = manifest.routes.filter((r) => r.kind !== "not-found").map((r) => r.path);
   assert.equal(realPaths.includes(probe?.path ?? ""), false);
+});
+
+test("createRouteManifestReader: build() delegates to buildRouteManifest against the SAME bound deps, not a snapshot", async () => {
+  const deps = baseDeps();
+  const reader = createRouteManifestReader(deps);
+
+  const viaReader = await reader.build();
+  const viaFreeFunction = await buildRouteManifest(deps);
+
+  assert.deepEqual(viaReader, viaFreeFunction, "the port must produce the identical manifest the free function does for the same deps");
+
+  // "Bound", not a one-time snapshot: mutating the same deps object between calls (the established
+  // in-place-mutation pattern this file's own baseDeps/store tests rely on, since createSiteApp-style
+  // closures elsewhere in this composition root are bound to ONE object identity) must be visible on
+  // the next build() call, proving the reader re-reads deps rather than freezing them at construction.
+  const overridingPost = {
+    id: "post-reader-rebind-test",
+    workspaceId: deps.workspaceId,
+    title: "Reader Rebind Check",
+    slug: "reader-rebind-check",
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "post" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+  deps.postRepo = new InMemoryPostRepo([overridingPost]);
+
+  const rebuilt = await reader.build();
+  assert.ok(
+    rebuilt.routes.some((r) => r.path === "/reader-rebind-check"),
+    "the same reader instance must reflect a later mutation of the deps it was constructed with"
+  );
 });
