@@ -204,6 +204,20 @@ function runBindingRepoContractSuite(adapterName: string, makeRepo: () => NavLoc
     const ws2 = await repo.listByWorkspace({ workspaceId: "ws-2" });
     assert.equal(ws2.length, 1);
   });
+
+  test(`[${adapterName}] rebuildForWorkspace with an empty bindings list clears the workspace's index without leaving stale rows`, async () => {
+    const repo = makeRepo();
+    await repo.upsert({ workspaceId: "ws-1", locationKey: "stale", menuId: "menu-0", boundAt: NOW });
+    await repo.upsert({ workspaceId: "ws-2", locationKey: "untouched", menuId: "menu-x", boundAt: NOW });
+
+    // A workspace with no bound locations left at all -- the "unbind everything" case (SqliteNav-
+    // LocationBindingRepo takes a dedicated early-return path here to skip an empty INSERT, which
+    // some SQLite drivers reject; this proves that path is behaviorally identical to the general one).
+    await repo.rebuildForWorkspace({ workspaceId: "ws-1", bindings: [] });
+
+    assert.equal((await repo.listByWorkspace({ workspaceId: "ws-1" })).length, 0);
+    assert.equal((await repo.listByWorkspace({ workspaceId: "ws-2" })).length, 1, "other workspaces are untouched");
+  });
 }
 
 runBindingRepoContractSuite("InMemoryNavLocationBindingRepo", () => new InMemoryNavLocationBindingRepo());
