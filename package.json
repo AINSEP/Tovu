@@ -58,6 +58,8 @@
     "admin:dev": "npm --prefix apps/admin run dev",
     "setup": "npm install && npm run admin:install && npm run admin:build",
     "theme": "tsx development/scripts/theme-tool.ts",
+    "agent-plugin:package": "tsx development/scripts/package-agent-plugin.ts",
+    "agent-plugin:install": "tsx development/scripts/install-agent-plugin.ts",
     "ci:local": "bash development/scripts/ci-local.sh",
     "ci:local:tests": "bash development/scripts/ci-local.sh --with-tests",
     "ci:local:route-coverage": "bash development/scripts/ci-local.sh --route-coverage",
