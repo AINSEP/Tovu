@@ -61,7 +61,14 @@ Triaged. **None is a deletion.** By cause:
   regex capture group. Express always sets Content-Type on a real response and the capturing regexes
   always match ≥1 character, so these are empirically dead but **required by the compiler's nullable
   types**. Removing them breaks `tsc`.
-- **remainder** — CSS-crawl edge paths adjacent to the second-hop crawl closed in `5b03f173`.
+- **NOT YET TRIAGED (~5)** — CSS-crawl edge paths adjacent to the second-hop crawl closed in
+  `5b03f173`. **These have not been assigned one of the four causes.** Saying so plainly rather than
+  implying a label: nobody has yet read each one and decided whether it is reachable through the
+  `createSiteApp` fixture that closed its neighbours, or genuinely seam-less. That is the only
+  outstanding piece of real work in this area, and it is small.
+
+  (Flagged by `cov-aem-2` on review of this report. An unlabelled bucket inside a four-cause framing
+  reads as triaged when it isn't, and would have been re-litigated by a later session.)
 
 **Nothing here should be "fixed" by adding production surface to create a test seam.** That was
 considered and rejected; the seam that did get used (`ExportSiteRouteDeps.createSiteApp`) already
@@ -75,9 +82,16 @@ therefore comes from a **scoped** run, and was integrity-checked before being qu
 
 - **esbuild interop shim markers across all 14 files: 0.** (`__toCommonJS` / `__copyProps` / `__toESM` /
   `__export`.) The lcov is clean; the dual-instantiation artifact is absent.
-- **Duplicate `FN:` names: 4** (3 in `analytics/ports.ts`, 1 in `media/provider-credential-store.ts`).
-  Present but **harmless here** — every instance is hit, so `FNH/FNF` still reads 100%. The function
-  figure above is therefore a real 100%, not a range.
+- **Duplicate `FN:` names: 4.** Independently identified by `cov-aem-2` as `<static_initializer>`
+  colliding **on name only** — 4× in `analytics/ports.ts` at four distinct line numbers, 2× in
+  `media/provider-credential-store.ts`. Every instance is hit, so `FNH/FNF` still reads 100%. **The
+  function figure above is a real 100%, not a range.** Note this is a different thing from the
+  repo-wide `FN:`-concatenation artifact: these are genuinely distinct static initializers that happen
+  to share a generated name, not one function listed twice.
+
+This measurement was reproduced independently by `cov-aem-2` — its own fresh scoped run and its own
+parser, executed before it read this file — and matched byte for byte, including all 14 zero-hit `BRDA`
+branches.
 
 Reproduce with:
 
