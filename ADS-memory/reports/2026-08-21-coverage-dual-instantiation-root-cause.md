@@ -177,6 +177,29 @@ just a scoped run of `src/media/**` + `commit-site.unit.test.ts` alone.
 stopped all coverage runs mid-task per the team lead's memory-pressure redirect, this section is
 grep/read-only from that point forward.
 
+### Resolution (confirmed by the external auditor + team lead, below in this file)
+
+The literal hypothesis ("single import path ⇒ immune, keyed by resolved URL within one process") is
+**refuted** — the actual mechanism is cross-**process** V8 coverage-profile merging:
+`export-command.integration.test.ts` spawns a CLI child via `spawnSync` with no `env` override, the
+child inherits `NODE_V8_COVERAGE`, and the child's own `require("./app.js")` (via
+`deps.ts`'s `createSiteAppLazily`) sends `app.ts`'s whole import graph — including
+`provider-credential-store.ts` — through tsx's CJS hook in that child, while the parent's `src/media/**`
+tests load the same file as ESM. Two profiles, one `SF:` path, unioned at merge time. Not a per-file
+"two resolved identities within one process" story at all.
+
+But the **instinct** behind the "open tension" flag above was right: I noticed `provider-credential-store.ts`
+wasn't reachable from the worker-thread subgraph and guessed the mechanism was probably a *global*
+coverage-collection disruption rather than a per-file property. That's the correct shape of the answer —
+just a different concrete carrier (a spawned child process's inherited `NODE_V8_COVERAGE`, not a spawned
+worker thread's isolate). Worth naming precisely: "two resolved URLs for one file, within one process"
+was the wrong frame; "the same file loaded in two separate *coverage-emitting contexts* that get merged
+into one profile" is the right one — a process boundary is just as capable of producing that as an
+in-process ESM/CJS split is, and I was only checking for the latter. The immune-set explanation this
+gives (`src/cli` loaded ESM-only inside the child, never independently touched by the parent's media
+tests — one image, nothing to merge) is also the one that actually holds, unlike my own untested worker-
+thread guess for (ii) above, which turned out not to be the carrier.
+
 ## Round 6a result: CLEAN
 
 `src/media/**/*.test.ts` + `src/server/__tests__/routes/*.test.ts` (63 files, the largest untested bucket from round 5): 0 shim markers, `LH:357 LF:357`. Includes `publish-site-route.test.ts`, which I had flagged mid-investigation as a live candidate for exercising `app.ts`'s `exportSiteBound` (`require("../export/index.js")`) — staying clean here confirms that IN-PROCESS path really is harmless, consistent with the finding below rather than contradicting it (that route test builds its `routeDeps` via `app.ts`'s own `createRouteDeps()`, whose `exportSiteBound`/`createSiteApp` fields are NOT the lazy ones — see `app.ts:674`).
