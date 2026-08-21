@@ -45,6 +45,43 @@ test("normalizeIngestContext produces a different hash when the day (salt) rotat
   assert.notEqual(day1.visitorHash, day2.visitorHash);
 });
 
+test("normalizeIngestContext buckets an IPv4 address to its /24 before hashing: same first 3 octets -> same hash, different 3rd octet -> different hash", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+
+  const first = normalizeIngestContext(args("203.0.113.1"));
+  const sameSubnet = normalizeIngestContext(args("203.0.113.254"));
+  const differentSubnet = normalizeIngestContext(args("203.0.114.1"));
+
+  assert.equal(first.visitorHash, sameSubnet.visitorHash, "only the last octet differs — must truncate to the same /24 bucket");
+  assert.notEqual(first.visitorHash, differentSubnet.visitorHash, "the 3rd octet differs — must be a different bucket");
+});
+
+test("normalizeIngestContext buckets an IPv6 address to its first 3 groups before hashing: same prefix -> same hash, different prefix -> different hash", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+
+  const first = normalizeIngestContext(args("2001:db8:1234:aaaa:bbbb:cccc:dddd:eeee"));
+  const samePrefix = normalizeIngestContext(args("2001:db8:1234:ffff:0:0:0:1"));
+  const differentPrefix = normalizeIngestContext(args("2001:db8:5678:aaaa:bbbb:cccc:dddd:eeee"));
+
+  assert.equal(first.visitorHash, samePrefix.visitorHash, "only groups after the first 3 differ — must truncate to the same bucket");
+  assert.notEqual(first.visitorHash, differentPrefix.visitorHash, "the 3rd group differs — must be a different bucket");
+});
+
+test("normalizeIngestContext falls back to a fixed bucket for an unrecognized IP shape (neither IPv4 nor IPv6)", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+
+  // Two different garbage strings, neither containing ":" nor splitting into exactly 4 octets, must
+  // still resolve to the identical "unknown" bucket rather than leaking the raw distinguishing bytes
+  // into the hash unbucketed.
+  const first = normalizeIngestContext(args("not-an-ip"));
+  const second = normalizeIngestContext(args("also-not-an-ip"));
+
+  assert.equal(first.visitorHash, second.visitorHash, 'every unrecognized IP shape must collapse to the same "unknown" bucket');
+});
+
 test("normalizeIngestContext never places the raw ip or user-agent on its return value", () => {
   const salt = makeSalt("2026-07-10");
   const normalized = normalizeIngestContext({
