@@ -122,11 +122,14 @@ test("normalizeIngestContext classifies a non-Apple tablet user agent", () => {
   assert.equal(normalized.deviceClass, "tablet");
 });
 
-// NOTE: a real Apple iPhone/iPad Safari user agent always contains the literal substring
-// "like Mac OS X" (WebKit compatibility convention), which trips classifyOsFamily's earlier
-// "mac os|macintosh" check before its "iphone|ipad|ios" check ever runs — so authentic mobile
-// Safari traffic is classified osFamily "macos", never "ios". This synthetic user agent
-// deliberately omits "Mac OS X" to exercise the (largely dead-in-practice) "ios" branch.
+// NOTE: `classifyOsFamily` checks "iphone|ipad|ios" BEFORE "mac os|macintosh" (see ingest.ts) --
+// this ordering was fixed in a prior session specifically because a real Apple iPhone/iPad Safari
+// user agent always contains the literal substring "like Mac OS X" (WebKit compatibility
+// convention), so testing macOS first would misclassify every genuine mobile Safari visitor as
+// "macos". This synthetic user agent deliberately omits "Mac OS X" too, so on its own it would
+// still pass against the OLD (pre-fix) ordering and prove nothing -- the REAL-device-UA tests below
+// (REAL_IPHONE_SAFARI_UA / REAL_IPAD_SAFARI_UA) are what actually prove the ordering fix against
+// genuine traffic bytes.
 test("normalizeIngestContext classifies osFamily 'ios' for a user agent naming iphone/ipad without also matching the macos pattern", () => {
   const salt = makeSalt("2026-07-10");
   const normalized = normalizeIngestContext({
@@ -145,12 +148,30 @@ test("normalizeIngestContext classifies osFamily 'ios' for a user agent naming i
 // traffic, only on a synthetic UA (like the test above) that omits "Mac OS X" outright. These three
 // UAs are byte-for-byte real device/browser strings (not contrived), so this proves the fix against
 // the actual bytes real visitors send, not just an inverted synthetic case.
+//
+// KNOWN LIMIT, documented rather than implied away: REAL_IPAD_SAFARI_UA below (containing the
+// literal "iPad" token) is what a real iPad sends only when the user has switched to "Request
+// Mobile Website". Since iPadOS 13, Safari's DEFAULT mode on a real iPad deliberately sends a
+// "Macintosh; Intel Mac OS X" UA — byte-identical to a real Mac's — specifically so sites serve the
+// desktop layout (Apple's documented default "Desktop-class browsing" behavior; see
+// developer.apple.com/documentation on iPadOS Safari's user agent). No UA-string reordering or
+// pattern change can recover "this is an iPad" once Apple's own UA already says "Macintosh" —
+// there is no `classifyOsFamily`/`classifyDeviceClass` fix for this, see the dedicated test below.
 const REAL_IPHONE_SAFARI_UA =
   "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const REAL_IPAD_SAFARI_UA =
   "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
 const REAL_MACOS_SAFARI_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+// A real iOS Chrome UA: WebKit-forced (Apple requires all iOS browsers to use WebKit) and carries
+// Apple's own "CriOS/" product token instead of "Chrome/" — plus a trailing "Safari/" token for
+// web-compat. Byte-for-byte real (Chrome-on-iPhone), not contrived.
+const REAL_IOS_CHROME_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/125.0.6422.80 Mobile/15E148 Safari/604.1";
+// A real iOS Firefox UA: same WebKit constraint, "FxiOS/" product token instead of "Firefox/", also
+// carries a trailing "Safari/" token. Byte-for-byte real (Firefox-on-iPhone), not contrived.
+const REAL_IOS_FIREFOX_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/126.2 Mobile/15E148 Safari/605.1.15";
 
 test("normalizeIngestContext classifies osFamily 'ios' (not 'macos') for a REAL iPhone Safari user agent, despite it containing the literal substring 'like Mac OS X'", () => {
   const salt = makeSalt("2026-07-10");
@@ -180,6 +201,57 @@ test("normalizeIngestContext still classifies osFamily 'macos' for a REAL macOS 
   });
   assert.equal(normalized.osFamily, "macos");
   assert.equal(normalized.deviceClass, "desktop");
+});
+
+// Documents the KNOWN, NOT-FIXABLE-FROM-THE-UA limit called out in the comment above
+// REAL_IPHONE_SAFARI_UA: since iPadOS 13, a real iPad in Safari's default (desktop-site) mode sends
+// this exact "Macintosh; Intel Mac OS X" UA — indistinguishable from a genuine Mac. This is Apple's
+// intentional, documented behavior, not a gap in `classifyOsFamily`/`classifyDeviceClass`. This test
+// asserts the limitation explicitly (osFamily "macos", deviceClass "desktop" for what is actually an
+// iPad) so nobody reading the passing suite mistakes REAL_IPAD_SAFARI_UA's "ios"/"tablet" result
+// above for full iPad coverage — that case only covers a real iPad switched to "Request Mobile
+// Website", not the modern default.
+test("normalizeIngestContext classifies a modern default-mode iPad (sending a Mac-identical UA) as osFamily 'macos'/deviceClass 'desktop' -- documented limit, not fixable from the UA string alone", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_MACOS_SAFARI_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.osFamily, "macos");
+  assert.equal(normalized.deviceClass, "desktop");
+});
+
+// Bug regression: `classifyBrowserFamily` tested "chrome\/" and "firefox\/" literally. Real iOS
+// Chrome/Firefox never send those tokens (Apple's WebKit review rules forbid a third-party iOS
+// browser claiming "Chrome"/"Firefox" as its engine token) — they send "CriOS/"/"FxiOS/" instead,
+// while still carrying a trailing "Safari/" token, so the old code fell through to the safari
+// branch and misclassified every iOS Chrome/Firefox visitor as "safari". Verified against real
+// device UA bytes, not a synthetic UA that would pass against the broken code too.
+test("normalizeIngestContext classifies browserFamily 'chrome' (not 'safari') for a REAL iOS Chrome (CriOS) user agent", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_IOS_CHROME_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "chrome");
+});
+
+test("normalizeIngestContext classifies browserFamily 'firefox' (not 'safari') for a REAL iOS Firefox (FxiOS) user agent", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_IOS_FIREFOX_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "firefox");
+});
+
+test("normalizeIngestContext still classifies browserFamily 'safari' for a REAL iOS Safari user agent (proves the CriOS/FxiOS fix did not invert onto real iOS Safari traffic)", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_IPHONE_SAFARI_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "safari");
 });
 
 test("normalizeIngestContext classifies a mobile Android user agent", () => {
@@ -282,16 +354,6 @@ test("normalizeIngestContext falls back to browser/os 'other' for a user agent m
 // asserts the actual invariant (shorthand and fully-expanded forms of the SAME address produce
 // the SAME bucket), not just "returns something deterministic" — the weaker assertion that used
 // to live here would still pass with the bug present.
-test("normalizeIngestContext deterministically buckets an IPv6 address that uses '::' shorthand", () => {
-  const salt = makeSalt("2026-07-10");
-  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
-
-  const first = normalizeIngestContext(args("2001:db8::1"));
-  const second = normalizeIngestContext(args("2001:db8::1"));
-
-  assert.equal(first.visitorHash, second.visitorHash, "must be deterministic for the same '::'-shorthand address");
-});
-
 test("normalizeIngestContext buckets the SAME IPv6 address identically whether written in '::'-shorthand or fully expanded", () => {
   const salt = makeSalt("2026-07-10");
   const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
@@ -330,6 +392,70 @@ test("normalizeIngestContext buckets the SAME IPv6 address identically whether w
     hashOf("2001:db8::1"),
     hashOf("2001:db8:0:0:0:0:0:1"),
     "an embedded '::' and its fully-expanded form are the same address and must bucket identically"
+  );
+
+  // A DIFFERENT address ("2001:db8:1::") must still land in a DIFFERENT bucket -- proves the
+  // expansion fix didn't accidentally collapse every address into one shared bucket.
+  assert.notEqual(
+    hashOf("2001:db8::1"),
+    hashOf("2001:db8:1::"),
+    "'2001:db8::1' and '2001:db8:1::' are different addresses (the zero-run is in a different " +
+      "position) and must bucket differently"
+  );
+});
+
+// Bug regression introduced BY tonight's expandIpv6Groups fix (commit 88d6f5d0), caught in review
+// before it reached anyone: an IPv4-mapped IPv6 address ("::ffff:a.b.c.d", RFC 4291 SS2.5.5.2)
+// expands to six all-zero head groups + "ffff" + the dotted tail, so `truncateIp`'s
+// `groups.slice(0, 3)` was ALWAYS ["0","0","0"] regardless of the mapped IPv4 address -- every
+// IPv4-mapped visitor collapsed into one shared bucket. This is reachable in production: both
+// `src/index.ts` and `src/cli/commands/serve.ts` call `app.listen(port, ...)` with no host, so
+// Node binds dual-stack and every IPv4 peer arrives as `::ffff:a.b.c.d`. Fixed by detecting the
+// mapped form and bucketing it exactly like the bare IPv4 address, per truncateIp's own docstring
+// promise ("IPv4 /24, IPv6 /48").
+test("normalizeIngestContext buckets an IPv4-mapped IPv6 address ('::ffff:a.b.c.d') the SAME as its bare IPv4 /24, not into one shared garbage bucket", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+  const hashOf = (ip: string) => normalizeIngestContext(args(ip)).visitorHash;
+
+  assert.equal(
+    hashOf("::ffff:192.168.1.1"),
+    hashOf("192.168.1.1"),
+    "an IPv4-mapped IPv6 address must bucket identically to its bare IPv4 form (same /24)"
+  );
+  assert.equal(
+    hashOf("::ffff:192.168.1.99"),
+    hashOf("192.168.1.1"),
+    "only the last octet differs (same /24 as the mapped form above) -- must be the same bucket"
+  );
+  assert.notEqual(
+    hashOf("::ffff:203.0.113.77"),
+    hashOf("192.168.1.1"),
+    "a DIFFERENT IPv4-mapped address in a different /24 must NOT collapse into the same bucket " +
+      "(this is exactly the bug: every mapped address used to collapse together)"
+  );
+  assert.notEqual(
+    hashOf("::ffff:8.8.8.8"),
+    hashOf("::ffff:203.0.113.77"),
+    "two more distinct IPv4-mapped addresses, from the exact set the bug report used, must not " +
+      "share a bucket"
+  );
+});
+
+// Bug regression: a bracketed IPv6 address ("[::1]", as seen in host:port contexts) used to shift
+// through `expandIpv6Groups` with the brackets still attached, producing the garbage bucket
+// "[:0:0::" -- neither a valid IPv6 bucket nor "unknown". Decision: strip the brackets and bucket
+// the address normally (rather than rejecting to "unknown"), since the address itself is otherwise
+// well-formed and this is the more useful behavior.
+test("normalizeIngestContext strips brackets from a bracketed IPv6 address ('[::1]') and buckets it identically to the unbracketed form, instead of producing a garbage bucket", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+  const hashOf = (ip: string) => normalizeIngestContext(args(ip)).visitorHash;
+
+  assert.equal(
+    hashOf("[::1]"),
+    hashOf("::1"),
+    "'[::1]' must bucket identically to its unbracketed form, not a distinct '[:0:0::' garbage bucket"
   );
 });
 
