@@ -102,13 +102,18 @@ recording as a reason to read hits, not count them.
 5. Generator's header cites a nonexistent unit test (Sol #8c)
 6. Repo-identity test pins an implementation detail, not a security contract (Sol #8b)
 
-**Decisions only a human can make:**
-7. **`src/forms/manifest.ts` — imported by NOTHING in `src/`.** Its own header names two consumers; one
-   imports other files but never this one, the other **does not exist in this repo**. Orphaned remnant
-   or wiring bug? Not covered, not deleted, awaiting you.
-8. **`src/http/client.ts` — only importer is its own test.** `createHttpClient` is called nowhere under
-   `src/server`. Same question.
-9. **PID 8967** — `codex --dangerously-bypass-approvals-and-sandbox`, up 1d 6h, not this session's.
+**RESOLVED by the owner 2026-08-21 — do not re-open:**
+7. **`src/forms/manifest.ts` and `src/http/client.ts` are unwired because the features are not built
+   yet.** Owner's words: *"Leave the forms manifest and the HTTP client. Maybe I just haven't wired it
+   up yet... I haven't started doing forms or anything."*
+   **They are NOT dead code and NOT a wiring bug.** Do not delete them, do not write coverage tests for
+   them, and do not raise them again as findings. A file with no importers is the expected state for a
+   feature that has not been started. The file-header claims in `manifest.ts` about being consumed by
+   `server/app.ts` and `identity/permissions.ts` are still factually wrong and may be worth correcting
+   as comments — but the absence of importers is intentional, not a defect.
+
+**Still open, not ours:**
+8. **PID 8967** — `codex --dangerously-bypass-approvals-and-sandbox`, up 1d 6h, not this session's.
 
 **Closed by another session:** yesterday's open owner call on the dead `throw` at
 `use-other-credentials.hooks.ts:372` — **the `throw` is gone**; no `throw new` remains in that file.
