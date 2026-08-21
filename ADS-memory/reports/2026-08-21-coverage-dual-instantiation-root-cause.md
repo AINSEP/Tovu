@@ -53,3 +53,33 @@ Round 5: `src/media/**/*.test.ts` + `src/server/**/*.test.ts` (full, all 162 ser
 - Not a top-level-only sample of `src/server/__tests__`.
 - Not triggered by `src/core` + `src/assistant` at combined scale (101 files), even though both are individually high-corruption areas.
 - The leading alternate suspect from the handoff — a Jini `dist/` CJS bundle (`SF:../Jini/packages/agent-runtime/dist/acp-model-probe.js` as the combined lcov's first entry) pulling Tovu source back in — has NOT yet been tested directly; next if round 5 is also clean.
+
+## ROUND 5 — FIRST POSITIVE REPRODUCTION
+
+`src/media/**/*.test.ts` + `src/server/**/*.test.ts` (full, all 162 server test files):
+
+```
+6 shim markers, LH:294 LF:357, FNF:43 FNH:29
+```
+
+**Exact match to the full-repo/handoff numbers.** This is the first scoped combination that reproduces the corruption. Wall time ~18 minutes (started 21:01, finished ~21:19).
+
+Since round 3 (`src/server/__tests__/*.test.ts`, the 32 TOP-LEVEL files only) was clean, the trigger is confirmed to live in the other 130 files this round added: `src/server/__tests__/routes/**` (63), `src/server/__tests__/integration/**` (5), `src/server/__tests__/unit/**` (6), or one of ~20 smaller `**/__tests__/**` buckets scattered under `src/server/routes/**`, `src/server/http/**`, `src/server/agent-daemon/**`, `src/server/boot/**`, `src/server/middleware/**`.
+
+## Eliminations from the team lead (rounds A/B), recorded here for the audit trail
+
+**Round A** — the two `test:cov` glob terms no round 0-4 covered (`packages/*/src/**/*.test.ts` = 1 file, `apps/site-chat/src/**/*.test.ts` = 6 files), combined with `src/media/**`, run WITH `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json` set (matching the real script exactly, not just cleared in isolation as the original elimination tested): CLEAN — 0 shim markers, `LH:357 LF:357`.
+
+**Round B** — same run pulled in 51 `SF:../Jini/...dist/...` entries, and `provider-credential-store.ts` stayed clean anyway. **This directly refutes the handoff's leading suspect** ("a Jini `dist/` bundle is CJS and pulls Tovu source back in") — merely having Jini `dist/` CJS bundles loaded in the same process is not sufficient. Something must actively re-enter Tovu source through a second resolved identity; CJS bundles being present alone does nothing.
+
+## New lead from a sibling agent's `src/http` measurement (not yet tested by this bisect)
+
+`src/http/client.ts`'s only importer repo-wide is its own test file; every real consumer imports only the `HttpClientPort` type (erased at compile time), and `createHttpClient` is never called under `src/server`. `src/http`'s scoped and full-repo numbers match exactly (89.87 both times) — consistent with "single resolved import path -> immune." Reframes the three known-clean areas (`src/cli`, `apps/site-chat`, `src/http`) as possibly clean for a STRUCTURAL reason (few/single entry paths) rather than anything about their content — not yet confirmed for `src/cli`/`apps/site-chat` specifically.
+
+Sharpened mechanism candidates for "two distinct resolved identities of one file": (a) ESM `import` + CJS `require()` of the same file (the mechanism this report already tested and refuted for the `app.ts`<->`deps.ts`/`export/index.ts` cycle specifically), or (b) two different resolved URLs entirely — e.g. a `file:` dependency (this repo has ~22 on Jini packages, installed as `node_modules` symlinks) reached both via the symlink path and some other path.
+
+Still untraced from the original 7-file `require()`/`createRequire` list: `src/assistant/mcp-injection.ts`, `src/features/source-control/commit-site.ts`, `src/features/deployments/static-publish/adapter.ts`, `src/server/middleware/admin-static.ts`, `src/server/http/site/worker-sandbox.ts`. `worker-sandbox.ts` is the priority — it spawns a worker thread with its own `require()` bootstrap, which is a plausible second-instantiation mechanism by construction (see its own code: `require(tsxApiPath).register(); require(workerFile);` run inside a freshly-created worker context).
+
+## Round 6 (in progress)
+
+`src/media/**/*.test.ts` + `src/server/__tests__/routes/*.test.ts` (63 files, the single largest untested bucket within `src/server`) — narrowing round 5's positive result. Launched, not yet complete.
