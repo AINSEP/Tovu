@@ -1,12 +1,10 @@
 # Coverage Baseline: `src/core`, `src/db`, `src/routing`
 
-Status: **gap-fill pass complete (this session). Combined-lcov cross-check for the 16 never-instrumented
-files below STILL NEVER ARRIVED** — `full-repo.lcov` never appeared at
-`/Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Tovu/22748abd-e462-4141-8cda-5b81c09e41b6/scratchpad/full-repo.lcov`
-at any point across this entire session (polled repeatedly over ~90 minutes of wall-clock work). That
-cross-check is the clearest next step for whoever picks this up — see "Still open" at the bottom. Per the
-dispatch brief's measurement traps, a scoped number can only ever *understate* true coverage — so every
-number in this document is a floor, not a ceiling.
+Status: **gap-fill pass complete. `full-repo.lcov` FINALLY landed (20:23:23) after being polled for
+~90 minutes, but it is both STALE relative to this session's commits AND carries a newly-discovered
+function-dedup artifact that makes its raw function numbers untrustworthy at face value — see "Combined
+lcov cross-check" near the bottom, which supersedes the "16 never-instrumented files" list further down
+(that list is now resolved for the ones checkable; the rest need a FRESH combined run, not this one).**
 
 ## AFTER this session (jump to bottom for full detail)
 
@@ -269,3 +267,82 @@ all of the below are branch-only gaps. Numbers are from the final scoped re-run.
    dedicated pass — these don't show up as coverage gaps in a healthy run, only under load, and only
    sometimes cause an outright failure (as the second one did) rather than a silent miscoverage (as the
    first one did).
+
+---
+
+# Combined lcov cross-check (2026-08-20 20:2x, same day) — PRIORITY, repo-wide relevant
+
+`full-repo.lcov` (the coordinator's full `test:cov` run, referenced in
+`ADS-memory/reports/2026-08-21-repo-wide-combined-coverage-map.md`) finally landed at the scratchpad path
+at **20:23:23** — after this session had already made 10 of its 12 commits. Cross-checking it directly
+(not just trusting the aggregate table in that other report) surfaced two independent reasons its raw
+function-coverage numbers should NOT be read as "this session's fixes didn't work" or as a real regression:
+
+## Finding 1 — the snapshot is provably stale relative to this session
+
+The underlying `npm run test:cov` run executed 19:47→20:22 (per the coordinator's own report). This
+session's commit timestamps:
+
+| Commit | Time | Inside the 19:47–20:22 execution window? |
+|---|---|---|
+| `775a8593`…`195dfb1b` (10 commits, incl. every substantive test addition) | 20:07:16–20:21:52 | Yes — landed WHILE the run was executing. Whether a specific test file's NEW content was actually picked up depends on when `node --test` got around to scheduling that file inside the 35-minute window — genuinely non-deterministic from here, not something this session can prove either way per-file. |
+| `19e8cb82` (2nd timing-flake fix) | 20:23:48 | **No** — landed AFTER the run finished. Provably absent from this snapshot. |
+| `101e0a14` (docs only) | 20:26:42 | No — irrelevant to code coverage anyway. |
+
+So this specific `full-repo.lcov` is not a valid "did this session's work land" check for at least one
+fix, and is unreliable for the rest. A fresh full run started AFTER 20:27 would be needed for a real
+combined-vs-scoped comparison of this session's specific changes.
+
+## Finding 2 — duplicate FN entries + esbuild/Drizzle export-getter pollution inflate the function total
+
+Independent of staleness, a direct read of the lcov (not just the aggregate table) found: **within a
+single `SF:` block, the same function name can appear multiple times with different hit counts**, and the
+lcov reporter does not merge them — it concatenates. Example, `src/db/sqlite/content-db.ts` (one `SF:`
+block, verified via `grep -c "^SF:...content-db.ts$"` = 1):
+
+```
+FN:26,seedContentDb   FNDA:62,seedContentDb   <- hit, from this session's new test
+FN:27,seedContentDb   FNDA:0,seedContentDb    <- same name, different transpiled instance, never hit
+FN:54,seedContentDb   FNDA:0,seedContentDb    <- same name, a THIRD instance, never hit
+```
+
+`seedContentDb` genuinely IS tested (5 new tests this session, confirmed passing) — but a naive
+FNH/FNF ratio counts it as 2/3 zero-hit. The file also carries esbuild CJS-interop helpers
+(`__toESM`/`__toCommonJS`/`__copyProps`/`__export`) suggesting it gets loaded through at least two
+different transpilation contexts somewhere in the full suite (plain ESM test imports vs. some other
+consumer), and the two contexts' coverage profiles don't merge cleanly under one `SF:` path.
+
+This is **not isolated** — `webhook-repo.sqlite.ts` shows up to 4 duplicate instances of some method
+names; `src/db/schema.ts` is the worst case: its "zero-hit" list after name-based dedup is dozens of
+entries, but inspection shows most are NOT real application functions at all — they're Drizzle table
+export names (`adminExecutionCredentials`, `posts`, `workspaces`, …) and FK-reference-builder closures
+(`settingValuesWorkspace.workspaceId.notNull.references.onDelete`) that esbuild's `__export()` live-binding
+wrapper turns into one pseudo-"function" per named export, plus ~100 `anonymous_NNN` entries from the
+same mechanism. None of this is genuine untested logic; it's bundler-output noise riding on top of a
+1237-line schema file with 70+ exports.
+
+**Recommendation for whoever next reconciles combined vs. scoped numbers, for ANY area, not just this
+one:** before trusting a combined-lcov function percentage, at minimum (a) collapse duplicate `FN:`
+entries sharing a name within one `SF:` block via max-hits, and (b) exclude generic accessor names
+(bare `get`) and dotted Drizzle-internal names from the denominator, or the number will read
+systematically lower than reality — exactly the shape of both this session's own baseline and the
+`repo-wide-combined-coverage-map.md` report's headline claims. This deserves flagging to whoever owns
+that report, since its per-area function percentages (`src/db` 59.23%, `src/core` 73.87%, `src/routing`
+78.75%, and by extension every other area's number in that table) likely carry the same inflation and
+should not be treated as final without the same dedup pass.
+
+## Net effect on this session's own claim
+
+This session's "every zero-hit function found in the scoped run is now closed" claim stands: it was
+verified by (1) reading each function's actual source, (2) writing a real test that exercises it, (3)
+re-running the SAME scoped command and confirming the specific `FNDA` count moved off zero. Spot-checked
+directly: `content-db.ts`'s `seedContentDb` — a single top-level function, defined exactly once in
+source, with no classes in the file — appears as exactly ONE `FN:`/`FNDA:6` pair in this session's scoped
+lcov, vs. THREE `FN:`/`FNDA:` pairs (one hit at 62, two at 0) in the combined lcov for the identical
+function. That 1-vs-3 instance count for a function with only one possible source definition is the
+clean proof of Finding 2's mechanism, isolated from any legitimate same-named-method confound. (Caution
+for whoever reuses this technique elsewhere: NOT every duplicate `FN:` entry is this artifact — e.g.
+`webhook-repo.sqlite.ts` shows `findById`/`save` twice in scoped lcov too, but that file has two classes
+that both genuinely implement methods of those names; only single-definition functions/values showing
+multiple instances are the real signal.) The combined run's lower numbers reflect snapshot staleness plus
+this real, separate tooling artifact — not a regression in this session's work.
