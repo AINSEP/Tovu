@@ -30,9 +30,13 @@ describe("useSettingsUi — local view state", () => {
     const { result } = renderHook(() => useSettingsUi());
     expect(result.current.memoryTopTab).toBe("memories");
 
-    act(() => result.current.setMemoryTopTab("chats"));
+    // "how" is the segmented control's other real tab (Memories | How it works) — see
+    // `MemoryTopTab` in Jini's `useMemoryNavigation.hooks.ts`. "chats" was never a member of that
+    // union; it was fiction that only compiled because `apps/admin`'s tsconfig excludes `__tests__`
+    // from `tsc`, so vitest (which never typechecks) let it pass silently.
+    act(() => result.current.setMemoryTopTab("how"));
 
-    expect(result.current.memoryTopTab).toBe("chats");
+    expect(result.current.memoryTopTab).toBe("how");
   });
 });
 

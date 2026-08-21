@@ -47,13 +47,13 @@ describe("connectorsPort.fetchConnectors", () => {
 describe("connectorsPort.fetchConnectorEnrichment", () => {
   it("defaults refresh to true when no options are given", async () => {
     listConnectors.mockResolvedValue({ connectors: [connector()] });
-    await connectorsPort.fetchConnectorEnrichment();
+    await connectorsPort.fetchConnectorEnrichment!();
     expect(listConnectors).toHaveBeenCalledWith(true);
   });
 
   it("forwards options.refresh when explicitly false", async () => {
     listConnectors.mockResolvedValue({ connectors: [] });
-    await connectorsPort.fetchConnectorEnrichment({ refresh: false });
+    await connectorsPort.fetchConnectorEnrichment!({ refresh: false });
     expect(listConnectors).toHaveBeenCalledWith(false);
   });
 });

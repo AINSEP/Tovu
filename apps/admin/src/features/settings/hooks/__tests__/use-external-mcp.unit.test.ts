@@ -178,7 +178,7 @@ describe("useExternalMcp — updateSource", () => {
     await result.current.dependencies.port.fetchSources(); // populates lastKnown
 
     await act(async () => {
-      await result.current.dependencies.port.updateSource("existing", { enabled: false });
+      await result.current.dependencies.port.updateSource!("existing", { enabled: false });
     });
 
     // enabled flips to false; command/args/allowedToolNames are carried over from the last fetch,
@@ -201,7 +201,7 @@ describe("useExternalMcp — updateSource", () => {
     const { result } = renderHook(() => useExternalMcp());
     await result.current.dependencies.port.fetchSources();
 
-    const outcome = await result.current.dependencies.port.updateSource("local-fs", { enabled: false });
+    const outcome = await result.current.dependencies.port.updateSource!("local-fs", { enabled: false });
 
     expect(outcome).toBeNull();
   });
