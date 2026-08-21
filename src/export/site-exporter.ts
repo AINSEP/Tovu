@@ -770,7 +770,11 @@ async function writeAllRoutes(
     const outcome = await writeRoute(route, baseUrl, outputDir, basePath);
     if (outcome.succeeded) succeeded.push(outcome.succeeded);
     if (outcome.failed) failed.push(outcome.failed);
-    if (outcome.html) extractAssetUrls(outcome.html).forEach((url) => assetUrls.add(url));
+    if (outcome.html) {
+      extractAssetUrls(outcome.html).forEach((url) => {
+        assetUrls.add(url);
+      });
+    }
   }
 
   return { succeeded, failed, assetUrls };
