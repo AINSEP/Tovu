@@ -108,6 +108,40 @@ test("no caller ever sees the folded vocabulary — describe and search both ret
   }
 });
 
+test("a descriptor with no description at all seeds an empty string, both with and without keyword folding", () => {
+  const bare = { id: "bare_tool_action", description: undefined };
+  const withKeywords = buildToolCatalogQuery({ list: () => [bare] });
+  const withoutKeywords = buildToolCatalogQuery({ list: () => [bare] }, { includeSearchKeywords: false });
+
+  // "bare_tool_action" has no TOOL_SEARCH_KEYWORDS entry and no DOC2QUERY entry, so with folding on
+  // there is nothing to fold either — both paths land on the same `?? ""` fallback.
+  assert.equal(withKeywords.describe("bare_tool_action")?.description, "");
+  assert.equal(withoutKeywords.describe("bare_tool_action")?.description, "");
+});
+
+test("an id with no domain prefix (e.g. it starts with the separator) falls back to source 'tovu'", () => {
+  const catalog = buildToolCatalogQuery({ list: () => [{ id: "_orphan", description: "An id with no leading domain segment." }] });
+  const hit = catalog.search("orphan")[0];
+  assert.equal(hit?.source, "tovu");
+});
+
+test("includeDoc2query: false is forwarded through to indexedDescriptionFor, omitting doc2query questions from the index", () => {
+  const withQuestions = buildToolCatalogQuery(fakeRegistry());
+  const withoutQuestions = buildToolCatalogQuery(fakeRegistry(), { includeDoc2query: false });
+
+  // "password" appears only in one of identity_user_create's DOC2QUERY questions ("How do I make a
+  // new user account with a username and password?") — never in its TOOL_SEARCH_KEYWORDS entry
+  // ("add user account new person invite staff admin create") — so it isolates the doc2query fold.
+  const withHits = withQuestions.search("password", 10).map((hit) => hit.id);
+  assert.ok(withHits.includes("identity_user_create"), "with doc2query included, a doc2query-only term must still find the tool");
+
+  const withoutHits = withoutQuestions.search("password", 10).map((hit) => hit.id);
+  assert.equal(withoutHits.includes("identity_user_create"), false, "with doc2query excluded, that same term must no longer find it");
+
+  // The keyword-vocabulary fold is unaffected either way.
+  assert.ok(withoutQuestions.search("invite", 10).map((hit) => hit.id).includes("identity_user_create"));
+});
+
 test("a tool with no keyword entry is untouched, and the seam can disable folding entirely", () => {
   const withKeywords = buildToolCatalogQuery(fakeRegistry());
   const without = buildToolCatalogQuery(fakeRegistry(), { includeSearchKeywords: false });
