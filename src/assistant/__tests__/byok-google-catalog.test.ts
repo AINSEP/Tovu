@@ -86,7 +86,9 @@ function schemaNodes(root: unknown, path: string): ReadonlyArray<{ node: Record<
   }
   if (root.items !== undefined) found.push(...schemaNodes(root.items, `${path}.items`));
   if (Array.isArray(root.anyOf)) {
-    root.anyOf.forEach((member, index) => found.push(...schemaNodes(member, `${path}.anyOf[${index}]`)));
+    root.anyOf.forEach((member, index) => {
+      found.push(...schemaNodes(member, `${path}.anyOf[${index}]`));
+    });
   }
   return found;
 }

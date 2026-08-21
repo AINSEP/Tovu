@@ -611,7 +611,7 @@ test("runByokProviderTurn(openai): a failed tool result is folded into the outbo
   );
 
   assert.ok(secondRequestBody, "expected a second request carrying the tool results");
-  const toolMessages = (secondRequestBody?.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
+  const toolMessages = (secondRequestBody.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
   assert.deepEqual(
     toolMessages.map((m) => ({ tool_call_id: m.tool_call_id, content: m.content })),
     [
@@ -689,7 +689,7 @@ test("runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as op
   );
 
   assert.ok(secondRequestBody, "expected a second request carrying the tool results");
-  const toolMessages = (secondRequestBody?.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
+  const toolMessages = (secondRequestBody.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
   assert.deepEqual(
     toolMessages.map((m) => ({ tool_call_id: m.tool_call_id, content: m.content })),
     [

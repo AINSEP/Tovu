@@ -530,7 +530,7 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     });
 
     expect(port.users[0]!.status).toBe("disabled");
-    await waitFor(() => expect(result.current.users?.[0]!.status).toBe("disabled"));
+    await waitFor(() => expect(result.current.users![0].status).toBe("disabled"));
   });
 
   it("onAssignRole sets grantError from the injected port's configured failure", async () => {

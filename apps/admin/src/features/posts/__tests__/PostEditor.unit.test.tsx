@@ -356,7 +356,7 @@ describe("Template picker", () => {
     await user.click(screen.getByRole("button", { name: /^save$/i }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
-    const body = JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body));
+    const body = JSON.parse(String((fetchMock.mock.calls[1][1] as RequestInit).body));
     expect(body.templateChoice).toBe("");
     expect(body.templateChoice).not.toBeNull();
   });
