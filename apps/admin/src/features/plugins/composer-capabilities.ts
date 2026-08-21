@@ -244,10 +244,17 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
       description: "UI/UX Design Agent Plugin bundled with Tovu — pins its skill as context for the agent",
       kind: "agent-plugin",
       keywords: ["agent plugin", "design", "ui", "ux"],
-      // No `insertText` (removed 2026-08-21): this row used to type the literal string "UI/UX
-      // Design agent plugin" into the draft, indistinguishable from the operator having typed
-      // those words themselves and never read by the agent as anything else — see
-      // `pluginRefId` below for the real wiring that replaces it.
+      // `insertText: ""` (fixed 2026-08-21), not omitted: Composer.tsx has two selection paths and
+      // they read a missing `insertText` differently. The "+" menu path (`selectPlusItem`) guards
+      // on `item.insertText ? ... : composer.draft` — falsy either way, draft untouched, which is
+      // why omitting it looked correct there. But the SLASH-trigger path (`selectSlashItem`) calls
+      // `replaceComposerSlashTrigger(draft, match.item.insertText ?? match.item.label)` — an absent
+      // `insertText` falls back to `label`, typing the literal "UI/UX Design (Agent Plugin)" into
+      // the draft. Same precedent as `mcp:settings` below: an explicit `""` clears the slash
+      // trigger to an empty draft (`replaceComposerSlashTrigger` returns its second arg verbatim)
+      // while staying falsy for the "+" path's guard, so both paths leave the draft empty. The
+      // real effect is `pluginRefId` below, not the draft text.
+      insertText: "",
     },
     pluginRefId: "ui-ux-design",
   },

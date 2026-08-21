@@ -65,6 +65,31 @@ async function pinAgentPluginChip(page: Page): Promise<void> {
   await page.getByRole("menuitem", { name: AGENT_PLUGIN_MENU_ITEM_NAME }).click();
 }
 
+/**
+ * The OTHER selection path — typing `/` directly into the composer textarea — proven separately
+ * from {@link pinAgentPluginChip}'s "+" menu because `Composer.tsx` resolves the two through
+ * different functions that used to disagree: `selectPlusItem` guards on `item.insertText ? ... :
+ * composer.draft` (falsy either way when `insertText` is absent, draft untouched), but
+ * `selectSlashItem` calls `replaceComposerSlashTrigger(draft, match.item.insertText ??
+ * match.item.label)` — an absent `insertText` fell back to `label`, typing the literal
+ * "UI/UX Design (Agent Plugin)" string into the draft. This is the regression the "+" menu test
+ * above never caught, because it never exercises this function.
+ *
+ * "design" is a safe filter word: while the command word is still being typed (no space yet),
+ * `filterComposerDiscovery` fuzzy-matches every item's `label`/`description`/`kind`/`keywords`
+ * (`composer-discovery.ts`'s `matchesFuzzyCommand`), and only two bundled items contain "design"
+ * anywhere in that text — this row and the sibling "UI/UX Design (Skill)" row — so both surface
+ * and the same unambiguous label substring `pinAgentPluginChip` already relies on disambiguates
+ * them here too.
+ */
+async function pinAgentPluginChipViaSlash(page: Page): Promise<void> {
+  const textarea = page.locator("textarea.jini-composer-input");
+  await textarea.click();
+  await textarea.pressSequentially("/design");
+  await expect(page.locator("#jini-composer-slash-menu")).toBeVisible();
+  await page.getByRole("option", { name: AGENT_PLUGIN_MENU_ITEM_NAME }).click();
+}
+
 test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () => {
   test("pinning the Agent Plugin row renders a removable chip and types nothing into the draft", async ({ page }) => {
     await openDock(page);
@@ -136,5 +161,25 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
     await captured;
     expect(capturedContextRef).not.toBeNull();
     expect((capturedContextRef as Record<string, unknown>)["pluginRefIds"]).toEqual([AGENT_PLUGIN_REF_ID]);
+  });
+
+  test("selecting the Agent Plugin row via the SLASH trigger pins the chip and leaves the draft empty", async ({
+    page,
+  }) => {
+    await openDock(page);
+    const textarea = page.locator("textarea.jini-composer-input");
+    await textarea.waitFor({ state: "visible" });
+    await expect(textarea).toHaveValue("");
+
+    await pinAgentPluginChipViaSlash(page);
+
+    const chip = page.locator(".jini-attachment-chip", { hasText: AGENT_PLUGIN_MENU_ITEM_NAME });
+    await expect(chip).toBeVisible();
+
+    // The load-bearing regression assertion: `selectSlashItem` (Jini's `Composer.tsx`) falls back
+    // to `match.item.label` when `insertText` is absent, so this specific path — untested by the
+    // "+" menu tests above — is the one that actually typed "UI/UX Design (Agent Plugin)" into the
+    // draft before this fix (`composer-capabilities.ts`'s `insertText: ""` on this row).
+    await expect(textarea).toHaveValue("");
   });
 });
