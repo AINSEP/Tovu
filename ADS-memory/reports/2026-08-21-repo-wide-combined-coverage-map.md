@@ -1,158 +1,161 @@
-# Repo-wide combined coverage map — first full measurement
+# Repo-wide combined coverage map — RETRACTED, and what replaces it
 
 Generated 2026-08-21 · Branch `general-work` · Coordinator (Claude Opus 5)
 
-> **⚠️ CORRECTION — read this before using the FUNC column below.**
-> The `func` percentages in the area table are **not reliable as printed** and are systematically
-> **too low**. Cause found by the `cov-core-db` agent and independently verified: within a single
-> `SF:` block, the lcov reporter emits **duplicate `FN:` entries sharing one function name** and does
-> not merge them. `src/db/sqlite/content-db.ts` (verified: exactly one `SF:` block) contains
-> `FN:26,seedContentDb` / `FN:27,seedContentDb` / `FN:54,seedContentDb` with hits `62 / 0 / 0`. The
-> function is genuinely tested; a naive `FNH/FNF` ratio scores it 1-of-3. On top of that, esbuild's
-> `__export()` live-binding wrapper turns each named export into a pseudo-function, so `src/db/schema.ts`
-> contributes Drizzle table names and ~100 `anonymous_NNN` entries that are not application logic at all.
+> # ⛔ RETRACTION — the headline of this report was WRONG
 >
-> Recomputed with per-name max-hits dedup **and** exclusion of bundler-noise names
-> (`anonymous_NNN`, dotted Drizzle-internal names, bare `get`, `__toESM`/`__toCommonJS`/`__copyProps`/`__export`):
+> This report originally claimed that `src/analytics` + `src/export` + `src/media` measured
+> **89.16 line / 86.30 branch** against a handoff claim of **99.59 / 87.73 / 98.61**, and concluded the
+> prior session had overstated the area.
 >
-> | area | func as printed | func deduped | noise names excluded |
-> |---|---:|---:|---:|
-> | `src/server` | 78.91 | **93.96** | 3270 |
-> | `src/features` | 64.80 | **76.44** | 1371 |
-> | `src/db` | 59.23 | **75.51** | 480 |
-> | `src/core` | 73.65 | **87.67** | 156 |
-> | `src/routing` | 72.50 | **79.41** | 13 |
-> | analytics+export+media | 71.63 | **67.25** | 131 |
+> **That conclusion is retracted. The prior handoff's numbers were defensible; mine were the corrupt
+> ones.** The `cov-aem` agent challenged the finding with a mechanism rather than an assertion, and on
+> direct test it was right.
 >
-> **The correction is not uniform** — AEM goes *down*, because its excluded noise names were mostly
-> *hit*, so removing them lowers the ratio. So neither figure is authoritative: raw over-counts noise,
-> deduped may merge two genuinely distinct functions that share an inferred name. **Treat any function
-> percentage from this tooling as a range, not a number, and never as a gate threshold.**
->
-> **Line and branch coverage are unaffected by this artifact** and remain the trustworthy axes. Every
-> conclusion below that rests on line or branch coverage stands unchanged — including the headline
-> finding about the handoff, which holds on line coverage alone (89.16 measured vs 99.59 claimed).
->
-> Second caveat, from the same agent: this snapshot ran 19:47–20:22 while agents were committing. Ten
-> commits landed *during* the run and one (`19e8cb82`) *after* it. Whether a given file's new tests were
-> picked up is non-deterministic. **Do not use this snapshot to judge whether tonight's work landed** —
-> that needs a fresh run started after 20:27.
+> Do not cite the area table below as coverage truth. It is retained only as evidence of the artifact.
 
-Source: a single full-repo `npm run test:cov` run (`TEST_CONCURRENCY=2`), started 19:47, finished
-20:22 local. lcov snapshot: 5.5 MB, 1823 `SF:` entries. This is the **combined** number — every
-suite in the repo loaded together — which is the only trustworthy basis for an area coverage claim.
+## The decisive test
 
-## Why this document exists
-
-The 2026-08-20 handoff reported `src/analytics` + `src/export` + `src/media` at
-**99.59 line / 87.73 branch / 98.61 func** and marked the area ✅ done.
-
-The owner said that was wrong. It is.
+`src/media/provider-credential-store.ts` — **untouched by any agent this session**, so both runs measure
+identical source. Same file, same line denominator:
 
 ```
-                          LINE     BRANCH     FUNC
-handoff claim            99.59      87.73    98.61
-combined truth           89.16      86.30    73.49    (14 source files)
+scoped run (now)      LH 357/357 = 100.0%     esbuild shim markers in SF block: 0
+combined full run     LH 294/357 =  82.4%     esbuild shim markers in SF block: 6
+                      FNF 43 / FNH 29         (scoped: FNF 20 / FNH 20)
 ```
 
-**Line coverage is 89.16%, not 99.59% — a 10-point gap.** Branch is roughly as advertised.
+**A combined run executes a strict superset of a scoped run's tests. It cannot legitimately hit fewer
+lines.** The combined run undercounts this file by 63 lines. That is not a coverage gap; it is a broken
+measurement.
 
-The function figure printed above (73.49%) is subject to the `FN:`-duplication artifact described in
-the correction block at the top of this file; recomputed with dedup it is 67.25%, and neither number is
-exact. What is safe to say is that AEM function coverage sits somewhere in the **high 60s to low 70s**,
-nowhere near the claimed 98.61%. **The headline finding does not depend on the function axis at all** —
-the 10-point line-coverage gap is measured on the one axis the artifact cannot touch.
+## The mechanism
 
-Recomputing the same aggregate *including* test files as covered units gives 94.42 / 89.46 / 82.30 —
-still not the handoff's number, so "they counted test files" does not explain it either.
+In a full-repo run, an affected source file is instantiated **twice under two module formats** — once as
+native ESM (real, exercised) and once through a CJS `require()`/interop path (never exercised) — and
+both are merged into a **single `SF:` block**. The tell is esbuild's CJS-interop runtime helpers
+appearing inside the block: `__toCommonJS`, `__copyProps`, `__toESM`, `__export`.
 
-### The likely mechanism — and the trap to record
+The two axes corrupt differently, which is why this was hard to see:
 
-A scoped run's lcov **omits files it never loaded**. Averaging over only the files that appear
-therefore *inflates* the aggregate: a file with zero coverage is not counted as 0%, it is not
-counted at all.
-
-This is the **mirror image** of the trap already recorded in the handoff:
-
-| Trap | Effect on a single file | Effect on an area aggregate |
+| axis | how the reporter merges | effect |
 |---|---|---|
-| Known: "a scoped run understates coverage" | a well-covered file reads low | — |
-| **New: a scoped run omits unloaded files** | file is absent entirely | **aggregate reads too high** |
+| `FN:`/`FNDA:` | **concatenates** — same name appears 2–8× | `FNF` inflated, ratio deflated |
+| `DA:` (lines) | **merges by line number** (487 entries, 487 unique — no duplicates) | denominator correct, but zero-hit shadow entries win, so **`LH` is deflated** |
+| `BRDA:` | keyed by line+block+branch | partially resistant, not proven clean |
 
-Both are true at once, which is why scoped runs are untrustworthy in *both* directions. A full-repo
-run loads strictly more code than any scoped run, so where the two disagree, prefer the full run.
+`src/media/index.ts` is the clean smoking gun. It is a **pure re-export barrel** — `export { X } from
+"@jini-ai/cms/media"`, zero function bodies. Its scoped lcov correctly reports `FNF:0`. The combined
+lcov lists `__export`, `__copyProps`, `get`, `__toCommonJS`, then one synthetic getter per re-exported
+symbol — which produced the "**38 missing functions**" I sent an agent to go fix. There was nothing
+there to test.
 
-Caveat, stated plainly: the prior session's lcov artifacts were not available, so the mechanism above
-is the best-supported explanation, not a proven one. What is proven is the disagreement and which
-side to trust.
+### What it is NOT
 
-## Area map — source files only (excludes `__tests__` and `*.test.ts`)
+Ruled out by direct test: the `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json` override (open question
+§6 in the prior handoff) is **not** the cause. Re-running the scoped media suite with that variable
+set reproduces the clean numbers exactly — `LH 357/357`, 0 shim markers. It was the obvious suspect,
+since it forces `module: ESNext` onto tests that would otherwise resolve `nodenext`. It is innocent here.
 
-| Area | src files | line | branch | func | missing L/B/F |
-|---|---:|---:|---:|---:|---|
-| `src/server` | 308 | 76.15 | 79.63 | 79.17 | 8353/1820/1200 |
-| `src/features` | 178 | 85.45 | 87.79 | 66.06 | 5619/891/1609 |
-| `src/assistant` | 50 | 89.92 | 90.59 | 69.95 | 1142/182/354 |
-| `src/db` | 34 | 81.34 | 88.18 | **59.23** | 1736/146/506 |
-| `src/widgets` | 25 | 80.86 | 87.17 | 70.91 | 942/125/192 |
-| `src/core` | 21 | 86.79 | 90.84 | 73.87 | 378/59/121 |
-| `src/newsletter` | 16 | **63.74** | 87.25 | 65.86 | 1282/96/226 |
-| `src/comments` | 15 | 77.60 | 85.71 | 77.02 | 487/66/71 |
-| `src/cli` | 13 | 97.21 | 75.89 | 92.65 | 30/27/5 |
-| `src/redirects` | 12 | 74.57 | 83.86 | 70.42 | 573/82/113 |
-| `src/webhooks` | 12 | 77.49 | 88.97 | 69.73 | 476/43/89 |
-| `src/forms` | 11 | 69.32 | 90.12 | 72.43 | 559/41/83 |
-| `src/members` | 11 | 69.60 | 87.32 | 66.31 | 858/70/158 |
-| `src/seo` | 10 | 84.07 | 85.27 | 75.08 | 281/75/77 |
-| `src/site-dir` | 10 | 95.30 | 93.62 | 77.46 | 38/9/16 |
-| `apps/site-chat` | 6 | 100.00 | 99.45 | 100.00 | 0/1/0 |
-| `src/analytics` | 6 | 83.79 | 86.36 | 69.29 | 188/30/43 |
-| `src/connectors` | 6 | 84.48 | 87.44 | 70.83 | 154/27/49 |
-| `src/media` | 5 | 81.43 | 94.30 | **59.87** | 127/9/61 |
-| `src/origin` | 4 | 86.70 | 93.01 | 83.33 | 50/10/15 |
-| `src/export` | 3 | 99.72 | 82.42 | 92.75 | 3/58/10 |
-| `src/identity` | 3 | **55.53** | 89.17 | 60.51 | 354/17/77 |
-| `src/navigation` | 3 | 58.55 | 88.06 | **51.55** | 172/8/47 |
-| `src/http` | 2 | 89.87 | 86.08 | 77.78 | 32/11/4 |
-| `src/routing` | 2 | 89.94 | 86.61 | 78.75 | 47/15/17 |
-| `packages/sdk` | 1 | 99.26 | 90.00 | 100.00 | 1/2/0 |
-| `src/index.ts` | 1 | 93.50 | **40.00** | 71.43 | 24/9/2 |
-| `src/mail` | 1 | 75.71 | 88.89 | 69.57 | 17/3/7 |
+The remaining suspect is a consumer elsewhere in the full-repo test set pulling Tovu source through a
+CJS path — note the lcov's very first entry is `SF:../Jini/packages/agent-runtime/dist/acp-model-probe.js`,
+i.e. **built Jini `dist/` output**. Not proven; do not repeat as fact.
 
-**Function coverage is the repo's weakest axis almost everywhere**, and it is the axis the prior
-handoff most overstated. `src/features` alone is missing 1609 functions.
+## ✅ The decision rule this produces
 
-### Areas the prior handoffs never named at all
+The prior handoff's trap #2 said *"a scoped run understates coverage — trust the combined run."* That is
+**true for some files and actively wrong for others.** Both failure modes are real and they point in
+opposite directions:
 
-`src/newsletter`, `src/identity`, `src/navigation`, `src/members`, `src/forms`, `src/comments`,
-`src/redirects`, `src/webhooks`, `src/connectors`, `src/mail`, `src/http`. Several are worse than
-areas already queued for work — `src/identity` at 55.53% line and `src/navigation` at 51.55% func
-are both below anything currently being worked on.
+```
+Grep the file's SF: block in the combined lcov for
+__toCommonJS | __copyProps | __toESM | __export
 
-## Two test failures in the full run
+  markers PRESENT  -> the combined number for that file is CORRUPT.
+                      Use the SCOPED number.
+  markers ABSENT   -> combined is trustworthy. If the scoped number is
+                      0% or implausibly low, the scoped run simply never
+                      loaded it — trust combined. (seo/tool-registrations.ts:
+                      0% scoped vs 99.62% combined.)
+```
 
-Only 2 of the whole suite failed. Neither is baselined: `development/scripts/repo-test-failure-baseline.json`
-is referenced by the `check:test-baseline` npm script but **does not exist on disk** — so there is no
-known-failure list to compare against, and `check:test-baseline` cannot currently pass.
+**Never quote an area aggregate from either run without applying this per file first.** Every per-area
+figure in the table below predates this rule and none of it has been re-derived.
 
-1. `readTemplate('starter').seed is byte-equivalent to server/seed.ts's current live output`
-   — a seed-drift guard. Commit `0f0de930` ("resync stale theme/seed drift") shows this has drifted
-   before. **Probably a real regression, not a flake.** Needs isolated confirmation.
-2. `CR-R04/CR-R01 (systemic gap): tovu serve spawned from a DIFFERENT cwd ...` — took **69.7 s**.
-   Spawns a real `tovu serve`. Ran while three agents plus this coverage run competed for CPU.
-   **Probably CPU-starvation flake**, matching the ~20 admin files previously confirmed as such.
-   Needs an isolated re-run to classify.
+## Corroborating agent findings
 
-## Artifacts
+- `cov-aem`: all 14 AEM source files show **exactly 6 shim marker lines each** — a 100% hit rate,
+  uniform across the run. Its own scoped lcov shows **0** for every file spot-checked. It verified
+  `ingest.ts` has 27 functions total, all real, all tested — against my claim of 25 missing.
+- `cov-core-db`: independently found the `FN:` duplication, and decomposed `src/db/schema.ts`'s 301 raw
+  `FN` entries exactly: 79 esbuild `__export()` getters, 74 Drizzle FK-closures, 144 anonymous
+  column/check/index builders, 3 CJS-interop helpers. **Zero behavioral functions.** It also deduped the
+  ~20 sqlite repos and found **17 of 20 are already 92–100% covered**; only 3 are genuinely untested
+  (`composio-connector-credential-repo`, `custom-credential-repo`, `external-mcp-repo`).
 
-- lcov snapshot: `<scratchpad>/full-repo.lcov` (session-local, not committed — regenerate with
-  `TEST_CONCURRENCY=2 npm run test:cov`)
-- Run log: `<scratchpad>/full-cov.log`
+Both agents challenged the coordinator's numbers with reproducible mechanism. Both were right.
 
-## Rules confirmed by this run
+## What still stands from the original run
 
-- `npm run test:cov` begins with `rm -rf development/coverage`. A second concurrent invocation
-  **destroys the first run's output**. Only one full run at a time, owned by the coordinator.
-- Peak memory with the full run plus three agents doing scoped work: **2.7 GB**. The documented OOM
-  threshold is ~5.4 GB (unbounded concurrency). `TEST_CONCURRENCY=2` held it comfortably.
-- Wall clock for a full `test:cov`: **~35 minutes**.
+- **Only 2 tests failed** repo-wide. One is real and confirmed in isolation: the
+  `readTemplate('starter').seed` byte-equivalence drift (see below). The other is a `tovu serve` cwd
+  test that took 69.7 s under four-way CPU contention — probably load flake, unclassified.
+- `development/scripts/repo-test-failure-baseline.json` is referenced by the `check:test-baseline` npm
+  script but **does not exist on disk**, so that gate cannot currently pass.
+- `npm run test:cov` begins with `rm -rf development/coverage`. A concurrent second invocation
+  **destroys the first run's output**.
+- Wall clock for a full `test:cov`: ~35 min. Peak RAM ~2.7 GB with three agents also running, at
+  `TEST_CONCURRENCY=2`.
+- Seed drift: `src/server/seed.ts` has a code block (`"static tier"`, 2 hits) that
+  `src/templates/starter/seed-content.json` lacks (0 hits). Commit `8c7effea` (Aug 19) changed one and
+  not the other — and `0f0de930`, *the same day*, was titled "resync stale theme/seed drift." Fixed,
+  then re-broke within hours. There is no generator; both files are hand-maintained.
+
+## Area table — RETAINED AS ARTIFACT EVIDENCE ONLY, NOT COVERAGE TRUTH
+
+Every `func` figure here is inflated-downward by `FN:` concatenation. Every `line` figure is
+deflated for any file carrying shim markers. Neither column has been re-derived under the decision
+rule above.
+
+| Area | src files | line | branch | func |
+|---|---:|---:|---:|---:|
+| `src/server` | 308 | 76.15 | 79.63 | 79.17 |
+| `src/features` | 178 | 85.45 | 87.79 | 66.06 |
+| `src/assistant` | 50 | 89.92 | 90.59 | 69.95 |
+| `src/db` | 34 | 81.34 | 88.18 | 59.23 |
+| `src/widgets` | 25 | 80.86 | 87.17 | 70.91 |
+| `src/core` | 21 | 86.79 | 90.84 | 73.87 |
+| `src/newsletter` | 16 | 63.74 | 87.25 | 65.86 |
+| `src/comments` | 15 | 77.60 | 85.71 | 77.02 |
+| `src/cli` | 13 | 97.21 | 75.89 | 92.65 |
+| `src/redirects` | 12 | 74.57 | 83.86 | 70.42 |
+| `src/webhooks` | 12 | 77.49 | 88.97 | 69.73 |
+| `src/forms` | 11 | 69.32 | 90.12 | 72.43 |
+| `src/members` | 11 | 69.60 | 87.32 | 66.31 |
+| `src/seo` | 10 | 84.07 | 85.27 | 75.08 |
+| `src/site-dir` | 10 | 95.30 | 93.62 | 77.46 |
+| `apps/site-chat` | 6 | 100.00 | 99.45 | 100.00 |
+| `src/analytics` | 6 | 83.79 | 86.36 | 69.29 |
+| `src/connectors` | 6 | 84.48 | 87.44 | 70.83 |
+| `src/media` | 5 | 81.43 | 94.30 | 59.87 |
+| `src/origin` | 4 | 86.70 | 93.01 | 83.33 |
+| `src/export` | 3 | 99.72 | 82.42 | 92.75 |
+| `src/identity` | 3 | 55.53 | 89.17 | 60.51 |
+| `src/navigation` | 3 | 58.55 | 88.06 | 51.55 |
+| `src/http` | 2 | 89.87 | 86.08 | 77.78 |
+| `src/routing` | 2 | 89.94 | 86.61 | 78.75 |
+| `packages/sdk` | 1 | 99.26 | 90.00 | 100.00 |
+| `src/mail` | 1 | 75.71 | 88.89 | 69.57 |
+
+The one genuinely new thing this table contributed, which survives the retraction: **11 areas no prior
+handoff had ever named** — `newsletter`, `identity`, `navigation`, `members`, `forms`, `comments`,
+`redirects`, `webhooks`, `connectors`, `mail`, `http`. Their *relative* standing is suggestive, but every
+number must be re-measured per the decision rule before anyone acts on it.
+
+## Consequences for the unwired coverage floor gate
+
+`development/scripts/check-area-coverage-floor.ts` is committed, unwired, and exits 1 unconfigured.
+**Do not capture floors from a full-repo run.** The prior handoff's advice — "capture floors from a FULL
+run, never a scoped one" — is now known to be unsafe on its own: a full run under-reports both line and
+function coverage for any dual-instantiated file, so floors captured from it would be too low there
+and the gate would fail to catch real regressions. Apply the shim-marker rule per file first.
