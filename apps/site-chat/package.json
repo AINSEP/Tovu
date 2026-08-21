@@ -8,7 +8,8 @@
     "build": "vite build",
     "postbuild": "node scripts/check-bundle-mounts.mjs",
     "preview": "vite preview --port 5174",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",
