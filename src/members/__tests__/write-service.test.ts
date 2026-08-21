@@ -195,6 +195,41 @@ test("completeSignIn rejects an already-consumed magic-link token (single-use)",
   );
 });
 
+test("completeSignIn rejects a token whose member was disabled AFTER the link was issued", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "raced@example.com" } });
+  const rawToken = extractRawToken(sent[0].message.text!);
+
+  const member = await deps.members.findByEmail({ workspaceId: WORKSPACE_ID, email: "raced@example.com" });
+  await deps.members.save({ ...member!, status: "disabled" });
+
+  await assert.rejects(
+    () => completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: rawToken } }),
+    (err: unknown) => {
+      assert.ok(err instanceof MemberAuthError);
+      assert.equal(err.message, "this account has been disabled");
+      return true;
+    }
+  );
+});
+
+test("completeSignIn a SECOND time for an already-active member: status stays 'active' (not re-derived), emailVerifiedAt is NOT overwritten", async () => {
+  const { deps, sent } = makeDeps();
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "returning@example.com" } });
+  const firstToken = extractRawToken(sent[0].message.text!);
+  const first = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: firstToken } });
+  assert.equal(first.member.status, "active");
+  const firstVerifiedAt = first.member.emailVerifiedAt;
+
+  // A second sign-in request/complete for the SAME already-active member.
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "returning@example.com" } });
+  const secondToken = extractRawToken(sent[1].message.text!);
+  const second = await completeSignIn({ deps, input: { workspaceId: WORKSPACE_ID, token: secondToken } });
+
+  assert.equal(second.member.status, "active", "an already-active member stays active (ternary false branch)");
+  assert.equal(second.member.emailVerifiedAt, firstVerifiedAt, "emailVerifiedAt must not be overwritten once already set (?? branch)");
+});
+
 test("completeSignIn rejects an unknown token", async () => {
   const { deps } = makeDeps();
 
@@ -259,6 +294,25 @@ test("T013: requestSignInLink builds an absolute link when the workspace has a v
   assert.match(
     sent[0].message.text!,
     /Sign in using this link \(expires in 15 minutes\): https:\/\/members\.example\.com\/auth\/magic\?token=/
+  );
+});
+
+test("T013: requestSignInLink includes a non-default port and a basePath when the verified origin carries them", async () => {
+  const verified: VerifiedOrigin = {
+    scheme: "https",
+    host: "members.example.com",
+    port: 8443,
+    basePath: "/portal",
+    verifiedAt: "2026-07-01T00:00:00.000Z",
+    source: "workspace-setting",
+  };
+  const { deps, sent } = makeDeps({ origin: makeOriginRegistry({ canonicalOrigin: async () => verified }) });
+
+  await requestSignInLink({ deps, input: { workspaceId: WORKSPACE_ID, email: "ported@example.com" } });
+
+  assert.match(
+    sent[0].message.text!,
+    /https:\/\/members\.example\.com:8443\/portal\/auth\/magic\?token=/
   );
 });
 
@@ -397,6 +451,28 @@ test("updateProfile rejects a blank name and a missing member", async () => {
   assert.equal(result.member.version, 2);
 });
 
+test("updateProfile: a note-only update (name omitted) trims the note and leaves the existing name untouched", async () => {
+  const { deps } = makeDeps();
+  const member = {
+    id: "member-note",
+    workspaceId: WORKSPACE_ID,
+    email: "noteonly@example.com",
+    name: "Original Name",
+    status: "active" as const,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+  };
+  await deps.members.save(member);
+
+  const result = await updateProfile({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, memberId: "member-note", note: "  VIP customer  " },
+  });
+  assert.equal(result.member.name, "Original Name", "name must be left untouched when omitted");
+  assert.equal(result.member.note, "VIP customer", "note must be trimmed");
+});
+
 test("compSubscription rejects an archived tier and a duplicate active subscription", async () => {
   const { deps } = makeDeps();
   const member = {
@@ -496,4 +572,29 @@ test("setSubscriptionStatus updates status, stamps canceledAt on cancel, and rej
       }),
     MemberValidationError
   );
+});
+
+test("setSubscriptionStatus: a non-'canceled' transition leaves canceledAt untouched and stores a provided externalRef", async () => {
+  const { deps } = makeDeps();
+  const subscription = {
+    id: "sub-2",
+    workspaceId: WORKSPACE_ID,
+    memberId: "member-5",
+    tierId: "tier-5",
+    status: "active" as const,
+    source: "billing" as const,
+    startedAt: "2026-01-01T00:00:00.000Z",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    version: 1,
+  };
+  await deps.subscriptions.save(subscription);
+
+  const result = await setSubscriptionStatus({
+    deps,
+    input: { workspaceId: WORKSPACE_ID, subscriptionId: "sub-2", status: "expired", externalRef: "ext-ref-1" },
+  });
+  assert.equal(result.subscription.status, "expired");
+  assert.equal(result.subscription.externalRef, "ext-ref-1");
+  assert.equal(result.subscription.canceledAt, undefined, "canceledAt must stay untouched for a non-'canceled' transition");
 });

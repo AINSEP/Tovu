@@ -94,6 +94,28 @@ function runMemberRepoContractSuite(adapterName: string, makeRepo: () => MemberR
     assert.equal(found?.status, "active");
     assert.equal(found?.version, 2);
   });
+
+  test(`[${adapterName}] MemberRepoPort: name/emailVerifiedAt/note/fields round-trip when present`, async () => {
+    const repo = makeRepo();
+    await repo.save({
+      id: "m-full",
+      workspaceId: "ws-1",
+      email: "full@example.com",
+      name: "Jane Doe",
+      emailVerifiedAt: NOW,
+      status: "active",
+      note: "VIP",
+      fields: { favoriteColor: "teal" },
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    });
+    const found = await repo.findById({ workspaceId: "ws-1", id: "m-full" });
+    assert.equal(found?.name, "Jane Doe");
+    assert.equal(found?.emailVerifiedAt, NOW);
+    assert.equal(found?.note, "VIP");
+    assert.deepEqual(found?.fields, { favoriteColor: "teal" });
+  });
 }
 
 function runMemberTierRepoContractSuite(adapterName: string, makeRepo: () => MemberTierRepoPort) {
@@ -179,6 +201,40 @@ function runMemberSubscriptionRepoContractSuite(adapterName: string, makeRepo: (
     const active = await repo.listActiveByMember({ workspaceId: "ws-1", memberId: "m-expired", nowIso: "2026-07-13T00:00:00.000Z" });
     assert.equal(active.length, 0);
   });
+
+  test(`[${adapterName}] MemberSubscriptionRepoPort: listActiveByMember includes a 'comped' subscription, and listByMember orders by startedAt descending when they differ`, async () => {
+    const repo = makeRepo();
+    await repo.save({
+      id: "s-comped",
+      workspaceId: "ws-1",
+      memberId: "m-ordered",
+      tierId: "t-comped",
+      status: "comped",
+      source: "comp",
+      startedAt: "2026-01-01T00:00:00.000Z",
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    });
+    await repo.save({
+      id: "s-later",
+      workspaceId: "ws-1",
+      memberId: "m-ordered",
+      tierId: "t-later",
+      status: "active",
+      source: "signup",
+      startedAt: "2026-06-01T00:00:00.000Z",
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    });
+
+    const active = await repo.listActiveByMember({ workspaceId: "ws-1", memberId: "m-ordered", nowIso: NOW });
+    assert.ok(active.some((s) => s.id === "s-comped"), "a 'comped' subscription counts as active");
+
+    const all = await repo.listByMember({ workspaceId: "ws-1", memberId: "m-ordered" });
+    assert.deepEqual(all.map((s) => s.id), ["s-later", "s-comped"], "most-recently-started subscription sorts first");
+  });
 }
 
 function runMemberSessionRepoContractSuite(adapterName: string, makeRepo: () => MemberSessionRepoPort) {
@@ -210,6 +266,25 @@ function runMemberSessionRepoContractSuite(adapterName: string, makeRepo: () => 
     assert.equal(revokedA?.revokedAt, NOW);
     assert.equal(revokedB?.revokedAt, NOW);
     assert.equal(untouched?.revokedAt, undefined);
+  });
+
+  test(`[${adapterName}] MemberSessionRepoPort: userAgent/ip/lastSeenAt round-trip when present`, async () => {
+    const repo = makeRepo();
+    await repo.save({
+      id: "sess-meta",
+      workspaceId: "ws-1",
+      memberId: "m-meta",
+      tokenHash: "hash-meta",
+      createdAt: NOW,
+      expiresAt: NOW,
+      lastSeenAt: NOW,
+      userAgent: "Mozilla/5.0",
+      ip: "203.0.113.9",
+    });
+    const found = await repo.findByTokenHash({ workspaceId: "ws-1", tokenHash: "hash-meta" });
+    assert.equal(found?.lastSeenAt, NOW);
+    assert.equal(found?.userAgent, "Mozilla/5.0");
+    assert.equal(found?.ip, "203.0.113.9");
   });
 }
 
@@ -301,6 +376,45 @@ function runMemberConsentRepoContractSuite(adapterName: string, makeRepo: () => 
     });
     assert.equal(result, "done");
     assert.notEqual(await repo.findByMemberAndPurpose({ workspaceId: "ws-1", memberId: "m-tx", purpose: "tx-purpose" }), null);
+  });
+
+  test(`[${adapterName}] MemberConsentRepoPort: grantedAt/revokedAt round-trip when present`, async () => {
+    const repo = makeRepo();
+    await repo.save({
+      id: "c-granted",
+      workspaceId: "ws-1",
+      memberId: "m-granted",
+      purpose: "newsletter:list-2",
+      status: "revoked",
+      evidence: { source: "form" },
+      grantedAt: "2026-06-01T00:00:00.000Z",
+      revokedAt: "2026-07-01T00:00:00.000Z",
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    });
+    const found = await repo.findByMemberAndPurpose({ workspaceId: "ws-1", memberId: "m-granted", purpose: "newsletter:list-2" });
+    assert.equal(found?.grantedAt, "2026-06-01T00:00:00.000Z");
+    assert.equal(found?.revokedAt, "2026-07-01T00:00:00.000Z");
+  });
+
+  test(`[${adapterName}] MemberConsentRepoPort: appendRevision round-trips a non-null beforeJson and a null afterJson`, async () => {
+    const repo = makeRepo();
+    await repo.appendRevision({
+      workspaceId: "ws-1",
+      memberId: "m-revoke-rev",
+      consentId: "c-revoke",
+      purpose: "marketing-email",
+      op: "consent_revoke",
+      beforeJson: { status: "granted" },
+      afterJson: null,
+      originModule: "unsubscribe",
+      createdAt: NOW,
+    });
+    const revisions = await repo.listRevisions({ workspaceId: "ws-1", memberId: "m-revoke-rev" });
+    assert.equal(revisions.length, 1);
+    assert.deepEqual(revisions[0].beforeJson, { status: "granted" });
+    assert.equal(revisions[0].afterJson, null);
   });
 }
 
