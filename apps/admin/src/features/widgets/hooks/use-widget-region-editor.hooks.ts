@@ -107,7 +107,7 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
       });
   }
 
-  useEffect(load, [regionKey]);
+  useEffect(load, [regionKey, port]);
 
   function removeAt(placementId: string) {
     setPlacements((prev) => prev.filter((p) => p.placementId !== placementId));

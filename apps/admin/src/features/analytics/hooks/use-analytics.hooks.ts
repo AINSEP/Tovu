@@ -50,7 +50,7 @@ export function useAnalytics(port: AnalyticsPort, t: (key: string) => string): A
       .then((r) => setHits(r.hits))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load recent hits"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [port]);
 
   return { hits, error, t };
 }

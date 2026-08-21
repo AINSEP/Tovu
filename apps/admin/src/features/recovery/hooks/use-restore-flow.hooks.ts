@@ -96,7 +96,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
       .computeRecoveryDisclosure(props.point.id)
       .then(setDisclosure)
       .catch((e) => setError(describeApiError(e, t(locale, "Failed to compute the discarded-write-window disclosure"))));
-  }, [props.point.id]);
+  }, [props.point.id, port]);
 
   async function startPlan() {
     setBusy(true);

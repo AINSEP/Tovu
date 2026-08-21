@@ -105,7 +105,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
         }
       })
       .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
-  }, [points]);
+  }, [points, port]);
 
   return { status, points, error, selected, setSelected, t: boundT, locale };
 }

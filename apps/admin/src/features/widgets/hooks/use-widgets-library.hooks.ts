@@ -99,7 +99,7 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
       .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widgets"))));
   }
 
-  useEffect(load, []);
+  useEffect(load, [port]);
 
   /** REQ-42/`ui.spec.md` §4.2: the first purge attempt is always `force: false` — only on a
    * `WidgetReferencedError` 409 (naming every referencing location) does a `force: true` retry
