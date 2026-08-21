@@ -2,6 +2,42 @@
 
 Generated 2026-08-21 · Branch `general-work` · Coordinator (Claude Opus 5)
 
+> **⚠️ CORRECTION — read this before using the FUNC column below.**
+> The `func` percentages in the area table are **not reliable as printed** and are systematically
+> **too low**. Cause found by the `cov-core-db` agent and independently verified: within a single
+> `SF:` block, the lcov reporter emits **duplicate `FN:` entries sharing one function name** and does
+> not merge them. `src/db/sqlite/content-db.ts` (verified: exactly one `SF:` block) contains
+> `FN:26,seedContentDb` / `FN:27,seedContentDb` / `FN:54,seedContentDb` with hits `62 / 0 / 0`. The
+> function is genuinely tested; a naive `FNH/FNF` ratio scores it 1-of-3. On top of that, esbuild's
+> `__export()` live-binding wrapper turns each named export into a pseudo-function, so `src/db/schema.ts`
+> contributes Drizzle table names and ~100 `anonymous_NNN` entries that are not application logic at all.
+>
+> Recomputed with per-name max-hits dedup **and** exclusion of bundler-noise names
+> (`anonymous_NNN`, dotted Drizzle-internal names, bare `get`, `__toESM`/`__toCommonJS`/`__copyProps`/`__export`):
+>
+> | area | func as printed | func deduped | noise names excluded |
+> |---|---:|---:|---:|
+> | `src/server` | 78.91 | **93.96** | 3270 |
+> | `src/features` | 64.80 | **76.44** | 1371 |
+> | `src/db` | 59.23 | **75.51** | 480 |
+> | `src/core` | 73.65 | **87.67** | 156 |
+> | `src/routing` | 72.50 | **79.41** | 13 |
+> | analytics+export+media | 71.63 | **67.25** | 131 |
+>
+> **The correction is not uniform** — AEM goes *down*, because its excluded noise names were mostly
+> *hit*, so removing them lowers the ratio. So neither figure is authoritative: raw over-counts noise,
+> deduped may merge two genuinely distinct functions that share an inferred name. **Treat any function
+> percentage from this tooling as a range, not a number, and never as a gate threshold.**
+>
+> **Line and branch coverage are unaffected by this artifact** and remain the trustworthy axes. Every
+> conclusion below that rests on line or branch coverage stands unchanged — including the headline
+> finding about the handoff, which holds on line coverage alone (89.16 measured vs 99.59 claimed).
+>
+> Second caveat, from the same agent: this snapshot ran 19:47–20:22 while agents were committing. Ten
+> commits landed *during* the run and one (`19e8cb82`) *after* it. Whether a given file's new tests were
+> picked up is non-deterministic. **Do not use this snapshot to judge whether tonight's work landed** —
+> that needs a fresh run started after 20:27.
+
 Source: a single full-repo `npm run test:cov` run (`TEST_CONCURRENCY=2`), started 19:47, finished
 20:22 local. lcov snapshot: 5.5 MB, 1823 `SF:` entries. This is the **combined** number — every
 suite in the repo loaded together — which is the only trustworthy basis for an area coverage claim.
@@ -19,8 +55,13 @@ handoff claim            99.59      87.73    98.61
 combined truth           89.16      86.30    73.49    (14 source files)
 ```
 
-**Function coverage is 73.49%, not 98.61% — a 25-point gap.** Branch is roughly as advertised;
-line and function are not.
+**Line coverage is 89.16%, not 99.59% — a 10-point gap.** Branch is roughly as advertised.
+
+The function figure printed above (73.49%) is subject to the `FN:`-duplication artifact described in
+the correction block at the top of this file; recomputed with dedup it is 67.25%, and neither number is
+exact. What is safe to say is that AEM function coverage sits somewhere in the **high 60s to low 70s**,
+nowhere near the claimed 98.61%. **The headline finding does not depend on the function axis at all** —
+the 10-point line-coverage gap is measured on the one axis the artifact cannot touch.
 
 Recomputing the same aggregate *including* test files as covered units gives 94.42 / 89.46 / 82.30 —
 still not the handoff's number, so "they counted test files" does not explain it either.
