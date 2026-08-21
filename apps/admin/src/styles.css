@@ -2132,6 +2132,57 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border-top: 1px solid var(--border); padding-top: var(--space-4);
 }
 
+/* `MediaPickerDialog.tsx`'s "Choose an image" modal — reuses `.widget-picker-footer` above for its
+   own Cancel row (see that component's own header comment on why), but `.media-picker-grid`/
+   `.media-picker-item` had ZERO CSS anywhere before this pass (confirmed via grep across
+   `apps/admin/src`), so each thumbnail `<img>` rendered at its raw native pixel size with nothing
+   constraining it, and the unbounded grid just pushed this dialog's own Cancel footer arbitrarily
+   far down the page — live-measured off-screen at y=3254 against a 1400px viewport. Escape still
+   closed the dialog, but the visible Cancel control was unreachable, which is the real defect.
+
+   `width` + `max-height` here follow `.widget-picker-dialog` directly above, not `.field-attrs-
+   dialog` (`styles/form-field-attrs.css`)'s two-class version: that file needed the extra
+   specificity because ITS import order relative to this stylesheet is unreliable (see its own
+   comment). A bare single-class selector declared here, AFTER `.settings-dialog`'s own rule, wins
+   on same-file source order alone — exactly how `.widget-picker-dialog` already works two rules up,
+   re-confirmed live via `getComputedStyle` for this rule too rather than assumed. `width`, not just
+   `max-width`: `.settings-dialog-backdrop`'s `place-items: center` sizes every dialog by
+   shrink-to-fit, so `max-width` alone only caps a box already wider than it, it does not establish
+   width on its own (`.widget-picker-dialog`'s own comment measured this the hard way; not
+   re-deriving it here). */
+.media-picker-dialog { width: 32rem; max-width: calc(100vw - 2rem); max-height: 85vh; }
+/* The one scrolling region between the fixed `<h2>` title above and the fixed `.widget-picker-footer`
+   Cancel row below — same `flex: 1 1 auto; min-height: 0` shape `.widget-picker-body` documents
+   above applies here too (a flex child's default `min-height: auto` refuses to shrink below its own
+   content's height, so without `min-height: 0` this would keep growing past `max-height` instead of
+   ever engaging its own `overflow-y: auto`). Cancel stays visible and clickable no matter how many
+   media items load — only the thumbnail grid scrolls, matching this component's own footer already
+   borrowing the widget-picker idiom rather than inventing a second one. */
+.media-picker-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.media-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7rem, 1fr));
+  gap: var(--space-3);
+}
+/* Overrides the global `button` rule's solid `--primary` background/padding (this file's own button
+   block, near the top) — a thumbnail tile reads as a card to click, not a call-to-action button. */
+.media-picker-item {
+  display: flex; flex-direction: column; gap: 0.3rem;
+  padding: 0.4rem; background: var(--surface-2); color: inherit;
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  text-align: left; font-family: inherit; font-size: inherit; font-weight: inherit;
+  cursor: pointer;
+}
+.media-picker-item:hover { border-color: var(--accent-text); }
+.media-picker-item img {
+  width: 100%; aspect-ratio: 1 / 1; object-fit: cover;
+  border-radius: var(--r-sm); display: block;
+}
+.media-picker-item-title {
+  font-size: var(--text-xs); color: var(--fg-2);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 /* Collections / Categories & Tags / Storage / Recovery (design-spec.md) — additive status-pill
  * and layout classes following the exact naming/token conventions already established above.
  * Not in this dispatch's literal touch-scope list, but "match the existing design system" is a
