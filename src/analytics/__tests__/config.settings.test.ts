@@ -170,6 +170,34 @@ test("createSettingsAnalyticsConfig().get() degrades a non-array stored excluded
   assert.deepEqual(result.excludedIpRanges, []);
 });
 
+test("createSettingsAnalyticsConfig().get() degrades a null stored excludedPaths/excludedIpRanges value to an empty array via the ?? fallback", async () => {
+  const settingsRepo = new InMemorySettingsRepo();
+  await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  // Distinct from the "not-an-array" test above: a JSON `null` stored value hits the `?? []`
+  // nullish-coalesce directly, before toStringArray's own `!Array.isArray` guard ever runs.
+  await plantRawWorkspaceValue(settingsRepo, "excludedPaths", null);
+  await plantRawWorkspaceValue(settingsRepo, "excludedIpRanges", null);
+  const config = createSettingsAnalyticsConfig({ settingsRepo });
+
+  const result = await config.get({ workspaceId: WORKSPACE_ID });
+
+  assert.deepEqual(result.excludedPaths, []);
+  assert.deepEqual(result.excludedIpRanges, []);
+});
+
+test("createSettingsAnalyticsConfig().get() resolves honorGlobalPrivacyControl to false from an explicit stored override", async () => {
+  const settingsRepo = new InMemorySettingsRepo();
+  await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
+  await plantRawWorkspaceValue(settingsRepo, "honorGlobalPrivacyControl", false);
+  const config = createSettingsAnalyticsConfig({ settingsRepo });
+
+  const result = await config.get({ workspaceId: WORKSPACE_ID });
+
+  assert.equal(result.honorGlobalPrivacyControl, false);
+  // Untouched keys are unaffected — this is a per-key override, not a namespace-wide flip.
+  assert.equal(result.honorDoNotTrack, true);
+});
+
 test("createSettingsAnalyticsConfig().get() falls back to the default rawRetentionDays when the stored value is not a number", async () => {
   const settingsRepo = new InMemorySettingsRepo();
   await ensureAnalyticsSettingDefinitions(makeRegistrarDeps(settingsRepo), { systemPrincipalId: SYSTEM_PRINCIPAL_ID });
