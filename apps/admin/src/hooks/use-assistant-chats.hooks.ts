@@ -547,7 +547,9 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
         // conversation while its title says otherwise is the worse of the two failures.
         .catch(() => commit([]));
     },
-    [resetAdoption],
+    // `commitActiveId` added: it's a `useCallback([], ...)`-wrapped setter (see its own
+    // declaration above), stable for the component's lifetime — no-op addition, not a suppression.
+    [resetAdoption, commitActiveId],
   );
 
   const create = useCallback(async () => {
@@ -579,7 +581,8 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
     setPaneKey(conversation.id);
     writtenRef.current.set(conversation.id, new Set());
     resetAdoption();
-  }, [markListMutated, resetAdoption]);
+    // `commitActiveId` added: stable `useCallback([], ...)` wrapper, see `select`'s identical note.
+  }, [markListMutated, resetAdoption, commitActiveId]);
 
   const remove = useCallback(
     async (id: string) => {
@@ -634,7 +637,9 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
        */
       select(next);
     },
-    [refresh, resetAdoption, select],
+    // `commitActiveId` added (used a few lines above, in the "nothing left to land on" branch):
+    // stable `useCallback([], ...)` wrapper, see `select`'s identical note.
+    [refresh, resetAdoption, select, commitActiveId],
   );
 
   const rename = useCallback(
@@ -785,7 +790,9 @@ export function useAssistantChats(port: AssistantChatsPort): UseAssistantChats {
         flush(id, messages);
       });
     },
-    [flush, markListMutated],
+    // `commitActiveId` added (used in the lazy-adoption branch above): stable `useCallback([], ...)`
+    // wrapper, see `select`'s identical note.
+    [flush, markListMutated, commitActiveId],
   );
 
   return {

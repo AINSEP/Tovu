@@ -273,7 +273,10 @@ export function useExecutionConfig(): UseExecutionConfig {
         });
       return next;
     });
-  }, []);
+    // `setExecutionConfig` added: it's a `useCallback([], ...)`-wrapped setter (itself stable for
+    // the component's lifetime, see its own declaration above), so listing it is a no-op that only
+    // satisfies the linter — Part 2 triage fix, not a suppression.
+  }, [setExecutionConfig]);
 
   return {
     executionConfig,
