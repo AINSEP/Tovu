@@ -112,6 +112,7 @@ export function useWidgetInstanceEditor(
   // before the new run starts — guarded on every completion path (`then`/`catch`/`finally`), not
   // just the success path, since an unguarded `finally` clearing `loading` is the one most likely to
   // leave stale data on screen with no spinner to flag it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: stale-response guard keyed on widgetId/widgetType/isNew — see comment above.
   useEffect(() => {
     let cancelled = false;
     // A freshly-loading entity, by definition, has no save of its OWN in flight yet — clears
@@ -148,7 +149,6 @@ export function useWidgetInstanceEditor(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.widgetId, props.widgetType, isNew]);
 
   // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`

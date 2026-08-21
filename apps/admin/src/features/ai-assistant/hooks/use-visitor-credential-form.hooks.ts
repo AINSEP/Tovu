@@ -341,6 +341,7 @@ export function useVisitorCredentialForm({
    * Runs off `stored?.isSet` rather than the mount, so it fires once hydration has confirmed a key
    * exists — and only when the field is empty, so it can never race or duplicate the typed path.
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on stored flag + endpoint only — see doc comment above; `config` as a whole would re-run on every model/max-tokens edit.
   useEffect(() => {
     if (!stored?.isSet || apiKey.trim()) return;
     let cancelled = false;
@@ -363,9 +364,6 @@ export function useVisitorCredentialForm({
     return () => {
       cancelled = true;
     };
-    // Keyed on the stored flag and the endpoint only. `config` as a whole would re-run this on every
-    // model or max-tokens edit, none of which can change which models the stored key allows.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stored?.isSet, baseUrl, protocol]);
 
   // Nothing on this screen writes a credential except this function, called from the Save button.
@@ -397,6 +395,7 @@ export function useVisitorCredentialForm({
    * key for the first time and the only useful moment to look up its models is right after they
    * finish typing it. The debounce is what makes keying on the key affordable.
    */
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on the credential itself (key+endpoint); `config` intentionally excluded so editing model/max-tokens doesn't re-trigger discovery.
   useEffect(() => {
     // Two conditions, and the second is the security gate above — NOT an optimization. Removing it
     // reintroduces the prefix-walk credential leak; read that comment before touching this line.
@@ -434,10 +433,6 @@ export function useVisitorCredentialForm({
       cancelled = true;
       clearTimeout(timer);
     };
-    // `config` is intentionally not a dependency — only the credential fields above should re-trigger
-    // a provider call. Including it would fire discovery when the operator edits the model or
-    // max-tokens field, which cannot change the answer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, baseUrl, protocol, presetSuppliedEndpoint]);
 
   // The explicit "Test Key" / "Test connection" presses — see `runVisitorKeyTest` and

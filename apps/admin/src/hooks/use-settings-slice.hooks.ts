@@ -277,6 +277,9 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     };
   }, []);
 
+  // `defaultValue` is a module-level constant at every call site; re-running
+  // this on a new identity would re-issue the load and clobber live edits.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `defaultValue` is a module-level constant; re-running on a new identity would re-issue the load and clobber live edits.
   useEffect(() => {
     let alive = true;
     io.current
@@ -306,9 +309,6 @@ export function useSettingsSlice<T>(options: SettingsSliceOptions<T>): SettingsS
     return () => {
       alive = false;
     };
-    // `defaultValue` is a module-level constant at every call site; re-running
-    // this on a new identity would re-issue the load and clobber live edits.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**

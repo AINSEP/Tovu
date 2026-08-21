@@ -121,6 +121,7 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
   // the STATUS IT JUST FETCHED, not from the outer `isRunning` closure, which is correctly stale
   // inside a single effect run. A fetch failure retries on the same schedule rather than silently
   // giving up — a transient network hiccup must not strand the UI on "Exporting…" forever.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-armed only when `isRunning` flips true; `run`/`port` deliberately excluded — see comment above.
   useEffect(() => {
     if (!isRunning) return undefined;
     let cancelled = false;
@@ -156,8 +157,6 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately re-armed only by
-    // `isRunning` flipping true; see the comment above for why `run`/`port` are excluded.
   }, [isRunning]);
 
   async function trigger() {

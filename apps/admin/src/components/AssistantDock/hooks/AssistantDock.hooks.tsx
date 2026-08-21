@@ -337,6 +337,9 @@ export function useByokRuntime(
   const [byokModels, setByokModels] = useState<readonly { id: string; label: string }[]>([]);
   const { apiKey: byokApiKey, baseUrl: byokBaseUrl, protocol: byokProtocol } = executionConfig.byok;
 
+  // Keyed on the credential and endpoint only — editing `model` must not re-ask the provider
+  // which models exist, and would loop against the write-back below if it did.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed on credential/endpoint only; listing `model` would loop against the write-back below.
   useEffect(() => {
     if (executionConfig.mode !== "byok" || !byokApiKey.trim()) {
       setByokModels([]);
@@ -356,9 +359,6 @@ export function useByokRuntime(
     return () => {
       cancelled = true;
     };
-    // Keyed on the credential and endpoint only — editing `model` must not re-ask the provider
-    // which models exist, and would loop against the write-back below if it did.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [executionConfig.mode, byokApiKey, byokBaseUrl, byokProtocol]);
 
   /**

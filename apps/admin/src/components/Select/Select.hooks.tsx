@@ -138,6 +138,7 @@ function usePanelPosition({
   // this component's own tests: every keyboard-driven test failed until this was split out, because
   // `panelRef.current`/`searchInputRef.current` were both still `null` when focus was attempted in
   // the same pass that first computed the position.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: two-phase focus effect — see comment above; refs/showSearch intentionally excluded, only open/position redrive it.
   useLayoutEffect(() => {
     if (!open) return;
     if (!position) {
@@ -149,7 +150,6 @@ function usePanelPosition({
     } else {
       panelRef.current?.focus();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, position]);
 
   // Keeps the panel anchored to the trigger if the surrounding page/dialog scrolls or resizes while
@@ -163,6 +163,7 @@ function usePanelPosition({
   // this effect happily recomputing a mathematically-correct `position` for it — the panel just
   // ended up following the trigger to an off-screen (or behind-the-header, obscured) spot, floating
   // there indefinitely, nominally still "open" with no visible way to tell.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll/resize listener wiring — see comment above; triggerRef/onOutOfView intentionally excluded, only `open` re-arms it.
   useEffect(() => {
     if (!open) return;
     function reposition() {
@@ -176,7 +177,6 @@ function usePanelPosition({
       window.removeEventListener("scroll", reposition, true);
       window.removeEventListener("resize", reposition);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   return { position, setPosition };

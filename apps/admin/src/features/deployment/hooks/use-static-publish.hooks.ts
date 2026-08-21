@@ -254,6 +254,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   // Self-scheduling poll loop, re-armed only when `isPublishing` flips true — identical shape and
   // identical reasoning to `use-static-export.hooks.ts`'s own poll effect; see that file's comment
   // for why `run`/`port` are deliberately excluded from the dependency list.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-armed only when `isPublishing` flips true; `run`/`port` deliberately excluded — see comment above.
   useEffect(() => {
     if (!isPublishing) return undefined;
     let cancelled = false;
@@ -289,8 +290,6 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       cancelled = true;
       clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- see use-static-export.hooks.ts's
-    // identical poll effect for why only `isPublishing` belongs here.
   }, [isPublishing]);
 
   async function publish() {

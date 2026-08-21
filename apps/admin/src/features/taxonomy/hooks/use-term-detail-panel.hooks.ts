@@ -55,13 +55,13 @@ export function useTermDetailPanel(
     invalidates: [KEYS.list],
   });
 
+  // `renameMutation` intentionally excluded — same deps as the pre-migration effect
+  // ([term.id, term.name]); including the mutation object would re-run this on every status change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `renameMutation` intentionally excluded — including it would re-run this on every status change.
   useEffect(() => {
     setNewName(term.name);
     setMessage(null);
     renameMutation.reset();
-    // `renameMutation` intentionally excluded — same deps as the pre-migration effect
-    // ([term.id, term.name]); including the mutation object would re-run this on every status change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term.id, term.name]);
 
   async function rename(e: React.FormEvent) {

@@ -329,6 +329,10 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
     return dragged;
   }, []);
 
+  // `renderTick`/`isDragging` are read only to force recomputation while dragging (their values
+  // are not otherwise used in the body — the live position comes from `liveRef`/`draggingRef`
+  // directly, per the staleness note above) — expected extra deps, not a lint miss.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: renderTick/isDragging force recompute while dragging; not otherwise used in the body.
   const style = useMemo(() => {
     const live = liveRef.current;
     if (draggingRef.current && live) {
@@ -392,10 +396,6 @@ export function useFabPosition(options: { dockOpen: boolean; avoidBottomPx: numb
       Math.max(FAB_EDGE_MARGIN, window.innerWidth - FAB_EDGE_MARGIN - FAB_SIZE_PX),
     );
     return { right: effectiveRight, bottom: effectiveBottom };
-    // `renderTick`/`isDragging` are read only to force recomputation while dragging (their values
-    // are not otherwise used in the body — the live position comes from `liveRef`/`draggingRef`
-    // directly, per the staleness note above) — expected extra deps, not a lint miss.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persisted, dockOpen, avoidBottomPx, avoidRightPx, renderTick, isDragging]);
 
   return { style, onPointerDown, consumeDragFlag, isDragging };
