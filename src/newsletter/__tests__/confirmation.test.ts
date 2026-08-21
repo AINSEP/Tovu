@@ -169,6 +169,54 @@ test("consumeConfirmationToken: an unknown token is rejected as not_found", asyn
   });
 });
 
+test("consumeConfirmationToken: an unbound consentCapability is a hard error (ADR-PIPE-011 — never stub to succeed)", async () => {
+  const { deps } = makeDeps(null); // no consentCapability
+  const rawToken = await issueRawToken(deps);
+  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), {
+    message: "MembersConsentCapability is unbound — Newsletter cannot confirm consent until Members ships a real binding (ADR-PIPE-011)",
+  });
+});
+
+test("consumeConfirmationToken: a non-'granted' confirm result (denied) is rejected, token still marked consumed", async () => {
+  const deniedCapability: MembersConsentCapability = {
+    request: async () => ({ requested: true }),
+    confirm: async () => ({ status: "denied", consentRevisionId: "rev-x" }),
+    revoke: async () => ({ status: "revoked" }),
+  };
+  const { deps } = makeDeps(deniedCapability);
+  const rawToken = await issueRawToken(deps);
+  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), (err: unknown) => {
+    assert.ok(err instanceof NewsletterConfirmTokenInvalidError);
+    assert.equal(err.message, "consent was not granted (status: denied)");
+    assert.equal(err.reason, "expired");
+    return true;
+  });
+  // Single-use regardless of outcome -- a second attempt with the SAME token is now "already_consumed".
+  await assert.rejects(consumeConfirmationToken({ deps, input: { workspaceId: WS, rawToken } }), (err: unknown) => {
+    assert.ok(err instanceof NewsletterConfirmTokenInvalidError);
+    assert.equal(err.reason, "already_consumed");
+    return true;
+  });
+});
+
+test("issueConfirmationToken: a non-default port on the verified origin is included in the confirm URL", async () => {
+  const { deps } = makeDeps(null);
+  deps.originRegistry = {
+    canonicalOrigin: async () => ({ scheme: "https" as const, host: "acme.test", port: 8443, verifiedAt: "2026-07-13T00:00:00.000Z", source: "workspace-setting" as const }),
+    isAllowedRedirectTarget: async () => true,
+    isAllowedEgressTarget: async () => true,
+  };
+  let capturedHtml = "";
+  const originalSend = deps.mailer.send.bind(deps.mailer);
+  deps.mailer.send = (async (message: { html?: string }, opts: unknown) => {
+    capturedHtml = message.html ?? "";
+    return originalSend(message as never, opts as never);
+  }) as typeof deps.mailer.send;
+
+  await issueConfirmationToken({ deps, input: { workspaceId: WS, subscriptionId: "sub-1", recipientEmail: "a@a.test" } });
+  assert.ok(capturedHtml.includes("https://acme.test:8443/newsletter/confirm?token="), `expected a port-qualified URL, got: ${capturedHtml}`);
+});
+
 /** Test helper: issue a token and recover its RAW value by intercepting the mailer send. */
 async function issueRawToken(deps: ConfirmationDeps): Promise<string> {
   let captured = "";

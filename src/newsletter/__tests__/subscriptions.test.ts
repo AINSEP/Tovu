@@ -65,6 +65,16 @@ test("saveSubscription: resolves subscriberId via SubscriberDirectoryPort, creat
   assert.equal(subscription.subscriberId, "subscriber-1");
 });
 
+test("saveSubscription: a repeat call for the same subscriber+list reuses the EXISTING row (same id), never creates a duplicate", async () => {
+  const deps = makeDeps();
+  const first = await saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "admin" } });
+  const second = await saveSubscription({ deps, input: { workspaceId: WS, listId: "list-1", subscriberId: "subscriber-1", source: "signup_form" } });
+  assert.equal(second.subscription.id, first.subscription.id);
+
+  const all = await deps.subscriptionRepo.list({ workspaceId: WS, listId: "list-1", limit: 10 });
+  assert.equal(all.length, 1, "no duplicate row for a repeat saveSubscription call");
+});
+
 test("saveSubscription: unknown subscriberId rejected with NEWSLETTER_SUBSCRIBER_NOT_FOUND (AC-13)", async () => {
   const deps = makeDeps();
   await assert.rejects(
