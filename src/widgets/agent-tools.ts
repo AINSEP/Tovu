@@ -77,7 +77,7 @@ export interface AgentToolDefinition {
   inputSchema?: Readonly<Record<string, unknown>>;
 }
 
-const WIDGET_TYPE_KEYS = WIDGET_TYPE_REGISTRATIONS.map((registration) => registration.typeKey);
+const WIDGET_TYPE_KEYS = Object.values(WIDGET_TYPE_REGISTRATIONS).map((registration) => registration.typeKey);
 
 const WIDGET_INSTANCE_ID_SCHEMA = {
   type: "string",

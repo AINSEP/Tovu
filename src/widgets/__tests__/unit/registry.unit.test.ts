@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration } from "../../registry.js";
+import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration, findWidgetTypeRegistration } from "../../registry.js";
 
 /**
  * @file C-002 the v1 widget-type registry — SPEC-043 REQ-07/08/09/10.
@@ -12,7 +12,7 @@ import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration } from "../../regi
  */
 
 test("REQ-09: registers exactly the five v1 widget types", () => {
-  const keys = WIDGET_TYPE_REGISTRATIONS.map((r) => r.typeKey).sort();
+  const keys = Object.values(WIDGET_TYPE_REGISTRATIONS).map((r) => r.typeKey).sort();
   assert.deepEqual(keys, ["contact-form", "menu", "recent-entries", "social-links", "text"]);
 });
 
@@ -26,7 +26,7 @@ test("REQ-10: static-capability types (text, social-links) declare no resolverId
 });
 
 test("REQ-08: every dynamic (non-static) type's resolverId is a plain string, never a function or module reference", () => {
-  const dynamic = WIDGET_TYPE_REGISTRATIONS.filter((r) => r.capability !== "static");
+  const dynamic = Object.values(WIDGET_TYPE_REGISTRATIONS).filter((r) => r.capability !== "static");
   assert.ok(dynamic.length > 0, "expected at least one dynamic type");
   for (const registration of dynamic) {
     assert.equal(typeof registration.resolverId, "string");
@@ -39,15 +39,18 @@ test("REQ-25: recent-entries declares a maxItems clamp at the registration level
   assert.equal(recentEntries?.clamps.maxItems, 20);
 });
 
-test("REQ-03: getWidgetTypeRegistration returns undefined for an unregistered type key", () => {
-  // @ts-expect-error — deliberately passing an unregistered key to prove the runtime behavior,
-  // not just the type system, rejects it.
-  const result = getWidgetTypeRegistration("carousel");
+test("REQ-03: findWidgetTypeRegistration returns undefined for an unregistered type key", () => {
+  // No `@ts-expect-error` needed here (unlike the old `getWidgetTypeRegistration`-targeted version
+  // of this test): `findWidgetTypeRegistration` takes a plain `string`, precisely because it exists
+  // for callers holding a value that is only ASSERTED to be a `WidgetTypeKey` (an HTTP body field,
+  // decoded stored JSON), not one the type system has actually narrowed. Same assertion, same
+  // reason, now pointed at the accessor that's honestly partial.
+  const result = findWidgetTypeRegistration("carousel");
   assert.equal(result, undefined);
 });
 
 test("Amendment 3: registration data contains zero executable behavior — every configSchema is JSON-serializable", () => {
-  for (const registration of WIDGET_TYPE_REGISTRATIONS) {
+  for (const registration of Object.values(WIDGET_TYPE_REGISTRATIONS)) {
     // A registration record must survive a JSON round-trip unchanged in shape — proof it carries
     // no function, closure, or non-serializable value anywhere in its declared schema.
     const roundTripped = JSON.parse(JSON.stringify(registration.configSchema));

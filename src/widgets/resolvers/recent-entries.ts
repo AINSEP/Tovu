@@ -34,14 +34,15 @@ export interface RecentEntriesResolverDeps {
 export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): WidgetResolver {
   return {
     async resolveMany(instances, context) {
-      const registration = getWidgetTypeRegistration("recent-entries");
-      // `?.`/`?? 20` are type-required, not dead defensive code: `getWidgetTypeRegistration` returns
-      // `WidgetTypeRegistration | undefined` (registry.ts), so `tsc` rejects a direct `.clamps` read
-      // even though this specific call, against the closed `WidgetTypeKey` union and the fixed
-      // 5-entry `WIDGET_TYPE_REGISTRATIONS` array (no dynamic add/remove path exists), can never
-      // actually see `undefined` at runtime. Confirmed zero-hit in coverage (BRDA) for exactly this
-      // reason — do not delete on that basis alone; the guard is load-bearing for the wider type.
-      const registryMax = registration?.clamps.maxItems ?? 20;
+      // `"recent-entries"` is a literal, so `getWidgetTypeRegistration` (registry.ts) is total here
+      // — the `registration?.` this line used to need is gone, since the lookup itself can no
+      // longer be `undefined`. `?? 20` remains: `WidgetTypeRegistration.clamps.maxItems` is
+      // `number | undefined` on the SHARED interface (four of the five registered types genuinely
+      // have no maxItems clamp), so this fallback is real for the type as declared even though
+      // `RECENT_ENTRIES_REGISTRATION`'s own literal data always sets it to 20. A different,
+      // narrower instance of the same "type wider than the one call site's reality" shape — out of
+      // this change's scope; flagged separately rather than silently left or silently redesigned.
+      const registryMax = getWidgetTypeRegistration("recent-entries").clamps.maxItems ?? 20;
 
       // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
       // primitive, so a single `listByWorkspace` call (scoped to `status: 'published'`, across

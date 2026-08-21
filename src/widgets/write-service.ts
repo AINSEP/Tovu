@@ -59,7 +59,7 @@ import {
   WidgetTypeUnregisteredError,
   WidgetVersionConflictError,
 } from "./errors.js";
-import { getWidgetTypeRegistration } from "./registry.js";
+import { findWidgetTypeRegistration } from "./registry.js";
 import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types.js";
 import type { WidgetInstanceEntry, WidgetTypeKey } from "./types.js";
 
@@ -145,7 +145,11 @@ export async function createWidgetInstance(required: CreateWidgetInstanceRequire
     permission: "widgets.create",
   });
 
-  const registration = getWidgetTypeRegistration(input.widgetType);
+  // `input.widgetType` is typed `WidgetTypeKey` but only ASSERTED to be one — HTTP routes
+  // (`server/routes/admin/widgets/create.ts`/`agent-tools.ts`) cast an unvalidated request-body
+  // string to it. `findWidgetTypeRegistration` is the correct accessor here: `undefined` is
+  // genuinely reachable, and this check is what catches an unregistered type at this boundary.
+  const registration = findWidgetTypeRegistration(input.widgetType);
   if (!registration) {
     throw new WidgetTypeUnregisteredError(`widget type '${input.widgetType}' is not registered (REQ-03)`, input.widgetType);
   }
@@ -213,7 +217,10 @@ export async function updateWidgetInstance(required: UpdateWidgetInstanceRequire
     }
 
     const currentPayload = parseWidgetInstancePayload(current.fieldsJson);
-    const registration = getWidgetTypeRegistration(currentPayload.widgetType);
+    // `currentPayload.widgetType` is typed `WidgetTypeKey` but only ASSERTED to be one —
+    // `parseWidgetInstancePayload` casts decoded, stored JSON (`entry-payload.ts`), so
+    // `findWidgetTypeRegistration` is the correct, honestly-partial accessor here too.
+    const registration = findWidgetTypeRegistration(currentPayload.widgetType);
     if (!registration) {
       throw new WidgetTypeUnregisteredError(`widget type '${currentPayload.widgetType}' is not registered`, currentPayload.widgetType);
     }
