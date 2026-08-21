@@ -171,6 +171,44 @@ test("execute_delegated_tool refuses an input that is neither an object nor JSON
   assert.match(array.content, /an array/);
 });
 
+test("execute_delegated_tool treats an empty-string input the same as omitted — no input, not a parse error", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: "" }));
+  assert.doesNotMatch(result.content, /must be a JSON object/, "an empty string must resolve to 'no input', not be refused as unparseable");
+});
+
+test("execute_delegated_tool refuses a non-object, non-array, non-string input (e.g. a bare number), naming the actual type", async () => {
+  const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: 42 }));
+  assert.equal(result.isError, true);
+  assert.match(result.content, /not number\./);
+});
+
+// Every Tovu tool registration's OWN handler is the sole authorization evaluator — the
+// ToolRegistration's `ToolPolicy` (what `ToolExecutor`'s own internal `authorize()` step consults)
+// is always a pass-through 'allow' (see mcp-federation.registrations.test.ts's identical finding
+// for federated tools; the same is true of every first-party domain's registrations). So a denied
+// `deps.authorize()` never produces `ToolExecutor`'s own `status: 'denied'` here — the handler
+// throws `ForbiddenError` itself, mid-execution, which `ToolExecutor` catches the same way it
+// catches any other handler exception: `status: 'failed'`, carrying the thrown message verbatim.
+// This closes `mapToolExecutionResult`'s `case "failed"` for real (previously untested) — it does
+// NOT and cannot close `case "denied"` through this call path; see this file's own test-certification
+// notes / the coverage report for that one.
+test("execute_delegated_tool maps a real tool's own thrown ForbiddenError (from ITS internal authorize check, not ToolPolicy) to a readable 'failed' error, not an uncaught throw", async () => {
+  const deniedDeps = { ...fakeRouteDeps(), authorize: async () => ({ allowed: false, reason: "no grant" }) };
+  const s = createByokToolSurface(deniedDeps);
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: {} }));
+  assert.equal(result.isError, true);
+  assert.match(result.content, /not authorized/);
+});
+
+test("execute_delegated_tool maps an already-aborted signal to a readable 'cancelled' error", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  const s = surface();
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "workspace_get", input: {} }), controller.signal);
+  assert.equal(result.isError, true);
+  assert.match(result.content, /was cancelled/);
+});
+
 test("a model that calls a REAL tool id as the tool NAME is told how to reach it, not just that it failed", async () => {
   // The most likely model mistake by far: it saw `workspace_get` in a search hit and called it
   // directly, because the meta-set is the only thing it was actually offered.
