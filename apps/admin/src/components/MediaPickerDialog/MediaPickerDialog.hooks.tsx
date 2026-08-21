@@ -12,11 +12,13 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  * `useMediaPickerDialog` takes `onSelect`/`onCancel` as two positional callbacks rather than the
  * whole `MediaPickerDialogProps` object — mirrors `useConfirmDialog`'s primitives-in shape there,
  * and avoids a type-only import cycle back into `MediaPickerDialog.tsx` for the `useDialog` prop's
- * own type (`typeof useWiredMediaPickerDialog`). The Escape listener's effect still runs once at
- * mount (`[]`, `eslint-disable` intact below) and closes over whichever `onCancel` was passed at
- * that render — unchanged from the pre-split behavior, where the same effect closed over
- * `props.onCancel` captured at mount; making that a live dependency would be a behavior change,
- * out of scope here.
+ * own type (`typeof useWiredMediaPickerDialog`). The Escape listener's effect now lists `onCancel`
+ * as a dependency (2026-08-21 lint pass) and rebinds whenever its identity changes — every real
+ * caller passes a fresh arrow per render, so the listener is torn down and re-added on those
+ * renders; the `document.removeEventListener`/`addEventListener` pair in the same synchronous
+ * effect run keeps that rebind unobservable (no double-fire, no dropped Escape). This closes the
+ * stale-closure gap the old mount-once `[]` had — a caller could previously escape-cancel into a
+ * `onCancel` captured from an earlier render.
  *
  * `port` is injected (see `media-picker-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
  * directly, so a test can describe "these items are available" against `createFakeMediaPickerPort`
@@ -91,7 +93,7 @@ export function useMediaPickerDialog(
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onCancel]);
 
   return { items, error, select: onSelect, mediaOriginalUrl: deps.port.mediaOriginalUrl };
 }
