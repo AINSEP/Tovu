@@ -121,6 +121,14 @@ const LIMITS = {
   maxTotalExtractedBytes: 64 * 1024 * 1024,
 } as const;
 
+/** Exposes `LIMITS.maxArchiveBytes` for a caller outside this module — concretely, a test asserting
+ * `fetch-archive.ts`'s own mirrored cap constant stays pinned to this one. See that module's header
+ * for why it duplicates the number instead of importing it (no runtime dependency on `install.ts`);
+ * this accessor is what lets a test assert the pairing without either module importing the other. */
+export function maxAgentPluginInstallArchiveBytes(): number {
+  return LIMITS.maxArchiveBytes;
+}
+
 const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/;
 
 export interface InstalledAgentPluginSkill {
