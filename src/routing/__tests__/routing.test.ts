@@ -12,6 +12,7 @@ import {
   registerSlugChangeCapture,
   resetRoutingRegistrationsForTests,
   resolve,
+  RouteResolutionError,
   urlFor,
 } from "../routing.js";
 
@@ -161,6 +162,25 @@ test("registerNamedRoute adds a new resolvable named route", async () => {
   assert.deepEqual(result, { path: "/archive", canonicalUrl: "/archive" });
 });
 
+/** The `switch (target.kind)` exhaustiveness guard: unreachable through the typed `RouteTarget`
+ *  union (that's what `const unreachable: never = target` proves at compile time), but a caller
+ *  who bypasses the type system -- a malformed request body, a stale client, a future target kind
+ *  this library doesn't know about yet -- can still reach it at runtime. The cast is deliberate:
+ *  this is the one target this test exists to construct. */
+test("urlFor throws RouteResolutionError for a target kind outside the known union", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const bogusTarget = { kind: "bogus" } as unknown as RouteTarget;
+
+  await assert.rejects(
+    () => urlFor({ deps: { postRepo: repo }, target: bogusTarget, ctx }),
+    (err: unknown) => {
+      assert.ok(err instanceof RouteResolutionError);
+      assert.equal(err.message, `unrecognized route target kind: ${JSON.stringify(bogusTarget)}`);
+      return true;
+    }
+  );
+});
+
 // ---------------------------------------------------------------------------
 // isActive
 // ---------------------------------------------------------------------------
@@ -304,6 +324,23 @@ test("resolve normalizes the request path before running phase handlers", async 
   });
 
   await resolve({ input: { path: "/some/path/?x=1", ctx } });
+
+  assert.equal(seenPath, "/some/path");
+});
+
+test("resolve prepends a leading slash to a request path that arrives without one", async () => {
+  resetRoutingRegistrationsForTests();
+  let seenPath: string | null = null;
+
+  registerResolvePhase("post_content", async (path) => {
+    seenPath = path;
+    return null;
+  });
+
+  // Real HTTP frameworks always hand `path` a leading slash, but this library's own contract
+  // (`normalizePath`) doesn't assume its caller does -- a directly-constructed `ResolveInput`,
+  // like a redirect rule replaying a stored path, is not guaranteed to.
+  await resolve({ input: { path: "some/path", ctx } });
 
   assert.equal(seenPath, "/some/path");
 });
