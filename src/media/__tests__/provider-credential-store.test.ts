@@ -184,6 +184,81 @@ test("a non-string or oversized field is rejected", async () => {
   );
 });
 
+test("providers itself must be an object: null and an array are both rejected, never treated as an empty map", async () => {
+  const { deps } = makeDeps();
+
+  await assert.rejects(
+    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: null as unknown as Record<string, never> }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialValidationError);
+      assert.equal((err as Error).message, "providers must be an object keyed by provider id");
+      return true;
+    }
+  );
+  await assert.rejects(
+    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: [] as unknown as Record<string, never> }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialValidationError);
+      assert.equal((err as Error).message, "providers must be an object keyed by provider id");
+      return true;
+    }
+  );
+});
+
+test("a provider entry that is null or an array is rejected as not-an-object, distinct from an unknown-field entry", async () => {
+  const { deps } = makeDeps();
+
+  await assert.rejects(
+    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: null as unknown as object } }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialValidationError);
+      assert.equal((err as Error).message, 'provider "openai" must be an object');
+      return true;
+    }
+  );
+  await assert.rejects(
+    saveMediaProviderCredentials(deps, { workspaceId: WORKSPACE, providers: { openai: [] as unknown as object } }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialValidationError);
+      assert.equal((err as Error).message, 'provider "openai" must be an object');
+      return true;
+    }
+  );
+});
+
+/** A `KeyringPort` that rejects with a non-`Error` value — `sealNewProviderKeys`'s catch block has a
+ *  ternary (`err instanceof Error ? err.message : String(err)`) whose `String(err)` half only a
+ *  non-Error rejection reaches; `BrokenKeyring` above always throws a real `Error`. */
+class NonErrorThrowingKeyring implements KeyringPort {
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    // eslint-disable-next-line @typescript-eslint/only-throw-error -- deliberately non-Error, see class doc
+    throw "boom: no key material available";
+  }
+  async deriveSigningSecret(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+  async derive(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+}
+
+test("a non-Error rejection from the keyring is still stringified into the secret-store-unconfigured message", async () => {
+  const { deps } = makeDeps();
+  const broken = { ...deps, keyring: new NonErrorThrowingKeyring() };
+
+  await assert.rejects(
+    saveMediaProviderCredentials(broken, { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-x-1234" } } }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
+      assert.equal(
+        (err as Error).message,
+        "media provider credential secret store is unconfigured: boom: no key material available"
+      );
+      return true;
+    }
+  );
+});
+
 test("a missing master secret fails closed WITHOUT writing or deleting anything", async () => {
   const { repo, deps } = makeDeps();
   await saveMediaProviderCredentials(deps, {
