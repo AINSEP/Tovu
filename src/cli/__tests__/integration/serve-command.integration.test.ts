@@ -5,9 +5,11 @@ import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import Database from "better-sqlite3";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
 
@@ -56,6 +58,11 @@ function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-serve-"));
 }
 
+/** See `export-command.integration.test.ts`'s identical constant for why this exists and why one
+ * shared directory for the whole file is safe. */
+const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-serve-worker-coverage-"));
+after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
+
 async function getFreePort(): Promise<number> {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
@@ -78,12 +85,12 @@ async function getFreePort(): Promise<number> {
  * cannot wedge this synchronous spawn — and with it the whole file — indefinitely.
  */
 function runCliSync(args: string[], env: NodeJS.ProcessEnv = {}, timeoutMs?: number): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", env: { ...process.env, ...env }, timeout: timeoutMs });
+  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, timeout: timeoutMs });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
 function spawnServe(args: string[], env: NodeJS.ProcessEnv = {}, cwd?: string): ChildProcessWithoutNullStreams {
-  return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: { ...process.env, ...env }, cwd }) as ChildProcessWithoutNullStreams;
+  return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), ...env }, cwd }) as ChildProcessWithoutNullStreams;
 }
 
 /**

@@ -1,9 +1,13 @@
 import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
+import os from "node:os";
 import * as path from "node:path";
 import assert from "node:assert/strict";
-import test from "node:test";
+import test, { after } from "node:test";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
 
@@ -41,6 +45,12 @@ const require = createRequire(import.meta.url);
 const DAEMON_ENTRY = path.resolve(import.meta.dirname, "../../agent-daemon-server.ts");
 const TSX_LOADER = require.resolve("tsx");
 
+/** See `cli/__tests__/integration/export-command.integration.test.ts`'s identical constant for why
+ * this exists: the real daemon child process must not dump its own V8 coverage profile into this
+ * runner's aggregation directory. */
+const WORKER_COVERAGE_DIR = mkdtempSync(path.join(os.tmpdir(), "tovu-daemon-boots-worker-coverage-"));
+after(() => rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
+
 /** A port nothing else holds, so a bind failure here can never be mistaken for the cycle crash. */
 async function reserveFreePort(): Promise<number> {
   const probe = createServer();
@@ -60,7 +70,7 @@ test("the agent daemon boots and listens — no import cycle on its entry path",
 
   const child = spawn(process.execPath, ["--import", TSX_LOADER, DAEMON_ENTRY], {
     env: {
-      ...process.env,
+      ...childProcessCoverageEnv(WORKER_COVERAGE_DIR),
       JINI_AGENT_DAEMON_PORT: String(port),
       TOVU_WORKSPACE: "workspace-local",
       // Never touch the developer's real content.db.

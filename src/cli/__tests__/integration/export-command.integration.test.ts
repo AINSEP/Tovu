@@ -4,7 +4,9 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
 
@@ -32,8 +34,22 @@ const TSX_LOADER = require.resolve("tsx");
  * on a timeout kill, which reads exactly like a crash but is the harness's own budget being too
  * tight, not a CLI defect.
  */
+/**
+ * Coverage output for the child processes this file spawns, redirected out of the test runner's
+ * own aggregation directory — see `childProcessCoverageEnv`'s doc for why a plain `delete` does
+ * not work. Shared across every `runCli` call in this file rather than one per call: Node names
+ * each child's coverage file by pid+timestamp, so concurrent writers into the same directory
+ * never collide.
+ */
+const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-export-worker-coverage-"));
+after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
+
 function runCli(args: string[], timeoutMs = 120000): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", timeout: timeoutMs });
+  const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], {
+    encoding: "utf8",
+    timeout: timeoutMs,
+    env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+  });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
@@ -109,7 +125,7 @@ test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory whe
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "export", installDir], {
     encoding: "utf8",
     timeout: 120000, // see runCli's own doc above: safety net, not an expectation
-    env: { ...process.env, TOVU_EXPORT_DIR: envOutDir },
+    env: { ...childProcessCoverageEnv(WORKER_COVERAGE_DIR), TOVU_EXPORT_DIR: envOutDir },
   });
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
   assert.ok(fs.existsSync(path.join(envOutDir, "index.html")), "export must land under TOVU_EXPORT_DIR");

@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { initSite } from "../../init-site.js";
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 /**
  * @file SPEC-003 C-007 (`initSite`) — TDD certification, integration tier: fault injection.
@@ -59,29 +60,24 @@ function mkTempParent(): string {
 
 /**
  * Env for the `ulimit -f`-constrained workers below, with V8 coverage output redirected into the
- * test's own temp dir instead of the runner's aggregation dir.
+ * test's own temp dir instead of the runner's aggregation dir — see `childProcessCoverageEnv`'s
+ * own doc for why the redirect is required and why deleting the variable does not work.
  *
- * Under `--experimental-test-coverage` the runner exports `NODE_V8_COVERAGE=<tmpdir>` and collects
- * every `coverage-*.json` written there. A spawned child inherits that setting and dumps its own
- * profile into the same directory at exit. These children deliberately run under `ulimit -f 400`
- * — on macOS a 409,600-byte per-file cap — while a profile for a process that has loaded tsx +
- * drizzle + better-sqlite3 is several times that, so the write is truncated at exactly the cap and
- * leaves malformed JSON in the shared directory. One unparseable file makes the runner emit an
- * EMPTY lcov for the ENTIRE run: every other test file's coverage is destroyed with it, which is
- * why this file previously made integration coverage unmeasurable rather than merely incomplete.
- *
- * Redirecting is required, not merely preferred — deleting the variable from the child env does
- * NOT work. Node re-injects `NODE_V8_COVERAGE` into descendant processes from its own coverage
- * state, so it survives `delete env.NODE_V8_COVERAGE` (verified directly: the worker still saw the
- * runner's path). Pointing it at a directory under the test's own `parent` temp dir is the fix that
- * actually holds: the truncated profile lands somewhere inert, the runner's aggregation directory
- * stays clean, and the existing `fs.rmSync(parent, …)` in each test's `finally` already removes it,
- * so no new cleanup path is introduced. The workers' own coverage is not wanted in the first place
- * — the behavior under test is asserted from the parent via the worker's stdout JSON and the
- * resulting on-disk state, never from the worker's own instrumentation.
+ * This file's own reason the redirect matters more than usual: these workers deliberately run
+ * under `ulimit -f 400` — on macOS a 409,600-byte per-file cap — while a profile for a process
+ * that has loaded tsx + drizzle + better-sqlite3 is several times that, so an inherited coverage
+ * write would be truncated at exactly the cap and leave malformed JSON in the shared directory.
+ * One unparseable file makes the runner emit an EMPTY lcov for the ENTIRE run: every other test
+ * file's coverage is destroyed with it, which is why this file previously made integration
+ * coverage unmeasurable rather than merely incomplete. Pointing it at a directory under the
+ * test's own `parent` temp dir means the existing `fs.rmSync(parent, …)` in each test's `finally`
+ * already removes it, so no new cleanup path is introduced. The workers' own coverage is not
+ * wanted in the first place — the behavior under test is asserted from the parent via the
+ * worker's stdout JSON and the resulting on-disk state, never from the worker's own
+ * instrumentation.
  */
 function workerEnv(parent: string): NodeJS.ProcessEnv {
-  return { ...process.env, NODE_V8_COVERAGE: path.join(parent, "worker-v8-coverage") };
+  return childProcessCoverageEnv(path.join(parent, "worker-v8-coverage"));
 }
 
 test("U-003-B1/B2/ORD1 (step-4 class, top-level mkdir denied): a read-only PARENT blocks target creation entirely -> InitSite throws, target never exists, no commit marker anywhere", { skip: SKIP_PERMISSION_TESTS && SKIP_REASON }, () => {

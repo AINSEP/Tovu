@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 /**
  * @file SPEC-003 C-003 (`CLI_HELP`) — TDD certification, integration (process-spawn) tier.
@@ -27,8 +31,16 @@ import test from "node:test";
 
 const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 
+/** See `export-command.integration.test.ts`'s identical constant for why this exists and why one
+ * shared directory for the whole file is safe. */
+const WORKER_COVERAGE_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-help-unknown-worker-coverage-"));
+after(() => fs.rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
+
 function runCli(args: string[]): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], { encoding: "utf8" });
+  const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], {
+    encoding: "utf8",
+    env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
+  });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 

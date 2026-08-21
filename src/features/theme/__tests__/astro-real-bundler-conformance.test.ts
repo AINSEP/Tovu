@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import test from "node:test";
+import test, { after } from "node:test";
 
 import { checkBuiltThemeConformance } from "../build-conformance.js";
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 /**
  * @file The real-bundler falsifying test (team-lead directive, 2026-08-12): every other test in this
@@ -52,6 +54,13 @@ function sha256(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex");
 }
 
+/** See `cli/__tests__/integration/export-command.integration.test.ts`'s identical constant for why
+ * this exists: redirects the real `astro build` subprocess's own V8 coverage profile out of this
+ * runner's aggregation directory instead of letting it merge and corrupt `build-conformance.ts`'s
+ * coverage. */
+const WORKER_COVERAGE_DIR = mkdtempSync(path.join(os.tmpdir(), "tovu-astro-bundler-worker-coverage-"));
+after(() => rmSync(WORKER_COVERAGE_DIR, { recursive: true, force: true }));
+
 /** Every real file under `dir`, keyed by its path relative to `dir` (POSIX). Used to build a REAL
  * `artifactHashes` map from Astro's actual output bytes, so the only things `checkBuiltThemeConformance`
  * has left to fail on are the sentinel/asset-path/island rules this test is actually about — not
@@ -81,6 +90,7 @@ test(
     // Real bundler, real subprocess -- not a mock, not a hand-written string standing in for one.
     execFileSync(process.execPath, [ASTRO_BIN, "build", "--root", FIXTURE_ROOT], {
       stdio: "pipe", // captured, not printed -- silence-on-success per this repo's own convention
+      env: childProcessCoverageEnv(WORKER_COVERAGE_DIR),
     });
 
     const pageHtml = readFileSync(path.join(DIST_DIR, "index.html"), "utf8");
