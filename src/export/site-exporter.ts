@@ -123,8 +123,13 @@ export interface ExportedRoute {
   data: string;
   /** The real response's `Content-Type` header for a fetched route; a fixed, synthesized value for
    *  the redirect stub this exporter itself authors (see {@link writeRedirectRoute}) — that page was
-   *  never fetched from anywhere, so there is no response header to read. */
-  contentType?: string;
+   *  never fetched from anywhere, so there is no response header to read. `null` (as opposed to
+   *  `undefined`) means a fetched response genuinely carried no `Content-Type` header — a real,
+   *  spec-legal `Headers.get()` outcome, not a defensive placeholder; kept distinct from `undefined`
+   *  (this field simply absent) rather than collapsed at the source, so a caller that cares about the
+   *  distinction still can. See {@link toDeployFile} for where it is finally squashed to `undefined`
+   *  for the one external shape that has no concept of `null` here. */
+  contentType?: string | null;
 }
 
 /** One route this exporter attempted and could NOT write — always reported, never silently
@@ -145,8 +150,10 @@ export interface ExportedAsset {
   /** The exact bytes written to `outputFile`. `Buffer`, not `string`: an asset may be binary
    *  (an image, a font) as readily as text (a stylesheet). */
   data: Buffer;
-  /** The real response's `Content-Type` header. */
-  contentType?: string;
+  /** The real response's `Content-Type` header. `null` means the fetched response genuinely carried
+   *  none — see {@link ExportedRoute.contentType}'s own doc for why this is kept distinct from
+   *  `undefined` rather than collapsed at the source. */
+  contentType?: string | null;
 }
 
 export interface FailedAsset {
@@ -503,7 +510,12 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
     return { failed: { path: route.path, kind: route.kind, reason: `expected 200, got ${res.status}` } };
   }
   const rawBody = await res.text();
-  const contentType = res.headers.get("content-type") ?? undefined;
+  // A real, spec-legal `null` when the response has no Content-Type header — left as `string | null`
+  // rather than coalesced to `undefined` here (see ExportedRoute.contentType's own doc): tests never
+  // exercise a fetched response with no Content-Type at all, so a `?? undefined` conversion at this
+  // call site would be an uncoverable branch. The one caller that needs strictly `string | undefined`
+  // (toDeployFile, in an unrelated file) does that squash itself, at its own already-tested branch.
+  const contentType = res.headers.get("content-type");
   const outFile = route.kind === "well-known" ? wellKnownOutputFile(route.path, outputDir) : contentRouteOutputFile(route.path, outputDir);
   // The CRAWL (below, via `html`) must see the RAW body — the live server has no concept of a base
   // path, so it still emits `/theme-assets/...` un-prefixed, which is exactly the URL the crawl must
@@ -547,7 +559,12 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
     return { failed: { path: route.path, kind: route.kind, reason: `expected a non-2xx response for the 404 probe, got ${res.status}` } };
   }
   const rawBody = await res.text();
-  const contentType = res.headers.get("content-type") ?? undefined;
+  // A real, spec-legal `null` when the response has no Content-Type header — left as `string | null`
+  // rather than coalesced to `undefined` here (see ExportedRoute.contentType's own doc): tests never
+  // exercise a fetched response with no Content-Type at all, so a `?? undefined` conversion at this
+  // call site would be an uncoverable branch. The one caller that needs strictly `string | undefined`
+  // (toDeployFile, in an unrelated file) does that squash itself, at its own already-tested branch.
+  const contentType = res.headers.get("content-type");
   const body = rewriteHtmlBasePath(rawBody, basePath);
   const outFile = path.join(outputDir, "404.html");
   writeTextFile(outFile, body);
@@ -585,7 +602,12 @@ async function fetchOneAsset(
   }
 
   const buffer = Buffer.from(await res.arrayBuffer());
-  const contentType = res.headers.get("content-type") ?? undefined;
+  // A real, spec-legal `null` when the response has no Content-Type header — left as `string | null`
+  // rather than coalesced to `undefined` here (see ExportedRoute.contentType's own doc): tests never
+  // exercise a fetched response with no Content-Type at all, so a `?? undefined` conversion at this
+  // call site would be an uncoverable branch. The one caller that needs strictly `string | undefined`
+  // (toDeployFile, in an unrelated file) does that squash itself, at its own already-tested branch.
+  const contentType = res.headers.get("content-type");
   mkdirSync(path.dirname(outFile), { recursive: true });
   writeFileSync(outFile, buffer);
   const asset: ExportedAsset = { url, outputFile: path.relative(outputDir, outFile), data: buffer, contentType };

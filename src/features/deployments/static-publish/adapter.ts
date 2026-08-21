@@ -194,12 +194,18 @@ function cleanupPublishRunDir(outputDir: string): void {
 /** Normalizes an `ExportedRoute`/`ExportedAsset`'s `outputFile` (already deploy-relative, per that
  *  interface's own doc) to forward slashes — `path.relative` uses the platform separator, and every
  *  deploy target in `@jini-ai/devops` treats `DeployFile.file` as a literal repo/deployment path,
- *  where a stray backslash on a Windows host would be be a wrong path, not a normalized one. */
-export function toDeployFile(entry: { outputFile: string; data: string | Buffer; contentType?: string }): DeployFile {
+ *  where a stray backslash on a Windows host would be be a wrong path, not a normalized one.
+ *
+ *  `contentType` also accepts `null` here (as well as the caller simply omitting it): `ExportedRoute`/
+ *  `ExportedAsset` carry it as `string | null` because a fetched response can genuinely have no
+ *  `Content-Type` header — see that interface's own doc. `DeployFile.contentType` has no concept of
+ *  `null`, so both "absent" states collapse to "omit the field" the same way here, at the one place
+ *  that actually needs the narrower `string | undefined` shape. */
+export function toDeployFile(entry: { outputFile: string; data: string | Buffer; contentType?: string | null }): DeployFile {
   return {
     file: entry.outputFile.split(path.sep).join("/"),
     data: entry.data,
-    ...(entry.contentType !== undefined ? { contentType: entry.contentType } : {}),
+    ...(entry.contentType !== undefined && entry.contentType !== null ? { contentType: entry.contentType } : {}),
   };
 }
 

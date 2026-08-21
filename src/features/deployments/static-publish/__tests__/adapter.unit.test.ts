@@ -138,6 +138,12 @@ test("toDeployFile: preserves deploy-relative path and data, normalizing to forw
   assert.ok(!("contentType" in withoutContentType));
 });
 
+test("toDeployFile: a literal null contentType (a fetched response with no Content-Type header) is omitted, same as undefined", () => {
+  const withNullContentType = toDeployFile({ outputFile: "404.html", data: "<html></html>", contentType: null });
+  assert.deepEqual(withNullContentType, { file: "404.html", data: "<html></html>" });
+  assert.ok(!("contentType" in withNullContentType));
+});
+
 test("publishStaticSite: an invalid config is rejected before credentials or the deploy target are ever touched", async () => {
   const deps = testRouteDeps();
   const result = await publishStaticSite(
