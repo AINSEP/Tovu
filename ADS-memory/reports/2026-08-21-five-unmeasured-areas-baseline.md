@@ -8,6 +8,13 @@ exist, run together in one invocation — a domain's `tool-registrations.ts` wir
 (`contribute<Domain>Tools`) is called only from those assistant-side tests, not from the domain's
 own `__tests__/` directory, so excluding them would misreport a tested function as untested.
 
+**Methodology note for whoever measures the next domain area**: always check for a matching
+`src/assistant/__tests__/tool-registrations.<domain>*.test.ts` and fold it into the scoped run
+before trusting a `tool-registrations.ts` number. This is the general "a scoped run understates
+because a DIFFERENT suite exercises the file" trap — a directory-only scope would have shown every
+one of these five domains' wiring functions as untested when they are not. Verified by import,
+not assumption, for all five: `identity`, `menus` (navigation), `newsletter`, `members`, `forms`.
+
 **Every run below was integrity-checked**: grepped each resulting `SF:` block set for
 `__toCommonJS`/`__copyProps`/`__toESM`/`__export` (the dual-module-instantiation corruption
 marker). **Zero markers in all five runs** — these five scoped measurements are clean. Also
@@ -101,15 +108,27 @@ Worst-first order for members: `repo.sqlite.ts` (13 branch gaps, largest by volu
 | `submit-service.ts` | 2/2 | 12/12 | 124/124 |
 | `tool-registrations.ts` | 20/20 | 39/45 (86.7%) | 346/346 |
 | `write-service.ts` | 18/18 | 38/42 (90.5%) | 293/305 |
-| `manifest.ts` | **no `SF:` block at all — never imported by any forms-scoped or cross-cutting test** | | |
+| `manifest.ts` | **no `SF:` block at all — see below, this is not a scope artifact** | | |
 
 Forms is the strongest of the three larger areas: 100% function coverage everywhere, branch gaps
-all in the 85-97% range (no single catastrophic file). The one real finding: `manifest.ts` (the
-OQ-01 seam — closed field-type vocabulary and capability strings, `FIELD_TYPE_VOCABULARY` /
-`FORMS_CAPABILITIES`, per its own doc comment "REQ-02, INV-02") is pure `const` data, imported only
-by `src/widgets/registry.ts` — nothing in `src/forms/` or the assistant cross-cutting tests ever
-loads it. It has no functions or branches to close, but it currently has **zero regression
-protection** for a documented, requirement-cited invariant that could silently drift.
+all in the 85-97% range (no single catastrophic file).
+
+**`manifest.ts` is a dead-file finding, not a coverage gap — verified by exhaustive import search,
+per instruction to check before concluding anything.** My first pass wrongly read a grep hit in
+`src/widgets/registry.ts` as an import; re-checked and that hit is a doc-comment mention
+(`` `forms/manifest.ts`'s stricter zero-function convention... `` — prose, not a statement).
+Re-searched properly: `grep -rn "forms/manifest" src --include='*.ts'` returns exactly that one
+comment and nothing else, anywhere in `src/`. `manifest.ts`'s own file header claims it is "read by
+ordinary hand-wired registration code today: `server/app.ts` (route registration),
+`identity/permissions.ts` (permission catalog registration)" — both claims checked directly:
+`server/app.ts` imports `forms/repo.memory.js`, `forms/rate-limit-profile.js`, and the `forms`/
+`forms-admin` server modules, but never `forms/manifest.js`; `src/identity/permissions.ts` does not
+exist in this repo at all (that path belongs to `@jini-ai/cms`, a different package). **`manifest.ts`
+(the OQ-01 seam — closed field-type vocabulary and capability strings, `FIELD_TYPE_VOCABULARY` /
+`FORMS_CAPABILITIES`, REQ-02/INV-02) is imported by nothing in `src/`.** Its own doc comment's
+claim about being consumed today is false, not aspirational-but-stale — worth a second pair of eyes
+on whether this is an orphaned migration remnant (the retrofit it was built for never happened) or
+a wiring bug (something should import it and doesn't). Not something to paper over with a test.
 
 ## newsletter (15 real source files — worst area, worst file by far)
 
@@ -148,7 +167,22 @@ disposition.
 3. **newsletter `send-pipeline.ts`** — worst file measured, worst first among the three larger
    areas.
 4. Remainder of newsletter, then members (worst branch ratios: `repo.sqlite.ts`,
-   `tool-registrations.ts`, `write-service.ts`), then forms (`manifest.ts` regression test plus its
-   scattered 85-97% branch gaps) — ranked by this measurement, not guessed.
+   `tool-registrations.ts`, `write-service.ts`), then forms (its scattered 85-97% branch gaps;
+   `manifest.ts` is a dead-file question for a human/Refactor decision, not a test-writing task) —
+   ranked by this measurement, not guessed.
 
 No test code has been written yet. This report is committed before any fix begins, per instruction.
+
+## Conclusion: this is a pattern across the session, not a one-off
+
+`navigation` was published at 51.55% func off the corrupt full-repo run; it is actually 100%.
+`identity` was published at 55.53% line; it is actually 99.5% (98.8% func, 97.9% branch).
+`newsletter` was published at 63.74% line; it is actually 91.8% (91.3% func, 88.5% branch), and even
+its worst file was never separately called out by the corrupt number. Every area measured honestly
+tonight — across both this batch and the batch before it (`src/core`, `src/db`,
+`analytics`/`export`/`media`, `webhook-repo.sqlite.ts`, `routing.ts`) — has come back dramatically
+better than the full-repo run claimed, by 30-45 points in most cases. The corrupt full-repo run was
+not a slightly-pessimistic estimate; it was systematically, severely wrong in one direction, on
+every area anyone has bothered to re-measure scoped. That is the real headline of this whole
+session: the dual-module-instantiation defect didn't just blur a few numbers, it fabricated a
+false "this repo is badly undertested" narrative that a truthful measurement does not support.
