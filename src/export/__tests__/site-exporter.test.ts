@@ -228,6 +228,35 @@ test("exportSite: refuses a non-empty output directory unless clean is set, and 
   assert.ok(existsSync(path.join(outputDir, "index.html")));
 });
 
+test("exportSite: creates outputDir when it does not exist yet, rather than requiring the caller to pre-create it", async (t) => {
+  // Deliberately a path UNDER a real mkdtemp'd parent, but the leaf itself never created —
+  // every other test in this file uses `makeTmpOutputDir()` (`mkdtempSync`), which always
+  // pre-creates the directory, so `prepareOutputDir`'s "does not exist yet" branch is otherwise
+  // never exercised.
+  const parent = makeTmpOutputDir();
+  const outputDir = path.join(parent, "not-created-yet");
+  t.after(() => rmSync(parent, { recursive: true, force: true }));
+  assert.equal(existsSync(outputDir), false, "precondition: the leaf directory must not already exist");
+
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+  assert.deepEqual(report.routes.failed, []);
+  assert.ok(existsSync(path.join(outputDir, "index.html")), "exportSite must create the missing directory itself");
+});
+
+test("exportSite: the non-empty-output-dir refusal message pluralizes 'entries' for more than one stale file", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+  writeFileSync(path.join(outputDir, "stale-one.html"), "leftover", "utf8");
+  writeFileSync(path.join(outputDir, "stale-two.html"), "leftover", "utf8");
+
+  await assert.rejects(() => exportSite({ routeDeps: createRouteDeps(), outputDir }), (err: unknown) => {
+    assert.ok(err instanceof ExportOutputNotEmptyError);
+    assert.match(err.message, /\(2 existing entries\)/, "two or more stale entries must use the plural 'entries', not 'entry'");
+    return true;
+  });
+});
+
 test("exportSite: a route that fails to render is reported as a failure, not silently missing from the output", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
@@ -317,6 +346,123 @@ test("exportSite: an exact-match active redirect rule is exported as a static me
   assert.match(stub, /<meta http-equiv="refresh" content="0; url=\/welcome\?ref=export&amp;utm_source=redirect-test">/, "the redirect target must be HTML-escaped (& -> &amp;) into the meta refresh");
   assert.match(stub, /<link rel="canonical" href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
   assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
+});
+
+test("exportSite: a prefix redirect rule shadowing the 404 probe's own path makes the probe fetch return <400, reported as a route failure", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  // A `prefix` rule is skipped by route-manifest.ts (`buildRedirectRoutes` only enumerates
+  // `exact` rules — see route-manifest.test.ts), so it never appears as a "redirect" kind route
+  // in the manifest — but it is still LIVE on the real server (`lookupLongestPrefix`), and its
+  // pattern is exactly the not-found probe's own base slug (`NOT_FOUND_PROBE_BASE`,
+  // `route-manifest.ts`), so the probe's own fetch gets intercepted as a 3xx instead of a 404.
+  const shadowingPrefixRule: RedirectRecord = {
+    id: "redir-shadows-404-probe",
+    workspaceId: base.workspaceId,
+    matchType: "prefix",
+    fromPattern: "/tovu-export-404-check",
+    toTarget: "/welcome",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  await base.redirectRepo.save({
+    record: shadowingPrefixRule,
+    revision: {
+      redirectId: shadowingPrefixRule.id,
+      workspaceId: shadowingPrefixRule.workspaceId,
+      seq: 1,
+      state: shadowingPrefixRule,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: now,
+    },
+  });
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const probeFailure = report.routes.failed.find((r) => r.kind === "not-found");
+  if (!probeFailure) throw new Error("expected the not-found probe in routes.failed");
+  assert.match(probeFailure.reason, /expected a non-2xx response for the 404 probe, got \d+/);
+  assert.equal(
+    report.routes.succeeded.some((r) => r.kind === "not-found"),
+    false,
+    "a shadowed probe must never be reported as a succeeded 404 page"
+  );
+});
+
+test("exportSite: --base-path does not double-prefix a redirect target that already carries the base path", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const rule: RedirectRecord = {
+    id: "redir-already-prefixed-target",
+    workspaceId: base.workspaceId,
+    matchType: "exact",
+    fromPattern: "/already-prefixed-redirect",
+    // Deliberately already carries the SAME base path this test requests below.
+    toTarget: "/my-repo/welcome",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  await base.redirectRepo.save({
+    record: rule,
+    revision: {
+      redirectId: rule.id,
+      workspaceId: rule.workspaceId,
+      seq: 1,
+      state: rule,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: now,
+    },
+  });
+
+  const report = await exportSite({ routeDeps: base, outputDir, basePath: "my-repo" });
+
+  const succeeded = report.routes.succeeded.find((r) => r.path === "/already-prefixed-redirect");
+  if (!succeeded) throw new Error("expected /already-prefixed-redirect in routes.succeeded");
+  assert.match(succeeded.data, /content="0; url=\/my-repo\/welcome"/, "a target already carrying the base path must be left as-is");
+  assert.equal(succeeded.data.includes("/my-repo/my-repo/"), false, "must never double-prefix a value that already starts with the base path");
+});
+
+test("exportSite: unreferencedThemeFiles is empty when no active theme was resolved", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  base.themes = [];
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  assert.deepEqual(report.unreferencedThemeFiles, [], "nothing to diff against — must not throw or guess");
+  // The live app's own home renderer genuinely needs a resolvable theme (unlike buildRouteManifest,
+  // which only records the gap in `skipped` — see route-manifest.ts's own "no-theme" test); without
+  // one it 500s, so home is correctly a REPORTED failure here, not a crash and not a silent success.
+  const homeFailure = report.routes.failed.find((r) => r.path === "/");
+  if (!homeFailure) throw new Error("expected '/' in routes.failed when no theme is active");
+  assert.match(homeFailure.reason, /500/);
+  assert.equal(existsSync(path.join(outputDir, "index.html")), false, "a failed route must not leave a file behind");
+  // Convention routes are theme-independent and must still succeed.
+  assert.ok(report.routes.succeeded.some((r) => r.path === "/robots.txt"));
 });
 
 test("firstExportFailure: undefined when nothing failed", () => {
