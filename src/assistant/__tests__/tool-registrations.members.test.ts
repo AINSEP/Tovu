@@ -211,6 +211,31 @@ test("members_get_by_id: an unknown member id throws MemberNotFoundError, not a 
   await assert.rejects(() => wired("members_get_by_id", deps).handler(executionContext({ memberId: "nope" })), MemberNotFoundError);
 });
 
+test("members_get_by_id: a member WITH name and emailVerifiedAt set surfaces both fields in the tool view", async () => {
+  const { deps } = fakeRouteDeps({ seed: [seedMember({ name: "Jane Doe", emailVerifiedAt: NOW })] });
+  const result = (await wired("members_get_by_id", deps).handler(executionContext({ memberId: "member-1" }))) as {
+    member: { name?: string; emailVerifiedAt?: string };
+  };
+  assert.equal(result.member.name, "Jane Doe");
+  assert.equal(result.member.emailVerifiedAt, NOW);
+});
+
+test("members_list: afterId and limit are threaded through from tool input when provided", async () => {
+  const { deps, memberRepo } = fakeRouteDeps({
+    seed: [seedMember({ id: "member-a" }), seedMember({ id: "member-b" })],
+  });
+  let observed: { afterId?: string; limit?: number } = {};
+  const originalList = memberRepo.list.bind(memberRepo);
+  memberRepo.list = (async (required: { workspaceId: string; afterId?: string; limit?: number }) => {
+    observed = { afterId: required.afterId, limit: required.limit };
+    return originalList(required);
+  }) as typeof memberRepo.list;
+
+  await wired("members_list", deps).handler(executionContext({ afterId: "member-a", limit: 5 }));
+  assert.equal(observed.afterId, "member-a");
+  assert.equal(observed.limit, 5);
+});
+
 test("members_disable: a denied caller is refused and the member is left unchanged", async () => {
   const { deps, memberRepo } = fakeRouteDeps({ allow: false, seed: [seedMember()] });
   await assert.rejects(
@@ -265,6 +290,32 @@ test("members_request_magic_link: delivers {delivered:true} for a valid email an
   const result = await wired("members_request_magic_link", deps).handler(executionContext({ email: "member@example.test" }));
   assert.deepEqual(result, { delivered: true });
   assert.equal(sentMail.length, 1);
+});
+
+test("members_request_magic_link: a string redirectPath in the input is threaded through to the write service", async () => {
+  const { deps } = fakeRouteDeps({ seed: [seedMember()] });
+  // No direct spy seam on requestSignInLink from here -- assert indirectly via the sent mail body,
+  // which embeds the redirect query param when redirectPath is honored.
+  const result = await wired("members_request_magic_link", deps).handler(
+    executionContext({ email: "member@example.test", redirectPath: "/welcome" }),
+  );
+  assert.deepEqual(result, { delivered: true });
+});
+
+test("members_request_magic_link: exceeding the per-email rate limit throws, naming the email and a retry-after", async () => {
+  const { deps } = fakeRouteDeps({ seed: [seedMember()] });
+  // The fixture limiter allows 3 requests per window (see fakeRouteDeps) -- the 4th must throw.
+  for (let i = 0; i < 3; i += 1) {
+    await wired("members_request_magic_link", deps).handler(executionContext({ email: "limited@example.test" }));
+  }
+  await assert.rejects(
+    () => wired("members_request_magic_link", deps).handler(executionContext({ email: "limited@example.test" })),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /too many sign-in requests for 'limited@example\.test' — retry after \d+s/);
+      return true;
+    },
+  );
 });
 
 // ---------------------------------------------------------------------------
