@@ -230,6 +230,49 @@ file no longer needs grandfathering.
 
 ---
 
+## 9 — `src/export/site-exporter.ts` (as shipped by `d4ef2941`) — "the crawl normalizes everything," used to justify calling a live security check unreachable
+
+**Claim, quoted from the doc comment `d4ef2941` added to `resolveAssetPathWithinOutputDir`** (and
+repeated in that commit's own message, and in the doc comments it added to `fetchOneAsset` and
+`writeRedirectRoute`):
+
+> the crawl (`extractAssetUrls`/`extractCssUrls`) only ever hands this function URLs already
+> pre-filtered to `ASSET_URL_PREFIXES` and normalized via `URL.pathname`/`decodeURIComponent`, so no
+> crawl-discovered value can trigger either refusal
+
+**Why it is false.** It is true of `extractCssUrls` and false of `extractAssetUrls`. Read both:
+
+```
+sed -n '/^function extractAssetUrls/,/^}/p' src/export/site-exporter.ts
+sed -n '/^function extractCssUrls/,/^}/p'   src/export/site-exporter.ts
+```
+
+`extractCssUrls` really does normalize — `new URL(ref, \`http://export-local${cssUrl}\`).pathname`.
+`extractAssetUrls` does not normalize at all: it is a raw `/\b(?:href|src)="([^"]+)"/g` regex over the
+HTML string followed by a bare `value.startsWith(prefix)` against `ASSET_URL_PREFIXES`, with no `URL`
+parsing and no `decodeURIComponent`. So a rendered page containing
+`href="/theme-assets/../../../../tmp/canary"` passes the prefix filter verbatim and is queued into
+`fetchAssets`, where the containment check refuses it for real.
+
+**Why this one mattered more than a stale comment usually does.** The false claim was the *entire
+justification* for a design decision: it was used to argue the containment refusal was unreachable dead
+code, which in turn was used to justify exporting two private functions purely so tests could reach
+them. The branch was crawl-reachable the whole time. A comment asserting unreachability is load-bearing
+in a way most comments are not — it invites someone to delete or weaken the guard.
+
+**Fix:** `exporter-100` dispatch, 2026-08-21. `resolvePathWithin` extracted to
+`src/core/path-containment.ts` and wired into both `site-exporter.ts` and
+`server/middleware/theme-static-assets.ts` (`034f696e`); the refusal is now driven through the real
+`exportSite()` pipeline with an injected traversal payload rather than by a direct call, and the
+transport functions were un-exported (`8b705226`). Verified independently by the coordinator:
+`site-exporter.ts` at `BRF:129 / BRH:129`, zero shim markers in its `SF:` block.
+
+**Pattern to carry forward:** an "X is unreachable" comment is a claim about *every* caller. Check every
+producer, not the one whose name appears first. Here the two extractors were named together in a single
+breath and only one of them had been read.
+
+---
+
 ## Related, not a code comment
 
 `ADS-memory/reports/.../theme-authoring-guide.md` §6's "3-attribute markers" claim is recorded
