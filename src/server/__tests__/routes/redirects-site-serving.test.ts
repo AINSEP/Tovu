@@ -65,3 +65,58 @@ test("T041b: a path with no matching redirect rule still 404s through the normal
   const visit = await fetch(`${baseUrl}/definitely-not-a-real-page-or-rule`, { redirect: "manual" });
   assert.equal(visit.status, 404);
 });
+
+/**
+ * Security characterization test — NOT a bug fix, NOT written to move a coverage number. Exists so
+ * nobody deletes it later as "redundant": `phase-handler.oracle.test.ts` already certifies this
+ * invariant at the resolver-domain level (INV-03: `resolve()` returns `{ matched: false }`), but
+ * nothing previously proved the FULL HTTP stack actually fails closed — that the real `GET /:slug`
+ * route (`routes/site/pages.ts`'s `tryRedirectPhase`) turns that `matched: false` into an honest
+ * 404, not a 500, an empty body, or (worst case) a real 3xx pointed at the disallowed origin. A
+ * future refactor of `tryRedirectPhase`/`handlePostNotFoundOnSlugRoute` could silently regress that
+ * translation without any resolver-level test catching it.
+ *
+ * Seeds the rule directly via `deps.redirectRepo.save()` (the same seam `redirects-auth.test.ts`
+ * already uses), bypassing the admin CREATE route's own write-time oracle check — deliberately, so
+ * this test exercises the READ-side gate specifically (the one a rule authored under a different
+ * verified origin, or written some other way, would still have to pass at request time) rather than
+ * asserting the write-time gate a second time.
+ */
+test("security characterization: a redirect rule whose target is a disallowed cross-origin destination fails CLOSED through the real HTTP route -- 404, never a 3xx to the disallowed origin", async (t) => {
+  const { app, deps } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const record = {
+    id: "evil-redirect",
+    workspaceId: WORKSPACE_ID,
+    matchType: "exact" as const,
+    fromPattern: "/go-evil",
+    toTarget: "https://evil.example/steal",
+    statusCode: 301 as const,
+    status: "active" as const,
+    override: true,
+    priority: 0,
+    source: "manual" as const,
+    createdByPrincipal: "system",
+    createdAt: "2026-08-20T00:00:00.000Z",
+    updatedAt: "2026-08-20T00:00:00.000Z",
+    version: 1,
+  };
+  await deps.redirectRepo.save({
+    record,
+    revision: {
+      redirectId: record.id,
+      workspaceId: WORKSPACE_ID,
+      seq: 1,
+      state: record,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: record.createdAt,
+    },
+  });
+
+  const visit = await fetch(`${baseUrl}/go-evil`, { redirect: "manual" });
+
+  assert.equal(visit.status, 404, "the disallowed cross-origin target must never reach a 3xx response");
+  assert.equal(visit.headers.get("location"), null, "no Location header may point anywhere, let alone at the disallowed origin");
+});
