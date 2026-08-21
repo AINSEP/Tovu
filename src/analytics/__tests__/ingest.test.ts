@@ -96,6 +96,158 @@ test("normalizeIngestContext never places the raw ip or user-agent on its return
   assert.equal(Object.keys(normalized).includes("userAgent"), false);
 });
 
+test("normalizeIngestContext classifies a bot user agent", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent: "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.deviceClass, "bot");
+});
+
+test("normalizeIngestContext classifies a non-Apple tablet user agent", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent: "Mozilla/5.0 (PlayBook; U; RIM Tablet OS 2.1.0; en-US) AppleWebKit/536.2+ (KHTML, like Gecko) Version/7.2.1.0 Safari/536.2+",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.deviceClass, "tablet");
+});
+
+// NOTE: a real Apple iPhone/iPad Safari user agent always contains the literal substring
+// "like Mac OS X" (WebKit compatibility convention), which trips classifyOsFamily's earlier
+// "mac os|macintosh" check before its "iphone|ipad|ios" check ever runs — so authentic mobile
+// Safari traffic is classified osFamily "macos", never "ios". This synthetic user agent
+// deliberately omits "Mac OS X" to exercise the (largely dead-in-practice) "ios" branch.
+test("normalizeIngestContext classifies osFamily 'ios' for a user agent naming iphone/ipad without also matching the macos pattern", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: "Mozilla/5.0 (iPhone) ExampleMobileApp/1.0", siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.osFamily, "ios");
+  assert.equal(normalized.deviceClass, "mobile");
+});
+
+test("normalizeIngestContext classifies a mobile Android user agent", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent: "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 Chrome/115.0 Mobile Safari/537.36",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.deviceClass, "mobile");
+  assert.equal(normalized.osFamily, "android");
+});
+
+test("normalizeIngestContext classifies an empty user agent as unknown/null across device, browser, and os", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: "", siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.deviceClass, "unknown");
+  assert.equal(normalized.browserFamily, null);
+  assert.equal(normalized.osFamily, null);
+});
+
+test("normalizeIngestContext falls back to an empty user agent when userAgent is nullish at the runtime boundary (defensive against untrusted network input, despite the string type)", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: null as unknown as string, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.deviceClass, "unknown");
+  assert.equal(normalized.browserFamily, null);
+  assert.equal(normalized.osFamily, null);
+});
+
+test("normalizeIngestContext classifies an Edge user agent as 'edge' even though 'Chrome/' and 'Safari/' also appear in it", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent:
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.62",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "edge");
+});
+
+test("normalizeIngestContext classifies a Firefox-on-Linux user agent as browser 'firefox' and os 'linux'", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent: "Mozilla/5.0 (X11; Linux x86_64; rv:118.0) Gecko/20100101 Firefox/118.0",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "firefox");
+  assert.equal(normalized.osFamily, "linux");
+  assert.equal(normalized.deviceClass, "desktop");
+});
+
+test("normalizeIngestContext classifies a Safari-on-macOS user agent as browser 'safari' (not 'chrome') and os 'macos'", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: {
+      ip: RAW_IP,
+      userAgent:
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15",
+      siteHost: "example.com",
+    },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "safari");
+  assert.equal(normalized.osFamily, "macos");
+});
+
+test("normalizeIngestContext falls back to browser/os 'other' for a user agent matching none of the known families", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: "SomeInternalClient/1.0", siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.browserFamily, "other");
+  assert.equal(normalized.osFamily, "other");
+  assert.equal(normalized.deviceClass, "desktop");
+});
+
+// NOTE (found while writing this test): truncateIp's `::`-shorthand handling has a real bug —
+// it splits on ":" and filters out empty segments, but does NOT expand "::" to the zero groups
+// it represents first. For an address like "::1" that shifts the trailing group into the
+// "first 3" bucket, so `truncateIp("::1")` returns "1::" (treating the LAST group as if it were
+// the first) instead of the correct "0:0:0::"/"::"-style zero prefix — and the same real address
+// written as "2001:db8::1" vs "2001:db8:0:0:0:0:0:1" buckets to two DIFFERENT visitor hashes,
+// which breaks the bucketing-consistency the function's own docstring promises. Reported to the
+// coordinator as a bug candidate; not fixed here (out of scope for a coverage-only pass) — this
+// test only characterizes the current (buggy) behavior deterministically, it does not assert the
+// (currently false) equivalence invariant.
+test("normalizeIngestContext deterministically buckets an IPv6 address that uses '::' shorthand (exercises the empty-group filter in truncateIp)", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+
+  const first = normalizeIngestContext(args("2001:db8::1"));
+  const second = normalizeIngestContext(args("2001:db8::1"));
+
+  assert.equal(first.visitorHash, second.visitorHash, "must be deterministic for the same '::'-shorthand address");
+});
+
 test("validateEventProps passes through clean properties", () => {
   const props: JsonObject = { plan: "pro", clicks: 3 };
   assert.deepEqual(validateEventProps(props), props);
@@ -361,4 +513,253 @@ test("ingestHit lets a beforeIngest hook drop a hit", async () => {
   assert.equal(result.accepted, false);
   assert.equal(result.reason, "dropped_by_hook");
   assert.equal(sink.all().length, 0);
+});
+
+test("ingestHit accepts and stores the hit a beforeIngest hook returns unchanged (hook present but does not drop it)", async () => {
+  let hookCalled = false;
+  const { deps, sink } = makeDeps({
+    hooks: {
+      beforeIngest: async (hit) => {
+        hookCalled = true;
+        return hit;
+      },
+    },
+  });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext() },
+    deps,
+  });
+
+  assert.equal(hookCalled, true);
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit excludes a path via an exact (non-wildcard) excludedPaths entry", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedPaths: ["/secret"] })) });
+
+  const excluded = await ingestHit({
+    input: { beacon: makeBeacon({ path: "/secret" }), context: makeContext() },
+    deps,
+  });
+  assert.equal(excluded.accepted, false);
+  assert.equal(excluded.reason, "excluded_path");
+
+  const notExcluded = await ingestHit({
+    input: { beacon: makeBeacon({ path: "/blog/hello-world" }), context: makeContext() },
+    deps,
+  });
+  assert.equal(notExcluded.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit excludes an IP via an exact (non-CIDR) excludedIpRanges entry", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["203.0.113.99"] })) });
+
+  const excluded = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "203.0.113.99" }) },
+    deps,
+  });
+  assert.equal(excluded.accepted, false);
+  assert.equal(excluded.reason, "excluded_ip");
+
+  const notExcluded = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "203.0.113.1" }) },
+    deps,
+  });
+  assert.equal(notExcluded.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IPv6 address against an IPv4 CIDR excludedIpRanges entry (mismatched families)", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "::1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP against an excludedIpRanges CIDR entry whose range address is IPv6", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["::1/64"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "203.0.113.1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP against an excludedIpRanges CIDR entry with a non-numeric prefix", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/not-a-number"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "10.0.0.1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP when the request IP has the wrong number of octets to compare against a CIDR range", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "10.0.0" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP with an out-of-range octet (e.g. 999) against a CIDR range", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "999.0.0.1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP with a negative octet against a CIDR range", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "1.2.3.-1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit does not exclude an IP with a non-numeric octet against a CIDR range", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "1.2.3.abc" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit records a null referrerHost when the beacon has no referrer", async () => {
+  const { deps, sink } = makeDeps();
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon({ referrer: null }), context: makeContext() },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all()[0].referrerHost, null);
+});
+
+test("ingestHit records a null referrerHost when the referrer is not a parseable URL", async () => {
+  const { deps, sink } = makeDeps();
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon({ referrer: "not a valid url" }), context: makeContext() },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all()[0].referrerHost, null);
+});
+
+test("ingestHit records a null referrerHost when the referrer URL parses but has no hostname (e.g. a file: URL)", async () => {
+  const { deps, sink } = makeDeps();
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon({ referrer: "file:///path/to/file" }), context: makeContext() },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all()[0].referrerHost, null);
+});
+
+test("ingestHit extracts allowlisted UTM params from a query string present on beacon.path", async () => {
+  const { deps, sink } = makeDeps();
+
+  const result = await ingestHit({
+    input: {
+      beacon: makeBeacon({
+        path: "/blog/hello-world?utm_source=newsletter&utm_medium=email&utm_campaign=launch&utm_term=tovu&utm_content=header",
+      }),
+      context: makeContext(),
+    },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  const hit = sink.all()[0];
+  assert.deepEqual(hit.utm, {
+    source: "newsletter",
+    medium: "email",
+    campaign: "launch",
+    term: "tovu",
+    content: "header",
+  });
+});
+
+test("ingestHit does not exclude an IP against a CIDR excludedIpRanges entry whose range address itself has an invalid octet", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["999.0.0.0/24"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "203.0.113.1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, true);
+  assert.equal(sink.all().length, 1);
+});
+
+test("ingestHit excludes every IP against a CIDR excludedIpRanges entry with a /0 prefix (zero-bit mask matches everything)", async () => {
+  const { deps, sink } = makeDeps({ config: makeConfigPort(makeConfig({ excludedIpRanges: ["10.0.0.0/0"] })) });
+
+  const result = await ingestHit({
+    input: { beacon: makeBeacon(), context: makeContext({ ip: "203.0.113.1" }) },
+    deps,
+  });
+
+  assert.equal(result.accepted, false);
+  assert.equal(result.reason, "excluded_ip");
+  assert.equal(sink.all().length, 0);
+});
+
+test("ingestHit rethrows a genuinely unexpected error raised while reading event properties, instead of treating it as a policy pii_rejected outcome", async () => {
+  const { deps } = makeDeps();
+
+  const boom = new RangeError("boom: unexpected failure reading a property value");
+  const eventProps = {
+    get weirdGetter(): string {
+      throw boom;
+    },
+  } as unknown as JsonObject;
+
+  await assert.rejects(
+    () =>
+      ingestHit({
+        input: {
+          beacon: makeBeacon({ kind: "event", eventName: "signup", eventProps }),
+          context: makeContext(),
+        },
+        deps,
+      }),
+    (err: unknown) => err === boom
+  );
 });
