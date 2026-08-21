@@ -224,13 +224,17 @@ test("receive() after the exchange ended reports the terminal status instead of 
 });
 
 test("the idle deadline resets on activity, so a slow conversation is not punished for its length", async () => {
-  const store = createSurfaceExchangeStore({ idleTtlMs: 40 });
+  // Margin widened (was idleTtlMs:40 / 25ms per turn -- only a 15ms cushion) after this test was
+  // caught genuinely flaking under concurrent test-runner load: three 25ms sleeps plus scheduling
+  // overhead exceeded the 40ms idle window, expiring the exchange the test means to prove stays
+  // open. Same class of issue as the total-lifetime-ceiling test above.
+  const store = createSurfaceExchangeStore({ idleTtlMs: 300 });
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
 
   // Three turns, each inside the idle window but summing past it. A non-resetting deadline would
   // kill this exchange partway through purely for having taken several turns.
   for (let turn = 0; turn < 3; turn += 1) {
-    await new Promise((resolve) => setTimeout(resolve, 25));
+    await new Promise((resolve) => setTimeout(resolve, 60));
     store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { turn } });
     assert.deepEqual(await exchange.receive(), { status: "received", params: { turn } });
   }
