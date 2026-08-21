@@ -199,7 +199,11 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
     groupLabel: "Agent Plugins",
     item: {
       id: "agent-plugin:ui-ux-design",
-      label: "UI/UX Design",
+      // Suffixed to disambiguate from the "skills" group's identically-named entry below — the
+      // composer menu renders label only (description is a hover/focus tooltip, invisible at
+      // scan time; see ComposerDiscovery.tsx's own doc), so two bare "UI/UX Design" rows were
+      // indistinguishable by sight.
+      label: "UI/UX Design (Agent Plugin)",
       description: "UI/UX Design Agent Plugin bundled with Tovu; not executed from the composer",
       kind: "agent-plugin",
       keywords: ["agent plugin", "design", "ui", "ux"],
@@ -211,7 +215,8 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
     groupLabel: "Skills / Design toolbox",
     item: {
       id: "skill:ui-ux-design",
-      label: "UI/UX Design",
+      // See the matching comment on "agent-plugin:ui-ux-design" above.
+      label: "UI/UX Design (Skill)",
       description: "Portable skill from the ui-ux-design Agent Plugin",
       kind: "skill",
       keywords: ["skill", "design", "ui", "ux"],
