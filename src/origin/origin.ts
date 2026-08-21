@@ -43,6 +43,7 @@ export interface NormalizedTarget {
  * The URL parser silently strips some of these, which is exactly the
  * ambiguity ADR-040 F3 requires rejecting outright instead of tolerating.
  */
+// biome-ignore lint/suspicious/noControlCharactersInRegex: control chars are the POINT — ADR-040 F3 requires rejecting C0/DEL and backslash in a raw candidate URL before the WHATWG parser silently strips them. See this constant's own doc comment.
 const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
 
 /**
