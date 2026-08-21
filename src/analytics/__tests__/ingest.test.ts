@@ -273,17 +273,16 @@ test("normalizeIngestContext falls back to browser/os 'other' for a user agent m
   assert.equal(normalized.deviceClass, "desktop");
 });
 
-// NOTE (found while writing this test): truncateIp's `::`-shorthand handling has a real bug —
-// it splits on ":" and filters out empty segments, but does NOT expand "::" to the zero groups
-// it represents first. For an address like "::1" that shifts the trailing group into the
-// "first 3" bucket, so `truncateIp("::1")` returns "1::" (treating the LAST group as if it were
-// the first) instead of the correct "0:0:0::"/"::"-style zero prefix — and the same real address
-// written as "2001:db8::1" vs "2001:db8:0:0:0:0:0:1" buckets to two DIFFERENT visitor hashes,
-// which breaks the bucketing-consistency the function's own docstring promises. Reported to the
-// coordinator as a bug candidate; not fixed here (out of scope for a coverage-only pass) — this
-// test only characterizes the current (buggy) behavior deterministically, it does not assert the
-// (currently false) equivalence invariant.
-test("normalizeIngestContext deterministically buckets an IPv6 address that uses '::' shorthand (exercises the empty-group filter in truncateIp)", () => {
+// Bug regression, fixed in this commit: `truncateIp` used to split an IPv6 address on ":" and
+// filter out empty segments WITHOUT expanding "::" to the zero groups it represents first. For an
+// address like "::1" that shifted the trailing group into the "first 3" bucket, so
+// `truncateIp("::1")` returned "1::" (treating the LAST group as if it were the first) — and the
+// same real address written as "2001:db8::1" vs "2001:db8:0:0:0:0:0:1" bucketed to two DIFFERENT
+// visitor hashes, breaking the bucketing-consistency the function's own docstring promises. This
+// asserts the actual invariant (shorthand and fully-expanded forms of the SAME address produce
+// the SAME bucket), not just "returns something deterministic" — the weaker assertion that used
+// to live here would still pass with the bug present.
+test("normalizeIngestContext deterministically buckets an IPv6 address that uses '::' shorthand", () => {
   const salt = makeSalt("2026-07-10");
   const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
 
@@ -291,6 +290,47 @@ test("normalizeIngestContext deterministically buckets an IPv6 address that uses
   const second = normalizeIngestContext(args("2001:db8::1"));
 
   assert.equal(first.visitorHash, second.visitorHash, "must be deterministic for the same '::'-shorthand address");
+});
+
+test("normalizeIngestContext buckets the SAME IPv6 address identically whether written in '::'-shorthand or fully expanded", () => {
+  const salt = makeSalt("2026-07-10");
+  const args = (ip: string) => ({ input: { ip, userAgent: RAW_USER_AGENT, siteHost: "example.com" }, dailySalt: salt });
+  const hashOf = (ip: string) => normalizeIngestContext(args(ip)).visitorHash;
+
+  // "::1" (loopback) vs its fully-expanded 8-group form.
+  assert.equal(
+    hashOf("::1"),
+    hashOf("0:0:0:0:0:0:0:1"),
+    "'::1' and '0:0:0:0:0:0:0:1' are the same address and must bucket identically"
+  );
+
+  // "::" (unspecified address, all-zero) vs its fully-expanded form.
+  assert.equal(
+    hashOf("::"),
+    hashOf("0:0:0:0:0:0:0:0"),
+    "'::' and '0:0:0:0:0:0:0:0' are the same address and must bucket identically"
+  );
+
+  // Leading "::" (zeros at the start) vs fully expanded.
+  assert.equal(
+    hashOf("::a:b:c"),
+    hashOf("0:0:0:0:0:a:b:c"),
+    "a leading '::' and its fully-expanded form are the same address and must bucket identically"
+  );
+
+  // Trailing "::" (zeros at the end) vs fully expanded.
+  assert.equal(
+    hashOf("a:b:c::"),
+    hashOf("a:b:c:0:0:0:0:0"),
+    "a trailing '::' and its fully-expanded form are the same address and must bucket identically"
+  );
+
+  // Embedded "::" (zeros in the middle) vs fully expanded — the exact case the bug report used.
+  assert.equal(
+    hashOf("2001:db8::1"),
+    hashOf("2001:db8:0:0:0:0:0:1"),
+    "an embedded '::' and its fully-expanded form are the same address and must bucket identically"
+  );
 });
 
 test("validateEventProps passes through clean properties", () => {
