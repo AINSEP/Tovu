@@ -124,6 +124,22 @@ test("resolveSeoImageRef: a registered transform with no generated rendition yet
   assert.equal(result, undefined);
 });
 
+test("resolveSeoImageRef: multiple registered versions of the same transform resolve to the HIGHEST version, regardless of registration order", async () => {
+  const deps = {
+    mediaRepo: new InMemoryMediaRepo([makeAsset()]),
+    assetRenditionRepo: new InMemoryAssetRenditionRepo([makeRendition({ id: "rendition-3", version: 3 })]),
+    transformDefinitionRepo: new InMemoryTransformDefinitionRepo([
+      makeTransformDef({ id: "transform-2", version: 2 }),
+      makeTransformDef({ id: "transform-1", version: 1 }),
+      makeTransformDef({ id: "transform-3", version: 3 }),
+    ]),
+  };
+
+  const result = await resolveSeoImageRef(deps, { workspaceId: WORKSPACE, ref: "asset-1:og" });
+  assert.ok(result);
+  assert.match(result!, /^\/m\/asset-1\/og\.v3\//, `expected the highest registered version (3) to win, got: ${result}`);
+});
+
 test("resolveSeoImageRef: a malformed ref (no colon) resolves undefined", async () => {
   const deps = {
     mediaRepo: new InMemoryMediaRepo([makeAsset()]),
