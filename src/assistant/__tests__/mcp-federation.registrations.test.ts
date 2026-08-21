@@ -434,6 +434,33 @@ test("a remote that connects but cannot enumerate is stepped over, and its sessi
   assert.equal(session.closed, true, "a session that failed mid-setup must not leak its child process");
 });
 
+test("a remote that fails mid-setup AND whose own close() also rejects still resolves cleanly — cleanup failure is swallowed, not left to crash or unhandled-reject the boot", async () => {
+  const registry = fakeRegistry();
+  const { logger } = collectingLogger();
+  const session = {
+    listTools: async () => {
+      throw new Error("remote returned JSON-RPC error -32000: invalid access token");
+    },
+    callTool: async () => {
+      throw new Error("must not be called");
+    },
+    close: async () => {
+      throw new Error("close failed too — the child process was already dead");
+    },
+  };
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: CONFIG, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => session,
+  });
+
+  assert.deepEqual(result.registeredToolIds, []);
+  assert.deepEqual(result.sessions, [], "a session that failed mid-setup is never returned as a live session to close again");
+});
+
 test("an invalid-but-enabled configuration warns and continues rather than throwing out of boot", async (t) => {
   t.after(resetFederatedMcpPresetsForTests);
   resetFederatedMcpPresetsForTests();
