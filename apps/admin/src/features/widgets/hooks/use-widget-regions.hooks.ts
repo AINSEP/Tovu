@@ -60,7 +60,7 @@ export function useWidgetRegions({ port, locale, navigate, t }: WidgetRegionsDep
       .catch((e) => setError(describeApiError(e, translate(locale, "failed to load regions"))));
   }
 
-  useEffect(load, []);
+  useEffect(load, [port]);
 
   async function bind() {
     const regionKey = newRegionKey.trim();

@@ -73,7 +73,7 @@ export function useComposioConfig({ port }: ComposioConfigDependencies): Composi
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [port]);
 
   const write = useCallback(
     async (apiKey: string | null) => {

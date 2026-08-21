@@ -57,7 +57,7 @@ export function useMenus({ port, t }: MenusDependencies): MenusController {
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load menus"));
   }
 
-  useEffect(load, []);
+  useEffect(load, [port]);
 
   /** Trashing an active menu still needs no confirmation (unchanged). Permanently deleting an
    *  already-trashed one now gates via a `ConfirmDialog` modal (`setPendingForceDelete` below)

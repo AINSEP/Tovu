@@ -45,7 +45,7 @@ export function useAiAssistant({ port }: AiAssistantDependencies): AiAssistantCo
       .then((r) => setSettings(r.data))
       .catch((e) => setLoadError(describeApiError(e, "failed to load AI assistant settings")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [port]);
 
   async function setPublicEnabled(publicEnabled: boolean) {
     setSaving(true);

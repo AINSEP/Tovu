@@ -111,7 +111,7 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
         setThemeTiers(Object.fromEntries(r.availableThemes.map((t) => [t.id, t.tier])));
       })
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load themes"));
-  }, []);
+  }, [port]);
 
   /**
    * Ask the server to re-read the themes directory, then reload this screen's data from it.
