@@ -197,6 +197,62 @@ test("SqliteMigrationRunsRepo: findNonTerminalForSite is site-scoped", async () 
   }
 });
 
+test("SqliteMigrationRunsRepo: markResolved terminalizes a run as RESTORED, the recovery ceremony's only caller (gated-hooks.ts)", async () => {
+  const { db, tmpDir } = openTempJournal();
+  try {
+    const runs = new SqliteMigrationRunsRepo({ db, siteId: "site-1" });
+
+    await runs.insert({
+      id: "run-1",
+      dialect: "sqlite",
+      status: "QUIESCING",
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    });
+    assert.deepEqual(await runs.findNonTerminalForSite("site-1"), { id: "run-1", status: "QUIESCING" });
+
+    await runs.markResolved({ id: "run-1" });
+
+    assert.equal(
+      await runs.findNonTerminalForSite("site-1"),
+      null,
+      "RESTORED is a terminal status -- the next boot's crash-detection must stop finding this run"
+    );
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test("SqliteMigrationRunsRepo: markResolved targets only the given run id, leaving a sibling run untouched", async () => {
+  const { db, tmpDir } = openTempJournal();
+  try {
+    const runs = new SqliteMigrationRunsRepo({ db, siteId: "site-1" });
+
+    await runs.insert({
+      id: "run-1",
+      dialect: "sqlite",
+      status: "QUIESCING",
+      createdAt: "2026-07-15T00:00:00.000Z",
+      updatedAt: "2026-07-15T00:00:00.000Z",
+    });
+    await runs.insert({
+      id: "run-2",
+      dialect: "sqlite",
+      status: "APPLYING",
+      createdAt: "2026-07-15T00:01:00.000Z",
+      updatedAt: "2026-07-15T00:01:00.000Z",
+    });
+
+    await runs.markResolved({ id: "run-1" });
+
+    // run-2 must still be reported non-terminal (findNonTerminalForSite returns the first match it
+    // finds; with run-1 now RESTORED, only run-2 remains eligible).
+    assert.deepEqual(await runs.findNonTerminalForSite("site-1"), { id: "run-2", status: "APPLYING" });
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
 test("SqliteRestorePointsRepo: save + findByIdempotencyKey round-trips, and a second save under the same key is not required to be re-found under a different key", async () => {
   const { db, tmpDir } = openTempJournal();
   try {
