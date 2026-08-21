@@ -67,7 +67,9 @@ function classifyRefFieldKey(key: string): EntryRefTargetKind | null {
  */
 function collectWidgetEmbedRefs(node: unknown, path: string, input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
   if (Array.isArray(node)) {
-    node.forEach((child, index) => collectWidgetEmbedRefs(child, `${path}[${index}]`, input, refs));
+    node.forEach((child, index) => {
+      collectWidgetEmbedRefs(child, `${path}[${index}]`, input, refs);
+    });
     return;
   }
   if (!isPlainObject(node)) return;
