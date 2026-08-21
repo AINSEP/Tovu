@@ -65,12 +65,30 @@
  */
 import path from "node:path";
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no
+ * leading, trailing, or doubled separator. Matches the Agent Plugins spec's own `name` grammar
+ * (§5.5), and — by construction — cannot be `.`, `..`, empty, or contain a `/`, `\`, or whitespace,
+ * which is the entire property this module needs before using a caller-supplied string in a
+ * `path.join`.
+ *
+ * WORKSPACE IDS, revised 2026-08-21 (owner decision, option B). `forWorkspace` previously required a
+ * syntactic UUID. That was wrong about this product's own data: the real workspace id in
+ * `infra/content.db` is the literal string `workspace-local`, so the UUID rule could never pass on a
+ * real caller's input and made `installAgentPluginFromUrl` unreachable outside tests. The check's
+ * actual job was never "is this a UUID" — it was "can this string escape or split the path segment
+ * I am about to build". This pattern does that job directly, still accepts every UUID the old rule
+ * accepted (so no previously-valid id became invalid), and matches the shape this repo already
+ * writes to disk elsewhere (`infra/uploads/ws/workspace-local/`).
+ *
+ * Deliberately NOT relaxed further: `_`, uppercase (normalized before this is applied, never
+ * accepted raw), and any Unicode remain rejected, because each would let two distinct ids collide
+ * onto one directory on a case-insensitive or normalizing filesystem.
+ */
+const SAFE_ID_SEGMENT_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
 
-/** `[a-z0-9.-]`, matching the Agent Plugins spec's own `name` grammar (§5.5) — a plugin id that
- * passed `parseAgentPluginManifest` (`manifest.ts`) is always safe as a path segment already; this
- * is defense in depth for any future caller that has not gone through that validator. */
-const SAFE_PLUGIN_ID_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
+/** Bounds the segment so a caller cannot drive a pathological path length. Applied to both ids. */
+const MAX_ID_SEGMENT_LENGTH = 64;
 
 /** One workspace's ENTIRE Agent Plugins tree — packages, data, and staging, all rooted under the
  * same `ws/<workspaceId>/` directory, so nothing in it is reachable from another workspace's own
@@ -133,10 +151,15 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
   return {
     root,
     forWorkspace(workspaceId: string): AgentPluginWorkspaceLayout {
-      if (!UUID_PATTERN.test(workspaceId)) {
-        throw new Error(`forWorkspace: '${workspaceId}' is not a syntactically valid workspace id`);
-      }
+      // Normalize BEFORE validating, not after: the pattern is deliberately lowercase-only (see its
+      // own doc), so validating the raw string would reject an uppercase id that the old UUID rule
+      // accepted — and the normalized value is the one that actually becomes the path segment, so it
+      // is the only value worth asserting about.
       const normalizedWorkspaceId = workspaceId.toLowerCase();
+      if (!SAFE_ID_SEGMENT_PATTERN.test(normalizedWorkspaceId) || normalizedWorkspaceId.length > MAX_ID_SEGMENT_LENGTH) {
+        // Quotes the RAW input, not the normalized one, so the message names what the caller passed.
+        throw new Error(`forWorkspace: '${workspaceId}' is not a valid workspace id`);
+      }
       const workspaceRoot = path.join(root, "ws", normalizedWorkspaceId);
 
       return {
@@ -144,7 +167,7 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
         packages: path.join(workspaceRoot, "packages", "sha256"),
         staging: path.join(workspaceRoot, "staging"),
         pluginDataDir(pluginId: string): string {
-          if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId) || pluginId.length > 64) {
+          if (!SAFE_ID_SEGMENT_PATTERN.test(pluginId) || pluginId.length > MAX_ID_SEGMENT_LENGTH) {
             throw new Error(`pluginDataDir: '${pluginId}' is not a valid Agent Plugin id`);
           }
           return path.join(workspaceRoot, "data", pluginId);
