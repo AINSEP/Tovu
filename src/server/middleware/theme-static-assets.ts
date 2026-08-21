@@ -3,6 +3,8 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
+import { resolvePathWithin } from "#src/core/index";
+
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 
 /**
@@ -85,9 +87,9 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
  *
  * Four separate refusals per root, because a path segment now arrives from the request rather than
  * from a `readdirSync` of trusted names:
- * - `..`/separators/absolute paths, rejected by re-resolving and requiring the result stay under
- *   that root — the standard containment check, kept even though Express decodes `:themeId` as a
- *   single segment, because that is a property of the routing layer rather than of this function.
+ * - `..`/separators/absolute paths, rejected by `core/path-containment.ts`'s shared
+ *   `resolvePathWithin` — kept even though Express decodes `:themeId` as a single segment, because
+ *   that is a property of the routing layer rather than of this function.
  * - the `__original-themes__`/`__marketplace__` catalogs, whose whole purpose is to be a pristine
  *   copy nothing serves or runs; neither is a theme and must not be reachable as one.
  * - ANY dot-prefixed directory name. `.tovu-migrate-staging-*` scratch output (ARCH-001,
@@ -107,9 +109,8 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
 function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
   if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(".")) return null;
   for (const root of roots) {
-    const candidate = path.resolve(root, themeId);
-    if (candidate !== path.join(root, themeId)) continue;
-    if (!candidate.startsWith(`${root}${path.sep}`)) continue;
+    const candidate = resolvePathWithin(root, themeId);
+    if (candidate === null) continue;
     if (existsSync(candidate)) return candidate;
   }
   return null;

@@ -1,8 +1,5 @@
 import assert from "node:assert/strict";
-import { once } from "node:events";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -12,8 +9,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import { createApp, createRouteDeps } from "../../server/app.js";
 import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
 import type { RedirectRecord } from "../../redirects/index.js";
-import type { ManifestRoute } from "../ports.js";
-import { ExportOutputNotEmptyError, exportSite, fetchOneAsset, firstExportFailure, resolveAssetPathWithinOutputDir, writeRedirectRoute } from "../site-exporter.js";
+import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor, resolveAssetPathWithinOutputDir } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
 /**
@@ -646,31 +642,6 @@ test("firstExportFailure: checks routes before assets when both have failures", 
   assert.equal(result?.identifier, "/a");
 });
 
-/**
- * Coverage for `resolveAssetPathWithinOutputDir`, `fetchOneAsset`, and `writeRedirectRoute`'s own
- * refusal/failure contracts DIRECTLY, in isolation from the full `exportSite` pipeline — per the
- * owner's 2026-08-20 bar-raise (131/131 branches, no documented exceptions), these three functions
- * were exported from site-exporter.ts specifically so the invariants below are independently
- * verifiable: no crawl-discovered URL and no live redirect response can trigger any of them through
- * the real pipeline today (see each function's own doc for why), but the checks themselves are real
- * — a security boundary and a defensive fallback family — and stay enforced either way.
- */
-
-/** Starts a bare `node:http` server (no Express, no redirect-serving middleware) so a test can hand
- *  `writeRedirectRoute` an HTTP response shaped EXACTLY as needed — status and headers fully under
- *  the test's control, unlike driving the real booted app. */
-async function withOneOffServer(handler: (req: IncomingMessage, res: ServerResponse) => void, run: (baseUrl: string) => Promise<void>): Promise<void> {
-  const server = createServer(handler);
-  server.listen(0);
-  await once(server, "listening");
-  const address = server.address() as AddressInfo;
-  try {
-    await run(`http://127.0.0.1:${address.port}`);
-  } finally {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
-  }
-}
-
 test("resolveAssetPathWithinOutputDir: refuses a traversal payload that resolves outside an absolute outputDir", () => {
   const outputDir = path.join(tmpdir(), "tovu-export-test-containment");
   assert.equal(resolveAssetPathWithinOutputDir("/theme-assets/../../../etc/passwd", outputDir), null);
@@ -685,64 +656,106 @@ test("resolveAssetPathWithinOutputDir: refuses when outputDir is not itself abso
   assert.equal(resolveAssetPathWithinOutputDir("/theme-assets/basic/css/base.css", "relative-tovu-export-output"), null);
 });
 
-test("fetchOneAsset: refuses a URL whose resolved path would escape outputDir, without ever calling fetch", async () => {
-  const outputDir = path.join(tmpdir(), "tovu-export-test-containment");
-  // Port 1 is a canary: if this function ever reached its fetch() call for this input, the test would
-  // fail fast on a connection refusal instead of returning the refusal below.
-  const result = await fetchOneAsset("/theme-assets/../../../etc/passwd", "http://127.0.0.1:1", outputDir);
-  assert.deepEqual(result, {
-    ok: false,
-    failure: { url: "/theme-assets/../../../etc/passwd", reason: "asset URL resolved outside the output directory — refused" },
-  });
+/**
+ * Direct coverage for `redirectOutcomeFor`'s own four outcomes — including "no Location AND no
+ * redirectTarget", which `route-manifest.ts` never produces from a real rule (it only ever builds a
+ * `kind: "redirect"` route with a non-empty `redirectTarget`), so this pure function is the only way
+ * to exercise that combination at all.
+ */
+test("redirectOutcomeFor: a non-3xx status is not a redirect", () => {
+  assert.deepEqual(redirectOutcomeFor(200, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
 });
 
-test("writeRedirectRoute: a non-3xx response for a redirect-kind route is reported as a failure", async () => {
-  await withOneOffServer(
-    (_req, res) => {
-      res.statusCode = 200;
-      res.end("not a redirect");
-    },
-    async (baseUrl) => {
-      const route: ManifestRoute = { path: "/old-page", kind: "redirect", label: "old-page", redirectTarget: "/new-page" };
-      const outcome = await writeRedirectRoute(route, baseUrl, "/tmp/tovu-export-test-unused", "");
-      assert.deepEqual(outcome, { failed: { path: "/old-page", kind: "redirect", reason: "expected a 3xx redirect response, got 200" } });
-    }
-  );
+test("redirectOutcomeFor: a 3xx with a Location header redirects to it, even when a manifest fallback is also present", () => {
+  assert.deepEqual(redirectOutcomeFor(302, "/from-header", "/fallback-target"), { kind: "redirect-to", location: "/from-header" });
 });
 
-test("writeRedirectRoute: a 3xx response missing its own Location header falls back to the manifest's redirectTarget", async (t) => {
+test("redirectOutcomeFor: a 3xx with no Location header falls back to the manifest's redirectTarget", () => {
+  assert.deepEqual(redirectOutcomeFor(302, null, "/fallback-target"), { kind: "redirect-to", location: "/fallback-target" });
+});
+
+test("redirectOutcomeFor: a 3xx with neither a Location header nor a manifest redirectTarget fails", () => {
+  assert.deepEqual(redirectOutcomeFor(302, null, undefined), { kind: "failed", reason: "redirect response carried no Location header" });
+});
+
+test("exportSite: a redirect-kind route whose live response is intercepted into a non-3xx is reported as a route failure", async (t) => {
+  // route-manifest.ts always builds a redirect route from a rule the live redirect-serving
+  // middleware really does redirect, so the only way to drive writeRedirectRoute's "not a 3xx"
+  // branch is to intercept that exact path in the booted app, the same createSiteApp-wrapping
+  // technique the CSS url(...) tests above already use.
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
-  await withOneOffServer(
-    (_req, res) => {
-      // Deliberately no Location header — a bare http server never sets one, unlike Express's
-      // res.redirect(), which is the only redirect path the real app ever takes.
-      res.statusCode = 302;
-      res.end();
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const rule: RedirectRecord = {
+    id: "redir-intercepted-non-3xx",
+    workspaceId: base.workspaceId,
+    matchType: "exact",
+    fromPattern: "/intercepted-non-redirect",
+    toTarget: "/welcome",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  await base.redirectRepo.save({
+    record: rule,
+    revision: {
+      redirectId: rule.id,
+      workspaceId: rule.workspaceId,
+      seq: 1,
+      state: rule,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: now,
     },
-    async (baseUrl) => {
-      const route: ManifestRoute = { path: "/old-page", kind: "redirect", label: "old-page", redirectTarget: "/fallback-target" };
-      const outcome = await writeRedirectRoute(route, baseUrl, outputDir, "");
-      assert.equal(outcome.failed, undefined, `expected the redirectTarget fallback to succeed: ${JSON.stringify(outcome.failed)}`);
-      assert.equal(outcome.succeeded?.path, "/old-page");
-      const written = readFileSync(path.join(outputDir, "old-page", "index.html"), "utf8");
-      assert.match(written, /url=\/fallback-target/, "the stub must embed the manifest's redirectTarget, since the live response carried no Location");
-    }
-  );
+  });
+  base.createSiteApp = () => {
+    const wrapper = express();
+    wrapper.get("/intercepted-non-redirect", (_req, res) => res.status(200).send("not a redirect"));
+    wrapper.use(createApp(base));
+    return wrapper;
+  };
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const failure = report.routes.failed.find((r) => r.path === "/intercepted-non-redirect");
+  if (!failure) throw new Error("expected the intercepted non-redirect response to be reported as a route failure");
+  assert.equal(failure.reason, "expected a 3xx redirect response, got 200");
 });
 
-test("writeRedirectRoute: a 3xx response missing Location AND a route with no redirectTarget is reported as a failure", async () => {
-  await withOneOffServer(
-    (_req, res) => {
-      res.statusCode = 302;
-      res.end();
-    },
-    async (baseUrl) => {
-      const route: ManifestRoute = { path: "/old-page", kind: "redirect", label: "old-page" }; // no redirectTarget at all
-      const outcome = await writeRedirectRoute(route, baseUrl, "/tmp/tovu-export-test-unused", "");
-      assert.deepEqual(outcome, { failed: { path: "/old-page", kind: "redirect", reason: "redirect response carried no Location header" } });
-    }
+test("exportSite: a hostile asset reference embedded in rendered HTML that would resolve outside outputDir is refused as a failed asset, never fetched or written", async (t) => {
+  // extractAssetUrls is a raw string-prefix scan with NO URL normalization (see its own doc) — a
+  // rendered page that literally embeds a traversal payload under a real asset prefix passes that
+  // filter and is queued for fetch, so this is the crawl-reachable way to drive
+  // resolveAssetPathWithinOutputDir's containment refusal through the real exportSite pipeline,
+  // rather than a synthetic direct call to the (now private) fetchOneAsset transport.
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const TRAVERSAL_URL = "/theme-assets/../../../../../../tmp/tovu-export-traversal-canary";
+  const base = createRouteDeps();
+  base.createSiteApp = () => {
+    const wrapper = express();
+    wrapper.get("/about", (_req, res) => res.type("html").send(`<!doctype html><html><body><img src="${TRAVERSAL_URL}"></body></html>`));
+    wrapper.use(createApp(base));
+    return wrapper;
+  };
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const failure = report.assets.failed.find((a) => a.url === TRAVERSAL_URL);
+  if (!failure) throw new Error("expected the traversal payload to be reported as a failed asset");
+  assert.equal(failure.reason, "asset URL resolved outside the output directory — refused");
+  assert.equal(
+    report.assets.succeeded.some((a) => a.url === TRAVERSAL_URL),
+    false
   );
 });
 

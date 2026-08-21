@@ -6,6 +6,7 @@ import path from "node:path";
 
 import type { Express } from "express";
 
+import { resolvePathWithin } from "#src/core/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
 
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
@@ -459,31 +460,19 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
 }
 
 /**
- * Maps a fetched asset's site-relative URL to its output file, refusing (returning `null`) anything
- * that would escape `outputDir` — mirrors `theme-static-assets.ts`'s own containment check (a URL
- * extracted from rendered HTML is still, transitively, request-shaped input, not a trusted literal).
- *
- * Exported so this security boundary is independently verifiable against a hostile payload (a
- * `../`-laden traversal, or an `outputDir` that is not itself absolute) directly, in isolation — the
- * crawl (`extractAssetUrls`/`extractCssUrls`) only ever hands this function URLs already pre-filtered
- * to `ASSET_URL_PREFIXES` and normalized through `URL.pathname`/`decodeURIComponent`, so no value the
- * real pipeline produces today can trigger either refusal below. That is a property of today's
- * callers, not of this function's contract, which is why the check stays enforced and testable on its
- * own terms rather than deleted as unreachable. Two DIFFERENT escapes are checked, not a duplicate of
- * one: `resolved !== path.join(outputDir, trimmed)` catches `path.resolve` diverging from a naive
- * join — the case where `outputDir` itself was not already absolute, so `resolve` silently anchors
- * against `process.cwd()` instead; `!resolved.startsWith(outputDir + sep)` catches `trimmed`
- * containing enough `../` segments to walk back out of an (already-absolute) `outputDir` even though
- * both functions agree on the normalized result.
+ * Maps a fetched asset's site-relative URL to its output file, via `core/path-containment.ts`'s
+ * shared `resolvePathWithin` — the same check `theme-static-assets.ts`'s `resolveThemeDir` applies
+ * to a theme id. A URL extracted from rendered HTML is still, transitively, request-shaped input,
+ * not a trusted literal, so the refusal stays enforced even though today's crawl
+ * (`extractAssetUrls`/`extractCssUrls`) only ever hands this function URLs already pre-filtered to
+ * `ASSET_URL_PREFIXES` and normalized through `URL.pathname`/`decodeURIComponent` — see
+ * `resolvePathWithin`'s own doc for the two escapes it refuses.
  */
 export function resolveAssetPathWithinOutputDir(url: string, outputDir: string): string | null {
   // `String.prototype.split` always returns at least one element, so index 0 is always defined.
   const pathname = decodeURIComponent(url.split("?")[0]);
   const trimmed = pathname.replace(/^\/+/, "");
-  const resolved = path.resolve(outputDir, trimmed);
-  if (resolved !== path.join(outputDir, trimmed)) return null;
-  if (!resolved.startsWith(`${outputDir}${path.sep}`)) return null;
-  return resolved;
+  return resolvePathWithin(outputDir, trimmed);
 }
 
 function closeServer(server: Server): Promise<void> {
@@ -494,9 +483,8 @@ function closeServer(server: Server): Promise<void> {
  *  all three uniformly without a discriminated-union narrowing dance. `html` is populated only by
  *  {@link writeContentRoute} — it is the one kind whose body is worth crawling for asset refs; a
  *  redirect stub and a raw 404 body are both written verbatim already, nothing about them needs
- *  crawling for cross-references this exporter must additionally fetch. Exported only because
- *  {@link writeRedirectRoute} is (see that function's own doc for why). */
-export interface RouteWriteOutcome {
+ *  crawling for cross-references this exporter must additionally fetch. */
+interface RouteWriteOutcome {
   succeeded?: ExportedRoute;
   failed?: FailedRoute;
   html?: string;
@@ -546,36 +534,41 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
   };
 }
 
+type RedirectDecision = { kind: "failed"; reason: string } | { kind: "redirect-to"; location: string };
+
 /**
- * Writes a `kind: "redirect"` manifest route by re-requesting it (see this function's own inline
- * comment on `location` for why the manifest's `redirectTarget` is only ever a fallback, never the
- * primary source). Two of its three failure modes — a live 3xx with no `Location` header, and that
- * SAME response combined with a manifest route that also carries no `redirectTarget` — have no seam
- * in today's real pipeline: `route-manifest.ts` only ever builds a `kind: "redirect"` route from a
- * real, validated redirect rule (`rule.toTarget` always non-empty), and the live redirect-serving
- * middleware always sets `Location` on a real 3xx it emits, so neither state is producible by driving
- * the actual app end-to-end without reaching into and weakening either of those (both outside this
- * file, both correct as they stand).
- *
- * Exported so this function's own contract — "given this response and this route, produce this
- * outcome" — is directly testable against a hand-built `ManifestRoute` and a small local HTTP server
- * that returns exactly the response shape a test needs, the same "this is a real invariant nothing can
- * reach today, so make it independently verifiable rather than deleting it" reasoning applied to
- * {@link resolveAssetPathWithinOutputDir}.
+ * The whole "given this response and this route, what should happen" decision for a
+ * `kind: "redirect"` route — a live 3xx with no `Location` header falls back to the manifest's own
+ * `redirectTarget`; either missing fails. `Location` wins over `redirectTarget` when both are
+ * present because the writer's job is to record what the live server actually did, not what the
+ * rule declared (`ManifestRoute.redirectTarget`'s own doc). Pure and exported so the "no Location
+ * AND no redirectTarget" failure is directly testable: `route-manifest.ts` never builds a redirect
+ * route with an empty `redirectTarget`, so no real manifest route can produce that combination.
  */
-export async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const res = await fetch(`${baseUrl}${route.path}`, { redirect: "manual" });
-  if (res.status < 300 || res.status >= 400) {
-    return { failed: { path: route.path, kind: route.kind, reason: `expected a 3xx redirect response, got ${res.status}` } };
+export function redirectOutcomeFor(status: number, locationHeader: string | null, manifestTarget: string | undefined): RedirectDecision {
+  if (status < 300 || status >= 400) {
+    return { kind: "failed", reason: `expected a 3xx redirect response, got ${status}` };
   }
-  const location = res.headers.get("location") ?? route.redirectTarget;
+  const location = locationHeader ?? manifestTarget;
   if (!location) {
-    return { failed: { path: route.path, kind: route.kind, reason: "redirect response carried no Location header" } };
+    return { kind: "failed", reason: "redirect response carried no Location header" };
+  }
+  return { kind: "redirect-to", location };
+}
+
+/** Writes a `kind: "redirect"` manifest route by re-requesting it and applying
+ *  {@link redirectOutcomeFor} to the real response — never the manifest's own `redirectTarget`
+ *  alone, so the written stub always reflects what the live server actually answered with. */
+async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  const res = await fetch(`${baseUrl}${route.path}`, { redirect: "manual" });
+  const decision = redirectOutcomeFor(res.status, res.headers.get("location"), route.redirectTarget);
+  if (decision.kind === "failed") {
+    return { failed: { path: route.path, kind: route.kind, reason: decision.reason } };
   }
   // Prefixed BEFORE constructing the stub, not by rewriting the stub's own HTML afterward — the
   // same "one place decides the path" split `prefixRootRelativePath` documents, applied directly
   // since this page's only path reference is the one value already in hand.
-  const stub = renderRedirectStub(prefixRootRelativePath(location, basePath));
+  const stub = renderRedirectStub(prefixRootRelativePath(decision.location, basePath));
   const outFile = contentRouteOutputFile(route.path, outputDir);
   writeTextFile(outFile, stub);
   // This page was authored locally (see renderRedirectStub's own doc), never fetched — there is no
@@ -605,35 +598,18 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
 }
 
 /**
- * Breadth-first fetch of every asset URL discovered while writing routes, following ONE extra hop
- * out of any fetched `.css` file for its own `url(...)` references. Already-seen URLs are fetched
- * at most once regardless of how many pages/stylesheets reference them.
- *
- * @complexity O(A) HTTP requests for A distinct discovered asset URLs (each `.css` asset
- *   contributes at most its own reference count to the queue, bounded by the one-hop rule above —
- *   a CSS file's own referenced fonts/images are never themselves re-scanned for further `url(...)`
- *   references).
+ * Fetches and writes one already-containment-checked asset to disk. Never throws — a non-OK
+ * response comes back as a typed `failure` for the caller to record. `outFile` is trusted: the
+ * caller ({@link fetchAssets}) has already refused anything `resolveAssetPathWithinOutputDir` would
+ * refuse before this function is ever invoked, so no I/O happens on a hostile `url`. `cssRefs` is
+ * the one-hop `url(...)` harvest from a `.css` asset's own body (empty for every other kind).
  */
-/**
- * Fetches and writes one asset URL to disk. Never throws — every failure mode (path escapes the
- * output dir, non-OK response) comes back as a typed `failure` for the caller to record. `cssRefs`
- * is the one-hop `url(...)` harvest from a `.css` asset's own body (empty for every other kind).
- *
- * Exported for the same reason as {@link resolveAssetPathWithinOutputDir}: the refusal branch below
- * is reachable and directly testable with a hostile `url` WITHOUT any network I/O — `fetch` is never
- * called until after the containment check passes, so a test exercising only the refusal never
- * touches `baseUrl` at all.
- */
-export async function fetchOneAsset(
+async function fetchOneAsset(
   url: string,
+  outFile: string,
   baseUrl: string,
   outputDir: string
 ): Promise<{ ok: true; asset: ExportedAsset; cssRefs: string[] } | { ok: false; failure: FailedAsset }> {
-  const outFile = resolveAssetPathWithinOutputDir(url, outputDir);
-  if (!outFile) {
-    return { ok: false, failure: { url, reason: "asset URL resolved outside the output directory — refused" } };
-  }
-
   const res = await fetch(`${baseUrl}${url}`);
   if (!res.ok) {
     return { ok: false, failure: { url, reason: `GET ${url} -> ${res.status}` } };
@@ -653,6 +629,18 @@ export async function fetchOneAsset(
   return { ok: true, asset, cssRefs };
 }
 
+/**
+ * Breadth-first fetch of every asset URL discovered while writing routes, following ONE extra hop
+ * out of any fetched `.css` file for its own `url(...)` references. Already-seen URLs are fetched
+ * at most once regardless of how many pages/stylesheets reference them. The containment check
+ * (`resolveAssetPathWithinOutputDir`) runs here, before {@link fetchOneAsset} is ever called, so a
+ * refused URL never reaches the network.
+ *
+ * @complexity O(A) HTTP requests for A distinct discovered asset URLs (each `.css` asset
+ *   contributes at most its own reference count to the queue, bounded by the one-hop rule above —
+ *   a CSS file's own referenced fonts/images are never themselves re-scanned for further `url(...)`
+ *   references).
+ */
 async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outputDir: string): Promise<{ succeeded: ExportedAsset[]; failed: FailedAsset[] }> {
   const succeeded: ExportedAsset[] = [];
   const failed: FailedAsset[] = [];
@@ -664,7 +652,13 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
     if (seen.has(url)) continue;
     seen.add(url);
 
-    const outcome = await fetchOneAsset(url, baseUrl, outputDir);
+    const outFile = resolveAssetPathWithinOutputDir(url, outputDir);
+    if (!outFile) {
+      failed.push({ url, reason: "asset URL resolved outside the output directory — refused" });
+      continue;
+    }
+
+    const outcome = await fetchOneAsset(url, outFile, baseUrl, outputDir);
     if (!outcome.ok) {
       failed.push(outcome.failure);
       continue;
