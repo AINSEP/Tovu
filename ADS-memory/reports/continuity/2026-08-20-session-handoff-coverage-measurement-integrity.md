@@ -100,9 +100,24 @@ Target: claude (fresh Claude Code session, same repo)
 - **OPEN, owner's call:** `apps/admin/src/features/security/hooks/use-other-credentials.hooks.ts:372`
   — a genuinely-dead defensive `throw`. Documented invariant assertion. Delete or keep?
 - **53 unpushed commits.** Nothing is on GitHub. A cloud agent clones from GitHub.
-- **Cloud dispatch: 23 failures, 0 successes ever.** Smoke test 4 fired 2026-08-20 ~19:07 PT
-  (`trig_01Dt7mMjEefbqRgjMpJxDnSH`, session `cse_01Wbsj5Nizi4kprbDiXxmhqC`) — first ever run outside
-  US business hours, testing the peak-throttling hypothesis. Result unknown at handoff time.
+- **Cloud dispatch: smoke test 4 FAILED, and it kills the leading hypothesis.** Fired 2026-08-20
+  ~19:07 PT (`trig_01Dt7mMjEefbqRgjMpJxDnSH`, session `cse_01Wbsj5Nizi4kprbDiXxmhqC`) — the first
+  run ever attempted outside US business hours. Nothing landed on `origin/general-work` or the
+  `cloud/smoke-test-4` fallback branch after 300s of polling.
+
+  **The peak-capacity-throttling theory should now be considered refuted, not untested.** Evidence:
+  `origin/cloud/adr-052-reconcile` (`3ba78875`, **2026-08-03 14:07 PT**) is a real substantive
+  commit — *"docs(adr-052): ground the @jini-ai/admin override in code, surface recon OQ-4"* — sitting
+  on a `cloud/`-prefixed fallback branch, which is exactly the naming convention our cloud briefs
+  instruct agents to use when a push to the working branch is rejected. That is almost certainly the
+  "off-peak counterexample whose session is no longer retrievable" referenced in the prior handoff,
+  and it is **not** off-peak: 2:07pm Pacific is squarely inside business hours.
+
+  So the pattern is the inverse of what throttling predicts — a success during business hours, a
+  failure at 7pm. **Something changed between 2026-08-03 and now.** That, not the hour, is where the
+  next investigation should start. Caveat: every commit in this repo is authored by the owner, so
+  the `cloud/` branch prefix plus a substantive ADR commit is strong evidence but not proof that a
+  cloud agent produced it.
 - **NOT OURS — do not touch or commit:** `apps/admin/src/features/plugins/**` (4 files, concurrent
   session), `src/server/routes/admin/plugins/uninstall.ts` (2 remaining complexity violations),
   and several untracked `ADS-memory/reports/2026-08-1x-*.md`.
