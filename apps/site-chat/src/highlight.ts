@@ -71,11 +71,11 @@ export function findTargetElement(title: string, root: ParentNode = document): E
 
   const candidates = Array.from(root.querySelectorAll(TITLE_CANDIDATE_SELECTOR)).filter((el) => !el.closest(".tovu-site-assistant"));
 
-  const exact = candidates.find((el) => (el.textContent ?? "").trim() === needle);
+  const exact = candidates.find((el) => el.textContent.trim() === needle);
   if (exact) return exact;
 
   const lowerNeedle = needle.toLowerCase();
-  return candidates.find((el) => (el.textContent ?? "").trim().toLowerCase() === lowerNeedle) ?? null;
+  return candidates.find((el) => el.textContent.trim().toLowerCase() === lowerNeedle) ?? null;
 }
 
 function handleAnimationEnd(event: Event): void {
