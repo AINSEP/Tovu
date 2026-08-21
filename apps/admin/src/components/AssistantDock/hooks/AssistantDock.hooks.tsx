@@ -34,7 +34,6 @@ import {
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "../../../features/plugins/composer-capabilities";
-import { createToolCatalogComposerCapabilitySource } from "../../../features/plugins/tool-catalog-composer-source";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
 
 /**
@@ -561,22 +560,31 @@ export interface UseComposerCapabilities {
 }
 
 /**
- * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from a bundled,
- * compile-time source plus a live tool-catalog source, and owns the one-shot mount effect that
- * resolves it. Split out of `AssistantDock` (2026-08-14 DI migration pass) for the same reason the
- * three hooks above it were: per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an
- * injectable seam on `AssistantDockProps`, defaulted to this real implementation — see
- * `AssistantDock.tsx` for the wiring.
+ * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from the bundled,
+ * compile-time source, and owns the one-shot mount effect that resolves it. Split out of
+ * `AssistantDock` (2026-08-14 DI migration pass) for the same reason the three hooks above it were:
+ * per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an injectable seam on
+ * `AssistantDockProps`, defaulted to this real implementation — see `AssistantDock.tsx` for the
+ * wiring.
+ *
+ * `createToolCatalogComposerCapabilitySource()` (`tool-catalog-composer-source.ts`) is deliberately
+ * NOT in the source list below — owner decision, 2026-08-21: the menu's job is to let a user point
+ * the assistant at a Skill or Agent Plugin whose instructions it should follow, not to hand it a raw
+ * tool name (the assistant already picks its own tools once it understands the goal). The ~25 live
+ * tool rows that source contributed were also structurally inert — every capability it produces
+ * carries no `resolve` (see its own module doc), so selecting one did nothing. The file and its
+ * tests are kept, not deleted: it is a working reference implementation of a live async source and
+ * this is a product call that may be revisited, not a dead-code removal. See that file's own doc for
+ * the full reasoning.
  *
  * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()` being a
  * `Promise` is that a source may genuinely need a round trip — true for
  * `createBundledComposerCapabilitySource` only by construction (compile-time data wrapped in a
- * resolved `Promise`), but genuinely true for `createToolCatalogComposerCapabilitySource`, which
- * fetches the real tool catalog through `/api/tools/search`. This hook makes no assumption that
- * resolution is instant for either, and a failed projection (a future live source's fetch failing,
- * or a duplicate-id contract violation) falls back to the empty catalog rather than throwing — same
- * "the failure is contained" posture `AssistantDock.tsx`'s own `fetchAgents()` uses for its own
- * `!response.ok` branch.
+ * resolved `Promise`) today, but the seam stays real for whatever source is added next. This hook
+ * makes no assumption that resolution is instant, and a failed projection (a future live source's
+ * fetch failing, or a duplicate-id contract violation) falls back to the empty catalog rather than
+ * throwing — same "the failure is contained" posture `AssistantDock.tsx`'s own `fetchAgents()` uses
+ * for its own `!response.ok` branch.
  *
  * @returns `composerCapabilities` — the resolved projection, or the empty one before it settles.
  * @example
@@ -589,10 +597,7 @@ export function useComposerCapabilities(): UseComposerCapabilities {
 
   useEffect(() => {
     let cancelled = false;
-    // `createToolCatalogComposerCapabilitySource()` never rejects (see its own doc) — it degrades
-    // to an empty list on any failure, so a daemon that is down or still booting costs only the
-    // tool-catalog rows, never the bundled source alongside it in this same `Promise.all`.
-    projectComposerCapabilities([createBundledComposerCapabilitySource(), createToolCatalogComposerCapabilitySource()])
+    projectComposerCapabilities([createBundledComposerCapabilitySource()])
       .then((projection) => {
         if (!cancelled) setComposerCapabilities(projection);
       })
