@@ -30,7 +30,7 @@
 import type { WidgetTypeKey, WidgetTypeRegistration } from "./types.js";
 
 /** `text` — static, no resolver (REQ-10). A single free-form rich-text field. */
-const TEXT_REGISTRATION: WidgetTypeRegistration = {
+const TEXT_REGISTRATION = {
   typeKey: "text",
   capability: "static",
   configSchema: {
@@ -41,10 +41,10 @@ const TEXT_REGISTRATION: WidgetTypeRegistration = {
   },
   placementContexts: ["region", "inline"],
   clamps: { timeoutMs: 0 },
-};
+} satisfies WidgetTypeRegistration;
 
 /** `social-links` — static, no resolver. An ordered list of `{ platform, url }` pairs. */
-const SOCIAL_LINKS_REGISTRATION: WidgetTypeRegistration = {
+const SOCIAL_LINKS_REGISTRATION = {
   typeKey: "social-links",
   capability: "static",
   configSchema: {
@@ -66,7 +66,7 @@ const SOCIAL_LINKS_REGISTRATION: WidgetTypeRegistration = {
   },
   placementContexts: ["region", "inline"],
   clamps: { timeoutMs: 0 },
-};
+} satisfies WidgetTypeRegistration;
 
 /**
  * `recent-entries` — dynamic, `query` capability. `maxItems` is clamped at the
@@ -74,8 +74,14 @@ const SOCIAL_LINKS_REGISTRATION: WidgetTypeRegistration = {
  * re-enforced at the orchestration layer (REQ-25) — defense in depth, not
  * redundant: this value is what a resolver *may* return at most; the
  * orchestrator enforces it independent of the resolver's own discipline.
+ *
+ * Declared with `satisfies` rather than a `: WidgetTypeRegistration` annotation so this constant
+ * keeps its own literal shape — `clamps.maxItems: number`, not the shared interface's
+ * `maxItems?: number` — letting `getWidgetTypeRegistration("recent-entries")` (registry.ts) return
+ * a type that's honestly non-optional for THIS registration, without lying for the other four
+ * (`text`/`social-links`/`menu`/`contact-form`) that genuinely have no maxItems clamp.
  */
-const RECENT_ENTRIES_REGISTRATION: WidgetTypeRegistration = {
+const RECENT_ENTRIES_REGISTRATION = {
   typeKey: "recent-entries",
   capability: "query",
   configSchema: {
@@ -92,10 +98,10 @@ const RECENT_ENTRIES_REGISTRATION: WidgetTypeRegistration = {
   placementContexts: ["region", "inline"],
   clamps: { maxItems: 20, timeoutMs: 500 },
   resolverId: "recent-entries",
-};
+} satisfies WidgetTypeRegistration;
 
 /** `menu` — dynamic, `entry-reference` capability. Delegates entirely to `navigation/resolver.ts`. */
-const MENU_REGISTRATION: WidgetTypeRegistration = {
+const MENU_REGISTRATION = {
   typeKey: "menu",
   capability: "entry-reference",
   configSchema: {
@@ -110,7 +116,7 @@ const MENU_REGISTRATION: WidgetTypeRegistration = {
   placementContexts: ["region", "inline"],
   clamps: { timeoutMs: 500 },
   resolverId: "menu",
-};
+} satisfies WidgetTypeRegistration;
 
 /**
  * `contact-form` — dynamic, `form` capability. A thin adapter over `src/forms/`
@@ -118,7 +124,7 @@ const MENU_REGISTRATION: WidgetTypeRegistration = {
  * config of its own; `formDefinitionId` is a ref-typed field extracted into
  * `entry_refs` (REQ-31).
  */
-const CONTACT_FORM_REGISTRATION: WidgetTypeRegistration = {
+const CONTACT_FORM_REGISTRATION = {
   typeKey: "contact-form",
   capability: "form",
   configSchema: {
@@ -133,22 +139,25 @@ const CONTACT_FORM_REGISTRATION: WidgetTypeRegistration = {
   placementContexts: ["region", "inline"],
   clamps: { timeoutMs: 500 },
   resolverId: "contact-form",
-};
+} satisfies WidgetTypeRegistration;
 
 /**
  * The complete v1 widget-type registry (REQ-09), keyed by the closed `WidgetTypeKey` union rather
- * than held as an array. This is what makes `getWidgetTypeRegistration` below total: TypeScript
- * proves every member of the union has an entry, so the accessor's return type carries no
- * `| undefined` for a genuinely-narrowed key. Iterate with `Object.values(...)` where the whole
- * table is needed (e.g. `agent-tools.ts`'s published-type-list).
+ * than held as an array. Declared with `satisfies` rather than a `: Readonly<Record<...>>`
+ * annotation — a `:` annotation would widen every entry back to the shared `WidgetTypeRegistration`
+ * interface (losing e.g. `RECENT_ENTRIES_REGISTRATION`'s own non-optional `clamps.maxItems`);
+ * `satisfies` checks the same shape constraint (every `WidgetTypeKey` has an entry, which is what
+ * makes `getWidgetTypeRegistration` below total) while keeping each entry's own literal type intact.
+ * Iterate with `Object.values(...)` where the whole table is needed (e.g. `agent-tools.ts`'s
+ * published-type-list).
  */
-export const WIDGET_TYPE_REGISTRATIONS: Readonly<Record<WidgetTypeKey, WidgetTypeRegistration>> = {
+export const WIDGET_TYPE_REGISTRATIONS = {
   text: TEXT_REGISTRATION,
   "social-links": SOCIAL_LINKS_REGISTRATION,
   "recent-entries": RECENT_ENTRIES_REGISTRATION,
   menu: MENU_REGISTRATION,
   "contact-form": CONTACT_FORM_REGISTRATION,
-};
+} satisfies Readonly<Record<WidgetTypeKey, WidgetTypeRegistration>>;
 
 /**
  * The total lookup accessor — pure, O(1), no I/O. Only valid for a `typeKey` already narrowed to
@@ -158,8 +167,14 @@ export const WIDGET_TYPE_REGISTRATIONS: Readonly<Record<WidgetTypeKey, WidgetTyp
  * of stored JSON via `entry-payload.ts`'s `parseWidgetInstancePayload`), `undefined` is genuinely
  * reachable — use `findWidgetTypeRegistration` instead; do not smuggle an unverified string past
  * this signature with a cast.
+ *
+ * Generic over the specific key, rather than fixed to the `WidgetTypeRegistration` interface, so a
+ * literal call site (`getWidgetTypeRegistration("recent-entries")`) gets back
+ * `WIDGET_TYPE_REGISTRATIONS`'s own entry type for that key — e.g. with `clamps.maxItems: number`,
+ * not the interface's shared `maxItems?: number` — instead of forcing an artificial fallback
+ * (`?? 20`) that coverage could never actually exercise for that one call site.
  */
-export function getWidgetTypeRegistration(typeKey: WidgetTypeKey): WidgetTypeRegistration {
+export function getWidgetTypeRegistration<K extends WidgetTypeKey>(typeKey: K): (typeof WIDGET_TYPE_REGISTRATIONS)[K] {
   return WIDGET_TYPE_REGISTRATIONS[typeKey];
 }
 

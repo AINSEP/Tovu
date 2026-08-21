@@ -34,15 +34,11 @@ export interface RecentEntriesResolverDeps {
 export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): WidgetResolver {
   return {
     async resolveMany(instances, context) {
-      // `"recent-entries"` is a literal, so `getWidgetTypeRegistration` (registry.ts) is total here
-      // — the `registration?.` this line used to need is gone, since the lookup itself can no
-      // longer be `undefined`. `?? 20` remains: `WidgetTypeRegistration.clamps.maxItems` is
-      // `number | undefined` on the SHARED interface (four of the five registered types genuinely
-      // have no maxItems clamp), so this fallback is real for the type as declared even though
-      // `RECENT_ENTRIES_REGISTRATION`'s own literal data always sets it to 20. A different,
-      // narrower instance of the same "type wider than the one call site's reality" shape — out of
-      // this change's scope; flagged separately rather than silently left or silently redesigned.
-      const registryMax = getWidgetTypeRegistration("recent-entries").clamps.maxItems ?? 20;
+      // `"recent-entries"` is a literal, so `getWidgetTypeRegistration` (registry.ts, generic over
+      // the key) returns THIS registration's own literal type here — `clamps.maxItems: number`, not
+      // the shared interface's `maxItems?: number` — so no fallback is needed, or written, for a
+      // value that is always present for this one call site.
+      const registryMax = getWidgetTypeRegistration("recent-entries").clamps.maxItems;
 
       // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
       // primitive, so a single `listByWorkspace` call (scoped to `status: 'published'`, across
