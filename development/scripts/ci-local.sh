@@ -12,14 +12,22 @@
 #
 # ## What it runs, and in what order
 #
-# Default (no flags): the `build-and-test` job's 8 BLOCKING gates, same order as
-# ci.yml, each one run even if an earlier one failed -- see `run_gate` below. That
-# mirrors the "report every gate in one run" behavior ci.yml's own Gate summary step
-# got in commit a4331961, for the same reason: GitHub (and a plain `&&` chain) halts
-# at the first failure, so a run reports exactly one problem even when several exist.
+# Default (no flags): 9 BLOCKING gates, each one run even if an earlier one failed --
+# see `run_gate` below. That mirrors the "report every gate in one run" behavior
+# ci.yml's own Gate summary step got in commit a4331961, for the same reason: GitHub
+# (and a plain `&&` chain) halts at the first failure, so a run reports exactly one
+# problem even when several exist.
 #
 #   typecheck (root) -> check:boundaries -> check:architecture -> check:inventory ->
-#   check:src-complexity-drift -> complexity (eslint) -> typecheck (admin) -> admin:build
+#   check:src-complexity-drift -> check:seed-content-drift -> complexity (eslint) ->
+#   typecheck (admin) -> admin:build
+#
+# The first 8 mirror the `build-and-test` job in ci.yml, same order. `check:seed-content-
+# drift` (added 2026-08-21, see that script's own header for why -- src/server/seed.ts
+# and src/templates/starter/seed-content.json drifted twice in one day with no generator
+# between them) does NOT yet exist in ci.yml -- ci.yml was not touched, only this local
+# runner. If ci.yml is ever restored to service, add it there too or this comment goes
+# stale in the other direction.
 #
 # `--with-tests` additionally runs `npm run test:ci` (the full repo-wide suite) --
 # SEE THE MEMORY WARNING BELOW before using this flag.
@@ -140,6 +148,7 @@ run_gate "check:boundaries"            npm run check:boundaries
 run_gate "check:architecture"          npm run check:architecture
 run_gate "check:inventory"             npm run check:inventory
 run_gate "check:src-complexity-drift"  npm run check:src-complexity-drift
+run_gate "check:seed-content-drift"    npm run check:seed-content-drift
 run_gate "complexity (eslint)"         npm run complexity
 run_gate "typecheck (admin)"           npm --prefix apps/admin run typecheck
 run_gate "admin:build"                 npm run admin:build
