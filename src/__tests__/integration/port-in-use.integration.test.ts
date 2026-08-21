@@ -1,9 +1,13 @@
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { createRequire } from "node:module";
+import os from "node:os";
 import * as path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
+
+import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
 
@@ -57,11 +61,17 @@ test("boot: an already-held port exits cleanly and names the port, instead of th
   const { port, release } = await occupyAPort();
   t.after(release);
 
+  // See `cli/__tests__/integration/export-command.integration.test.ts`'s identical pattern for why
+  // this exists: the real entrypoint spawned below must not dump its own V8 coverage profile into
+  // this runner's aggregation directory.
+  const workerCoverageDir = mkdtempSync(path.join(os.tmpdir(), "tovu-port-in-use-worker-coverage-"));
+  t.after(() => rmSync(workerCoverageDir, { recursive: true, force: true }));
+
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, ENTRYPOINT], {
     encoding: "utf8",
     timeout: 90_000,
     env: {
-      ...process.env,
+      ...childProcessCoverageEnv(workerCoverageDir),
       PORT: String(port),
       // In-memory store so this never touches the developer's real content.db, and so a boot that
       // gets far enough to listen does not migrate anything on the way.
