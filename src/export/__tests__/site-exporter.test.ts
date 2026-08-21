@@ -4,8 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import express from "express";
 import type { UUID } from "@jini-ai/cms/core";
-import { createRouteDeps } from "../../server/app.js";
+import { createApp, createRouteDeps } from "../../server/app.js";
 import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
 import type { RedirectRecord } from "../../redirects/index.js";
 import { ExportOutputNotEmptyError, exportSite, firstExportFailure } from "../site-exporter.js";
@@ -211,6 +212,121 @@ test("exportSite: crawls and writes theme assets referenced by rendered pages", 
   const cssAsset = report.assets.succeeded.find((a) => a.url.endsWith(".css"));
   if (!cssAsset) throw new Error("expected at least one stylesheet asset");
   assert.ok(existsSync(path.join(outputDir, cssAsset.outputFile)));
+});
+
+test("exportSite: follows one hop out of a fetched CSS file's own url(...) reference and writes the referenced asset too", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  // The real seeded "basic" theme's own CSS ships no `url(...)` reference at all today (verified by
+  // grep across every shipped theme — see this session's report), so the CSS second-hop crawl
+  // (extractCssUrls/fetchAssets' cssRefs follow-up) has no real content fixture to exercise it
+  // through the live app as-is. `theme-static-assets.ts` resolves a theme's on-disk folder from two
+  // HARDCODED roots with no override seam reachable from RouteDeps, so a fixture theme directory
+  // can't be substituted either without writing into the live `src/themes/static/` tree (shared by
+  // 3 concurrent sessions tonight).
+  //
+  // Instead: `ExportSiteRouteDeps.createSiteApp` is itself the injectable seam — it already exists
+  // for exactly this purpose (every test in this file uses `createRouteDeps()`'s real one). Here we
+  // wrap the REAL app (unmodified, `createApp(base)` — the exact same composition every other test
+  // exercises) with a thin Express layer, defined and torn down entirely within this test, that
+  // intercepts ONLY the one real, already-linked-from-real-pages CSS request
+  // (`/theme-assets/basic/css/theme.css`) and serves test-controlled bytes containing a genuine
+  // relative `url(...)` reference, plus the one extra path that reference resolves to. Every other
+  // request (every content route, every other real asset) falls through to the real app unchanged.
+  // This is not a second renderer and not a production seam — it is the same "swap what `createSiteApp`
+  // returns" pattern `FailingSlugPostRepo`/`ManifestOnlyRedirectRepo`-style tests in this file already
+  // use for `postRepo`/`redirectRepo`, applied to the one remaining RouteDeps-shaped field that's
+  // actually the seam for this.
+  const base = createRouteDeps();
+  // Also exercises extractCssUrls' three "nothing to fetch" skip conditions (a data: URI, an
+  // absolute external URL — neither is a same-site path this exporter could ever fetch) and
+  // fetchAssets' own already-seen dedup (the self-reference back to `theme.css` resolves to a URL
+  // this queue already processed earlier in the same pass) — all in the one real CSS body, since
+  // each is a genuine, independent branch this feature's own code must handle correctly.
+  const CSS_WITH_URL_REFS = [
+    ".icon { background-image: url(../images/coverage-test-injected-icon.svg); }",
+    ".decorative { background-image: url(data:image/gif;base64,AAAA); }",
+    ".external-font { src: url(https://fonts.example.com/font.woff2); }",
+    ".self-reference { background-image: url(theme.css); }",
+    // Also references a theme JS file that is ALREADY independently discovered by the HTML crawl
+    // (queued from `initialUrls`, not yet processed when this CSS is parsed) — by the time the
+    // queue reaches this pushed duplicate, main.js has already been dequeued and marked `seen` by
+    // its own earlier queue entry, exercising fetchAssets' own top-of-loop dedup (a DIFFERENT branch
+    // than the cssRefs-push-time filter the self-reference above exercises).
+    ".already-linked { background: url(../scripts/main.js); }",
+  ].join("\n");
+  const INJECTED_SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>';
+  base.createSiteApp = () => {
+    const wrapper = express();
+    wrapper.get("/theme-assets/basic/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_URL_REFS));
+    wrapper.get("/theme-assets/basic/images/coverage-test-injected-icon.svg", (_req, res) =>
+      res.type("image/svg+xml").send(INJECTED_SVG)
+    );
+    wrapper.use(createApp(base));
+    return wrapper;
+  };
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  assert.deepEqual(report.assets.failed, []);
+  const cssAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/basic/css/theme.css");
+  if (!cssAsset) throw new Error("expected the (intercepted) theme.css in assets.succeeded");
+  assert.equal(cssAsset.data.toString("utf8"), CSS_WITH_URL_REFS);
+
+  const followedAsset = report.assets.succeeded.find((a) => a.url === "/theme-assets/basic/images/coverage-test-injected-icon.svg");
+  if (!followedAsset) {
+    throw new Error("expected the CSS's own url(...) reference to be discovered and fetched as a second asset");
+  }
+  assert.equal(followedAsset.data.toString("utf8"), INJECTED_SVG);
+  assert.ok(existsSync(path.join(outputDir, followedAsset.outputFile)));
+
+  // The data:/external references must never be treated as fetchable site assets.
+  assert.equal(
+    report.assets.succeeded.some((a) => a.url.startsWith("data:") || a.url.startsWith("https://fonts.example.com")),
+    false,
+    "a data: URI or an absolute external URL must never be queued as a same-site asset fetch"
+  );
+  // theme.css itself must appear exactly once, even though the CSS also self-references it —
+  // proving the already-seen URL was deduplicated, not fetched a second time.
+  assert.equal(
+    report.assets.succeeded.filter((a) => a.url === "/theme-assets/basic/css/theme.css").length,
+    1,
+    "a CSS file that references itself must not be queued and fetched twice"
+  );
+  // Same dedup guarantee for a CSS reference to an asset ALREADY independently discovered by the
+  // HTML crawl (main.js is directly `<script src>`-linked from the rendered page too).
+  assert.equal(
+    report.assets.succeeded.filter((a) => a.url === "/theme-assets/basic/scripts/main.js").length,
+    1,
+    "an asset already queued from the HTML crawl must not be fetched twice just because a CSS file also references it"
+  );
+});
+
+test("exportSite: an asset URL discovered via a CSS file's own url(...) reference that itself fails to fetch is reported as a failed asset", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const CSS_WITH_MISSING_REF = ".missing { background-image: url(../images/coverage-test-does-not-exist.png); }";
+  base.createSiteApp = () => {
+    const wrapper = express();
+    wrapper.get("/theme-assets/basic/css/theme.css", (_req, res) => res.type("text/css").send(CSS_WITH_MISSING_REF));
+    // Deliberately no handler for coverage-test-does-not-exist.png — falls through to the real
+    // app's static-asset middleware, which 404s (the file genuinely does not exist on disk).
+    wrapper.use(createApp(base));
+    return wrapper;
+  };
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const failure = report.assets.failed.find((a) => a.url === "/theme-assets/basic/images/coverage-test-does-not-exist.png");
+  if (!failure) throw new Error("expected the missing CSS-referenced asset in assets.failed");
+  assert.match(failure.reason, /-> 404$/);
+  assert.equal(
+    report.assets.succeeded.some((a) => a.url === "/theme-assets/basic/images/coverage-test-does-not-exist.png"),
+    false
+  );
 });
 
 test("exportSite: refuses a non-empty output directory unless clean is set, and clears stale files when it is", async (t) => {
