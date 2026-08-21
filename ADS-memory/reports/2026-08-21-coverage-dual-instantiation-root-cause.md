@@ -303,8 +303,30 @@ Recorded here per the team lead's request: `daemon-boots.integration.test.ts` sp
 
 This reframes round 5's full-repo-scale reproduction: it likely didn't need a single dedicated trigger file at all. At 162 files' worth of concurrent test execution, layer 1 is close to guaranteed to fire (localizes to just `src/server/http/**`, 12 of 162 files), and layer 2's apparent race window gets enough chances to also fire somewhere in that much larger run. Round 3 and 6a's cleanliness is consistent with this: neither included any of the `src/server/http/**` cluster.
 
+## `TEST_CONCURRENCY=1` × 3 on the exact 12-file cluster — REFUTES the concurrency-race hypothesis for layer 2
+
+Per the team lead's explicit ask, run because the standing `TEST_CONCURRENCY=2` mandate (imposed everywhere tonight to protect the machine from an OOM at ~5.4 GB) was itself a candidate cause of layer 2, which would have been a real trade-off the owner needed to hear. Same 12-file `src/server/http/**` set, `--test-concurrency=1` (fully serialized, one test at a time — strictly less load than `=2`), three runs back to back:
+
+| run | wall time | layer 1 (shim markers / FN) | layer 2 (LH) |
+|---|---:|---|---|
+| 1 | 1m03s | 6 markers, FNF:43 FNH:29 | `LH:357` — clean |
+| 2 | 1m17s | 6 markers, FNF:43 FNH:29 | **`LH:294` — FULL corruption** |
+| 3 | 1m09s | 6 markers, FNF:43 FNH:29 | `LH:357` — clean |
+
+**Layer 1 is rock solid: 3/3 at `=1`, matching the 5/5 already seen at `=2`.** Concurrency setting has no visible effect on it either way.
+
+**Layer 2 still flips (1 full / 2 partial) at full serialization.** This directly refutes "layer 2 is a `TEST_CONCURRENCY` scheduling/interleaving race" — there is no test-level interleaving possible at `=1`. Combined with the earlier `=2` data (1 full / 1 partial across rounds 10/10b), that's **3 full / 4 partial across 7 runs of the identical file set, spanning both concurrency settings** — roughly the same incidence rate regardless of concurrency. **This is good news for the owner's memory mitigation specifically: `TEST_CONCURRENCY=2` is not implicated in layer 2.** It does not explain layer 2 itself, which is still open.
+
+### A confound found while setting up these runs, disclosed rather than absorbed into "Node is racy"
+
+Building the file list for every one of rounds 8/10/10b/11/12 and these three `=1` runs used `FILES=$(find src/server/http -path '*/__tests__/*' -name '*.test.ts')` — **unsorted**. Checked directly, twice in a row, on this machine: two back-to-back `find` invocations over the same directory returned the 12 files in a **different relative order** (`plugins-dto.unit.test.ts` moved from position 3 to position 12 between the two calls). `find`'s enumeration order is not guaranteed stable and this filesystem does not appear to hold it stable across invocations.
+
+**This means every "identical repeat" run in this investigation may have actually run the 12 files in a different relative order each time**, since the shell expansion happened fresh per invocation. That is a real, mundane, uncontrolled variable that could fully explain layer 2's flip-flopping **without** requiring any exotic non-determinism inside Node's own V8-coverage merge — i.e., the corruption may be order-of-module-instantiation-sensitive (which specific test/module loads immediately before or after which other one) rather than randomly racy. Those are different findings with different implications: an order-dependency is at least in principle discoverable and controllable; a true internal race in Node's coverage collector is not something this repo can fix at all.
+
+**Not yet re-tested with order pinned** (holding per the "then stop" instruction) — the clean next experiment, if the team lead wants it, is the identical 12-file set with the file list explicitly sorted (or otherwise pinned to one fixed order) at `TEST_CONCURRENCY=1`, run 3x. If that comes back deterministic (always full or always partial), the order-dependency explanation wins and layer 2 stops being "just" a mystery race — it becomes a concrete, if still not-yet-understood, causal lever. If it still flips with order pinned, that would be stronger evidence for genuine internal non-determinism.
+
 ## Next, if this bisection continues
 
 Two different investigations now, not one:
 - Confirm layer 1 is real and not itself a measurement artifact of MY bisection (e.g., rerun the 9-file non-worker set once more to see if it's reliably partial, then try to find which single one of those 9 is doing it via further halving — it does not require a worker thread, so the earlier worker-thread hypothesis is not the whole story).
-- Characterize layer 2's trigger condition empirically rather than by code trace, since code tracing has now failed twice in this investigation (once for the child-process case pre-Sol, and again here) — e.g., repeat round 10 several more times to estimate how often it fires, and check whether `TEST_CONCURRENCY=1` (serialized) ever produces it at all, which would strongly implicate scheduling/interleaving over file content.
+- Characterize layer 2's trigger condition empirically. `TEST_CONCURRENCY` is now ruled out. The next-cheapest lever is file-order pinning (see confound above) before reaching for "Node's coverage collector has an internal race" as the working theory.
