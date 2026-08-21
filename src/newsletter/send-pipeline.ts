@@ -386,19 +386,24 @@ export async function handleSendBatchClaimed(required: { deps: SendPipelineDeps;
       status,
       message: { subject: campaign.subject, text: campaign.preheader ?? undefined, fromName: campaign.fromName, fromEmail: campaign.fromEmail, replyTo: campaign.replyTo },
     });
-    if (dispatchResult.outcome !== "suppressed") {
-      await recordResult({
-        deps,
-        input: {
-          workspaceId: job.workspaceId,
-          sendId,
-          campaignId: job.campaignId,
-          outcome: dispatchResult.outcome,
-          providerMessageId: dispatchResult.providerMessageId,
-          error: dispatchResult.error,
-        },
-      });
-    }
+    // BUG FIX: `recordResult` is the ONLY place a send row's status ever leaves "pending" --
+    // `dispatchRow` above never writes. Previously this call was skipped for a "suppressed"
+    // outcome, which left the row at "pending" forever: `countPendingByCampaign` could never reach
+    // 0 for that campaign, so `completeIfDrained` (below) could never fire once any recipient was
+    // suppressed. `recordResult` already maps any non-"sent" outcome (including "suppressed") to a
+    // terminal "failed" status, so calling it unconditionally is sufficient -- no new status value
+    // is needed.
+    await recordResult({
+      deps,
+      input: {
+        workspaceId: job.workspaceId,
+        sendId,
+        campaignId: job.campaignId,
+        outcome: dispatchResult.outcome,
+        providerMessageId: dispatchResult.providerMessageId,
+        error: dispatchResult.error,
+      },
+    });
   }
 
   await completeIfDrained({ deps, input: { workspaceId: job.workspaceId, campaignId: job.campaignId } });
