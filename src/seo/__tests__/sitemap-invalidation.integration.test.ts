@@ -101,6 +101,20 @@ test("unpublish -> entry.unpublished -> sitemap cache invalidated", async () => 
   assert.equal(entries.length, 1, "cache must have been invalidated and rebuilt (post-1 unpublished, post-2 published-and-visible)");
 });
 
+test("published -> published edit -> entry.updated -> sitemap cache invalidated", async () => {
+  const harness = await makeHarness([seedPost({ status: "published" })]);
+  await primeCacheThenMutateDirectly(harness);
+
+  await updatePost({
+    deps: { repo: harness.postRepo, clock, outbox: harness.outbox },
+    input: { workspaceId: WORKSPACE, id: "post-1", title: "Hello (retitled)", slug: "hello", bodyJson: {}, status: "published" },
+  });
+  await processOutbox({ outbox: harness.outbox, bus: harness.bus, clock });
+
+  const entries = await buildSitemap(harness.deps, { workspaceId: WORKSPACE });
+  assert.equal(entries.length, 2, "an entry.updated delivery (published -> published) must invalidate the cache too, not only the published/unpublished transitions");
+});
+
 test("draft -> draft edit emits no event and the cache stays untouched", async () => {
   const harness = await makeHarness([seedPost({ status: "draft" })]);
   await primeCacheThenMutateDirectly(harness);
