@@ -100,6 +100,25 @@ test("exportSite: --base-path rewrites HTML hrefs, sitemap <loc> entries, and ro
   }
 });
 
+test("exportSite: --base-path 'repo', '/repo', and '/repo/' all normalize to the same '/repo' and produce byte-identical output", async (t) => {
+  // Characterizes normalizeBasePath's own documented contract (its file comment names exactly these
+  // three input forms) — until now only the bare no-leading-slash form ("my-repo", above) had any
+  // regression coverage, so the already-has-a-leading-slash short-circuit had never actually run.
+  const results: { basePath: string | undefined; home: string }[] = [];
+  for (const raw of ["repo", "/repo", "/repo/"]) {
+    const outputDir = makeTmpOutputDir();
+    t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+    const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, basePath: raw });
+    results.push({ basePath: report.basePath, home: readFileSync(path.join(outputDir, "index.html"), "utf8") });
+  }
+
+  for (const { basePath } of results) {
+    assert.equal(basePath, "/repo");
+  }
+  assert.equal(results[1]!.home, results[0]!.home, "'/repo' must rewrite identically to 'repo'");
+  assert.equal(results[2]!.home, results[0]!.home, "'/repo/' must rewrite identically to 'repo'");
+});
+
 test("exportSite: writes the expected file tree for the seeded demo workspace, with zero failures", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
