@@ -142,6 +142,14 @@ function classifyDeviceClass(ua: string): DeviceClass {
 
 function classifyBrowserFamily(ua: string): string | null {
   if (/edg\//i.test(ua)) return "edge";
+  // iOS Chrome/Firefox are WebKit-forced (Apple's App Store review rules require every iOS browser
+  // to use WebKit) and identify via their own product tokens rather than "chrome/"/"firefox/" —
+  // "CriOS/" and "FxiOS/" respectively — while still carrying a trailing "Safari/" token for
+  // web-compat. Must be checked BEFORE the safari fallback below, or every iOS Chrome/Firefox
+  // visitor falls through and is misclassified "safari" (see ingest.test.ts's real-device-UA
+  // regression tests).
+  if (/crios\//i.test(ua)) return "chrome";
+  if (/fxios\//i.test(ua)) return "firefox";
   if (/chrome\//i.test(ua)) return "chrome";
   if (/firefox\//i.test(ua)) return "firefox";
   if (/safari\//i.test(ua) && !/chrome/i.test(ua)) return "safari";
@@ -199,6 +207,18 @@ function expandIpv6Groups(ip: string): string[] {
   return [...headGroups, ...Array(zerosNeeded).fill("0"), ...tailGroups];
 }
 
+/** Matches an RFC 4291 SS2.5.5.2 IPv4-mapped IPv6 address, e.g. `"::ffff:192.168.1.1"`. */
+const IPV4_MAPPED_IPV6_PATTERN = /^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i;
+
+/** Buckets a dotted-quad IPv4 address to its /24, or `"unknown"` if it isn't a 4-octet address. */
+function truncateIpv4(ip: string): string {
+  const octets = ip.split(".");
+  if (octets.length === 4) {
+    return `${octets[0]}.${octets[1]}.${octets[2]}.0`;
+  }
+  return "unknown";
+}
+
 /**
  * Truncates/buckets an IP address to a coarse prefix (IPv4 /24, IPv6 /48) so the request signal
  * folded into `visitorHash` never encodes a full, individually-identifying address.
@@ -208,21 +228,43 @@ function expandIpv6Groups(ip: string): string[] {
  * always land in the same bucket — bucketing on the raw, unexpanded groups would otherwise shift
  * a shorthand address's trailing group into the "first 3" slot.
  *
+ * An IPv4-mapped IPv6 address (`"::ffff:a.b.c.d"`) is bucketed as the SAME /24 as the bare IPv4
+ * form, not run through the IPv6 group-expansion path — the mapped form's head is always six
+ * zero groups + `"ffff"`, so slicing its first 3 expanded groups is always `["0","0","0"]`
+ * regardless of the mapped address, collapsing every IPv4-mapped visitor into one bucket. This
+ * matters in production: both entrypoints (`src/index.ts`, `src/cli/commands/serve.ts`) call
+ * `app.listen(port, ...)` with no host, so Node binds dual-stack and every IPv4 peer arrives as
+ * `::ffff:a.b.c.d`.
+ *
+ * A bracketed address (`"[::1]"`, as seen in host:port contexts) has its brackets stripped before
+ * classification rather than being rejected to `"unknown"` — the address itself is otherwise
+ * well-formed, so bucketing it normally is more useful than discarding the signal.
+ *
+ * Deliberately NOT handled (consciously left, not attacker-reachable today — no `trust proxy`
+ * config exists anywhere in `src/`, so `ip` always comes from `req.socket.remoteAddress`, which
+ * Node/libuv's `inet_ntop` always renders as valid, lowercase, non-zero-padded IPv6 syntax):
+ * a zone index (`"fe80::1%eth0"`), two `"::"` in one address (illegal), and case/leading-zero
+ * variants (`"2001:0DB8::1"` vs `"2001:db8::1"`). If `trust proxy` / header-derived IPs are ever
+ * introduced, these become reachable and this function should canonicalize (lowercase, strip
+ * leading zeros) and validate (reject malformed `"::"` usage) before bucketing.
+ *
  * @complexity O(1).
  * @overallScore 100/100
  */
 function truncateIp(ip: string): string {
-  if (ip.includes(":")) {
-    const groups = expandIpv6Groups(ip);
+  const unwrapped = ip.startsWith("[") && ip.endsWith("]") ? ip.slice(1, -1) : ip;
+
+  const ipv4Mapped = IPV4_MAPPED_IPV6_PATTERN.exec(unwrapped);
+  if (ipv4Mapped) {
+    return truncateIpv4(ipv4Mapped[1]);
+  }
+
+  if (unwrapped.includes(":")) {
+    const groups = expandIpv6Groups(unwrapped);
     return `${groups.slice(0, 3).join(":")}::`;
   }
 
-  const octets = ip.split(".");
-  if (octets.length === 4) {
-    return `${octets[0]}.${octets[1]}.${octets[2]}.0`;
-  }
-
-  return "unknown";
+  return truncateIpv4(unwrapped);
 }
 
 /**
