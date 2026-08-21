@@ -9,12 +9,16 @@ be at 100%."** Written to be readable without having followed the night's invest
 
 ```
                         LINE      BRANCH      FUNC
-                      100.00%     96.77%    100.00%
+                      100.00%     97.00%    100.00%
 
-missing:  0 lines     14 branches     0 functions
+missing:  0 lines     13 branches     0 functions      (421/434 branches hit)
 ```
 
-**Line and function coverage are at 100%.** Branch coverage is at 96.77%, and **every remaining branch
+(Updated 2026-08-21 after the `normalizeBasePath` branch closed — see below. Was 14 branches / 96.77%
+(420/434). Re-summed directly from a fresh scoped lcov run across all 14 files, not derived from the
+rounded percentage.)
+
+**Line and function coverage are at 100%.** Branch coverage is at 97.00%, and **every remaining branch
 is in one file**, `src/export/site-exporter.ts`.
 
 For comparison, the 2026-08-20 handoff claimed **99.59 / 87.73 / 98.61** and marked the area done. The
@@ -32,7 +36,7 @@ area is now better than that claim on all three axes.
 | `analytics/salt.ts` | 100.00 | 100.00 | 100.00 |
 | `export/index.ts` | 100.00 | 100.00 | n/a |
 | `export/route-manifest.ts` | 100.00 | 100.00 | 100.00 |
-| **`export/site-exporter.ts`** | 100.00 | **89.31** | 100.00 |
+| **`export/site-exporter.ts`** | 100.00 | **90.08** | 100.00 |
 | `media/bootstrap.ts` | 100.00 | 100.00 | 100.00 |
 | `media/index.ts` | 100.00 | 100.00 | n/a |
 | `media/provider-credential-store.memory.ts` | 100.00 | 100.00 | 100.00 |
@@ -41,38 +45,65 @@ area is now better than that claim on all three axes.
 
 `n/a` func = a re-export barrel with no function bodies of its own. Not a gap.
 
-## The one remaining file: `site-exporter.ts`, 14 branches
+## The one remaining file: `site-exporter.ts`, 13 branches (was 14)
 
-Triaged. **None is a deletion.** By cause:
+**Full re-triage completed 2026-08-20/21**, using exact V8 coverage offsets (not lcov's line numbers —
+see Measurement integrity below) cross-checked against a manual esbuild transform reproducing tsx's own
+options (`minifyWhitespace: true, keepNames: true, sourcemap: true` — read directly out of
+`node_modules/tsx/dist/index-XurvG3JN.mjs`). Every one of the original 14 zero-hit `BRDA` ranges was
+mapped to an exact source line and read in context. The previous "~5 / ~4 / ~5" grouping in this
+document was an approximation from before this mapping existed; the counts below are exact and
+supersede it — one of the previously-unlabelled branches turned out to be closeable, so the true count
+was 14 → now 13.
 
-- **no-seam (~5)** — `writeRedirectRoute`'s non-3xx / missing-`Location` paths and
-  `prefixRootRelativePath`'s "not root-relative" path. Two independent attempts to reach these failed
-  for informative reasons, and **both failures are good news about the product**:
-  - swapping `redirectRepo` to desync the manifest from the live resolver doesn't work, because the
-    redirect phase handler binds its repo **by object identity at `createRouteDeps()` construction**,
-    not per request (unlike `postRepo`, which is re-read — that asymmetry is why the equivalent trick
-    works for posts);
-  - an external cross-origin redirect target never yields a 3xx at all, because the anti-open-redirect
-    oracle **fails closed** for unverified origins.
+**Closed (1): `normalizeBasePath`'s leading-slash short-circuit.** `trimmed.startsWith("/") ? trimmed :
+...` — the `? trimmed` (already-prefixed) side had never run because every existing test passed
+`basePath: "my-repo"` (no leading slash); the function's own doc comment names `"/repo"` and `"/repo/"`
+as equivalent inputs that had simply never been tried. Closed with one new test using the existing
+`exportSite`/`createRouteDeps()` seam, no production change — commit `a326388e`. Branch coverage:
+117/131 (89.31%) → **118/131 (90.08%)**.
 
-  Both behaviors are now locked in as **security characterization tests** (`a1b820ab`, `623e563e`) so a
-  future refactor can't silently undo them.
-- **type-required (~4)** — `?? undefined` / `?? ""` fallbacks after `Headers.get("content-type")` or a
-  regex capture group. Express always sets Content-Type on a real response and the capturing regexes
-  always match ≥1 character, so these are empirically dead but **required by the compiler's nullable
-  types**. Removing them breaks `tsc`.
-- **NOT YET TRIAGED (~5)** — CSS-crawl edge paths adjacent to the second-hop crawl closed in
-  `5b03f173`. **These have not been assigned one of the four causes.** Saying so plainly rather than
-  implying a label: nobody has yet read each one and decided whether it is reachable through the
-  `createSiteApp` fixture that closed its neighbours, or genuinely seam-less. That is the only
-  outstanding piece of real work in this area, and it is small.
+By cause, all 13 remaining, **none is a deletion**:
 
-  (Flagged by `cov-aem-2` on review of this report. An unlabelled bucket inside a four-cause framing
-  reads as triaged when it isn't, and would have been re-litigated by a later session.)
+- **no-seam (6)** — up from the 3 originally named; offset-mapping surfaced 3 more in the same family:
+  - `writeRedirectRoute`'s non-3xx failure, its `?? route.redirectTarget` fallback, and its
+    `!location` failure (3 branches, one scenario: a missing `Location` header). Two independent
+    attempts to reach these failed for informative reasons, and **both failures are good news about the
+    product**: swapping `redirectRepo` to desync the manifest from the live resolver doesn't work,
+    because the redirect phase handler binds its repo **by object identity at `createRouteDeps()`
+    construction**, not per request (unlike `postRepo`, which is re-read); and an external cross-origin
+    redirect target never yields a 3xx at all, because the anti-open-redirect oracle **fails closed**
+    for unverified origins. Locked in as **security characterization tests** (`a1b820ab`, `623e563e`).
+  - `assetOutputFile`'s two path-containment guards (`resolved !== path.join(...)` and
+    `!resolved.startsWith(outputDir + sep)`, both `return null`) plus `fetchOneAsset`'s corresponding
+    `{ ok: false, reason: "...refused" }` branch when `assetOutputFile` returns `null` (3 branches, one
+    scenario: a crawled asset URL that resolves outside `outputDir`). Traced every real caller: URLs
+    from `extractCssUrls` are resolved through `new URL(ref, ...).pathname`, which normalizes `..`
+    before this guard ever sees it, so a CSS reference cannot trigger it. URLs from `extractAssetUrls`
+    (HTML `href`/`src`) are raw substrings gated only by a hardcoded prefix
+    (`/theme-assets/`, `/agent-icons/`, `/m/`) — a literal `href="/theme-assets/../../x"` in a
+    **rendered page** would reach it, but producing that would require a theme file, and
+    `src/themes/static/` is off limits this session (shared with other live sessions, per this file's
+    own earlier note and the standing rule against writing there). No production surface exists to
+    inject one without a fixture theme. This is a security guard genuinely unreachable **today** for a
+    seam reason, not a correctness reason — per this session's own standing rule, it stays.
+- **type-required (7)** — up from the ~4 originally named; the pattern is broader than just
+  `Headers.get("content-type")`/regex-capture, it also covers `Array.prototype.split()[0]` under this
+  repo's `noUncheckedIndexedAccess`, which types every array index as possibly-`undefined` even though
+  `split()` always returns ≥1 element at runtime:
+  - `extractAssetUrls`: `match[1] ?? ""` (regex capture) and `value.split("#")[0] ?? value` (split index)
+  - `extractCssUrls`: `match[2] ?? ""` (regex capture)
+  - `assetOutputFile`: `url.split("?")[0] ?? url` (split index)
+  - `writeContentRoute`, `writeNotFoundRoute`, `fetchOneAsset`: three separate instances of
+    `res.headers.get("content-type") ?? undefined`
+  
+  All seven are empirically dead — Express always sets Content-Type on a real response, the capturing
+  regexes always match ≥1 character, and `split()` always returns ≥1 element — but **required by the
+  compiler's nullable/possibly-undefined types**. Removing any of them breaks `tsc`.
 
-**Nothing here should be "fixed" by adding production surface to create a test seam.** That was
-considered and rejected; the seam that did get used (`ExportSiteRouteDeps.createSiteApp`) already
-existed for this purpose.
+**Nothing here was "fixed" by adding production surface to create a test seam.** The one branch that
+did get closed used the seam that already existed (`ExportSiteRouteDeps.createSiteApp`, same as
+`5b03f173`) — no new seam, no production change.
 
 ## Measurement integrity
 
@@ -91,7 +122,16 @@ therefore comes from a **scoped** run, and was integrity-checked before being qu
 
 This measurement was reproduced independently by `cov-aem-2` — its own fresh scoped run and its own
 parser, executed before it read this file — and matched byte for byte, including all 14 zero-hit `BRDA`
-branches.
+branches (that reproduction predates the `normalizeBasePath` fix above; it verified the 14-branch state,
+not the current 13-branch one).
+
+**2026-08-21 re-verification** (after closing `normalizeBasePath`): re-ran the same scoped command,
+re-summed `LF/LH/FNF/FNH/BRF/BRH` per file directly from the lcov text (not from any rounded
+percentage) across exactly the 14 files this report names, each appearing as exactly one `SF:` block (no
+dual-instantiation) — 434 total branches, 421 hit, 13 zero-hit, matching the file-level triage above
+exactly. Also cross-checked the 13 remaining zero-hit branches against raw `NODE_V8_COVERAGE` output
+(exact byte offsets, immune to lcov's line-number corruption) run twice — before and after the fix — to
+confirm only the `normalizeBasePath` range changed from zero to nonzero and nothing else shifted.
 
 Reproduce with:
 
