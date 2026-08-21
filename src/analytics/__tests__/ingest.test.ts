@@ -137,6 +137,51 @@ test("normalizeIngestContext classifies osFamily 'ios' for a user agent naming i
   assert.equal(normalized.deviceClass, "mobile");
 });
 
+// Bug regression (found + characterized by a prior session, fixed in this one): a REAL iPhone/iPad
+// Safari user agent always contains the literal substring "like Mac OS X" (WebKit's own
+// compatibility convention — every genuine mobile Safari UA carries it, not a contrived edge case).
+// `classifyOsFamily` used to test "mac os|macintosh" BEFORE "iphone|ipad|ios", so every real Apple
+// mobile visitor was misclassified osFamily "macos" — the "ios" branch above never fired on real
+// traffic, only on a synthetic UA (like the test above) that omits "Mac OS X" outright. These three
+// UAs are byte-for-byte real device/browser strings (not contrived), so this proves the fix against
+// the actual bytes real visitors send, not just an inverted synthetic case.
+const REAL_IPHONE_SAFARI_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+const REAL_IPAD_SAFARI_UA =
+  "Mozilla/5.0 (iPad; CPU OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+const REAL_MACOS_SAFARI_UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15";
+
+test("normalizeIngestContext classifies osFamily 'ios' (not 'macos') for a REAL iPhone Safari user agent, despite it containing the literal substring 'like Mac OS X'", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_IPHONE_SAFARI_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.osFamily, "ios");
+  assert.equal(normalized.deviceClass, "mobile");
+});
+
+test("normalizeIngestContext classifies osFamily 'ios' (not 'macos') for a REAL iPad Safari user agent, despite it containing the literal substring 'like Mac OS X'", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_IPAD_SAFARI_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.osFamily, "ios");
+  assert.equal(normalized.deviceClass, "tablet");
+});
+
+test("normalizeIngestContext still classifies osFamily 'macos' for a REAL macOS Safari user agent (proves the iOS fix did not invert the bug onto real desktop Mac traffic)", () => {
+  const salt = makeSalt("2026-07-10");
+  const normalized = normalizeIngestContext({
+    input: { ip: RAW_IP, userAgent: REAL_MACOS_SAFARI_UA, siteHost: "example.com" },
+    dailySalt: salt,
+  });
+  assert.equal(normalized.osFamily, "macos");
+  assert.equal(normalized.deviceClass, "desktop");
+});
+
 test("normalizeIngestContext classifies a mobile Android user agent", () => {
   const salt = makeSalt("2026-07-10");
   const normalized = normalizeIngestContext({
