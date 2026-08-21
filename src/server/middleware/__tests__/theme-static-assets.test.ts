@@ -142,6 +142,54 @@ test("registerThemeStaticAssets: path traversal in the themeId segment cannot es
   }, [rootA]);
 });
 
+test("registerThemeStaticAssets: resolveThemeDir is actually WIRED to the shared resolvePathWithin containment check, not just the dot/__ prefix guard", async (t) => {
+  // Regression for the exact gap this task existed to close: d4ef2941 wrote the shared
+  // containment helper (core/path-containment.ts) but never wired theme-static-assets.ts to it,
+  // and nothing caught that. This pins the wiring itself, not the helper (already covered
+  // directly by core/__tests__/unit/path-containment.unit.test.ts).
+  //
+  // "foo/../../outside-secret" does NOT start with "." or "__", so resolveThemeDir's early
+  // dot/__ guard cannot be what refuses it -- verified directly (not assumed): a standalone probe
+  // logging req.params.themeId for an encoded payload of this shape showed Express delivers it
+  // verbatim, embedded slashes and all, and `.startsWith(".")`/`.startsWith("__")` both evaluate
+  // false against it. A 404 here can only come from resolvePathWithin's own refusal.
+  //
+  // The traversal target is a real, readable SIBLING directory of the served root (not a system
+  // file like /etc/passwd) specifically so a wiring regression is unambiguous: if resolvePathWithin
+  // were ever replaced with a bare `path.resolve(root, themeId)` (no containment check at all),
+  // "foo/../../outside-secret" resolves to a real directory that exists and contains a real file,
+  // so the request would come back 200 with that file's actual bytes -- not an incidental 404 for
+  // an unrelated reason (verified this by actually doing the swap: the first version of this test
+  // used /etc/passwd as the target and stayed green even with the containment check removed,
+  // because path.resolve landed on a FILE, and express.static can't serve a file as if it were a
+  // directory root, so it 404s either way -- a false negative that doesn't distinguish "refused"
+  // from "broken". This version does not have that problem.).
+  const parentDir = mkdtempSync(path.join(tmpdir(), "theme-assets-wiring-parent-"));
+  const rootA = path.join(parentDir, "theme-root");
+  mkdirSync(path.join(rootA, "real-theme"), { recursive: true });
+  writeFileSync(path.join(rootA, "real-theme", "ok.txt"), "fine");
+  const outsideDir = path.join(parentDir, "outside-secret");
+  mkdirSync(outsideDir, { recursive: true });
+  writeFileSync(path.join(outsideDir, "marker.txt"), "SHOULD NEVER BE SERVED");
+  t.after(() => rmSync(parentDir, { recursive: true, force: true }));
+
+  await withTempApp(async (baseUrl) => {
+    // Positive control: a benign id under the SAME root still resolves and serves, so the
+    // refusal below is provably about the traversal, not a general breakage of this root.
+    const okRes = await fetch(`${baseUrl}/theme-assets/real-theme/ok.txt`);
+    assert.equal(okRes.status, 200);
+    assert.equal(await okRes.text(), "fine");
+
+    // Two ".." exactly cancels "foo" then climbs from rootA to parentDir, landing on
+    // outside-secret/ regardless of how deep the OS's own tmpdir happens to be -- deterministic,
+    // not environment-dependent. Encoded so Express's router treats the whole value as one
+    // :themeId segment rather than splitting the path.
+    const payload = encodeURIComponent("foo/../../outside-secret");
+    const res = await fetch(`${baseUrl}/theme-assets/${payload}/marker.txt`);
+    assert.equal(res.status, 404, `expected the containment check to refuse the traversal, got ${res.status}`);
+  }, [rootA]);
+});
+
 test("registerThemeStaticAssets: an id absent from every root 404s (no crash, clean fallthrough)", async (t) => {
   const rootA = makeThemeFixture("empty-a", {});
   t.after(() => rmSync(rootA, { recursive: true, force: true }));
