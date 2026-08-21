@@ -19,7 +19,7 @@
  * Verified against `__tests__/integration/resolver-service.integration.test.ts`.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import { getWidgetTypeRegistration } from "../registry.js";
+import { findWidgetTypeRegistration } from "../registry.js";
 import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers.js";
 import type {
   WidgetInstanceView,
@@ -185,7 +185,11 @@ export async function resolveWidgetType(required: {
   const results = new Map<UUID, WidgetResolveResult>();
   if (instances.length === 0) return results;
 
-  const registration = getWidgetTypeRegistration(typeKey);
+  // `typeKey` is typed `WidgetTypeKey` but only ASSERTED to be one — it's grouped off stored
+  // widget-instance data (`resolver-service.ts`'s `payload.widgetType`, itself an
+  // `entry-payload.ts` cast over decoded JSON), so `findWidgetTypeRegistration` is the correct,
+  // honestly-partial accessor: `"unknown-type"` below is a real, reachable failure mode (REQ-27).
+  const registration = findWidgetTypeRegistration(typeKey);
   if (!registration) {
     fillFailure(results, instances, "unknown-type");
     return results;

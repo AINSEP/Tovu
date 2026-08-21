@@ -11,11 +11,15 @@
  * core-owned code in v1, ADR-024 Tier-2/3-gated for any future plugin-contributed dynamic type
  * (`resolvers/`).
  *
- * `getWidgetTypeRegistration` is the sole lookup accessor over this data — a pure, O(1) function
- * with no I/O and no reference to resolver code, kept here (unlike `forms/manifest.ts`'s stricter
- * zero-function convention, which exists specifically for a hypothetical future loader retrofit
- * this file has no equivalent of) because every other registry in this codebase
- * (`identity/permissions.ts`) pairs its data with a plain accessor the same way.
+ * `getWidgetTypeRegistration`/`findWidgetTypeRegistration` are the two lookup accessors over this
+ * data — pure, O(1) functions with no I/O and no reference to resolver code, kept here (unlike
+ * `forms/manifest.ts`'s stricter zero-function convention, which exists specifically for a
+ * hypothetical future loader retrofit this file has no equivalent of) because every other registry
+ * in this codebase (`identity/permissions.ts`) pairs its data with a plain accessor the same way.
+ * The split is deliberate, not incidental: `getWidgetTypeRegistration` is total and only accepts a
+ * `typeKey` the type system has actually proven is one of the five registered keys; a caller
+ * holding a merely-asserted `WidgetTypeKey` (cast from an HTTP body or decoded JSON, not narrowed)
+ * must use the partial `findWidgetTypeRegistration` instead — see each function's own doc.
  *
  * How it relates to the project:
  * - Read by `resolvers/index.ts` (dispatch), `write-service.ts` (config validation, REQ-02/03),
@@ -131,16 +135,41 @@ const CONTACT_FORM_REGISTRATION: WidgetTypeRegistration = {
   resolverId: "contact-form",
 };
 
-/** The complete v1 widget-type registry (REQ-09). */
-export const WIDGET_TYPE_REGISTRATIONS: readonly WidgetTypeRegistration[] = [
-  TEXT_REGISTRATION,
-  SOCIAL_LINKS_REGISTRATION,
-  RECENT_ENTRIES_REGISTRATION,
-  MENU_REGISTRATION,
-  CONTACT_FORM_REGISTRATION,
-];
+/**
+ * The complete v1 widget-type registry (REQ-09), keyed by the closed `WidgetTypeKey` union rather
+ * than held as an array. This is what makes `getWidgetTypeRegistration` below total: TypeScript
+ * proves every member of the union has an entry, so the accessor's return type carries no
+ * `| undefined` for a genuinely-narrowed key. Iterate with `Object.values(...)` where the whole
+ * table is needed (e.g. `agent-tools.ts`'s published-type-list).
+ */
+export const WIDGET_TYPE_REGISTRATIONS: Readonly<Record<WidgetTypeKey, WidgetTypeRegistration>> = {
+  text: TEXT_REGISTRATION,
+  "social-links": SOCIAL_LINKS_REGISTRATION,
+  "recent-entries": RECENT_ENTRIES_REGISTRATION,
+  menu: MENU_REGISTRATION,
+  "contact-form": CONTACT_FORM_REGISTRATION,
+};
 
-/** The sole lookup accessor over the registry — pure, O(1), no I/O. */
-export function getWidgetTypeRegistration(typeKey: WidgetTypeKey): WidgetTypeRegistration | undefined {
-  return WIDGET_TYPE_REGISTRATIONS.find((registration) => registration.typeKey === typeKey);
+/**
+ * The total lookup accessor — pure, O(1), no I/O. Only valid for a `typeKey` already narrowed to
+ * `WidgetTypeKey` by the type system itself (a literal, or a value whose type was proven, not
+ * asserted). For a raw/untrusted string that merely claims to be a `WidgetTypeKey` (an HTTP body
+ * field cast at the boundary, e.g. `server/routes/admin/widgets/create.ts`, or a value decoded out
+ * of stored JSON via `entry-payload.ts`'s `parseWidgetInstancePayload`), `undefined` is genuinely
+ * reachable — use `findWidgetTypeRegistration` instead; do not smuggle an unverified string past
+ * this signature with a cast.
+ */
+export function getWidgetTypeRegistration(typeKey: WidgetTypeKey): WidgetTypeRegistration {
+  return WIDGET_TYPE_REGISTRATIONS[typeKey];
+}
+
+/**
+ * The partial lookup accessor for a raw, untrusted string that has not been proven to be a
+ * `WidgetTypeKey` — only asserted to be one at some upstream boundary (an HTTP body field, or a
+ * value decoded out of stored JSON). Returns `undefined` for any string that isn't one of the five
+ * registered keys, which callers at those boundaries must handle for real (see
+ * `write-service.ts`'s `WidgetTypeUnregisteredError`, `resolvers/index.ts`'s `"unknown-type"`).
+ */
+export function findWidgetTypeRegistration(raw: string): WidgetTypeRegistration | undefined {
+  return Object.values(WIDGET_TYPE_REGISTRATIONS).find((registration) => registration.typeKey === raw);
 }
