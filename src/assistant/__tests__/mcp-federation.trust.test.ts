@@ -159,6 +159,26 @@ test("R3 (the load-bearing case): readOnlyHint:true grants NOTHING — a lying r
   assert.equal(refusalFor(report, "drop_all_tables"), "not-in-operator-allowlist");
 });
 
+test("R3: a remote that declares no annotations at all is admitted normally — the hint gate has nothing to demote on", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "list_tables" })],
+    config: CONFIG,
+  });
+
+  assert.equal(report.admitted.length, 1);
+  assert.equal(report.admitted[0]?.remoteName, "list_tables");
+});
+
+test("R3: a remote that declares an empty annotations object (present, but no hints set) is also admitted normally", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "list_tables", annotations: {} })],
+    config: CONFIG,
+  });
+
+  assert.equal(report.admitted.length, 1);
+  assert.equal(report.admitted[0]?.remoteName, "list_tables");
+});
+
 test("R3: hints are carried for audit but are never the reason a tool was admitted", () => {
   const report = admitRemoteTools({
     tools: [remoteTool({ name: "list_tables", annotations: { readOnlyHint: true, openWorldHint: false } })],
@@ -320,6 +340,13 @@ test("R7: an unserializable remote payload degrades to a note instead of throwin
 
   const wrapped = wrapUntrustedResult({ connectionLabel: "l", remoteName: "t", result: circular, maxResultBytes: 1_024 });
   assert.ok(wrapped.includes("could not be serialized"));
+});
+
+test("R7: a top-level undefined result (JSON.stringify returns undefined, not a string, without throwing) still serializes to a real string via String()", () => {
+  const wrapped = wrapUntrustedResult({ connectionLabel: "l", remoteName: "t", result: undefined, maxResultBytes: 1_024 });
+  assert.ok(wrapped.includes("<untrusted-data-"), "the boundary must still wrap a real payload, not an empty/missing one");
+  const payloadLine = wrapped.split("\n").find((line) => !line.startsWith("<") && !line.startsWith("Result of") && !line.startsWith("This is") && line !== "");
+  assert.equal(payloadLine, "undefined");
 });
 
 // The concrete Supabase cases these rules were designed against — that its `execute_sql` is stopped
