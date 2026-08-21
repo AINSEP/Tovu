@@ -4,9 +4,41 @@ import test from "node:test";
 
 import { createRouteDeps } from "../../server/app.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
+import type { DiscoveredTheme } from "../../features/theme/index.js";
 import { InMemoryRedirectRepo } from "../../redirects/index.js";
 import type { RedirectRecord } from "../../redirects/index.js";
 import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
+
+/** Minimal hand-built {@link DiscoveredTheme} fixture — every field `buildThemePageRoutes` /
+ *  `resolveActiveTheme` actually reads, with `overrides.manifest` merged shallowly over a valid
+ *  base manifest rather than replaced wholesale, so a test only names the manifest fields it cares
+ *  about (e.g. just `tier`). */
+function makeTheme(overrides: Partial<DiscoveredTheme> & { manifest?: Partial<DiscoveredTheme["manifest"]> } = {}): DiscoveredTheme {
+  const { manifest: manifestOverrides, ...rest } = overrides;
+  return {
+    manifest: {
+      id: "hand-built-theme",
+      name: "Hand-Built Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      ...manifestOverrides,
+    },
+    dir: "/tmp/hand-built-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {},
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+    ...rest,
+  };
+}
 
 /**
  * @file Regression coverage for `buildRouteManifest` (SPEC — static site exporter, 2026-08-15).
@@ -47,6 +79,29 @@ test("buildRouteManifest: includes home and every seeded published post/page, an
   const welcome = manifest.routes.find((r) => r.path === "/welcome");
   assert.ok(welcome, "expected the seeded 'welcome' post to be enumerated");
   assert.equal(welcome?.kind, "post");
+});
+
+test("buildRouteManifest: a published PostRecord with kind 'page' is enumerated with route kind 'page', not 'post'", async () => {
+  const base = createRouteDeps();
+  const pageRecord = {
+    id: "post-kind-page-test",
+    workspaceId: base.workspaceId,
+    title: "A Real Page",
+    slug: "a-real-page",
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "page" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+  const postRepo = new InMemoryPostRepo([pageRecord]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const route = manifest.routes.find((r) => r.path === "/a-real-page");
+  assert.ok(route, "expected the published page to be enumerated");
+  assert.equal(route?.kind, "page", "a PostRecord.kind of 'page' must map to ManifestRoute.kind 'page', not 'post'");
 });
 
 test("buildRouteManifest: always includes the convention routes robots.txt/sitemap.xml, and reports the missing favicon/manifest route", async () => {
@@ -242,6 +297,41 @@ test("buildRouteManifest: the not-found probe path never collides with a real en
 
   const realPaths = manifest.routes.filter((r) => r.kind !== "not-found").map((r) => r.path);
   assert.equal(realPaths.includes(probe?.path ?? ""), false);
+});
+
+test("buildRouteManifest: a non-static-tier active theme contributes no theme-page routes (buildThemePageRoutes' early return)", async () => {
+  const templatedTheme = makeTheme({ manifest: { id: "templated-theme", tier: "templated" } });
+  const manifest = await buildRouteManifest(baseDeps({ themes: [templatedTheme] }));
+
+  assert.equal(manifest.activeTheme?.id, "templated-theme", "a valid non-static theme is still resolved as active");
+  assert.equal(
+    manifest.routes.some((r) => r.kind === "theme-page"),
+    false,
+    "only a static-tier theme owns pages/*.html routes to enumerate"
+  );
+  // The seeded post must still appear (unshadowed — a non-static theme claims no slugs).
+  assert.ok(manifest.routes.find((r) => r.path === "/welcome" && r.kind === "post"));
+});
+
+test("buildRouteManifest: a static theme whose manifest omits `templates` still enumerates its pages (the `templates ?? []` fallback)", async () => {
+  const themeWithNoTemplatesField = makeTheme({
+    manifest: { id: "no-templates-field-theme" }, // tier defaults to "static" via makeTheme's base
+    // A deliberately unusual slug so it cannot collide with any seeded post (the tri-state
+    // overridesThemePage rule would otherwise let a same-slug post win, same as the
+    // "post explicitly kept at false" test above — irrelevant to what this test targets).
+    pages: { index: "<html>home</html>", "no-templates-field-theme-fallback-page": "<html>fallback</html>" },
+  });
+  const manifest = await buildRouteManifest(baseDeps({ themes: [themeWithNoTemplatesField] }));
+
+  assert.equal(manifest.activeTheme?.id, "no-templates-field-theme");
+  const fallbackPage = manifest.routes.find((r) => r.path === "/no-templates-field-theme-fallback-page");
+  assert.ok(fallbackPage, "a real page must still be enumerated when manifest.templates is absent, not just empty");
+  assert.equal(fallbackPage?.kind, "theme-page");
+  assert.equal(
+    manifest.routes.some((r) => r.path === "/index"),
+    false,
+    "'index' is home, never its own route, regardless of the templates field"
+  );
 });
 
 test("buildRouteManifest: no theme discovered is a real, reportable state — 'no-theme' skip, no theme-page OR post routes, undefined activeTheme", async () => {
