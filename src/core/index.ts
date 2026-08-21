@@ -3,3 +3,4 @@
  */
 export * from "@jini-ai/cms/core";
 export * from "./events/index.js";
+export { resolvePathWithin } from "./path-containment.js";
