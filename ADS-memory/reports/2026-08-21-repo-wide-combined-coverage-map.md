@@ -110,6 +110,44 @@ today's callers, not of the class.
 That makes **three distinct misreport mechanisms** in this one tool: `FN:` concatenation,
 dual-instantiation line deflation, and missing `FN:` entries for constructor-less error classes.
 
+## How widespread: 89% of the repo
+
+The marker rule was applied to every source file in the combined lcov:
+
+```
+769 source files
+   88 CLEAN  (11%) — combined number trustworthy
+  681 SHIM-MARKED (89%) — combined number suspect
+```
+
+Share of files suspect, by area:
+
+| 100% suspect | high | clean |
+|---|---|---|
+| `widgets`, `newsletter`, `redirects`, `forms`, `members`, `seo`, `connectors`, `media`, `origin`, `export`, `identity`, `navigation`, `routing`, `mail`, `packages/sdk` | `server` 97%, `core` 95%, `comments` 93%, `webhooks` 92%, `features` 84%, `analytics` 83%, `db` 82%, `assistant` 78% | `cli` 0/13, `apps/site-chat` 0/6, `http` 0/2 |
+
+### ⇒ A full-repo `test:cov` run is not a usable per-file measurement tool for this repo
+
+Not "needs a caveat" — **not usable**, for 89% of files, with a per-file error magnitude that cannot be
+estimated from the marker count. **Scoped, per-area runs are the only trustworthy source.** They are also
+the cheap, memory-safe ones (~2–3 min and a few hundred MB, vs 35 min and 2.7 GB).
+
+The "one big run, share the results with every agent" strategy this session opened with was wrong on the
+merits. Two agents caught it; the coordinator did not.
+
+### The 88 clean files suggest the repo is in good shape
+
+Their *worst* line coverage is 74.4% (`cli/commands/theme/generate-index.ts`, 11 missing) and nearly all
+sit above 96%. Nothing in the clean set looks like a coverage emergency.
+
+### Two corrupt claims this report made, now withdrawn
+
+1. **"analytics/export/media is 10 points below the handoff's number."** Withdrawn — retracted above.
+2. **"11 areas no handoff ever named, and `identity` (55.53% line) / `navigation` (51.55% func) are worse
+   than anything currently queued."** Withdrawn. Both areas are **100% shim-marked**, so those figures are
+   corrupt. The *observation* that 11 areas have never been named by any handoff still stands and is worth
+   acting on — but their coverage must be measured with scoped runs before anyone ranks them.
+
 ## Corroborating agent findings
 
 - `cov-aem`: all 14 AEM source files show **exactly 6 shim marker lines each** — a 100% hit rate,
