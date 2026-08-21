@@ -249,4 +249,48 @@ Static pass before spending wall-clock on this (no coverage runs, just grep/read
 - `worker-sandbox.test.ts`/`liquid-sandbox.test.ts`/`handlebars-sandbox.test.ts` (the worker-thread require bootstrap flagged as a lead in the previous section): re-confirmed zero grep matches for `provider-credential-store` anywhere in their transitive import graph. Still not a candidate for THIS target file specifically, though it could taint some other file — out of scope for this bisect, which is anchored to `provider-credential-store.ts` throughout.
 - `daemon-boots.integration.test.ts` (in the 56-colocated bucket) spawns a real child via `spawn(process.execPath, [...], { env: { ...process.env, ... } })` — full env inherited, structurally identical shape to Sol's confirmed mechanism. But its boot path (`agent-daemon-server.ts`, with the test's own `TOVU_DB: "memory"`) takes the `createRouteDeps()` branch, which constructs `InMemoryMediaProviderCredentialRepo` (the `.memory.ts` variant) rather than importing `provider-credential-store.ts` itself. Looks clean for this target by static trace; not run empirically yet.
 
-Next: empirical bisection of the 67 into the 11-file (`integration`+`unit`) block vs. the 56-file colocated block, media-baseline + each half.
+## Round 7: media + `__tests__/integration`+`__tests__/unit` (11 files) — CLEAN
+
+0 shim markers, `LH:357 LF:357`, `FNF:20 FNH:20`. The lazy-require trigger is not in this 11-file block (rules out the `createSqliteRouteDeps*`-calling integration files as sufficient on their own, at least under this file combination).
+
+## Round 8: media + the 56-file colocated bucket — PARTIAL reproduction (new signature)
+
+`FNF:43 FNH:29` (exact match to the canonical FN corruption) but `LH:357 LF:357` — **lines are fully clean**, unlike the canonical `LH:294`. 6 shim markers present. This is a **different, weaker corruption shape** than round 5/Sol's discriminator: the function-table concatenates (same 43/29 as everywhere else this reproduces), but the DA line-merge that normally deflates `LH` did not happen here.
+
+## Round 9: media + agent-daemon (3) + boot (2) = 5 files — CLEAN
+
+Targeted the daemon-boots child-process lead (`daemon-boots.integration.test.ts` spawns a real child with full inherited env, structurally identical to Sol's mechanism) plus the rest of the spawn/worker-flavored cluster. 0 shim markers, `LH:357 LF:357`, `FNF:20 FNH:20`. Confirms the static read: this test's boot path takes the in-memory route-deps branch and never touches `provider-credential-store.ts`.
+
+## Round 10: media + `src/server/http/**/__tests__/*.test.ts` (12 files, the untested remainder after rounds 7/9 within the 56) — FULL reproduction
+
+`6 shim markers, LH:294 LF:357, FNF:43 FNH:29` — **exact match to the canonical full-repo numbers**, from 12 files. This is the narrowest set found yet.
+
+**Static trace of all 12 files came up empty**: only `worker-sandbox.test.ts` contains a literal `require(` and it's inside a comment, not code. Grepped all 12 files and their direct 1-hop imports (`render.js`, `#src/features/post/index`, `#src/features/theme/index`, `#src/widgets/*`, `worker-sandbox.js`/`liquid-sandbox.js`/`handlebars-sandbox.js`) for `provider-credential-store` and `media/index` — zero matches anywhere. `render.ts`'s own import list (read directly) does not reach media at all. No static call-site story explains why this file's coverage gets touched by this cluster.
+
+## Rounds 11/12: splitting the 12 into worker-spawning (3) vs non-worker (9) — BOTH give the partial (FN-only) signature independently
+
+- Round 11, media + `worker-sandbox.test.ts`+`liquid-sandbox.test.ts`+`handlebars-sandbox.test.ts` (3 files, the ones that spawn real worker threads with a `require()` bootstrap): 6 markers, `FNF:43 FNH:29`, **`LH:357`** (clean lines).
+- Round 12, media + the other 9 non-worker files in the same directory (`range.test.ts`, `headless-contracts.test.ts`, `render-products.unit.test.ts`, `page-head.test.ts`, `sandbox-timeout-resolution.test.ts`, `tiptap-render-contract.test.ts`, `render-handlebars.test.ts`, `render.test.ts`, `plugins-dto.unit.test.ts` — none of which spawn a worker or child process): 6 markers, `FNF:43 FNH:29`, **`LH:357`** (clean lines).
+
+Both halves independently reproduce the exact same partial (FN-only) signature as round 8's full 56-file superset. Neither half alone reproduces the full (LH-deflated) signature that the complete 12-file union gave in round 10.
+
+## Round 10b: exact repeat of round 10 (same 12 files, same command, same env) — PARTIAL this time
+
+Re-ran the identical `media + 12-file http cluster` command with nothing changed. Result: 6 markers, `FNF:43 FNH:29`, **`LH:357`** — the partial signature, not round 10's full one.
+
+**This is the key finding of this bisection round: the FULL vs. partial split is not a deterministic function of file membership.** The same 12 files, same flags, same env, back-to-back, gave the full canonical corruption once and the partial one once. `NODE_V8_COVERAGE` was confirmed unset in the invoking shell for every run in this session (checked directly — each `node --experimental-test-coverage` invocation manages its own temp profile directory internally when the var isn't pre-set), so this isn't leftover-directory pollution across my own sequential runs; it looks like genuine run-to-run non-determinism in whatever merge step produces the `LH`/`DA` deflation, most plausibly tied to `TEST_CONCURRENCY=2` scheduling/interleaving rather than to which files are in the set.
+
+## Working picture after rounds 7-10b (superseding the single-cause framing)
+
+Two layers, not one:
+
+1. **A robust, reproducible layer**: something broadly present across `src/server/http/**`'s test cluster (both the worker-spawning files AND plain non-worker files, independently) causes `provider-credential-store.ts`'s `FN:`/`FNDA:` table to concatenate with a phantom 43/29-shaped CJS shadow, with zero static call-site evidence of why — no `require()`, no direct or 1-hop import of `media/`. This reproduced in every single run that included any part of the 12-file cluster (rounds 8, 10, 10b, 11, 12 — 5 for 5).
+2. **A rarer, order-sensitive escalation** on top of layer 1: the `DA:`/`LH:` line-count deflation (the part that actually drops measured coverage, `294` vs `357`) only showed up in round 10's first run, round 5 (full 162-file server set), and Sol's 2-file CLI-child discriminator — and the CLI-child case is the only one with a clean, verified, deterministic causal chain (cross-process `NODE_V8_COVERAGE` inheritance). The http-cluster case reproduced layer 2 once out of two identical attempts.
+
+This reframes round 5's full-repo-scale reproduction: it likely didn't need a single dedicated trigger file at all. At 162 files' worth of concurrent test execution, layer 1 is close to guaranteed to fire (localizes to just `src/server/http/**`, 12 of 162 files), and layer 2's apparent race window gets enough chances to also fire somewhere in that much larger run. Round 3 and 6a's cleanliness is consistent with this: neither included any of the `src/server/http/**` cluster.
+
+## Next, if this bisection continues
+
+Two different investigations now, not one:
+- Confirm layer 1 is real and not itself a measurement artifact of MY bisection (e.g., rerun the 9-file non-worker set once more to see if it's reliably partial, then try to find which single one of those 9 is doing it via further halving — it does not require a worker thread, so the earlier worker-thread hypothesis is not the whole story).
+- Characterize layer 2's trigger condition empirically rather than by code trace, since code tracing has now failed twice in this investigation (once for the child-process case pre-Sol, and again here) — e.g., repeat round 10 several more times to estimate how often it fires, and check whether `TEST_CONCURRENCY=1` (serialized) ever produces it at all, which would strongly implicate scheduling/interleaving over file content.
