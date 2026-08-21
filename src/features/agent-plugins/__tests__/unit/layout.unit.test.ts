@@ -83,7 +83,57 @@ test("pluginDataDir rejects a plugin id that isn't a valid Agent Plugin name", (
   assert.throws(() => ws.pluginDataDir("../escape"));
 });
 
-test("forWorkspace rejects a workspace id that is not a syntactically valid UUID", () => {
+test("forWorkspace rejects a workspace id that could escape its own path segment", () => {
   const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
-  assert.throws(() => layout.forWorkspace("../escape"));
+  assert.throws(
+    () => layout.forWorkspace("../escape"),
+    { message: "forWorkspace: '../escape' is not a valid workspace id" },
+  );
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Workspace id grammar, revised 2026-08-21 (owner decision: option B)
+ * ---------------------------------------------------------------------------
+ * `forWorkspace` originally required a syntactic UUID. This instance's REAL workspace id, read
+ * straight out of `infra/content.db`, is the literal string `workspace-local` — so the UUID rule
+ * could never pass on real data; it was validating against a format the product does not use, and
+ * `installAgentPluginFromUrl` was unreachable from any real caller because of it.
+ *
+ * The check's actual job is narrower than "is this a UUID": keep a traversal or separator segment
+ * out of a path built by string join. `layout.ts` already contains a pattern that does exactly that
+ * job for plugin ids. The workspace check now uses the same grammar, which still accepts every UUID
+ * this module ever accepted (the tests above are unchanged and still pass) while also accepting the
+ * ids Tovu really issues — and `infra/uploads/ws/workspace-local/` shows that shape is already this
+ * repo's own on-disk convention (see this file's header).
+ */
+
+test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
+  const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
+  const ws = layout.forWorkspace("workspace-local");
+  assert.equal(ws.root, path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local"));
+  assert.equal(ws.packages, path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local/packages/sha256"));
+});
+
+test("forWorkspace still normalizes an uppercase id to a lowercase path segment", () => {
+  const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
+  assert.equal(
+    layout.forWorkspace("11111111-1111-4111-8111-11111111111A").root,
+    path.resolve("/srv/tovu-site/infra/agent-plugins/ws/11111111-1111-4111-8111-11111111111a"),
+  );
+  assert.equal(
+    layout.forWorkspace("WORKSPACE-LOCAL").root,
+    path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local"),
+  );
+});
+
+test("forWorkspace rejects every shape that could escape or split the path segment", () => {
+  const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
+  for (const bad of ["../escape", "..", ".", "", "a/b", "a\\b", "a b", "-leading", "trailing-", "a--b", "a_b", "ws/../..", "a".repeat(65)]) {
+    assert.throws(
+      () => layout.forWorkspace(bad),
+      new RegExp(`^Error: forWorkspace: '${bad.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}' is not a valid workspace id$`),
+      `expected '${bad}' to be rejected`,
+    );
+  }
 });
