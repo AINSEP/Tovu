@@ -46,3 +46,29 @@ test("still filters attachmentIds down to non-empty strings, unchanged", () => {
   );
   assert.deepEqual(result.attachmentIds, ["a", "b"]);
 });
+
+test("forwards pluginRefIds present in contextRef", () => {
+  const result = parseRunStartContextRef(
+    JSON.stringify({ prompt: "hi", principalId: "p1", pluginRefIds: ["ui-ux-design"] }),
+  );
+  assert.deepEqual(result.pluginRefIds, ["ui-ux-design"]);
+});
+
+test("defaults pluginRefIds to an empty array when absent from contextRef", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1" }));
+  assert.deepEqual(result.pluginRefIds, []);
+});
+
+test("filters pluginRefIds down to non-empty strings, same as attachmentIds", () => {
+  const result = parseRunStartContextRef(
+    JSON.stringify({ prompt: "hi", principalId: "p1", pluginRefIds: ["ui-ux-design", "", 42, "second-plugin"] }),
+  );
+  assert.deepEqual(result.pluginRefIds, ["ui-ux-design", "second-plugin"]);
+});
+
+test("a non-array pluginRefIds is not forwarded", () => {
+  const result = parseRunStartContextRef(
+    JSON.stringify({ prompt: "hi", principalId: "p1", pluginRefIds: "ui-ux-design" }),
+  );
+  assert.deepEqual(result.pluginRefIds, []);
+});

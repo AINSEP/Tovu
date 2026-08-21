@@ -132,4 +132,68 @@ describe("resolveComposerDiscoveryOutcome", () => {
 
     expect(outcome).toBeUndefined();
   });
+
+  it("pins a pluginRefId capability via addPluginRef, leaving the draft untouched", async () => {
+    const capabilities = await projectionWith([
+      {
+        groupId: "agent-plugins",
+        groupLabel: "Agent Plugins",
+        item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+        pluginRefId: "ui-ux-design",
+      },
+    ]);
+    const addPluginRef = vi.fn();
+
+    const outcome = await resolveComposerDiscoveryOutcome(selection("agent-plugin:ui-ux-design"), {
+      capabilities,
+      navigate: vi.fn(),
+      callAllowlistedTool: vi.fn(),
+      addPluginRef,
+    });
+
+    expect(addPluginRef).toHaveBeenCalledWith("ui-ux-design");
+    expect(outcome).toBeUndefined();
+  });
+
+  it("does not call callAllowlistedTool or navigate when pinning a pluginRefId capability", async () => {
+    const capabilities = await projectionWith([
+      {
+        groupId: "agent-plugins",
+        groupLabel: "Agent Plugins",
+        item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+        pluginRefId: "ui-ux-design",
+      },
+    ]);
+    const navigate = vi.fn();
+    const callAllowlistedTool = vi.fn();
+
+    await resolveComposerDiscoveryOutcome(selection("agent-plugin:ui-ux-design"), {
+      capabilities,
+      navigate,
+      callAllowlistedTool,
+      addPluginRef: vi.fn(),
+    });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(callAllowlistedTool).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when addPluginRef is omitted for a pluginRefId capability — a documented no-op", async () => {
+    const capabilities = await projectionWith([
+      {
+        groupId: "agent-plugins",
+        groupLabel: "Agent Plugins",
+        item: { id: "agent-plugin:ui-ux-design", label: "UI/UX Design (Agent Plugin)" },
+        pluginRefId: "ui-ux-design",
+      },
+    ]);
+
+    const outcome = await resolveComposerDiscoveryOutcome(selection("agent-plugin:ui-ux-design"), {
+      capabilities,
+      navigate: vi.fn(),
+      callAllowlistedTool: vi.fn(),
+    });
+
+    expect(outcome).toBeUndefined();
+  });
 });

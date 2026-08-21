@@ -130,3 +130,46 @@ describe("resolveTovuComposerDiscoveryRoute", () => {
     expect(resolveTovuComposerDiscoveryRoute("agent-plugin:ui-ux-design")).toBeNull();
   });
 });
+
+/**
+ * 2026-08-21: this row used to carry `insertText: "UI/UX Design agent plugin"` — selecting it
+ * typed that literal string into the draft, indistinguishable from the operator having typed it
+ * themselves, and the agent never saw the plugin's real content. `pluginRefId` replaces it —
+ * see `TovuComposerCapability.pluginRefId`'s own doc for the full resolution chain.
+ */
+describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types text", () => {
+  it("carries pluginRefId and no insertText", async () => {
+    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const capability = projection.byItemId.get("agent-plugin:ui-ux-design");
+
+    expect(capability?.pluginRefId).toBe("ui-ux-design");
+    expect(capability?.item.insertText).toBeUndefined();
+  });
+
+  it("is indexed by pluginRefId for the chip tray's label lookup", async () => {
+    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+
+    expect(projection.byPluginRefId.get("ui-ux-design")?.item.id).toBe("agent-plugin:ui-ux-design");
+  });
+});
+
+describe("byPluginRefId indexing", () => {
+  it("is empty when no capability sets pluginRefId", async () => {
+    const projection = await projectComposerCapabilities([
+      fakeSource("a", [{ groupId: "g1", groupLabel: "Group One", item: { id: "a1", label: "A1" } }]),
+    ]);
+
+    expect(projection.byPluginRefId.size).toBe(0);
+  });
+
+  it("fails closed on a duplicate pluginRefId across two capabilities, rather than letting one win silently", async () => {
+    const sourceA = fakeSource("a", [
+      { groupId: "g1", groupLabel: "Group One", item: { id: "first", label: "First" }, pluginRefId: "shared" },
+    ]);
+    const sourceB = fakeSource("b", [
+      { groupId: "g1", groupLabel: "Group One", item: { id: "second", label: "Second" }, pluginRefId: "shared" },
+    ]);
+
+    await expect(projectComposerCapabilities([sourceA, sourceB])).rejects.toThrow(/duplicate pluginRefId/i);
+  });
+});

@@ -11,6 +11,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
+import { SelectedAgentPluginTray, type SelectedAgentPluginChip } from "./SelectedAgentPluginTray";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
@@ -42,6 +43,7 @@ import {
   useRunContext,
   useRuntimeAccess,
   useRuntimeAccessSeam,
+  useSelectedAgentPlugins,
 } from "./hooks/AssistantDock.hooks";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
@@ -346,13 +348,32 @@ export function AssistantDock({
    * a failed projection degrades.
    */
   const { composerCapabilities } = useComposerCapabilitiesSeam(useComposerCapabilitiesOverride);
+  /**
+   * The composer's pinned-Agent-Plugin chips (2026-08-21) — see {@link useSelectedAgentPlugins}'s
+   * own doc for why this is host state rather than part of `@jini-ai/chat`'s own composer state,
+   * and `SelectedAgentPluginTray`'s doc for how it renders.
+   */
+  const { selectedPluginRefIds, addPluginRef, removePluginRef } = useSelectedAgentPlugins();
   const handleComposerDiscoverySelect = useComposerDiscoverySelect({
     composerCapabilities,
     callAllowlistedTool: mcpUiToolCaller,
+    addPluginRef,
   });
+  /**
+   * Chip labels come from the projection itself (`composerCapabilities.byPluginRefId`), not a
+   * second hardcoded copy — the same row a pinned ref came FROM is the one place its display label
+   * is authored (`composer-capabilities.ts`'s bundled catalog). Falls back to the bare id only if
+   * the projection has not resolved yet or no longer carries a matching capability (e.g. a stale
+   * chip from a catalog that changed shape underneath it) — better than dropping the chip and
+   * silently losing track of a ref that will still be sent.
+   */
+  const selectedPluginChips: readonly SelectedAgentPluginChip[] = selectedPluginRefIds.map((pluginRefId) => ({
+    pluginRefId,
+    label: composerCapabilities.byPluginRefId.get(pluginRefId)?.item.label ?? pluginRefId,
+  }));
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
-  const runContext = useRunContext({ agentBridge, model: localCliSelection.model });
+  const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds });
 
   return (
     <JiniChatProvider transport={transport} i18n={chatI18n}>
@@ -450,6 +471,12 @@ export function AssistantDock({
         composerSlots={{
           discoveryGroups: composerCapabilities.groups,
           onDiscoverySelect: handleComposerDiscoverySelect,
+          // Renders the pinned-plugin chip tray above the composer's textarea — the same slot
+          // Jini's own `Composer` already reserves for host content
+          // (`slots?.leadingAccessories`), rendered right before its built-in attachment tray.
+          // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return), which
+          // Jini's `Composer` treats identically to the slot being omitted altogether.
+          leadingAccessories: <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />,
         }}
         // Restricts the composer's file picker to image MIME types. Not a security boundary —
         // `detectAttachmentKind` sniffs magic bytes server-side regardless of what a renamed file

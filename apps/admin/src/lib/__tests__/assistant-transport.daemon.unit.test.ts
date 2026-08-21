@@ -95,6 +95,21 @@ describe("buildLocalCliContextRef", () => {
       buildLocalCliContextRef(input({ context: { frontendBindToken: "tab-1", principalId: "should-not-appear" } }), "p"),
     ).toEqual({ prompt: "p", frontendBindToken: "tab-1" });
   });
+
+  test("includes pluginRefIds (filtered to non-empty strings) only when at least one survives", () => {
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design"] } }), "p")).toEqual({
+      prompt: "p",
+      pluginRefIds: ["ui-ux-design"],
+    });
+    // Same filtering posture as `attachmentIds`'s own decode side (`run-start-context.ts`'s
+    // `parseRunStartContextRef`) — a non-string or empty-string entry is dropped, not forwarded.
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: ["ui-ux-design", "", 42, "second"] } }), "p")).toEqual({
+      prompt: "p",
+      pluginRefIds: ["ui-ux-design", "second"],
+    });
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: [] } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p" });
+  });
 });
 
 describe("startRun — guard and request shape", () => {
