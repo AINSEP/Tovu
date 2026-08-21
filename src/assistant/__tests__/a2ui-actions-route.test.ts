@@ -122,6 +122,44 @@ test("a functionResponse message (no surfaceId at all) delivers without tripping
   assert.deepEqual(await answer, { status: "received", params: { message } });
 });
 
+test("an error message carrying surfaceId is cross-checked against exchangeId, same as an action", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const answer = exchange.receive();
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+
+  const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: exchange.id, path: "/foo", message: "bad" } };
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+
+  assert.equal(res.status, 202);
+  assert.deepEqual(await answer, { status: "received", params: { message } });
+});
+
+test("an error message declaring the WRONG surfaceId is rejected, just like a mismatched action", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+
+  const message = { version: "v1.0", error: { code: "VALIDATION_FAILED", surfaceId: "some-other-surface", path: "/foo", message: "bad" } };
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+
+  assert.equal(res.status, 400);
+  assert.equal(surfaceExchanges.size(), 1, "the mismatched error must not consume the still-open exchange");
+});
+
+test("a generic error message keyed by functionCallId (no surfaceId) delivers without tripping the cross-check", async (t) => {
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const exchange = surfaceExchanges.open({ toolId: "assistant_demo_a2ui", principalId: "principal-1" }, async () => undefined);
+  const answer = exchange.receive();
+  const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);
+
+  const message = { version: "v1.0", error: { code: "TIMEOUT", functionCallId: "call-1", message: "timed out" } };
+  const res = await postAction(baseUrl, { exchangeId: exchange.id, message }, { [RUN_PRINCIPAL_HEADER]: "principal-1" });
+
+  assert.equal(res.status, 202);
+  assert.deepEqual(await answer, { status: "received", params: { message } });
+});
+
 test("an unknown, expired, or already-closed exchange is 409, not 404 or a silent success", async (t) => {
   const surfaceExchanges = createSurfaceExchangeStore();
   const baseUrl = await startTestServer(buildApp(surfaceExchanges), t);

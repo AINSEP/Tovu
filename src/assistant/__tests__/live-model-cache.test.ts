@@ -85,9 +85,49 @@ function stubFetchSpy(): { callCount: () => number; restore: () => void } {
   };
 }
 
+/** Replaces `globalThis.fetch` with a spy that records the request URL and fails fast with a
+ *  network-shaped error — used only to prove WHICH host a call was aimed at, never to let it
+ *  actually reach one. */
+function stubFetchCapture(): { urls: () => string[]; restore: () => void } {
+  const original = globalThis.fetch;
+  const urls: string[] = [];
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    urls.push(typeof input === "string" ? input : input.toString());
+    return Promise.reject(new Error("stubbed — no real network call"));
+  }) as typeof fetch;
+  return {
+    urls: () => urls,
+    restore: () => {
+      globalThis.fetch = original;
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
 // getLiveClaudeModels — the "never a gate" credential branch
 // ---------------------------------------------------------------------------
+
+test("an anthropic credential with no stored baseUrl defaults the live call to the real Anthropic API host", async () => {
+  resetLiveModelCacheForTesting();
+  const { deps, repo, sealer } = makeDeps();
+  await setExecutionCredential(deps, {
+    workspaceId: WORKSPACE,
+    principalId: ADMIN_A,
+    apiKey: "sk-ant-test-key",
+    protocol: "anthropic",
+    // baseUrl deliberately omitted — resolves to null, not a locally-servable URL.
+  });
+  const fetchSpy = stubFetchCapture();
+
+  try {
+    const result = await getLiveClaudeModels({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+    assert.equal(result, null, "the stubbed rejection must still resolve to null, not throw");
+    assert.equal(fetchSpy.urls().length, 1);
+    assert.match(fetchSpy.urls()[0] ?? "", /^https:\/\/api\.anthropic\.com/, "an omitted baseUrl must default to the real Anthropic host");
+  } finally {
+    fetchSpy.restore();
+  }
+});
 
 test("no stored credential resolves to null and makes zero network calls", async () => {
   resetLiveModelCacheForTesting();
