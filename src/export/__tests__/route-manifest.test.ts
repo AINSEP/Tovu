@@ -244,6 +244,66 @@ test("buildRouteManifest: the not-found probe path never collides with a real en
   assert.equal(realPaths.includes(probe?.path ?? ""), false);
 });
 
+test("buildRouteManifest: no theme discovered is a real, reportable state — 'no-theme' skip, no theme-page OR post routes, undefined activeTheme", async () => {
+  // Every other test in this file trusts the seeded fixture's active theme; this is the one place
+  // that deliberately removes it (`resolveActiveTheme` falls through to `deps.themes[0] ?? null`,
+  // which is `null` for an empty list), exercising resolveThemeAndPostRoutes's own `!theme` branch —
+  // documented at length in this module's own file header as a real state, not a crash.
+  //
+  // `resolveThemeAndPostRoutes` returns `{ routes: [] }` on this branch — posts are enumerated
+  // TOGETHER with theme pages (the post loop needs the theme's shadowed-slug set), so losing the
+  // theme loses BOTH, not just theme-owned pages. Matches this function's own skip detail string
+  // verbatim: "only '/' and the 404 probe could be enumerated" — an earlier version of this test
+  // wrongly asserted the seeded post still appeared, contradicting that documented contract.
+  const manifest = await buildRouteManifest(baseDeps({ themes: [] }));
+
+  assert.equal(manifest.activeTheme, undefined);
+  assert.equal(
+    manifest.routes.some((r) => r.kind === "theme-page" || r.kind === "post" || r.kind === "page"),
+    false,
+    "no theme means neither theme-owned pages nor posts can be enumerated"
+  );
+  assert.ok(
+    manifest.skipped.some((s) => s.reason === "no-theme" && s.detail.includes("only '/' and the 404 probe")),
+    "the gap must be named in skipped, not silently absent"
+  );
+  // robots.txt/sitemap.xml/404 are convention routes, unaffected by theme resolution — must survive.
+  assert.ok(manifest.routes.some((r) => r.path === "/"));
+  assert.ok(manifest.routes.some((r) => r.path === "/robots.txt"));
+  assert.ok(manifest.routes.some((r) => r.kind === "not-found"));
+});
+
+test("buildRouteManifest: the 404 probe retries past a collision when a real route already claims its base slug", async () => {
+  const base = createRouteDeps();
+  // Deliberately the exact literal `route-manifest.ts`'s own private NOT_FOUND_PROBE_BASE uses
+  // (verified against that module's source) — forces chooseNotFoundProbePath's retry-on-collision
+  // loop to actually run at least once, not just pass vacuously the way every other fixture in this
+  // file does (per that function's own doc: collision is "vanishingly unlikely" otherwise).
+  const collidingPost = {
+    id: "post-404-probe-collision-test",
+    workspaceId: base.workspaceId,
+    title: "Collides With The 404 Probe Slug",
+    slug: "tovu-export-404-check",
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "post" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+  const postRepo = new InMemoryPostRepo([collidingPost]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const realPaths = new Set(manifest.routes.filter((r) => r.kind !== "not-found").map((r) => r.path));
+  assert.ok(realPaths.has("/tovu-export-404-check"), "the colliding real post must itself be enumerated");
+
+  const probe = manifest.routes.find((r) => r.kind === "not-found");
+  assert.ok(probe, "expected a not-found probe route even with the base slug taken");
+  assert.notEqual(probe?.path, "/tovu-export-404-check", "the retry loop must have appended a suffix rather than colliding");
+  assert.equal(realPaths.has(probe?.path ?? ""), false, "the retried probe path must still not collide with anything real");
+});
+
 test("createRouteManifestReader: build() delegates to buildRouteManifest against the SAME bound deps, not a snapshot", async () => {
   const deps = baseDeps();
   const reader = createRouteManifestReader(deps);
