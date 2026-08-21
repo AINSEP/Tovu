@@ -2,9 +2,22 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
+import { JSDOM } from "jsdom";
 
-import { clearPersistedState, drainQueuedAction, enqueueAction, loadPersistedState, savePersistedState, TRANSCRIPT_STORAGE_KEY } from "../session-store";
+import {
+  clearPersistedState,
+  clearSiteAssistantState,
+  drainQueuedAction,
+  drainQueuedPageAction,
+  enqueueAction,
+  enqueuePageAction,
+  loadPersistedState,
+  loadSiteAssistantState,
+  saveSiteAssistantState,
+  savePersistedState,
+  TRANSCRIPT_STORAGE_KEY,
+} from "../session-store";
 
 /**
  * SPEC-046 REQ-1/REQ-2. Merged from the former `transcript-storage.test.ts` + `action-queue.test.ts`
@@ -71,6 +84,27 @@ describe("transcript-storage", () => {
     it("clears the key and starts empty when open is the wrong type", () => {
       const storage = new FakeStorage();
       storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: "yes", messages: [] }));
+      assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+    });
+
+    it("clears the whole entry when a message's id is not a string", () => {
+      const storage = new FakeStorage();
+      const poisoned = { open: true, messages: [{ id: 42, role: "user", content: "fine" }] };
+      storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
+      assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+    });
+
+    it("clears the whole entry when a message's content is not a string", () => {
+      const storage = new FakeStorage();
+      const poisoned = { open: true, messages: [{ id: "1", role: "user", content: 42 }] };
+      storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
+      assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
+    });
+
+    it("clears the whole entry when a message entry is not an object at all", () => {
+      const storage = new FakeStorage();
+      const poisoned = { open: true, messages: [message("1", "user", "fine"), "not an object"] };
+      storage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(poisoned));
       assert.deepEqual(loadPersistedState(storage), { open: false, messages: [] });
     });
 
@@ -250,6 +284,62 @@ describe("action-queue", () => {
       },
     };
     assert.equal(drainQueuedAction(storage), null, "cannot guarantee single-shot delivery, so it must not deliver at all");
+  });
+});
+
+/**
+ * The five `*SiteAssistantState`/`*PageAction` exports are one-line binders bound to the REAL
+ * `sessionStorage` global (see this file's own "storage encapsulation guard" below and the source
+ * file's own header on why they exist at all: `SiteAssistantWidget.tsx`/`main.tsx` call these, never
+ * `sessionStorage` itself). Every test above exercises the injectable `*PersistedState`/`*Action`
+ * forms through `FakeStorage`, which never touches these five lines. A fresh `JSDOM` per test installs
+ * a real `sessionStorage` onto `globalThis` (matching `highlight.test.ts`'s own "fresh JSDOM per
+ * scenario" pattern) so each wrapper is proven to reach the actual global, not just its own
+ * injectable counterpart under a fake.
+ */
+describe("real-sessionStorage-bound wrappers", () => {
+  let dom: JSDOM;
+  let savedSessionStorage: unknown;
+
+  beforeEach(() => {
+    dom = new JSDOM("", { url: "http://localhost/" });
+    savedSessionStorage = (globalThis as { sessionStorage?: unknown }).sessionStorage;
+    (globalThis as { sessionStorage?: unknown }).sessionStorage = dom.window.sessionStorage;
+  });
+
+  afterEach(() => {
+    (globalThis as { sessionStorage?: unknown }).sessionStorage = savedSessionStorage;
+    dom.window.close();
+  });
+
+  it("loadSiteAssistantState reads through to the real sessionStorage, not a private store", () => {
+    const state = { open: true, messages: [message("1", "user", "hi")] };
+    sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify(state));
+    assert.deepEqual(loadSiteAssistantState(), state);
+  });
+
+  it("saveSiteAssistantState writes through to the real sessionStorage, not a private store", () => {
+    const state = { open: false, messages: [message("1", "assistant", "hello")] };
+    saveSiteAssistantState(state);
+    assert.deepEqual(JSON.parse(sessionStorage.getItem(TRANSCRIPT_STORAGE_KEY) as string), state);
+  });
+
+  it("clearSiteAssistantState removes the real sessionStorage entry", () => {
+    sessionStorage.setItem(TRANSCRIPT_STORAGE_KEY, JSON.stringify({ open: true, messages: [] }));
+    clearSiteAssistantState();
+    assert.equal(sessionStorage.getItem(TRANSCRIPT_STORAGE_KEY), null);
+  });
+
+  it("enqueuePageAction writes through to the real sessionStorage, not a private store", () => {
+    enqueuePageAction({ kind: "example" });
+    assert.deepEqual(JSON.parse(sessionStorage.getItem(ACTION_QUEUE_STORAGE_KEY) as string), { kind: "example" });
+  });
+
+  it("drainQueuedPageAction reads and clears the real sessionStorage entry", () => {
+    sessionStorage.setItem(ACTION_QUEUE_STORAGE_KEY, JSON.stringify({ kind: "example" }));
+    assert.deepEqual(drainQueuedPageAction(), { kind: "example" });
+    assert.equal(sessionStorage.getItem(ACTION_QUEUE_STORAGE_KEY), null, "single-shot: the real entry must be gone too");
+    assert.equal(drainQueuedPageAction(), null, "draining again finds nothing — proves it read the real global, not a stale fake");
   });
 });
 
