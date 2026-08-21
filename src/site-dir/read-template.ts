@@ -16,7 +16,10 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
  *
  * How it relates to the project:
  * `templates/starter/seed-content.json` is content-equal to `server/seed.ts`'s live output
- * (AC-02) — see that JSON file's own generation note. This module never imports `server/seed.ts`
+ * (AC-02) — generated FROM it by `development/scripts/generate-seed-content.ts` (`npm run
+ * generate:seed-content`; drift is a blocking `ci-local.sh` gate, `check:seed-content-drift`), not
+ * hand-synced (2026-08-21: hand-syncing this file drifted from `seed.ts` twice in one day with no
+ * generator between them — see that script's own header). This module never imports `server/seed.ts`
  * directly: `site-dir` must stay independent of the `server` module (Module Map), and a template
  * is data the runtime reads, not a re-export of another module's code.
  *

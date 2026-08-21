@@ -483,6 +483,67 @@
             ]
           },
           {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Every theme starts with the same two files, then its own tier decides the rest — a themeable "
+              },
+              {
+                "type": "text",
+                "text": "declarative",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "/"
+              },
+              {
+                "type": "text",
+                "text": "templated",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": "/"
+              },
+              {
+                "type": "text",
+                "text": "code",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " theme arranges JSON template blocks; a "
+              },
+              {
+                "type": "text",
+                "text": "static",
+                "marks": [
+                  {
+                    "type": "bold"
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " theme (Tovu's fully hand-editable HTML/CSS/JS tier) ships whole pages instead."
+              }
+            ]
+          },
+          {
             "type": "bulletList",
             "content": [
               {
@@ -561,7 +622,7 @@
                       },
                       {
                         "type": "text",
-                        "text": " — how the page is arranged (home, entry, …)."
+                        "text": " — declarative/templated/code tiers: how the page is arranged (home, entry, …)."
                       }
                     ]
                   }
@@ -575,7 +636,30 @@
                     "content": [
                       {
                         "type": "text",
-                        "text": "styles.css",
+                        "text": "render/pages/, render/partials/",
+                        "marks": [
+                          {
+                            "type": "code"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "text",
+                        "text": " — the static tier: full page HTML plus nav/footer partials, every byte editable."
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "listItem",
+                "content": [
+                  {
+                    "type": "paragraph",
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "css/theme.css",
                         "marks": [
                           {
                             "type": "code"
@@ -719,7 +803,16 @@
             "content": [
               {
                 "type": "text",
-                "text": "themes/\n  tovu-official/\n    theme.json      # id, version, fonts, tier\n    tokens.json\n    templates/{home,entry}.json\n    styles.css"
+                "text": "themes/\n  tovu-official/           # declarative/templated/code tier\n    theme.json           # id, version, fonts, tier\n    tokens.json\n    templates/{home,entry}.json\n    css/theme.css"
+              }
+            ]
+          },
+          {
+            "type": "codeBlock",
+            "content": [
+              {
+                "type": "text",
+                "text": "themes/\n  basic/                   # static tier\n    theme.json           # id, version, fonts, tier\n    tokens.json\n    render/\n      pages/index.html   # every page, full HTML\n      partials/nav.html  # nav, footer, ...\n    css/theme.css\n    scripts/"
               }
             ]
           }
