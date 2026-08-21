@@ -471,13 +471,21 @@ export function AssistantDock({
         composerSlots={{
           discoveryGroups: composerCapabilities.groups,
           onDiscoverySelect: handleComposerDiscoverySelect,
-          // Renders the pinned-plugin chip tray above the composer's textarea — the same slot
-          // Jini's own `Composer` already reserves for host content
-          // (`slots?.leadingAccessories`), rendered right before its built-in attachment tray.
-          // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return), which
-          // Jini's `Composer` treats identically to the slot being omitted altogether.
-          leadingAccessories: <SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />,
         }}
+        // Renders the pinned-plugin chip tray above the composer's textarea. NOT passed inside
+        // `composerSlots` above — verified live (2026-08-21) that `ChatPane`'s own
+        // `Composer`-slot assembly unconditionally sets `leadingAccessories: leadingAccessory`
+        // (this prop), discarding whatever `composerSlots.leadingAccessories` holds even when
+        // this prop is omitted (`ChatPane.tsx`'s `slots` object, `{ ...composerSlots,
+        // leadingAccessories: leadingAccessory, ... }`) — a `composerSlots.leadingAccessories`
+        // value never reaches `Composer` at all through this component. `footerAccessories` is
+        // correctly excluded from `ChatPaneProps.composerSlots`'s type for the same reason (it
+        // is reserved for `AgentRuntimePicker`); `leadingAccessories` is not excluded from that
+        // type, which is what made this reachable — an existing gap in Jini's own contract, not
+        // something introduced here. Using this top-level prop instead (unused by this component
+        // until now) avoids the gap entirely, with no change to Jini's package needed.
+        // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
+        leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
         // Restricts the composer's file picker to image MIME types. Not a security boundary —
         // `detectAttachmentKind` sniffs magic bytes server-side regardless of what a renamed file
         // or a drag-drop bypassing this filter claims to be (see `attachments.ts`) — this only
