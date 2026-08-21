@@ -72,6 +72,37 @@ test("createInMemoryIdentityRouteDeps: identityReady also runs migrateDeprecated
   }
 });
 
+/**
+ * `buildIdentityRouteDeps`'s own `authorize` closure -- the RBAC gate route handlers actually
+ * call -- had never been invoked through the wiring layer itself; only `authorizeCore` in
+ * isolation and the full HTTP-route path are covered elsewhere. This proves the closure threads
+ * `principalId`/`permission`/`context` through to the SAME repos this wiring bound it to, for
+ * both the allow and the fail-closed-deny outcome.
+ */
+test("createInMemoryIdentityRouteDeps: the wired authorize() closure grants the seeded owner's wildcard and fails closed for an unknown principal", async () => {
+  const deps = createInMemoryIdentityRouteDeps({
+    workspaceId: WORKSPACE,
+    clock: fixedClock,
+    idGen: counterIdGen(),
+  });
+  await deps.identityReady;
+  const ownerPrincipalId = await deps.ownerPrincipalId;
+
+  const ownerDecision = await deps.authorize({
+    principalId: ownerPrincipalId,
+    permission: "content.read",
+    workspaceId: WORKSPACE,
+  });
+  assert.deepEqual(ownerDecision, { allowed: true, reason: "owner_wildcard" });
+
+  const unknownDecision = await deps.authorize({
+    principalId: "principal-does-not-exist",
+    permission: "content.read",
+    workspaceId: WORKSPACE,
+  });
+  assert.deepEqual(unknownDecision, { allowed: false, reason: "principal_disabled" });
+});
+
 test("createInMemoryIdentityRouteDeps: identityReady resolves even with no pre-existing legacy grants (no-op case)", async () => {
   const deps = createInMemoryIdentityRouteDeps({
     workspaceId: "workspace-2",

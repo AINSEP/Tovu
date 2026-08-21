@@ -159,6 +159,24 @@ function runPolicyRepoSuite(adapterName: string, makeRepo: () => PolicyRepoPort)
     await repo.delete({ workspaceId: WS, id: "pol-3" });
     assert.equal(await repo.findById({ workspaceId: WS, id: "pol-3" }), null);
   });
+
+  // Every other case in this suite passes a description and leaves isFrozen false -- neither
+  // adapter's round-trip (undefined <-> NULL on the description column, true <-> 1 on isFrozen) had
+  // ever been read back, only written.
+  test(`[${adapterName}] PolicyRepoPort: a policy saved without a description round-trips as undefined, not a stored empty/null value`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pol-4", workspaceId: WS, name: "bare", isBuiltin: false, isFrozen: true });
+
+    const byId = await repo.findById({ workspaceId: WS, id: "pol-4" });
+    assert.equal(byId?.description, undefined);
+    assert.equal(byId?.isFrozen, true);
+
+    const byName = await repo.findByName({ workspaceId: WS, name: "bare" });
+    assert.equal(byName?.description, undefined);
+
+    const listed = await repo.list({ workspaceId: WS });
+    assert.equal(listed.find((p) => p.id === "pol-4")?.description, undefined);
+  });
 }
 
 function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => PolicyPermissionRepoPort) {
