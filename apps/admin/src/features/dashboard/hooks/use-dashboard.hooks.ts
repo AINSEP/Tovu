@@ -103,6 +103,10 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
   const [themeError, setThemeError] = useState<string | null>(null);
   const [recent, setRecent] = useState<AdminPost[] | null>(null);
 
+  // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
+  // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
+  // unchanged behavior, not a new gap introduced by this conversion.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberately `[]`, preserved from the pre-port version; port/locale changes after mount don't re-fetch.
   useEffect(() => {
     // Posts and pages each feed both a stat card and the merged activity list, so their handlers
     // do double duty rather than fetching the same list twice.
@@ -140,10 +144,6 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
       .getPresentation()
       .then((r) => setThemeId(r.settings.activeThemeId))
       .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
-    // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
-    // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
-    // unchanged behavior, not a new gap introduced by this conversion.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t };

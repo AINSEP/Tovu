@@ -168,6 +168,13 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
+  // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
+  // it is a behavior change outside this refactor's scope. `port` IS added: unlike the old `api`
+  // import, it is now a function-scoped value ESLint's exhaustive-deps rule can see, and it is
+  // referentially stable in production (`useWiredPageEditor` always passes the same module-level
+  // singleton), so adding it changes nothing about when this effect re-runs.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `t`/`locale` gap predates this conversion, out of scope here; `port` is referentially stable in production.
   useEffect(() => {
     let cancelled = false;
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
@@ -202,13 +209,6 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     return () => {
       cancelled = true;
     };
-    // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
-    // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
-    // it is a behavior change outside this refactor's scope. `port` IS added: unlike the old `api`
-    // import, it is now a function-scoped value ESLint's exhaustive-deps rule can see, and it is
-    // referentially stable in production (`useWiredPageEditor` always passes the same module-level
-    // singleton), so adding it changes nothing about when this effect re-runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSlug, port]);
 
   // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted this

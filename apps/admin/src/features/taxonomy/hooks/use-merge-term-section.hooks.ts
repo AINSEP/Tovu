@@ -73,6 +73,9 @@ export function useMergeTermSection(
     invalidates: [KEYS.list],
   });
 
+  // Same deps as the pre-migration effect ([term.id]) — the three mutation objects are
+  // intentionally excluded, same reasoning as `use-term-detail-panel.hooks.ts`'s identical effect.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mutation objects intentionally excluded — same reasoning as use-term-detail-panel.hooks.ts's identical effect.
   useEffect(() => {
     setIntoTermId("");
     setStep("idle");
@@ -81,9 +84,6 @@ export function useMergeTermSection(
     planMutation.reset();
     confirmMutation.reset();
     executeMutation.reset();
-    // Same deps as the pre-migration effect ([term.id]) — the three mutation objects are
-    // intentionally excluded, same reasoning as `use-term-detail-panel.hooks.ts`'s identical effect.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [term.id]);
 
   async function startPlan() {

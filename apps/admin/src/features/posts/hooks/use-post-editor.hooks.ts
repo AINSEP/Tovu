@@ -626,12 +626,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Failure is silently absorbed (no `setError`): an operator who can't get the mention picker
   // populated can still write and save a post normally — this is a nice-to-have, not the editor's
   // own load-bearing content, so it must not turn into a full-screen error for an unrelated fetch.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mention list fetched once per mount, independent of postId — see comment above.
   useEffect(() => {
     port.listPosts().then(
       ({ posts }) => setMentionablePosts(posts.map((entry) => entry.post)),
       () => {}
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hasSlugCollision = staticPageIds.includes(slug);

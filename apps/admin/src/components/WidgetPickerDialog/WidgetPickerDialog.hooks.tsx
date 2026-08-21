@@ -121,10 +121,10 @@ export function useWidgetPickerDialog(
   // remounted, so nothing re-evaluates the decision. This effect defers the decision until
   // `instances` has actually resolved, matching what `ui.spec.md` §5 (quoted in this file's own
   // header) asks for: no pre-selected default when existing instances are real options.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: defers focus decision until `instances` resolves — see comment above; hasExisting intentionally excluded.
   useEffect(() => {
     if (instances === null) return;
     if (!hasExisting) newTitleInputRef.current?.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances]);
 
   function submitUseExisting(e: React.FormEvent) {

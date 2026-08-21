@@ -173,6 +173,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
   // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
   // it.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: stale-response guard keyed on menuId/isNew only — see comment above; `port` intentionally excluded.
   useEffect(() => {
     let cancelled = false;
     if (isNew) {
@@ -207,7 +208,6 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuId, isNew]);
 
   const { confirmLeave } = useDirtyGuard<MenuFormState>({ title, slug, items }, original);

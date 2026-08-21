@@ -235,6 +235,10 @@ export function useOtherCredentials(
   // effect instead of six `useFetchQuery` mounts. Each store's own result lands on its own map entry
   // as it settles, so a fast store renders before a slow one resolves.
   const fetchedRef = useRef(false);
+  // Intentionally empty deps beyond the mount guard above — `port`/`t`/`locale` are stable for the
+  // lifetime of one mounted controller (bound once in `useWiredOtherCredentials`), matching
+  // `useAccessTokens`'s own seed-once effects.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: port/t/locale stable for the mounted controller's lifetime — see comment above; mount guard above prevents double-fetch.
   useEffect(() => {
     if (fetchedRef.current) return;
     fetchedRef.current = true;
@@ -248,10 +252,6 @@ export function useOtherCredentials(
           }))
         );
     }
-    // Intentionally empty deps beyond the mount guard above — `port`/`t`/`locale` are stable for the
-    // lifetime of one mounted controller (bound once in `useWiredOtherCredentials`), matching
-    // `useAccessTokens`'s own seed-once effects.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function setDraftToken(key: string, value: string): void {

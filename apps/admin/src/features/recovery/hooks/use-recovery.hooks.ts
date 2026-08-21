@@ -71,6 +71,11 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
 
+  // `port`/`t`/`locale` intentionally omitted — mount-once by design, matching this file's
+  // sibling `useEffect` below. Previously written as `useEffect(load, [])` (a named function
+  // reference), which dodges `exhaustive-deps`'s static analysis by accident of syntax rather
+  // than stating the omission explicitly — inlined here so the omission reads as deliberate.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design; port/t/locale intentionally omitted, matching the sibling effect below.
   useEffect(() => {
     setError(null);
     Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
@@ -79,11 +84,6 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
         setPoints(pointsResult.items);
       })
       .catch((e) => setError(describeApiError(e, t(locale, "failed to load Recovery"))));
-    // `port`/`t`/`locale` intentionally omitted — mount-once by design, matching this file's
-    // sibling `useEffect` below. Previously written as `useEffect(load, [])` (a named function
-    // reference), which dodges `exhaustive-deps`'s static analysis by accident of syntax rather
-    // than stating the omission explicitly — inlined here so the omission reads as deliberate.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any

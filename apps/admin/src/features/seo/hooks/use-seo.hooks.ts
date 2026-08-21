@@ -48,16 +48,16 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // `locale`/`t` are deliberately not listed — same pre-existing gap `use-page-editor.hooks.ts`
+  // documents (this effect only ever ran off `[]` even when `locale` came from `useAdminLocale()`
+  // directly); `port` is referentially stable in production (`useWiredSeo` always passes the same
+  // module-level singleton).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `locale`/`t` gap predates this conversion (see comment above); `port` is referentially stable in production.
   useEffect(() => {
     port
       .getSeoSettings()
       .then((r) => setSettings(r.data))
       .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load SEO settings")));
-    // `locale`/`t` are deliberately not listed — same pre-existing gap `use-page-editor.hooks.ts`
-    // documents (this effect only ever ran off `[]` even when `locale` came from `useAdminLocale()`
-    // directly); `port` is referentially stable in production (`useWiredSeo` always passes the same
-    // module-level singleton).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
 
   async function save(patch: Partial<SeoSettings>) {

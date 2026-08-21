@@ -46,6 +46,10 @@ import type { AdminLocalePort } from "./admin-locale-port.hooks";
  */
 export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): string {
   const [locale, setLocale] = useState(DEFAULT_LOCALE);
+  // `port` is referentially stable in production (`useWiredAdminLocale` always passes the same
+  // module-level singleton) — see `use-analytics.hooks.ts`'s identical justification for the same
+  // omission.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `port` is referentially stable in production — see comment above; same justification as use-analytics.hooks.ts.
   useEffect(() => {
     let cancelled = false;
     const fetchLocale = () => {
@@ -62,10 +66,6 @@ export function useAdminLocale(port: AdminLocalePort = defaultAdminLocalePort): 
       cancelled = true;
       unsubscribe();
     };
-    // `port` is referentially stable in production (`useWiredAdminLocale` always passes the same
-    // module-level singleton) — see `use-analytics.hooks.ts`'s identical justification for the same
-    // omission.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return locale;
 }
