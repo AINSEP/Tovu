@@ -501,3 +501,200 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
 function isRecordForTest(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
+
+/**
+ * OpenAI/Azure Chat Completions streaming-delta SSE framing (`data: {...}\n\n`, terminated by a
+ * literal `data: [DONE]\n\n` — matches `openai-chat.ts`'s `processOpenAiStreamFrame`/
+ * `DONE_SENTINEL`, which `azure-chat.ts` reuses byte-identically per that module's own header:
+ * "Azure OpenAI's chat-completions JSON request/response body is byte-identical to plain
+ * OpenAI's"). `runOpenAiTurn`/`runAzureTurn` (`byok-provider-turn.ts`) are each their OWN function
+ * body with their own copy of the `[tool error] ` fold/derive logic — hitting it through one
+ * protocol does not cover the other's copy, so both get exercised below.
+ */
+function openAiChunk(payload: Record<string, unknown>): string {
+  return `data: ${JSON.stringify(payload)}\n\n`;
+}
+const OPENAI_DONE = "data: [DONE]\n\n";
+
+/** One combined streaming turn: a chunk announcing every parallel tool call (id/name/full
+ *  arguments together — a caller may dribble `function.arguments` across several chunks in a real
+ *  stream, but a single chunk per call is an equally valid accumulation per
+ *  `accumulateOpenAiToolCallDelta`), then a `finish_reason: "tool_calls"` trailer chunk. */
+function openAiToolCallChunks(calls: ReadonlyArray<{ index: number; id: string; name: string; argsJson: string }>): string {
+  const deltaChunk = openAiChunk({
+    choices: [{ index: 0, delta: { tool_calls: calls.map((c) => ({ index: c.index, id: c.id, function: { name: c.name, arguments: c.argsJson } })) }, finish_reason: null }],
+  });
+  const trailerChunk = openAiChunk({ choices: [{ index: 0, delta: {}, finish_reason: "tool_calls" }] });
+  return deltaChunk + trailerChunk;
+}
+
+function openAiTextChunks(text: string): string {
+  const textChunk = openAiChunk({ choices: [{ index: 0, delta: { content: text }, finish_reason: null }] });
+  const trailerChunk = openAiChunk({ choices: [{ index: 0, delta: {}, finish_reason: "stop" }] });
+  return textChunk + trailerChunk;
+}
+
+function byokTools(...ids: string[]): ToolDescriptor[] {
+  return ids.map((id) => ({ id, description: id, inputSchema: { type: "object", properties: {}, required: [] } }));
+}
+
+test("runByokProviderTurn(azure): refuses with stopReason 'error' when no baseUrl is supplied, rather than attempting a request (every Azure OpenAI resource has its own endpoint — there is no sane global default)", async () => {
+  const events: unknown[] = [];
+  const result = await runByokProviderTurn({
+    protocol: "azure",
+    // No baseUrl and no stub server started for this test — if this ever DID attempt a real
+    // request, it would try to reach a real (non-loopback) host and this test would hang or fail
+    // with a connection error instead of resolving immediately with the expected refusal.
+    apiKey: "test-key-not-real",
+    model: "gpt-5-deployment",
+    system: "be terse",
+    messages: [{ role: "user", content: "hi" }],
+    tools: [],
+    executeTool: async () => {
+      throw new Error("must not be called — refused before any request is attempted");
+    },
+    onEvent: (event) => events.push(event),
+  });
+
+  assert.deepEqual(result, { stopReason: "error", toolTurns: 0 });
+  assert.deepEqual(events, [
+    { type: "error", message: "the azure protocol requires a base URL (each Azure OpenAI resource has its own endpoint)" },
+    { type: "end", reason: "error" },
+  ]);
+});
+
+test("runByokProviderTurn(openai): the outbound request carries the tool schema untouched, same as anthropic — the Google-only sanitizer must not leak into this protocol", async (t) => {
+  const capture = await captureOutboundRequest(t);
+  await runByokProviderTurn(baseInput("openai", capture.baseUrl));
+
+  const body = capture.body();
+  const tools = body.tools as Array<{ function: { parameters: Record<string, unknown> } }>;
+  assert.deepEqual(tools[0].function.parameters, TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES.inputSchema);
+  assert.ok(JSON.stringify(tools[0].function.parameters).includes("additionalProperties"));
+});
+
+test("runByokProviderTurn(openai): a failed tool result is folded into the outbound message with the [tool error] prefix, a successful one passes through unprefixed, and isError on the reported tool_result event is derived from that fold marker — not the adapter's own (nonexistent) isError field", async (t) => {
+  let secondRequestBody: Record<string, unknown> | undefined;
+  const baseUrl = await startStubProviderServer(t, (callCount, requestBody) => {
+    if (callCount === 1) {
+      return { status: 200, body: openAiToolCallChunks([
+        { index: 0, id: "call_ok", name: "tool_ok", argsJson: "{}" },
+        { index: 1, id: "call_bad", name: "tool_bad", argsJson: "{}" },
+      ]) + OPENAI_DONE };
+    }
+    secondRequestBody = requestBody;
+    return { status: 200, body: openAiTextChunks("Done.") + OPENAI_DONE };
+  });
+
+  const events: Array<{ type: string; [key: string]: unknown }> = [];
+  const result = await runByokProviderTurn({
+    protocol: "openai",
+    baseUrl,
+    apiKey: "test-key-not-real",
+    model: "gpt-5",
+    system: "be terse",
+    messages: [{ role: "user", content: "run two tools" }],
+    tools: byokTools("tool_ok", "tool_bad"),
+    executeTool: async (call) => (call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine" }),
+    onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
+  });
+
+  assert.equal(result.stopReason, "stop");
+
+  const toolResults = events.filter((e) => e.type === "tool_result");
+  assert.deepEqual(
+    toolResults.map((e) => ({ toolUseId: e.toolUseId, content: e.content, isError: e.isError })),
+    [
+      { toolUseId: "call_ok", content: "fine", isError: false },
+      { toolUseId: "call_bad", content: "[tool error] boom", isError: true },
+    ],
+  );
+
+  assert.ok(secondRequestBody, "expected a second request carrying the tool results");
+  const toolMessages = (secondRequestBody?.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
+  assert.deepEqual(
+    toolMessages.map((m) => ({ tool_call_id: m.tool_call_id, content: m.content })),
+    [
+      { tool_call_id: "call_ok", content: "fine" },
+      { tool_call_id: "call_bad", content: "[tool error] boom" },
+    ],
+  );
+});
+
+/** Every protocol's own tool-def mapping spreads `description` conditionally
+ *  (`...(d.description !== undefined ? { description: d.description } : {})`) — every fixture
+ *  above always supplies one, so the omitted-`description` branch was untested for all four
+ *  protocols at once. Returns where that protocol's outbound request puts a function/tool
+ *  declaration's `description` key, so the assertion below can check it is absent (not `undefined`
+ *  — actually absent from the JSON, matching what a real provider's wire parser would see). */
+function outboundToolDeclaration(protocol: ByokProviderTurnInput["protocol"], body: Record<string, unknown>): Record<string, unknown> {
+  const tools = body.tools as unknown[];
+  const first = tools[0] as Record<string, unknown>;
+  if (protocol === "anthropic") return first;
+  if (protocol === "google") {
+    const decl = (first as { functionDeclarations: unknown[] }).functionDeclarations[0];
+    return decl as Record<string, unknown>;
+  }
+  return (first as { function: Record<string, unknown> }).function;
+}
+
+for (const protocol of ["anthropic", "openai", "azure", "google"] as const) {
+  test(`runByokProviderTurn(${protocol}): a tool descriptor with no description omits the description key entirely from the outbound request, rather than sending description: undefined`, async (t) => {
+    const capture = await captureOutboundRequest(t);
+    await runByokProviderTurn({
+      ...baseInput(protocol, capture.baseUrl),
+      tools: [{ id: "no_description_tool", inputSchema: { type: "object", properties: {}, required: [] } }],
+    });
+
+    const declaration = outboundToolDeclaration(protocol, capture.body());
+    assert.equal("description" in declaration, false, `expected no "description" key at all, got: ${JSON.stringify(declaration)}`);
+  });
+}
+
+test("runByokProviderTurn(azure): the same [tool error]-prefix fold/derive as openai, in azure's own copy of that logic", async (t) => {
+  let secondRequestBody: Record<string, unknown> | undefined;
+  const baseUrl = await startStubProviderServer(t, (callCount, requestBody) => {
+    if (callCount === 1) {
+      return { status: 200, body: openAiToolCallChunks([
+        { index: 0, id: "call_ok", name: "tool_ok", argsJson: "{}" },
+        { index: 1, id: "call_bad", name: "tool_bad", argsJson: "{}" },
+      ]) + OPENAI_DONE };
+    }
+    secondRequestBody = requestBody;
+    return { status: 200, body: openAiTextChunks("Done.") + OPENAI_DONE };
+  });
+
+  const events: Array<{ type: string; [key: string]: unknown }> = [];
+  const result = await runByokProviderTurn({
+    protocol: "azure",
+    baseUrl,
+    apiKey: "test-key-not-real",
+    model: "gpt-5-deployment",
+    system: "be terse",
+    messages: [{ role: "user", content: "run two tools" }],
+    tools: byokTools("tool_ok", "tool_bad"),
+    executeTool: async (call) => (call.name === "tool_bad" ? { content: "boom", isError: true } : { content: "fine" }),
+    onEvent: (event) => events.push(event as { type: string; [key: string]: unknown }),
+  });
+
+  assert.equal(result.stopReason, "stop");
+
+  const toolResults = events.filter((e) => e.type === "tool_result");
+  assert.deepEqual(
+    toolResults.map((e) => ({ toolUseId: e.toolUseId, content: e.content, isError: e.isError })),
+    [
+      { toolUseId: "call_ok", content: "fine", isError: false },
+      { toolUseId: "call_bad", content: "[tool error] boom", isError: true },
+    ],
+  );
+
+  assert.ok(secondRequestBody, "expected a second request carrying the tool results");
+  const toolMessages = (secondRequestBody?.messages as Array<{ role: string; tool_call_id?: string; content: unknown }>).filter((m) => m.role === "tool");
+  assert.deepEqual(
+    toolMessages.map((m) => ({ tool_call_id: m.tool_call_id, content: m.content })),
+    [
+      { tool_call_id: "call_ok", content: "fine" },
+      { tool_call_id: "call_bad", content: "[tool error] boom" },
+    ],
+  );
+});
