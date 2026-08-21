@@ -4,8 +4,10 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
 import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import type { WidgetTypeKey } from "../../types.js";
 import {
   createWidgetInstance,
   purgeWidgetInstance,
@@ -306,4 +308,48 @@ test("audit fix: trashing (not purging) a widget instance with an outgoing ref-t
 
   const refsAfterTrash = await deps.entryRefsRepo.findBySource({ workspaceId: WORKSPACE_ID, sourceEntryId: created.id });
   assert.deepEqual(refsAfterTrash, refsBeforeTrash, "trash must not retract refs — it's reversible, unlike purge");
+});
+
+// ---------------------------------------------------------------------------
+// REQ-05/06: updateWidgetInstance's own unregistered-type guard. `createWidgetInstance` refuses to
+// ever persist an instance of an unregistered type (AC-03/REQ-03 above), so the only way this
+// UPDATE-time guard fires is a type deregistered out from under an existing instance — reproduced
+// here the same way the C5 malformed-row test does, by writing the entry directly via
+// `entryRepo.save`, bypassing the write-service chokepoint that would otherwise prevent it.
+// ---------------------------------------------------------------------------
+
+test("REQ-05/06: updating an instance whose stored widgetType is no longer registered is rejected with the exact WidgetTypeUnregisteredError message, before any config validation runs", async () => {
+  const deps = makeDeps();
+  await deps.entryRepo.save({
+    id: "orphaned-1",
+    workspaceId: WORKSPACE_ID,
+    type: "widget",
+    slug: "orphaned-widget",
+    status: "draft",
+    title: "Orphaned widget",
+    bodyJson: null,
+    fieldsJson: buildWidgetInstanceFieldsJson({
+      widgetType: "carousel" as WidgetTypeKey, // deliberately not in registry.ts's v1 registrations
+      config: {},
+      status: "active",
+    }),
+    publishedAt: null,
+    createdAt: "2026-07-21T00:00:00.000Z",
+    updatedAt: "2026-07-21T00:00:00.000Z",
+    version: 1,
+  });
+
+  await assert.rejects(
+    () =>
+      updateWidgetInstance({
+        deps,
+        input: { workspaceId: WORKSPACE_ID, actor: ACTOR, widgetInstanceId: "orphaned-1", baseVersion: 1, config: {} },
+      }),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.equal(error.name, "WidgetTypeUnregisteredError");
+      assert.equal(error.message, "widget type 'carousel' is not registered");
+      return true;
+    }
+  );
 });
