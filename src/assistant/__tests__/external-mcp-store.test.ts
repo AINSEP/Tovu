@@ -117,6 +117,26 @@ test("omitting env preserves the stored credentials, but an empty string clears 
   assert.deepEqual(views[0]?.envNames, []);
 });
 
+test("an omitted or whitespace-only label falls back to the serverId, the same as a stored null label", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ serverId: "no-label", label: undefined }));
+  await saveExternalMcpServer(deps, validInput({ serverId: "blank-label", label: "   " }));
+
+  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.equal(views.find((v) => v.serverId === "no-label")?.label, "no-label");
+  assert.equal(views.find((v) => v.serverId === "blank-label")?.label, "blank-label");
+});
+
+test("omitting env on a BRAND NEW server (nothing existing to preserve) saves with no credentials at all", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  await saveExternalMcpServer(deps, { ...validInput(), env: undefined });
+
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.deepEqual(configs[0]?.env, {});
+  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.deepEqual(view?.envNames, []);
+});
+
 test("disabled servers are not returned to the daemon", async () => {
   const { deps, sealer, repo } = makeDeps();
   await saveExternalMcpServer(deps, validInput({ enabled: false }));
@@ -270,6 +290,142 @@ test("an allowlisted tool the server never advertises is reported rather than sw
     config: connection.config,
   });
   assert.deepEqual(report.allowlistedButAbsent, ["typo_tool"]);
+});
+
+test("more than 64 environment variables are refused", () => {
+  const block = Array.from({ length: 65 }, (_, i) => `VAR_${i}=x`).join("\n");
+  assert.throws(
+    () => parseEnvBlock(block),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "env",
+  );
+});
+
+test("more than 64 args are refused", () => {
+  const raw = Array.from({ length: 65 }, (_, i) => `arg${i}`).join(" ");
+  assert.throws(
+    () => parseArgs(raw),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "args",
+  );
+});
+
+test("more than 64 allowed tool names are refused", () => {
+  const raw = Array.from({ length: 65 }, (_, i) => `tool_${i}`).join(",");
+  assert.throws(
+    () => parseAllowedToolNames(raw),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "allowedToolNames",
+  );
+});
+
+test("a workspace at the server cap refuses a NEW server but still allows updating an existing one", async () => {
+  const { deps } = makeDeps();
+  for (let i = 0; i < 32; i += 1) {
+    await saveExternalMcpServer(deps, validInput({ serverId: `server-${i}` }));
+  }
+
+  await assert.rejects(
+    () => saveExternalMcpServer(deps, validInput({ serverId: "one-too-many" })),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "id",
+  );
+
+  // Updating an already-existing row at the cap must still succeed — the cap gates NEW slots only.
+  const updated = await saveExternalMcpServer(deps, validInput({ serverId: "server-0", label: "renamed" }));
+  assert.equal(updated.label, "renamed");
+});
+
+test("the admin read model degrades corrupt stored JSON to safe defaults rather than throwing", async () => {
+  const { repo } = makeDeps();
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "corrupt",
+    label: null,
+    transport: "stdio",
+    enabled: true,
+    command: null,
+    args: "not valid json",
+    allowedToolNames: "42",
+    envNames: JSON.stringify([1, "real-name", null]),
+    sealedEnv: null,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  });
+
+  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.ok(view);
+  assert.equal(view.label, "corrupt", "falls back to serverId when label is null");
+  assert.equal(view.command, "", "falls back to '' when command is null");
+  assert.deepEqual(view.args, [], "malformed JSON degrades to an empty array, not a throw");
+  assert.deepEqual(view.allowedToolNames, [], "valid JSON that is not an array degrades to an empty array");
+  assert.deepEqual(view.envNames, ["real-name"], "non-string entries are filtered out, not thrown on");
+});
+
+test("the admin read model treats a null args/allowedToolNames/envNames column as empty, not a parse failure", async () => {
+  const { repo } = makeDeps();
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "bare",
+    label: "Bare",
+    transport: "stdio",
+    enabled: true,
+    command: "npx",
+    args: null,
+    allowedToolNames: null,
+    envNames: null,
+    sealedEnv: null,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  });
+
+  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.deepEqual(view?.args, []);
+  assert.deepEqual(view?.allowedToolNames, []);
+  assert.deepEqual(view?.envNames, []);
+});
+
+test("readEnabledExternalMcpConfigs reports a stored row with an unsupported transport or missing command, at read time, not just at save time", async () => {
+  const { repo, sealer } = makeDeps();
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "legacy-http",
+    label: "legacy",
+    transport: "http",
+    enabled: true,
+    command: null,
+    args: null,
+    allowedToolNames: null,
+    envNames: null,
+    sealedEnv: null,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  });
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.equal(configs.length, 0);
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0]?.serverId, "legacy-http");
+  assert.match(failures[0]?.reason ?? "", /unsupported transport|missing command/);
+});
+
+test("a decrypted env block that is valid JSON but not an object (e.g. an array) degrades to an empty env, not a throw", async () => {
+  const { repo, sealer, keyring } = makeDeps();
+  const sealedEnv = await sealer.seal({ plaintext: JSON.stringify(["not", "an", "object"]), key: await keyring.activeKey() });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "weird-payload",
+    label: "weird",
+    transport: "stdio",
+    enabled: true,
+    command: "npx",
+    args: "[]",
+    allowedToolNames: "[]",
+    envNames: JSON.stringify(["x"]),
+    sealedEnv,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  });
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  assert.equal(failures.length, 0);
+  assert.deepEqual(configs[0]?.env, {});
 });
 
 test("deleting a server removes it and reports whether anything was removed", async () => {
