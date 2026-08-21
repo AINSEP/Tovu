@@ -71,6 +71,42 @@
  * Only `SF:` paths under `src/`, `packages/*​/src/`, or `apps/*​/src/` are evaluated -- everything
  * else (test infra, `node_modules`, build output, `development/`) is skipped without comment.
  *
+ * ## The `--baseline` ratchet -- why CONTAMINATED needs one and SEVERE never gets one
+ *
+ * As of 2026-08-21, Route A is a known, accepted, STILL-OPEN issue: 63 of 93 first-party blocks in a
+ * real scoped `test:cov`-shaped run are CONTAMINATED, identically across every run measured. A gate
+ * that hard-fails on all 63 forever gets ignored, not fixed -- the same reasoning
+ * `check-test-baseline.ts`'s header gives for why THAT gate is a ratchet, not a raw pass/fail. This
+ * script borrows the same shape, adapted to paths instead of test names:
+ *
+ * `--baseline <path>` points at a committed JSON ledger of currently-known-contaminated `SF:` paths
+ * (see `serializeBaseline`/`parseBaseline`). A CONTAMINATED block whose path is already in that ledger
+ * is reported every run (so nobody loses visibility into it) but does NOT fail the run. A CONTAMINATED
+ * block whose path is NOT in the ledger fails immediately -- new contamination is never silently
+ * absorbed. Regenerate the ledger deliberately with `--baseline <path> --update-baseline` after
+ * reviewing what changed; regenerating it just to make a failure go away, without having looked at
+ * what is now in the diff, defeats the entire point of keeping it.
+ *
+ * Baselining is **path-based, not count-based**, on purpose: block totals vary hugely by run scope (93
+ * first-party blocks in one scoped validation run, 700+ in a broader one per the team lead's own
+ * measurement) -- a numeric "N contaminated blocks allowed" threshold would be meaningless across
+ * different invocations of this same script. A path either is or is not already-known-contaminated,
+ * regardless of what else happened to run alongside it.
+ *
+ * **SEVERE is NEVER baseline-suppressible**, deliberately, regardless of whether its path also appears
+ * in the ledger: a block that lost its line-level data too is a strictly worse, actively-getting-worse
+ * problem than one that only lost its function table, and this script always hard-fails on it. Only
+ * the plain CONTAMINATED tier can be ratcheted.
+ *
+ * If no `--baseline` is given, behavior is unchanged from before this ratchet existed: every
+ * CONTAMINATED block fails, full stop. Nothing in this repo currently wires a default baseline path
+ * into `npm run check:coverage-integrity` -- doing that responsibly requires a baseline captured from
+ * a REAL, full `npm run test:cov` run, which this script's own author was expressly forbidden from
+ * running (that command OOMs this machine and the coverage slot is owned by the Coordinator). A
+ * baseline generated from a narrower, scoped validation run is committed as a demonstration
+ * (`development/scripts/coverage-integrity-baseline.json`) but is NOT wired as anyone's default --
+ * see that file's own `_comment` for why treating it as repo-wide-authoritative would be a mistake.
+ *
  * ## A note to whoever reads this after a CI run goes red
  *
  * Do not make this gate quieter to get a green result. As of 2026-08-21, CONTAMINATED findings on a
@@ -78,18 +114,24 @@
  * (Route A above is open, tracked, and not yet fixed) -- a red run is this script doing its job, not
  * a bug in it. If you are tempted to raise the wrapper-name list, add an exclusion, or otherwise
  * soften the CONTAMINATED condition to make CI pass, fix the root cause instead (or get sign-off that
- * the underlying corruption is now accepted, permanent, unfixable scope) and record why here.
+ * the underlying corruption is now accepted, permanent, unfixable scope) and record why here. The
+ * `--baseline` ratchet above is the sanctioned way to keep a red gate from being ignored -- use that,
+ * not a weaker detector.
  *
- * Usage: npx tsx development/scripts/check-coverage-integrity.ts [lcovPath]
- *   lcovPath - defaults to development/coverage/lcov.info (npm run test:cov's output). This script
- *              only parses lcov output, it does not run tests itself.
- * Exit codes: 0 = zero CONTAMINATED blocks found. 1 = at least one CONTAMINATED block found (severity
- *             breakdown -- how many are additionally SEVERE -- is printed, not separately gated: a
- *             CONTAMINATED block already means this run's coverage numbers for that file cannot be
- *             trusted, whether or not the deeper SEVERE condition also applies), or the lcov file is
- *             missing/unreadable.
+ * Usage: npx tsx development/scripts/check-coverage-integrity.ts [lcovPath] [--baseline <path>] [--update-baseline]
+ *   lcovPath         - defaults to development/coverage/lcov.info (npm run test:cov's output). This
+ *                       script only parses lcov output, it does not run tests itself.
+ *   --baseline <path> - optional; a JSON ledger of known-contaminated SF: paths (see above). Omit to
+ *                       fail on every CONTAMINATED finding, ratchet-free.
+ *   --update-baseline - with --baseline <path>, (re)writes that file from the CURRENT run's findings
+ *                       instead of gating. Review the diff before committing it.
+ * Exit codes (normal mode): 0 = zero CONTAMINATED blocks found, or every CONTAMINATED block is both
+ *             non-SEVERE and already in the given baseline. 1 = at least one SEVERE block (always,
+ *             baseline or not), or at least one CONTAMINATED block not in the baseline, or the lcov
+ *             file is missing/unreadable.
+ * Exit codes (--update-baseline mode): 0 on successful write. 1 if --baseline was not also given.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -146,6 +188,108 @@ export interface IntegrityReport {
   /** First-party blocks actually run through the heuristics (i.e. not skipped as non-first-party). */
   readonly evaluated: number;
   readonly skipped: number;
+}
+
+/** A `BlockVerdict` with the `--baseline` ratchet applied. `baselined` is purely a membership fact
+ *  (was this path in the ledger); `fails` is the actual gating decision, which is NOT the same thing
+ *  for a `severe` block -- see `applyBaseline`. */
+export interface GatedVerdict extends BlockVerdict {
+  readonly baselined: boolean;
+  readonly fails: boolean;
+}
+
+/** Applies the `--baseline` ratchet: a `severe` verdict always fails, regardless of baseline
+ *  membership (see this file's header on why SEVERE is never baseline-suppressible). A non-severe
+ *  CONTAMINATED verdict fails only when its path is NOT in `baselineSet`. Pure -- no I/O, easily
+ *  tested against a plain `Set`.
+ *  @complexity O(c) in the number of contaminated verdicts; each `Set.has` lookup is O(1) amortized.
+ */
+export function applyBaseline(
+  contaminated: readonly BlockVerdict[],
+  baselineSet: ReadonlySet<string>
+): readonly GatedVerdict[] {
+  return contaminated.map((v) => {
+    const baselined = baselineSet.has(v.file);
+    return { ...v, baselined, fails: v.severe || !baselined };
+  });
+}
+
+interface BaselineFile {
+  readonly _comment?: readonly string[];
+  readonly knownContaminated?: readonly string[];
+}
+
+/** Parses a baseline JSON file's text into the set of known-contaminated paths it lists. An absent or
+ *  malformed `knownContaminated` array reads as empty rather than throwing -- callers that need to
+ *  distinguish "no baseline file yet" from "empty baseline" check `existsSync` themselves before
+ *  calling this (see `main`).
+ */
+export function parseBaseline(baselineJson: string): ReadonlySet<string> {
+  const parsed = JSON.parse(baselineJson) as BaselineFile;
+  return new Set(parsed.knownContaminated ?? []);
+}
+
+/** Default `_comment` block for a freshly-created baseline file -- explains what the ledger is, how
+ *  to regenerate it responsibly, and the SEVERE carve-out, so nobody has to re-derive any of that from
+ *  this script's own header. `--update-baseline` preserves an existing file's `_comment` across
+ *  regeneration (see `main`) rather than overwriting it with this default every time, mirroring
+ *  `check-test-baseline.ts`'s `--capture` mode -- a human may have added file-specific notes worth
+ *  keeping.
+ */
+export const DEFAULT_BASELINE_COMMENT: readonly string[] = [
+  "coverage-integrity baseline: known, currently-open dual-instantiation CONTAMINATED findings.",
+  "See development/scripts/check-coverage-integrity.ts's header for the mechanism and for why this",
+  "file exists (Route A, src/server/deps.ts:1048, is a known, accepted, open issue -- some",
+  "contamination is permanent for now, and a gate that always fails on it gets ignored, not fixed).",
+  "Path-based, not count-based: block totals vary hugely by run scope, so a numeric threshold would",
+  "be meaningless here.",
+  "Regenerate with --update-baseline ONLY to record a deliberate, reviewed acceptance of new debt --",
+  "never just to silence a failure you have not looked at. Review every diff to this file like a real",
+  "debt ledger, because that is what it is.",
+  "SEVERE findings are NEVER suppressed by this file, regardless of whether their path is listed",
+  "below -- only the CONTAMINATED (function-table-only) tier can be baselined away.",
+];
+
+/** Serializes a baseline file's contents: deduped, alphabetically sorted paths (stable diffs -- a
+ *  ledger that reorders itself on every regeneration is unreviewable) plus a `_comment` block. Pure
+ *  string-in/string-out; `main`'s `--update-baseline` handler does the actual file I/O and existing-
+ *  comment preservation around this.
+ */
+export function serializeBaseline(paths: readonly string[], comment: readonly string[] = DEFAULT_BASELINE_COMMENT): string {
+  const knownContaminated = [...new Set(paths)].sort((a, b) => a.localeCompare(b));
+  return `${JSON.stringify({ _comment: comment, knownContaminated }, null, 2)}\n`;
+}
+
+export interface ParsedArgs {
+  readonly lcovArg?: string;
+  readonly baselinePath?: string;
+  readonly updateBaseline: boolean;
+}
+
+/** Hand-rolled rather than a dependency: this script takes exactly one optional positional
+ *  (`lcovArg`), one optional value-bearing flag (`--baseline <path>`), and one optional boolean flag
+ *  (`--update-baseline`) -- small enough that a parsing library would cost more than it saves. The
+ *  first non-flag argument wins as `lcovArg`; a second one is silently ignored rather than erroring,
+ *  matching this repo's other check-*.ts scripts' permissive argv handling (e.g.
+ *  `check-test-baseline.ts`'s `args.filter((a) => !a.startsWith("--"))`).
+ *  @complexity O(n) in argv length.
+ */
+export function parseArgs(argv: readonly string[]): ParsedArgs {
+  let lcovArg: string | undefined;
+  let baselinePath: string | undefined;
+  let updateBaseline = false;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--update-baseline") {
+      updateBaseline = true;
+    } else if (arg === "--baseline") {
+      baselinePath = argv[i + 1];
+      i++; // consume the flag's value too
+    } else if (!arg.startsWith("--") && lcovArg === undefined) {
+      lcovArg = arg;
+    }
+  }
+  return { lcovArg, baselinePath, updateBaseline };
 }
 
 /** Splits raw lcov text into per-`SF:` blocks. A record with no `SF:` line (malformed input, or text
@@ -296,13 +440,101 @@ export function checkCoverageIntegrity(lcovText: string): IntegrityReport {
   return { contaminated, evaluated: verdicts.length - skipped, skipped };
 }
 
+function resolveRepoPath(arg: string): string {
+  return path.isAbsolute(arg) ? arg : path.join(REPO_ROOT, arg);
+}
+
+/** `--update-baseline` handler: (re)writes `resolvedBaselinePath` from the current run's CONTAMINATED
+ *  paths (severe or not -- see this file's header on why capturing both is correct), preserving an
+ *  existing file's `_comment` if there is one. Prints the confirmation and the "review this diff"
+ *  reminder; does not exit non-zero on success. Split out of `main` purely to keep that function's
+ *  branching flat -- no independent reuse pressure otherwise.
+ */
+function handleUpdateBaseline(resolvedBaselinePath: string, contaminated: readonly BlockVerdict[]): void {
+  const existingComment = existsSync(resolvedBaselinePath)
+    ? (JSON.parse(readFileSync(resolvedBaselinePath, "utf8")) as BaselineFile)._comment
+    : undefined;
+  const knownPaths = [...new Set(contaminated.map((v) => v.file))];
+  writeFileSync(resolvedBaselinePath, serializeBaseline(knownPaths, existingComment ?? DEFAULT_BASELINE_COMMENT), "utf8");
+  console.log(
+    `check:coverage-integrity — CAPTURED ${knownPaths.length} known-contaminated path(s) into ` +
+      `${path.relative(REPO_ROOT, resolvedBaselinePath)}`
+  );
+  console.log(
+    "Review this diff before committing: every entry is coverage debt you are agreeing to tolerate. " +
+      "SEVERE findings are never suppressed by this file, regardless of what it lists."
+  );
+}
+
+/** Loads the known-contaminated path set from `baselinePath` (repo-relative or absolute), or returns
+ *  an empty set with a printed warning if no `--baseline` flag was given at all, or if the given path
+ *  doesn't exist yet. An empty set is the correct "ratchet-free" default either way: every
+ *  CONTAMINATED block reads as new. Split out of `main` for the same reason as
+ *  `handleUpdateBaseline` above.
+ */
+function loadBaselineSet(baselinePath: string | undefined): ReadonlySet<string> {
+  if (!baselinePath) return new Set();
+  const resolvedBaselinePath = resolveRepoPath(baselinePath);
+  if (!existsSync(resolvedBaselinePath)) {
+    console.error(
+      `check:coverage-integrity — no baseline file at ${path.relative(REPO_ROOT, resolvedBaselinePath)} yet; ` +
+        `treating it as empty (every contaminated block below counts as new). Run with --update-baseline to create one.`
+    );
+    return new Set();
+  }
+  return parseBaseline(readFileSync(resolvedBaselinePath, "utf8"));
+}
+
+/** Prints the full gated report (summary line, then SEVERE/NEW/KNOWN sections) and returns whether
+ *  `main` should exit non-zero. Split out of `main` purely to keep that function's branching flat.
+ */
+function reportGatedFindings(gated: readonly GatedVerdict[], evaluated: number, baselinePath: string | undefined): boolean {
+  const severeList = gated.filter((v) => v.severe);
+  const newList = gated.filter((v) => !v.severe && !v.baselined);
+  const knownList = gated.filter((v) => !v.severe && v.baselined);
+
+  console.error(
+    `check:coverage-integrity — ${gated.length} of ${evaluated} first-party block(s) contaminated: ` +
+      `${severeList.length} SEVERE (never baseline-suppressible), ${newList.length} NEW, ${knownList.length} known via baseline.`
+  );
+  if (severeList.length > 0) {
+    console.error("SEVERE (hard fail, no baseline escape):");
+    for (const v of severeList) console.error(`  - ${v.file}: ${v.reason}`);
+  }
+  if (newList.length > 0) {
+    console.error("NEW (not in baseline -- fails):");
+    for (const v of newList) console.error(`  - ${v.file}: ${v.reason}`);
+  }
+  if (knownList.length > 0) {
+    console.error("KNOWN (in baseline -- reported, does not fail):");
+    for (const v of knownList) console.error(`  - ${v.file}: ${v.reason}`);
+  }
+
+  const shouldFail = severeList.length > 0 || newList.length > 0;
+  if (!shouldFail) {
+    console.log(
+      `check:coverage-integrity — OK (ratcheted): 0 new/severe finding(s), ${knownList.length} known-baselined ` +
+        `contaminated block(s) still tracked -- see ${baselinePath}.`
+    );
+    return false;
+  }
+
+  console.error(
+    "\nCONTAMINATED means this block's FN:/FNDA: records are a merge of two coverage images (real ESM + " +
+      "esbuild's CJS wrapper) -- its function coverage numbers for this run are not trustworthy. SEVERE means " +
+      "the wrapper image additionally won the DA: line-hit merge -- line coverage is untrustworthy too, even if " +
+      "LH:/LF: happen to look clean, and can never be suppressed by a baseline. Neither means the file is poorly " +
+      "tested -- it means this lcov run cannot tell you either way. See this script's own header for the " +
+      "mechanism (Route A, src/server/deps.ts:1048), the --baseline ratchet, and " +
+      "ADS-memory/reports/2026-08-21-coverage-dual-instantiation-root-cause.md for the full investigation. " +
+      "Do not weaken this gate to get a green result -- see the header's note on that."
+  );
+  return true;
+}
+
 function main(): void {
-  const lcovArg = process.argv[2];
-  const lcovPath = lcovArg
-    ? path.isAbsolute(lcovArg)
-      ? lcovArg
-      : path.join(REPO_ROOT, lcovArg)
-    : DEFAULT_LCOV_PATH;
+  const { lcovArg, baselinePath, updateBaseline } = parseArgs(process.argv.slice(2));
+  const lcovPath = lcovArg ? resolveRepoPath(lcovArg) : DEFAULT_LCOV_PATH;
 
   if (!existsSync(lcovPath)) {
     console.error(
@@ -314,6 +546,15 @@ function main(): void {
 
   const { contaminated, evaluated, skipped } = checkCoverageIntegrity(readFileSync(lcovPath, "utf8"));
 
+  if (updateBaseline) {
+    if (!baselinePath) {
+      console.error("check:coverage-integrity — FAIL: --update-baseline requires --baseline <path> too.");
+      process.exit(1);
+    }
+    handleUpdateBaseline(resolveRepoPath(baselinePath), contaminated);
+    return;
+  }
+
   if (contaminated.length === 0) {
     console.log(
       `check:coverage-integrity — OK: ${evaluated} first-party block(s) evaluated (${skipped} non-first-party ` +
@@ -322,24 +563,10 @@ function main(): void {
     return;
   }
 
-  const severe = contaminated.filter((v) => v.severe);
-  console.error(
-    `check:coverage-integrity — ${contaminated.length} of ${evaluated} first-party block(s) show ` +
-      `DUAL-INSTANTIATION CONTAMINATION (${severe.length} additionally SEVERE):`
-  );
-  for (const v of contaminated) {
-    console.error(`  - [${v.severe ? "SEVERE" : "CONTAMINATED"}] ${v.file}: ${v.reason}`);
+  const gated = applyBaseline(contaminated, loadBaselineSet(baselinePath));
+  if (reportGatedFindings(gated, evaluated, baselinePath)) {
+    process.exit(1);
   }
-  console.error(
-    "\nCONTAMINATED means this block's FN:/FNDA: records are a merge of two coverage images (real ESM + " +
-      "esbuild's CJS wrapper) -- its function coverage numbers for this run are not trustworthy. SEVERE means " +
-      "the wrapper image additionally won the DA: line-hit merge -- line coverage is untrustworthy too, even if " +
-      "LH:/LF: happen to look clean. Neither means the file is poorly tested -- it means this lcov run cannot " +
-      "tell you either way. See this script's own header for the mechanism (Route A, src/server/deps.ts:1048) " +
-      "and ADS-memory/reports/2026-08-21-coverage-dual-instantiation-root-cause.md for the full investigation. " +
-      "Do not weaken this gate to get a green result -- see the header's note on that."
-  );
-  process.exit(1);
 }
 
 // Guarded, matching check-src-complexity-drift.ts's and check-test-baseline.ts's idiom in this same
