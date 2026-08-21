@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { archiveList, ensureDefaultList, saveList, type ListsDeps } from "../lists.js";
-import { NewsletterConflictError, NewsletterDefaultListProtectedError, NewsletterListNotFoundError } from "../errors.js";
+import { NewsletterConflictError, NewsletterDefaultListProtectedError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
 import { InMemoryNewsletterListRepo } from "../repo.memory.js";
 
 const WS = "ws-1";
@@ -26,6 +26,30 @@ test("ensureDefaultList: exactly one default list seeded per workspace, idempote
 
   const all = await deps.listRepo.list({ workspaceId: WS });
   assert.equal(all.filter((l) => l.isDefault).length, 1);
+});
+
+test("saveList: an empty/whitespace-only name is rejected", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    saveList({ deps, input: { workspaceId: WS, name: "   ", slug: "vips" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof NewsletterValidationError);
+      assert.equal(err.message, "name must not be empty");
+      return true;
+    }
+  );
+});
+
+test("saveList: an empty/whitespace-only slug is rejected", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    saveList({ deps, input: { workspaceId: WS, name: "VIPs", slug: "  " } }),
+    (err: unknown) => {
+      assert.ok(err instanceof NewsletterValidationError);
+      assert.equal(err.message, "slug must not be empty");
+      return true;
+    }
+  );
 });
 
 test("saveList: admin-created lists always land isDefault:false", async () => {

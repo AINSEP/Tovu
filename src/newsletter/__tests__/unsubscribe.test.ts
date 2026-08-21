@@ -155,3 +155,53 @@ test("buildUnsubscribeLink: links are built ONLY via OriginRegistryPort.canonica
   // No code path here ever reads a Host header — the origin comes exclusively from `originRegistry`.
   assert.ok(link.startsWith("https://acme.test/newsletter/unsubscribe?token="));
 });
+
+test("buildUnsubscribeLink: a non-default port on the verified origin is included in the link", async () => {
+  const { deps } = makeDeps(baseSubscription());
+  deps.originRegistry = {
+    canonicalOrigin: async () => ({ scheme: "https" as const, host: "acme.test", port: 8443, verifiedAt: NOW, source: "workspace-setting" as const }),
+    isAllowedRedirectTarget: async () => true,
+    isAllowedEgressTarget: async () => true,
+  };
+  const link = await buildUnsubscribeLink({
+    deps,
+    claims: { workspaceId: WS, subscriberId: "subscriber-1", listId: "list-1", campaignId: null, consentRevisionId: "rev-1" },
+  });
+  assert.ok(link.startsWith("https://acme.test:8443/newsletter/unsubscribe?token="), `expected a port-qualified URL, got: ${link}`);
+});
+
+test("processUnsubscribe: a token derived with a non-null campaignId round-trips correctly (derivationInfo's ?? branch)", async () => {
+  const { deps, repo } = makeDeps(baseSubscription({ consentRevisionIdAtSubscribe: "rev-1" }));
+  const claims: UnsubscribeTokenClaims = { workspaceId: WS, subscriberId: "subscriber-1", listId: "list-1", campaignId: "camp-42", consentRevisionId: "rev-1" };
+  const link = await buildUnsubscribeLink({ deps, claims });
+  const token = new URL(link).searchParams.get("token")!;
+
+  const result = await processUnsubscribe({ deps, input: { rawToken: token } });
+  assert.equal(result.outcome, "unsubscribed");
+  const updated = await repo.findById({ workspaceId: WS, id: "sub-1" });
+  assert.equal(updated?.status, "unsubscribed");
+});
+
+test("processUnsubscribe: a malformed (non-JSON) claims payload is rejected as signature_invalid, not a crash", async () => {
+  const { deps } = makeDeps(baseSubscription());
+  const bogusEncoded = Buffer.from("not valid json", "utf8").toString("base64url");
+  const rawToken = `${bogusEncoded}.deadbeef`;
+  await assert.rejects(processUnsubscribe({ deps, input: { rawToken } }), (err: unknown) => {
+    assert.ok(err instanceof NewsletterUnsubscribeTokenInvalidError);
+    assert.equal(err.message, "malformed unsubscribe token");
+    assert.equal(err.reason, "signature_invalid");
+    return true;
+  });
+});
+
+test("processUnsubscribe: a signature of the WRONG LENGTH is rejected without reaching the timing-safe compare", async () => {
+  const { deps } = makeDeps(baseSubscription());
+  const token = await tokenFor(deps, "rev-1");
+  const [encoded] = token.split(".");
+  const shortSigToken = `${encoded}.ab`; // valid encoded claims, signature far too short
+  await assert.rejects(processUnsubscribe({ deps, input: { rawToken: shortSigToken } }), (err: unknown) => {
+    assert.ok(err instanceof NewsletterUnsubscribeTokenInvalidError);
+    assert.equal(err.reason, "signature_invalid");
+    return true;
+  });
+});

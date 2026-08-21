@@ -79,6 +79,24 @@ test("saveCampaign: preheader over 300 chars rejected", async () => {
   );
 });
 
+test("saveCampaign: empty subject is rejected (below SUBJECT_MIN)", async () => {
+  const deps = makeMemoryDeps();
+  await assert.rejects(
+    saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: { ...validFields, subject: "" } } }),
+    (err: unknown) => {
+      assert.ok(err instanceof NewsletterValidationError);
+      assert.equal(err.message, "subject must be between 1 and 998 characters");
+      return true;
+    }
+  );
+});
+
+test("saveCampaign: a non-null preheader within the 300-char limit is accepted and stored", async () => {
+  const deps = makeMemoryDeps();
+  const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: { ...validFields, preheader: "A short preview" } } });
+  assert.equal(created.campaign.preheader, "A short preview");
+});
+
 test("saveCampaign: concurrent same-version writers -> second gets NEWSLETTER_CONFLICT (EC-06)", async () => {
   const deps = makeMemoryDeps();
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
@@ -114,6 +132,35 @@ test("cancelCampaign: draft and scheduled campaigns can be canceled", async () =
   const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
   const canceled = await cancelCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1" } });
   assert.equal(canceled.campaign.status, "canceled");
+});
+
+test("scheduleCampaign: scheduling an already-'scheduled' campaign again is a same-status no-op, rejected", async () => {
+  const deps = makeMemoryDeps();
+  const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
+  await scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-08-01T00:00:00.000Z" } });
+  // Now 'scheduled' -- scheduling again is not a permitted transition (schedule tier only does draft -> scheduled).
+  await assert.rejects(
+    scheduleCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1", scheduledAt: "2026-09-01T00:00:00.000Z" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof NewsletterCampaignNotEditableError);
+      assert.equal(err.message, "'scheduled' -> 'scheduled' is not a transition (no-op)");
+      return true;
+    }
+  );
+});
+
+test("cancelCampaign: a campaign already 'sending' cannot be canceled (compose tier only cancels draft/scheduled)", async () => {
+  const deps = makeMemoryDeps();
+  const created = await saveCampaign({ deps, input: { workspaceId: WS, actorId: "actor-1", fields: validFields } });
+  await deps.campaignRepo.saveCampaignRow({ ...created.campaign, status: "sending" });
+  await assert.rejects(
+    cancelCampaign({ deps, input: { workspaceId: WS, id: created.campaign.id, actorId: "actor-1" } }),
+    (err: unknown) => {
+      assert.ok(err instanceof NewsletterCampaignNotEditableError);
+      assert.equal(err.message, "'sending' -> 'canceled' is not a permitted transition for any actor tier");
+      return true;
+    }
+  );
 });
 
 test("scheduleCampaign: unknown listId at schedule time is rejected (AC-11)", async () => {
