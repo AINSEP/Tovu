@@ -94,3 +94,24 @@ test("REQ-09: an entryRef target resolves to available:false honestly (src/routi
   assert.equal(items[0].href, null);
   assert.equal(items[0].available, false);
 });
+
+test("REQ-09: a config with no menuRef resolves invalid-config, never calls the read model", async () => {
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(null) });
+  const results = await resolver.resolveMany([instance({ id: "w-3", config: {} })], CTX);
+
+  assert.deepEqual(results.get("w-3"), { ok: false, reason: "invalid-config" });
+});
+
+test("REQ-09: a non-string menuRef resolves invalid-config", async () => {
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(null) });
+  const results = await resolver.resolveMany([instance({ id: "w-3", config: { menuRef: 42 } })], CTX);
+
+  assert.deepEqual(results.get("w-3"), { ok: false, reason: "invalid-config" });
+});
+
+test("REQ-09: a menuRef that resolves to no menu at all (deleted/never existed) degrades to target-disabled, never throws", async () => {
+  const resolver = createMenuResolver({ navMenuReadModel: fakeMenuReadModel(null) });
+  const results = await resolver.resolveMany([instance({ id: "w-4", config: { menuRef: "does-not-exist" } })], CTX);
+
+  assert.deepEqual(results.get("w-4"), { ok: false, reason: "target-disabled" });
+});
