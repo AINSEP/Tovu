@@ -84,6 +84,39 @@ function runContractSuite(
     assert.equal(claimed[0].attempts, 1);
   });
 
+  test(`[${adapterName}] claimPending orders multiple due rows oldest-nextAttemptAt-first`, async () => {
+    const repo = makeRepo();
+    await repo.enqueue(
+      makeDelivery({
+        id: "delivery-newer",
+        eventId: "event-newer",
+        nextAttemptAt: "2026-07-10T00:00:03.000Z",
+      })
+    );
+    await repo.enqueue(
+      makeDelivery({
+        id: "delivery-oldest",
+        eventId: "event-oldest",
+        nextAttemptAt: "2026-07-10T00:00:01.000Z",
+      })
+    );
+    await repo.enqueue(
+      makeDelivery({
+        id: "delivery-middle",
+        eventId: "event-middle",
+        nextAttemptAt: "2026-07-10T00:00:02.000Z",
+      })
+    );
+
+    const claimed = await repo.claimPending({ batchSize: 10, nowIso: "2026-07-10T00:00:05.000Z" });
+
+    assert.deepEqual(
+      claimed.map((r) => r.id),
+      ["delivery-oldest", "delivery-middle", "delivery-newer"],
+      "rows must come back sorted by nextAttemptAt ascending regardless of insertion order"
+    );
+  });
+
   test(`[${adapterName}] markDelivered clears lastError and stamps deliveredAt`, async () => {
     const repo = makeRepo();
     await repo.enqueue(makeDelivery({ lastError: "prior failure" }));
