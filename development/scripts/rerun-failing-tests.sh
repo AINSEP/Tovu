@@ -60,7 +60,7 @@ RERUN_TAP="development/coverage/rerun-failing.tap"
 rm -f "$RERUN_TAP"
 
 export TEST_CONCURRENCY="${TEST_CONCURRENCY:-2}"
-node --import tsx --test \
+node --import tsx --test --experimental-test-module-mocks \
   --test-concurrency="$TEST_CONCURRENCY" \
   --test-reporter=tap --test-reporter-destination="$RERUN_TAP" \
   --test-reporter=dot --test-reporter-destination=stdout \
