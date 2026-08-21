@@ -346,3 +346,71 @@ for whoever reuses this technique elsewhere: NOT every duplicate `FN:` entry is 
 that both genuinely implement methods of those names; only single-definition functions/values showing
 multiple instances are the real signal.) The combined run's lower numbers reflect snapshot staleness plus
 this real, separate tooling artifact — not a regression in this session's work.
+
+---
+
+# Team-lead's re-baseline against the real combined numbers, and its resolution
+
+Team-lead re-sent the combined per-file numbers (raw, not deduped) with three explicit judgment calls.
+Investigated all three before writing anything further, per instruction.
+
+## Judgment call 1 — `src/db/schema.ts`: RESOLVED, exclude from the function metric
+
+Verified exhaustively: zero top-level exports besides 79 `sqliteTable(...)` calls (grepped for any
+other `export function`/`export const ... =>` — none). All 301 raw `FN:` entries in the combined lcov
+decompose exactly into: 79 esbuild `__export()` live-binding table-name getters, 74 Drizzle
+`table.column.notNull.references.onDelete` FK-closures, 144 anonymous column/check/index-builder
+closures, 3 esbuild CJS-interop helpers. This is a purely declarative 2589-line schema file with no
+hand-written behavioral function anywhere. **Disposition: not a coverage gap — the function-coverage
+metric does not apply to this file.** Line coverage (88.3% combined) is the meaningful axis here and
+needs no special handling. No test written; none should be.
+
+## Judgment call 2 — the ~20 sqlite repos: RESOLVED, 17 of 20 were the SAME dedup artifact
+
+Deduped (max-hits-by-name) all 20 files team-lead listed. 17 came back at 92–100% — the "50–65%" reading
+was the duplicate-FN-entry artifact from my earlier finding, now confirmed at file-by-file scale. Only 3
+were genuinely, confirmedly untested (zero test file existed for any of them, before this session):
+
+- `composio-connector-credential-repo.sqlite.ts`
+- `custom-credential-repo.sqlite.ts`
+- `external-mcp-repo.sqlite.ts`
+
+All 3 now have dedicated test suites (commits `ae7fbd4a`, `99a16756`, `d7d9685c` — 8, 9, and 10 tests
+respectively, all passing in isolation). Each covers: empty-list/not-found reads, a full round-trip
+including the table's sealed-secret CHECK constraint's null/non-null shapes, composite-PK
+upsert-updates-not-duplicates, multi-row listing scoped by workspace, and delete/boundary behavior
+(including, for `external-mcp-repo.sqlite.ts`, both branches of `deleteByServerId`'s `changes > 0`
+boolean). No test was duplicated across files — each targets that file's own actual method signatures
+and constraints, confirmed by reading the source first.
+
+## Judgment call 3 — `pg-fixture.ts`: already resolved earlier this session
+
+41.7% → confirmed 69%+ branches against a real local Postgres (commit `e6f45988`, before team-lead's
+message arrived). Two branches remain genuinely hard without a DI seam this test-infra file doesn't
+have (PGPORT's module-load-time branch, DROP-succeeds-then-CREATE-fails) — documented there, not
+chased further per "don't fake it."
+
+## Bonus finding: the two error-class "gaps" team-lead's snapshot also implied were false positives too
+
+Investigated `gateway.ts`'s `PlanStaleError`/`UnauthenticatedError` and `token.ts`'s
+`TokenAlreadyRedeemedError`/`TokenExpiredError` (all 4 read zero-after-dedup in the combined snapshot).
+Verified against MY OWN scoped lcov instead of trusting the combined instrumentation: for empty-body
+`class X extends Error {}` declarations with no explicit constructor, my scoped transpilation context
+doesn't even generate a separate `FN:` entry for them at all (only classes with an explicit constructor
+body, like `ForbiddenError`, get one) — so this is a THIRD, distinct instrumentation-context artifact,
+not the duplicate-entry one. Directly confirmed real, passing tests already construct and throw 3 of
+the 4 through the genuine code path: `PlanStaleError` (`gateway.unit.test.ts` line 313, AC-16/17/
+U-001-B3), `TokenAlreadyRedeemedError` and `TokenExpiredError` (`token.unit.test.ts` lines 108–146,
+INV-03/REQ-11/AC-35). The 4th, `UnauthenticatedError`, has **zero throw call sites anywhere in the
+codebase** (grepped) — its own doc comment already says why: "reserved... for a future route-level
+caller to raise before reaching this gateway." **Disposition: no-seam / reserved-for-future-use,
+self-documented. No test written** — constructing it in isolation with no corresponding code path
+would test nothing real.
+
+## Net result of this round
+
+3 new test files (27 tests total), all genuinely-untested repos now covered. Everything else team-lead's
+snapshot flagged was either the already-known dedup artifact, snapshot staleness (this session's own
+`revert.ts`/`memory-bus.ts` fixes not yet reflected), or a third instrumentation-context artifact
+(empty-body error classes). Zero production code touched this round either. All tests green
+(`TEST_CONCURRENCY=2`, same scoped command, full re-run after every commit in this round).
