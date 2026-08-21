@@ -174,14 +174,30 @@ matches. The two real production consumers found (`comments/spam.external.ts`,
 implementation via constructor injection instead. **`createHttpClient` is not called anywhere under
 `src/server` (the composition root) today** — nothing currently wires a real instance into the running
 app; every current caller of an `HttpClientPort`-shaped dependency must be getting it from somewhere
-other than this file, or not getting a real one yet. Not editorializing on whether that's intentional —
-just reporting it, since it directly explains the immunity: dual module instantiation needs **two**
-distinct import paths (one native-ESM, one through a CJS `require()` interop shim) into the same file to
-produce two `SF:` blocks worth merging; a file reachable from exactly one place, via one loader, cannot
-produce a second instantiation to merge with. `transport.fetch.ts` is imported only by `client.ts` in
-turn, so it inherits the same single-path shape. This may or may not generalize to `src/cli` (13/13
-clean) and `apps/site-chat` (6/6 clean) — not checked this session, flagged for whoever picks up the
-root-cause thread.
+other than this file, or not getting a real one yet.
+
+**Update (follow-up investigation, same session):** the causal half of this ("one import path ⇒
+immune") was tested directly against `src/cli` and `apps/site-chat` and does **not** hold as a general
+mechanism — both areas have files with many importers (`cli/errors.ts` has dozens across unrelated
+areas; `site-chat/client-directives.ts` has 4) and stay 100% clean anyway. The single-importer fact
+about `http/client.ts` itself is still true and still worth recording, but it is not shown to be *why*
+the area is immune — see `2026-08-21-coverage-dual-instantiation-root-cause.md`'s "single-import-path
+hypothesis" section for the full test and what's now confirmed/refuted/open.
+
+### Separately: this is a dead-code/wiring question for a human, not a coverage gap
+
+Independent of the corruption-immunity question: **`createHttpClient` — the one production
+constructor for `HttpClientPort` — is called nowhere in this repository except its own test.**
+`comments/spam.external.ts` and `features/deployments/ports.ts` both declare a dependency on
+`HttpClientPort` (constructor-injected) but nothing in `src/server` (the composition root) has been
+found that constructs a real one to inject. This is the **second** finding of this exact shape found
+in this project tonight — `src/forms/manifest.ts` was separately found imported by nothing in `src/`
+at all, despite its own file header claiming two consumers that don't exist. Two independent
+"exists but nothing uses it" findings in one session is a pattern worth a human's attention, not two
+coincidences. **Not a coverage gap** (no test can meaningfully "cover" a wiring decision that hasn't
+been made) — flagging for a human to decide whether this is pending work, a stub for a future
+consumer, or something that should be wired in now. Per the same treatment `manifest.ts` got: **not
+writing a test to cover it, not deleting it.**
 
 ## What this report does NOT do
 
