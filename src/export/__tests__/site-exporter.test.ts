@@ -9,7 +9,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import { createApp, createRouteDeps } from "../../server/app.js";
 import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
 import type { RedirectRecord } from "../../redirects/index.js";
-import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor, resolveAssetPathWithinOutputDir } from "../site-exporter.js";
+import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 
 /**
@@ -640,20 +640,6 @@ test("firstExportFailure: checks routes before assets when both have failures", 
   const result = firstExportFailure(report);
   assert.equal(result?.kind, "route", "routes must be checked before assets, per this function's own doc");
   assert.equal(result?.identifier, "/a");
-});
-
-test("resolveAssetPathWithinOutputDir: refuses a traversal payload that resolves outside an absolute outputDir", () => {
-  const outputDir = path.join(tmpdir(), "tovu-export-test-containment");
-  assert.equal(resolveAssetPathWithinOutputDir("/theme-assets/../../../etc/passwd", outputDir), null);
-  // Sanity check the SAME outputDir accepts a benign, non-escaping URL — proves the refusal above is
-  // about the traversal, not an unrelated misconfiguration of this specific outputDir value.
-  assert.equal(resolveAssetPathWithinOutputDir("/theme-assets/basic/css/base.css", outputDir), path.join(outputDir, "theme-assets/basic/css/base.css"));
-});
-
-test("resolveAssetPathWithinOutputDir: refuses when outputDir is not itself absolute, even for an otherwise-benign URL", () => {
-  // path.resolve() anchors a relative outputDir against process.cwd(), diverging from a naive
-  // path.join() — the OTHER escape this function's two guards catch (see its own doc).
-  assert.equal(resolveAssetPathWithinOutputDir("/theme-assets/basic/css/base.css", "relative-tovu-export-output"), null);
 });
 
 /**

@@ -463,12 +463,12 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
  * Maps a fetched asset's site-relative URL to its output file, via `core/path-containment.ts`'s
  * shared `resolvePathWithin` — the same check `theme-static-assets.ts`'s `resolveThemeDir` applies
  * to a theme id. A URL extracted from rendered HTML is still, transitively, request-shaped input,
- * not a trusted literal, so the refusal stays enforced even though today's crawl
- * (`extractAssetUrls`/`extractCssUrls`) only ever hands this function URLs already pre-filtered to
- * `ASSET_URL_PREFIXES` and normalized through `URL.pathname`/`decodeURIComponent` — see
- * `resolvePathWithin`'s own doc for the two escapes it refuses.
+ * not a trusted literal, and the refusal is genuinely reachable: `extractAssetUrls` is a raw
+ * `href`/`src` regex scan with NO URL normalization, so a rendered page that literally embeds a
+ * `../`-laden value under an asset prefix passes its filter unchanged and reaches this function —
+ * see `resolvePathWithin`'s own doc for the two escapes it refuses.
  */
-export function resolveAssetPathWithinOutputDir(url: string, outputDir: string): string | null {
+function resolveAssetPathWithinOutputDir(url: string, outputDir: string): string | null {
   // `String.prototype.split` always returns at least one element, so index 0 is always defined.
   const pathname = decodeURIComponent(url.split("?")[0]);
   const trimmed = pathname.replace(/^\/+/, "");
