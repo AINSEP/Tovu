@@ -35,6 +35,12 @@ export function createRecentEntriesResolver(deps: RecentEntriesResolverDeps): Wi
   return {
     async resolveMany(instances, context) {
       const registration = getWidgetTypeRegistration("recent-entries");
+      // `?.`/`?? 20` are type-required, not dead defensive code: `getWidgetTypeRegistration` returns
+      // `WidgetTypeRegistration | undefined` (registry.ts), so `tsc` rejects a direct `.clamps` read
+      // even though this specific call, against the closed `WidgetTypeKey` union and the fixed
+      // 5-entry `WIDGET_TYPE_REGISTRATIONS` array (no dynamic add/remove path exists), can never
+      // actually see `undefined` at runtime. Confirmed zero-hit in coverage (BRDA) for exactly this
+      // reason — do not delete on that basis alone; the guard is load-bearing for the wider type.
       const registryMax = registration?.clamps.maxItems ?? 20;
 
       // One batched query for the whole call (REQ-24) — EntryListPort has no `findByIds` batch
