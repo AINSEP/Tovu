@@ -18,7 +18,9 @@ function isRec(v: unknown): v is Record<string, unknown> {
 
 function walk(node: unknown, path: string, report: (msg: string) => void): void {
   if (Array.isArray(node)) {
-    node.forEach((e, i) => walk(e, `${path}[${i}]`, report));
+    node.forEach((e, i) => {
+      walk(e, `${path}[${i}]`, report);
+    });
     return;
   }
   if (!isRec(node)) return;

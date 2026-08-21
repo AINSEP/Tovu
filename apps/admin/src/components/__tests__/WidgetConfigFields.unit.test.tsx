@@ -187,7 +187,8 @@ describe("RecentEntriesConfigFields", () => {
     // existing "1" produces the DOM value "19", and the assertion is on the resulting Number, not
     // the keystroke — pinning that the field parses via `Number(...)`, not string concatenation.
     expect(onChange).toHaveBeenLastCalledWith({ maxItems: 19 });
-    expect(typeof (onChange.mock.calls.at(-1)?.[0] as { maxItems: unknown }).maxItems).toBe("number");
+    const lastCall = onChange.mock.calls[onChange.mock.calls.length - 1];
+    expect(typeof (lastCall[0] as { maxItems: unknown }).maxItems).toBe("number");
   });
 
   it("clearing the max-items field sets maxItems to undefined, not an empty string or NaN", async () => {

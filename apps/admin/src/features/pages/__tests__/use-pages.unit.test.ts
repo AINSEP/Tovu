@@ -291,7 +291,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
 
     expect(port.pages[0]!.status).toBe("draft");
-    expect(result.current.pages?.[0]!.status).toBe("draft");
+    expect(result.current.pages![0].status).toBe("draft");
   });
 
   it("removePage deletes the pending page through the injected port", async () => {

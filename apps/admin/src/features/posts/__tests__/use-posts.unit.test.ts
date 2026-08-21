@@ -190,7 +190,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     });
 
     expect(port.posts[0]!.status).toBe("draft");
-    expect(result.current.posts?.[0]!.status).toBe("draft");
+    expect(result.current.posts![0].status).toBe("draft");
   });
 
   it("removePost deletes the pending post through the injected port", async () => {

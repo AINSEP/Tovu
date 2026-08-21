@@ -327,7 +327,7 @@ test('resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs
     assert.equal(resolved.size, 0);
     assert.equal(warnings.length, 1, "an actual unknown type must still warn exactly once");
     assert.equal(warnings[0]?.[0], "[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder");
-    assert.equal((warnings[0]?.[1] as { type: string }).type, "widgt");
+    assert.equal((warnings[0][1] as { type: string }).type, "widgt");
   } finally {
     console.warn = originalWarn;
   }

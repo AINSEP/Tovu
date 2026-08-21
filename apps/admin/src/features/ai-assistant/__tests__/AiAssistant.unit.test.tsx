@@ -81,7 +81,7 @@ describe("the public on/off switch", () => {
     const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
     expect(putCall).toBeDefined();
     expect(String(putCall?.[0])).toContain("/assistant/settings");
-    expect(JSON.parse(String((putCall?.[1] as RequestInit).body))).toEqual({ publicEnabled: true });
+    expect(JSON.parse(String((putCall![1] as RequestInit).body))).toEqual({ publicEnabled: true });
   });
 
   it("turns back off, which is the control's whole reason for existing", async () => {
