@@ -238,14 +238,22 @@ test("the idle deadline resets on activity, so a slow conversation is not punish
 });
 
 test("the total-lifetime ceiling ends an exchange that stays busy forever", async () => {
-  const store = createSurfaceExchangeStore({ idleTtlMs: 30, maxLifetimeMs: 45 });
+  // The margin between idleTtlMs and the keep-busy interval, and between maxLifetimeMs and
+  // idleTtlMs, is intentionally generous (not the tightest values that pass locally): under
+  // concurrent test-runner load a tight margin lets scheduling jitter delay a `deliver()` past the
+  // idle deadline, so the exchange ends via the IDLE timer instead of the LIFETIME ceiling this
+  // test exists to prove — both report `status: "expired"`, so a tight-margin version of this test
+  // can pass while silently exercising the wrong timer every time it runs under load (confirmed:
+  // this file's own `anonymous_7` — the lifetime timer's one-shot callback — read 0 hits in a
+  // concurrent scoped coverage run despite this test passing).
+  const store = createSurfaceExchangeStore({ idleTtlMs: 200, maxLifetimeMs: 260 });
   const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
 
   // Activity alone must not hold the call open indefinitely: the call is an HTTP request from the
   // agent's MCP server, and the transport gives up whether or not we are still talking.
   const keepBusy = setInterval(() => {
     store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} });
-  }, 10);
+  }, 20);
   try {
     let message = await exchange.receive();
     while (message.status === "received") message = await exchange.receive();
