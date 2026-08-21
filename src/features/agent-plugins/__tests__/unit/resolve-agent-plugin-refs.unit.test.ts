@@ -1,0 +1,250 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdtemp, readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { forceRemove } from "../fixtures/force-remove.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
+
+/**
+ * @file `resolveAgentPluginRefs()` — the run-start resolution step `agent-daemon-server.ts`'s
+ * `onStarted` calls to turn a pinned composer chip (`pluginRefIds`) into real prompt-prefix text.
+ *
+ * Every "installed package" fixture below goes through the REAL `installAgentPlugin()` pipeline
+ * (extraction, containment, freeze) against a real temp `AgentPluginWorkspaceLayout` — the same
+ * idiom `install.unit.test.ts` already establishes — rather than hand-writing files into a
+ * directory. The SKILL.md content each test asserts against is read back independently via a bare
+ * `readFile` on the installed path, not re-compared against the same string literal the test wrote
+ * — this is what proves the resolver reads REAL bytes off REAL disk rather than merely echoing
+ * whatever a mock happened to hand it.
+ */
+
+const WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
+
+function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
+  return {
+    async *entries() {
+      yield* entries;
+    },
+  };
+}
+
+function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry {
+  const bytes = Buffer.from(content, "utf8");
+  return {
+    kind: "file",
+    entryPath,
+    declaredSize: bytes.byteLength,
+    executable: false,
+    async *openReadStream() {
+      yield bytes;
+    },
+  };
+}
+
+/** A real, non-trivial SKILL.md body — long enough and specific enough that a test asserting the
+ *  resolver's output contains it could not accidentally pass against a truncated or substituted
+ *  read. */
+const REAL_SKILL_MARKDOWN =
+  "# UI/UX Design\n\n" +
+  "Use an 8px spacing grid, WCAG AA contrast minimums, and prefer system fonts over web fonts " +
+  "for body copy. Every interactive control needs a visible focus ring — never `outline: none` " +
+  "without a replacement.\n";
+
+function manifest(name: string, version = "1.1.0"): string {
+  return JSON.stringify({ $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json", name, version });
+}
+
+async function freshLayout() {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-resolve-agent-plugin-refs-test-"));
+  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  return { cwd, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
+}
+
+/** Installs one real package (via the production `installAgentPlugin` pipeline) with the given
+ *  `pluginId` and skill markdown, keyed to a unique archive so a second call in the same test
+ *  produces a genuinely different digest. `cwd` must be the SAME root {@link freshLayout} resolved
+ *  its workspace layout from — `installAgentPlugin` re-resolves the instance-level layout from it
+ *  independently, and a mismatched `cwd` would install into a different tree than the one the
+ *  test's own `layout.packages` points at. */
+async function installRealPackage(
+  cwd: string,
+  pluginId: string,
+  skillMarkdown: string,
+  archiveSeed: string,
+) {
+  const entries = [fileEntry("plugin.json", manifest(pluginId)), fileEntry(`skills/${pluginId}/SKILL.md`, skillMarkdown)];
+  const archive = new Uint8Array(Buffer.from(archiveSeed));
+  const digest = createHash("sha256").update(archive).digest("hex");
+  return installAgentPlugin({
+    archive,
+    expectedSha256: digest,
+    archiveReader: reader(entries),
+    layout: resolveAgentPluginLayout({ cwd, env: {} }),
+    workspaceId: WORKSPACE_ID,
+  });
+}
+
+test("resolves to an empty promptPrefix and touches no filesystem when pluginRefIds is empty", async () => {
+  const result = await resolveAgentPluginRefs([], { packages: "/does-not-exist-and-is-never-read" });
+  assert.deepEqual(result, { ok: true, promptPrefix: "" });
+});
+
+test("resolves a real, genuinely installed plugin's SKILL.md content verbatim into the prefix", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-real-1");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.ok);
+    // Independent read of the installed file — proves the resolver's output is the REAL bytes on
+    // disk, not a value that merely happens to match what this test itself wrote above.
+    const [digest] = await readdir(layout.packages);
+    const independentRead = await readFile(path.join(layout.packages, digest as string, "skills/ui-ux-design/SKILL.md"), "utf8");
+    assert.equal(independentRead, REAL_SKILL_MARKDOWN);
+    assert.ok(result.promptPrefix.includes(independentRead));
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("does not include the SKILL.md content when pluginRefIds is absent (regression: insertText used to type an inert string instead)", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-real-2");
+
+    const result = await resolveAgentPluginRefs([], layout);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.ok);
+    assert.equal(result.promptPrefix, "");
+    assert.ok(!result.promptPrefix.includes("8px spacing grid"));
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("lists every other installed file as an absolute path, excluding the injected SKILL.md itself", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    const entries = [
+      fileEntry("plugin.json", manifest("ui-ux-design")),
+      fileEntry("skills/ui-ux-design/SKILL.md", REAL_SKILL_MARKDOWN),
+      fileEntry("skills/ui-ux-design/references/foundations.md", "# Foundations\n"),
+    ];
+    const archive = new Uint8Array(Buffer.from("archive-real-3"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+    await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader(entries),
+      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.ok);
+    const expectedAbsolutePath = path.join(layout.packages, digest, "skills/ui-ux-design/references/foundations.md");
+    assert.ok(result.promptPrefix.includes(expectedAbsolutePath));
+    assert.ok(!result.promptPrefix.includes(path.join(layout.packages, digest, "skills/ui-ux-design/SKILL.md")));
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("fails closed with an exact 'not installed' reason when zero packages match", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "some-other-plugin", "# Other\n", "archive-real-4");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason:
+        "Agent Plugin 'ui-ux-design' is not installed in this workspace — pinned by the composer but not found under any installed package",
+    });
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("fails closed with an exact 'not installed' reason when the packages directory does not exist at all", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason:
+        "Agent Plugin 'ui-ux-design' is not installed in this workspace — pinned by the composer but not found under any installed package",
+    });
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("fails closed with an exact ambiguity reason naming both digests when two installs share a pluginId", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    const first = await installRealPackage(cwd, "ui-ux-design", "# Variant A\n", "archive-real-5a");
+    const second = await installRealPackage(cwd, "ui-ux-design", "# Variant B\n", "archive-real-5b");
+    const sortedDigests = [first.archiveDigest, second.archiveDigest].sort();
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+
+    assert.deepEqual(result, {
+      ok: false,
+      reason: `Agent Plugin 'ui-ux-design' matches 2 installed packages (digests: ${sortedDigests.join(", ")}) — refusing to guess which one to use`,
+    });
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("resolves multiple pluginRefIds and joins their sections in pin order", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", "# First plugin\n", "archive-real-6a");
+    await installRealPackage(cwd, "second-plugin", "# Second plugin\n", "archive-real-6b");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design", "second-plugin"], layout);
+
+    assert.equal(result.ok, true);
+    assert.ok(result.ok);
+    const firstIndex = result.promptPrefix.indexOf("# First plugin");
+    const secondIndex = result.promptPrefix.indexOf("# Second plugin");
+    assert.ok(firstIndex >= 0 && secondIndex >= 0 && firstIndex < secondIndex);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+/**
+ * Adversarial aggregate case (adversarial-test-design): a batch of refs where only ONE fails must
+ * not silently succeed with a partial prefix — the whole run is meant to abort on the first
+ * unresolvable ref, per this module's own "fail closed" header, not quietly proceed with half the
+ * pinned plugins reaching the agent and the other half vanishing without a trace.
+ */
+test("aborts on the first unresolvable ref rather than silently dropping it from a partial success", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", "# First plugin\n", "archive-real-7");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design", "never-installed"], layout);
+
+    assert.equal(result.ok, false);
+    assert.ok(!result.ok);
+    assert.match(result.reason, /'never-installed' is not installed/);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
