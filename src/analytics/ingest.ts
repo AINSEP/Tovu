@@ -176,16 +176,44 @@ function classifyUserAgent(userAgent: string): {
   };
 }
 
+/** Total hextet groups in a fully-expanded IPv6 address. */
+const IPV6_GROUP_COUNT = 8;
+
+/**
+ * Expands a `"::"` zero-run shorthand to the hextet groups it represents, so the caller always
+ * works with the address's real group order regardless of where (or whether) shorthand was used.
+ * An address with no `"::"` is simply split/filtered, unchanged from before.
+ *
+ * @complexity O(1) — bounded by the fixed 8-group IPv6 shape.
+ */
+function expandIpv6Groups(ip: string): string[] {
+  if (!ip.includes("::")) {
+    return ip.split(":").filter((group) => group.length > 0);
+  }
+
+  const [head, tail] = ip.split("::");
+  const headGroups = head ? head.split(":").filter((group) => group.length > 0) : [];
+  const tailGroups = tail ? tail.split(":").filter((group) => group.length > 0) : [];
+  const zerosNeeded = Math.max(IPV6_GROUP_COUNT - headGroups.length - tailGroups.length, 0);
+
+  return [...headGroups, ...Array(zerosNeeded).fill("0"), ...tailGroups];
+}
+
 /**
  * Truncates/buckets an IP address to a coarse prefix (IPv4 /24, IPv6 /48) so the request signal
  * folded into `visitorHash` never encodes a full, individually-identifying address.
+ *
+ * IPv6 addresses are expanded (via {@link expandIpv6Groups}) before bucketing, so a `"::"`-
+ * shorthand address and its fully-expanded equivalent (the SAME real address, written two ways)
+ * always land in the same bucket — bucketing on the raw, unexpanded groups would otherwise shift
+ * a shorthand address's trailing group into the "first 3" slot.
  *
  * @complexity O(1).
  * @overallScore 100/100
  */
 function truncateIp(ip: string): string {
   if (ip.includes(":")) {
-    const groups = ip.split(":").filter((group) => group.length > 0);
+    const groups = expandIpv6Groups(ip);
     return `${groups.slice(0, 3).join(":")}::`;
   }
 
