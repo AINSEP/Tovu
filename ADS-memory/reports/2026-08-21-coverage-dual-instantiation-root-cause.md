@@ -229,6 +229,24 @@ This also explains the immune set structurally rather than by coincidence: `src/
 
 **The generalizable lesson**: an in-process call-site trace — even a correct, exhaustive one — cannot see a call made inside a spawned child process. "No test calls X" needs to be "no test calls X, AND no test spawns a child process whose own code calls X" before it can be trusted as an elimination.
 
-## Next: Sol's discriminator (not yet run — coordinating with the coordinator on machine load first)
+## Sol's discriminator — RUN, CONFIRMS the CLI-child path as an independently sufficient trigger
 
-`src/media/**/*.test.ts` + **only** `src/cli/__tests__/integration/export-command.integration.test.ts`. If shim markers appear on `provider-credential-store.ts`, the finding is confirmed empirically, not just by code trace.
+`src/media/**/*.test.ts` + **only** `src/cli/__tests__/integration/export-command.integration.test.ts` (2 test files, `TEST_CONCURRENCY=2`, `TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json` set to match the real `test:cov` script exactly):
+
+```
+6 shim markers, LH:294 LF:357, FNF:43 FNH:29
+```
+
+**Exact match to the full-repo/round-5 numbers, from just 2 test files.** This empirically confirms Sol's traced mechanism (child process spawned by `export-command.integration.test.ts` inherits `NODE_V8_COVERAGE`, its own `require("./app.js")` pushes `provider-credential-store.ts` through tsx's CJS hook, merges with the parent's ESM image of the same file) is a real, independently sufficient trigger — not just a correct-looking code trace.
+
+**This does NOT explain round 5** (media + full `src/server/**`, which does not include `src/cli/**` at all) — that reproduction needs its own trigger within `src/server`. Two separate confirmed-or-suspected triggers now, consistent with hypothesis (a) "multiple triggers" from the team lead's tension flag, though (b) "broader in-process-or-child mechanism" is still the better frame for unifying them once the `src/server` trigger is found — see below.
+
+## Bisecting the remaining ~67 `src/server` files (round 5 minus round 3 minus round 6a)
+
+Static pass before spending wall-clock on this (no coverage runs, just grep/read): the 67-file bucket splits into `__tests__/integration` (5), `__tests__/unit` (6), and 56 truly-colocated files under `src/server/{routes,http,middleware,agent-daemon,boot}/**/__tests__/`.
+
+- All 5 `__tests__/integration` files call `createSqliteRouteDeps*`, but none literally call `.createSiteApp(` in their own source — the known lazy-require field isn't obviously invoked there by a static read, though a static read is exactly the kind of check that already proved insufficient once this session (see the SUPERSEDED section above) — not ruled out, just not a confirmed static hit.
+- `worker-sandbox.test.ts`/`liquid-sandbox.test.ts`/`handlebars-sandbox.test.ts` (the worker-thread require bootstrap flagged as a lead in the previous section): re-confirmed zero grep matches for `provider-credential-store` anywhere in their transitive import graph. Still not a candidate for THIS target file specifically, though it could taint some other file — out of scope for this bisect, which is anchored to `provider-credential-store.ts` throughout.
+- `daemon-boots.integration.test.ts` (in the 56-colocated bucket) spawns a real child via `spawn(process.execPath, [...], { env: { ...process.env, ... } })` — full env inherited, structurally identical shape to Sol's confirmed mechanism. But its boot path (`agent-daemon-server.ts`, with the test's own `TOVU_DB: "memory"`) takes the `createRouteDeps()` branch, which constructs `InMemoryMediaProviderCredentialRepo` (the `.memory.ts` variant) rather than importing `provider-credential-store.ts` itself. Looks clean for this target by static trace; not run empirically yet.
+
+Next: empirical bisection of the 67 into the 11-file (`integration`+`unit`) block vs. the 56-file colocated block, media-baseline + each half.
