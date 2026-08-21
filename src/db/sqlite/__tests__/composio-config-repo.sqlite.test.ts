@@ -139,6 +139,57 @@ test("the conditional update never crosses a workspace boundary", async () => {
   assert.deepEqual((await repo.findByWorkspaceId(OTHER_WORKSPACE))?.authConfigIds, { github: "ac_theirs" });
 });
 
+test("a record with no sealed secret round-trips as sealed: null, keyTail: null (both halves of the CHECK's all-null group)", async () => {
+  const repo = makeRepo();
+  const record = makeRecord({ sealed: null, keyTail: null });
+
+  await repo.upsert(record);
+
+  assert.deepEqual(await repo.findByWorkspaceId(WORKSPACE), record);
+});
+
+test("parseAuthConfigIds degrades invalid JSON to {} rather than throwing (a hand-edited/corrupt column must not make the row unreadable)", async () => {
+  const db = makeDb();
+  db.$client
+    .prepare("INSERT INTO composio_config (workspace_id, auth_config_ids, created_at, updated_at) VALUES (?, ?, ?, ?)")
+    .run(WORKSPACE, "{not valid json", NOW, NOW);
+
+  const repo = new SqliteComposioConfigRepo(db);
+  assert.deepEqual((await repo.findByWorkspaceId(WORKSPACE))?.authConfigIds, {});
+});
+
+test("parseAuthConfigIds degrades a non-object JSON value (array, string, null) to {}", async () => {
+  for (const [label, jsonValue] of [
+    ["array", "[1,2,3]"],
+    ["string", '"just a string"'],
+    ["json null", "null"],
+  ] as const) {
+    const db = makeDb();
+    db.$client
+      .prepare(
+        "INSERT INTO composio_config (workspace_id, auth_config_ids, created_at, updated_at) VALUES (?, ?, ?, ?)"
+      )
+      .run(WORKSPACE, jsonValue, NOW, NOW);
+
+    const repo = new SqliteComposioConfigRepo(db);
+    assert.deepEqual(
+      (await repo.findByWorkspaceId(WORKSPACE))?.authConfigIds,
+      {},
+      `a JSON ${label} value must degrade to {}`
+    );
+  }
+});
+
+test("parseAuthConfigIds drops individual entries whose value is not a non-empty string, keeping the valid ones", async () => {
+  const db = makeDb();
+  db.$client
+    .prepare("INSERT INTO composio_config (workspace_id, auth_config_ids, created_at, updated_at) VALUES (?, ?, ?, ?)")
+    .run(WORKSPACE, JSON.stringify({ github: "ac_github_1", numeric: 123, empty: "", nullish: null }), NOW, NOW);
+
+  const repo = new SqliteComposioConfigRepo(db);
+  assert.deepEqual((await repo.findByWorkspaceId(WORKSPACE))?.authConfigIds, { github: "ac_github_1" });
+});
+
 test("a row written without key_generation — the pre-0034 shape — reads back at 0 via the column DEFAULT", async () => {
   // Proves the migration is genuinely additive rather than something existing installs have to be
   // backfilled through: an INSERT that never names `key_generation`, exactly as every row written
