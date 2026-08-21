@@ -7,7 +7,9 @@ import test from "node:test";
 import type { UUID } from "@jini-ai/cms/core";
 import { createRouteDeps } from "../../server/app.js";
 import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
-import { ExportOutputNotEmptyError, exportSite } from "../site-exporter.js";
+import type { RedirectRecord } from "../../redirects/index.js";
+import { ExportOutputNotEmptyError, exportSite, firstExportFailure } from "../site-exporter.js";
+import type { ExportReport } from "../site-exporter.js";
 
 /**
  * @file Regression coverage for `exportSite` (SPEC — static site exporter, 2026-08-15).
@@ -253,3 +255,118 @@ test("exportSite: a route that fails to render is reported as a failure, not sil
   assert.ok(report.routes.succeeded.some((r) => r.path === "/"), "home must still succeed");
   assert.ok(report.routes.succeeded.some((r) => r.path === "/about"), "an unrelated theme page must still succeed");
 });
+
+test("exportSite: an exact-match active redirect rule is exported as a static meta-refresh stub", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const base = createRouteDeps();
+  const now = new Date().toISOString();
+  const rule: RedirectRecord = {
+    id: "redir-export-test",
+    workspaceId: base.workspaceId,
+    matchType: "exact",
+    fromPattern: "/old-page",
+    // Deliberately carries an `&` so the written stub proves escapeHtmlAttr actually ran, not just
+    // that some location string got embedded verbatim.
+    toTarget: "/welcome?ref=export&utm_source=redirect-test",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  // Written via `save()` directly into the EXISTING `base.redirectRepo` instance — NOT
+  // `base.redirectRepo = new InMemoryRedirectRepo([rule])`. `createRouteDeps()` wires the live app's
+  // redirect-serving phase handler (`RedirectPhaseHandlerResolver`) to this exact repo OBJECT at
+  // construction time (`server/app.ts`'s `registerRedirectsPhaseHandlers({ resolver: new
+  // RedirectPhaseHandlerResolver({ repo: redirectRepo, ... }) })`) — a module-level registration, not
+  // something `RouteDeps.redirectRepo` re-reads per request. Swapping the field to a fresh repo
+  // instance (first attempt at this test) orphans it from that resolver: `buildRouteManifest` would
+  // still enumerate the rule fine (it reads `deps.redirectRepo` fresh), but the live server never
+  // actually serves the 3xx, so `writeRedirectRoute` observed a 404 instead.
+  await base.redirectRepo.save({
+    record: rule,
+    revision: {
+      redirectId: rule.id,
+      workspaceId: rule.workspaceId,
+      seq: 1,
+      state: rule,
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: now,
+    },
+  });
+
+  const report = await exportSite({ routeDeps: base, outputDir });
+
+  const redirectFailure = report.routes.failed.find((r) => r.path === "/old-page");
+  assert.equal(redirectFailure, undefined, `redirect route must not fail: ${JSON.stringify(redirectFailure)}`);
+  const redirectSucceeded = report.routes.succeeded.find((r) => r.path === "/old-page");
+  if (!redirectSucceeded) throw new Error("expected /old-page in routes.succeeded");
+  assert.equal(redirectSucceeded.kind, "redirect");
+  assert.equal(redirectSucceeded.outputFile, path.join("old-page", "index.html"));
+  assert.equal(redirectSucceeded.contentType, "text/html; charset=utf-8", "an exporter-authored stub has no real response header to read, so this is a fixed value");
+
+  const stub = readFileSync(path.join(outputDir, "old-page", "index.html"), "utf8");
+  assert.equal(stub, redirectSucceeded.data, "the succeeded entry's data must match the bytes actually written");
+  assert.match(stub, /<meta http-equiv="refresh" content="0; url=\/welcome\?ref=export&amp;utm_source=redirect-test">/, "the redirect target must be HTML-escaped (& -> &amp;) into the meta refresh");
+  assert.match(stub, /<link rel="canonical" href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
+  assert.match(stub, /Redirecting to <a href="\/welcome\?ref=export&amp;utm_source=redirect-test">/);
+});
+
+test("firstExportFailure: undefined when nothing failed", () => {
+  const report = makeEmptyReport();
+  assert.equal(firstExportFailure(report), undefined);
+});
+
+test("firstExportFailure: reports the first route failure, with the route collection's own count", () => {
+  const report = makeEmptyReport();
+  report.routes.failed = [
+    { path: "/a", kind: "post", reason: "expected 200, got 500" },
+    { path: "/b", kind: "post", reason: "expected 200, got 404" },
+  ];
+
+  assert.deepEqual(firstExportFailure(report), {
+    kind: "route",
+    identifier: "/a",
+    reason: "expected 200, got 500",
+    count: 2,
+  });
+});
+
+test("firstExportFailure: reports the first asset failure when there are no route failures", () => {
+  const report = makeEmptyReport();
+  report.assets.failed = [{ url: "/theme-assets/basic/style.css", reason: "GET -> 404" }];
+
+  assert.deepEqual(firstExportFailure(report), {
+    kind: "asset",
+    identifier: "/theme-assets/basic/style.css",
+    reason: "GET -> 404",
+    count: 1,
+  });
+});
+
+test("firstExportFailure: checks routes before assets when both have failures", () => {
+  const report = makeEmptyReport();
+  report.routes.failed = [{ path: "/a", kind: "post", reason: "route reason" }];
+  report.assets.failed = [{ url: "/theme-assets/basic/style.css", reason: "asset reason" }];
+
+  const result = firstExportFailure(report);
+  assert.equal(result?.kind, "route", "routes must be checked before assets, per this function's own doc");
+  assert.equal(result?.identifier, "/a");
+});
+
+function makeEmptyReport(): ExportReport {
+  return {
+    outputDir: "/tmp/unused",
+    routes: { succeeded: [], failed: [] },
+    assets: { succeeded: [], failed: [] },
+    skippedManifestEntries: [],
+    unreferencedThemeFiles: [],
+  };
+}
