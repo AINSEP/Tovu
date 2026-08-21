@@ -599,3 +599,63 @@ test("defaultConnect's own connect-timeout fires when the child never completes 
     `expected defaultConnect's own timeout message; got: ${JSON.stringify(messages)}`,
   );
 });
+
+test("defaultConnect: a launch command that does not exist fails the connection through the CHILD PROCESS's own error event, not a hang or an uncaught exception", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [
+      {
+        config: CONFIG,
+        launch: { command: "tovu-mcp-federation-test-nonexistent-binary-xyz", args: [], env: {} },
+      },
+    ],
+  });
+
+  assert.deepEqual(result.registeredToolIds, []);
+  assert.ok(
+    messages.some((message) => message.includes("failed, continuing without its tools") && message.includes("child process error")),
+    `expected the spawn failure to be reported as a child process error, not silently swallowed or hung on; got: ${JSON.stringify(messages)}`,
+  );
+});
+
+/** Same handshake as `MINIMAL_MCP_SERVER_SCRIPT`, plus writing to stderr before answering —
+ *  `spawnMcpStdioChannel`'s own doc: "stderr is a diagnostic channel... consumed so the pipe cannot
+ *  fill and deadlock the child." A server that emits diagnostic noise on stderr must not cause the
+ *  handshake to fail, hang, or have that noise misinterpreted as protocol traffic. */
+const SERVER_SCRIPT_WITH_STDERR_NOISE = `
+process.stderr.write("some diagnostic banner the server prints on startup\\n");
+${MINIMAL_MCP_SERVER_SCRIPT}
+`;
+
+test("defaultConnect: a real child writing to stderr does not fail, hang, or leak into the protocol stream", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [
+      {
+        config: { ...CONFIG, allowedToolNames: [] },
+        launch: { command: process.execPath, args: ["-e", SERVER_SCRIPT_WITH_STDERR_NOISE], env: {} },
+      },
+    ],
+  });
+
+  try {
+    assert.deepEqual(result.registeredToolIds, []);
+    assert.equal(
+      messages.some((message) => message.includes("failed")),
+      false,
+      `stderr noise must not fail the handshake; got: ${JSON.stringify(messages)}`,
+    );
+  } finally {
+    await Promise.all(result.sessions.map((session) => session.close()));
+  }
+});
