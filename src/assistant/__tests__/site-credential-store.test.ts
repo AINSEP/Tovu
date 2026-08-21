@@ -94,6 +94,30 @@ test("a non-string provider/baseUrl/model is rejected before any write", async (
   assert.equal(await repo.findByWorkspaceId(WORKSPACE), null);
 });
 
+test("a non-string baseUrl or model is also rejected before any write — not just provider", async () => {
+  const { deps, repo } = makeDeps();
+  await assert.rejects(
+    () => setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, baseUrl: 12345 as unknown as string }),
+    SiteAssistantCredentialValidationError
+  );
+  await assert.rejects(
+    () => setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, model: { not: "a string" } as unknown as string }),
+    SiteAssistantCredentialValidationError
+  );
+  assert.equal(await repo.findByWorkspaceId(WORKSPACE), null);
+});
+
+test("setting nothing at all on a never-before-configured workspace seeds an empty row with defaults, touching neither sealer nor keyring", async () => {
+  const { deps } = makeDeps();
+  const view = await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE });
+
+  assert.equal(view.isSet, false);
+  assert.equal(view.masked, null);
+  assert.equal(view.provider, "google");
+  assert.equal(view.baseUrl, null);
+  assert.equal(view.model, null);
+});
+
 test("omitting apiKey leaves the previously-stored key untouched — only provider/baseUrl/model change", async () => {
   const { deps } = makeDeps();
   await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "first-key-0000" });
@@ -171,6 +195,24 @@ test("deleting an already-unset key is a harmless no-op, not an error", async ()
 // resolveSiteAssistantApiKey — must never throw
 // ---------------------------------------------------------------------------
 
+test("resolveSiteAssistantApiKey returns null (not a throw) when the repo read itself fails", async () => {
+  const { sealer } = makeDeps();
+  const brokenRepo = {
+    findByWorkspaceId: async () => {
+      throw new Error("connection reset");
+    },
+    upsert: async () => {},
+    clearKey: async () => {},
+  };
+  let warned: unknown;
+  const resolved = await resolveSiteAssistantApiKey({ repo: brokenRepo, sealer }, { workspaceId: WORKSPACE }, (err) => {
+    warned = err;
+  });
+
+  assert.equal(resolved, null);
+  assert.ok(warned instanceof Error && warned.message === "connection reset");
+});
+
 test("resolveSiteAssistantApiKey returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
   const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
@@ -196,6 +238,16 @@ test("resolveSiteAssistantApiKey returns null (not a throw) when the sealed row 
 
   assert.equal(resolved, null);
   assert.equal(warned, 1);
+});
+
+test("resolveSiteAssistantApiKey's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null", async () => {
+  const { deps, repo } = makeDeps();
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "some-key" });
+
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const resolved = await resolveSiteAssistantApiKey({ repo, sealer: otherSealer }, { workspaceId: WORKSPACE });
+
+  assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
 });
 
 test("resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model together on success", async () => {
