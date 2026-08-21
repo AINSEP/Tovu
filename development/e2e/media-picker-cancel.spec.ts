@@ -110,11 +110,38 @@ test.describe("Media Picker — Cancel button reachability", () => {
     // (the empty-DB state this test exists to avoid) would leave this at 0.
     await expect(page.locator(".media-picker-item")).toHaveCount(SEED_COUNT);
 
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("page reported no viewport size");
+
+    // The mechanism, not just the symptom — same idiom `post-editor-image-sizing.spec.ts`'s own
+    // `measureImage` helper uses in this directory (read `getComputedStyle` directly rather than
+    // trust that a rule with the right property exists somewhere in the cascade; this project's own
+    // prior lesson, per `field-attrs-dialog`'s own header comment, is that CSS presence is not proof
+    // of precedence). `.media-picker-dialog` is a bare single-class selector declared AFTER
+    // `.settings-dialog` in `styles.css`, so it only wins on same-file source order — this locks that
+    // in as an observed fact, not an assumption.
+    //
+    // `85vh` is asserted against the page's OWN reported viewport height, not a literal pixel
+    // number: this config's top-level `use.viewport: { height: 900 }` reads like the effective
+    // size, but `projects[].use: { ...devices["Desktop Chrome"] }` (below, same as every sibling
+    // config in this directory) spreads that device preset's OWN `viewport` (1280x720) back over
+    // it, since project-level `use` wins the merge — measured live: the real height here is 720,
+    // not 900. Deriving the expectation from `page.viewportSize()` keeps this correct regardless of
+    // which of the two numbers is actually winning, rather than re-encoding that same trap as a
+    // second hardcoded guess.
+    const dialogStyle = await dialog.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { maxHeight: cs.maxHeight, width: cs.width };
+    });
+    const expectedMaxHeight = Math.round(viewport.height * 0.85);
+    expect(dialogStyle.maxHeight).toBe(`${expectedMaxHeight}px`);
+    expect(dialogStyle.width).toBe("512px"); // 32rem — binding, not clamped to the old 26rem default
+    const bodyOverflow = await page.locator(".media-picker-body").evaluate((el) => getComputedStyle(el).overflowY);
+    expect(bodyOverflow).toBe("auto");
+
     const cancelButton = dialog.getByRole("button", { name: "Cancel", exact: true });
     await expect(cancelButton).toBeVisible();
 
-    const viewport = page.viewportSize();
-    if (!viewport) throw new Error("page reported no viewport size");
     const box = await cancelButton.boundingBox();
     if (!box) throw new Error("Cancel button did not report a bounding box");
 
