@@ -111,20 +111,28 @@ function walkArray(value: unknown, schema: WidgetConfigJsonSchema, path: string,
   if (schema.maxItems !== undefined && value.length > schema.maxItems) {
     errors.push({ field: path, reason: `exceeds the maximum item count of ${schema.maxItems}` });
   }
-  if (schema.items) value.forEach((item, index) => walk(item, schema.items as WidgetConfigJsonSchema, `${path}[${index}]`, errors));
+  if (schema.items) {
+    value.forEach((item, index) => {
+      walk(item, schema.items as WidgetConfigJsonSchema, `${path}[${index}]`, errors);
+    });
+  }
 }
 
 /** Dispatches to the per-type walker for `schema.type` (object/string/integer/array); unspecified or boolean types accept anything. */
 function walk(value: unknown, schema: WidgetConfigJsonSchema, path: string, errors: WidgetConfigFieldError[]): void {
   switch (schema.type) {
     case "object":
-      return walkObject(value, schema, path, errors);
+      walkObject(value, schema, path, errors);
+      return;
     case "string":
-      return walkString(value, path, errors);
+      walkString(value, path, errors);
+      return;
     case "integer":
-      return walkInteger(value, schema, path, errors);
+      walkInteger(value, schema, path, errors);
+      return;
     case "array":
-      return walkArray(value, schema, path, errors);
+      walkArray(value, schema, path, errors);
+      return;
     default:
       // boolean / unspecified schema type: accept anything (no v1 registration needs this).
       return;
