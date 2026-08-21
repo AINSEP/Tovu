@@ -7,6 +7,24 @@ import type { ComposerCapabilitySource, TovuComposerCapability } from "./compose
  * own mount-site doc for the full same-origin trace; this file only assumes the route exists and
  * behaves like `@jini-ai/http-kit`'s real one (`{hits: [{id, description, source, score}]}`).
  *
+ * DELIBERATELY UNWIRED (owner decision, 2026-08-21): `useComposerCapabilities`
+ * (`AssistantDock/hooks/AssistantDock.hooks.tsx`) no longer includes
+ * `createToolCatalogComposerCapabilitySource()` in the source list it projects, so nothing in the
+ * app calls this file today. The composer's "/" and "+" menus exist so a user can point the
+ * assistant at a Skill or Agent Plugin whose instructions it should follow — the assistant already
+ * picks its own tools once it understands the goal, so a raw tool id in that same menu is noise, not
+ * a capability the user acts on. That reasoning was reinforced by this source's own BOUNDARY note
+ * below, restated because it is what made the removal an easy call: every capability this file
+ * produces carries no `resolve`, so selecting one was already inert — it inserted the tool's id as
+ * text and did nothing else.
+ *
+ * Kept, not deleted: this is a product decision, not a verdict that the code is wrong, and it may be
+ * reversed. The file remains a working, independently-tested reference implementation of a live
+ * async `ComposerCapabilitySource` (a real fetch, real degrade-on-failure behavior) for whichever
+ * future source needs that shape — see its own tests
+ * (`__tests__/tool-catalog-composer-source.unit.test.ts`), which exercise `list()` directly and stay
+ * green regardless of whether anything wires this module in.
+ *
  * BOUNDARY, restated here because it is the property this whole file exists to hold: this source
  * ENUMERATES tools — every {@link TovuComposerCapability} it produces carries no `resolve`, so
  * `resolveComposerDiscoveryOutcome` (`AssistantDock.tsx`) can never turn a selection into a tool
