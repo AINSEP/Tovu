@@ -417,10 +417,19 @@ async function writeContainedFile(params: {
   return totalBytes;
 }
 
-/** Reads the (already-extracted-and-trusted, or already-published) `plugin.json` at `packageRoot`
+/**
+ * Reads the (already-extracted-and-trusted, or already-published) `plugin.json` at `packageRoot`
  * and walks the tree to build the `files`/`skills` index. Shared between a fresh install and the
- * content-addressed dedup fast path so both return an identically-shaped result. */
-async function indexInstalledRoot(packageRoot: string, archiveDigest: string): Promise<InstalledAgentPlugin> {
+ * content-addressed dedup fast path so both return an identically-shaped result.
+ *
+ * Exported (2026-08-21) for a second caller outside this module:
+ * `resolve-agent-plugin-refs.ts`'s run-time resolution of a pinned `pluginRefId` against the
+ * packages already on disk needs the SAME `plugin.json`-parse-plus-tree-walk this function
+ * already does correctly (manifest validation via `parseAgentPluginManifest`, sorted `files`), so
+ * it re-derives an `InstalledAgentPlugin` per installed digest rather than hand-rolling a second,
+ * less-validated reader.
+ */
+export async function indexInstalledRoot(packageRoot: string, archiveDigest: string): Promise<InstalledAgentPlugin> {
   let manifestRaw: string;
   try {
     manifestRaw = await readFile(path.join(packageRoot, "plugin.json"), "utf8");
