@@ -420,9 +420,13 @@ function extractAssetUrls(html: string): string[] {
   const found = new Set<string>();
   const pattern = /\b(?:href|src)="([^"]+)"/g;
   for (const match of html.matchAll(pattern)) {
-    const value = match[1] ?? "";
+    // Capture group 1 is mandatory in this pattern (`([^"]+)`, not optional) — always populated
+    // whenever the surrounding match succeeds, and this repo's tsconfig does not set
+    // `noUncheckedIndexedAccess`, so `match[1]` types as plain `string` here; no fallback needed.
+    const value = match[1];
     if (ASSET_URL_PREFIXES.some((prefix) => value.startsWith(prefix))) {
-      found.add(value.split("#")[0] ?? value);
+      // `String.prototype.split` always returns at least one element, so index 0 is always defined.
+      found.add(value.split("#")[0]);
     }
   }
   return [...found];
@@ -435,7 +439,9 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
   const found = new Set<string>();
   const pattern = /url\(\s*(['"]?)([^'")]+)\1\s*\)/g;
   for (const match of css.matchAll(pattern)) {
-    const ref = (match[2] ?? "").trim();
+    // Capture group 2 is mandatory in this pattern (`([^'")]+)`, not optional) — always populated
+    // whenever the surrounding match succeeds (see extractAssetUrls's own note on match[1]).
+    const ref = match[2].trim();
     if (ref === "" || ref.startsWith("data:") || /^[a-z]+:\/\//i.test(ref)) continue; // data URI or absolute external URL — nothing to fetch
     const resolved = new URL(ref, `http://export-local${cssUrl}`).pathname;
     if (ASSET_URL_PREFIXES.some((prefix) => resolved.startsWith(prefix))) {
@@ -449,7 +455,8 @@ function extractCssUrls(css: string, cssUrl: string): string[] {
  *  escape `outputDir` — mirrors `theme-static-assets.ts`'s own containment check (a URL extracted
  *  from rendered HTML is still, transitively, request-shaped input, not a trusted literal). */
 function assetOutputFile(url: string, outputDir: string): string | null {
-  const pathname = decodeURIComponent(url.split("?")[0] ?? url);
+  // `String.prototype.split` always returns at least one element, so index 0 is always defined.
+  const pathname = decodeURIComponent(url.split("?")[0]);
   const trimmed = pathname.replace(/^\/+/, "");
   const resolved = path.resolve(outputDir, trimmed);
   if (resolved !== path.join(outputDir, trimmed)) return null;
