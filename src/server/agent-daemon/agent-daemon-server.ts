@@ -85,11 +85,10 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
 import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
-import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
-import { resolveAgentPluginRefs } from "../../features/agent-plugins/resolve-agent-plugin-refs.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
 import { openContentDb } from "../../db/sqlite/content-db.js";
+import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { createRouteDeps } from "../app.js";
 import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
@@ -555,41 +554,6 @@ async function resolveAttachmentRunFields(
   }
 }
 
-/**
- * Resolves this run's pinned Agent Plugin refs into the real prompt-prefix text
- * {@link onStarted} prepends to `prompt` — the counterpart to
- * {@link resolveAttachmentRunFields} one level up, same shape and same error posture: a `null`
- * return means resolution has already finished the run as `'failed'` and logged why, and the
- * caller must abort rather than continue with an unaugmented (but otherwise normal-looking)
- * prompt. A run pinning no plugin ref (the common case) resolves to `""` with no filesystem
- * access at all (`resolveAgentPluginRefs`'s own empty-array fast path).
- *
- * Resolved against THIS run's own workspace (`routeDeps.workspaceId`) — never an instance-level
- * or hardcoded layout, matching `layout.ts`'s own tenant-isolation rule that an installed
- * package is reachable only through its owning workspace's `forWorkspace()` result.
- */
-async function resolveAgentPluginPromptPrefix(
-  run: OnStartedContext["run"],
-  pluginRefIds: readonly string[],
-  runLifecycle: OnStartedContext["lifecycle"],
-): Promise<string | null> {
-  if (pluginRefIds.length === 0) return "";
-
-  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(routeDeps.workspaceId);
-  const result = await resolveAgentPluginRefs(pluginRefIds, workspaceLayout);
-
-  if (!result.ok) {
-    // Same severity `resolveAttachmentRunFields` already gives an unresolvable attachment: a
-    // pinned plugin the operator explicitly selected silently not reaching the agent would be a
-    // confusing "why didn't it use what I picked" failure, worse than an explicit, loud one.
-    void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
-    console.error(`[agent-daemon] run ${run.id}: Agent Plugin resolution failed`, result.reason);
-    return null;
-  }
-
-  return result.promptPrefix;
-}
-
 const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
   let prompt: string;
   let principal: Principal;
@@ -667,9 +631,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // fields above, which are separate `AgentExecutor.run()` options) means this must land before
       // `prompt` is read below, and there is no ordering dependency on the attachment claim either
       // way — the two resolve independently.
-      const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle);
+      const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle, routeDeps.workspaceId);
       if (pluginPromptPrefix === null) return;
-      if (pluginPromptPrefix.length > 0) prompt = `${pluginPromptPrefix}\n\n${prompt}`;
+      prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
       await agentExecutor.run({
         runId: run.id,
