@@ -187,3 +187,44 @@ defects 6-9 and 12. Deferring it makes five of the twelve defects cease to exist
 inverted.** Plans self-scoring 9 scored 1.5-2.0 when scored blind by peers. The single plan that
 self-scored lowest scored highest. Never accept a model's score of its own work; anonymized
 cross-scoring with a known-bad control is cheap and it worked on the first try.
+
+## FINAL ROUND-6 TALLY (all four votes; declared self-scores discarded)
+
+| Plan | Author | Round-5 SELF | Votes | **CROSS mean** |
+|---|---|---|---|---|
+| **B** | **Sonnet 5** | 8 | 8, 9, 4 | **7.0** |
+| A | Gemini 3.7 Flash | 9 | 4, 6, 3, 5 | 4.5 |
+| C | Coordinator v2 (**CONTROL**) | — | 4, 5, 5, 4 | 4.5 |
+| E | Gemini 3.1 Pro | 9 | 2, 3, 1, 3 | 2.25 |
+| D | Codex gpt-5.6-sol | 9 | 1, 2, 3 | 2.0 |
+
+**Every authored plan except Sonnet's scored at or BELOW the already-rejected control.**
+**All four reviewers independently identified the control (4/4).**
+
+Sonnet's repo-verified answers to the two questions the tool-less peers could only infer:
+- **Plan D (Codex) CONFIRMED violating both hard constraints.** Its step 1 rewrites
+  `resolve-agent-plugin-refs.ts` to parse `agent-plugin-skill:<digest>:<id>:<path>` — a daemon
+  change AND a change to what a `pluginRefIds` entry means — while step 3 asserts "the run wire
+  remains unchanged", which is true only of the new GET route in that same step, not of the
+  resolver rewrite one step earlier. Sonnet's summary: *"wrong-while-asserting-verified-compliance
+  is the one most likely to ship unreviewed."*
+- **Plan A (Gemini Flash) cites two paths that do not exist** — `src/assistant/AssistantDock.hooks.tsx`
+  and `src/features/agent-plugins/SelectedAgentPluginTray.tsx`. VERIFIED absent; the real files are
+  under `apps/admin/`, a different tree entirely.
+
+### CORRECTION to the adopted fix list (caught by Sonnet, verified by the Coordinator)
+Fix #2 was recorded above as "dedupe by highest mtime", per Gemini Flash. **`InstalledAgentPlugin`
+has NO `mtime` field** — verified, zero occurrences in `install.ts`. Its fields are `pluginId`,
+`version?`, `archiveDigest`, `packageRoot`, `files`, `skills`. The fix must select the newest digest
+by `version` semver with an explicit, documented tiebreak for the `version === undefined` case —
+NOT by a filesystem timestamp the type does not carry.
+
+### THE THREE FIXES TO APPLY TO PLAN B BEFORE WRITING (final)
+1. Do not touch `resolve-agent-plugin-refs.ts` at all — re-implement the digest scan inside the new
+   route rather than adding `export` to `listInstalledPlugins`. (Gemini Pro)
+2. Select the newest digest deterministically by `version` semver + documented tiebreak, replacing
+   `.some()` across all digests. Fixes the multi-digest-disagreement edge case Sonnet named as its
+   own weakest point and Codex flagged independently. (Gemini Flash's idea, corrected mechanism.)
+3. Move pin state to `item.id` as round 2 settled; Plan B keeps `pluginRefId`. (Codex)
+4. Surface "N versions installed" in a row's `description` when more than one digest exists, so the
+   ambiguity is visible on the row instead of only at run-time failure. (Sonnet's own first change.)
