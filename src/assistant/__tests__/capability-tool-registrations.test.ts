@@ -107,6 +107,74 @@ test("capability_get never leaks an absolute host path through its ERROR path wh
 });
 
 // ---------------------------------------------------------------------------
+// File-inventory field — capability_get's `files`, sourced from a CapabilitySource's listFiles()
+// ---------------------------------------------------------------------------
+
+test("capability_get never leaks an absolute host path through its ERROR path when a source's listFiles() rejects", async () => {
+  const SENTINEL_PATH = "/Users/la/Programming/Tovu/infra/agent-plugins/SECRET-INVENTORY-PROOF/notes.md";
+  registerCapabilitySource({
+    id: "leaky-inventory-source",
+    list: async () => [fakeCard("leaky:inventory", { source: "leaky-inventory-source" })],
+    read: async () => "real content — read() itself succeeds",
+    listFiles: async () => {
+      // The exact shape a real ENOENT from a filesystem-backed listFiles() takes — same leak surface
+      // as read()'s own rejection above, just from the other optional member.
+      throw new Error(`ENOENT: no such file or directory, open '${SENTINEL_PATH}'`);
+    },
+  });
+
+  const { get } = registrationsFor(WORKSPACE_ID);
+  const outcome = await settle(get.handler(executionContext({ id: "leaky:inventory" })));
+
+  assert.equal(outcome.ok, false, "capability_get must fail (throw) when listFiles() rejects, not silently succeed");
+  assert.ok(!outcome.ok);
+  const error = outcome.error as Error;
+
+  // Exact text: the failure must name only the capability id, never the source's own error text —
+  // the same generic message read()'s own rejection produces, since both share one catch block.
+  assert.equal(
+    error.message,
+    "capability_get: capability 'leaky:inventory' could not be read; its installed files may have changed since it was indexed",
+  );
+
+  const serialized = JSON.stringify({ message: error.message, cause: (error as { cause?: unknown }).cause, stack: error.stack });
+  assert.ok(!serialized.includes(SENTINEL_PATH), `capability_get's failure must not leak the absolute path; got: ${serialized}`);
+  assert.ok(!serialized.includes("SECRET-INVENTORY-PROOF"), `must not leak even a substring of the sentinel; got: ${serialized}`);
+});
+
+test("capability_get includes a source's listFiles() output verbatim as the response's 'files' array", async () => {
+  const files = ["/pkg/root/references/a.md", "/pkg/root/references/b.md"];
+  registerCapabilitySource({
+    id: "s3",
+    list: async () => [fakeCard("s3:one", { source: "s3" })],
+    read: async () => "content",
+    listFiles: async () => files,
+  });
+
+  const { get } = registrationsFor(WORKSPACE_ID);
+  const result = (await get.handler(executionContext({ id: "s3:one" }))) as Record<string, unknown>;
+
+  assert.deepEqual(result.files, files);
+});
+
+test("capability_get response has no 'files' key at all when the source declares no listFiles — omitted, not an empty array", async () => {
+  registerCapabilitySource({
+    id: "s4",
+    list: async () => [fakeCard("s4:one", { source: "s4" })],
+    read: async () => "content, no listFiles declared",
+  });
+
+  const { get } = registrationsFor(WORKSPACE_ID);
+  const result = (await get.handler(executionContext({ id: "s4:one" }))) as Record<string, unknown>;
+
+  assert.ok(
+    !("files" in result),
+    "a source with no listFiles must produce a response with no 'files' key — an omitted method and an empty array mean different things",
+  );
+  assert.equal(result.content, "content, no listFiles declared", "the rest of the response must keep working exactly as before");
+});
+
+// ---------------------------------------------------------------------------
 // Success-path serialization — the counterpart to the blocker, for both tools
 // ---------------------------------------------------------------------------
 

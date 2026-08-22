@@ -81,9 +81,9 @@ export interface CapabilityCard {
 }
 
 /**
- * One source of capability cards. `list` is required; `read` is optional, since a future source
- * that only lists callable-but-not-readable things (a preview-only MCP server, say) may have
- * nothing to read.
+ * One source of capability cards. `list` is required; `read` and `listFiles` are both optional,
+ * since a future source that only lists callable-but-not-readable things (a preview-only MCP
+ * server, say) may have nothing to read and nothing to enumerate either.
  */
 export interface CapabilitySource {
   readonly id: string;
@@ -91,6 +91,18 @@ export interface CapabilitySource {
   /** Resolves one previously-listed card's `handle` into its real content (markdown today).
    *  Omitted entirely — not merely throwing — by a source with nothing readable to give back. */
   read?(handle: unknown, ctx: CapabilitySourceContext): Promise<string>;
+  /**
+   * Resolves one previously-listed card's `handle` into the absolute paths of every OTHER file in
+   * its installed package — everything besides the content `read()` already returns — so a caller
+   * (`capability_get`) can hand them straight to the model instead of the model having to `grep`/
+   * `find` its way to them (the gap `resolve-agent-plugin-refs.ts`'s `inject` delivery already
+   * closes for its own run-start prefix; this is the same inventory for the pointer-delivery /
+   * `capability_get` path). Omitted entirely — not merely returning an empty array — by a source
+   * with no such inventory to give back, mirroring `read?`'s own "omitted, not throwing" convention
+   * above: an omitted method and an empty result mean different things to a caller, and only the
+   * source itself knows which is true.
+   */
+  listFiles?(handle: unknown, ctx: CapabilitySourceContext): Promise<readonly string[]>;
 }
 
 let sources: CapabilitySource[] = [];
