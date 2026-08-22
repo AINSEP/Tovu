@@ -44,6 +44,10 @@
  */
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
+import {
+  AGENT_PLUGIN_SKILL_CAPABILITY_KIND,
+  toAgentPluginSkillCapabilityId,
+} from "./capability-id.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import {
   registerCapabilitySource,
@@ -53,16 +57,6 @@ import {
 } from "#src/assistant/index";
 
 export const AGENT_PLUGIN_SKILLS_CAPABILITY_SOURCE_ID = "agent-plugin-skills";
-
-/** Card id per decision: `agent-plugin-skill:<pluginId>:<archiveDigest>:<skillName>` — the digest is
- *  IN the id (not "newest wins") because `InstalledAgentPlugin` carries no timestamp field an
- *  upgrade-resolution policy could be computed from, and `install.ts` never deletes an old digest —
- *  "an upgrade happened" and "two versions are genuinely installed" are the identical runtime state.
- *  Two installed digests therefore get two disjoint ids by construction, never a collision to
- *  dedupe. */
-function toCapabilityId(pluginId: string, archiveDigest: string, skillName: string): string {
-  return `agent-plugin-skill:${pluginId}:${archiveDigest}:${skillName}`;
-}
 
 /** Title-cases a kebab-case skill folder name into a human-facing card name — mirrors
  *  `capability-projection.ts`'s own (unexported) `humanize`, duplicated rather than imported since
@@ -90,8 +84,8 @@ async function listAgentPluginSkillCapabilities(ctx: CapabilitySourceContext): P
   for (const plugin of installed) {
     for (const skill of plugin.skills) {
       cards.push({
-        id: toCapabilityId(plugin.pluginId, plugin.archiveDigest, skill.name),
-        kind: "agent-plugin-skill",
+        id: toAgentPluginSkillCapabilityId(plugin.pluginId, plugin.archiveDigest, skill.name),
+        kind: AGENT_PLUGIN_SKILL_CAPABILITY_KIND,
         pluginId: plugin.pluginId,
         skillName: skill.name,
         revision: plugin.archiveDigest,
