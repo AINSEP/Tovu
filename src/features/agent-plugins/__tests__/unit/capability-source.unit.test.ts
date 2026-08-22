@@ -210,3 +210,65 @@ test("read() resolves a card's handle to the REAL SKILL.md content on disk, inde
     assert.equal(content, independentRead);
   });
 });
+
+test("listFiles() returns every OTHER file in the package by absolute path, rooted in packageRoot, and never the capability's own SKILL.md", async () => {
+  await withAgentPluginsDir(async () => {
+    const entries: AgentPluginArchiveEntry[] = [
+      fileEntry("plugin.json", manifest("coffee-roastery")),
+      fileEntry("skills/roast-profiles/SKILL.md", "# Roast Profiles\n"),
+      fileEntry("skills/roast-profiles/references/brew-guide.md", "# Brew Guide\n"),
+      fileEntry("skills/bean-sourcing/SKILL.md", "# Bean Sourcing\n"),
+    ];
+    const archive = new Uint8Array(Buffer.from("archive-listfiles"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader(entries),
+      layout: resolveAgentPluginLayout(),
+      workspaceId: WORKSPACE_A,
+    });
+
+    const source = createAgentPluginSkillsCapabilitySource();
+    const cards = await source.list({ workspaceId: WORKSPACE_A });
+    const card = cards.find((c) => c.skillName === "roast-profiles");
+    assert.ok(card, "the roast-profiles card must be present");
+    assert.ok(source.listFiles, "this source must declare listFiles()");
+
+    const files = await source.listFiles(card.handle, { workspaceId: WORKSPACE_A });
+
+    // Absolute, and rooted inside THIS install's own packageRoot — never some other location (an
+    // AI-Dev-Shop copy, a relative path a caller would have to resolve itself).
+    for (const file of files) {
+      assert.ok(path.isAbsolute(file), `expected an absolute path, got '${file}'`);
+      assert.ok(
+        file === installed.packageRoot || file.startsWith(installed.packageRoot + path.sep),
+        `expected '${file}' to be rooted under '${installed.packageRoot}'`,
+      );
+    }
+
+    // The capability's own SKILL.md — already returned as `content` by read() — must never also
+    // appear in its own file inventory.
+    const ownSkillMdAbsolute = path.join(installed.packageRoot, "skills/roast-profiles/SKILL.md");
+    assert.ok(!files.includes(ownSkillMdAbsolute), "a capability's own SKILL.md must not appear in its own file inventory");
+
+    // Every OTHER real file in the package IS listed — including a sibling skill's SKILL.md, which
+    // is a real, readable file that just happens to belong to a DIFFERENT capability's own card
+    // (matches `resolveOnePluginRef`'s identical "exclude only this one skillPath" filter).
+    assert.deepEqual(
+      [...files].sort(),
+      [
+        path.join(installed.packageRoot, "plugin.json"),
+        path.join(installed.packageRoot, "skills/bean-sourcing/SKILL.md"),
+        path.join(installed.packageRoot, "skills/roast-profiles/references/brew-guide.md"),
+      ].sort(),
+    );
+
+    // Independently verify each listed path is a REAL, readable file on disk — proves listFiles()
+    // resolved genuine bytes, not merely a plausible-looking string.
+    for (const file of files) {
+      const bytes = await readFile(file, "utf8");
+      assert.ok(bytes.length > 0, `expected '${file}' to be a real, non-empty file`);
+    }
+  });
+});

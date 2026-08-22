@@ -109,8 +109,9 @@ export const capabilityAgentToolCatalog: readonly CapabilityAgentToolDefinition[
   {
     name: CAPABILITY_GET_TOOL_ID,
     description:
-      "Reads one capability's full content by the id a capability_search hit returned. Fails with an exact error for " +
-      "an unknown id.",
+      "Reads one capability's full content by the id a capability_search hit returned, plus (when the source " +
+      "supplies one) the absolute paths of every other file in its installed package — read those directly rather " +
+      "than searching for them. Fails with an exact error for an unknown id.",
     sideEffects: "none",
     authorization: { permission: "admin.assistant.use" },
     inputSchema: {
@@ -207,12 +208,22 @@ export function buildCapabilityToolRegistrations(routeDeps: CapabilityToolDeps):
       }
 
       let content: string;
+      // `undefined` (never selected) vs. `[]` (source answered "no other files") are kept distinct
+      // all the way to the response below — see `listFiles?`'s own doc on `CapabilitySource` for why
+      // an omitted method and an empty result must not collapse into the same wire shape.
+      let files: readonly string[] | undefined;
       try {
         content = await source.read(handle, { workspaceId });
+        // Same handle, same source, same call — deliberately inside this try alongside `read()`
+        // rather than a second try/catch: a source's `listFiles()` reads the SAME kind of on-disk
+        // state `read()` does (today: none at all, since the paths are already carried in `handle` —
+        // but a future source's `listFiles()` is free to touch disk), so it can fail the identical
+        // ENOENT/EACCES way, and the catch below strips both failures through the one generic message.
+        files = source.listFiles ? await source.listFiles(handle, { workspaceId }) : undefined;
       } catch (error) {
-        // A source's read() failure (a skill deleted/uninstalled between catalog build and this
-        // call is the ordinary case; a permission change is another) must never reach the model
-        // unmodified: Node's own filesystem errors (ENOENT, EACCES, ...) embed the absolute
+        // A source's read()/listFiles() failure (a skill deleted/uninstalled between catalog build
+        // and this call is the ordinary case; a permission change is another) must never reach the
+        // model unmodified: Node's own filesystem errors (ENOENT, EACCES, ...) embed the absolute
         // `packageRoot`/`skillPath` in `error.message`, and `ToolExecutor` turns a thrown error into
         // `{status:'failed', error: err.message}` — `.message` is the entire channel a caught error
         // reaches the model through. Logged here for an operator to actually diagnose; the
@@ -223,7 +234,10 @@ export function buildCapabilityToolRegistrations(routeDeps: CapabilityToolDeps):
           `capability_get: capability '${id}' could not be read; its installed files may have changed since it was indexed`,
         );
       }
-      return { ...card, content };
+      // `files` is spread in only when the source actually answered — a source with no `listFiles`
+      // gets the exact same response shape it had before this field existed, per `CapabilitySource`'s
+      // own "omitted, not merely empty" contract for an unsupported optional member.
+      return { ...card, content, ...(files !== undefined ? { files } : {}) };
     },
   };
 

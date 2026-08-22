@@ -42,6 +42,8 @@
  * that count where the 25-domain rollout already left it, since `assistant/index.ts` was already
  * part of every module's reachable set before this file existed.
  */
+import path from "node:path";
+
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import {
@@ -70,6 +72,20 @@ function humanize(value: string): string {
     .join(" ");
 }
 
+/** The shape this source's own `handle` always carries — declared once so `read()` and `listFiles()`
+ *  cast the same opaque value the same way, rather than two independently-drifting inline casts.
+ *  `files` is the installed plugin's FULL package-relative file list (`InstalledAgentPlugin.files`,
+ *  `install.ts`'s own sorted walk) at `list()` time — safe to carry as-is rather than re-walking disk
+ *  at `listFiles()` time, because a published package root is content-addressed and frozen read-only
+ *  (`install.ts`'s `freezeTree`): the digest this handle's `packageRoot` is keyed to can never gain or
+ *  lose a file after `list()` observed it. An upgrade or uninstall changes which DIGEST is current,
+ *  not the frozen file set under an already-published one. */
+interface AgentPluginSkillCapabilityHandle {
+  readonly packageRoot: string;
+  readonly skillPath: string;
+  readonly files: readonly string[];
+}
+
 /**
  * `CapabilitySource.list` — every installed Agent Plugin's every skill folder, across every
  * installed digest, as one card each.
@@ -93,7 +109,7 @@ async function listAgentPluginSkillCapabilities(ctx: CapabilitySourceContext): P
         description: `Skill '${skill.name}' from the '${plugin.pluginId}' Agent Plugin (installed digest ${plugin.archiveDigest}).`,
         keywords: ["skill", plugin.pluginId, skill.name],
         source: AGENT_PLUGIN_SKILLS_CAPABILITY_SOURCE_ID,
-        handle: { packageRoot: plugin.packageRoot, skillPath: skill.skillPath },
+        handle: { packageRoot: plugin.packageRoot, skillPath: skill.skillPath, files: plugin.files } satisfies AgentPluginSkillCapabilityHandle,
       });
     }
   }
@@ -104,8 +120,22 @@ async function listAgentPluginSkillCapabilities(ctx: CapabilitySourceContext): P
  *  SKILL.md content. `handle` is opaque to the registry and to `assistant/` alike; only this source,
  *  the one that produced it, is entitled to interpret its shape. */
 async function readAgentPluginSkillCapability(handle: unknown, _ctx: CapabilitySourceContext): Promise<string> {
-  const { packageRoot, skillPath } = handle as { packageRoot: string; skillPath: string };
+  const { packageRoot, skillPath } = handle as AgentPluginSkillCapabilityHandle;
   return readInstalledSkillMarkdown(packageRoot, skillPath);
+}
+
+/** `CapabilitySource.listFiles` — every OTHER file in the handle's installed package (i.e. every
+ *  package-relative path `list()` recorded, minus the skill's own `skillPath` — `read()` above
+ *  already returns that one's content), as absolute paths rooted under `packageRoot`. Mirrors
+ *  `resolve-agent-plugin-refs.ts`'s `resolveOnePluginRef`'s own `otherFiles` construction
+ *  (`plugin.files.filter((file) => file !== skillPath).map(...)`) — same filter, same join, so a
+ *  `pointer`-delivery run and an `inject`-delivery run see identically-shaped inventories for the
+ *  same installed package. No disk access here: `files` was already the real, on-disk file list
+ *  `list()` walked, carried through the handle (see {@link AgentPluginSkillCapabilityHandle}'s own
+ *  doc for why that is safe against upgrade/uninstall). */
+async function listAgentPluginSkillCapabilityFiles(handle: unknown, _ctx: CapabilitySourceContext): Promise<readonly string[]> {
+  const { packageRoot, skillPath, files } = handle as AgentPluginSkillCapabilityHandle;
+  return files.filter((file) => file !== skillPath).map((file) => path.join(packageRoot, file));
 }
 
 /** Builds this source, independent of the global registry — the shape a test exercises directly. */
@@ -114,6 +144,7 @@ export function createAgentPluginSkillsCapabilitySource(): CapabilitySource {
     id: AGENT_PLUGIN_SKILLS_CAPABILITY_SOURCE_ID,
     list: listAgentPluginSkillCapabilities,
     read: readAgentPluginSkillCapability,
+    listFiles: listAgentPluginSkillCapabilityFiles,
   };
 }
 
