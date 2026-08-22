@@ -30,8 +30,8 @@
  * Database's, and Recovery is the one that declares it unwired (see {@link derivedRiskByToolId}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
  * a naive per-domain sum read 132 against a registry that holds 131.
- * The two demo domains below wire nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are
- * outside every number here.
+ * The demo domains below (2026-08-22: three — `demo-choices`, `demo-a2ui`, `demo-image`) wire
+ * nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are outside every number here.
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -132,6 +132,7 @@
 import type { CommentsToolDeps } from "../comments/tool-registrations.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
+import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
 import { listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
@@ -474,6 +475,11 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
   // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
   { domain: "demo-a2ui", build: buildDemoA2uiRegistrations, risk: demoA2uiDerivedRisk },
+  // Proves the typed-media transport (`tool_result.media`, a hand-rolled real PNG) end to end in a
+  // real chat pane — the counterpart to `demo-choices`/`demo-a2ui` proving MCP-UI/A2UI's own
+  // transports. See `demo-image-tool.ts`'s own header for why the image is generated in-process
+  // rather than fetched from a real image-generation service.
+  { domain: "demo-image", build: buildDemoImageRegistrations, risk: demoImageDerivedRisk },
   // General-purpose: lets the model draw ANY component the catalog knows about (basic primitives
   // plus every shadcn/recharts registry component), not a scripted fixed shape.
   { domain: "render-ui", build: buildRenderUiRegistrations, risk: renderUiDerivedRisk },

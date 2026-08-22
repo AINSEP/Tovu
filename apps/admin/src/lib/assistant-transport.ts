@@ -25,7 +25,7 @@
  * growing message, so accumulating twice would double the text.
  */
 import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
-import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
+import type { AgentEvent, ChatMessage, ToolResultMediaBlock } from "@jini-ai/chat/core";
 import type { ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
@@ -130,6 +130,14 @@ export function translateRunAgentPayload(payload: RunAgentPayload): AgentEvent |
         toolUseId: asString(payload.toolUseId),
         content: asString(payload.content),
         isError: Boolean(payload.isError),
+        // Typed media (currently just images) the daemon attached alongside the flattened `content`
+        // string — see `@jini-ai/protocol`'s `events.ts` doc on why the wire field is `unknown`
+        // rather than a checked type here: the real shape is validated where `ToolCard` renders it.
+        // Forwarded verbatim rather than re-validated a second time in this reducer — an
+        // `Array.isArray` guard rather than a deep shape check, since a malformed entry inside it
+        // is a rendering concern (`ToolCard`'s own `ToolResultMedia` already ignores anything that
+        // isn't a recognized block), not a transport one.
+        ...(Array.isArray(payload.media) ? { media: payload.media as readonly ToolResultMediaBlock[] } : {}),
       };
     case "usage":
       return parseUsageEvent(payload);

@@ -58,6 +58,22 @@ describe("translateRunAgentPayload — tool lifecycle", () => {
     const translated = translateRunAgentPayload({ type: "tool_result", toolUseId: "t2", content: "ok" });
     expect(translated).toEqual({ kind: "tool_result", toolUseId: "t2", content: "ok", isError: false });
   });
+
+  test("tool_result with a media array forwards it verbatim", () => {
+    const media = [{ type: "image", mimeType: "image/png", data: "AAAA" }];
+    const translated = translateRunAgentPayload({ type: "tool_result", toolUseId: "t3", content: "ok", media });
+    expect(translated).toEqual({ kind: "tool_result", toolUseId: "t3", content: "ok", isError: false, media });
+  });
+
+  test("tool_result with no media field carries no media key at all — every pre-existing tool result is untouched", () => {
+    const translated = translateRunAgentPayload({ type: "tool_result", toolUseId: "t4", content: "ok" });
+    expect(translated).not.toHaveProperty("media");
+  });
+
+  test("tool_result with a malformed (non-array) media field drops it rather than forwarding garbage", () => {
+    const translated = translateRunAgentPayload({ type: "tool_result", toolUseId: "t5", content: "ok", media: "not-an-array" });
+    expect(translated).not.toHaveProperty("media");
+  });
 });
 
 describe("translateRunAgentPayload — usage", () => {
