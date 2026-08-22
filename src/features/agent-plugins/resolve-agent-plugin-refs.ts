@@ -166,8 +166,18 @@ async function resolveOnePluginRef(
     .filter((file) => file !== skillPath)
     .map((file) => path.join(plugin.packageRoot, file));
 
+  // FRAMING IS LOAD-BEARING, not cosmetic. This header used to read "(open any of these directly if
+  // the task needs more than the summary above)", which did two things that broke the feature in
+  // practice: it called the injected SKILL.md a "summary", and it made the plugin's own reference
+  // files conditional. This wrapper is the OUTER frame around the plugin's text, so where the two
+  // disagree the wrapper wins — and `ui-ux-design`'s SKILL.md explicitly instructs the opposite
+  // ("any request for visual quality loads the premium bundle up front ... Do not wait for the user
+  // to name a source; they never will"). Measured on the real install, 2026-08-21: under the old
+  // framing a live page-generation run read 0 of the 30 listed files and produced output identical
+  // to the no-plugin control; told plainly to read them, the same run read exactly the 4 files that
+  // SKILL.md names. Guarded by `resolve-agent-plugin-refs.unit.test.ts`'s inventory-framing test.
   const inventory = otherFiles.length > 0
-    ? `\n\nOther files in this Agent Plugin's installed package (open any of these directly if the task needs more than the summary above):\n${otherFiles.map((file) => `- ${file}`).join("\n")}`
+    ? `\n\nThe SKILL.md above is this Agent Plugin's own instructions — follow them, including any files it directs you to load before starting work. Every other file in the installed package is listed below by absolute path and is readable now:\n${otherFiles.map((file) => `- ${file}`).join("\n")}`
     : "";
 
   return {
