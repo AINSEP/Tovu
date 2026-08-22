@@ -51,9 +51,37 @@ import path from "node:path";
 
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
+import { toAgentPluginSkillCapabilityId } from "./capability-id.js";
 import type { AgentPluginWorkspaceLayout } from "./layout.js";
 
 const SHA256_DIGEST_DIRNAME_PATTERN = /^[a-f0-9]{64}$/;
+
+/**
+ * How a pinned ref's content reaches the agent.
+ *
+ * - `inject` — the whole eponymous SKILL.md (~15KB for `ui-ux-design`) plus every other package file
+ *   listed by absolute path, in the run's prompt prefix. Today's shipped behaviour, and the default.
+ * - `pointer` — ~400 bytes naming the exact tool call that returns that SAME SKILL.md, and nothing
+ *   else. The content is identical; only the delivery differs, which is what makes the two a
+ *   controlled comparison rather than two different experiments.
+ *
+ * Selected per-process by `TOVU_AGENT_PLUGIN_DELIVERY`. This is a MEASUREMENT AFFORDANCE, not a
+ * feature flag with a migration plan attached: §3.1 of the 2026-08-22 handoff cannot run arm 2
+ * (pointer) and arm 3 (status quo) against one another if shipping one deletes the other, and the
+ * whole point of that A/B is that nobody yet knows which wins. Whichever arm wins becomes the
+ * unconditional behaviour and this union goes away.
+ */
+export type AgentPluginDeliveryMode = "inject" | "pointer";
+
+const DEFAULT_DELIVERY_MODE: AgentPluginDeliveryMode = "inject";
+
+/** Reads the delivery mode for this process. An unset or unrecognised value is `inject` — an A/B
+ *  affordance must never be able to change production behaviour by typo. */
+export function resolveAgentPluginDeliveryMode(
+  env: { readonly TOVU_AGENT_PLUGIN_DELIVERY?: string | undefined } = process.env,
+): AgentPluginDeliveryMode {
+  return env.TOVU_AGENT_PLUGIN_DELIVERY === "pointer" ? "pointer" : DEFAULT_DELIVERY_MODE;
+}
 
 export type ResolveAgentPluginRefsResult =
   | { readonly ok: true; readonly promptPrefix: string }
@@ -80,12 +108,13 @@ export type ResolveAgentPluginRefsResult =
 export async function resolveAgentPluginRefs(
   pluginRefIds: readonly string[],
   workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages">,
+  deliveryMode: AgentPluginDeliveryMode = resolveAgentPluginDeliveryMode(),
 ): Promise<ResolveAgentPluginRefsResult> {
   if (pluginRefIds.length === 0) return { ok: true, promptPrefix: "" };
 
   const sections: string[] = [];
   for (const pluginRefId of pluginRefIds) {
-    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages);
+    const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode);
     if (!resolved.ok) return resolved;
     sections.push(resolved.section);
   }
@@ -139,6 +168,7 @@ function isEnoent(error: unknown): boolean {
 async function resolveOnePluginRef(
   pluginRefId: string,
   packagesDir: string,
+  deliveryMode: AgentPluginDeliveryMode,
 ): Promise<{ readonly ok: true; readonly section: string } | { readonly ok: false; readonly reason: string }> {
   const installed = await listInstalledPlugins(packagesDir);
   const matches = installed.filter((plugin) => plugin.pluginId === pluginRefId);
@@ -159,6 +189,9 @@ async function resolveOnePluginRef(
 
   const plugin = matches[0] as InstalledAgentPlugin;
   const skillPath = `skills/${pluginRefId}/SKILL.md`;
+
+  if (deliveryMode === "pointer") return buildPointerSection(pluginRefId, plugin);
+
   let skillMarkdown: string;
   try {
     skillMarkdown = await readInstalledSkillMarkdown(plugin.packageRoot, skillPath);
@@ -192,4 +225,65 @@ async function resolveOnePluginRef(
     ok: true,
     section: `<<AGENT_PLUGIN pluginId="${pluginRefId}">>\n${skillMarkdown}${inventory}\n<</AGENT_PLUGIN>>`,
   };
+}
+
+/**
+ * `pointer` delivery — the ~400-byte replacement for the ~15KB `inject` section above.
+ *
+ * Three properties are load-bearing, each one bought with a measurement rather than reasoned from
+ * first principles:
+ *
+ * 1. **It is mandatory, and says so.** The owner's framing is "the chip shouldn't inject anything, let
+ *    the AI know what to look at" — right in substance, with one precision that must not be lost: this
+ *    cannot inject NOTHING, because a tool can simply be ignored. The 2026-08-21 run read 0 of 30
+ *    files listed as optional, and read exactly the 4 that SKILL.md named once the wrapper stopped
+ *    hedging. Injection's one real virtue is that it is guaranteed; that virtue is kept here for the
+ *    ~400 bytes and dropped for the 15KB.
+ *
+ * 2. **It names the bridge call, not just the tool.** `capability_get` is NOT in the spawned agent's
+ *    tool namespace — measured live 2026-08-22 (`ADS-memory/reports/
+ *    2026-08-22-capability-tools-first-live-run.md`): the agent reaches Tovu tools only through Jini's
+ *    MCP proxy, and burned five discovery hops (`ToolSearch` x3, `search_tools`, `describe_tool` x2)
+ *    locating that route on a prompt that named both tools explicitly and did nothing else. A pointer
+ *    saying only "call capability_get" would name a tool that does not exist from the agent's side.
+ *    The plain name is given FIRST and the proxied form second, so a Jini rename degrades this to the
+ *    still-workable "search for it" case rather than to a call that hard-fails.
+ *
+ * 3. **The id is minted by the same function `capability-source.ts` mints cards with**
+ *    (`capability-id.ts`), never a template string written twice — see that file's header for why a
+ *    drift here would be the most expensive possible failure in this feature.
+ *
+ * Deliberately points at the plugin's own EPONYMOUS skill, exactly what `inject` sends, so arm 2 and
+ * arm 3 of the A/B differ in delivery alone and not in content.
+ */
+function buildPointerSection(
+  pluginRefId: string,
+  plugin: InstalledAgentPlugin,
+): { readonly ok: true; readonly section: string } | { readonly ok: false; readonly reason: string } {
+  // Parity with `inject`'s own failure: a pinned ref whose eponymous skill is missing must fail
+  // loudly in BOTH modes. Without this check `pointer` would happily emit a well-formed instruction
+  // to fetch a card that `capability_search` can never return, and the run would look like the agent
+  // disobeyed rather than like the pin being wrong.
+  if (!plugin.skills.some((skill) => skill.name === pluginRefId)) {
+    return {
+      ok: false,
+      reason: `Agent Plugin '${pluginRefId}' has no readable 'skills/${pluginRefId}/SKILL.md' in its installed package: no such skill folder`,
+    };
+  }
+
+  const capabilityId = toAgentPluginSkillCapabilityId(pluginRefId, plugin.archiveDigest, pluginRefId);
+  const body = [
+    `MANDATORY — before you begin this task, make this one tool call and follow what it returns:`,
+    ``,
+    `  capability_get({ "id": "${capabilityId}" })`,
+    ``,
+    `If your tools are proxied, that call is:`,
+    `  mcp__jini__execute_delegated_tool({ "toolId": "capability_get", "input": { "id": "${capabilityId}" } })`,
+    ``,
+    `What it returns is this Agent Plugin's own instructions — not a summary, and not background`,
+    `material you may skip. Follow them, including any files they direct you to load, before you`,
+    `start work.`,
+  ].join("\n");
+
+  return { ok: true, section: `<<AGENT_PLUGIN pluginId="${pluginRefId}">>\n${body}\n<</AGENT_PLUGIN>>` };
 }

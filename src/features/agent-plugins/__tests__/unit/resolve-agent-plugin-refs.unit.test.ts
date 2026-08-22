@@ -8,7 +8,7 @@ import test from "node:test";
 import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
-import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
+import { resolveAgentPluginDeliveryMode, resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
 
 /**
  * @file `resolveAgentPluginRefs()` — the run-start resolution step `agent-daemon-server.ts`'s
@@ -298,4 +298,131 @@ test("frames the file inventory as instructions to follow, never as an optional 
   } finally {
     await forceRemove(cwd);
   }
+});
+
+/**
+ * `pointer` delivery mode (2026-08-22) — the A/B arm that replaces the ~15KB injection with a short
+ * mandatory instruction naming the exact `capability_get` call. These tests exist because the
+ * pointer's whole value is in properties a "it returns a string" assertion would not catch: the id
+ * has to be the one `capability_search` actually mints, the wording has to stay mandatory, and the
+ * bulk content has to genuinely be gone rather than merely shortened.
+ */
+
+test("pointer mode emits the exact capability id capability-source.ts mints, digest included", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-1");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+
+    assert.ok(result.ok);
+    // Built from the installed digest read back off disk, NOT from the same helper the production
+    // code uses — a shared helper would pass even if both sides drifted together.
+    const [digest] = await readdir(layout.packages);
+    const expectedId = `agent-plugin-skill:ui-ux-design:${digest}:ui-ux-design`;
+    assert.ok(
+      result.promptPrefix.includes(expectedId),
+      `pointer must name the real card id; got:\n${result.promptPrefix}`,
+    );
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("pointer mode names the proxied bridge call, because capability_get is not in the agent's own namespace", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-2");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+
+    assert.ok(result.ok);
+    // Measured live 2026-08-22: the spawned agent reaches Tovu tools only through Jini's MCP proxy
+    // and burned five discovery hops finding that route. A pointer naming only the bare tool would
+    // name something that does not exist from the agent's side.
+    assert.ok(result.promptPrefix.includes("capability_get"));
+    assert.ok(result.promptPrefix.includes("mcp__jini__execute_delegated_tool"));
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("pointer mode keeps the instruction MANDATORY and never calls the content optional or a summary", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-3");
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+
+    assert.ok(result.ok);
+    assert.ok(result.promptPrefix.includes("MANDATORY"));
+    // The exact regression the 0-of-30 measurement produced: framing that hedges gets skipped. The
+    // pointer must not contain the hedging vocabulary at all — not even negated, since "not
+    // optional" still puts the word in front of the model.
+    assert.ok(!/\boptional\b/i.test(result.promptPrefix), "pointer must not use the word 'optional'");
+    assert.ok(!/\bsummary\b(?! —)/i.test(result.promptPrefix.replace("not a summary", "")), "pointer must not call the content a summary");
+    assert.ok(!/\bif (the task needs|you need)\b/i.test(result.promptPrefix), "pointer must not make the call conditional");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("pointer mode omits the SKILL.md body entirely — the payload is what moves behind the tool call", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-4");
+
+    const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout, "inject");
+    const pointed = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+
+    assert.ok(injected.ok);
+    assert.ok(pointed.ok);
+    assert.ok(injected.promptPrefix.includes("8px spacing grid"));
+    assert.ok(!pointed.promptPrefix.includes("8px spacing grid"));
+    assert.ok(
+      pointed.promptPrefix.length < injected.promptPrefix.length,
+      "pointer must be smaller than the injection it replaces",
+    );
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("pointer mode fails closed with the same reason as inject when the eponymous skill is missing", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    // A package whose only skill folder is named something OTHER than the plugin id: `inject`
+    // already fails here (no readable skills/<id>/SKILL.md), and `pointer` must not silently
+    // succeed by emitting a well-formed call to a card that can never resolve.
+    const entries = [
+      fileEntry("plugin.json", manifest("ui-ux-design")),
+      fileEntry("skills/some-other-skill/SKILL.md", REAL_SKILL_MARKDOWN),
+    ];
+    const archive = new Uint8Array(Buffer.from("archive-pointer-5"));
+    await installAgentPlugin({
+      archive,
+      expectedSha256: createHash("sha256").update(archive).digest("hex"),
+      archiveReader: reader(entries),
+      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const pointed = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
+    const injected = await resolveAgentPluginRefs(["ui-ux-design"], layout, "inject");
+
+    assert.equal(pointed.ok, false);
+    assert.equal(injected.ok, false);
+    assert.ok(!pointed.ok);
+    assert.match(pointed.reason, /has no readable 'skills\/ui-ux-design\/SKILL\.md'/);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("delivery mode defaults to inject, and an unrecognised env value never flips it", async () => {
+  assert.equal(resolveAgentPluginDeliveryMode({}), "inject");
+  assert.equal(resolveAgentPluginDeliveryMode({ TOVU_AGENT_PLUGIN_DELIVERY: undefined }), "inject");
+  assert.equal(resolveAgentPluginDeliveryMode({ TOVU_AGENT_PLUGIN_DELIVERY: "Pointer" }), "inject");
+  assert.equal(resolveAgentPluginDeliveryMode({ TOVU_AGENT_PLUGIN_DELIVERY: "inject" }), "inject");
+  assert.equal(resolveAgentPluginDeliveryMode({ TOVU_AGENT_PLUGIN_DELIVERY: "pointer" }), "pointer");
 });
