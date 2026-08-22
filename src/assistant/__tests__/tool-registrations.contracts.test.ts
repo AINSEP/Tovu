@@ -4,6 +4,7 @@ import test from "node:test";
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
+import { capabilityAgentToolCatalog } from "../capability-tool-registrations.js";
 import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
 import {
   contentTypesAgentToolCatalog,
@@ -125,6 +126,10 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
  * additionally carry `actorClassRule`) — the shared structural supertype lives in
  * `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
+  // `capability` (2026-08-22): `capability-tool-registrations.ts`'s `contributeCapabilityTools()`,
+  // unconditionally wired (no env gate, unlike `render-ui`/`demo-choices`/`demo-a2ui`), so its
+  // `capability_search`/`capability_get` ids must resolve here like every other always-on domain's.
+  ...(capabilityAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...contentTypesAgentToolCatalog,
   ...formsAgentToolCatalog,
   ...identityAgentToolCatalog,

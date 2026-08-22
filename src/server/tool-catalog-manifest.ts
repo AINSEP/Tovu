@@ -1,4 +1,6 @@
 import { contributeCommentsTools } from "../comments/tool-registrations.js";
+import { contributeCapabilityTools } from "../assistant/index.js";
+import { registerAgentPluginSkillsCapabilitySource } from "../features/agent-plugins/capability-source.js";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations.js";
 import { contributeDatabaseTools } from "../features/database/tool-registrations.js";
 import { contributeDeploymentsTools } from "../features/deployments/tool-registrations.js";
@@ -124,8 +126,20 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * policy checks, not auto-discovered from disk and installed unconditionally the way the calls below
  * are — plugin/data-module membership (`declareDataModule`) and AI-tool membership are deliberately
  * two different systems (see the 2026-08-17 architecture addendum this file implements).
+ *
+ * `contributeCapabilityTools()`/`registerAgentPluginSkillsCapabilitySource()` (2026-08-22) are a
+ * different SHAPE from the 25 domains above, not a 26th entry in that rollout's count: the first
+ * registers `capability_search`/`capability_get` — one tool PAIR, not a per-domain catalog — into
+ * this same `tool-contribution-registry.ts` seam; the second registers Agent Plugins' Skills as the
+ * first CONTENT source into the separate `capability-source-registry.ts` seam
+ * (`assistant/capability-source-registry.ts`'s own header explains why that is a second registry
+ * rather than folded into this one). Neither call depends on the other's order, and neither reads
+ * `features/agent-plugins` by name from `assistant/` — see `capability-tool-registrations.ts`'s own
+ * header for the full design.
  */
 export function installFirstPartyToolContributors(): void {
+  contributeCapabilityTools();
+  registerAgentPluginSkillsCapabilitySource();
   contributeCommentsTools();
   contributeContentTypesTools();
   contributeDatabaseTools();
