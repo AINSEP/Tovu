@@ -172,6 +172,26 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- plugins -------------------------------------------------------------------------------------------
   plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
   plugins_list: "plugin plugins extensions installed available list",
+
+  // --- capability discovery (Agent Plugin Skills, and any future non-tool capability source) -------------
+  // Measured gap, 2026-08-22 (`ADS-memory/reports/2026-08-22-case-b-discovery-measurement.md`): a real
+  // operator-phrased turn ("use whatever design guidance this workspace has available") never called
+  // `capability_search` across 9 tool-catalog searches, because none of its query words appear in the
+  // tool's own description OR anywhere this map already indexes — the words that WOULD have matched
+  // (installed cards' own names, e.g. a design plugin's skill titles) live one level deeper, inside
+  // `capability_search`'s own results, unreachable until the tool has already been called once. These
+  // are deliberately CATEGORY words for what a Skill/capability card generically IS — a piece of
+  // installed guidance content — not domain words like "design"/"brand"/"style": the one plugin
+  // installed today happens to be design-flavored, but a workspace with an SEO or copywriting plugin
+  // needs this same tool to rank for THOSE operators' words instead, and no static list can special-case
+  // every domain a future plugin might cover. See this file's own module doc for why dynamic,
+  // per-workspace augmentation (deriving words from the live card set) was investigated and not done
+  // here — the async capability gather and the synchronous tool-catalog seed build at two different,
+  // deliberately decoupled points in the boot sequence.
+  capability_search:
+    "skill skills plugin plugins extension extensions installed capability capabilities available guidance guide guides guideline guidelines playbook playbooks howto how to best practices practice reference references instructions instruction",
+  capability_get:
+    "skill plugin extension guidance guide guides guideline guidelines playbook reference references instructions instruction read open full content package files",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by
