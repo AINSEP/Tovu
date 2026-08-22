@@ -129,3 +129,61 @@ that a compiler CANNOT catch are logic, and both are one sentence each:
 1. dedupe by `pluginId`, not digest;
 2. a hidden plugin must render as a visible disabled row, never vanish.
 Fix those two in the plan, then write code and let `tsc` + tests find the rest.
+
+---
+
+# ROUNDS 5-6 — peers AUTHOR their own plans, then CROSS-SCORE them blind
+
+**Process correction (owner-initiated).** Rounds 3-4 asked peers only to CRITIQUE the Coordinator's
+plan, making the Coordinator sole author of every revision. Scores went BACKWARDS (v1 avg 8.0 ->
+v2 avg 5.75). The owner identified the cause: *"there's no way we should have gone backwards. They
+should also propose their own design and fixes."* Round 5 had all four author their own plan.
+
+**Round 5 self-scores were worthless.** Every model that scored itself 9/10 had violated a settled
+constraint it personally agreed to in round 2:
+- Codex 9/10 — rewrote the daemon resolver + invented a new wire ref format; ~15 files.
+- Gemini 3.1 Pro 9/10 — wire change, daemon change, hints built from operator LABELS (the injection
+  vector it had itself been warned about), and cleared pins on send, reversing documented behavior.
+- Gemini 3.7 Flash 9/10 — deleted the collision guard the codebase deliberately added; dropped hints
+  entirely (deleting the feature rather than fixing it); cited file paths that do not exist.
+- Sonnet 8/10 — the ONLY plan with zero violations, and the only one that scored itself below 9.
+
+**Round 6: five plans anonymized A-E, cross-scored, self-scores discarded, plus the Coordinator's
+already-rejected v2 slipped in as an unlabelled CALIBRATION CONTROL.**
+
+| Plan | Author | Round-5 SELF | Round-6 CROSS (mean, self excluded) |
+|---|---|---|---|
+| **B** | **Sonnet 5** | 8 | **7.0** |
+| C | Coordinator v2 (CONTROL) | — (already 8/6/5/4) | 4.67 |
+| A | Gemini 3.7 Flash | 9 | 4.33 |
+| E | Gemini 3.1 Pro | 9 | 2.0 |
+| D | Codex gpt-5.6-sol | 9 | 1.5 |
+
+**Validity checks, both passed:**
+- **All three reviewers independently identified C as the control.** Its cross-score (4.67) also
+  matches its earlier direct score (8/6/5/4, mean 5.75) — the calibration held.
+- The `agy` (Gemini) peers are stateless per invocation and genuinely did not recognise their own
+  plans, so their scores of their own work were blind and unbiased: Gemini Pro scored its OWN plan
+  **2/10**, Flash scored its own **6/10**. Codex correctly identified D as its own and still scored
+  it **2/10** — that self-score was discarded per protocol, but the honesty is notable.
+
+**WINNER: Plan B (Sonnet), 2 of 3 first-place votes.** Its core insight: defects 1, 2 and 3 are the
+SAME bug at three fan-out levels (per-skill, per-digest, per-hardcoded-copy), killed by one rule —
+**dedupe agent-plugin composer rows by `pluginId`**. It also deliberately DEFERS the prompt-hint /
+`ComposerPinEffect` work, observing that every attempt to add it in rounds 3-4 is what produced
+defects 6-9 and 12. Deferring it makes five of the twelve defects cease to exist rather than be handled.
+
+**Three precise fixes to Plan B, from its own critics (apply before writing):**
+1. Do not touch `resolve-agent-plugin-refs.ts` at all — re-implement the digest scan inside the new
+   route instead of adding `export` to `listInstalledPlugins`. (Gemini Pro; keeps the zero-daemon-touch
+   guarantee literal rather than nearly-true.)
+2. Replace the `.some()` across all digests with a deterministic newest-digest selection, so
+   `pinnable` reflects the installed version that would actually resolve. (Gemini Flash — and it fixes
+   the exact multi-digest-disagreement edge case Sonnet named as its OWN weakest point, and that Codex
+   independently flagged: "duplicate revisions can remain pinnable while guaranteed to fail at send time.")
+3. Move pin state to `item.id` as round 2 settled; Plan B keeps `pluginRefId` as-is. (Codex.)
+
+**THE TRANSFERABLE FINDING: self-assessment by these models was not merely optimistic, it was
+inverted.** Plans self-scoring 9 scored 1.5-2.0 when scored blind by peers. The single plan that
+self-scored lowest scored highest. Never accept a model's score of its own work; anonymized
+cross-scoring with a known-bad control is cheap and it worked on the first try.
