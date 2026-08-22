@@ -11,17 +11,21 @@
 
 Before proposing architecture changes, implementation plans, or new platform modules in this workspace, consult:
 
-- `ADS-memory/docs/architecture/tovu-architecture.md` section `13. User Friction Coverage (Living Backlog)`
-- `ADS-memory/docs/architecture/tovu-architecture.md` section `14. Meta-Coding Framework (Spec-First + Test-First + Pattern-First)`
+- `ADS-memory/docs/architecture/sections/13-user-friction-coverage-living-backlog.md`
+- `ADS-memory/docs/architecture/sections/14-meta-coding-framework-spec-first-test-first-pattern-first.md`
 - `ADS-memory/knowledge/project_memory.md` when the task needs this project's accumulated decisions
-- The owning module's own `src/<domain>/INFO.md` when the task is about module layout — there are 25,
-  one per domain, and there is no single repo-wide module-layout file
 
-Path note (corrected 2026-08-22): these four lines previously pointed at `tovu-architecture.md`,
+Both section files are also chapters 13 and 14 of the single-file
+`ADS-memory/docs/architecture/tovu-architecture.md`; `ADS-memory/docs/architecture/READING-ORDER.md`
+is the shorter path in. Treat that architecture as **target, not built** — it predates most of the code.
+
+Path note (corrected 2026-08-22): these lines previously pointed at `tovu-architecture.md`,
 `tovu/PROJECT_MEMORY.md`, and `tovu/src/INFO.md` — a stale `tovu/`-prefixed layout from before this
 repo became its own root. **None of those three paths has existed for some time.** Every agent booting
 here was being told to read files that are not there, and at least one external peer model had to
 caveat its entire first answer because of it. The content itself was never missing, only misfiled.
+There is no repo-wide module-layout document; module layout lives in each domain's own
+`src/<domain>/INFO.md` (25 of them) and is not an Always-Consult item.
 
 ## Audit Scope
 
