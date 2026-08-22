@@ -24,8 +24,9 @@
  * Writes `<label>.events.jsonl` (every daemon event) and `<label>.summary.json` (tool_use histogram,
  * every Read path, turn count, cost, final text) into `$PROBE_OUT`.
  */
-import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync, readdirSync, rmdirSync } from "node:fs";
 import path from "node:path";
+import os from "node:os";
 
 const BASE = process.env.TOVU_BASE ?? "http://localhost:3000";
 const OUT_DIR = process.env.PROBE_OUT ?? ".";
@@ -40,6 +41,67 @@ const promptFile = arg("prompt-file");
 const plugin = arg("plugin");
 const model = arg("model");
 const timeoutMs = Number(arg("timeout", "900")) * 1000;
+const isolateMemory = process.argv.includes("--isolate-memory");
+
+/**
+ * `--isolate-memory` — move this project's Claude Code memory store aside for the duration of the run.
+ *
+ * NOT optional hygiene. The agent Tovu spawns is Claude Code in this same project directory, so it
+ * inherits the operator's own memory store, `MEMORY.md` index and all. Measured 2026-08-22: on a run
+ * whose entire prompt was "create a landing page for a coffee roastery", one arm read the very memory
+ * file describing the experiment it was inside (which names the known-null control), and another arm
+ * `Edit`ed one. A subject that has read the experiment's notes is not a measurement, and a subject
+ * that can rewrite them is not even a record.
+ *
+ * The restore is the part worth getting right, and it is why this lives in the harness instead of in
+ * each caller's shell. The harness process recreates `memory/` on its own the moment something writes
+ * there, so a naive `mv hold memory` after the fact does not restore anything — it buries the real
+ * store at `memory/memory.hold/`. That happened once, by hand. Restore therefore MERGES into whatever
+ * is at the path now rather than assuming it is absent, and runs from a `finally` plus the fatal
+ * signals, so an aborted probe still puts the operator's memory back.
+ */
+function memoryStorePath() {
+  const key = process.cwd().replace(/\//g, "-");
+  return path.join(os.homedir(), ".claude", "projects", key, "memory");
+}
+
+let heldMemoryPath;
+function holdMemory() {
+  const live = memoryStorePath();
+  if (!existsSync(live) || readdirSync(live).length === 0) return;
+  const held = `${live}.probe-hold-${label}`;
+  if (existsSync(held)) throw new Error(`refusing to isolate: ${held} already exists from an earlier run — restore it by hand first`);
+  renameSync(live, held);
+  heldMemoryPath = held;
+  console.error(`[${label}] memory store held aside -> ${held}`);
+}
+function restoreMemory() {
+  if (!heldMemoryPath || !existsSync(heldMemoryPath)) return;
+  const live = memoryStorePath();
+  if (existsSync(live)) {
+    // Recreated while we held it. Merge, do not nest.
+    for (const entry of readdirSync(heldMemoryPath)) {
+      const from = path.join(heldMemoryPath, entry);
+      const to = path.join(live, entry);
+      if (!existsSync(to)) renameSync(from, to);
+    }
+    if (readdirSync(heldMemoryPath).length === 0) rmdirSync(heldMemoryPath);
+  } else {
+    renameSync(heldMemoryPath, live);
+  }
+  console.error(`[${label}] memory store restored`);
+  heldMemoryPath = undefined;
+}
+if (isolateMemory) {
+  holdMemory();
+  // `exit` covers every normal and `process.exit()` path, including the several early `process.exit(1)`
+  // bailouts below; `renameSync` is synchronous so it is legal in an exit handler. Signals do not fire
+  // `exit` on their own, hence the explicit re-exit. Only SIGKILL can now strand the store, and the
+  // `refusing to isolate` guard in holdMemory() turns that into a loud error next run rather than a
+  // silent second rename that would bury it.
+  process.on("exit", restoreMemory);
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(sig, () => process.exit(130));
+}
 
 if (!promptFile) {
   console.error("--prompt-file is required");
