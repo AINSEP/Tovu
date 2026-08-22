@@ -248,3 +248,54 @@ test("aborts on the first unresolvable ref rather than silently dropping it from
     await forceRemove(cwd);
   }
 });
+
+test("frames the file inventory as instructions to follow, never as an optional extra to the SKILL.md 'summary' (regression: live runs read 0 of the listed files)", async () => {
+  const { cwd, layout } = await freshLayout();
+  try {
+    const entries = [
+      fileEntry("plugin.json", manifest("ui-ux-design")),
+      fileEntry("skills/ui-ux-design/SKILL.md", REAL_SKILL_MARKDOWN),
+      fileEntry("skills/ui-ux-design/references/premium-ui.md", "# Premium UI\n"),
+    ];
+    const archive = new Uint8Array(Buffer.from("archive-inventory-framing"));
+    await installAgentPlugin({
+      archive,
+      expectedSha256: createHash("sha256").update(archive).digest("hex"),
+      archiveReader: reader(entries),
+      layout: resolveAgentPluginLayout({ cwd, env: {} }),
+      workspaceId: WORKSPACE_ID,
+    });
+
+    const result = await resolveAgentPluginRefs(["ui-ux-design"], layout);
+    assert.equal(result.ok, true);
+    assert.ok(result.ok);
+
+    // Exact header text, not a loose `includes` on a keyword — the whole defect this test guards
+    // was one clause of wording, so the wording itself is the contract.
+    assert.ok(
+      result.promptPrefix.includes(
+        "The SKILL.md above is this Agent Plugin's own instructions — follow them, including any " +
+          "files it directs you to load before starting work. Every other file in the installed " +
+          "package is listed below by absolute path and is readable now:",
+      ),
+      `inventory header did not match the expected imperative framing. Actual prefix:\n${result.promptPrefix}`,
+    );
+
+    // The two specific phrasings that caused the defect. `resolveAgentPluginRefs` used to call the
+    // injected SKILL.md a "summary" and gate the reference files behind "if the task needs more
+    // than" it — which directly contradicts what this plugin's own SKILL.md instructs ("loads the
+    // premium bundle up front ... Do not wait for the user to name a source"). Measured live on
+    // 2026-08-21: with that framing the agent read 0 of 30 listed files; with an explicit
+    // instruction to read them it read exactly the 4 the SKILL.md names.
+    assert.ok(
+      !result.promptPrefix.includes("if the task needs more than"),
+      "prefix still gates the plugin's own reference files behind a conditional",
+    );
+    assert.ok(
+      !/summary above/.test(result.promptPrefix),
+      "prefix still describes the injected SKILL.md as a 'summary', undercutting its own instructions",
+    );
+  } finally {
+    await forceRemove(cwd);
+  }
+});
