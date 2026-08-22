@@ -20,6 +20,21 @@ import { defineConfig, devices } from "@playwright/test";
  * `timeout: 60_000` for the same reason `playwright.composer-typeahead-visual.config.ts` documents:
  * the FIRST test in a file pays Vite dev-mode's cold JIT-transform cost for the login page's full
  * module graph.
+ *
+ * ---------------------------------------------------------------------------
+ * Headed / "watch it run" mode (2026-08-21, owner request)
+ * ---------------------------------------------------------------------------
+ * `headless: true` below is the default this config runs with — every assertion is unchanged
+ * either way, so this stays the one gate-usable invocation. Playwright's own `--headed` CLI flag
+ * overrides `use.headless` at runtime with no config change needed, so the SAME committed spec is
+ * already headed-capable:
+ *
+ *   npm run test:e2e:agent-plugin-chip:watch
+ *
+ * (`package.json`'s `test:e2e:agent-plugin-chip:watch` script — `playwright test --config=...
+ * --headed`, with `TOVU_E2E_SLOWMO=250` set so the run is actually watchable rather than a blur).
+ * `TOVU_E2E_SLOWMO` (below, `use.launchOptions.slowMo`) defaults to `0` — unset, this config's
+ * headless default runs at full speed, exactly as it did before this section existed.
  */
 const API_PORT = 8051;
 const ADMIN_PORT = 8052;
@@ -42,6 +57,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     viewport: { width: 1280, height: 900 },
     headless: true,
+    // Zero by default (every headless/gate run) — the `:watch` npm script is the only caller that
+    // sets `TOVU_E2E_SLOWMO`, so a plain `--headed` invocation with no env var still runs at full
+    // speed. See this file's own "Headed / watch it run mode" doc above.
+    launchOptions: { slowMo: process.env.TOVU_E2E_SLOWMO ? Number(process.env.TOVU_E2E_SLOWMO) : 0 },
   },
   projects: [
     {
