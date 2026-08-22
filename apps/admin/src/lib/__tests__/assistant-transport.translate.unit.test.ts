@@ -76,6 +76,71 @@ describe("translateRunAgentPayload — tool lifecycle", () => {
   });
 });
 
+/**
+ * `media` surviving in-memory (the suite above) is necessary but not sufficient — a field can pass
+ * a producer-side test and a consumer-side test while still being dropped somewhere IN BETWEEN by
+ * a boundary that reconstructs the payload rather than passing it through (a Zod `.parse()` missing
+ * `.passthrough()`, a `pick`, ...). This block closes that gap by reproducing the REAL browser
+ * boundary verbatim: `subscribeToRun` in `assistant-transport.ts` does exactly
+ * `JSON.parse((event as MessageEvent<string>).data) as RunProtocolEventWire` followed by
+ * `translateRunAgentPayload(frame.payload as RunAgentPayload)` — a genuine `JSON.stringify` /
+ * `JSON.parse` round trip simulating the real SSE `data:` line, not an in-memory object reference.
+ *
+ * The other hops between the daemon and this boundary (`RunLifecycle.emit` -> `EventLog` ->
+ * `@jini-ai/http-kit`'s SSE route -> Tovu's `assistant.ts` server-side proxy) were traced and
+ * confirmed to be byte-level/verbatim passthroughs with no schema or field-picking reconstruction
+ * — `assistant.ts`'s proxy in particular relays raw `Uint8Array` chunks, never re-parsing JSON at
+ * all. `translateRunAgentPayload`'s own `tool_result` case is the ONLY reconstruction site in the
+ * whole daemon-to-browser chain, which is why it is the one this test targets. The daemon's OWN
+ * persistence boundary (a separate real JSON round trip through a SQLite TEXT column) is covered on
+ * the Jini side by `packages/sqlite/src/__tests__/event-log.tool-result-media.test.ts`.
+ */
+describe("translateRunAgentPayload — media survives a real SSE JSON round trip", () => {
+  test("an image block emitted by the daemon is still present and structurally intact after JSON.stringify -> JSON.parse", () => {
+    const media = [{ type: "image", mimeType: "image/png", data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB" }];
+    // Exactly the wire shape `defaultFormatEvent` (`@jini-ai/http-kit/src/sse.ts`) writes as the SSE
+    // `data:` line, and exactly what `subscribeToRun`'s "agent" listener parses.
+    const sseDataLine = JSON.stringify({
+      runId: "run-1",
+      kind: "agent",
+      payload: { type: "tool_result", toolUseId: "call-1", content: "Generated a swatch.", media },
+    });
+
+    const frame = JSON.parse(sseDataLine) as { payload: Parameters<typeof translateRunAgentPayload>[0] };
+    const translated = translateRunAgentPayload(frame.payload);
+
+    expect(translated).toEqual({
+      kind: "tool_result",
+      toolUseId: "call-1",
+      content: "Generated a swatch.",
+      isError: false,
+      media,
+    });
+    // Not merely `toEqual` on the whole object — pin the exact nested field a lossy hop would most
+    // plausibly corrupt (truncate, re-encode, or drop) silently.
+    expect((translated as { media?: Array<{ data: string }> }).media?.[0]?.data).toBe(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAAB"
+    );
+  });
+
+  test("multiple media blocks keep their exact order and every field after the same round trip", () => {
+    const media = [
+      { type: "image", mimeType: "image/png", data: "FIRST" },
+      { type: "image", mimeType: "image/jpeg", data: "SECOND" },
+    ];
+    const sseDataLine = JSON.stringify({
+      runId: "run-1",
+      kind: "agent",
+      payload: { type: "tool_result", toolUseId: "call-2", content: "ok", media },
+    });
+
+    const frame = JSON.parse(sseDataLine) as { payload: Parameters<typeof translateRunAgentPayload>[0] };
+    const translated = translateRunAgentPayload(frame.payload) as { media?: unknown };
+
+    expect(translated.media).toEqual(media);
+  });
+});
+
 describe("translateRunAgentPayload — usage", () => {
   test("numeric fields all present are passed through as numbers", () => {
     const translated = translateRunAgentPayload({
