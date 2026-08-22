@@ -129,7 +129,14 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // `features/theme/tool-registrations.ts`'s own header for the full trace, including its two prior
   // reverts). `post` is ALSO present below — converted last of the 25 (`fc8ad2a6`), covered by its
   // own test below, which was updated at the same time as this list.
+  //
+  // "capability" (2026-08-22) is added below too, but it is NOT a 26th domain of the 25-domain
+  // rollout this comment otherwise describes — it is `capability-tool-registrations.ts`'s
+  // `contributeCapabilityTools()`, a single tool PAIR (`capability_search`/`capability_get`)
+  // registered into this same seam, not a per-domain catalog with its own `agent-tools.ts`. See that
+  // file's own header for the full design and `server/tool-catalog-manifest.ts`'s own addendum.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
+    "capability",
     "comments",
     "content-types",
     "database",

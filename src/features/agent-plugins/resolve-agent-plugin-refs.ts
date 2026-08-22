@@ -96,8 +96,16 @@ export async function resolveAgentPluginRefs(
  *  {@link resolveAgentPluginRefs} — one `readdir` plus one `indexInstalledRoot` walk per digest.
  *  Digest directory names that do not match the expected 64-hex-character shape are skipped rather
  *  than passed to `indexInstalledRoot` — `packages/sha256/` is not asserted empty of anything else
- *  a future tool might place there, and a non-digest entry is not this function's to interpret. */
-async function listInstalledPlugins(packagesDir: string): Promise<readonly InstalledAgentPlugin[]> {
+ *  a future tool might place there, and a non-digest entry is not this function's to interpret.
+ *
+ *  Exported (2026-08-22) for a second caller outside this module: `capability-source.ts`'s
+ *  capability-catalog source needs the SAME per-digest walk (every installed digest, whichever
+ *  skills each one carries) to produce one capability card per skill folder per digest — the exact
+ *  shape this function already builds, just consumed differently than `resolveOnePluginRef`'s own
+ *  "resolve one pinned ref" use below. Reusing this rather than re-walking `packages/sha256/*` a
+ *  second, less-validated way keeps the digest-directory-name check and the per-digest failure
+ *  isolation in exactly one place. */
+export async function listInstalledPlugins(packagesDir: string): Promise<readonly InstalledAgentPlugin[]> {
   let entries: string[];
   try {
     entries = await readdir(packagesDir);
