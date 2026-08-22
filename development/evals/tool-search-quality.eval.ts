@@ -28,7 +28,8 @@
  */
 import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations.js";
+import { installFirstPartyToolContributors } from "../../src/server/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../src/server/routes/types.js";
 
 interface EvalCase {
@@ -71,6 +72,14 @@ const CASES: readonly EvalCase[] = [
   { query: "send a login link to a member", expect: "members_request_magic_link" },
   { query: "what webhooks are set up", expect: "webhooks_list_subscriptions" },
   { query: "did that webhook actually fire", expect: "webhooks_get_deliveries" },
+  // Real recorded operator phrasing, not invented after the fact to game keyword choice — the exact
+  // query text `caseb` measured failing 2026-08-22
+  // (`ADS-memory/reports/2026-08-22-case-b-discovery-measurement.md`): `capability_search` never
+  // ranked at all, across 9 catalog searches in the real run. Left unpinned (no `alsoAcceptable`) on
+  // purpose: `theme_read_file`/`theme_list_files` legitimately also match "design" in their own
+  // keywords, and folding them into one combined rank would hide whether `capability_search` itself
+  // ever surfaces — which is the one thing this case exists to prove.
+  { query: "theme design tokens colors fonts brand style guide for this site", expect: "capability_search" },
 ];
 
 /**
@@ -109,6 +118,11 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
   { query: "that extension is causing trouble, switch it off", expect: "plugins_set_enabled" },
   { query: "how do I put an entry in the header bar", expect: "menus_update_menu_tree", alsoAcceptable: ["menus_create_menu", "menus_assign_location", "menus_list_menus"] },
   { query: "show everyone on our email list", expect: "newsletter_list_subscriptions", alsoAcceptable: ["members_list"] },
+  // Genuinely held out: written after the keywords above were chosen, never consulted while choosing
+  // them, and deliberately avoids echoing "design guidance" — tests whether the category words
+  // (guide/playbook/reference/instructions) generalize to a differently-worded ask for the same kind
+  // of thing.
+  { query: "is there a playbook or reference doc installed that covers how we're supposed to do this", expect: "capability_search" },
 ];
 
 const SEARCH_LIMIT = 10;
@@ -163,6 +177,13 @@ function summarize(label: string, results: readonly CaseResult[]): void {
 }
 
 function run(): void {
+  // Registers all 25 first-party domains (comments, media, identity, ...) plus `capability_search`/
+  // `capability_get` into `tool-contribution-registry.ts`, the same call BOTH real boot paths
+  // (`agent-daemon-server.ts`, `assistant-byok.ts`) make before their own `buildAssistantToolRegistrations`
+  // call — see `tool-contribution-registry.ts`'s header: that function reads whatever is currently
+  // registered, so skipping this leaves `DOMAIN_SLICES` (now empty of first-party domains; see
+  // `tool-registrations.ts`'s own header) as the only source, and the catalog comes back empty.
+  installFirstPartyToolContributors();
   const registry = createToolRegistry();
   for (const registration of buildAssistantToolRegistrations(fakeRouteDeps())) registry.register(registration);
   const catalog = buildToolCatalogQuery(registry);
