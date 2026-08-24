@@ -871,6 +871,43 @@ export const principalPolicies = sqliteTable(
 );
 
 /**
+ * SPEC-006 REQ-08 (state.spec §1/§2 `ApiKey`) — principal-bound headless credentials, the tenth
+ * identity table and the only one whose rows carry a secret.
+ *
+ * `key_hash` holds a scrypt digest of the key's secret half only; the raw key is returned once by
+ * `APIKEY_ISSUE` and never persisted, logged, or re-derivable (INV-05, same rule `identity_users.
+ * password_hash` already follows). `prefix` is the deliberately NON-secret half of the same key —
+ * it exists so verification is one indexed row lookup plus one hash comparison rather than a scan
+ * that hashes every row in the table, which is what makes a real (deliberately slow) KDF
+ * affordable on a per-request credential. It is unique per workspace for that reason.
+ *
+ * `issued_policy_id` points at the `is_frozen` permission snapshot minted for this key at issuance
+ * (F-054-01): `REVOKE_API_KEY` retires that policy along with the key, so a revoked key leaves no
+ * orphan grant rows behind. Nullable only because the column has to tolerate a row written before
+ * its snapshot policy exists; every row this runtime writes sets it.
+ */
+export const apiKeys = sqliteTable(
+  "api_keys",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    principalId: text("principal_id").notNull(),
+    label: text("label").notNull(),
+    keyHash: text("key_hash").notNull(),
+    prefix: text("prefix").notNull(),
+    issuedPolicyId: text("issued_policy_id"),
+    createdAt: text("created_at").notNull(),
+    lastUsedAt: text("last_used_at"),
+    expiresAt: text("expires_at"),
+    revokedAt: text("revoked_at"),
+  },
+  (table) => [
+    uniqueIndex("idx_api_keys_workspace_prefix").on(table.workspaceId, table.prefix),
+    index("idx_api_keys_workspace_principal").on(table.workspaceId, table.principalId),
+  ]
+);
+
+/**
  * SPEC-016 (ADR-041 §3, C-004) — the site-wide gated-mutation write watermark. A single
  * singleton row (`id=1`), incremented exactly once per `stampWatermarkTx` call inside the
  * caller's own already-open transaction (same-transaction atomicity, INV-01). Not

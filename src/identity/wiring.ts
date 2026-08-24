@@ -16,7 +16,11 @@ import {
   InMemorySessionRepo,
   InMemoryUserRepo,
 } from "@jini-ai/cms/identity";
+import { InMemoryApiKeyRepo } from "./repo.memory.js";
+import { ScryptApiKeySecretHasher } from "./api-key-secret.js";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "./api-key-types.js";
 import {
+  SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,
   SqlitePolicyRepo,
   SqlitePrincipalPolicyRepo,
@@ -68,6 +72,15 @@ export interface IdentityRouteDepsSlice {
   principalRoleRepo: IdentityRepos["principalRoles"];
   principalPolicyRepo: IdentityRepos["principalPolicies"];
   passwordHasher: PasswordHasherPort;
+  /**
+   * SPEC-006 REQ-08 — the api-keys table's repo port and its own hashing seam. Both live in this
+   * repo (`api-key-types.ts`), not in `@jini-ai/cms/identity`, which scopes API keys out; they ride
+   * on this slice so both composition roots wire them the same way the other nine repos are wired.
+   */
+  apiKeyRepo: ApiKeyRepoPort;
+  /** Separate from `passwordHasher` on purpose — see `api-key-secret.ts`'s header for the tuning
+   *  argument (256-bit machine secret verified per request vs. a human password verified per login). */
+  apiKeySecretHasher: ApiKeySecretHasherPort;
   identityReady: Promise<void>;
   authorize: AuthorizeFn;
   /**
@@ -88,9 +101,11 @@ export interface IdentityRouteDepsSlice {
  */
 function buildIdentityRouteDeps(
   repos: IdentityRepos,
+  apiKeyRepo: ApiKeyRepoPort,
   required: { workspaceId: UUID; clock: ClockPort; idGen: IdGeneratorPort }
 ): IdentityRouteDepsSlice {
   const passwordHasher = new Argon2PasswordHasher();
+  const apiKeySecretHasher = new ScryptApiKeySecretHasher();
 
   const seedResult = seedIdentity({
     deps: { repos, hasher: passwordHasher, clock: required.clock, idGen: required.idGen },
@@ -155,6 +170,8 @@ function buildIdentityRouteDeps(
     principalRoleRepo: repos.principalRoles,
     principalPolicyRepo: repos.principalPolicies,
     passwordHasher,
+    apiKeyRepo,
+    apiKeySecretHasher,
     identityReady,
     ownerPrincipalId,
     authorize,
@@ -186,7 +203,7 @@ export function createInMemoryIdentityRouteDeps(required: {
     principalRoles: new InMemoryPrincipalRoleRepo(),
     principalPolicies: new InMemoryPrincipalPolicyRepo(),
   };
-  return buildIdentityRouteDeps(repos, required);
+  return buildIdentityRouteDeps(repos, new InMemoryApiKeyRepo(), required);
 }
 
 /**
@@ -215,5 +232,5 @@ export function createSqliteIdentityRouteDeps(
     principalRoles: new SqlitePrincipalRoleRepo(db),
     principalPolicies: new SqlitePrincipalPolicyRepo(db),
   };
-  return buildIdentityRouteDeps(repos, seedRequired);
+  return buildIdentityRouteDeps(repos, new SqliteApiKeyRepo(db), seedRequired);
 }

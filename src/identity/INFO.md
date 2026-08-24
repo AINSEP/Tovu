@@ -22,22 +22,46 @@ evaluator the command gateway calls before every mutation.
 - `authorize()` is fail-closed: a non-null `constraintJson` it cannot
   interpret, or a `resourceType` that doesn't match `entityType`, both deny —
   never treated as an unconstrained/global grant (ADR-021 §8/INV-03).
-- Passwords and session tokens are hashed; raw values are never stored or
-  logged (INV-05).
+- Passwords, session tokens, and API-key secrets are hashed; raw values are
+  never stored or logged (INV-05). An issued key's raw value is returned exactly
+  once, by `issueApiKey`, and is not recoverable from any row afterwards.
+
+## API keys (added 2026-08-24, SPEC-006 REQ-08)
+
+The tenth identity table, and the only one whose rows carry a secret. It lives
+here rather than in `@jini-ai/cms/identity`, whose own `INFO.md` scopes API keys
+out; the port is declared locally in `api-key-types.ts` with two adapters
+(`repo.memory.ts`, `repo.sqlite.ts`).
+
+- `api-key-secret.ts` — minting (`randomBytes(32)`, 256 bits), parsing, and the
+  scrypt hasher. The raw key is `tovu_ak_<12 hex>.<43 base64url>`: only the
+  secret half is hashed; the prefix is stored in the clear as the lookup handle
+  so verification is one indexed read plus one constant-time compare.
+- `api-key-service.ts` — `createApiKeyPrincipal` / `issueApiKey` /
+  `revokeApiKey`, plus `authenticateApiKey`, the Bearer counterpart of
+  `validateSession` (returns `null` for every rejection reason, never a
+  distinguishable error).
+- A key's authority is a FROZEN snapshot of the policies named at issuance, not
+  a live reference (F-054-01), and may never exceed its issuer's own
+  unconstrained permissions (INV-07) or carry the owner wildcard `*`.
+- HTTP surface: `src/server/routes/admin/api-keys/*`, documented in
+  `openapi/006-identity-and-authorization.yaml`. Those three routes are
+  session-cookie-only on purpose — an API key can never mint, issue, or revoke
+  another.
 
 ## Scope note (this pass)
 
-Out of scope, deferred per the Programmer handoff: API keys (`api_keys`,
-`ISSUE_API_KEY`), agent principals/delegation, rate limiting, the grant-writing
-transitions (`ASSIGN_ROLE`, `ATTACH_POLICY`, `WRITE_POLICY_PERMISSION`,
-`CREATE_USER`, `DISABLE_PRINCIPAL`) and their INV-07 grant-authority clamp. The
-schema shapes (`isFrozen` on policies, the `agent`/`api_key` `PrincipalKind`
-variants) are built to the full ADR-021 §9 target so those transitions are
-additive later, not a repaint.
+Out of scope, deferred per the Programmer handoff: agent principals/delegation
+and rate limiting. The schema shapes (`isFrozen` on policies, the `agent`
+`PrincipalKind` variant) are built to the full ADR-021 §9 target so those
+transitions are additive later, not a repaint.
 
 ## Persistence direction
 
-In-memory adapters only this pass (`repo.memory.ts`), matching the disclosed
-precedent of `members`/`navigation`/`integrations`/`analytics` — see
-`src/server/deps.ts`'s comments. A SQLite adapter (Drizzle, ADR-015
-rule-of-two) is a later step.
+Both halves of the ADR-015 rule-of-two exist. The nine core identity tables are
+served by `repo.sqlite.ts` against Drizzle, with `@jini-ai/cms/identity`'s own
+`InMemory*Repo`s as the test/dev adapters; `wiring.ts` picks between them
+(`createSqliteIdentityRouteDeps` vs `createInMemoryIdentityRouteDeps`). The
+tenth table, `api_keys`, has no library-supplied in-memory half, so this repo
+owns both: `SqliteApiKeyRepo` (`repo.sqlite.ts`) and `InMemoryApiKeyRepo`
+(`repo.memory.ts`).

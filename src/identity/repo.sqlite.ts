@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import {
+  apiKeys,
   identityUsers,
   policies,
   policyPermissions,
@@ -14,6 +15,7 @@ import {
 import type { ContentDb } from "../db/sqlite/content-db.js";
 import { findOneBy } from "../db/sqlite/repo-helpers.js";
 
+import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
 import type {
   PolicyPermissionRepoPort,
   PolicyRepoPort,
@@ -543,5 +545,76 @@ export class SqlitePrincipalPolicyRepo implements PrincipalPolicyRepoPort {
       .values(row)
       .onConflictDoUpdate({ target: principalPolicies.id, set: row })
       .run();
+  }
+}
+
+/**
+ * SPEC-006 REQ-08 — the tenth identity table, added after the original nine (see this file's
+ * header). Its port lives in this repo (`api-key-types.ts`) rather than in `@jini-ai/cms/identity`,
+ * which scopes API keys out; everything else about this adapter — save-is-upsert, composite
+ * `(workspaceId, id)` lookups, `null`-for-absent — matches the nine above exactly.
+ */
+function toApiKeyRecord(row: typeof apiKeys.$inferSelect): ApiKeyRecord {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    principalId: row.principalId,
+    label: row.label,
+    keyHash: row.keyHash,
+    prefix: row.prefix,
+    issuedPolicyId: row.issuedPolicyId ?? undefined,
+    createdAt: row.createdAt,
+    lastUsedAt: row.lastUsedAt ?? undefined,
+    expiresAt: row.expiresAt ?? undefined,
+    revokedAt: row.revokedAt ?? undefined,
+  };
+}
+
+export class SqliteApiKeyRepo implements ApiKeyRepoPort {
+  constructor(private readonly db: ContentDb) {}
+
+  async findById(required: { workspaceId: string; id: string }): Promise<ApiKeyRecord | null> {
+    return findOneBy(
+      this.db,
+      apiKeys,
+      [eq(apiKeys.workspaceId, required.workspaceId), eq(apiKeys.id, required.id)],
+      toApiKeyRecord
+    );
+  }
+
+  /** The verification hot path — served by `idx_api_keys_workspace_prefix`, never a scan. */
+  async findByPrefix(required: { workspaceId: string; prefix: string }): Promise<ApiKeyRecord | null> {
+    return findOneBy(
+      this.db,
+      apiKeys,
+      [eq(apiKeys.workspaceId, required.workspaceId), eq(apiKeys.prefix, required.prefix)],
+      toApiKeyRecord
+    );
+  }
+
+  async listByPrincipalId(required: { workspaceId: string; principalId: string }): Promise<ApiKeyRecord[]> {
+    return this.db
+      .select()
+      .from(apiKeys)
+      .where(and(eq(apiKeys.workspaceId, required.workspaceId), eq(apiKeys.principalId, required.principalId)))
+      .all()
+      .map(toApiKeyRecord);
+  }
+
+  async save(record: ApiKeyRecord): Promise<void> {
+    const row = {
+      id: record.id,
+      workspaceId: record.workspaceId,
+      principalId: record.principalId,
+      label: record.label,
+      keyHash: record.keyHash,
+      prefix: record.prefix,
+      issuedPolicyId: record.issuedPolicyId ?? null,
+      createdAt: record.createdAt,
+      lastUsedAt: record.lastUsedAt ?? null,
+      expiresAt: record.expiresAt ?? null,
+      revokedAt: record.revokedAt ?? null,
+    };
+    this.db.insert(apiKeys).values(row).onConflictDoUpdate({ target: apiKeys.id, set: row }).run();
   }
 }
