@@ -36,6 +36,7 @@ const ACTIVE_ITEM = {
   caption: "",
   credit: "",
   sha256: "abc123",
+  contentType: "image/png",
   status: "active",
   createdAt: "2026-07-01T09:00:00.000Z",
   updatedAt: "2026-07-01T09:00:00.000Z",
@@ -52,6 +53,7 @@ const TRASHED_ITEM = {
   caption: "",
   credit: "",
   sha256: "def456",
+  contentType: "video/mp4",
   status: "trashed",
   createdAt: "2026-07-02T09:00:00.000Z",
   updatedAt: "2026-07-02T09:00:00.000Z",
@@ -680,13 +682,14 @@ async function waitForCard(container: HTMLElement, title: string): Promise<HTMLE
 describe("tab bar — useMediaTabsHook injection seam", () => {
   it("renders the tab the injected hook reports, proving the default isn't hardcoded", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    // The real `useMediaTabs` can only ever start on "all" — landing on the "videos" placeholder
-    // on first render is a value the real hook cannot produce, so seeing it here proves this seam
-    // is wired to the injected hook, not calling `useMediaTabs()` directly.
+    // The real `useMediaTabs` can only ever start on "all" — landing already filtered to the
+    // videos tab on first render is a value the real hook cannot produce, so seeing only the
+    // `video/mp4` fixture here proves this seam is wired to the injected hook, not calling
+    // `useMediaTabs()` directly.
     renderScreen({ useMediaTabsHook: () => ({ activeTab: "videos", setActiveTab: vi.fn() }) });
 
-    expect(await screen.findByText(/Filtering by type isn't wired up yet\./)).toBeInTheDocument();
-    expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+    expect(await screen.findByText("Trashed Clip")).toBeInTheDocument();
+    expect(screen.queryByText("Sunset Photo")).not.toBeInTheDocument();
   });
 });
 
@@ -695,8 +698,8 @@ describe("?tab= deep linking", () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
     renderScreen({ tabId: "videos" });
 
-    expect(await screen.findByText(/Filtering by type isn't wired up yet\./)).toBeInTheDocument();
-    expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+    expect(await screen.findByText("Trashed Clip")).toBeInTheDocument();
+    expect(screen.queryByText("Sunset Photo")).not.toBeInTheDocument();
   });
 
   it("falls back to All for an id that names no real tab, instead of blanking the panel", async () => {

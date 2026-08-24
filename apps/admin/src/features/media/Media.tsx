@@ -6,7 +6,7 @@ import { MediaProvidersTab } from "@jini-ai/ui";
 import { MEDIA_PROVIDER_CATALOG } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
-import { mediaRowMenuItems } from "./rules";
+import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems } from "./rules";
 import { useWiredMedia } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
@@ -26,9 +26,21 @@ import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
  * support for video seeking, `Content-Type` sniffed server-side from magic bytes). See
  * `api.mediaOriginalUrl`'s own comment for the URL contract.
  *
- * The hard problem this rewrite has to solve: **the media list response carries no content type**
- * (neither `media` nor `asset_blobs` stores one — upload validates `contentType` then discards
- * it), so nothing in `AdminMedia` tells the client whether a given asset is an image, a video, or
+ * CONTENT TYPE (updated 2026-08-24): the media list response now DOES carry one — `AdminMedia
+ * .contentType`, sniffed server-side from the stored bytes and persisted on `asset_blobs
+ * .content_type`. That is what the "Images"/"Videos" tabs filter on (`rules.ts`'s
+ * `filterMediaByTab`), replacing the "not wired up yet" placeholders those tabs used to render.
+ *
+ * `MediaPreview` below is deliberately UNCHANGED by that: it still resolves each card's preview
+ * with its own optimistic probe rather than branching on `contentType`. The reasoning below still
+ * holds — the probe already handles every case correctly (including the security defusal), costs
+ * nothing extra for the common one, and a card that renders whatever the bytes really are cannot
+ * be desynced from a stored field. The original description of the gap follows, since it is the
+ * rationale for the probe's design:
+ *
+ * The hard problem this rewrite had to solve: **the media list response carried no content type**
+ * (neither `media` nor `asset_blobs` stored one — upload validated `contentType` then discarded
+ * it), so nothing in `AdminMedia` told the client whether a given asset was an image, a video, or
  * something unpreviewable. `MediaPreview` below resolves this client-side with an optimistic
  * render-and-fall-back chain (`<img>` → onError → `<video>` → onError → placeholder) rather than a
  * HEAD probe per card. Chosen over the HEAD approach because: (1) the byte route's documented
@@ -579,19 +591,39 @@ export interface MediaProps {
   tabId?: string | null;
 }
 
-/** "Images"/"Videos" tab body — see `Media()`'s own comment at the tab-bar mount site for why
- *  these don't filter the grid yet: `AdminMedia` carries no content type to filter by. */
-function MediaTypeFilterPlaceholder({ kind, t }: { kind: "images" | "videos"; t: (key: string) => string }) {
+/**
+ * The empty state for a tab whose filter matched nothing — distinct from the All tab's "No media
+ * uploaded yet.", which would be a lie on a filtered tab holding a library full of other types.
+ *
+ * The Videos copy names the real reason that tab is normally empty: the upload allowlist
+ * (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s `media-service.ts`) accepts `image/jpeg`,
+ * `image/png`, `image/webp` and `image/gif` and nothing else, so a real `.mp4` picked in the file
+ * input is rejected with a 400 before it ever reaches the library. Widening that allowlist is an
+ * upload-policy change in another package, out of scope for wiring up a filter — so this says so
+ * rather than leaving an operator to conclude their videos were lost.
+ */
+function MediaTypeEmptyState({ kind, t }: { kind: "images" | "videos"; t: (key: string) => string }) {
   return (
     <div className="card">
       <div className="empty-state">
-        <p>{t("Filtering by type isn't wired up yet.")}</p>
+        <p>{kind === "images" ? t("No images yet.") : t("No videos yet.")}</p>
         <p className="page-description">
-          The media list doesn't carry a content type to filter by today (see this file's header
-          comment) — the "{kind === "images" ? t("Images") : t("Videos")}" tab is here to confirm the
-          layout; it will show a filtered grid once that gap closes.
+          {kind === "images"
+            ? t("Uploaded images appear here once you add them.")
+            : t("Only image uploads are supported right now.")}
         </p>
       </div>
+    </div>
+  );
+}
+
+/** Note shown on a filtered tab when some assets have no detected type. See `rules.ts`'s
+ *  `hasUntypedMedia` for why this is normally absent, and why silence would be the wrong default. */
+function UntypedMediaNote({ t }: { t: (key: string) => string }) {
+  return (
+    <div className="notice">
+      {t("Some items have no detected type and aren't shown in this tab.")}{" "}
+      {t("You can find them on the All tab.")}
     </div>
   );
 }
@@ -624,6 +656,11 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
+
+  // Computed after the two early returns so `media` is already narrowed to non-null. Not memoized:
+  // a single filter over a media library is cheap next to the render it feeds, and a `useMemo`
+  // here cannot be hoisted above the early returns without changing hook order.
+  const visibleMedia = filterMediaByTab(media, activeTab);
 
   return (
     <div className="page">
@@ -665,11 +702,10 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
         <div data-theme="light">
           <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} />
         </div>
-      ) : activeTab === "images" ? (
-        <MediaTypeFilterPlaceholder kind="images" t={t} />
-      ) : activeTab === "videos" ? (
-        <MediaTypeFilterPlaceholder kind="videos" t={t} />
       ) : (
+        // "all", "images" and "videos" all render the SAME grid, differing only in which items
+        // reach it — one code path, so a card looks and behaves identically whichever tab it is
+        // viewed from, and the lightbox/edit/row-menu wiring below cannot drift per tab.
         <>
           {error ? <div className="notice error">{error}</div> : null}
           <MediaToolbar
@@ -702,16 +738,22 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
             />
           ) : null}
 
-          {media.length === 0 ? (
-            <div className="card">
-              <div className="empty-state">
-                <p>{t("No media uploaded yet.")}</p>
-                <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
+          {activeTab !== "all" && hasUntypedMedia(media) ? <UntypedMediaNote t={t} /> : null}
+
+          {visibleMedia.length === 0 ? (
+            activeTab === "all" ? (
+              <div className="card">
+                <div className="empty-state">
+                  <p>{t("No media uploaded yet.")}</p>
+                  <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <MediaTypeEmptyState kind={activeTab} t={t} />
+            )
           ) : (
             <div className="media-grid">
-              {media.map((item, index) => (
+              {visibleMedia.map((item, index) => (
                 <div className="media-card" key={item.id}>
                   <div className="media-card-preview">
                     <MediaPreview item={item} onExpand={() => setLightboxIndex(index)} t={t} />
@@ -742,8 +784,12 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
             </div>
           )}
 
+          {/* `items` MUST be the same array the grid above maps, not the unfiltered `media`:
+              `lightboxIndex` is a positional index produced by that map, so handing the lightbox a
+              different array would open the wrong asset (and mis-clamp its prev/next arrows) on
+              every filtered tab. */}
           <MediaLightbox
-            items={media}
+            items={visibleMedia}
             activeIndex={lightboxIndex}
             onNavigate={setLightboxIndex}
             onClose={() => setLightboxIndex(null)}

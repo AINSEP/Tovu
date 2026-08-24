@@ -46,6 +46,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
           width: null,
           height: null,
           cssClass: null,
+          contentType: "image/png",
         },
       ],
     });
@@ -74,6 +75,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
           width: null,
           height: null,
           cssClass: null,
+          contentType: "image/png",
         },
       ],
     });
