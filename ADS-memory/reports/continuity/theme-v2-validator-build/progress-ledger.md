@@ -517,6 +517,65 @@ radius). Affects 6 static themes total once every theme reaches migration: my 3 
 3. Re-flag in the final report to team-lead: tailark-* NOTICE.md/license documentation gap is STILL
    open, STILL not this session's job to resolve (unchanged from Session 3's finding).
 
+## Session 4 (`theme-migrate-tailark-group`) continued — schema fix confirmed, all three migrated and
+committed, one more shared-engine bug found (already known — sibling hit it too), one canary-test
+finding corrected
+
+Team-lead fixed `templates` (landed inside `65e242e4`, a race with a concurrent commit — noted by
+team-lead as messier attribution but safely in history). Re-ran all three dry-runs: clean, `valid:
+true`, only the two expected `license-missing`/`preview-thumbnail-missing` warnings.
+
+**CLI was broken for this session too** (`src/cli/main.ts` fails via esbuild: `Unexpected "*"` at
+`src/server/modules/assistant-ag-ui.ts:53` — a concurrent, unrelated AG-UI rewrite, not touched).
+Same workaround as `theme-migrate-fuel-group` independently used: called `migrateThemeToV2`/
+`validateThemePackage`/`loadTheme` directly via a throwaway root-level `.tmp-theme-*.ts` script
+(deleted before commit, never staged) instead of through the CLI's command-registration import graph.
+
+**Hit the identical `copyCarryOverFiles()` bug `theme-migrate-fuel-group` already documented above**
+(did not know about their finding until after discovering it independently via post-migration
+double-verification — `tokensLight keys: 0` on a theme declaring `modes: ["dark","light"]` is what
+gave it away). All three tailark themes ship `tokens.light.json`; the real (non-dry-run) migration
+silently dropped it every time, matching `gracious-timing`/`portfolite`'s exact failure mode (none of
+the three tailark themes have `NOTICE.md` to lose — the pre-existing documentation gap noted
+repeatedly above). Same workaround: `cp` from each theme's own `.v1-backup-<ts>/` back into the live
+directory before re-verifying, confirmed `git diff` showed the restored file as byte-identical/
+unchanged against HEAD. Not fixed in `migration/` — this is now THREE independent sessions' evidence
+(`fuel`-group + this session) that `copyCarryOverFiles()` needs the real fix (`NOTICE.md` +
+`tokens.<mode>.json` glob) before any more static-tier themes migrate.
+
+**All three verified individually** (validator + real `loadTheme()` call confirming `tokensLight`
+actually populates + idempotent re-run) and content-diffed byte-identical against each v1 backup
+before the backups were deleted. Committed as `cf77d62c` (single commit, all three themes — team-lead's
+dispatch grouped them as one unit, unlike the fuel-group's three separate commits). v1 backups and
+staging dirs deleted post-verification, same precedent as every prior real migration this workstream.
+
+**Corrected finding on `theme-pages-render.canary.test.ts`:** `theme-migrate-fuel-group`'s entry above
+attributes this test's failure to this session's leftover STAGING directories ("self-resolving once
+that sibling commits/cleans up"). That undersells it. Ran the scoped suite AFTER this session's staging
+dirs were fully cleaned up and the real migration committed: still fails, identical `ENOENT: no such
+file or directory, scandir '.../fuel/pages'`. Root cause by code inspection: `readTheme()` in that test
+file (line 78) unconditionally does `readHtmlDir(path.join(dir, "pages"))` with no `apiVersion`
+branching — every real migrated static theme (now `fuel`, and structurally the same fate awaits
+`gracious-timing`/`portfolite`/all three tailark themes once the test's iteration order reaches them)
+no longer has a `pages/` folder at all (moved to `render/pages/`). This is permanent, not staging
+debris — the test itself needs the same `apiVersion === 2` branch Blocker A already applied to
+`static-asset-contract.ts`/`static-render.ts`/`build-conformance.ts`/`theme.ts`'s loader. File lives at
+`src/features/theme/__tests__/theme-pages-render.canary.test.ts` — not literally inside `validation/`
+or `migration/`, but cross-cutting all six static themes (three of them outside this session's scope),
+so treated it the same way: reported, not touched.
+
+### Next Actions (current)
+
+1. **All three tailark themes DONE** — migrated, verified, committed (`cf77d62c`), v1 backups and
+   staging dirs deleted. Nothing further owed on this session's assigned scope.
+2. Full report sent to team-lead (SendMessage) covering: schema fix confirmation, the
+   `copyCarryOverFiles()` bug (now corroborated by two independent sessions), the corrected
+   `theme-pages-render.canary.test.ts` diagnosis, and the still-open tailark-* NOTICE.md/license gap.
+3. Whoever owns `src/features/theme/migration/` next should fix `copyCarryOverFiles()` (two independent
+   sessions' worth of evidence now) and whoever owns test infra next should apiVersion-branch
+   `theme-pages-render.canary.test.ts`'s `readTheme()` — both block every remaining static-tier
+   migration's clean regression run, not just this session's themes.
+
 ## Session 5 (Programmer, dispatched directly by team-lead, scope: `mui-marketing` refusal
 verification + the two catalog copies ONLY) — both done, zero code/content changes
 

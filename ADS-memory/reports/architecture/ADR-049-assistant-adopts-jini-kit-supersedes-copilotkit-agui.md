@@ -1,6 +1,6 @@
 # ADR-049: Assistant Engine Adopts the `@jini-ai` Kit — Supersedes ADR-013/014's CopilotKit/AG-UI Transport Choice
 
-- Status: Accepted (owner sign-off in conversation, 2026-07-28)
+- Status: Accepted (owner sign-off in conversation, 2026-07-28) — **⚠️ Decision 1 (transport/wire protocol) SUPERSEDED 2026-08-18 by [ADR-059](ADR-059-assistant-transport-ag-ui-canary.md): AG-UI is back in, as an additive canary transport alongside (not replacing) the path this ADR describes. Decisions 2–7 below (tool execution via `@jini-ai/core`/`@jini-ai/daemon`, the Profile model, agent-tools catalogs, multi-agent support, reuse boundary) are UNCHANGED and still in force. Read ADR-059 before assuming AG-UI is rejected.**
 - Date: 2026-07-28
 - Author: Claude Sonnet 5 / Leon Aburime
 - Supersedes: ADR-013 §1–4,8 (client + protocol + execution substrate). Retains: ADR-013 §3's tool-registry-with-`surface` *concept* (re-homed, see Decision 3–4) and ADR-014 in full (Profile model unchanged, re-expressed as policy — see Decision 3).
@@ -40,6 +40,8 @@ This is close enough to what ADR-013/014 designed by hand — a permissioned too
 ## Decision
 
 1. **Supersede ADR-013 §1–4,8's transport/client choice.** Tovu's assistant client is `@jini-ai/chat-react`'s `ChatPane` (+ `@jini-ai/chat-core`'s event/message vocabulary), not CopilotKit. The wire protocol is `@jini-ai/protocol` + `@jini-ai/daemon`'s canonical run-event stream, not AG-UI.
+
+   > **⚠️ SUPERSEDED 2026-08-18 — see [ADR-059](ADR-059-assistant-transport-ag-ui-canary.md).** The "not AG-UI" conclusion above no longer holds: AG-UI is now being built as a second, additive `ChatTransport` implementation (canary, opt-in, zero change to the path described here). This ADR's *client* stays `ChatPane`/`chat-core` as the default — ADR-059 adds a parallel option, it does not replace this one.
 
 2. **Tool execution is `@jini-ai/core` + `@jini-ai/daemon`, not a bare CLI spawn.** Every agent-callable action goes through `@jini-ai/core`'s `ToolRegistry`/DI kernel and `@jini-ai/daemon`'s `ToolExecutor` (authorize → confirm → execute → audit) and `RunLifecycle`/`EventLog`, composed server-side via `@jini-ai/node-host` (or its constituent `@jini-ai/daemon`/`@jini-ai/http` pieces directly, if the full `createLocalNodeDaemon` preset does not compose cleanly with Tovu's existing Express bootstrap — an implementation-time call, not decided here). A spawned coding-agent CLI (Claude Code, etc.) remains available as one *agent runtime* choice, not the only path to tool execution, and per ADR-021 §"agents = delegated principals," any tool call it makes still resolves through `authorize()`.
 

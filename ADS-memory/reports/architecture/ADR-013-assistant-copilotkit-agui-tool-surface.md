@@ -1,6 +1,6 @@
 # ADR-013: In-App Assistant — CopilotKit Client + AG-UI Daemon Agent, One Tool Registry with an Execution `surface`
 
-- Status: ACCEPTED
+- Status: ACCEPTED — **⚠️ Client/transport choice SUPERSEDED 2026-07-28 by [ADR-049](ADR-049-assistant-adopts-jini-kit-supersedes-copilotkit-agui.md)** (CopilotKit + AG-UI replaced by `@jini-ai/chat-react`'s `ChatPane` + `@jini-ai/daemon`'s own event vocabulary). **ADR-049's own transport conclusion was then partially re-opened 2026-08-18 by [ADR-059](ADR-059-assistant-transport-ag-ui-canary.md)**, which adds AG-UI back as a second, additive, opt-in canary transport — not a return to this ADR's "CopilotKit is the single client" framing. Read ADR-049 first, then ADR-059, before treating anything below as current.
 - Date: 2026-07-05
 - Author: Claude Opus 4.8 / Leon Aburime
 
@@ -54,6 +54,8 @@ This ADR is the assistant counterpart to ADR-011 (topologies) and ADR-012
 runtimes. CopilotKit is the single client; the OD-style daemon run is the single
 agent, connected over AG-UI. OD is a **feature reference, not a codebase to
 port** — with exactly one clean exception (agent detection).
+
+> **⚠️ SUPERSEDED 2026-07-28 — see [ADR-049](ADR-049-assistant-adopts-jini-kit-supersedes-copilotkit-agui.md).** CopilotKit was never adopted; the client became `@jini-ai/chat-react`'s `ChatPane`. AG-UI as the wire protocol was dropped in favor of `@jini-ai/protocol`/`@jini-ai/daemon`'s own event stream — then partially revived 2026-08-18 as an additive canary transport by [ADR-059](ADR-059-assistant-transport-ag-ui-canary.md). Neither reinstates "CopilotKit is the single client."
 
 1. **CopilotKit owns the shell.** The FAB chat is a **headless** composer built
    on `useCopilotChat` — we do **not** port OD's `ChatComposer`. Rich in-chat UI

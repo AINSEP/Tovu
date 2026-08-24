@@ -149,7 +149,21 @@ delta:
 cascade. **One hub has negative leverage** (`src/server/routes/types.ts`, delta = −28) — see §2, it
 matters more than the top of this table.
 
+**This table is contaminated and should not be acted on as-is — see §6.** Every one of the top 9 rows
+above is a pure re-export barrel (owner-verified for row 1, `assistant/index.ts`; classified and
+independently spot-checked for the rest). §6 reclassifies all 151 hubs and reruns this ranking with
+barrels excluded — that second table, not this one, is the one worth acting on.
+
 ## 4. Top-8 detail: what the split looks like, and the risk
+
+**Correction before the detail below**: the original pass through this section (this paragraph added
+on revision) tested "does this file carry real logic" with a single-line grep
+(`^export \* from|^export {.*} from`), which misses the multi-line `export {\n  a,\n  b,\n} from "./x"`
+blocks these files actually use. Read directly against the source, `members/index.ts`,
+`routing/index.ts`, `deployments/static-publish/index.ts`, `theme/index.ts`, and `redirects/index.ts`
+are **all pure re-export barrels, zero local declarations** — the "carries real logic" claims below for
+#3–7 were wrong and are corrected in place. See §6 for the full reclassification of all 151 hubs and
+why this matters far beyond these five files.
 
 **#1 — `src/assistant/index.ts` (delta 16) is not really "one file."** Tarjan SCC on the current
 all-import graph found a **29-file strongly-connected component**: every feature module's
@@ -183,23 +197,23 @@ split candidate, despite the large measured delta — the delta here is coming f
 mechanics as §1/§2, not from real extractable coupling. Do not spend refactor effort here without
 re-verifying against §5's caveat.
 
-**#3 — `src/members/index.ts` (delta 9, fanIn=275, fanOut=29)** — 113 lines, 11 exports, only 1
-`export from`. Unlike `post/index.ts`, this one **carries real logic**, not just re-exports.
-  - **What the split looks like**: move the non-re-export logic (whatever the other 10 exports are —
-    not traced symbol-by-symbol here, flagged as not fully determined, see §8) into a
-    `members/service.ts` or similar, leave `index.ts` as a pure re-export barrel pointing at it and
-    the module's other files.
-  - **Risk**: medium — real logic extraction, not a mechanical type move; needs the module's own test
-    suite green before/after per the refactor-patterns coverage rule, and a symbol-level read this
-    investigation didn't do.
+**#3 — `src/members/index.ts` (delta 9, fanIn=275, fanOut=29)** — **corrected**: this is a 114-line
+pure barrel (2 multi-statement `export { ... } from` blocks accounting for every line, 0 local
+declarations), not a file with real logic as originally claimed here. Its own doc comment says so
+explicitly: `"Public surface (barrel) for the members Tier-2 core library (ADR-030) ... a module's
+public contract is its index.ts; boundary lint forbids deep imports."` The large fanOut (29) is the
+union of everything the module re-exports (interfaces, error classes, both repo adapter
+implementations, the mailer, the access resolver, the write/consent services), not composition logic
+`index.ts` performs itself. Splitting it further means splitting the *module*, not the barrel — out of
+scope for a graph-shape investigation. See §6.
 
 **#4-7 — `deployments/static-publish/index.ts`, `theme/index.ts`, `routing/index.ts`,
-`redirects/index.ts`** are the same pattern as #3 at smaller scale: each is a module's own barrel with
-non-trivial fanOut (20-87, not near-zero), meaning each holds real composition logic alongside
-re-exports (confirmed by line count vs. `export * from` ratio — `routing/index.ts` is 40 lines with
-**zero** `export from` statements yet fanOut=20, meaning it's *itself* the thing importing 20 things,
-not a pass-through). Same shape of proposal as #3: separate the composition/wiring logic from the
-public re-export surface. Not traced individually — same "not fully determined" flag as #3.
+`redirects/index.ts`** — **corrected**: all four are also pure barrels on the same test (verified
+directly against source, not just the flawed grep). `routing/index.ts` in particular looked like a
+worst case under the old single-line grep (0 matches for `export * from` / `export {.*} from` on one
+line) but is actually a single `export { ... } from "./routing.js"` block spanning lines 1-13 plus
+three more multi-line `export type { ... } from` blocks — 100% barrel, 0 declarations. See §6 for the
+full 151-file reclassification.
 
 **#8 — `src/server/http/site/render.ts` (delta 4, fanIn=275, fanOut=75)** is part of a second,
 smaller SCC: `render.ts`, `handlebars-sandbox.ts`, `liquid-sandbox.ts`, `worker-sandbox.ts` (4 files,
