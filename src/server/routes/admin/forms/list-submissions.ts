@@ -8,23 +8,32 @@ const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100;
 
-/** Parsed+validated `?limit=`/`?cursor=` pair, or the reason the limit failed validation. */
+/** Parsed+validated `?limit=`/`?cursor=` pair, or the reason validation failed. */
 type ParsedSubmissionsQuery =
   | { readonly ok: true; readonly limit: number; readonly cursor: string | undefined }
-  | { readonly ok: false };
+  | { readonly ok: false; readonly error: string; readonly field: string; readonly reason: string };
 
 /**
  * Parses and validates `?limit=`/`?cursor=` in one place — `limit` must be an integer in
- * `[MIN_LIMIT, MAX_LIMIT]`, defaulting to `DEFAULT_LIMIT` when omitted.
+ * `[MIN_LIMIT, MAX_LIMIT]`, defaulting to `DEFAULT_LIMIT` when omitted; `cursor`, if present, must
+ * be a string.
  *
  * @complexity O(1).
  */
 function parseSubmissionsQuery(query: Request["query"]): ParsedSubmissionsQuery {
   const rawLimit = query.limit !== undefined ? Number(query.limit) : DEFAULT_LIMIT;
   if (!Number.isInteger(rawLimit) || rawLimit < MIN_LIMIT || rawLimit > MAX_LIMIT) {
-    return { ok: false };
+    return {
+      ok: false,
+      error: `limit must be an integer between ${MIN_LIMIT} and ${MAX_LIMIT}`,
+      field: "limit",
+      reason: `must be ${MIN_LIMIT}-${MAX_LIMIT}`,
+    };
   }
-  return { ok: true, limit: rawLimit, cursor: typeof query.cursor === "string" ? query.cursor : undefined };
+  if (query.cursor !== undefined && typeof query.cursor !== "string") {
+    return { ok: false, error: "cursor must be a string", field: "cursor", reason: "must be a string" };
+  }
+  return { ok: true, limit: rawLimit, cursor: query.cursor as string | undefined };
 }
 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
@@ -63,9 +72,9 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
       const parsedQuery = parseSubmissionsQuery(req.query);
       if (!parsedQuery.ok) {
         res.status(400).json({
-          error: `limit must be an integer between ${MIN_LIMIT} and ${MAX_LIMIT}`,
+          error: parsedQuery.error,
           code: "FORMS_FIELD_VALIDATION_ERROR",
-          details: { fieldErrors: [{ field: "limit", reason: `must be ${MIN_LIMIT}-${MAX_LIMIT}` }] },
+          details: { fieldErrors: [{ field: parsedQuery.field, reason: parsedQuery.reason }] },
         });
         return;
       }
