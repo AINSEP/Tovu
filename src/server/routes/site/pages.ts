@@ -14,6 +14,7 @@ import {
   scanMenuEmbedIds,
   resolveActiveTheme,
   tokenStylesheetSentinel,
+  isStandaloneThemePage,
   type DiscoveredTheme,
   type StaticMenuItem,
 } from "#src/features/theme/index";
@@ -755,8 +756,13 @@ function resolveRequestedSlug(req: Request, next: NextFunction): string | undefi
 // chance to throw `PostNotFoundError` for a slug that was never meant to be a post in the first
 // place (it used to run inside the same `Promise.all` as the post lookup, so that throw
 // short-circuited straight past this check).
+//
+// The "is this page id actually its own public URL" half is `isStandaloneThemePage` (see its own
+// doc in `features/theme/theme.ts`) — shared with `export/route-manifest.ts` rather than respelled
+// here, which is what let this route serve `/blog-post` and `/404` as 200s while the exporter
+// correctly omitted both.
 function isMarketingPageSlug(theme: DiscoveredTheme, slug: string): boolean {
-  return theme.manifest.tier === "static" && slug !== "index" && theme.pages[slug] !== undefined;
+  return theme.manifest.tier === "static" && isStandaloneThemePage(theme, slug);
 }
 
 /** {@link resolveMarketingPageOrOverride}'s outcome — `"responded"` means the caller must send

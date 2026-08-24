@@ -4,7 +4,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import { listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
-import { resolveActiveTheme } from "#src/features/theme/index";
+import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
@@ -163,9 +163,10 @@ function buildThemePageRoutes(
   const shadowedSlugs = new Set<string>();
   if (theme.manifest.tier !== "static") return { routes, shadowedSlugs };
 
-  const templateShellStems = new Set((theme.manifest.templates ?? []).map((file) => file.replace(/\.html$/, "")));
   for (const pageId of Object.keys(theme.pages)) {
-    if (pageId === "index" || pageId === "404" || templateShellStems.has(pageId)) continue;
+    // `index`/`404`/template-shell exclusion, shared with the live `GET /:slug` resolver rather
+    // than respelled here — see `isStandaloneThemePage`'s own doc (`features/theme/theme.ts`).
+    if (!isStandaloneThemePage(theme, pageId)) continue;
 
     const collidingPost = postBySlug.get(pageId);
     if (collidingPost && collidingPost.overridesThemePage !== false) continue; // the post loop adds it instead.

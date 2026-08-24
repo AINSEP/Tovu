@@ -10,6 +10,7 @@ export {
   resolveTemplateId,
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,
+  isStandaloneThemePage,
   ENGINE_SUBFOLDERS,
   THEME_CATALOG_DIR,
   MARKETPLACE_CATALOG_DIR,
