@@ -67,8 +67,11 @@ import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
  * `"text/html"` — see that module's doc comment) are same-origin stored-XSS vectors if a browser
  * ever renders them inline. Kept as an explicit route-level check (rather than only trusting the
  * sniffer's own allowlist shape) so this invariant holds even if `content-type-sniffer.ts` is
- * later extended to recognize more textual formats. */
-const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
+ * later extended to recognize more textual formats.
+ *
+ * Exported (2026-08-24) — `routes/site/media-rendition.ts`'s public video-original route reuses
+ * this same check rather than re-declaring it, so the two routes' XSS defusal can't drift apart. */
+export const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
   "text/html",
   "application/xhtml+xml",
   "image/svg+xml",
@@ -79,11 +82,15 @@ const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
  * `null` — 404 for an unknown media id, 410 for a trashed one. Isolated so these three sequential
  * guards don't add to the handler's own branch count.
  *
+ * Exported (2026-08-24) — `routes/site/media-rendition.ts`'s public video-original route reuses
+ * this same lookup/guard sequence rather than re-implementing it (same "own it once, reuse
+ * everywhere" split this codebase already applies to `renderImageTag`/`renderWidgetMediaImage`).
+ *
  * @throws {Error} the same data-integrity-gap error the pre-extraction route threw, if the media row
  * exists but its source blob does not (see the inline comment at the throw site).
  * @complexity O(1) — two point lookups.
  */
-async function resolveMediaOriginalBlob(
+export async function resolveMediaOriginalBlob(
   deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">,
   res: Response,
   params: { workspaceId: string; mediaId: string }
@@ -113,9 +120,12 @@ async function resolveMediaOriginalBlob(
  * body. Isolated so the range-decision branching doesn't add to the handler's own branching — the
  * security reasoning for each header stays in the module doc above, not duplicated here.
  *
+ * Exported (2026-08-24) — see {@link resolveMediaOriginalBlob}'s doc for why the public
+ * video-original route reuses this instead of a second implementation.
+ *
  * @complexity O(1) aside from the byte copy for a partial range.
  */
-function sendMediaOriginalResponse(
+export function sendMediaOriginalResponse(
   res: Response,
   bytes: Uint8Array,
   range: ParsedRange,
