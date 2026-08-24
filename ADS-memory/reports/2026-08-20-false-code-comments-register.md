@@ -70,6 +70,43 @@ out of scope for that dispatch.
 
 ---
 
+### O3. `apps/admin/src/features/analytics/README.md` (line 12) — "no unit test"
+
+The README states, in bold: "`Analytics.tsx` has **no unit test**. Treat a change here as unverified
+until you have driven it in" the browser.
+
+**Why it is false:** `apps/admin/src/features/analytics/__tests__/Analytics.unit.test.tsx` exists and
+is a real suite — it ran green in this session (`cd apps/admin && npx vitest run
+src/features/analytics/__tests__/Analytics.unit.test.tsx
+src/features/analytics/__tests__/use-analytics.hooks.unit.test.ts` → 2 files, 14 tests passed, which
+also covers `use-analytics.hooks.unit.test.ts` in the same directory).
+
+**Why it matters more than a stale line:** this comment does not merely misdescribe the code, it
+instructs the reader to *skip a verification path that exists*. Someone following it does manual
+browser QA and never runs the suite that would have caught them.
+
+**Left open deliberately.** Found while fixing the in-memory copy (F6 below); fixing the README was
+outside that dispatch's scope. Whoever picks it up should re-count the tests at that moment rather
+than trusting a number in this entry.
+
+**Found:** `fix-analytics-copy` dispatch, 2026-08-24; both the false claim and the test file's
+existence re-verified independently by the coordinator before this entry was written.
+
+### O4. `apps/admin/src/features/analytics/analytics-i18n.ts` (line 2) — "Spanish translation"
+
+The `@file` block reads: "Spanish translation for the Analytics screen (`/admin/analytics`)".
+
+**Why it is false:** the file holds 21 locale blocks, not one — es, id, de, zh-CN, zh-TW, pt-BR, ru,
+fa, ar, ja, ko, pl, hu, fr, uk, tr, th, it, hi, ur, bn. Confirmed by counting locale keys in the file
+(21) and by the fact that a single key rewrite in this session had to be applied 21 times.
+
+**Why it is worth an entry at all** (it looks cosmetic): a reader who believes this file is
+Spanish-only will edit one block and ship, leaving 20 locales silently falling back to the English
+key — which is exactly the failure mode `dictionary-translator.ts` produces, since a missing key
+resolves to the raw key text rather than erroring.
+
+**Found:** same dispatch and same date as O3, re-verified by the coordinator.
+
 ## FIXED — recorded for the pattern, do not re-fix
 
 ### F1. `src/features/source-control/commit-site.ts` — the data-loss rationalization
@@ -141,6 +178,33 @@ Fixed in `99494a66`; the comment now names `members/tool-registrations.ts` expli
 `IdentityToolDeps` declares no such field.
 
 ---
+
+### F6. `apps/admin/src/features/analytics/Analytics.tsx` (notice copy + JSDoc header) — "sitting in memory"
+
+The on-screen notice told users their pageview data was "the most recent hits currently sitting in
+memory", and the file's own JSDoc header repeated it ("read straight off the in-memory ingest buffer
+(`LocalBufferSink`)").
+
+**Why it was false:** `src/server/deps.ts:766` binds `SqliteBufferSink`, whose adjacent comment
+already said "durable — survives a restart, closing the `LocalBufferSink.capabilities().durable`
+misreport". `LocalBufferSink` (`src/server/app.ts:520`) is reached only when `TOVU_DB=memory`
+(`src/index.ts:28`) — the in-memory dev path, not a real install.
+`src/db/sqlite/analytics-sink.sqlite.ts:91-118` confirms it: `accept()` inserts into a real
+`analyticsEvents` table with no eviction and no cap-and-drop.
+
+**Why this one is unusual:** it is a false comment that was *user-facing*. It did not mislead a
+maintainer into a bad edit — it told site owners their own analytics were more fragile than they are.
+The blast radius of a false claim rendered in the product is the userbase, not the next reader.
+
+**Fix:** `fix-analytics-copy` dispatch, 2026-08-24, commit `e3a9cb9d`. Notice rewritten to drop the
+storage claim entirely while keeping the genuine "no aggregation layer yet" limitation; JSDoc header
+rewritten with a note recording why the old claim was wrong, so it is not reintroduced.
+
+**Trap worth carrying forward:** the notice string doubles as its own i18n dictionary key, and
+`apps/admin/src/lib/dictionary-translator.ts` resolves a miss as `?? key` — silently rendering English
+rather than erroring. Renaming the key in `Analytics.tsx` alone would have quietly reverted all 21
+locales. The fix rewrote every locale block. **Any user-facing copy change in this app is a 21-file
+change, and the failure mode is silent.**
 
 ## 7 — `classify-coverage-gaps.ts:23-28` — invented citation, and a false ceiling
 
