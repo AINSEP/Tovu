@@ -1,6 +1,7 @@
 import { listMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaListResponse } from "#src/server/http/admin/media";
+import { resolveContentTypes } from "./content-type.js";
 import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
@@ -35,7 +36,7 @@ export const registerAdminMediaListRoute: MediaRouteRegistrar = (app, deps) => {
         deps: { mediaRepo: deps.mediaRepo },
         input: { workspaceId: deps.workspaceId },
       });
-      res.json(toAdminMediaListResponse(media));
+      res.json(toAdminMediaListResponse(media, await resolveContentTypes(deps, media)));
     } catch {
       res.status(500).json({ error: "internal error" });
     }

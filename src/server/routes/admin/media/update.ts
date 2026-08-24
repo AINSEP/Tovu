@@ -1,6 +1,7 @@
 import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
+import { readRecordedContentType } from "./content-type.js";
 import type { MediaRouteRegistrar } from "./deps.js";
 import { parseOptionalStringField } from "./parse.js";
 
@@ -77,7 +78,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
           ...parseMediaMetadataPatch(req.body),
         },
       });
-      res.json({ media: toAdminMediaResponse(media) });
+      res.json({ media: toAdminMediaResponse(media, await readRecordedContentType(deps, media.source.sha256)) });
     } catch (err) {
       if (err instanceof MediaNotFoundError) {
         res.status(404).json({ error: err.message });

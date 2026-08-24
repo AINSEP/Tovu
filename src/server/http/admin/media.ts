@@ -26,6 +26,17 @@ export interface AdminMediaResponse {
   width: number | null;
   height: number | null;
   cssClass: string | null;
+  /**
+   * The asset's real media type — always `sniffContentType(bytes)` from the stored bytes, never
+   * the client's declared upload string (see `media/content-type-store.ts` for why). Drives the
+   * admin Media screen's "Images"/"Videos" tabs.
+   *
+   * `null` means "not sniffed yet", NOT "unknown format" — an unrecognized blob reports the real
+   * answer `"application/octet-stream"`. A `null` is only ever seen for a blob whose bytes could
+   * not be read at list time; the list route backfills every other pre-existing row on read. The
+   * admin UI must keep `null` rows visible somewhere rather than filtering them into oblivion.
+   */
+  contentType: string | null;
 }
 
 export interface AdminMediaEnvelope {
@@ -37,10 +48,17 @@ export interface AdminMediaListEnvelope {
 }
 
 /**
+ * `contentType` is a REQUIRED second parameter rather than an optional one with a `null` default:
+ * it cannot be derived from `MediaRecord` (the upstream `@jini-ai/cms` type has no such field —
+ * it is looked up per-blob from `MediaContentTypeStorePort`), and a default would let a caller
+ * that simply forgot to look it up silently emit `null`, which the admin UI reads as the specific
+ * claim "this blob's bytes were unreadable". Making it explicit forces each of the four routes to
+ * state what it actually knows.
+ *
  * @complexity O(1).
  * @overallScore 100
  */
-export function toAdminMediaResponse(media: MediaRecord): AdminMediaResponse {
+export function toAdminMediaResponse(media: MediaRecord, contentType: string | null): AdminMediaResponse {
   return {
     id: media.id,
     workspaceId: media.workspaceId,
@@ -56,9 +74,22 @@ export function toAdminMediaResponse(media: MediaRecord): AdminMediaResponse {
     width: media.width,
     height: media.height,
     cssClass: media.cssClass,
+    contentType,
   };
 }
 
-export function toAdminMediaListResponse(media: MediaRecord[]): AdminMediaListEnvelope {
-  return { media: media.map(toAdminMediaResponse) };
+/**
+ * @param contentTypesBySha256 - Recorded types keyed by blob sha256, as
+ * `MediaContentTypeStorePort.getMany` returns them. A sha256 ABSENT from this map becomes a `null`
+ * `contentType` on that row — the map's "absent means not sniffed yet" contract carried through to
+ * the wire shape.
+ * @complexity O(n) in `media.length` — the map lookup per row is O(1).
+ */
+export function toAdminMediaListResponse(
+  media: MediaRecord[],
+  contentTypesBySha256: ReadonlyMap<string, string>
+): AdminMediaListEnvelope {
+  return {
+    media: media.map((item) => toAdminMediaResponse(item, contentTypesBySha256.get(item.source.sha256) ?? null)),
+  };
 }

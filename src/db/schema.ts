@@ -1214,6 +1214,31 @@ export const assetBlobs = sqliteTable(
     createdAt: text("created_at").notNull(),
     status: text("status").notNull(),
     tombstonedAt: text("tombstoned_at"),
+    /**
+     * The blob's real media type, as `sniffContentType(bytes)` (`@jini-ai/cms/media`'s
+     * `content-type-sniffer.ts`) reports it — NEVER the client's upload-time `contentType` string.
+     * `uploadMedia` validates that string against an advisory allowlist and then discards it, and
+     * `routes/admin/media/original.ts` already refuses to trust it when setting a response's
+     * `Content-Type`; storing the declared string here would let the admin's "Images"/"Videos"
+     * filter disagree with the bytes the browser is actually served.
+     *
+     * Lives on THIS table, not on `media`: the type is a property of the BYTES, and this is the
+     * sha256-keyed table, so blob dedup makes two library entries sharing one blob share one
+     * recorded type for free.
+     *
+     * Nullable, and `null` means exactly "not sniffed yet", never "unknown format" — an
+     * unrecognized blob records the sniffer's own `application/octet-stream`, which is a real
+     * answer. The column is a CACHE of a pure function of bytes we already store, so a `null`
+     * (a row written before this column existed) is always recoverable by re-sniffing rather than
+     * lost data — `routes/admin/media/list.ts` backfills them on read.
+     *
+     * WRITE PATH WARNING: `db/sqlite/media-repo.sqlite.ts`'s `SqliteAssetBlobRepo.save()` builds an
+     * explicit `values` object and `.set()`s all of it on update. This column is deliberately
+     * EXCLUDED from that update object — `AssetBlobRecord` (the frozen upstream port type) has no
+     * field for it, so including it would write `null` back on every blob resurrect. See that
+     * method's own comment.
+     */
+    contentType: text("content_type"),
   },
   (table) => [uniqueIndex("idx_asset_blobs_workspace_sha256").on(table.workspaceId, table.sha256)]
 );

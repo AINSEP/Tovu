@@ -119,6 +119,9 @@ export {
   type MediaAgentToolDefinition as AgentToolDefinition,
 } from "@jini-ai/cms/media";
 
+export type { MediaContentTypeStorePort } from "./content-type-store.js";
+export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
+
 export type { MediaProviderCredentialRepoPort } from "./provider-credential-store.js";
 export {
   MediaProviderCredentialSecretStoreUnconfiguredError,

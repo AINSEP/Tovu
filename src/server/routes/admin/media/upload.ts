@@ -1,4 +1,4 @@
-import { MediaValidationError, uploadMedia } from "#src/media/index";
+import { MediaValidationError, sniffContentType, uploadMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps.js";
@@ -116,7 +116,20 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
         },
       });
 
-      res.status(201).json({ media: toAdminMediaResponse(media) });
+      // Record what the bytes ACTUALLY are, not the `contentType` the client declared. Both
+      // `uploadMedia`'s allowlist check above and `original.ts`'s serving path already treat that
+      // declared string as untrusted (see this repo's `original.ts` file header: "`Content-Type`
+      // is NEVER the client's upload-time string"), so the admin's type filter must agree with the
+      // sniffed answer or an operator's "Images" tab would disagree with what their browser is
+      // served. Written AFTER `uploadMedia` because the blob row it updates is created there.
+      const sniffedContentType = sniffContentType(bytes);
+      await deps.mediaContentTypeStore.set({
+        workspaceId: deps.workspaceId,
+        sha256: media.source.sha256,
+        contentType: sniffedContentType,
+      });
+
+      res.status(201).json({ media: toAdminMediaResponse(media, sniffedContentType) });
     } catch (err) {
       if (err instanceof MediaValidationError) {
         res.status(400).json({ error: err.message });
