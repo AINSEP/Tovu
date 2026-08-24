@@ -70,7 +70,28 @@ out of scope for that dispatch.
 
 ---
 
-### O3. `apps/admin/src/features/analytics/README.md` (line 12) — "no unit test"
+### O5. Twelve admin `*-i18n.*` files all claim "@file Spanish translation"
+
+`grep -rln "@file Spanish translation" apps/admin/src` returns **12** files: database, plugins,
+workspace, recovery, roles, integrations, redirects, users, members, seo, themes, and
+`lib/admin-nav-i18n.ts`.
+
+**Why it is false:** every one of them holds many locales, not one. `database-i18n.tsx` alone holds
+43. F8 below fixed exactly this claim in `analytics-i18n.ts` and established the cause: the header
+was accurate when each dictionary held a single locale, and the commit that added the rest never
+touched it. This is that same falsehood, copy-pasted across the feature tree.
+
+**Why it is worth fixing rather than shrugging at:** it is the leading indicator for the trap in F8.
+A maintainer who believes one of these files is Spanish-only edits one block and ships, and the other
+20-42 locales silently render the raw English key — `lib/dictionary-translator.ts` resolves a miss as
+`?? key`, so there is no error and no failing test.
+
+**Left open deliberately.** Found 2026-08-24 while fixing F7/F8; the session's approved scope was the
+two analytics files only. It is a 12-file mechanical header fix with no behavior change.
+
+## FIXED — recorded for the pattern, do not re-fix
+
+### F7. `apps/admin/src/features/analytics/README.md` (line 12) — "no unit test"
 
 The README states, in bold: "`Analytics.tsx` has **no unit test**. Treat a change here as unverified
 until you have driven it in" the browser.
@@ -104,14 +125,14 @@ author concurrently writing the thing it denies. That matters practically: the u
 heuristic — "check whether the comment predates the code it describes" — would **not** have caught
 it. It predates nothing. Only reading the sibling directory does.
 
-**Left open deliberately.** Found while fixing the in-memory copy (F6 below); fixing the README was
-outside that dispatch's scope. Whoever picks it up should re-count the tests at that moment rather
-than trusting a number in this entry.
+**Fix:** 2026-08-24. README now names both suites with their real counts (7 + 7) and the command to
+run them, and carries the 21-locale copy-change warning that the old text's "drive it in a browser"
+advice actively worked against.
 
 **Found:** `fix-analytics-copy` dispatch, 2026-08-24; both the false claim and the test file's
 existence re-verified independently by the coordinator before this entry was written.
 
-### O4. `apps/admin/src/features/analytics/analytics-i18n.ts` (line 2) — "Spanish translation"
+### F8. `apps/admin/src/features/analytics/analytics-i18n.ts` (line 2) — "Spanish translation"
 
 The `@file` block reads: "Spanish translation for the Analytics screen (`/admin/analytics`)".
 
@@ -140,9 +161,13 @@ header untouched; `62b32204` (2026-08-10) took it to 21, likewise. The header ha
 `8d800679` — and note that the commit which falsified it *announces the falsification in its own
 subject line*.
 
-**Found:** same dispatch and same date as O3, re-verified by the coordinator.
+**Fix:** 2026-08-24. Header now names all 21 locales, records that it was accurate at `300406e7`
+(one locale) and falsified by `8d800679` (added 17 more, header untouched), and states the `?? key`
+silent-fallback trap inline.
 
-## FIXED — recorded for the pattern, do not re-fix
+**Found:** same dispatch and same date as F7, re-verified by the coordinator.
+
+
 
 ### F1. `src/features/source-control/commit-site.ts` — the data-loss rationalization
 
