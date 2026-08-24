@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -6,6 +6,7 @@ import { Database } from "../Database";
 import type { TimelineSectionController } from "../hooks/use-timeline-section.hooks";
 import type { RestorePointsSectionController } from "../hooks/use-restore-points-section.hooks";
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
+import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
 import { navigate } from "../../../lib/router";
 import type { AdminLedgerRow, AdminRestorePoint } from "../../../lib/api";
 
@@ -31,10 +32,11 @@ import type { AdminLedgerRow, AdminRestorePoint } from "../../../lib/api";
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
 
-const { timelineRef, restorePointsRef, migrateForwardRef } = vi.hoisted(() => ({
+const { timelineRef, restorePointsRef, migrateForwardRef, schemaStateRef } = vi.hoisted(() => ({
   timelineRef: { current: null as unknown },
   restorePointsRef: { current: null as unknown },
   migrateForwardRef: { current: null as unknown },
+  schemaStateRef: { current: null as unknown },
 }));
 
 vi.mock("../hooks/use-timeline-section.hooks", async (importOriginal) => {
@@ -48,6 +50,10 @@ vi.mock("../hooks/use-restore-points-section.hooks", async (importOriginal) => {
 vi.mock("../hooks/use-migrate-forward-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-migrate-forward-section.hooks")>();
   return { ...actual, useWiredMigrateForwardSection: () => migrateForwardRef.current };
+});
+vi.mock("../hooks/use-schema-state-section.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/use-schema-state-section.hooks")>();
+  return { ...actual, useWiredSchemaStateSection: () => schemaStateRef.current };
 });
 
 const ROW: AdminLedgerRow = {
@@ -119,25 +125,35 @@ function migrateForwardController(overrides: Partial<MigrateForwardSectionContro
   };
 }
 
+/** Defaults to the SETTLED-AND-CLEAN state (`warning: null`, `settled: true`) so every pre-existing
+ *  test in this file renders no drift banner and keeps asserting exactly what it always did. */
+function schemaStateController(overrides: Partial<SchemaStateSectionController> = {}): SchemaStateSectionController {
+  return { warning: null, settled: true, t: (k: string) => k, ...overrides };
+}
+
 function renderDatabase(overrides: {
   timeline?: Partial<TimelineSectionController>;
   restorePoints?: Partial<RestorePointsSectionController>;
   migrateForward?: Partial<MigrateForwardSectionController>;
+  schemaState?: Partial<SchemaStateSectionController>;
 } = {}) {
   const t = timelineController(overrides.timeline);
   const r = restorePointsController(overrides.restorePoints);
   const m = migrateForwardController(overrides.migrateForward);
+  const s = schemaStateController(overrides.schemaState);
   timelineRef.current = t;
   restorePointsRef.current = r;
   migrateForwardRef.current = m;
+  schemaStateRef.current = s;
   render(<Database />);
-  return { timeline: t, restorePoints: r, migrateForward: m };
+  return { timeline: t, restorePoints: r, migrateForward: m, schemaState: s };
 }
 
 beforeEach(() => {
   timelineRef.current = timelineController();
   restorePointsRef.current = restorePointsController();
   migrateForwardRef.current = migrateForwardController();
+  schemaStateRef.current = schemaStateController();
 });
 
 describe("page shell", () => {
@@ -383,5 +399,79 @@ describe("MigrateForwardSection — idle/planned/confirmed/done", () => {
   it("disables Reset while busy", () => {
     renderDatabase({ migrateForward: { step: "planned", plan: { planId: "plan1", planHash: "hash1" }, busy: true } });
     expect(screen.getByRole("button", { name: "Reset" })).toBeDisabled();
+  });
+});
+
+describe("drift warning", () => {
+  /**
+   * The gap this section closes: `src/db/drift.ts` could classify a database as diverged, and
+   * nothing anywhere ever showed that to a person. These assertions are about VISIBILITY — that
+   * the banner reaches the accessibility tree with an alert role, ahead of the screen's content,
+   * and that silence is reserved for a confirmed-clean read.
+   */
+  it("renders nothing at all when the check came back clean", () => {
+    renderDatabase({ schemaState: { warning: null, settled: true } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("renders nothing before the first check settles, rather than a premature verdict", () => {
+    renderDatabase({ schemaState: { warning: null, settled: false } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("announces a diverged database as an alert carrying both the headline and the explanation", () => {
+    renderDatabase({
+      schemaState: {
+        warning: {
+          tone: "error",
+          title: "Your database does not match the software running this site",
+          body: "This site's data was set up by a different version of the software than the one running now. Saving changes may not work correctly. Check with whoever manages this site before making further changes.",
+        },
+      },
+    });
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Your database does not match the software running this site");
+    expect(alert).toHaveTextContent("Saving changes may not work correctly.");
+  });
+
+  it("carries the error tone's class for a diverged database and the warning tone's class otherwise", () => {
+    renderDatabase({ schemaState: { warning: { tone: "error", title: "T", body: "B" } } });
+    expect(screen.getByRole("alert").className).toContain("error");
+
+    cleanup();
+    renderDatabase({ schemaState: { warning: { tone: "warning", title: "T", body: "B" } } });
+    expect(screen.getByRole("alert").className).toContain("warning");
+  });
+
+  it("shows the could-not-check warning too — an unanswered check is never silent", () => {
+    renderDatabase({
+      schemaState: {
+        warning: {
+          tone: "warning",
+          title: "We could not check your database",
+          body: "This check did not finish, so we cannot tell whether your database is up to date. Try reloading the page.",
+        },
+      },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("We could not check your database");
+  });
+
+  it("puts the banner before the Timeline, so it is read before the content it is a warning about", () => {
+    renderDatabase({ schemaState: { warning: { tone: "error", title: "Something is wrong", body: "Details here." } } });
+
+    const alert = screen.getByRole("alert");
+    const heading = screen.getByRole("heading", { name: "Restore points" });
+    expect(alert.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("routes its copy through the section's own bound translator", () => {
+    const translate = vi.fn((key: string) => (key === "Shout" ? "TRANSLATED" : key));
+    renderDatabase({
+      schemaState: { warning: { tone: "warning", title: "Shout", body: "Body" }, t: translate },
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("TRANSLATED");
+    expect(translate).toHaveBeenCalledWith("Shout");
   });
 });

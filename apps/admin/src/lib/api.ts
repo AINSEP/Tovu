@@ -1170,6 +1170,26 @@ export interface AdminRestorePointSummary {
   kind: string;
 }
 
+/** Database — schema drift (ADR-041 §3). Mirrors `src/db/drift.ts`'s `DriftStatus`, plus the
+ *  `"unknown"` the server adds whenever either side of the comparison is unavailable. Kept as the
+ *  full five-value union rather than a boolean precisely so `"unknown"` cannot be silently folded
+ *  into either "fine" or "broken" — see `features/database/rules.ts`'s `resolveSchemaStateWarning`. */
+export type AdminSchemaDriftStatus = "in-sync" | "ahead" | "behind" | "diverged" | "unknown";
+
+/** One side of the drift comparison. Mirrors `src/db/drift.ts`'s `SchemaSnapshot`. */
+export interface AdminSchemaSnapshot {
+  version: number;
+  tag: string;
+}
+
+/** Mirrors `features/database/adapter.sqlite.ts`'s `SchemaStateSummary`. Either snapshot may be
+ *  `null` independently, which is exactly when `status` is `"unknown"`. */
+export interface AdminSchemaState {
+  status: AdminSchemaDriftStatus;
+  siteMeta: AdminSchemaSnapshot | null;
+  runtime: AdminSchemaSnapshot | null;
+}
+
 /** Recovery (ADR-045) — mirrors `features/recovery/disclosure.ts`'s `DisclosureResult`. */
 export type CategoryCount = number | "unknown";
 
@@ -2538,6 +2558,9 @@ export const api = {
       `/database/timeline${qs ? `?${qs}` : ""}`
     );
   },
+  /** ADR-041 §3 — this site's drift classification. Read-only: there is deliberately no matching
+   *  write/repair call, and the server exposes none. */
+  getDatabaseSchemaState: () => request<AdminSchemaState>("/database/schema-state"),
   listDatabaseRestorePoints: () => request<{ items: AdminRestorePoint[] }>("/database/restore-points"),
   createDatabaseRestorePoint: (options: { trigger?: string; costAck?: boolean } = {}) =>
     request<{ restorePoint: AdminRestorePointSummary }>("/database/restore-points", {

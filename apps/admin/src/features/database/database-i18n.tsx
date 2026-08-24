@@ -5,6 +5,12 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
  * @file Spanish translation for the Database screen (`/admin/database`) — filter bar, table
  * headers, section headings, button/status labels, and the migrate-forward ceremony copy.
  *
+ * DRIFT-WARNING KEYS ARE `es`-ONLY (2026-08-24, deliberate): the ten `resolveSchemaStateWarning`
+ * strings added below exist in `es` and nowhere else, unlike every other key here. They are
+ * safety-critical copy about data integrity, and `createDictionaryTranslator` falls back to the
+ * English key for any locale that lacks an entry — so an untranslated locale shows accurate
+ * English rather than a guess. Filling in the other locales is a translation task, not a code one.
+ *
  * Same "resolve outside React context" shape `../../lib/admin-nav-i18n.ts` and
  * `SettingsUi.tsx`'s own `const t` use: a plain lookup fed by the locale this page reads via
  * `loadLanguage()`, not an ambient `I18nProvider` (there is none outside the Settings dialog's own
@@ -57,6 +63,26 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load restore points": "no se pudieron cargar los puntos de restauración",
     "Failed to create restore point": "No se pudo crear el punto de restauración",
     "failed to load the Database Timeline": "no se pudo cargar la cronología de la base de datos",
+    // Drift warning (2026-08-24, `rules.ts`'s `resolveSchemaStateWarning` — see the note above
+    // `DATABASE_DICT` on why these ten keys are `es`-only for now).
+    "Your database does not match the software running this site":
+      "Tu base de datos no coincide con el software que ejecuta este sitio",
+    "This site's data was set up by a different version of the software than the one running now. Saving changes may not work correctly. Check with whoever manages this site before making further changes.":
+      "Los datos de este sitio fueron configurados por una versión del software distinta de la que se está ejecutando ahora. Es posible que los cambios no se guarden correctamente. Consulta con quien administra este sitio antes de hacer más cambios.",
+    "Your database is newer than the software running this site":
+      "Tu base de datos es más reciente que el software que ejecuta este sitio",
+    "This site's data was set up by a newer version of the software than the one running now. Some features may not work until this site is updated.":
+      "Los datos de este sitio fueron configurados por una versión más reciente del software que la que se está ejecutando ahora. Es posible que algunas funciones no funcionen hasta que se actualice este sitio.",
+    "Your database is out of date": "Tu base de datos está desactualizada",
+    "The software running this site is newer than the setup of this site's data. Use Migrate forward below to bring it up to date.":
+      "El software que ejecuta este sitio es más reciente que la configuración de los datos de este sitio. Usa Migrar hacia adelante más abajo para actualizarla.",
+    "We could not check your database": "No pudimos comprobar tu base de datos",
+    "One of the two records we compare is missing, so we cannot tell whether your database is up to date. That is not itself a sign of a problem — but nothing has been confirmed either.":
+      "Falta uno de los dos registros que comparamos, así que no podemos saber si tu base de datos está actualizada. Eso no es en sí una señal de problema, pero tampoco se ha confirmado nada.",
+    "This check did not finish, so we cannot tell whether your database is up to date. Try reloading the page.":
+      "Esta comprobación no se completó, así que no podemos saber si tu base de datos está actualizada. Intenta recargar la página.",
+    "This site reported a status this version of the admin does not recognise, so we cannot tell whether your database is up to date.":
+      "Este sitio informó un estado que esta versión del panel de administración no reconoce, así que no podemos saber si tu base de datos está actualizada.",
   },
   id: {
     Outcome: "Hasil",

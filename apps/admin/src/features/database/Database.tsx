@@ -5,6 +5,7 @@ import { DataTable } from "@jini-ai/admin/react";
 import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
 import { useWiredRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
 import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
+import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t, planReadyMessage } from "./database-i18n";
 
@@ -20,9 +21,16 @@ import { t, planReadyMessage } from "./database-i18n";
  * The migrate-forward plan/confirm/execute ceremony (ADR-041 §3, SPEC-017 C-103/C-105) is now
  * wired to the real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure).
  *
+ * The DRIFT BANNER now exists (2026-08-24, `SchemaStateWarningBanner` below), backed by the new
+ * `GET /api/admin/v1/database/schema-state` route. It was previously listed here as having "no
+ * route yet": `src/db/drift.ts`'s `getDriftStatus` had been built and correct for some time, but
+ * its only caller was the `database_get_schema_state` AGENT tool, so a site owner whose database
+ * had diverged had no surface that would ever tell them. Read-only — it reports, and offers no
+ * repair action of its own; migrate-forward below remains the only write path.
+ *
  * Still disclosed, still omitted (per design-spec.md §3.8/§5 and progress-ledger.md "Session 5"):
- * the drift banner, the `PENDING_MIGRATION` boot banner, and the Tier-3 browser have no route yet
- * — this screen omits them rather than rendering dead affordances.
+ * the `PENDING_MIGRATION` boot banner and the Tier-3 browser have no route yet — this screen omits
+ * them rather than rendering dead affordances.
  *
  * `Database` itself has no hook of its own (no single fetch/state this top-level shell owns), so it
  * keeps calling `useAdminLocale()`/`database-i18n`'s `t` directly for its own header text — per the
@@ -370,6 +378,38 @@ function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateF
   );
 }
 
+export interface SchemaStateWarningBannerProps {
+  /** Same dependency-injection seam as the three sections above. */
+  useSchemaStateSectionHook?: typeof useWiredSchemaStateSection;
+}
+
+/**
+ * The drift warning — the screen's only always-on health statement, so it renders ABOVE the
+ * Timeline rather than inside any section.
+ *
+ * Renders nothing at all when {@link useWiredSchemaStateSection} reports no warning. That silence
+ * is load-bearing and narrow: `rules.ts`'s `resolveSchemaStateWarning` only yields `null` for a
+ * confirmed-clean read or a check that has not finished yet. Every other outcome — including "the
+ * check failed" and "the comparison was incomplete" — arrives here as a real warning, because an
+ * absent banner on this screen reads as "your database is fine".
+ *
+ * `role="alert"` rather than a plain `div`: this is unsolicited, it appears after load, and it can
+ * change the meaning of everything below it, which is exactly the case the role exists for.
+ * `warning.tone` selects between `.notice.error` and `.notice.warning`, both already in
+ * `styles.css` — no new CSS.
+ */
+function SchemaStateWarningBanner({ useSchemaStateSectionHook = useWiredSchemaStateSection }: SchemaStateWarningBannerProps) {
+  const { warning, t } = useSchemaStateSectionHook();
+  if (!warning) return null;
+
+  return (
+    <div className={`notice ${warning.tone} database-drift-banner`} role="alert">
+      <strong>{t(warning.title)}</strong>
+      <p>{t(warning.body)}</p>
+    </div>
+  );
+}
+
 export function Database() {
   const locale = useAdminLocale();
   return (
@@ -383,6 +423,7 @@ export function Database() {
           </p>
         </div>
       </div>
+      <SchemaStateWarningBanner />
       <TimelineSection />
       <RestorePointsSection />
       <MigrateForwardSection />
