@@ -1,0 +1,310 @@
+# CONTEXT PACKET — Tovu Extension Surface Architecture
+
+You are a peer participant in a multi-model architecture debate. This packet is self-contained:
+assume no access to the repository. Every fact below was verified against source on 2026-08-20.
+
+---
+
+## The product
+
+**Tovu** is an AI-native CMS. Node/TypeScript, ESM. It renders and publishes real websites
+(unlike Directus, which is headless). Its differentiator: the whole CMS is drivable by an AI
+agent through 25 domain tool catalogs, each permissioned, audited, and revertable via change-sets.
+
+Admin UI is React (`apps/admin`, browser-side). **The published site is NOT React** — it is
+server-built HTML strings. There is zero `react-dom/server` in the codebase.
+
+**Five theme tiers** (`src/features/theme/theme.ts:40`):
+`declarative` (JSON block trees) | `templated` (LiquidJS) | `handlebars` | `static` (plain HTML) |
+`code` (reserved, unbuilt).
+
+---
+
+## The problem
+
+Tovu has **two parallel extension mechanisms**, described below without prejudice as to whether
+that is a problem or a reasonable separation — that is Q-A, and it is yours to decide.
+
+### Mechanism A — `plugin-runtime` (marketplace-facing)
+
+Capability vocabulary (`src/features/plugin-runtime/manifest.ts:124`) — **three**:
+```
+content.read   content.extend   hooks.attach
+```
+One hook point only: `content.entry.beforeSave`.
+
+Has, and B does not:
+- `tovu.plugin.json` manifest with required-field validation, collect-all errors
+- **Per-file SHA-256 integrity verification before code is ever imported** (`loader.ts:167`).
+  A binding constraint orders integrity + SDK-range checks strictly before dynamic `import()`.
+- **Trust tiers** `tier-1|tier-2|tier-3` (ADR-024)
+- **Quarantine**: 3 consecutive filter failures auto-detaches the plugin
+- Capability-scoped SDK: every ungranted surface is a present callable that throws a typed
+  `CapabilityDeniedError` — never an absent property (deliberate; absence would produce an
+  uncatchable `TypeError`)
+- Durable activation state, admin routes, agent tools
+
+### Mechanism B — `site-glue` (first-party only)
+
+Capability vocabulary (`src/features/site-glue/capability-gate.ts:52`) — **eight**:
+```
+content.read      content.extend      hooks.attach       tools.register
+events.subscribe  admin.nav.register  render.contribute  http.route.register
+```
+
+Call-site dispatch table (ADR-057) — **3 wired, 3 typed placeholders**:
+
+| Call site | Adapter | State |
+|---|---|---|
+| `content.entry.beforeSave` | `attachment-points/content-lifecycle.ts` | wired |
+| `assistant.tools` | `attachment-points/tool-registration.ts` | wired |
+| `events.subscribe` | `attachment-points/events.ts` | wired |
+| `admin.nav` | — | placeholder |
+| `render.contribute` | — | placeholder |
+| `http.routes` | — | placeholder |
+
+The manifest's own comment: *"Wiring a fourth is 'add one member here,' never a manifest-schema
+change."*
+
+Has **no** tiers, **no** integrity hashing (skipped by design), **no** quarantine, **no**
+marketplace path.
+
+---
+
+## Existing assets that may or may not be relevant
+
+These are stated as facts, not as recommendations. Judge for yourself whether each is a foundation
+to build on or a thing to route around.
+
+**1. A generic worker sandbox, currently used only for Liquid.**
+`src/server/http/site/liquid-sandbox.ts` spawns a fresh `node:worker_threads` Worker per render
+with a wall-clock timeout and V8 heap `resourceLimits`. `worker_threads` was chosen over
+`isolated-vm` (native compilation) and `vm2` (escape CVEs). **Only the worker's entry file is
+Liquid-specific.** The isolation mechanism is general-purpose JS isolation.
+
+**2. A closed component registry that two template engines already resolve against.**
+`src/server/http/site/render.ts:1226`:
+```ts
+export const COMPONENTS: Record<string, Component> = {
+  "tovu/site-header": …, "tovu/hero": …, "tovu/entry-list": …, /* 12 total */
+};
+```
+Reached by `{% render_block component: "tovu/site-header" %}` (Liquid tag, allowlisted at
+`liquid-allowlist.ts:45`) and by a Handlebars helper of the same name — the *only* allowed
+Handlebars helper. It is a hardcoded object literal with no extension seam.
+
+**3. A generic embed marker with one shared parser.**
+`src/core/embeds/marker.ts` — `data-embed-config='{"type":"menu","id":"docs-nav"}'`. Single
+attribute carrying JSON, single-quoted so inner JSON needs no escaping. Replaced four drifting
+scanners in a 2026-08-10 unification. Settled rules: id-authoritative resolution, exactly-one-match
+or degrade to placeholder, registry keyed type→resolver, unknown type → placeholder never raw,
+**genericity belongs in the scanner not the renderer** (a generic renderer was rejected as a
+security hole; each resolver escapes its own output).
+
+**4. Liquid templating already renders storefronts.**
+`src/themes/templated/storefront/render/pages/products.liquid` loops products and prints
+`{{ product.title }}`, `{{ product.priceFormatted }}`. Rendered sandboxed, `outputEscape: "escape"`
+on by default, tag/filter allowlist enforced at load and re-checked inside the worker.
+
+**5. Plugin-owned database tables.** `src/features/plugins/data-module.ts` — core-mediated DDL,
+snapshot-protected, single-transaction, additive/idempotent, never drops on disable. Refuses
+`tier-1` outright because the feature requires executable code (`:413`) — the only place `tier` is
+currently enforced anywhere.
+
+---
+
+## Verified gap vs WordPress and Directus
+
+**Blocking — designed vocabulary, no adapter:**
+
+| Gap | Blocks |
+|---|---|
+| `render.contribute` | every front-end plugin |
+| `admin.nav` | every admin plugin |
+| `http.routes` | integrations, webhooks, OAuth callbacks |
+
+**Missing entirely — no vocabulary at all:**
+
+| Gap | WP | Directus |
+|---|---|---|
+| Scheduled jobs / cron | `wp_cron` | yes |
+| Custom field editors | yes | `interface` — their flagship |
+| Custom field displays | yes | `display` |
+| Admin dashboard panels | yes | `panel` |
+| Collection layouts | — | `layout` |
+| Plugin i18n / translations | yes | yes |
+| Automation / flow steps | — | `operation` |
+
+**Where Tovu is ahead:** agent-driven CMS with permissioned+audited+revertable tool calls
+(neither has it); renders the actual site (Directus doesn't); sandboxed template execution;
+a tiered plugin trust model.
+
+---
+
+## Constraints — already decided by the owner, DO NOT re-litigate
+
+1. **Tier-3 (full in-process access) IS listable in the public marketplace.** This deliberately
+   reverses ADR-024 §2. The install-consent screen becomes the primary user protection.
+2. **Signing is currently a string comparison, not cryptography**
+   (`src/features/plugins/plugin-identity.ts:20`, stated in its own header). Any manifest can
+   claim `publisher: "Microsoft"`. With constraint 1, this is on the critical path.
+3. **Plugin folder layout:** `tovu.plugin.json` + `css/` `script/` `assets/` `hooks/` `admin/`
+   `server/`. (`assets/` = images/video.)
+4. **The embed attribute stays `data-embed-config`.** No second attribute. Plugin embeds use
+   `{"type":"plugin","plugin":"<id>", …}`.
+5. **Tier-2 isolation must NOT be tied to Liquid.** The worker sandbox is reusable; LiquidJS is
+   not part of the plugin contract.
+6. Hook/slot names are provisional and expected to change.
+
+---
+
+## The question to answer
+
+**How should Tovu's extension surface be structured and built?**
+
+Optimize for, in priority order:
+1. **AI-legibility** — an LLM should be able to read the extension contract and author a working
+   plugin without reading Tovu's source. Assume AI authors most plugins.
+2. **Flexibility for a future that will change** — new extension kinds must be additive.
+3. **Modularity and architectural soundness.**
+4. **Shipping order** — what to build first.
+
+Address specifically:
+
+**Q-A. Merge or separate?** Should `plugin-runtime` and `site-glue` become one system? If merged,
+what is the join — is tier the gate on which capabilities may be requested, or something else?
+If separate, what is the principled boundary?
+
+**Q-B. What does `render.contribute` return?** The published site has five non-React tiers. A
+contributed UI must work in declarative JSON trees, Liquid, Handlebars, and static HTML. Options
+include: an HTML string; a `Component` descriptor matching the existing registry shape; a JSON
+block-tree node; adding React SSR as a sixth tier; web components. Justify against the
+"genericity belongs in the scanner, not the renderer" rule already settled here.
+
+**Q-C. What is the extension-kind taxonomy?** Directus uses closed kinds (`interface`, `display`,
+`layout`, `panel`, `module`, `hook`, `endpoint`, `operation`). WordPress uses open-ended
+actions/filters. Tovu currently uses capability strings. Which model, and what is the full
+proposed vocabulary?
+
+**Answer this row by row.** Reproduce the table below and fill in every line — the extension kind
+or capability string you propose, and which tier may request it. A taxonomy that skips rows is a
+non-answer; if you believe a row should be deliberately excluded, say so and justify it.
+
+| Gap | Your proposed kind/capability | Min tier | Notes |
+|---|---|---|---|
+| `render.contribute` (front-end UI) | | | |
+| `admin.nav` (admin navigation) | | | |
+| `http.routes` (custom API endpoints) | | | |
+| Scheduled jobs / cron | | | |
+| Custom field editors (Directus `interface`) | | | |
+| Custom field displays (Directus `display`) | | | |
+| Admin dashboard panels (Directus `panel`) | | | |
+| Collection layouts (Directus `layout`) | | | |
+| Plugin i18n / translations | | | |
+| Automation / flow steps (Directus `operation`) | | | |
+
+For `http.routes` specifically, address path-collision policy, authentication, and rate limiting.
+For cron, address how scheduling works in Tovu's deployment model (a single Docker container, no
+external scheduler).
+
+**Q-D. How is the contract made machine-readable?** WordPress's fatal flaw is that
+`do_action('name')` calls are scattered across a thousand files, so no tool can enumerate the
+hooks. What should Tovu publish, in what form, so an AI can discover the full extension surface?
+(Tovu has a `tovu introspect --format mcp` CLI surface today.)
+
+**Q-F. How does a plugin contribute UI into the React admin?** This is a DIFFERENT problem from
+Q-B and must not be answered by reference to it. The published site is not React; the admin app
+(`apps/admin`) is. Five of the ten gaps above are all instances of this one question —
+`admin.nav`, custom field editors, custom field displays, dashboard panels, and collection
+layouts. Address:
+- What are the mount points, and are they enumerable as data (see Q-D)?
+- **Isolation** — a faulty third-party plugin must not white-screen the admin. Error boundaries,
+  iframes, web components, or something else?
+- **Version coupling** — a plugin shipping React components is coupled to Tovu's React version
+  and build. How is that managed across upgrades? Does the plugin ship compiled output or source?
+- Can a **Tier-1 (zero executable code)** plugin contribute admin UI declaratively? If yes, what
+  is the declarative format? If no, say so plainly — it means every admin plugin needs sandboxing
+  or full trust, which changes the marketplace story.
+- Note: Tovu already has an MCP-UI surface and an A2UI/gen-ui protocol in `src/assistant/` for
+  agent-rendered interfaces. Say whether that is the right substrate here or a red herring.
+
+**Q-G. What is the plugin lifecycle?** Tovu today has exactly two plugin admin routes —
+`src/server/routes/admin/plugins/list.ts` and `set-enabled.ts`. There is **no install, no update,
+and no uninstall route anywhere**. Three separate files state this: `plugin-runtime/
+agent-tools.ts:15` ("no admin ROUTE for either operation at all"), `plugins/
+plugin-identity.ts:6` ("no purge/uninstall flow exists in this codebase"), and `agent-plugins/
+layout.ts:27` (notes uninstall would need refcounting for content-addressed shared bytes).
+Plugins can be listed and toggled; they cannot be added or removed. Address:
+- **Install**: upload an artifact, fetch a URL, a registry/marketplace client, or a local path?
+  What does the trust/consent flow look like given Tier-3 is marketplace-listable?
+- **Update**: version pinning, breaking-change policy, and what happens to a plugin's declared
+  `ext` fields and DB tables when its schema changes between versions.
+- **Uninstall**: Tovu already has a partial, deliberate policy here that must be respected or
+  explicitly overturned — a disabled/uninstalled plugin's `ext` data is **retained inert, never
+  deleted** (`features/post/post.ts:64`, INV-03), plugin-owned tables are additive/idempotent and
+  **never dropped on disable**, and plugin ids are **permanently retired on first mint, never
+  reused even after purge** (`plugin-identity.ts`). Finish this policy: what does a full uninstall
+  actually remove, what does it keep, and how does a user get their data back or clean it up?
+
+**Q-E. Sequencing.** Given limited effort, what ships first, and what is deliberately deferred?
+
+---
+
+## Output format
+
+Return markdown. Be specific and opinionated — name concrete shapes, not principles.
+
+```
+## Position
+(3-6 sentences: your overall recommendation)
+
+## Q-A Merge or separate
+## Q-B render.contribute return shape
+## Q-C Extension-kind taxonomy
+(reproduce and fill the full 10-row table — no skipped rows)
+## Q-D Machine-readable contract
+## Q-F Plugin UI in the React admin
+## Q-E Sequencing
+
+## Strongest objection to my own position
+(the best argument against what you just said)
+
+## What I would need to verify before committing
+```
+
+Disagree where you disagree. A debate where everyone agrees produced no value.
+
+---
+
+## Repo access
+
+You have **read-only access to the full repository** at `/Users/la/Programming/Tovu`. Read
+whatever you want. Do not write, edit, or commit anything.
+
+Tooling available beyond plain file reads:
+- **`cbm-mcp`** (codebase-memory-mcp) — the repo is already indexed as project `Tovu`
+  (~49k nodes). `search_graph`, `query_graph`, `search_code`, `get_architecture`, `trace_path`.
+  Useful and recommended.
+- **`graphify`** — may be present. **If it errors, is unindexed, or is slow, ignore it entirely
+  and move on.** Do not spend effort getting it working; it is not required for this task.
+
+Verify anything in this packet that matters to your answer. The packet was assembled by the
+primary and could contain errors — earlier drafts of this same analysis had four wrong rows,
+caught only by reading the source. Prefer reading the actual file over trusting a claim here.
+If you find an error in this packet, say so explicitly in your answer; that is valuable output,
+not a distraction.
+
+## Do NOT read these files
+
+The primary (Claude Opus 5) has already written its own analysis and recommendation into the
+repo. **Reading these would contaminate your independence, which is the entire point of this
+exercise.** Do not open them:
+
+- `ADS-memory/reports/architecture/2026-08-20-extension-surface-gap-inventory.md`
+- `ADS-memory/reports/swarm-consensus/runs/2026-08-20-*` (this debate's own run directory)
+
+If you accidentally read one, say so plainly in your answer rather than concealing it. An
+honestly-disclosed contamination is recoverable; a hidden one silently corrupts the synthesis.
+
+Everything else in the repo — including `src/`, ADRs under `ADS-memory/reports/architecture/`
+other than the file named above, and specs — is fair game.
