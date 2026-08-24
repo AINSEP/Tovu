@@ -1,0 +1,272 @@
+openapi: 3.0.3
+info:
+  title: Tovu Content Entry Authoring API
+  version: "1.0.0"
+  description: Hand-verified against current route handlers, domain validation, serializers, middleware, and site rendering on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+# Drift: SPEC-002 declares AUTH_LOCAL_DEV (no credential or scope); current admin routes require a tovu_session and content.read/content.write authorization.
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/posts:
+    get:
+      operationId: list_posts
+      tags: [content-entries]
+      summary: List non-trashed post-kind entries, including drafts
+      # Drift: SPEC-002 requires updatedAt-desc/id-desc ordering; neither domain list nor SQLite/memory repository applies an ordering.
+      description: Requires `content.read`. Order is the backing repository's natural order.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Post envelopes, content: { application/json: { schema: { $ref: '#/components/schemas/PostListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenRead' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_post
+      tags: [content-entries]
+      summary: Create a post-kind entry
+      description: Requires `content.write`.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateEntryRequest' } } } }
+      responses:
+        '201': { description: Created entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenWrite' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: a reused Idempotency-Key falls through this handler's catch block as 500, not SPEC-002's 409 DUPLICATE_COMMAND.
+        '409': { $ref: '#/components/responses/SlugConflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/posts/{postId}:
+    get:
+      operationId: get_post
+      tags: [content-entries]
+      summary: Fetch a non-trashed entry by id or slug
+      # Drift: SPEC-002 says a page-kind record 404s here; current handler returns either kind.
+      description: Requires `content.read`. Unlike the specification, this route does not reject a page-kind entry.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PostId' }]
+      responses:
+        '200': { description: Entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenRead' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: update_post
+      tags: [content-entries]
+      summary: Update a post entry
+      # Drift: SPEC-002 documents only title/slug/bodyJson/status and a reserved-slug check; runtime also writes templateChoice/overridesThemePage and does not reject reserved slugs or enforce slug maxLength on update.
+      description: Requires `content.write`. The URL parameter may be an id or slug; `templateChoice` and `overridesThemePage` are additionally writable.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PostId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdatePostRequest' } } } }
+      responses:
+        '200': { description: Updated entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '400': { $ref: '#/components/responses/LegacyValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenWrite' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/UpdatePostConflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/pages:
+    get:
+      operationId: list_pages
+      tags: [content-entries]
+      summary: List non-trashed page-kind entries, including drafts
+      # Drift: SPEC-002 requires updatedAt-desc/id-desc ordering; neither domain list nor SQLite/memory repository applies an ordering.
+      description: Requires `content.read`. Order is the backing repository's natural order.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        # Drift: the handler returns `posts: AdminPostEnvelope[]`, not SPEC-002's `pages: Entry[]`.
+        '200': { description: Page envelopes, content: { application/json: { schema: { $ref: '#/components/schemas/PostListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenRead' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_page
+      tags: [content-entries]
+      summary: Create a page-kind entry
+      description: Requires `content.write`.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateEntryRequest' } } } }
+      responses:
+        '201': { description: Created entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenWrite' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: a reused Idempotency-Key produces 500 rather than SPEC-002's 409 DUPLICATE_COMMAND.
+        '409': { $ref: '#/components/responses/SlugConflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/pages/{pageId}:
+    get:
+      operationId: get_page
+      tags: [content-entries]
+      summary: Fetch a page-kind entry by id or slug
+      description: Requires `content.read`.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PageId' }]
+      responses:
+        '200': { description: Page, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenRead' }
+        '404': { $ref: '#/components/responses/PageNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: update_page
+      tags: [content-entries]
+      summary: Update a page-kind entry by id
+      # Drift: SPEC-002 makes bodyJson required for every update; HTML-format pages accept its omission because the current domain preserves bodyHtml.
+      description: Requires `content.write`. For a stored HTML-format page, `bodyJson` is ignored and may be omitted.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PageId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdatePageRequest' } } } }
+      responses:
+        '200': { description: Updated page, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenWrite' }
+        '404': { $ref: '#/components/responses/PageNotFound' }
+        '409': { $ref: '#/components/responses/UpdatePageConflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/content/v1/workspaces/{workspaceId}/posts/{slug}:
+    get:
+      operationId: get_published_content_entry_by_slug
+      tags: [content-entries]
+      summary: Fetch a published post or page by slug
+      security: []
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200': { description: Published entry and active theme, content: { application/json: { schema: { $ref: '#/components/schemas/ContentPostPayload' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /:
+    get:
+      operationId: render_site_home
+      tags: [site]
+      summary: Render the public site home
+      security: []
+      responses:
+        # Drift: listPublishedPosts does not filter kind, so current home rendering receives every published entry, including pages.
+        '200': { description: Rendered HTML, content: { text/html: { schema: { type: string }, example: '<!doctype html><html>...</html>' } } }
+        '301': { $ref: '#/components/responses/Redirect' }
+        '302': { $ref: '#/components/responses/Redirect' }
+        '307': { $ref: '#/components/responses/Redirect' }
+        '308': { $ref: '#/components/responses/Redirect' }
+        '500': { $ref: '#/components/responses/SiteInternalError' }
+  /{slug}:
+    get:
+      operationId: render_site_slug
+      tags: [site]
+      summary: Render a public published entry or theme page
+      security: []
+      parameters: [{ $ref: '#/components/parameters/Slug' }]
+      responses:
+        '200': { description: Rendered HTML, content: { text/html: { schema: { type: string }, example: '<!doctype html><html>...</html>' } } }
+        '301': { $ref: '#/components/responses/Redirect' }
+        '302': { $ref: '#/components/responses/Redirect' }
+        '307': { $ref: '#/components/responses/Redirect' }
+        '308': { $ref: '#/components/responses/Redirect' }
+        '404': { description: Themed or fallback HTML not-found page, content: { text/html: { schema: { type: string } } } }
+        '500': { $ref: '#/components/responses/SiteInternalError' }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the server's configured workspace; no UUID validation is performed., schema: { type: string } }
+    PostId: { name: postId, in: path, required: true, description: Runtime resolves slug first and then id; no format validation., schema: { type: string } }
+    PageId: { name: pageId, in: path, required: true, description: GET resolves slug first and then id; PUT uses this value as an id only., schema: { type: string } }
+    Slug: { name: slug, in: path, required: true, schema: { type: string } }
+    # Drift: SPEC-002 caps this header at 200 characters; current handlers do not validate its length.
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, description: Empty is treated as absent. The handler has no maximum-length validation., schema: { type: string } }
+  schemas:
+    CreateEntryRequest:
+      type: object
+      # Drift: SPEC-002 requires a nonblank string title; current handler accepts omitted, blank, and non-string title values and resolves blank to Untitled.
+      description: "kind and unknown properties are ignored. Runtime coerces title and supplied slug with String(); title may be omitted or blank and becomes Untitled."
+      properties:
+        title: { description: "Any JSON value is accepted and string-coerced; then trimmed and limited to 200 characters." }
+        slug: { description: "When present, any JSON value is string-coerced, trimmed/lowercased, and must then match ^[a-z0-9-]+$ with max length 120; null becomes null." }
+        bodyJson: { type: object, description: "Defaults to {type: doc, content: []}; arrays and null are invalid." }
+        status: { type: string, enum: [draft, published], default: draft }
+      example: { title: 'Draft idea', slug: 'draft-idea', bodyJson: { type: doc, content: [] }, status: draft }
+    UpdatePostRequest:
+      type: object
+      required: [title, slug, status]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9-]+$', maxLength: 120, description: Runtime lowercases and trims but does not enforce the documented max length or reserved-slug rule on update. }
+        bodyJson: { type: object, description: Required for doc-format entries; ignored for HTML-format pages. }
+        status: { type: string, enum: [draft, published] }
+        templateChoice: { type: string, nullable: true }
+        overridesThemePage: { type: boolean, nullable: true }
+      example: { title: 'Welcome', slug: welcome, bodyJson: { type: doc, content: [] }, status: published }
+    UpdatePageRequest:
+      type: object
+      required: [title, slug, status]
+      description: The route ignores kind and all unknown fields.
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9-]+$', description: Runtime lowercases and trims but does not enforce the documented max length or reserved-slug rule on update. }
+        bodyJson: { type: object, description: Required for doc-format pages; ignored and optional for HTML-format pages. }
+        status: { type: string, enum: [draft, published] }
+      example: { title: 'About', slug: about, bodyJson: { type: doc, content: [] }, status: draft }
+    AdminPost:
+      # Drift: SPEC-002's entry shape predates current bodyFormat/bodyHtml, templateChoice, overridesThemePage, and optional ext response fields.
+      oneOf:
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, bodyFormat, bodyJson, bodyHtml, templateChoice, overridesThemePage]
+          properties:
+            id: { type: string }
+            workspaceId: { type: string }
+            kind: { type: string, enum: [post, page] }
+            title: { type: string }
+            slug: { type: string }
+            status: { type: string, enum: [draft, published] }
+            updatedAt: { type: string, format: date-time }
+            version: { type: integer }
+            bodyFormat: { type: string, enum: [doc] }
+            bodyJson: { type: object }
+            bodyHtml: { type: string, nullable: true, enum: [null] }
+            templateChoice: { type: string, nullable: true }
+            overridesThemePage: { type: boolean, nullable: true }
+            ext: { type: object, additionalProperties: { type: object, additionalProperties: true } }
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, bodyFormat, bodyJson, bodyHtml, templateChoice, overridesThemePage]
+          properties:
+            id: { type: string }
+            workspaceId: { type: string }
+            kind: { type: string, enum: [post, page] }
+            title: { type: string }
+            slug: { type: string }
+            status: { type: string, enum: [draft, published] }
+            updatedAt: { type: string, format: date-time }
+            version: { type: integer }
+            bodyFormat: { type: string, enum: [html] }
+            bodyJson: { type: object, nullable: true, enum: [null] }
+            bodyHtml: { type: string }
+            templateChoice: { type: string, nullable: true }
+            overridesThemePage: { type: boolean, nullable: true }
+            ext: { type: object, additionalProperties: { type: object, additionalProperties: true } }
+    AdminPostEnvelope: { type: object, required: [post], properties: { post: { $ref: '#/components/schemas/AdminPost' } }, example: { post: { id: 'post-1', workspaceId: workspace-local, kind: post, title: Welcome, slug: welcome, status: published, updatedAt: '2026-08-23T00:00:00.000Z', version: 1, bodyFormat: doc, bodyJson: { type: doc, content: [] }, bodyHtml: null, templateChoice: null, overridesThemePage: null } } }
+    PostListResponse: { type: object, required: [posts], properties: { posts: { type: array, items: { $ref: '#/components/schemas/AdminPostEnvelope' } } }, example: { posts: [{ post: { id: 'post-1', workspaceId: workspace-local, kind: post, title: Welcome, slug: welcome, status: published, updatedAt: '2026-08-23T00:00:00.000Z', version: 1, bodyFormat: doc, bodyJson: { type: doc, content: [] }, bodyHtml: null, templateChoice: null, overridesThemePage: null } }] } }
+    ContentPostPayload: { type: object, required: [post, presentation], properties: { post: { type: object, required: [id, kind, title, slug, bodyJson, updatedAt], properties: { id: { type: string }, kind: { type: string, enum: [post, page] }, title: { type: string }, slug: { type: string }, bodyJson: { type: object }, updatedAt: { type: string, format: date-time } } }, presentation: { type: object, required: [activeThemeId], properties: { activeThemeId: { type: string } } } }, example: { post: { id: 'post-1', kind: post, title: Welcome, slug: welcome, bodyJson: { type: doc, content: [] }, updatedAt: '2026-08-23T00:00:00.000Z' }, presentation: { activeThemeId: basic } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true }, changeSetId: { type: string } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    ForbiddenRead: { description: Missing content.read, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'user' is not authorized for 'content.read' (denied)", code: FORBIDDEN, details: { permission: content.read, reason: denied } } } } }
+    ForbiddenWrite: { description: Missing content.write, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'user' is not authorized for 'content.write' (denied)", code: FORBIDDEN, details: { permission: content.write, reason: denied } } } } }
+    # Drift: SPEC-002 requires code on every new endpoint error; their workspace-mismatch and internal-error branches return {error} only.
+    WorkspaceNotFound: { description: Workspace path mismatch; runtime omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'workspace was not found' } } } }
+    NotFound: { description: Missing, trashed, unpublished, or otherwise inaccessible entry; runtime normally omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "post 'missing' was not found" } } } }
+    PageNotFound: { description: Missing, trashed, or non-page entry; runtime code is ENTRY_NOT_FOUND except for workspace mismatch., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "page 'missing' was not found", code: ENTRY_NOT_FOUND } } } }
+    ValidationError: { description: Invalid input, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'title is required', code: VALIDATION_ERROR } } } }
+    LegacyValidationError: { description: Invalid post update input; runtime omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'title is required' } } } }
+    SlugConflict: { description: Duplicate slug; create handlers return code SLUG_CONFLICT., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "slug 'welcome' already exists", code: SLUG_CONFLICT } } } }
+    UpdatePostConflict: { description: Duplicate slug (no code) or duplicate command (code and changeSetId)., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    UpdatePageConflict: { description: Duplicate slug (SLUG_CONFLICT) or duplicate command (DUPLICATE_COMMAND with changeSetId)., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PayloadTooLarge: { description: JSON body serializes to more than 1 MiB, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'Content too large to save.', code: PAYLOAD_TOO_LARGE } } } }
+    InternalError: { description: Internal error; runtime omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'internal error' } } } }
+    SiteInternalError: { description: Site rendering error, content: { text/html: { schema: { type: string }, example: '<h1>Site error</h1>' } } }
+    Redirect: { description: Redirect rule matched; Location header is set., headers: { Location: { schema: { type: string, format: uri-reference } } } }

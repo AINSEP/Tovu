@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Tovu Members API
+  version: "1.0.0"
+  description: Hand-verified against the current members module, route handlers, serializers, validation, shared admin-session middleware, and rate-limit profiles on 2026-08-23.
+servers: [{ url: / }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/members:
+    get:
+      operationId: list_members
+      tags: [members]
+      summary: List members in a workspace
+      description: Requires an authenticated admin session and the `member.manage` permission.
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - { name: afterId, in: query, description: Cursor member id. Non-string values are ignored., schema: { type: string } }
+        # Runtime only accepts a finite number greater than zero; invalid values are ignored, and the in-memory adapter caps a valid value at 100.
+        - { name: limit, in: query, schema: { type: number, exclusiveMinimum: 0 } }
+      responses:
+        '200': { description: Members, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMemberListResponse' }, example: { members: [] } } } }
+        # Drift: api.spec.md calls this AUTH_SESSION_ONLY; the current handler also requires member.manage.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/members/{memberId}:
+    get:
+      operationId: get_member
+      tags: [members]
+      summary: Fetch one member
+      description: Requires an authenticated admin session and the `member.manage` permission.
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MemberId' }]
+      responses:
+        '200': { description: Member, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMemberEnvelope' }, example: { member: { id: member_01, workspaceId: workspace_01, email: person@example.com, status: active, createdAt: '2026-08-23T00:00:00.000Z', updatedAt: '2026-08-23T00:00:00.000Z', version: 1 } } } } }
+        # Drift: api.spec.md calls this AUTH_SESSION_ONLY; the current handler also requires member.manage.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        # Drift: both workspace mismatch and a missing member return an {error}-only 404; neither runtime shape includes the documented code.
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/members/{memberId}/disable:
+    post:
+      operationId: disable_member
+      tags: [members]
+      summary: Disable a member
+      description: "Requires an authenticated admin session and `member.manage`. This operation is idempotent: disabling an already disabled member returns the unchanged member."
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MemberId' }]
+      responses:
+        '200': { description: Disabled member, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMemberEnvelope' }, example: { member: { id: member_01, workspaceId: workspace_01, email: person@example.com, status: disabled, createdAt: '2026-08-23T00:00:00.000Z', updatedAt: '2026-08-23T00:00:00.000Z', version: 2 } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        # The handler maps MemberValidationError to 400, though its bodyless runtime input does not presently produce one.
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/members/request-magic-link:
+    post:
+      operationId: request_member_magic_link
+      tags: [members]
+      summary: Request a passwordless sign-in link
+      description: "Requires an authenticated admin session and `member.manage`. A syntactically valid email receives the constant `{ delivered: true }` response whether or not it belongs to a current member."
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MagicLinkRequest' }, example: { email: person@example.com, redirectPath: /members } } }
+      responses:
+        '200': { description: Request accepted, content: { application/json: { schema: { $ref: '#/components/schemas/DeliveredResponse' }, example: { delivered: true } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        # Drift: api.spec.md calls this AUTH_SESSION_ONLY; the current handler also requires member.manage.
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: api.spec.md says this route has no rate limiter; runtime applies MAGIC_LINK_PER_EMAIL, captured below.
+        '429': { $ref: '#/components/responses/MagicLinkPerEmailRateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  # Drift: api.spec.md says there is no public member API, but this mounted runtime route exists.
+  /api/members/v1/workspaces/{workspaceId}/sign-in:
+    post:
+      operationId: request_public_member_sign_in
+      tags: [members]
+      summary: Request a public passwordless sign-in link
+      description: "Unauthenticated. Both limits must pass: 5 requests/hour per normalized email and 20 requests/hour per client IP."
+      security: []
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MagicLinkRequest' }, example: { email: person@example.com, redirectPath: /members } } }
+      responses:
+        '200': { description: Request accepted, content: { application/json: { schema: { $ref: '#/components/schemas/DeliveredResponse' }, example: { delivered: true } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  # Drift: api.spec.md says completeSignIn has zero HTTP callers, but this mounted runtime route exists.
+  /api/members/v1/workspaces/{workspaceId}/sign-in/complete:
+    post:
+      operationId: complete_public_member_sign_in
+      tags: [members]
+      summary: Complete public passwordless sign-in
+      description: Unauthenticated. Limited to 25 attempts/minute per client IP (20 max plus 5 burst). On success, sets the `tovu_member_session` HttpOnly, Secure, SameSite=Lax cookie; it never reads or writes the admin `tovu_session` cookie.
+      security: []
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CompleteSignInRequest' }, example: { token: 0123456789abcdef0123456789abcdef } } }
+      responses:
+        '200':
+          description: Authenticated public member
+          headers:
+            Set-Cookie: { description: "`tovu_member_session` cookie with HttpOnly, Secure, Path=/, SameSite=Lax, and a 30-day maximum age.", schema: { type: string } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/PublicMemberEnvelope' }, example: { member: { id: member_01, email: person@example.com, status: active } } } }
+        '401': { $ref: '#/components/responses/MemberAuthenticationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the bound workspace; the handlers do not validate its UUID format., schema: { type: string, format: uuid } }
+    MemberId: { name: memberId, in: path, required: true, description: Passed to the repository without runtime format validation., schema: { type: string } }
+  schemas:
+    MagicLinkRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email, description: "Coerced to a string, trimmed and lowercased; it must match `^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$`." }
+        redirectPath: { type: string, description: Optional truthy value coerced to a string and appended to the emailed link. }
+    CompleteSignInRequest:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string, description: Coerced to a string and matched server-side against a stored single-use, unexpired token hash. }
+    AdminMember:
+      type: object
+      required: [id, workspaceId, email, status, createdAt, updatedAt, version]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        email: { type: string, format: email }
+        # Drift: api.spec.md describes name and emailVerifiedAt as nullable; the runtime serializer returns undefined, which JSON omits rather than serializing null.
+        name: { type: string }
+        status: { type: string, enum: [pending, active, disabled] }
+        emailVerifiedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer }
+    AdminMemberEnvelope: { type: object, required: [member], properties: { member: { $ref: '#/components/schemas/AdminMember' } } }
+    AdminMemberListResponse: { type: object, required: [members], properties: { members: { type: array, items: { $ref: '#/components/schemas/AdminMember' } } } }
+    PublicMember:
+      type: object
+      required: [id, email, status]
+      properties:
+        id: { type: string }
+        email: { type: string, format: email }
+        name: { type: string }
+        status: { type: string, enum: [pending, active, disabled] }
+    PublicMemberEnvelope: { type: object, required: [member], properties: { member: { $ref: '#/components/schemas/PublicMember' } } }
+    DeliveredResponse: { type: object, required: [delivered], properties: { delivered: { type: boolean, enum: [true] } } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    Unauthenticated: { description: Missing or invalid admin session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Authenticated caller lacks member.manage, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'principal_01' is not authorized for 'member.manage' (no_grant)", code: FORBIDDEN, details: { permission: member.manage, reason: no_grant } } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch. Runtime body has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    NotFound: { description: Missing workspace or member. Runtime body generally has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "member 'member_01' was not found" } } } }
+    ValidationError: { description: Invalid email or other member validation failure. Runtime body has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "'not-an-email' is not a valid email address" } } } }
+    MemberAuthenticationError: { description: Invalid, expired, used, or disabled-member sign-in link, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: sign-in link is invalid, code: MEMBER_AUTH_ERROR } } } }
+    RateLimited: { description: Rate limit exceeded, headers: { Retry-After: { schema: { type: string }, description: Seconds until the next allowed request. } }, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: too many sign-in requests for this email, code: RATE_LIMIT_EXCEEDED, details: { retryAfterSeconds: 3600 } } } } }
+    MagicLinkPerEmailRateLimited: { description: "MAGIC_LINK_PER_EMAIL exceeded: more than 5 requests/hour (window 3600s, no burst) for one normalized email.", headers: { Retry-After: { schema: { type: string }, description: Seconds until the next allowed request. } }, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: too many sign-in requests for this email, code: RATE_LIMIT_EXCEEDED, details: { retryAfterSeconds: 3600 } } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error } } } }

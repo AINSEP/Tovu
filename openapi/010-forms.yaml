@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin and Public Forms API
+  version: "1.0.0"
+  description: Hand-verified against current Forms route handlers, serializers, validation, and middleware on 2026-08-23.
+servers: [{ url: / }]
+# All admin routes pass the shared session gate before their registrar.
+# Drift: every admin route can return the undocumented workspace-path-mismatch
+# 404 { error: "workspace was not found" } (without code).
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/forms:
+    get:
+      operationId: list_form_definitions
+      tags: [forms]
+      summary: List form definitions
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Form definitions, content: { application/json: { schema: { $ref: '#/components/schemas/FormDefinitionListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenManage' }
+        # Drift: a workspace-path mismatch returns 404 { error: "workspace was not found" }, which api.spec.md does not list.
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_form_definition
+      tags: [forms]
+      summary: Create a form definition
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        # Drift: the handler reads and forwards this header, but api.spec.md does not document it.
+        - { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateFormDefinitionRequest' } } }
+      responses:
+        '201': { description: Created definition, content: { application/json: { schema: { $ref: '#/components/schemas/FormDefinitionResponse' } } } }
+        '400': { $ref: '#/components/responses/FieldValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenManage' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/SlugConflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/forms/{formId}:
+    get:
+      operationId: get_form_definition
+      tags: [forms]
+      summary: Fetch a form definition
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/FormId' }]
+      responses:
+        '200': { description: Form definition, content: { application/json: { schema: { $ref: '#/components/schemas/FormDefinitionResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenManage' }
+        '404': { $ref: '#/components/responses/DefinitionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: update_form_definition
+      tags: [forms]
+      summary: Partially update a form definition or its status
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/FormId' }]
+      # Drift: contrary to api.spec.md, unrecognized keys (including slug) are ignored; an empty or only-unrecognized body is a successful no-op read.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateFormDefinitionRequest' } } }
+      responses:
+        '200': { description: Updated (or unchanged) definition, content: { application/json: { schema: { $ref: '#/components/schemas/FormDefinitionResponse' } } } }
+        '400': { $ref: '#/components/responses/FieldValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenManage' }
+        '404': { $ref: '#/components/responses/DefinitionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/forms/{formId}/submissions:
+    get:
+      operationId: list_form_submissions
+      tags: [forms]
+      summary: List a form's submissions, newest first
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/FormId'
+        - { name: limit, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+        # Drift: a non-string cursor is silently treated as absent, rather than rejected as api.spec.md's type implies.
+        - { name: cursor, in: query, required: false, schema: { type: string } }
+      responses:
+        '200': { description: Submission page, content: { application/json: { schema: { $ref: '#/components/schemas/FormSubmissionListResponse' } } } }
+        # Drift: invalid limit is rejected with 400 FORMS_FIELD_VALIDATION_ERROR; api.spec.md omits this response.
+        '400': { $ref: '#/components/responses/FieldValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenSubmissionsRead' }
+        '404': { $ref: '#/components/responses/DefinitionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/forms/{formId}/submissions/{submissionId}:
+    get:
+      operationId: get_form_submission
+      tags: [forms]
+      summary: Fetch one form submission
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/FormId' }, { $ref: '#/components/parameters/SubmissionId' }]
+      responses:
+        '200': { description: Submission, content: { application/json: { schema: { $ref: '#/components/schemas/FormSubmissionResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenSubmissionsRead' }
+        '404': { $ref: '#/components/responses/SubmissionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: delete_form_submission
+      tags: [forms]
+      summary: Permanently delete one form submission
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/FormId' }, { $ref: '#/components/parameters/SubmissionId' }]
+      responses:
+        '204': { description: Submission deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenSubmissionsDelete' }
+        '404': { $ref: '#/components/responses/SubmissionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /forms/{slug}/submit:
+    post:
+      operationId: submit_form
+      tags: [forms]
+      summary: Publicly submit an active form by slug
+      security: []
+      parameters: [{ $ref: '#/components/parameters/FormSlug' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublicFormSubmissionRequest' }
+      responses:
+        '201': { description: Accepted submission or indistinguishable honeypot discard, content: { application/json: { schema: { $ref: '#/components/schemas/FormSubmitResponse' } } } }
+        '400': { $ref: '#/components/responses/SubmissionValidationError' }
+        '404': { $ref: '#/components/responses/FormNotFound' }
+        '429': { $ref: '#/components/responses/RateLimitExceeded' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the process-bound workspace; no UUID validation is performed., schema: { type: string, format: uuid } }
+    FormId: { name: formId, in: path, required: true, schema: { type: string } }
+    SubmissionId: { name: submissionId, in: path, required: true, schema: { type: string } }
+    FormSlug: { name: slug, in: path, required: true, schema: { type: string } }
+  schemas:
+    FieldDescriptor:
+      type: object
+      required: [id, label, type]
+      properties:
+        id: { type: string, pattern: '^[a-z][a-z0-9_]*$' }
+        label: { type: string, minLength: 1, maxLength: 200 }
+        type: { type: string, enum: [text, email, textarea, checkbox] }
+        # Drift: api.spec.md constrains id to 64 characters and declares required boolean; runtime enforces neither.
+        required: { type: boolean }
+        maxLength: { type: integer, minimum: 1, maximum: 5000, nullable: true, description: Forbidden when type is checkbox. }
+        # Drift: runtime accepts and serializes these two field-rendering properties, but api.spec.md omits them.
+        className: { type: string, maxLength: 300 }
+        attributes:
+          type: object
+          maxProperties: 12
+          additionalProperties: { type: string, maxLength: 300 }
+          description: "Attribute names must match the runtime allowlist: aria-*, data-*, placeholder, autocomplete, inputmode, pattern, title, min, max, step, minlength, spellcheck, or readonly."
+    NotifyConfig:
+      type: object
+      required: [enabled, recipients]
+      properties:
+        # Drift: only an omitted notify object receives this default; a supplied notify object does not validate or default enabled.
+        enabled: { type: boolean, default: false }
+        recipients: { type: array, maxItems: 10, items: { type: string, format: email } }
+    CreateFormDefinitionRequest:
+      type: object
+      required: [name, slug, fields]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9][a-z0-9-]{0,63}$' }
+        fields: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/FieldDescriptor' } }
+        notify: { $ref: '#/components/schemas/NotifyConfig' }
+    UpdateFormDefinitionRequest:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 200 }
+        fields: { type: array, minItems: 1, maxItems: 20, items: { $ref: '#/components/schemas/FieldDescriptor' }, description: Replaces the list but may not remove an existing field id. }
+        notify: { $ref: '#/components/schemas/NotifyConfig' }
+        # Drift: an unsupported status string is ignored and returns 200, rather than being rejected.
+        status: { type: string, enum: [active, disabled] }
+      additionalProperties: true
+    FormDefinition:
+      type: object
+      required: [id, workspaceId, name, slug, fields, notify, status, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        name: { type: string }
+        slug: { type: string }
+        fields: { type: array, items: { $ref: '#/components/schemas/FieldDescriptor' } }
+        notify: { $ref: '#/components/schemas/NotifyConfig' }
+        status: { type: string, enum: [active, disabled] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    FormDefinitionResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/FormDefinition' } } }
+    FormDefinitionListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/FormDefinition' } } } }
+    FormSubmission:
+      type: object
+      required: [id, formDefinitionId, workspaceId, data, sourceIp, submittedAt]
+      properties:
+        id: { type: string }
+        formDefinitionId: { type: string }
+        workspaceId: { type: string }
+        data: { type: object, additionalProperties: { oneOf: [{ type: string }, { type: boolean }] } }
+        sourceIp: { type: string }
+        submittedAt: { type: string, format: date-time }
+    FormSubmissionResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/FormSubmission' } } }
+    FormSubmissionListResponse: { type: object, required: [data, nextCursor], properties: { data: { type: array, items: { $ref: '#/components/schemas/FormSubmission' } }, nextCursor: { type: string, nullable: true } } }
+    PublicFormSubmissionRequest:
+      type: object
+      description: Dynamic keys must match the addressed active definition's field ids. Text/email/textarea values are strings; checkbox values are booleans; only _hp is additionally reserved.
+      # Drift: number, array, and object values are silently dropped by the HTTP boundary before field validation.
+      additionalProperties: { oneOf: [{ type: string, maxLength: 5000 }, { type: boolean }] }
+      # Drift: api.spec.md limits _hp to 200 characters; runtime has no such limit and silently discards any non-empty string.
+      properties: { _hp: { type: string, description: Non-empty values are silently discarded with 201 accepted. } }
+    FormSubmitResponse: { type: object, required: [status], properties: { status: { type: string, enum: [accepted] } } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    ForbiddenManage: { description: Missing admin.forms.manage permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ForbiddenSubmissionsRead: { description: Missing admin.forms.submissions.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ForbiddenSubmissionsDelete: { description: Missing admin.forms.submissions.delete permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch; runtime omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    DefinitionOrWorkspaceNotFound: { description: Missing definition or workspace path mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SubmissionOrWorkspaceNotFound: { description: Missing/mismatched submission or workspace path mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    FieldValidationError: { description: Invalid definition or list limit, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: one or more field descriptors are invalid, code: FORMS_FIELD_VALIDATION_ERROR, details: { fieldErrors: [{ field: fields, reason: at least 1 field is required }] } } } } }
+    SlugConflict: { description: Slug already exists in the workspace, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: a form with slug contact already exists, code: FORMS_SLUG_CONFLICT, details: { slug: contact } } } } }
+    SubmissionValidationError: { description: Invalid dynamic public submission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: submission failed field validation, code: FORMS_SUBMISSION_VALIDATION_ERROR, details: { fieldErrors: [{ field: email, reason: required }] } } } } }
+    FormNotFound: { description: Missing or disabled form, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: form was not found, code: FORMS_DEFINITION_NOT_FOUND } } } }
+    RateLimitExceeded: { description: More than five non-honeypot submissions for this IP/form in 60 seconds, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: rate limit exceeded, code: FORMS_RATE_LIMIT_EXCEEDED, details: { retryAfterSeconds: 60 } } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }

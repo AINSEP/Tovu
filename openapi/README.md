@@ -1,0 +1,74 @@
+# Tovu OpenAPI specs
+
+Per-feature OpenAPI 3.0.3 fragments describing Tovu's real, currently-running admin/public HTTP API.
+Each fragment is self-contained (no cross-file `$ref`s) and was produced by reading the ACTUAL route
+handler, validation, and serialization code for every route — never just the hand-written
+`ADS-memory/specs/<feature>/api.spec.md` doc, which this exercise proved has drifted from the running
+code in every single feature checked.
+
+Built for: an external programmatic caller (Tovu-Runner) that needs a discoverable, structured
+contract for each Tovu instance's HTTP API. Not built for: Tovu's own AI assistant, which already has
+direct in-process native tools for the same operations and gains nothing from an HTTP-wrapped version.
+
+No aggregator/merge tooling exists yet — these are 16 independent files, not one combined spec. That is
+a deliberate scope boundary for this pass, not an oversight.
+
+## Files
+
+| File | Feature | Notes |
+|---|---|---|
+| `001-admin-command-gateway.yaml` | Change-set command gateway | Auth added since doc was written; ordering and serializer drift |
+| `002-content-entry-authoring.yaml` | Posts & pages authoring | Idempotency bug: duplicate key returns `500`, not documented `409` |
+| `003-site-install-dir.yaml` | CLI/install surface | CLI-only — confirmed no HTTP routes exist; `paths: {}` |
+| `004-declarative-theme-system.yaml` | Theme management + rendering | "Exactly one active theme" invariant not enforced; public 5xx possible |
+| `005-plugin-system.yaml` | Plugin catalog | Undocumented `DELETE` route exists in code, intentionally excluded here |
+| `006-identity-and-authorization.yaml` | Auth, users, roles, policies | **3 documented API-key endpoints have no server handler at all** |
+| `007-settings-core-ledger.yaml` | Workspace settings | Documented path prefix (`/api/v1/admin/...`) doesn't match reality; documented rate limits don't exist |
+| `008-seo.yaml` | SEO metadata, sitemap, robots | Response envelopes and several validations differ from spec |
+| `009-redirects.yaml` | URL redirects | Original canary; undocumented 401s, two 404 shapes, undocumented `matchType=regex` |
+| `010-forms.yaml` | Form definitions + submissions | Public body values silently dropped pre-validation; several length limits unenforced |
+| `011-newsletter.yaml` | Newsletter campaigns/subscriptions | Full-send path exists but has no real mailer adapter — succeeds in spec, `409`s in practice |
+| `012-menus.yaml` | Navigation menus | Permission model changed (single → action-specific); menus now created already-published |
+| `013-members.yaml` | Member accounts | **Undocumented public magic-link sign-in API** — spec claims no public surface exists |
+| `014-analytics.yaml` | Analytics ingestion + admin read | Minor: undocumented permission gate, undocumented 500 |
+| `015-integrations.yaml` | Outbound integration subscriptions | Permission name itself is wrong in the doc (`integration.manage` vs real `admin.integrations.manage`) |
+| `021-media-assets.yaml` | Media library, transforms, delivery | **3 undocumented routes, including a media-provider credentials GET/PUT** |
+
+## Known drift — cross-feature patterns
+
+These showed up independently across many features, not just once — worth fixing structurally rather
+than one doc-patch at a time:
+
+1. **Every single feature's docs predate auth being added.** Nearly every route across all 16 features
+   was originally documented as requiring no session/permission, and now requires both. Auth was added
+   later and the docs were never revisited.
+2. **The `code` field on error responses is inconsistently present.** Several features return bare
+   `{ error }` for newer error paths (workspace mismatches especially) while established paths include
+   a `code`. Looks like a convention that isn't enforced anywhere, so it silently erodes.
+3. **Real dependency-missing gaps, not just doc gaps.** Two features (newsletter's send path, and the
+   identity API-key endpoints) are documented as if fully working but are either not wired to a real
+   backing implementation or don't exist in code at all.
+
+## Security/auth-relevant findings worth direct attention
+
+Flagged here rather than buried in per-file comments, since these touch auth/credentials specifically:
+
+- `006-identity-and-authorization`: 3 documented API-key auth endpoints have no server-side
+  implementation whatsoever.
+- `013-members`: an entire undocumented public-facing sign-in flow (magic link request + completion)
+  exists and is reachable without any auth, which the spec doesn't acknowledge at all.
+- `021-media-assets`: an undocumented media-provider **credentials** management route (`GET`/`PUT`)
+  exists in real routing but isn't in the spec.
+- `015-integrations`: the actual required permission name differs from what's documented — anyone
+  granting access by the documented name would be granting the wrong permission.
+
+## Provenance
+
+Generated by `codex exec` (`gpt-5.6-terra`, high reasoning), one feature per dispatch, each
+independently verifying its own fragment against live route/handler code — not one large unsupervised
+pass. The first fragment (`009-redirects.yaml`) was additionally checked by a separate Claude Sonnet 5
+subagent before this effort began; every fragment after it followed the same rigor bar by explicit
+instruction, verified against the same live repository at commit range around 2026-08-23.
+
+None of the findings above have been independently re-verified by a human or a second model pass yet —
+treat this as "what was reported," not "confirmed bugs," until someone checks.

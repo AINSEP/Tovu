@@ -1,0 +1,221 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API (canary fragment — GET_REDIRECT only)
+  version: "1.0.0"
+  description: >
+    ONE-ROUTE CANARY, not a full API surface. Hand-authored from SPEC-009
+    (ADS-memory/specs/009-redirects/api.spec.md) and verified directly against
+    the live route handler (src/server/routes/admin/redirects/get-by-id.ts),
+    its response serializer (src/server/http/admin/redirects.ts), its domain
+    types (src/redirects/types.ts), and the shared session-auth middleware
+    (src/server/middleware/dev-auth.ts, src/server/modules/core.ts) as of
+    2026-08-23. See the accompanying .md writeup for exactly what was checked
+    and what drift was found between this doc and the real code.
+servers:
+  - url: /
+    description: Same-origin admin API (no separate API host in this deployment model)
+
+security:
+  - adminSessionCookie: []
+
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/redirects/{id}:
+    get:
+      operationId: get_redirect
+      summary: Fetch a single redirect rule by id
+      description: >
+        SPEC-009 `GET_REDIRECT`. Reads one redirect rule for the admin's
+        current workspace. Verified against
+        src/server/routes/admin/redirects/get-by-id.ts.
+      tags: [redirects]
+      parameters:
+        - name: workspaceId
+          in: path
+          required: true
+          description: >
+            Workspace scope. NOTE (verified in code): the handler does not
+            look this up against a workspace table — it does a direct string
+            compare against the server's single bound `deps.workspaceId` and
+            returns 404 on any mismatch, *before* auth/permission checks run.
+            `format: uuid` reflects the documented shape; it is not enforced
+            by validation in this handler (no regex/format check — any string
+            that doesn't match `deps.workspaceId` 404s the same way).
+          schema:
+            type: string
+            format: uuid
+        - name: id
+          in: path
+          required: true
+          description: >
+            Redirect rule id. Verified in code as a ULID (src/redirects/types.ts
+            doc comment: "ULID — stable identity"), coerced to `String(...)`
+            with no format validation. `format: uuid` is a shape hint carried
+            over from api.spec.md's path-param table, not an enforced
+            constraint — a malformed id simply falls through to the 404
+            REDIRECT_NOT_FOUND path via `RedirectRepoPort.findById`.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Redirect rule found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedirectResponse"
+              example:
+                data:
+                  id: "01J8Z6X9K7QATRC1V6R6F0TEST"
+                  workspaceId: "01J8Z6X6R0EWORKSPACE00001"
+                  matchType: exact
+                  fromPattern: /old-page
+                  toTarget: /new-page
+                  statusCode: 301
+                  status: active
+                  override: false
+                  priority: 0
+                  source: manual
+                  sourceEntryId: null
+                  fromPathAtCapture: null
+                  toPathAtCapture: null
+                  createdByPrincipal: "01J8Z6X5R0EPRINCIPAL00001"
+                  createdByPluginId: null
+                  createdAt: "2026-08-01T12:00:00.000Z"
+                  updatedAt: "2026-08-01T12:00:00.000Z"
+                  version: 1
+        "401":
+          description: >
+            No valid admin session cookie. VERIFIED IN CODE
+            (src/server/middleware/dev-auth.ts `requireAdminSessionMiddleware`,
+            mounted globally on `/api/admin` in src/server/modules/core.ts) but
+            NOT present anywhere in api.spec.md's Section 6 error-mapping table
+            for this or any endpoint in SPEC-009 — see the writeup, this is a
+            real doc/code drift finding, not an inferred/assumed status code.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: unauthenticated
+                code: UNAUTHENTICATED
+        "403":
+          description: Authenticated principal lacks `admin.redirects.manage` for this workspace/entity.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: "principal 'p_123' is not authorized for 'admin.redirects.manage' (no_matching_policy)"
+                code: FORBIDDEN
+                details:
+                  permission: admin.redirects.manage
+                  reason: no_matching_policy
+        "404":
+          description: >
+            Two distinct causes verified in code, only one of which matches
+            the response shape api.spec.md documents:
+            (a) workspaceId path param does not match the server's bound
+            workspace — returns `{ error }` with NO `code` field (undocumented
+            shape, inconsistent with every other error response on this route);
+            (b) redirect id not found in that workspace — returns
+            `REDIRECT_NOT_FOUND` per api.spec.md/errors.spec.md (this is the
+            documented, matching case).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              examples:
+                redirect_not_found:
+                  summary: "Documented case — matches api.spec.md"
+                  value:
+                    error: "redirect '01J8Z6X9K7QATRC1V6R6F0TEST' was not found"
+                    code: REDIRECT_NOT_FOUND
+                workspace_mismatch_undocumented:
+                  summary: "Undocumented case — no `code` field, not in api.spec.md"
+                  value:
+                    error: "workspace was not found"
+        "500":
+          description: Unhandled error.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: internal error
+                code: INTERNAL_ERROR
+
+components:
+  securitySchemes:
+    adminSessionCookie:
+      type: apiKey
+      in: cookie
+      name: tovu_session
+      description: >
+        HttpOnly, SameSite=Strict, Secure session cookie set by
+        POST /api/admin/v1/auth/login (src/server/middleware/dev-auth.ts).
+        NOT a Bearer JWT — api.spec.md for SPEC-009 explicitly calls out that
+        this repo has no bearer-token auth layer yet (Constitution Art. VI
+        standing exception); confirmed in code, `getAuthedPrincipal` reads
+        `res.locals.principal` set by this cookie-session middleware only.
+
+  schemas:
+    RedirectRule:
+      type: object
+      required:
+        - id
+        - workspaceId
+        - matchType
+        - fromPattern
+        - toTarget
+        - statusCode
+        - status
+        - override
+        - priority
+        - source
+        - createdByPrincipal
+        - createdAt
+        - updatedAt
+        - version
+      properties:
+        id: { type: string, format: uuid, description: "Actually a ULID in code; UUID-shaped string." }
+        workspaceId: { type: string, format: uuid }
+        matchType: { type: string, enum: [exact, prefix, wildcard, regex] }
+        fromPattern: { type: string }
+        toTarget: { type: string }
+        statusCode: { type: integer, enum: [301, 302, 307, 308] }
+        status: { type: string, enum: [active, disabled] }
+        override: { type: boolean }
+        priority: { type: integer }
+        source: { type: string, enum: [manual, auto_slug_change, import] }
+        sourceEntryId: { type: string, format: uuid, nullable: true }
+        fromPathAtCapture: { type: string, nullable: true }
+        toPathAtCapture: { type: string, nullable: true }
+        createdByPrincipal: { type: string, format: uuid }
+        createdByPluginId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer }
+
+    RedirectResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/RedirectRule"
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      description: >
+        `code` is present on every error path EXCEPT the undocumented
+        workspace-mismatch 404 branch verified in get-by-id.ts — see that
+        response's examples. Not modeled as required here because real code
+        does not always send it.
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
