@@ -133,7 +133,7 @@ describe("resolveComposerDiscoveryOutcome", () => {
     expect(outcome).toBeUndefined();
   });
 
-  it("pins a pluginRefId capability via addPluginRef, leaving the draft untouched", async () => {
+  it("pins a pluginRefId capability via addPluginRef and clears the draft", async () => {
     const capabilities = await projectionWith([
       {
         groupId: "agent-plugins",
@@ -152,7 +152,10 @@ describe("resolveComposerDiscoveryOutcome", () => {
     });
 
     expect(addPluginRef).toHaveBeenCalledWith("ui-ux-design");
-    expect(outcome).toBeUndefined();
+    // `{ draft: "" }`, not undefined: a command-bearing slash selection (e.g. `/ui-ux-design`)
+    // never gets its own draft-clear from Composer.tsx's insertText path (see
+    // `resolveComposerDiscoveryOutcome`'s own doc on this branch), so the host must clear it.
+    expect(outcome).toEqual({ draft: "" });
   });
 
   it("does not call callAllowlistedTool or navigate when pinning a pluginRefId capability", async () => {
@@ -194,6 +197,8 @@ describe("resolveComposerDiscoveryOutcome", () => {
       callAllowlistedTool: vi.fn(),
     });
 
-    expect(outcome).toBeUndefined();
+    // Still clears the draft even when there is no addPluginRef to call — the draft clear is not
+    // conditioned on the pin having anywhere to go.
+    expect(outcome).toEqual({ draft: "" });
   });
 });

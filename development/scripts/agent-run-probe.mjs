@@ -24,7 +24,7 @@
  * Writes `<label>.events.jsonl` (every daemon event) and `<label>.summary.json` (tool_use histogram,
  * every Read path, turn count, cost, final text) into `$PROBE_OUT`.
  */
-import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync, readdirSync, rmdirSync } from "node:fs";
+import { writeFileSync, readFileSync, mkdirSync, existsSync, renameSync, readdirSync, rmdirSync, openSync, appendFileSync, closeSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
 
@@ -149,6 +149,21 @@ mkdirSync(OUT_DIR, { recursive: true });
 const eventsPath = path.join(OUT_DIR, `${label}.events.jsonl`);
 const events = [];
 
+/**
+ * Events are appended to disk AS THEY ARRIVE, not buffered and written once at the end.
+ *
+ * The end-of-run write lost a whole measurement on 2026-08-22: a run that had already streamed
+ * 455KB of events died on `UND_ERR_SOCKET` when the API restarted under it, and because nothing had
+ * been flushed yet, every one of those events went with the process. The daemon's own run registry
+ * is in-memory per process, so the restart destroyed the server-side copy too — the usual
+ * `GET /api/runs/<id>/events` recovery had nothing left to replay. Two independent copies, both
+ * gone, for want of a flush.
+ *
+ * Cheap insurance: one small synchronous append per SSE frame, against a run that costs minutes and
+ * dollars. A partial `.events.jsonl` from a died-mid-stream run is still worth reading.
+ */
+const eventsFd = openSync(eventsPath, "w");
+
 const controller = new AbortController();
 const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -179,6 +194,7 @@ function handleFrame(frame) {
     parsed = { _unparsed: raw };
   }
   events.push(parsed);
+  appendFileSync(eventsFd, `${JSON.stringify(parsed)}\n`);
   // `kind` is the daemon's own event discriminator (`start` | `stdout` | `agent` | `end`); `type`
   // is checked first only so a future protocol change that renames it still logs something useful.
   const kind = parsed.kind ?? parsed.type ?? "?";
@@ -201,10 +217,10 @@ try {
 } catch (error) {
   if (error.name !== "AbortError") throw error;
   console.error(`[${label}] TIMED OUT after ${timeoutMs / 1000}s`);
+} finally {
+  clearTimeout(timer);
+  closeSync(eventsFd);
 }
-clearTimeout(timer);
-
-writeFileSync(eventsPath, events.map((e) => JSON.stringify(e)).join("\n"));
 
 /**
  * The daemon's `stdout` frames carry the spawned CLI's own stream-JSON verbatim, so the tool_use

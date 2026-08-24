@@ -97,7 +97,10 @@ export const CAPABILITY_INVENTORY: readonly CapabilityInventoryEntry[] = [
     sourceOfTruth: "sqlite (content.db, createSqliteIdentityRouteDeps)",
     readinessDependencies: ["content.db connection"],
     startupCriticality: "critical",
-    securityDependencies: ["argon2id password hashing", "session token store"],
+    // Three credential seams, not two: SPEC-006 REQ-08 added `api_keys`, whose secrets are hashed
+    // by their own scrypt seam rather than by the argon2id password hasher — see
+    // `identity/api-key-secret.ts` for why the two are deliberately tuned apart.
+    securityDependencies: ["argon2id password hashing", "session token store", "scrypt api-key secret hashing"],
     restartTestOwner: "identity test suite",
     hasDurableAdapter: true,
     sourceHints: ["createSqliteIdentityRouteDeps"],

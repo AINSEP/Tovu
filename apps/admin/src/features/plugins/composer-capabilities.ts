@@ -244,6 +244,15 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
       description: "UI/UX Design Agent Plugin bundled with Tovu — pins its skill as context for the agent",
       kind: "agent-plugin",
       keywords: ["agent plugin", "design", "ui", "ux"],
+      // Slash-command entry point (2026-08-23): lets the composer's own `command` grammar
+      // (`composer-discovery.ts`'s `matchesLockedCommand`/`resolveComposerSlashInvocation`) match
+      // the literal, id-shaped `/ui-ux-design` the way `/search` and `/mcp` already do — before
+      // this, typing that exact hyphenated string produced zero fuzzy matches (the label/keywords
+      // above use spaces and slashes, never hyphens), so the one string an operator is most likely
+      // to type for "the ui-ux-design plugin" silently fell through to a literal chat message. No
+      // `argument`: selecting this item (Enter/Tab/click) invokes immediately once the typed word
+      // matches, same as any other no-argument command.
+      command: "ui-ux-design",
       // `insertText: ""` (fixed 2026-08-21), not omitted: Composer.tsx has two selection paths and
       // they read a missing `insertText` differently. The "+" menu path (`selectPlusItem`) guards
       // on `item.insertText ? ... : composer.draft` — falsy either way, draft untouched, which is

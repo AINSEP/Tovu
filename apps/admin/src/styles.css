@@ -3570,4 +3570,36 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   cursor: not-allowed;
 }
 .deployment-action .btn-secondary[aria-disabled="true"]:hover { background: var(--surface-2); opacity: 1; }
+
+/* --- Media providers tab: neutralize Jini's warm "paper" tokens --------------
+ *
+ * `Media.tsx` mounts `@jini-ai/ui`'s `MediaProvidersTab` directly into this page (no
+ * `TabbedDialog`/`.jini-tabbed-dialog` shell in between — unlike `AiAssistant.tsx`'s
+ * `--page-flow` variant above, there is no modal chrome here to flatten). `--jini-bg-panel`
+ * (`#fdfcfa`) and `--jini-bg-elevated` (`#fffefc`) are Jini's intentionally warm "paper" tokens —
+ * both R>G>B, a deliberate cream — right for a dialog card floating over its own dimmed backdrop
+ * (see `tabbed-dialog.css`'s own header comment). `.jini-media-provider-card`, every `.jini-input`
+ * inside it, and the non-ghost `.jini-button`s (`Reload`/`Save changes` use the ghost variant and
+ * are unaffected) all read `--jini-bg-panel` directly, so sitting straight on this admin's own
+ * neutral white page (`--surface`, hue-powerless — see the `:root` comment atop this file) they
+ * read as a faint peach/cream panel floating on a plain white one. Confirmed live: owner report,
+ * "the whole thing" — not just the "Clear" button's disabled-state fix already applied in
+ * `settings-dialog.css`.
+ *
+ * Fixed the same way that file's own header names as the override mechanism — every value there
+ * resolves through a custom property, so redefining the token downstream re-skins every consumer
+ * without forking a single rule — re-pointed at this admin's own `--surface`/`--surface-2`
+ * (already the established neutral this admin's own `.card`/`input` use) rather than inventing a
+ * new color.
+ *
+ * `.media-providers-panel[data-theme="light"]` (0,2,0) rather than relying on stylesheet load
+ * order to beat Jini's own bare `[data-theme="light"]` (0,1,0): the class guarantees this wins
+ * regardless of which stylesheet the bundler happens to inject first — the same reasoning
+ * `.jini-button-ghost:disabled` used in `settings-dialog.css` for the sibling "Clear" button fix.
+ * `--jini-bg-subtle` is deliberately left alone: `#f4f5f7` is already a cool/neutral grey (B>=G>R),
+ * not part of the cream the owner flagged, so overriding it would be an unrequested extra change. */
+.media-providers-panel[data-theme="light"] {
+  --jini-bg-panel: var(--surface);
+  --jini-bg-elevated: var(--surface);
+}
 .deployment-action-reason { margin: 0; font-size: var(--text-xs); color: var(--muted); max-width: 60ch; }

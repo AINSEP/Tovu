@@ -89,6 +89,7 @@ import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/re
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
 import { openContentDb } from "../../db/sqlite/content-db.js";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
+import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { createRouteDeps } from "../app.js";
 import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
@@ -631,6 +632,13 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       // fields above, which are separate `AgentExecutor.run()` options) means this must land before
       // `prompt` is read below, and there is no ordering dependency on the attachment claim either
       // way — the two resolve independently.
+      // Experimental delivery-mechanism measurement (see capability-manifest-prefix.ts's own header) —
+      // resolved and prepended BEFORE the plugin prefix, same "resolved before run(), no ordering
+      // dependency either way" reasoning as attachments vs. plugin prefix above. Off by default; a
+      // no-op unless a probe sets `TOVU_CAPABILITY_MANIFEST_ARM` for this process.
+      const capabilityManifestPrefix = buildCapabilityManifestPrefix(resolveCapabilityManifestArm());
+      prompt = assemblePromptWithPluginPrefix(prompt, capabilityManifestPrefix);
+
       const pluginPromptPrefix = await resolveAgentPluginPromptPrefix(run, pluginRefIds, runLifecycle, routeDeps.workspaceId);
       if (pluginPromptPrefix === null) return;
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);

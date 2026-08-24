@@ -507,6 +507,63 @@
   line-height: 1;
 }
 
+/* --- Pinned Agent Plugin tray (SelectedAgentPluginTray.tsx) ---------------------------------
+ *
+ * `SelectedAgentPluginTray` deliberately reuses Jini's own `.jini-attachment-tray`/`-chip`/
+ * `-remove` classes rather than inventing new ones (see that component's own doc) — but it is the
+ * ONLY thing that ever renders those classes inside `.jini-composer-leading`; the file-attachment
+ * tray (`Composer.tsx`'s own `<AttachmentTray>`, for uploaded files) renders the SAME class names
+ * as a direct sibling of `.jini-composer-leading`, not inside it. Scoping every rule below under
+ * `.jini-composer-leading` is what keeps this from also restyling that unrelated sibling tray.
+ *
+ * Owner feedback on the pinned-plugin chip (screenshot, 2026-08-21): it read as a floating,
+ * detached box with no visual relationship to the input beneath it, and more than one or two
+ * chips would wrap onto a growing second line instead of staying a single row.
+ *
+ * `.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-tray` (4 classes) is
+ * the minimum specificity that reliably wins here — this file's own header already documents why:
+ * Jini's injected `<style>` tag defines `.jini-chat-pane .jini-attachment-tray` (2 classes) and
+ * mounts AFTER this stylesheet, so a same-specificity rule here would lose the cascade-order tie
+ * exactly like `.jini-chat-pane__header` and `.jini-message-list > .jini-message-user
+ * .jini-message-content` already had to work around with the identical trick.
+ */
+
+/* The divider the owner asked for ("a thin barrier between the text input and the plugin row"),
+ * mirroring the SAME hairline Jini's own footer already uses one zone down
+ * (`.jini-chat-pane .jini-composer-footer { border-top: 1px solid var(--jini-chat-border-soft) }`)
+ * — reusing that exact token/pattern reads as "one more zone of the same control" instead of a
+ * new visual language. Only ever visible when there is something pinned: `SelectedAgentPluginTray`
+ * renders NO DOM at all (not just a hidden node) when `chips.length === 0`, so there is nothing for
+ * this border to attach to on an empty tray — no stray line shows up for a conversation with
+ * nothing pinned.
+ *
+ * `flex-wrap: nowrap` + `overflow-x: auto` replace Jini's own wrap-and-grow behavior with a single
+ * scrollable row, so 3+ pinned chips scroll instead of pushing the composer taller. The mask-image
+ * pair is a static edge-fade affordance ("is there more?") — matches the tray's own real
+ * background (inherited from `.jini-composer`'s `--jini-chat-subtle`, which this file already
+ * remaps to `--surface-2` above) so it reads as the row fading into its own surface, not a new
+ * color.
+ */
+.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-tray {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-height: none;
+  padding-bottom: 10px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--jini-chat-border-soft);
+  scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to right, transparent, black 18px, black calc(100% - 18px), transparent);
+  mask-image: linear-gradient(to right, transparent, black 18px, black calc(100% - 18px), transparent);
+}
+
+/* Without this, a chip nearest the edge can shrink (flex's default `flex-shrink: 1`) rather than
+   overflow into the new scrollable row, which would clip its label text before the row ever
+   scrolls. `flex: none` keeps every chip at its natural width regardless of how many are pinned. */
+.admin-chat-dock .jini-chat-pane .jini-composer-leading .jini-attachment-chip {
+  flex: none;
+}
+
 /* --- Runtime/agent picker --- */
 
 .jini-runtime-trigger {
