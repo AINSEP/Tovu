@@ -1170,6 +1170,61 @@ test("renderSite (Slice 2, media): a malformed media-image IR (missing assetId �
   assert.match(html, /widget-placeholder/);
 });
 
+// ---------------------------------------------------------------------------
+// Video/embed capability (2026-08-24) — a "media" embed whose IR carries `contentType` starting
+// with "video/" (resolver-service.ts's resolveMediaTypeEmbeds, when the asset is a recorded video)
+// renders a real <video> instead of an <img>, pointed at the original-bytes route rather than the
+// versioned transform URL.
+// ---------------------------------------------------------------------------
+
+test('renderSite (video/embed): a resolved media-image IR carrying contentType "video/mp4" renders a real <video> pointed at /m/{assetId}/original, not an <img>', async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        [
+          "asset-1",
+          { componentId: "media-image", props: { assetId: "asset-1", contentType: "video/mp4", alt: "A hero clip", width: 1920, height: 1080, cssClass: "hero-video" } },
+        ],
+      ]),
+    }),
+  });
+
+  assert.doesNotMatch(html, /<img/);
+  assert.match(html, /<video src="\/m\/asset-1\/original" controls width="1920" height="1080" class="hero-video">A hero clip<\/video>/);
+});
+
+test("renderSite (video/embed): width/height/class are each omitted independently when null, and an empty alt falls back to the no-support message, same conventions <img> already follows", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      media: new Map([
+        ["asset-1", { componentId: "media-image", props: { assetId: "asset-1", contentType: "video/webm", alt: "", width: null, height: null, cssClass: null } }],
+      ]),
+    }),
+  });
+
+  const videoMatch = html.match(/<video[^>]*>[^<]*<\/video>/);
+  assert.ok(videoMatch, "expected exactly one <video> tag in the rendered page");
+  assert.equal(videoMatch![0], '<video src="/m/asset-1/original" controls>Your browser does not support the video tag.</video>');
+});
+
 /**
  * Heading anchors (docs sidebar, 2026-08-10). A menu of `#anchor` links is inert unless the rendered
  * headings carry matching ids, and until now `renderDocNode` emitted a bare `<hN>` — so every

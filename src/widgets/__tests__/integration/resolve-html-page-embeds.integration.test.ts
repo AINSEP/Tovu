@@ -6,7 +6,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryFormDefinitionRepo } from "#src/forms/repo.memory";
 import type { FormDefinitionRecord } from "#src/forms/index";
-import { CORE_PUBLIC_TRANSFORM_NAME, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME, InMemoryMediaContentTypeStore, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/media/index";
 import type { MediaRecord, TransformDefinitionRecord } from "#src/media/index";
 import { MAX_HTML_EMBEDS_PER_PAGE } from "../../html-embeds.js";
 import { WIDGET_PAYLOAD_FIELD } from "../../entry-payload.js";
@@ -361,6 +361,52 @@ test('resolveHtmlPageEmbeds: a "media" embed with no variant resolves against CO
 
   const resolved = await resolveHtmlPageEmbeds({
     deps: { entryRepo, mediaRepo, transformRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
+  });
+
+  assert.deepEqual(resolved.get("media")?.get("asset-1"), {
+    componentId: "media-image",
+    props: {
+      assetId: "asset-1",
+      transformName: CORE_PUBLIC_TRANSFORM_NAME,
+      version: 2,
+      alt: "A scenic photo",
+      width: 640,
+      height: 480,
+      cssClass: "rounded",
+    },
+  });
+});
+
+test('resolveHtmlPageEmbeds: a "media" embed whose asset is a recorded VIDEO resolves to a video IR — contentType present, no transformName/version, and no transform needs to be registered at all', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const sha256 = "b".repeat(64);
+  const mediaRepo = new InMemoryMediaRepo([
+    mediaRecord({ alt: "A hero clip", width: 1920, height: 1080, cssClass: "hero-video", source: { sha256 } }),
+  ]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([]); // deliberately empty — video must never reach this
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256, contentType: "video/mp4" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
+  });
+
+  assert.deepEqual(resolved.get("media")?.get("asset-1"), {
+    componentId: "media-image",
+    props: { assetId: "asset-1", contentType: "video/mp4", alt: "A hero clip", width: 1920, height: 1080, cssClass: "hero-video" },
+  });
+});
+
+test('resolveHtmlPageEmbeds: a "media" embed with mediaContentTypeStore supplied but no recorded type for this asset\'s sha256 falls through to the ordinary image path unchanged', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const mediaRepo = new InMemoryMediaRepo([mediaRecord({ alt: "A scenic photo", width: 640, height: 480, cssClass: "rounded" })]);
+  const transformRepo = new InMemoryTransformDefinitionRepo([transformDefinition({ name: CORE_PUBLIC_TRANSFORM_NAME, version: 2 })]);
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore(); // never `.set()` — a real "not sniffed yet" miss
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, mediaRepo, transformRepo, mediaContentTypeStore },
     input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` },
   });
 
