@@ -398,6 +398,15 @@ export class SqlitePolicyPermissionRepo implements PolicyPermissionRepoPort {
       )
       .run();
   }
+
+  async delete(required: { workspaceId: string; id: string }): Promise<void> {
+    this.db
+      .delete(policyPermissions)
+      .where(
+        and(eq(policyPermissions.workspaceId, required.workspaceId), eq(policyPermissions.id, required.id))
+      )
+      .run();
+  }
 }
 
 function toRolePolicyRecord(row: typeof rolePolicies.$inferSelect): RolePolicyRecord {
