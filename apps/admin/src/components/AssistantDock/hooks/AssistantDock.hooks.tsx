@@ -876,14 +876,24 @@ export async function resolveComposerDiscoveryOutcome(
 
   const capability = deps.capabilities.byItemId.get(selection.item.id);
 
-  // Pinning a plugin ref never touches the draft — the chip IS the visible effect, rendered by
-  // `AssistantDock.tsx`'s own `leadingAccessories` slot from `useSelectedAgentPlugins` state, not
-  // by anything Jini's `Composer` applies. Checked before `capability?.resolve` below: today's
-  // bundled catalog never sets both on the same capability, but if a future one did, pinning the
-  // chip should not be skipped just because a `resolve` binding also exists.
+  // Pinning a plugin ref never leaves anything of its own in the draft — the chip IS the visible
+  // effect, rendered by `AssistantDock.tsx`'s own `leadingAccessories` slot from
+  // `useSelectedAgentPlugins` state, not by anything Jini's `Composer` applies. Checked before
+  // `capability?.resolve` below: today's bundled catalog never sets both on the same capability,
+  // but if a future one did, pinning the chip should not be skipped just because a `resolve`
+  // binding also exists.
+  //
+  // `{ draft: "" }`, not a bare `return` (2026-08-23): the "+" menu and a plain (no-`command`)
+  // slash selection both already clear the draft themselves, in `Composer.tsx`, via this
+  // capability's own `insertText: ""` — this outcome was a no-op for those paths. But the
+  // `command`-bearing slash path (`/ui-ux-design`, added the same day) is a `selectSlashItem`
+  // branch that skips that same insertText-driven clear (see `composer-capabilities.ts`'s
+  // `command` doc), so without this the literal typed `/ui-ux-design` would sit in the box after
+  // pinning. Same "host explicitly clears it" pattern the `allowlisted-tool-call` branch below
+  // already uses.
   if (capability?.pluginRefId) {
     deps.addPluginRef?.(capability.pluginRefId);
-    return;
+    return { draft: "" };
   }
 
   if (!capability?.resolve) return;

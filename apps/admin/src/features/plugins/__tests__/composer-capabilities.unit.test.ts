@@ -143,13 +143,28 @@ describe("the bundled agent-plugin:ui-ux-design row pins a chip, no longer types
     const capability = projection.byItemId.get("agent-plugin:ui-ux-design");
 
     expect(capability?.pluginRefId).toBe("ui-ux-design");
-    expect(capability?.item.insertText).toBeUndefined();
+    // `""`, not undefined: an explicit empty string is what clears the slash trigger to an empty
+    // draft (`replaceComposerSlashTrigger` returns its second arg verbatim) while staying falsy for
+    // the "+" path's `item.insertText ? ... : composer.draft` guard — see the production doc on this
+    // field for the two-path reasoning. (Pre-existing test drift: this assertion predates that fix
+    // and was never updated to match — unrelated to this dispatch's slash-command work.)
+    expect(capability?.item.insertText).toBe("");
   });
 
   it("is indexed by pluginRefId for the chip tray's label lookup", async () => {
     const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
 
     expect(projection.byPluginRefId.get("ui-ux-design")?.item.id).toBe("agent-plugin:ui-ux-design");
+  });
+
+  it("declares command: \"ui-ux-design\" so /ui-ux-design locks onto this item, not just fuzzy matches it", async () => {
+    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const capability = projection.byItemId.get("agent-plugin:ui-ux-design");
+
+    expect(capability?.item.command).toBe("ui-ux-design");
+    // No argument: selecting the item invokes immediately once the typed word matches, same as any
+    // other no-argument command (see composer-discovery.ts's resolveComposerSlashInvocation).
+    expect(capability?.item.argument).toBeUndefined();
   });
 });
 

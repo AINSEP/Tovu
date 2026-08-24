@@ -12,7 +12,7 @@ import {
 // by relative path rather than through the package's `exports` map).
 const PLUGIN_ROOT = path.resolve(
   process.cwd(),
-  "../../../Jini/packages/plugins/ui-ux-design",
+  "../../../Jini/packages/agent-plugins/ui-ux-design",
 );
 const SKILLS_ROOT = path.join(PLUGIN_ROOT, "skills");
 const ALLOWED_MANIFEST_FIELDS = new Set([
@@ -54,7 +54,7 @@ describe("ui-ux-design Agent Plugin package", () => {
     expect(Object.keys(manifest).every((field) => ALLOWED_MANIFEST_FIELDS.has(field))).toBe(true);
 
     // The package's manifest describes the whole 7-skill bundle and carries no `version` field
-    // (Jini's own choice, see packages/plugins/README.md) -- Tovu's card metadata is deliberately
+    // (Jini's own choice, see packages/agent-plugins/README.md) -- Tovu's card metadata is deliberately
     // its own hand-curated copy (displayName/version/description), not derived from this file, so
     // only `id` is cross-checked against the manifest here.
     expect(TOVU_BUNDLED_AGENT_PLUGINS[0]).toEqual(expect.objectContaining({ id: manifest.name }));

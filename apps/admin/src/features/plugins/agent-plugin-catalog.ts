@@ -14,13 +14,13 @@ export interface BundledAgentPlugin {
   /**
    * Optional because there is no honest value to put here: the package this entry describes
    * (Jini's `ui-ux-design` Agent Plugin) bundles 7 skills and its own `plugin.json` carries no
-   * `version` field at all (see `packages/plugins/README.md` in the Jini repo). A hand-set number
+   * `version` field at all (see `packages/agent-plugins/README.md` in the Jini repo). A hand-set number
    * here would describe nothing real. Omit rather than invent one; `AgentPlugins.tsx` skips the
    * Version row entirely when this is absent.
    */
   readonly version?: string;
   readonly description: string;
-  readonly source: "Jini plugins package (@jini-ai/plugins)";
+  readonly source: "Jini agent-plugins package (@jini-ai/agent-plugins)";
   readonly availability: "Bundled with Tovu — catalogued, not executed";
   readonly skills: readonly BundledAgentPluginSkill[];
 }
@@ -31,7 +31,7 @@ export const TOVU_BUNDLED_AGENT_PLUGINS: readonly BundledAgentPlugin[] = [
     displayName: "UI/UX Design",
     description:
       "AI Dev Shop's UI/UX design, interface-design, accessibility, and shadcn/ui component skills — 7 skills bundled as one portable Agent Plugin.",
-    source: "Jini plugins package (@jini-ai/plugins)",
+    source: "Jini agent-plugins package (@jini-ai/agent-plugins)",
     availability: "Bundled with Tovu — catalogued, not executed",
     skills: [
       { name: "ui-ux-design", relativePath: "skills/ui-ux-design/SKILL.md" },
