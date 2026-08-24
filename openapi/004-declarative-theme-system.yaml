@@ -1,0 +1,198 @@
+openapi: 3.0.3
+info:
+  title: Tovu API — Declarative Theme System
+  version: "1.0.0"
+  description: Hand-verified against the current route handlers, serializers, validators, and session middleware on 2026-08-23.
+servers: [{ url: / }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/themes:
+    get:
+      operationId: list_themes
+      tags: [themes]
+      summary: List discovered themes
+      description: Requires an authenticated admin session and the `theme.set` permission.
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      # Drift: api.spec.md declares this AUTH_LOCAL_DEV/no-auth; the mounted /api/admin session gate and this handler require a session and theme.set.
+      # Drift: the documented error items have string code/file values; the real loader only produces message strings, so the handler always returns null for both fields.
+      # Drift: api.spec.md says exactly one item is active; a missing settings row or an active id absent from discovery yields no active item.
+      responses:
+        '200': { description: Discovered themes, content: { application/json: { schema: { $ref: '#/components/schemas/ThemeListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/presentation:
+    get:
+      operationId: get_presentation
+      tags: [themes, presentation]
+      summary: Read presentation settings and available themes
+      description: Requires an authenticated admin session and the `theme.set` permission.
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      # Drift: api.spec.md declares this AUTH_LOCAL_DEV/no-auth; the mounted /api/admin session gate and this handler require a session and theme.set.
+      # Drift: the spec's settings.version field is not serialized; the real response additionally includes availableThemes, activeThemeTemplates, and activeThemeStaticPageIds.
+      responses:
+        '200': { description: Presentation settings, content: { application/json: { schema: { $ref: '#/components/schemas/PresentationResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/PresentationNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: update_active_theme
+      tags: [themes, presentation]
+      summary: Set the active discovered valid theme
+      description: Requires an authenticated admin session and the `theme.set` permission. The handler coerces a missing, non-object, or non-string value to a string before validation.
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePresentationRequest' }
+            example: { activeThemeId: basic }
+      # Drift: api.spec.md requires {activeThemeId: string}, Idempotency-Key/409, plus THEME_NOT_FOUND (404) and THEME_INVALID (422); this handler coerces any JSON body/value to a string, does not implement idempotency, and returns 400 {error} for every unsupported id.
+      # Drift: the spec's settings.version field is not serialized; the real response additionally includes availableThemes, activeThemeTemplates, and activeThemeStaticPageIds.
+      responses:
+        '200': { description: Updated presentation settings, content: { application/json: { schema: { $ref: '#/components/schemas/PresentationResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/PresentationNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/content/v1/workspaces/{workspaceId}/posts/{slug}:
+    get:
+      operationId: get_content_post_by_slug
+      tags: [content, themes]
+      summary: Fetch a published post and its active theme id
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/Slug'
+      responses:
+        '200': { description: Published content post, content: { application/json: { schema: { $ref: '#/components/schemas/ContentPostResponse' } } } }
+        '404': { $ref: '#/components/responses/ContentOrPresentationNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /:
+    get:
+      operationId: render_site_home
+      tags: [site, themes]
+      summary: Render the public site home page
+      security: []
+      # Drift: api.spec.md says theme-data failures never yield 5xx; the real handler returns 500 HTML when no theme is discovered and for other unhandled render failures.
+      responses:
+        '200': { description: Rendered HTML, headers: { Cache-Control: { schema: { type: string }, example: 'public, max-age=60, stale-while-revalidate=300' } }, content: { text/html: { schema: { type: string } } } }
+        '301': { $ref: '#/components/responses/SiteRedirect' }
+        '302': { $ref: '#/components/responses/SiteRedirect' }
+        '307': { $ref: '#/components/responses/SiteRedirect' }
+        '308': { $ref: '#/components/responses/SiteRedirect' }
+        '500': { $ref: '#/components/responses/SiteError' }
+  /{slug}:
+    get:
+      operationId: render_site_slug
+      tags: [site, themes]
+      summary: Render a public post or static theme page
+      security: []
+      parameters: [{ $ref: '#/components/parameters/SiteSlug' }]
+      # Drift: api.spec.md says theme-data failures never yield 5xx; the real handler returns 500 HTML when no theme is discovered and for other unhandled render failures.
+      responses:
+        '200': { description: Rendered HTML, headers: { Cache-Control: { schema: { type: string }, example: 'public, max-age=60, stale-while-revalidate=300' } }, content: { text/html: { schema: { type: string } } } }
+        '301': { $ref: '#/components/responses/SiteRedirect' }
+        '302': { $ref: '#/components/responses/SiteRedirect' }
+        '307': { $ref: '#/components/responses/SiteRedirect' }
+        '308': { $ref: '#/components/responses/SiteRedirect' }
+        '404': { $ref: '#/components/responses/SiteNotFound' }
+        '500': { $ref: '#/components/responses/SiteError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the server's configured workspace; no UUID validation is performed., schema: { type: string } }
+    Slug: { name: slug, in: path, required: true, schema: { type: string } }
+    SiteSlug: { name: slug, in: path, required: true, description: Only lowercase alphanumerics and hyphens are handled here; an optional trailing .html is stripped. Other values fall through to later Express routing., schema: { type: string, pattern: '^[a-z0-9-]+(\\.html)?$' } }
+  schemas:
+    ThemeListResponse:
+      type: object
+      required: [themes]
+      properties:
+        themes: { type: array, items: { $ref: '#/components/schemas/ThemeListItem' } }
+    ThemeListItem:
+      type: object
+      required: [id, name, version, source, status, errors, active]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        version: { type: string }
+        source: { type: string, enum: [built-in, site] }
+        status: { type: string, enum: [valid, invalid] }
+        errors:
+          type: array
+          items:
+            type: object
+            required: [code, file, message]
+            properties:
+              code: { type: string, nullable: true, enum: [null] }
+              file: { type: string, nullable: true, enum: [null] }
+              message: { type: string }
+        active: { type: boolean }
+    UpdatePresentationRequest:
+      description: Any JSON body is accepted by the handler and coerced to a string for validation; clients should send an object with activeThemeId as a string.
+    PresentationResponse:
+      type: object
+      required: [settings, availableThemeIds, availableThemes, activeThemeTemplates, activeThemeStaticPageIds]
+      properties:
+        settings:
+          type: object
+          required: [workspaceId, activeThemeId, updatedAt]
+          properties:
+            workspaceId: { type: string }
+            activeThemeId: { type: string }
+            updatedAt: { type: string, format: date-time }
+        availableThemeIds: { type: array, items: { type: string } }
+        availableThemes:
+          type: array
+          items:
+            type: object
+            required: [id, tier]
+            properties:
+              id: { type: string }
+              tier: { type: string, enum: [declarative, templated, handlebars, static, code] }
+              apiVersion: { type: integer, enum: [2] }
+        activeThemeTemplates: { type: array, items: { type: string } }
+        activeThemeStaticPageIds: { type: array, items: { type: string } }
+    ContentPostResponse:
+      type: object
+      required: [post, presentation]
+      properties:
+        post:
+          type: object
+          required: [id, kind, title, slug, bodyJson, updatedAt]
+          properties:
+            id: { type: string }
+            kind: { type: string, enum: [post, page] }
+            title: { type: string }
+            slug: { type: string }
+            bodyJson: { type: object, additionalProperties: true }
+            updatedAt: { type: string, format: date-time }
+        presentation:
+          type: object
+          required: [activeThemeId]
+          properties: { activeThemeId: { type: string } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Missing theme.set permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'principal is not authorized', code: FORBIDDEN, details: { permission: theme.set, reason: unmatched } } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    PresentationNotFound: { description: Workspace path mismatch or missing presentation settings. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ContentOrPresentationNotFound: { description: Workspace path mismatch, unpublished/missing post, or missing presentation settings. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Unsupported or absent activeThemeId. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "theme 'unknown' is not supported" } } } }
+    InternalError: { description: Internal error. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error } } } }
+    SiteRedirect: { description: Redirect resolved by the registered redirect phase., headers: { Location: { required: true, schema: { type: string } } } }
+    SiteNotFound: { description: Themed or fallback HTML not-found page, content: { text/html: { schema: { type: string } } } }
+    SiteError: { description: HTML error page, content: { text/html: { schema: { type: string } } } }

@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Menus
+  version: "1.0.0"
+  description: Hand-verified against the current menus route handlers, serializers, shared session middleware, and navigation service on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/menus:
+    get:
+      operationId: list_menus
+      tags: [menus]
+      summary: List menus in a workspace
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Menus, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMenuListEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_menu
+      tags: [menus]
+      summary: Create a menu with an optional initial tree
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateMenuRequest' } } }
+      responses:
+        '201': { description: Created menu, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMenuEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CreateForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/menus/{menuId}:
+    get:
+      operationId: get_menu
+      tags: [menus]
+      summary: Get one menu including its item tree
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MenuId' }]
+      responses:
+        '200': { description: Menu, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMenuEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ReadForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: update_menu_tree
+      tags: [menus]
+      summary: Replace a menu tree using optimistic concurrency
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MenuId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMenuTreeRequest' } } }
+      responses:
+        '200': { description: Updated menu, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMenuEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/UpdateForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: delete_menu
+      tags: [menus]
+      summary: Trash a menu, then purge it on a later call
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/MenuId'
+        - name: force
+          in: query
+          description: Only the exact string `true` bypasses the bound-location purge guard; it additionally requires `admin.menus.delete.force`.
+          schema: { type: string }
+      responses:
+        '200': { description: Trashed menu or successful purge, content: { application/json: { schema: { $ref: '#/components/schemas/AdminDeleteMenuEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/DeleteForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/LocationBound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/menus/{menuId}/locations:
+    post:
+      operationId: assign_menu_location
+      tags: [menus]
+      summary: Assign a menu to a theme location
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MenuId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AssignMenuLocationRequest' } } }
+      responses:
+        '200': { description: Assignment, including a displaced menu when a previous binding was replaced, content: { application/json: { schema: { $ref: '#/components/schemas/AdminAssignLocationEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/AssignForbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Compared directly with the configured workspace ID; no UUID validation is performed., schema: { type: string } }
+    MenuId: { name: menuId, in: path, required: true, description: Passed through as a string; the handler performs no format validation., schema: { type: string } }
+  schemas:
+    # Drift: api.spec.md calls title/slug strings "required"; handlers coerce any JSON value with String(...), then the service rejects empty/invalid results.
+    CreateMenuRequest:
+      type: object
+      required: [title, slug]
+      properties:
+        title: { description: Coerced by String(value), trimmed by the service, and must then be non-empty. }
+        slug: { description: "Coerced by String(value), trimmed/lowercased by the service, and must match ^[a-z0-9-]+$." }
+        items: { type: array, description: Optional; only array-ness is checked by the handler before service validation., items: { $ref: '#/components/schemas/NavItemInput' } }
+    # Drift: api.spec.md marks expectedVersion required, but an omitted or malformed value is accepted as Number(value ?? 0) and normally produces an OCC 409 for an existing menu.
+    UpdateMenuTreeRequest:
+      type: object
+      required: [items]
+      properties:
+        expectedVersion: { description: Coerced with Number(value ?? 0); no route-level integer validation is performed. }
+        title: { type: string, description: Applied only when the JSON value is a string; otherwise the stored title is retained. }
+        slug: { type: string, description: Applied only when the JSON value is a string; otherwise the stored slug is retained. }
+        items: { type: array, description: Required by the handler; item semantics are validated by the service., items: { $ref: '#/components/schemas/NavItemInput' } }
+    AssignMenuLocationRequest:
+      type: object
+      required: [locationKey]
+      properties:
+        locationKey: { description: Coerced with String(value ?? ''), trimmed, and rejected if empty. }
+    NavItemInput:
+      type: object
+      required: [id, target]
+      properties:
+        id: { type: string, minLength: 1, description: Must be non-blank and unique across the submitted tree; no UUID/ULID format is validated. }
+        label: { type: string }
+        target: { $ref: '#/components/schemas/NavTarget' }
+        attrs: { $ref: '#/components/schemas/NavItemAttrs' }
+        children: { type: array, items: { $ref: '#/components/schemas/NavItemInput' } }
+    NavTarget:
+      oneOf:
+        - type: object
+          required: [kind, entryId]
+          properties: { kind: { type: string, enum: [entryRef] }, entryId: { type: string } }
+        - type: object
+          required: [kind, termId, taxonomy]
+          properties: { kind: { type: string, enum: [termRef] }, termId: { type: string }, taxonomy: { type: string } }
+        - type: object
+          required: [kind, href]
+          properties: { kind: { type: string, enum: [url] }, href: { type: string, description: "javascript:, data:, and vbscript: schemes are rejected case-insensitively after trim." } }
+        - type: object
+          required: [kind, route]
+          properties: { kind: { type: string, enum: [route] }, route: { type: string }, params: { type: object, additionalProperties: true } }
+    NavItemAttrs:
+      type: object
+      properties:
+        openInNewTab: { type: boolean }
+        rel: { type: string }
+        cssClass: { type: string }
+        description: { type: string }
+        icon: { type: string }
+    AdminMenuTargetDto: { $ref: '#/components/schemas/NavTarget' }
+    AdminMenuItemDto:
+      type: object
+      required: [id, target]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        target: { $ref: '#/components/schemas/AdminMenuTargetDto' }
+        attrs: { $ref: '#/components/schemas/NavItemAttrs' }
+        children: { type: array, items: { $ref: '#/components/schemas/AdminMenuItemDto' } }
+    AdminMenuDto:
+      type: object
+      required: [id, workspaceId, slug, title, status, items, locations, updatedAt, version]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        slug: { type: string }
+        title: { type: string }
+        # Drift: api.spec.md says published is never set; createMenu() currently creates menus with status "published".
+        status: { type: string, enum: [draft, published, trash] }
+        items: { type: array, items: { $ref: '#/components/schemas/AdminMenuItemDto' } }
+        locations: { type: array, items: { type: string } }
+        updatedAt: { type: string, format: date-time }
+        version: { type: number }
+    AdminMenuEnvelope: { type: object, required: [menu], properties: { menu: { $ref: '#/components/schemas/AdminMenuDto' } } }
+    AdminMenuListEnvelope: { type: object, required: [menus], properties: { menus: { type: array, items: { $ref: '#/components/schemas/AdminMenuDto' } } } }
+    AdminMenuBindingDto:
+      type: object
+      required: [workspaceId, locationKey, menuId, boundAt]
+      properties:
+        workspaceId: { type: string }
+        locationKey: { type: string }
+        menuId: { type: string }
+        boundAt: { type: string, format: date-time }
+    AdminAssignLocationEnvelope:
+      type: object
+      required: [menu, binding, displacedMenu]
+      properties:
+        menu: { $ref: '#/components/schemas/AdminMenuDto' }
+        binding: { $ref: '#/components/schemas/AdminMenuBindingDto' }
+        displacedMenu: { allOf: [{ $ref: '#/components/schemas/AdminMenuDto' }], nullable: true }
+    AdminDeleteMenuEnvelope:
+      type: object
+      required: [menu, purged]
+      properties:
+        menu: { allOf: [{ $ref: '#/components/schemas/AdminMenuDto' }], nullable: true }
+        purged: { type: boolean }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+        boundLocations: { type: array, items: { type: string } }
+  responses:
+    Unauthenticated: { description: Shared /api/admin session gate response, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    ReadForbidden: { description: Missing admin.menus.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    CreateForbidden: { description: Missing admin.menus.create permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    UpdateForbidden: { description: Missing admin.menus.update permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    AssignForbidden: { description: Missing admin.menus.assign permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    DeleteForbidden: { description: Missing admin.menus.delete, or (when force=true) admin.menus.delete.force, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceNotFound: { description: "Authenticated request with a workspace path mismatch. Runtime body is { error } without code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    NotFound: { description: "Workspace mismatch or missing menu. Runtime bodies contain error only, without the error code claimed by api.spec.md.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: "Invalid request or menu validation. Runtime bodies contain error only, without the error code claimed by api.spec.md.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    Conflict: { description: "Duplicate slug or stale expected version. Runtime body contains error only.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    LocationBound: { description: "Purge blocked by bound locations; runtime also returns boundLocations.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: "Internal error. Runtime body is { error: 'internal error' } without code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+# Drift: api.spec.md assigns the single navigation.manage permission to every route; the handlers now use admin.menus.read/create/update/assign/delete, and force=true additionally requires admin.menus.delete.force.
+# Drift: api.spec.md says the workspace check precedes authentication. createCoreModule mounts requireAdminSession on /api/admin before all menu handlers, so unauthenticated requests (including a wrong workspace) receive 401 first.
+# Drift: api.spec.md assigns named error codes to workspace/menu/validation/conflict errors, but the handlers usually return only { error }; only shared 401 and route-level 403 responses include code.

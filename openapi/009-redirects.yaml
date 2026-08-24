@@ -1,0 +1,168 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Redirects
+  version: "1.0.0"
+  description: Hand-verified against the current redirect route handlers and serializers on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/redirects:
+    get:
+      operationId: list_redirects
+      tags: [redirects]
+      summary: List redirect rules
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - { name: status, in: query, schema: { type: string, enum: [active, disabled] } }
+        - { name: source, in: query, schema: { type: string, enum: [manual, auto_slug_change, import] } }
+        # Drift: the handler accepts regex too; api.spec.md omits it from this query enum.
+        - { name: matchType, in: query, schema: { type: string, enum: [exact, prefix, wildcard, regex] } }
+      responses:
+        '200': { description: Rules, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_redirect
+      tags: [redirects]
+      summary: Create a manual redirect rule
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateRedirectRequest' } } }
+      responses:
+        '201': { description: Created rule, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/redirects/import:
+    post:
+      operationId: import_redirects
+      tags: [redirects]
+      summary: Import up to 500 redirect rules
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [rules], properties: { rules: { type: array, minItems: 1, maxItems: 500, items: { $ref: '#/components/schemas/CreateRedirectRequest' } } } } } }
+      responses:
+        '207': { description: Per-item import result, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectImportResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/redirects/{id}:
+    get:
+      operationId: get_redirect
+      tags: [redirects]
+      summary: Fetch a redirect rule
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RedirectId' }]
+      responses:
+        '200': { description: Rule, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        # Drift: workspace mismatch returns {error} without code; missing rule returns REDIRECT_NOT_FOUND.
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: update_redirect
+      tags: [redirects]
+      summary: Update mutable redirect fields
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RedirectId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateRedirectRequest' } } } }
+      responses:
+        '200': { description: Updated rule, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: tombstone_redirect
+      tags: [redirects]
+      summary: Soft-delete a redirect rule
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RedirectId' }]
+      responses:
+        '200': { description: Tombstoned rule, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/redirects/{id}/hits:
+    get:
+      operationId: list_redirect_hits
+      tags: [redirects]
+      summary: Read aggregate hit statistics
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RedirectId' }]
+      responses:
+        '200': { description: Hit statistics, content: { application/json: { schema: { $ref: '#/components/schemas/RedirectHitStatsResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the server's bound workspace; no UUID validation is performed., schema: { type: string, format: uuid } }
+    RedirectId: { name: id, in: path, required: true, description: A ULID in the current domain model; this handler performs no format validation., schema: { type: string } }
+  schemas:
+    CreateRedirectRequest:
+      type: object
+      required: [matchType, fromPattern, toTarget, statusCode]
+      properties:
+        matchType: { type: string, enum: [exact, prefix, wildcard, regex] }
+        fromPattern: { type: string }
+        toTarget: { type: string }
+        statusCode: { type: integer, enum: [301, 302, 307, 308] }
+        override: { type: boolean }
+        priority: { type: number }
+    UpdateRedirectRequest:
+      type: object
+      properties:
+        matchType: { type: string }
+        fromPattern: { type: string }
+        toTarget: { type: string }
+        statusCode: { type: number }
+        status: { type: string }
+        override: { type: boolean }
+        priority: { type: number }
+    RedirectRule:
+      type: object
+      required: [id, workspaceId, matchType, fromPattern, toTarget, statusCode, status, override, priority, source, createdByPrincipal, createdAt, updatedAt, version]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        matchType: { type: string, enum: [exact, prefix, wildcard, regex] }
+        fromPattern: { type: string }
+        toTarget: { type: string }
+        statusCode: { type: integer, enum: [301, 302, 307, 308] }
+        status: { type: string, enum: [active, disabled] }
+        override: { type: boolean }
+        priority: { type: number }
+        source: { type: string, enum: [manual, auto_slug_change, import] }
+        sourceEntryId: { type: string, nullable: true }
+        fromPathAtCapture: { type: string, nullable: true }
+        toPathAtCapture: { type: string, nullable: true }
+        createdByPrincipal: { type: string }
+        createdByPluginId: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer }
+    RedirectResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/RedirectRule' } } }
+    RedirectListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/RedirectRule' } } } }
+    RedirectImportResponse: { type: object, required: [created, failed], properties: { created: { type: array, items: { $ref: '#/components/schemas/RedirectRule' } }, failed: { type: array, items: { type: object, required: [index, code, message], properties: { index: { type: integer }, code: { type: string }, message: { type: string } } } } } }
+    RedirectHitStatsResponse: { type: object, required: [data], properties: { data: { type: object, required: [redirectId, workspaceId, hitCount], properties: { redirectId: { type: string }, workspaceId: { type: string }, hitCount: { type: integer }, lastHitAt: { type: string, format: date-time, nullable: true } } } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Missing admin.redirects.manage permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    NotFound: { description: Missing workspace or redirect rule, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Invalid request or redirect constraint, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    Conflict: { description: Redirect conflict or loop, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }

@@ -1,0 +1,214 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Admin Command Gateway
+  version: "1.0.0"
+  description: Hand-verified against current route handlers, validators, serializers, the shared admin-session middleware, and command gateway on 2026-08-23.
+servers: [{ url: / }]
+# Drift: SPEC-001 declares AUTH_LOCAL_DEV (no credentials), but every path below is behind requireAdminSession and its route-specific permission check.
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/change-sets:
+    get:
+      operationId: list_change_sets
+      tags: [change-sets]
+      summary: List workspace change sets in repository order
+      # Drift: SPEC-001 promises newest-first; this handler performs no sort and the current SQLite repository orders createdAt ascending.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200':
+          description: Change-set headers
+          content: { application/json: { schema: { $ref: '#/components/schemas/ChangeSetListResponse' }, example: { changeSets: [{ id: cs_01, workspaceId: workspace-local, actorId: principal_01, status: applied, summary: "Update post post_01", intentRef: null, createdAt: '2026-08-23T12:00:00.000Z', appliedAt: '2026-08-23T12:00:00.000Z', revertedAt: null }] } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ChangeSetReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/change-sets/{changeSetId}:
+    get:
+      operationId: get_change_set
+      tags: [change-sets]
+      summary: Fetch one change set and its items
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ChangeSetId' }]
+      responses:
+        '200':
+          description: Change set with safe item projections; inverse payloads are never exposed
+          content: { application/json: { schema: { $ref: '#/components/schemas/ChangeSetDetailResponse' }, example: { changeSet: { id: cs_01, workspaceId: workspace-local, actorId: principal_01, status: applied, summary: "Update post post_01", intentRef: null, createdAt: '2026-08-23T12:00:00.000Z', appliedAt: '2026-08-23T12:00:00.000Z', revertedAt: null }, items: [{ id: csi_01, entityType: post, entityId: post_01, operation: update, revertible: true, entityVersionAtApply: 2, position: 0 }] } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ChangeSetReadForbidden' }
+        '404': { $ref: '#/components/responses/ChangeSetOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/change-sets/{changeSetId}/revert:
+    post:
+      operationId: revert_change_set
+      tags: [change-sets]
+      summary: Revert an applied change set
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ChangeSetId' }]
+      responses:
+        '200':
+          description: Reverted change-set header
+          content: { application/json: { schema: { $ref: '#/components/schemas/ChangeSetResponse' }, example: { changeSet: { id: cs_01, workspaceId: workspace-local, actorId: principal_01, status: reverted, summary: "Update post post_01", intentRef: null, createdAt: '2026-08-23T12:00:00.000Z', appliedAt: '2026-08-23T12:00:00.000Z', revertedAt: '2026-08-23T12:01:00.000Z' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ChangeSetRevertForbidden' }
+        '404': { $ref: '#/components/responses/ChangeSetOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/RevertConflict' }
+        '422': { $ref: '#/components/responses/RevertNotPossible' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/posts/{postId}:
+    put:
+      operationId: update_post
+      tags: [posts, change-sets]
+      summary: Update a post through the command gateway
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PostId'
+        # Drift: SPEC-001 limits this header to 200 characters; the handler passes any non-empty header value through without length validation.
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdatePostRequest' }
+            example: { title: Updated title, slug: updated-title, bodyJson: { type: doc, content: [] }, status: published, templateChoice: article.html, overridesThemePage: false }
+      responses:
+        '200': { description: Updated post, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPostEnvelope' }, example: { post: { id: post_01, workspaceId: workspace-local, kind: post, title: Updated title, slug: updated-title, status: published, updatedAt: '2026-08-23T12:00:00.000Z', version: 2, templateChoice: article.html, overridesThemePage: false, bodyFormat: doc, bodyJson: { type: doc, content: [] }, bodyHtml: null } } } } }
+        '400': { $ref: '#/components/responses/PostValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ContentWriteForbidden' }
+        '404': { $ref: '#/components/responses/PostOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/PostConflictOrDuplicateCommand' }
+        # Drift: the current route enforces a 1 MiB JSON body limit and returns 413 PAYLOAD_TOO_LARGE; SPEC-001's status map omits this response.
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/presentation:
+    patch:
+      operationId: set_active_theme
+      tags: [presentation]
+      summary: Set the active theme
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetActiveThemeRequest' }
+            example: { activeThemeId: basic }
+      # Drift: SPEC-001 says this mutation goes through the command gateway and accepts Idempotency-Key; current code calls setActiveTheme directly and creates no change set.
+      responses:
+        '200': { description: Updated presentation settings and current theme metadata, content: { application/json: { schema: { $ref: '#/components/schemas/AdminPresentationResponse' }, example: { settings: { workspaceId: workspace-local, activeThemeId: basic, updatedAt: '2026-08-23T12:00:00.000Z' }, availableThemeIds: [basic], availableThemes: [{ id: basic, tier: static, apiVersion: 2 }], activeThemeTemplates: [article.html], activeThemeStaticPageIds: [about] } } } }
+        '400': { $ref: '#/components/responses/PresentationValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ThemeSetForbidden' }
+        '404': { $ref: '#/components/responses/PresentationOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the server's bound workspace; no UUID validation is performed., schema: { type: string }, example: workspace-local }
+    ChangeSetId: { name: changeSetId, in: path, required: true, schema: { type: string }, example: cs_01 }
+    PostId: { name: postId, in: path, required: true, description: Resolved as either a stable post ID or a slug; no format validation is performed., schema: { type: string }, example: post_01 }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, description: Reuse within a workspace returns 409 DUPLICATE_COMMAND with the original changeSetId. No route-level length validation is performed., schema: { type: string }, example: client-request-123 }
+  schemas:
+    ChangeSetHeader:
+      type: object
+      required: [id, workspaceId, actorId, status, summary, intentRef, createdAt, appliedAt, revertedAt]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        actorId: { type: string, nullable: true }
+        # Drift: current serializer can emit proposed or discarded and actorId null; SPEC-001 claims only applied/reverted and actorId string.
+        status: { type: string, enum: [proposed, applied, reverted, discarded] }
+        summary: { type: string }
+        intentRef: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        appliedAt: { type: string, format: date-time, nullable: true }
+        revertedAt: { type: string, format: date-time, nullable: true }
+    ChangeSetItem:
+      type: object
+      required: [id, entityType, entityId, operation, revertible, entityVersionAtApply, position]
+      properties:
+        id: { type: string }
+        entityType: { type: string }
+        entityId: { type: string }
+        operation: { type: string, enum: [create, update, delete, activate] }
+        revertible: { type: boolean }
+        entityVersionAtApply: { type: integer, nullable: true }
+        position: { type: integer }
+    ChangeSetResponse: { type: object, required: [changeSet], properties: { changeSet: { $ref: '#/components/schemas/ChangeSetHeader' } } }
+    ChangeSetListResponse: { type: object, required: [changeSets], properties: { changeSets: { type: array, items: { $ref: '#/components/schemas/ChangeSetHeader' } } } }
+    ChangeSetDetailResponse: { type: object, required: [changeSet, items], properties: { changeSet: { $ref: '#/components/schemas/ChangeSetHeader' }, items: { type: array, items: { $ref: '#/components/schemas/ChangeSetItem' } } } }
+    UpdatePostRequest:
+      type: object
+      required: [title, slug, status]
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        slug: { type: string, pattern: '^[a-z0-9-]+$', maxLength: 120 }
+        bodyJson: { type: object, additionalProperties: true, description: Required by current validation for document-format posts; ignored for stored HTML-format pages. }
+        status: { type: string, enum: [draft, published] }
+        templateChoice: { type: string, nullable: true }
+        overridesThemePage: { type: boolean, nullable: true }
+      # Drift: SPEC-001 names only title, slug, bodyJson, and status; the live route additionally forwards templateChoice and overridesThemePage.
+      description: The entire serialized JSON body must not exceed 1 MiB. The handler coerces title and slug with String() before validating and normalizes title (trim) and slug (trim, lowercase).
+    AdminPost:
+      oneOf:
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, templateChoice, overridesThemePage, bodyFormat, bodyJson, bodyHtml]
+          properties:
+            id: { type: string }
+            workspaceId: { type: string }
+            kind: { type: string, enum: [post, page] }
+            title: { type: string }
+            slug: { type: string }
+            status: { type: string, enum: [draft, published] }
+            updatedAt: { type: string, format: date-time }
+            version: { type: integer }
+            ext: { type: object, additionalProperties: { type: object, additionalProperties: true } }
+            templateChoice: { type: string, nullable: true }
+            overridesThemePage: { type: boolean, nullable: true }
+            bodyFormat: { type: string, enum: [doc] }
+            bodyJson: { type: object, additionalProperties: true }
+            bodyHtml: { type: string, nullable: true }
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, templateChoice, overridesThemePage, bodyFormat, bodyJson, bodyHtml]
+          properties:
+            id: { type: string }
+            workspaceId: { type: string }
+            kind: { type: string, enum: [post, page] }
+            title: { type: string }
+            slug: { type: string }
+            status: { type: string, enum: [draft, published] }
+            updatedAt: { type: string, format: date-time }
+            version: { type: integer }
+            ext: { type: object, additionalProperties: { type: object, additionalProperties: true } }
+            templateChoice: { type: string, nullable: true }
+            overridesThemePage: { type: boolean, nullable: true }
+            bodyFormat: { type: string, enum: [html] }
+            bodyJson: { type: object, nullable: true, additionalProperties: true }
+            bodyHtml: { type: string }
+    AdminPostEnvelope: { type: object, required: [post], properties: { post: { $ref: '#/components/schemas/AdminPost' } } }
+    SetActiveThemeRequest: { type: object, required: [activeThemeId], properties: { activeThemeId: { type: string, description: Must exactly match a currently discovered valid theme ID. } } }
+    AdminPresentationResponse:
+      type: object
+      required: [settings, availableThemeIds, availableThemes, activeThemeTemplates, activeThemeStaticPageIds]
+      properties:
+        settings: { type: object, required: [workspaceId, activeThemeId, updatedAt], properties: { workspaceId: { type: string }, activeThemeId: { type: string }, updatedAt: { type: string, format: date-time } } }
+        availableThemeIds: { type: array, items: { type: string } }
+        availableThemes: { type: array, items: { type: object, required: [id, tier], properties: { id: { type: string }, tier: { type: string, enum: [declarative, templated, handlebars, static, code] }, apiVersion: { type: integer, enum: [2] } } } }
+        activeThemeTemplates: { type: array, items: { type: string } }
+        activeThemeStaticPageIds: { type: array, items: { type: string } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true }, changeSetId: { type: string } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    WorkspaceNotFound: { description: Path workspace does not equal the bound workspace; the runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    ChangeSetReadForbidden: { description: Missing changeset.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: forbidden, code: FORBIDDEN, details: { permission: changeset.read, reason: no_grant } } } } }
+    ChangeSetRevertForbidden: { description: Missing changeset.revert permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: forbidden, code: FORBIDDEN, details: { permission: changeset.revert, reason: no_grant } } } } }
+    ChangeSetOrWorkspaceNotFound: { description: Missing change set returns CHANGE_SET_NOT_FOUND; workspace mismatch has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    RevertConflict: { description: Change set is no longer applied or an entity version changed, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, examples: { invalidStatus: { value: { error: 'change set is not applied', code: CHANGE_SET_INVALID_STATUS } }, conflict: { value: { error: 'entity has changed since apply', code: REVERT_CONFLICT } } } } } }
+    RevertNotPossible: { description: No inverse is available, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'change set cannot be reverted', code: REVERT_NOT_POSSIBLE } } } }
+    PostValidationError: { description: Invalid post input; runtime shape has only error., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: title is required } } } }
+    ContentWriteForbidden: { description: Missing content.write permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: forbidden, code: FORBIDDEN, details: { permission: content.write, reason: no_grant } } } } }
+    PostOrWorkspaceNotFound: { description: Missing post or workspace; runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PostConflictOrDuplicateCommand: { description: Slug conflict has only error; reused idempotency key includes DUPLICATE_COMMAND and changeSetId., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, examples: { duplicate: { value: { error: 'command was already executed', code: DUPLICATE_COMMAND, changeSetId: cs_01 } }, slugConflict: { value: { error: "slug 'taken' already exists" } } } } } }
+    PayloadTooLarge: { description: Serialized request JSON exceeded 1 MiB, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'Content too large to save.', code: PAYLOAD_TOO_LARGE } } } }
+    PresentationValidationError: { description: activeThemeId is not currently available; runtime body has only error., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "theme 'missing-theme' is not supported" } } } }
+    ThemeSetForbidden: { description: Missing theme.set permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: forbidden, code: FORBIDDEN, details: { permission: theme.set, reason: no_grant } } } } }
+    PresentationOrWorkspaceNotFound: { description: Missing presentation settings or workspace; runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'internal error' } } } }

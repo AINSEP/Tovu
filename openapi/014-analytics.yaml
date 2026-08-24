@@ -1,0 +1,92 @@
+openapi: 3.0.3
+info:
+  title: Tovu Analytics API
+  version: "1.0.0"
+  description: Hand-verified against the current analytics route handlers, middleware, serializers, and sink implementation on 2026-08-23.
+servers: [{ url: / }]
+paths:
+  /_analytics/e:
+    post:
+      operationId: ingest_analytics_hit
+      tags: [analytics]
+      summary: Ingest a first-party analytics beacon
+      description: Public fire-and-forget beacon. The runtime always returns 204 without disclosing whether the hit was accepted, rejected, or failed internally.
+      parameters:
+        - { name: User-Agent, in: header, required: false, description: Consumed transiently for coarse device/browser classification and then discarded., schema: { type: string } }
+        - { name: Accept-Language, in: header, required: false, description: Consumed transiently as an advisory locale hint and then discarded., schema: { type: string } }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalyticsIngestRequest' }
+            example: { host: example.com, path: /pricing, referrer: 'https://search.example/?q=tovu', kind: pageview }
+      responses:
+        '204': { description: No Content. This is returned even when the beacon is dropped or ingestion throws. }
+  /api/admin/v1/workspaces/{workspaceId}/analytics/recent-hits:
+    get:
+      operationId: list_recent_analytics_hits
+      tags: [analytics]
+      summary: List recent buffered analytics hits
+      description: Returns a newest-first, deliberately narrow projection of the in-process analytics buffer.
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - { name: limit, in: query, required: false, description: Parsed with Number(). Blank or non-numeric values use the default of 50; finite values are truncated and clamped to 1 through 500 by the sink., schema: { type: string }, example: '50' }
+      responses:
+        '200':
+          description: Recent hits, newest first
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecentHitsResponse' }
+              example:
+                hits: [{ occurredAt: '2026-07-10T12:01:00.000Z', kind: pageview, path: /pricing, referrerHost: search.example, deviceClass: desktop, browserFamily: chrome, eventName: null }]
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        # Drift: api.spec.md says an authenticated admin session needs no per-action scope; the handler requires analytics.read.
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: api.spec.md lists 404 as this route's only error response, but the handler catches unexpected failures and returns 500.
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the configured single workspace id; the handler performs no UUID-format validation., schema: { type: string } }
+  schemas:
+    AnalyticsIngestRequest:
+      type: object
+      properties:
+        host: { type: string, description: Optional site host. Runtime truncates to 253 characters and falls back to the request hostname when omitted, blank, or non-string. }
+        path: { type: string, description: Optional path. Runtime truncates to 2048 characters; omitted or non-string values become an empty string. }
+        referrer: { type: string, nullable: true, description: Optional referrer URL. Runtime truncates strings to 2048 characters; non-string values become null. }
+        kind: { type: string, enum: [pageview, event], default: pageview, description: Only the literal value event is retained; every other runtime value becomes pageview. }
+        eventName: { type: string, description: Only read for event hits. Runtime truncates it to 200 characters; absent or non-string values are omitted. }
+        eventProps: { type: object, description: Optional plain JSON object. Arrays and null are discarded; the runtime silently drops the entire hit for PII-shaped, oversized, or more than 20-property data., additionalProperties: true }
+        dnt: { type: boolean, default: false, description: Only the strict JSON boolean true is honored. }
+        gpc: { type: boolean, default: false, description: Only the strict JSON boolean true is honored. }
+    AdminAnalyticsHit:
+      type: object
+      required: [occurredAt, kind, path, referrerHost, deviceClass, browserFamily, eventName]
+      properties:
+        occurredAt: { type: string, format: date-time }
+        kind: { type: string, enum: [pageview, event] }
+        path: { type: string }
+        referrerHost: { type: string, nullable: true }
+        deviceClass: { type: string, enum: [desktop, mobile, tablet, bot, unknown] }
+        browserFamily: { type: string, nullable: true }
+        eventName: { type: string, nullable: true }
+    RecentHitsResponse:
+      type: object
+      required: [hits]
+      properties: { hits: { type: array, maxItems: 500, items: { $ref: '#/components/schemas/AdminAnalyticsHit' } } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Authenticated principal lacks analytics.read, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'principal-id' is not authorized for 'analytics.read' (no_grant)", code: FORBIDDEN, details: { permission: analytics.read, reason: no_grant } } } } }
+    WorkspaceNotFound: { description: Workspace path does not match the deployed workspace. Runtime shape has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    InternalError: { description: Unexpected authorization or sink failure, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }

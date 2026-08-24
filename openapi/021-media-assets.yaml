@@ -1,0 +1,247 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin and Public Media API
+  version: "1.0.0"
+  description: Hand-verified against current media route handlers, serializers, validation services, module wiring, and admin session middleware on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/media:
+    get:
+      operationId: list_media
+      tags: [media]
+      summary: List all workspace media assets, including trashed assets
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Media assets, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMediaListEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: upload_media
+      tags: [media]
+      summary: Upload a media asset using base64-encoded JSON
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/UploadMediaRequest' } } }
+      responses:
+        '201': { description: Newly created media asset, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMediaEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaUploadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/media/{mediaId}:
+    patch:
+      operationId: update_media_metadata
+      tags: [media]
+      summary: Update media editorial metadata and display overrides
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MediaId' }]
+      requestBody:
+        required: false
+        content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMediaRequest' } } }
+      responses:
+        '200': { description: Updated media asset, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMediaEnvelope' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaUpdateForbidden' }
+        '404': { $ref: '#/components/responses/MediaOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: purge_media
+      tags: [media]
+      summary: Permanently remove a previously trashed media asset
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MediaId' }]
+      responses:
+        '200': { description: Media asset purged, content: { application/json: { schema: { $ref: '#/components/schemas/MediaPurgeResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaDeleteForceForbidden' }
+        '404': { $ref: '#/components/responses/MediaOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/MediaStillReferenced' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/media/{mediaId}/trash:
+    post:
+      operationId: trash_media
+      tags: [media]
+      summary: Soft-delete a media asset
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/MediaId' }]
+      responses:
+        '200': { description: Trashed media asset, content: { application/json: { schema: { $ref: '#/components/schemas/AdminMediaEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaDeleteForbidden' }
+        '404': { $ref: '#/components/responses/MediaOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  # Drift: this authenticated original-byte route is registered by modules/media.ts but omitted from api.spec.md.
+  /api/admin/v1/workspaces/{workspaceId}/media/{mediaId}/original:
+    get:
+      operationId: get_media_original
+      tags: [media]
+      summary: Retrieve original media bytes for an authorized admin preview
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/MediaId'
+        - { name: Range, in: header, required: false, schema: { type: string }, description: A single RFC 7233 bytes range; malformed or multi-range values are ignored. }
+      responses:
+        '200':
+          description: Original bytes
+          headers: { Cache-Control: { schema: { type: string, example: 'private, no-store' } }, Accept-Ranges: { schema: { type: string, enum: [bytes] } }, X-Content-Type-Options: { schema: { type: string, enum: [nosniff] } } }
+          content: { application/octet-stream: { schema: { type: string, format: binary } } }
+        '206':
+          description: Requested byte range
+          headers: { Cache-Control: { schema: { type: string, example: 'private, no-store' } }, Content-Range: { schema: { type: string } }, Accept-Ranges: { schema: { type: string, enum: [bytes] } } }
+          content: { application/octet-stream: { schema: { type: string, format: binary } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaReadForbidden' }
+        '404': { $ref: '#/components/responses/MediaOrWorkspaceNotFound' }
+        '410': { description: Media asset is trashed; runtime returns an empty body with Cache-Control no-store. }
+        '416': { description: 'Unsatisfiable range; runtime returns an empty body and Content-Range bytes */{length}.' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  # Drift: both provider-credential operations are registered by modules/media.ts but omitted from api.spec.md.
+  /api/admin/v1/workspaces/{workspaceId}/media/providers:
+    get:
+      operationId: get_media_providers
+      tags: [media]
+      summary: Read configured media-provider credential markers
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Provider markers; no API key material is returned., content: { application/json: { schema: { $ref: '#/components/schemas/MediaProviderMap' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalErrorWithCode' }
+    put:
+      operationId: replace_media_providers
+      tags: [media]
+      summary: Atomically replace the workspace media-provider credential set
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MediaProviderUpdateMap' } } }
+      responses:
+        '200': { description: Stored provider markers; no API key material is returned., content: { application/json: { schema: { $ref: '#/components/schemas/MediaProviderMap' } } } }
+        '400': { $ref: '#/components/responses/MediaProviderValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/MediaWriteForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '503': { $ref: '#/components/responses/SecretStoreUnconfigured' }
+        '500': { $ref: '#/components/responses/InternalErrorWithCode' }
+  /m/{assetId}/{transformSpec}/{filename}:
+    get:
+      operationId: get_media_rendition
+      tags: [media]
+      summary: Serve or lazily generate a public named media rendition
+      security: []
+      parameters:
+        - { name: assetId, in: path, required: true, schema: { type: string }, description: The media asset identifier; no format validation is performed by the route. }
+        - { name: transformSpec, in: path, required: true, schema: { type: string, pattern: '^(.+)\\.v(\\d+)$' }, example: thumb.v1 }
+        - { name: filename, in: path, required: true, schema: { type: string }, description: Cosmetic only; it is not part of the rendition lookup key. }
+      responses:
+        '200':
+          description: Rendition bytes, with a MIME type determined by the registered transform format.
+          headers: { Cache-Control: { schema: { type: string, example: 'public, max-age=31536000, immutable' } } }
+          content:
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/png: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+            image/gif: { schema: { type: string, format: binary } }
+        '400': { $ref: '#/components/responses/MalformedRenditionUrl' }
+        '404': { $ref: '#/components/responses/RenditionNotFound' }
+        '410': { description: Trashed media asset; runtime returns an empty body with Cache-Control no-store. }
+        '503': { $ref: '#/components/responses/ImageTransformUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the configured workspace; the route does not validate UUID syntax., schema: { type: string, format: uuid } }
+    MediaId: { name: mediaId, in: path, required: true, description: Passed to the media repository without route-level format validation., schema: { type: string } }
+  schemas:
+    UploadMediaRequest:
+      type: object
+      required: [filename, contentType, dataBase64]
+      properties:
+        filename: { type: string, minLength: 1 }
+        contentType: { type: string, enum: [image/jpeg, image/png, image/webp, image/gif] }
+        dataBase64: { type: string, minLength: 1, format: byte }
+        alt: { type: string }
+        caption: { type: string }
+        credit: { type: string }
+    UpdateMediaRequest:
+      type: object
+      properties:
+        title: { type: string, description: An empty string leaves the existing title unchanged. }
+        alt: { type: string }
+        caption: { type: string }
+        credit: { type: string }
+        # Drift: width, height, and cssClass are accepted by the runtime PATCH handler but absent from api.spec.md.
+        width: { type: integer, minimum: 1, nullable: true, description: null clears the display-width override. }
+        height: { type: integer, minimum: 1, nullable: true, description: null clears the display-height override. }
+        cssClass: { type: string, nullable: true, description: null or an empty/whitespace string clears the CSS-class override. }
+    AdminMediaResponse:
+      type: object
+      required: [id, workspaceId, title, alt, caption, credit, sha256, status, createdAt, updatedAt, version, width, height, cssClass]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        title: { type: string }
+        alt: { type: string }
+        caption: { type: string }
+        credit: { type: string }
+        sha256: { type: string }
+        status: { type: string, enum: [active, trashed] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer }
+        # Drift: these serializer fields are present at runtime but absent from api.spec.md's AdminMediaResponse definition.
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        cssClass: { type: string, nullable: true }
+    AdminMediaEnvelope: { type: object, required: [media], properties: { media: { $ref: '#/components/schemas/AdminMediaResponse' } } }
+    AdminMediaListEnvelope: { type: object, required: [media], properties: { media: { type: array, items: { $ref: '#/components/schemas/AdminMediaResponse' } } } }
+    MediaPurgeResponse: { type: object, required: [purged], properties: { purged: { type: boolean, enum: [true] } } }
+    MediaProviderCredentialInput:
+      type: object
+      properties:
+        apiKey: { type: string, maxLength: 2048, writeOnly: true }
+        baseUrl: { type: string, maxLength: 2048 }
+        model: { type: string, maxLength: 2048 }
+        apiKeyConfigured: { type: boolean, description: Accepted but ignored when submitted. }
+        apiKeyTail: { type: string, description: Accepted but ignored when submitted. }
+        source: { type: string, description: Accepted but ignored when submitted. }
+    MediaProviderCredentialView:
+      type: object
+      properties:
+        baseUrl: { type: string }
+        model: { type: string }
+        apiKeyConfigured: { type: boolean, enum: [true] }
+        apiKeyTail: { type: string, maxLength: 4 }
+    MediaProviderUpdateMap: { type: object, additionalProperties: { $ref: '#/components/schemas/MediaProviderCredentialInput' }, description: Keys must be engine-canonical provider IDs; omitted keys are deleted. }
+    MediaProviderMap: { type: object, additionalProperties: { $ref: '#/components/schemas/MediaProviderCredentialView' } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+        referencing: { type: array, items: { type: string } }
+  responses:
+    Unauthenticated: { description: Missing or invalid admin session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch; runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    MediaOrWorkspaceNotFound: { description: Missing media or workspace mismatch; runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Invalid upload or metadata value; runtime body has no code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaStillReferenced: { description: Asset must be trashed before purge; referencing is a runtime stand-in list, not a real where-used index., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaReadForbidden: { description: Missing media.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'id' is not authorized for 'media.read' (no_grant)", code: FORBIDDEN, details: { permission: media.read, reason: no_grant } } } } }
+    MediaUploadForbidden: { description: Missing media.upload permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaUpdateForbidden: { description: Missing media.update permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaDeleteForbidden: { description: Missing media.delete permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaDeleteForceForbidden: { description: Missing media.delete.force permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaWriteForbidden: { description: "Missing admin.integrations.manage permission — the same credential-management permission every other vendor-credential route uses, not a media-only one.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MalformedRenditionUrl: { description: Invalid asset ID or transform specification, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    RenditionNotFound: { description: Unknown rendition or one that cannot be anonymously generated; runtime applies Cache-Control public, max-age=60., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ImageTransformUnavailable: { description: Image transformer unavailable; runtime applies Cache-Control no-store., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    MediaProviderValidationError: { description: Invalid provider map, unknown provider key, or invalid provider field, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SecretStoreUnconfigured: { description: A new API key was supplied but the provider secret store is unavailable., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'the media provider credential store is not configured', code: SECRET_STORE_UNCONFIGURED } } } }
+    InternalError: { description: 'Internal error; runtime body is { error: "internal error" }.', content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalErrorWithCode: { description: Internal error; this provider-credential route also returns code INTERNAL_ERROR., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }

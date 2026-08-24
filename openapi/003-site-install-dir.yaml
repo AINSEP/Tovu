@@ -1,0 +1,13 @@
+openapi: 3.0.3
+info:
+  title: Tovu Site Install Directory
+  version: "1.0.0"
+  description: >-
+    Hand-verified against the current CLI command wiring on 2026-08-23.
+    SPEC-003 has no HTTP surface: it provides local `tovu init`, `tovu serve`,
+    help, and introspection process commands only. `tovu serve` boots the
+    pre-existing application HTTP surface, which is documented by the
+    corresponding feature fragments and is not changed by this feature.
+servers:
+  - url: /
+paths: {}

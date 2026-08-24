@@ -1,0 +1,164 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Integrations
+  version: "1.0.0"
+  description: Hand-verified against the current integrations route handlers, serializers, domain validation, session middleware, and module wiring on 2026-08-23. No rate limiting is installed for these operations.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/integrations/subscriptions:
+    get:
+      operationId: list_webhook_subscriptions
+      tags: [integrations]
+      summary: List webhook subscriptions with their most recent delivery
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Subscriptions, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionListResponse' }, example: { subscriptions: [] } } } }
+        # Drift: SPEC-015 §6 omits the shared session-gate 401 response.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_webhook_subscription
+      tags: [integrations]
+      summary: Create a webhook subscription
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateSubscriptionRequest' }
+            example: { label: Editorial hook, targetUrl: 'https://example.com/hooks/tovu', topics: [post.published] }
+      responses:
+        '201': { description: Created subscription, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/integrations/subscriptions/{subscriptionId}:
+    delete:
+      operationId: delete_webhook_subscription
+      tags: [integrations]
+      summary: Soft-delete a webhook subscription
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/SubscriptionId' }]
+      responses:
+        '200': { description: Disabled subscription, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/integrations/subscriptions/{subscriptionId}/pause:
+    post:
+      operationId: pause_or_resume_webhook_subscription
+      tags: [integrations]
+      summary: Pause a subscription, or resume it when paused is false
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/SubscriptionId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PauseSubscriptionRequest' }
+            example: { paused: true }
+      responses:
+        '200': { description: Updated subscription, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/integrations/subscriptions/{subscriptionId}/deliveries:
+    get:
+      operationId: list_webhook_subscription_deliveries
+      tags: [integrations]
+      summary: List a subscription's delivery log newest first
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/SubscriptionId'
+        - name: limit
+          in: query
+          description: Defaults to 50. Non-finite or non-positive values fall back to 50; positive values are floored and capped at 200 rather than rejected.
+          # Drift: SPEC-015 calls this an integer, but the handler accepts finite fractional values and floors them.
+          schema: { type: number, default: 50 }
+          example: 50
+      responses:
+        '200': { description: Deliveries ordered by createdAt descending, content: { application/json: { schema: { $ref: '#/components/schemas/DeliveryListResponse' }, example: { deliveries: [] } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared to the server's configured workspace ID; no UUID-format validation is performed., schema: { type: string }, example: workspace-local }
+    SubscriptionId: { name: subscriptionId, in: path, required: true, description: Passed to the repository as a string; this handler performs no identifier-format validation., schema: { type: string }, example: sub_01 }
+  schemas:
+    CreateSubscriptionRequest:
+      type: object
+      required: [label, targetUrl, topics]
+      properties:
+        label: { type: string, description: Trimmed; blank values are rejected. }
+        targetUrl: { type: string, format: uri, description: Trimmed; must use https and pass the configured egress-target allowlist. }
+        topics: { type: array, minItems: 1, items: { type: string }, description: Entries are string-coerced, trimmed, blank entries removed, and duplicates removed while preserving first-seen order. }
+    PauseSubscriptionRequest:
+      type: object
+      properties:
+        paused: { type: boolean, default: true, description: The only value that resumes is false; absent or non-boolean values pause. }
+    DeliverySummary:
+      type: object
+      required: [id, status, attempts, lastResponseStatus, lastError, createdAt, deliveredAt]
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [pending, delivering, delivered, failed, dead, canceled] }
+        attempts: { type: integer }
+        lastResponseStatus: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+    Subscription:
+      type: object
+      required: [id, label, targetUrl, topics, status, secretVersion, previousSecretVersion, createdAt, updatedAt, disabledAt, lastDelivery]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        targetUrl: { type: string }
+        topics: { type: array, items: { type: string } }
+        status: { type: string, enum: [active, paused, disabled] }
+        secretVersion: { type: integer }
+        previousSecretVersion: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        disabledAt: { type: string, format: date-time, nullable: true }
+        lastDelivery: { allOf: [{ $ref: '#/components/schemas/DeliverySummary' }], nullable: true }
+    Delivery:
+      type: object
+      required: [id, subscriptionId, eventId, topic, status, attempts, nextAttemptAt, lastResponseStatus, lastError, signedWithVersion, createdAt, deliveredAt, deadAt]
+      properties:
+        id: { type: string }
+        subscriptionId: { type: string }
+        eventId: { type: string }
+        topic: { type: string }
+        status: { type: string, enum: [pending, delivering, delivered, failed, dead, canceled] }
+        attempts: { type: integer }
+        nextAttemptAt: { type: string, format: date-time }
+        lastResponseStatus: { type: integer, nullable: true }
+        lastError: { type: string, nullable: true }
+        signedWithVersion: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+        deliveredAt: { type: string, format: date-time, nullable: true }
+        deadAt: { type: string, format: date-time, nullable: true }
+    SubscriptionResponse: { type: object, required: [subscription], properties: { subscription: { $ref: '#/components/schemas/Subscription' } }, example: { subscription: { id: sub_01, label: Editorial hook, targetUrl: 'https://example.com/hooks/tovu', topics: [post.published], status: active, secretVersion: 1, previousSecretVersion: null, createdAt: '2026-08-23T00:00:00.000Z', updatedAt: '2026-08-23T00:00:00.000Z', disabledAt: null, lastDelivery: null } } }
+    SubscriptionListResponse: { type: object, required: [subscriptions], properties: { subscriptions: { type: array, items: { $ref: '#/components/schemas/Subscription' } } } }
+    DeliveryListResponse: { type: object, required: [deliveries], properties: { deliveries: { type: array, items: { $ref: '#/components/schemas/Delivery' } } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Missing admin.integrations.manage permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'user-1' is not authorized for 'admin.integrations.manage' (no_grant)", code: FORBIDDEN, details: { permission: admin.integrations.manage, reason: no_grant } } } } }
+    WorkspaceNotFound: { description: Workspace path mismatch. Runtime emits no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    NotFound: { description: Workspace mismatch or missing subscription. Runtime emits no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "webhook subscription 'sub_01' was not found" } } } }
+    ValidationError: { description: Invalid create input or an attempt to pause/resume a disabled subscription. Runtime emits no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: 'target_url must use https://' } } } }
+    InternalError: { description: Unexpected internal failure. Runtime emits no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error } } } }
+# Drift: SPEC-015 §6 maps several errors to canonical codes (WORKSPACE_NOT_FOUND,
+# INTEGRATIONS_SUBSCRIPTION_NOT_FOUND, INTEGRATIONS_VALIDATION_ERROR, and INTERNAL_ERROR),
+# but runtime emits plain {error} for all non-403 errors. Only 401 and 403 include code fields.

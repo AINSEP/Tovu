@@ -1,0 +1,327 @@
+openapi: 3.0.3
+info:
+  title: Tovu API — Newsletter
+  version: "1.0.0"
+  description: Hand-verified against the current newsletter route handlers, domain validation, serializers, session middleware, and module wiring on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns:
+    get:
+      operationId: list_newsletter_campaigns
+      tags: [newsletter]
+      summary: List campaigns
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        # Drift: the runtime accepts any string and simply filters exact status values; the spec does not constrain the filter either.
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Campaigns, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_newsletter_campaign
+      tags: [newsletter]
+      summary: Create a draft campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateCampaignRequest' }, example: { subject: "August news", fromName: Tovu, fromEmail: news@example.test, replyTo: help@example.test, listId: list-1, bodyJson: { type: doc, content: [] } } } } }
+      responses:
+        '201': { description: Draft campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ComposeForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrListNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}:
+    get:
+      operationId: get_newsletter_campaign
+      tags: [newsletter]
+      summary: Fetch a campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      operationId: update_newsletter_campaign
+      tags: [newsletter]
+      summary: Update a draft campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateCampaignRequest' }, example: { subject: "Updated subject" } } } }
+      responses:
+        '200': { description: Updated campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ComposeForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '409': { $ref: '#/components/responses/CampaignNotEditable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/cancel:
+    post:
+      operationId: cancel_newsletter_campaign
+      tags: [newsletter]
+      summary: Cancel a draft or scheduled campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { description: Canceled campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ComposeForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '409': { $ref: '#/components/responses/CampaignNotEditable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/schedule:
+    post:
+      operationId: schedule_newsletter_campaign
+      tags: [newsletter]
+      summary: Schedule a draft campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      requestBody: { content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleCampaignRequest' }, example: { scheduledAt: "2026-09-01T10:00:00.000Z" } } } }
+      responses:
+        '200': { description: Scheduled campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '400': { $ref: '#/components/responses/NewsletterValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ScheduleForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '409': { $ref: '#/components/responses/CampaignNotEditable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/send:
+    post:
+      operationId: send_newsletter_campaign
+      tags: [newsletter]
+      summary: Authorize an asynchronous full-audience send
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      # Drift: this 202 path is implemented, but both current composition roots use a mailer that fails the Launch Gate, so real full-audience sends currently return 409.
+      responses:
+        '202': { description: Campaign accepted for sending, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/SendForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '409': { $ref: '#/components/responses/LaunchGateOrCampaignNotEditable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/send-test:
+    post:
+      operationId: send_test_newsletter_campaign
+      tags: [newsletter]
+      summary: Send a campaign to test addresses
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SendTestRequest' }, example: { testAddresses: [operator@example.test] } } } }
+      responses:
+        '200': { description: Per-address result, content: { application/json: { schema: { $ref: '#/components/schemas/SendTestResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/SendTestForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }
+        '409': { $ref: '#/components/responses/LaunchGateOrCampaignNotEditable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/pause:
+    post:
+      operationId: pause_newsletter_campaign
+      tags: [newsletter]
+      summary: Pause a sending campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Paused campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SendForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }, '409': { $ref: '#/components/responses/CampaignNotEditable' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/resume:
+    post:
+      operationId: resume_newsletter_campaign
+      tags: [newsletter]
+      summary: Resume a paused campaign
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Resumed campaign, content: { application/json: { schema: { $ref: '#/components/schemas/CampaignResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SendForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }, '409': { $ref: '#/components/responses/CampaignNotEditable' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/campaigns/{id}/sends:
+    get:
+      operationId: list_newsletter_send_log
+      tags: [newsletter]
+      summary: List campaign send-log rows
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Send-log rows, content: { application/json: { schema: { $ref: '#/components/schemas/SendLogListResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberReadForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrCampaignNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/lists:
+    get:
+      operationId: list_newsletter_lists
+      tags: [newsletter]
+      summary: List named audiences
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses: { '200': { description: Lists, content: { application/json: { schema: { $ref: '#/components/schemas/NewsletterListListResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ReadForbidden' }, '404': { $ref: '#/components/responses/WorkspaceNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+    post:
+      operationId: create_newsletter_list
+      tags: [newsletter]
+      summary: Create a named audience
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateListRequest' }, example: { name: Product updates, slug: product-updates } } } }
+      responses: { '201': { description: List, content: { application/json: { schema: { $ref: '#/components/schemas/NewsletterListResponse' } } } }, '400': { $ref: '#/components/responses/ValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ListManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceNotFound' }, '409': { $ref: '#/components/responses/Conflict' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/lists/{id}/archive:
+    post:
+      operationId: archive_newsletter_list
+      tags: [newsletter]
+      summary: Archive a non-default list
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Archived list, content: { application/json: { schema: { $ref: '#/components/schemas/NewsletterListResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ListManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrListNotFound' }, '409': { $ref: '#/components/responses/DefaultListProtected' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/lists/{listId}/subscriptions:
+    get:
+      operationId: list_newsletter_subscriptions
+      tags: [newsletter]
+      summary: List subscriptions for a list
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ListId' }]
+      responses: { '200': { description: Subscriptions (possibly empty for an unknown list), content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionListResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberReadForbidden' }, '404': { $ref: '#/components/responses/WorkspaceNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+    post:
+      operationId: create_newsletter_subscription
+      tags: [newsletter]
+      summary: Add a Members subscriber to a list
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ListId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateSubscriptionRequest' }, example: { subscriberId: member-1, source: admin } } } }
+      responses: { '201': { description: Pending subscription, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionResponse' } } } }, '400': { $ref: '#/components/responses/ValidationOrSubscriberNotFound' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrListNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/lists/{listId}/subscriptions/{id}:
+    delete:
+      operationId: remove_newsletter_subscription
+      tags: [newsletter]
+      summary: Unsubscribe a subscription
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ListId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Unsubscribed subscription, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionResponse' } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrSubscriptionNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/lists/{listId}/subscriptions/import:
+    post:
+      operationId: import_newsletter_subscriptions
+      tags: [newsletter]
+      summary: Batch-add subscriptions
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/ListId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ImportSubscriptionsRequest' }, example: { subscribers: [{ subscriberId: member-1 }] } } } }
+      responses: { '207': { description: Per-row import result, content: { application/json: { schema: { $ref: '#/components/schemas/SubscriptionImportResponse' } } } }, '400': { $ref: '#/components/responses/ValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrListNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/newsletter/subscriptions/{id}/resend-confirmation:
+    post:
+      operationId: resend_newsletter_confirmation
+      tags: [newsletter]
+      summary: Mint and send a fresh confirmation token
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/Id' }]
+      responses: { '200': { description: Constant delivery acknowledgement, content: { application/json: { schema: { type: object, required: [delivered], properties: { delivered: { type: boolean, enum: [true] } } }, example: { delivered: true } } } }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/SubscriberManageForbidden' }, '404': { $ref: '#/components/responses/WorkspaceOrSubscriptionNotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /newsletter/confirm:
+    get:
+      operationId: confirm_newsletter_subscription
+      tags: [newsletter]
+      security: []
+      summary: Consume a confirmation token
+      parameters: [{ $ref: '#/components/parameters/PublicToken' }]
+      responses: { '200': { $ref: '#/components/responses/HtmlConfirmation' }, '400': { $ref: '#/components/responses/HtmlConfirmInvalid' }, '500': { $ref: '#/components/responses/HtmlInternalError' } }
+  /newsletter/unsubscribe:
+    get:
+      operationId: unsubscribe_newsletter_get
+      tags: [newsletter]
+      security: []
+      summary: Unsubscribe using a signed token
+      parameters: [{ $ref: '#/components/parameters/PublicToken' }]
+      responses: { '200': { $ref: '#/components/responses/HtmlUnsubscribed' }, '400': { $ref: '#/components/responses/HtmlUnsubscribeInvalid' }, '500': { $ref: '#/components/responses/HtmlInternalError' } }
+    post:
+      operationId: unsubscribe_newsletter_post
+      tags: [newsletter]
+      security: []
+      summary: One-click unsubscribe using a signed token
+      parameters: [{ $ref: '#/components/parameters/PublicToken' }]
+      # Drift: the runtime ignores the RFC 8058 List-Unsubscribe request body/header entirely; only token is read.
+      responses: { '200': { $ref: '#/components/responses/HtmlUnsubscribed' }, '400': { $ref: '#/components/responses/HtmlUnsubscribeInvalid' }, '500': { $ref: '#/components/responses/HtmlInternalError' } }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    # Drift: all admin route parameters are used as plain strings; no UUID format validation happens in the handlers.
+    WorkspaceId: { name: workspaceId, in: path, required: true, schema: { type: string } }
+    Id: { name: id, in: path, required: true, schema: { type: string } }
+    ListId: { name: listId, in: path, required: true, schema: { type: string } }
+    PublicToken: { name: token, in: query, required: true, schema: { type: string, minLength: 1 } }
+  schemas:
+    CreateCampaignRequest:
+      # Drift: bodyJson is required/type-checked but the current write service and campaign table discard it; email strings and UUID-like ids are not format-validated.
+      type: object
+      required: [subject, fromName, fromEmail, replyTo, listId, bodyJson]
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 998 }
+        preheader: { type: string, maxLength: 300 }
+        fromName: { type: string }
+        fromEmail: { type: string }
+        replyTo: { type: string }
+        listId: { type: string }
+        bodyJson: { type: object, additionalProperties: true }
+    UpdateCampaignRequest:
+      # Drift: bodyJson is likewise discarded; although the spec permits scheduled campaigns to be edited, the write service accepts only draft campaigns.
+      type: object
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 998 }
+        preheader: { type: string, maxLength: 300 }
+        fromName: { type: string }
+        fromEmail: { type: string }
+        replyTo: { type: string }
+        listId: { type: string }
+        bodyJson: { type: object, additionalProperties: true }
+    ScheduleCampaignRequest: { type: object, properties: { scheduledAt: { type: string, nullable: true } } }
+    # Drift: the runtime checks address count and string type only, not email syntax.
+    SendTestRequest: { type: object, required: [testAddresses], properties: { testAddresses: { type: array, minItems: 1, maxItems: 10, items: { type: string } } } }
+    # Drift: the runtime enforces nonblank name/slug but not the spec's 200-character maximums.
+    CreateListRequest: { type: object, required: [name, slug], properties: { name: { type: string, minLength: 1 }, slug: { type: string, minLength: 1 } } }
+    CreateSubscriptionRequest: { type: object, required: [subscriberId], properties: { subscriberId: { type: string }, source: { type: string, default: admin, enum: [admin, import, api] } } }
+    ImportSubscriptionsRequest: { type: object, required: [subscribers], properties: { subscribers: { type: array, minItems: 1, maxItems: 500, items: { type: object, required: [subscriberId], properties: { subscriberId: { type: string } } } } } }
+    Campaign:
+      # Drift: runtime response includes createdByPrincipal, which api.spec.md omits; it never returns the submitted bodyJson.
+      type: object
+      required: [id, workspaceId, status, subject, preheader, fromName, fromEmail, replyTo, listId, scheduledAt, sendStartedAt, audienceSnapshotId, counters, version, createdByPrincipal, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        workspaceId: { type: string }
+        status: { type: string, enum: [draft, scheduled, sending, sent, paused, canceled, failed] }
+        subject: { type: string }
+        preheader: { type: string, nullable: true }
+        fromName: { type: string }
+        fromEmail: { type: string }
+        replyTo: { type: string }
+        listId: { type: string }
+        scheduledAt: { type: string, nullable: true }
+        sendStartedAt: { type: string, nullable: true }
+        audienceSnapshotId: { type: string, nullable: true }
+        counters: { $ref: '#/components/schemas/Counters' }
+        version: { type: integer }
+        createdByPrincipal: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    Counters: { type: object, required: [recipients, delivered, failed, bounced, complained, unsubscribed], properties: { recipients: { type: integer }, delivered: { type: integer }, failed: { type: integer }, bounced: { type: integer }, complained: { type: integer }, unsubscribed: { type: integer } } }
+    # Drift: status is serialized by the runtime but omitted by the spec contract.
+    NewsletterList: { type: object, required: [id, workspaceId, name, slug, isDefault, status, createdAt, updatedAt], properties: { id: { type: string }, workspaceId: { type: string }, name: { type: string }, slug: { type: string }, isDefault: { type: boolean }, status: { type: string, enum: [active, archived] }, createdAt: { type: string }, updatedAt: { type: string } } }
+    # Drift: runtime exposes consentRevisionIdAtSubscribe; api.spec.md does not list it.
+    Subscription: { type: object, required: [id, workspaceId, listId, subscriberId, status, source, consentRevisionIdAtSubscribe, subscribedAt, unsubscribedAt, createdAt, updatedAt], properties: { id: { type: string }, workspaceId: { type: string }, listId: { type: string }, subscriberId: { type: string }, status: { type: string, enum: [pending, subscribed, unsubscribed, bounced, complained] }, source: { type: string, enum: [import, signup_form, admin, api] }, consentRevisionIdAtSubscribe: { type: string, nullable: true }, subscribedAt: { type: string, nullable: true }, unsubscribedAt: { type: string, nullable: true }, createdAt: { type: string }, updatedAt: { type: string } } }
+    # Drift: raw send rows expose audienceSnapshotId, idempotencyKey, providerMessageId, and nextAttemptAt beyond the spec's SendLogRow.
+    SendLogRow: { type: object, required: [id, workspaceId, campaignId, audienceSnapshotId, subscriberId, recipientEmail, status, attempts, idempotencyKey, providerMessageId, lastError, nextAttemptAt, createdAt, updatedAt], properties: { id: { type: string }, workspaceId: { type: string }, campaignId: { type: string }, audienceSnapshotId: { type: string }, subscriberId: { type: string }, recipientEmail: { type: string }, status: { type: string, enum: [pending, sent, delivered, failed, bounced, complained] }, attempts: { type: integer }, idempotencyKey: { type: string }, providerMessageId: { type: string, nullable: true }, lastError: { type: string, nullable: true }, nextAttemptAt: { type: string, nullable: true }, createdAt: { type: string }, updatedAt: { type: string } } }
+    CampaignResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Campaign' } } }
+    CampaignListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Campaign' } } } }
+    NewsletterListResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/NewsletterList' } } }
+    NewsletterListListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/NewsletterList' } } } }
+    SubscriptionResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/Subscription' } } }
+    SubscriptionListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/Subscription' } } } }
+    SubscriptionImportResponse: { type: object, required: [created, failed], properties: { created: { type: array, items: { $ref: '#/components/schemas/Subscription' } }, failed: { type: array, items: { type: object, required: [index, code, message], properties: { index: { type: integer }, code: { type: string }, message: { type: string } } } } } }
+    SendTestResponse: { type: object, required: [data], properties: { data: { type: object, required: [results], properties: { results: { type: array, items: { type: object, required: [address, ok, errorCode], properties: { address: { type: string }, ok: { type: boolean }, errorCode: { type: string, nullable: true } } } } } } } }
+    SendLogListResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/SendLogRow' } } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    # Drift: every admin handler returns this bare 404 for a workspace mismatch; the feature spec does not describe it.
+    WorkspaceNotFound: { description: Workspace path mismatch; runtime body has no code field., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    WorkspaceOrCampaignNotFound: { description: Workspace mismatch or campaign missing, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceOrListNotFound: { description: Workspace mismatch or list missing, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceOrSubscriptionNotFound: { description: Workspace mismatch or subscription missing, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Route-level validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    NewsletterValidationError: { description: Domain validation error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationOrSubscriberNotFound: { description: Validation or unknown Members subscriber, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    Conflict: { description: Duplicate list slug, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    CampaignNotEditable: { description: Campaign state does not allow this action, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    LaunchGateOrCampaignNotEditable: { description: Launch gate blocked or campaign state is invalid, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    DefaultListProtected: { description: Default list cannot be archived, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ReadForbidden: { description: Missing admin.newsletter.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ComposeForbidden: { description: Missing admin.newsletter.campaign.compose permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ScheduleForbidden: { description: Missing admin.newsletter.campaign.schedule permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SendForbidden: { description: Missing admin.newsletter.campaign.send permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SendTestForbidden: { description: Missing admin.newsletter.campaign.send_test permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ListManageForbidden: { description: Missing admin.newsletter.list.manage permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SubscriberReadForbidden: { description: Missing admin.newsletter.subscriber.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SubscriberManageForbidden: { description: Missing admin.newsletter.subscriber.manage permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: Unhandled error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }
+    HtmlConfirmation: { description: HTML confirmation page, content: { text/html: { schema: { type: string }, example: "<!doctype html><html>...Subscription confirmed...</html>" } } }
+    HtmlConfirmInvalid: { description: HTML invalid or expired confirmation page, content: { text/html: { schema: { type: string } } } }
+    HtmlUnsubscribed: { description: HTML unsubscribe confirmation page, content: { text/html: { schema: { type: string }, example: "<!doctype html><html>...You're unsubscribed...</html>" } } }
+    HtmlUnsubscribeInvalid: { description: HTML invalid or expired unsubscribe page, content: { text/html: { schema: { type: string } } } }
+    HtmlInternalError: { description: HTML internal-error page, content: { text/html: { schema: { type: string } } } }

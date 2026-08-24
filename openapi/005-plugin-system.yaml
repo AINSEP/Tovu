@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: Tovu API — Plugin System
+  version: "1.0.0"
+  description: Hand-verified against the current plugin, content-entry, serializer, and session middleware code on 2026-08-23.
+# Drift: SPEC-005's AUTH_LOCAL_DEV profile says no authentication; current /api/admin routes are
+# behind the tovu_session gate and each operation also performs its named permission check.
+servers: [{ url: / }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/plugins:
+    get:
+      operationId: list_plugins
+      tags: [plugins]
+      summary: List discovered plugins and workspace activation state
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Discovered plugins, content: { application/json: { schema: { $ref: '#/components/schemas/PluginsListResponse' }, example: { plugins: [{ id: word-count, name: Word Count, version: 1.0.0, source: built-in, tier: tier-3, status: valid, enabled: false, quarantine: null, errors: [] }] } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PluginsReadForbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/plugins/{pluginId}:
+    patch:
+      operationId: set_plugin_enabled
+      tags: [plugins]
+      summary: Enable or disable a plugin
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/PluginId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      # Drift: api.spec.md declares { enabled: boolean } with malformed-body 400. Runtime instead
+      # coerces req.body?.enabled with Boolean(), so an absent or non-boolean value is accepted.
+      requestBody:
+        required: false
+        content: { application/json: { schema: { type: object, additionalProperties: true, properties: { enabled: {} } }, example: { enabled: true } } }
+      responses:
+        # Drift: api.spec.md's response is {id, version, enabled, updatedAt}; runtime returns the
+        # full discovered-plugin envelope and never exposes activation.updatedAt.
+        '200': { description: Applied plugin activation change set, content: { application/json: { schema: { $ref: '#/components/schemas/PluginSetEnabledResponse' }, example: { plugin: { id: word-count, name: Word Count, version: 1.0.0, source: built-in, tier: tier-3, status: valid, enabled: true, quarantine: null, errors: [] }, changeSetId: change-set-1 } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/PluginsEnableForbidden' }
+        '404': { $ref: '#/components/responses/PluginOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/DuplicateCommand' }
+        '422': { $ref: '#/components/responses/PluginNotEnableable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/posts:
+    post:
+      operationId: create_post
+      tags: [content, plugins]
+      summary: Create a post, running enabled before-save hooks
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/CreateEntry' }
+      responses: { '201': { $ref: '#/components/responses/AdminEntryCreated' }, '400': { $ref: '#/components/responses/ValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ContentWriteForbidden' }, '404': { $ref: '#/components/responses/WorkspaceNotFound' }, '409': { $ref: '#/components/responses/SlugConflict' }, '413': { $ref: '#/components/responses/PayloadTooLarge' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/posts/{postId}:
+    put:
+      operationId: update_post
+      tags: [content, plugins]
+      summary: Update a post, running enabled before-save hooks
+      security: [{ adminSessionCookie: [] }]
+      # Drift: the spec calls this path parameter :id; runtime resolves a matching slug too.
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PostId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/UpdateEntry' }
+      # Drift: a throwing beforeSave filter is caught by this legacy handler as 500 {error:
+      # "internal error"}; api.spec.md promises code PLUGIN_HOOK_FAILED.
+      responses: { '200': { $ref: '#/components/responses/AdminEntryOk' }, '400': { $ref: '#/components/responses/LegacyValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ContentWriteForbidden' }, '404': { $ref: '#/components/responses/LegacyEntryNotFound' }, '409': { $ref: '#/components/responses/LegacyConflict' }, '413': { $ref: '#/components/responses/PayloadTooLarge' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/pages:
+    post:
+      operationId: create_page
+      tags: [content, plugins]
+      summary: Create a page, running enabled before-save hooks
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/CreateEntry' }
+      responses: { '201': { $ref: '#/components/responses/AdminEntryCreated' }, '400': { $ref: '#/components/responses/ValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ContentWriteForbidden' }, '404': { $ref: '#/components/responses/WorkspaceNotFound' }, '409': { $ref: '#/components/responses/SlugConflict' }, '413': { $ref: '#/components/responses/PayloadTooLarge' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/admin/v1/workspaces/{workspaceId}/pages/{pageId}:
+    put:
+      operationId: update_page
+      tags: [content, plugins]
+      summary: Update a page, running enabled before-save hooks
+      security: [{ adminSessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PageId' }, { $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody: { $ref: '#/components/requestBodies/UpdateEntry' }
+      # Drift: a throwing beforeSave filter is caught as 500 INTERNAL_ERROR, not the documented
+      # PLUGIN_HOOK_FAILED. bodyJson is optional in practice for an existing bodyFormat: html page.
+      responses: { '200': { $ref: '#/components/responses/AdminEntryOk' }, '400': { $ref: '#/components/responses/ValidationError' }, '401': { $ref: '#/components/responses/Unauthenticated' }, '403': { $ref: '#/components/responses/ContentWriteForbidden' }, '404': { $ref: '#/components/responses/EntryNotFound' }, '409': { $ref: '#/components/responses/SlugConflict' }, '413': { $ref: '#/components/responses/PayloadTooLarge' }, '500': { $ref: '#/components/responses/InternalError' } }
+  /api/content/v1/workspaces/{workspaceId}/posts/{slug}:
+    get:
+      operationId: get_content_post_by_slug
+      tags: [content, plugins]
+      summary: Fetch a published post by slug
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { name: slug, in: path, required: true, schema: { type: string } }]
+      # Drift: api.spec.md says this entry payload gains optional ext. toHeadlessContentPost() does
+      # not serialize ext, so the real public response has no ext property.
+      responses: { '200': { description: Published post and active presentation theme, content: { application/json: { schema: { $ref: '#/components/schemas/ContentPostResponse' }, example: { post: { id: post-1, kind: post, title: Hello, slug: hello, bodyJson: { type: doc, content: [] }, updatedAt: '2026-08-23T00:00:00.000Z' }, presentation: { activeThemeId: starter } } } } }, '404': { $ref: '#/components/responses/NotFound' }, '500': { $ref: '#/components/responses/InternalError' } }
+components:
+  securitySchemes: { adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session } }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Compared directly to the bound workspace; the handler performs no UUID-format validation., schema: { type: string } }
+    PluginId: { name: pluginId, in: path, required: true, schema: { type: string } }
+    PostId: { name: postId, in: path, required: true, description: A post ID or resolving slug is accepted by this route., schema: { type: string } }
+    PageId: { name: pageId, in: path, required: true, schema: { type: string } }
+    IdempotencyKey: { name: Idempotency-Key, in: header, required: false, schema: { type: string } }
+  requestBodies:
+    CreateEntry:
+      required: false
+      content: { application/json: { schema: { $ref: '#/components/schemas/CreateEntryRequest' }, example: { title: Hello, slug: hello, bodyJson: { type: doc, content: [] }, status: draft } } }
+    UpdateEntry:
+      required: true
+      content: { application/json: { schema: { $ref: '#/components/schemas/UpdateEntryRequest' }, example: { title: Hello, slug: hello, bodyJson: { type: doc, content: [] }, status: published } } }
+  schemas:
+    Plugin:
+      type: object
+      required: [id, name, version, source, tier, status, enabled, quarantine, errors]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        version: { type: string }
+        source: { type: string, enum: [built-in, site] }
+        tier: { type: string, enum: [tier-1, tier-2, tier-3] }
+        status: { type: string, enum: [valid, invalid, incompatible] }
+        enabled: { type: boolean }
+        quarantine: { nullable: true, allOf: [{ $ref: '#/components/schemas/PluginQuarantine' }] }
+        errors: { type: array, items: { $ref: '#/components/schemas/PluginValidationError' } }
+    PluginQuarantine:
+      type: object
+      required: [at, reason, consecutiveFailures]
+      properties: { at: { type: string, format: date-time }, reason: { type: string }, consecutiveFailures: { type: integer } }
+    PluginValidationError:
+      type: object
+      required: [code, file, message]
+      properties: { code: { type: string }, file: { type: string, nullable: true }, message: { type: string } }
+    PluginsListResponse: { type: object, required: [plugins], properties: { plugins: { type: array, items: { $ref: '#/components/schemas/Plugin' } } } }
+    PluginSetEnabledResponse: { type: object, required: [plugin, changeSetId], properties: { plugin: { $ref: '#/components/schemas/Plugin' }, changeSetId: { type: string } } }
+    CreateEntryRequest:
+      type: object
+      additionalProperties: true
+      properties:
+        title: { description: Runtime coerces supplied values with String(); omitted or blank becomes Untitled. }
+        slug: { description: Runtime coerces supplied values with String() when present. }
+        bodyJson: { type: object, additionalProperties: true }
+        status: { type: string, enum: [draft, published] }
+    UpdateEntryRequest:
+      type: object
+      required: [title, slug, status]
+      additionalProperties: true
+      properties:
+        title: { description: Runtime coerces supplied values with String(). }
+        slug: { description: Runtime coerces supplied values with String(). }
+        bodyJson: { type: object, additionalProperties: true, description: Required for doc-format entries; ignored and not required for an existing html-format page. }
+        status: { type: string, enum: [draft, published] }
+        templateChoice: { type: string, nullable: true }
+        overridesThemePage: { type: boolean, nullable: true }
+    AdminEntry:
+      oneOf:
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, templateChoice, overridesThemePage, bodyFormat, bodyJson, bodyHtml]
+          properties: { id: { type: string }, workspaceId: { type: string }, kind: { type: string, enum: [post, page] }, title: { type: string }, slug: { type: string }, status: { type: string, enum: [draft, published] }, updatedAt: { type: string, format: date-time }, version: { type: integer }, templateChoice: { type: string, nullable: true }, overridesThemePage: { type: boolean, nullable: true }, ext: { $ref: '#/components/schemas/PluginExt' }, bodyFormat: { type: string, enum: [doc] }, bodyJson: { type: object, additionalProperties: true }, bodyHtml: { nullable: true, enum: [null] } }
+        - type: object
+          required: [id, workspaceId, kind, title, slug, status, updatedAt, version, templateChoice, overridesThemePage, bodyFormat, bodyJson, bodyHtml]
+          properties: { id: { type: string }, workspaceId: { type: string }, kind: { type: string, enum: [post, page] }, title: { type: string }, slug: { type: string }, status: { type: string, enum: [draft, published] }, updatedAt: { type: string, format: date-time }, version: { type: integer }, templateChoice: { type: string, nullable: true }, overridesThemePage: { type: boolean, nullable: true }, ext: { $ref: '#/components/schemas/PluginExt' }, bodyFormat: { type: string, enum: [html] }, bodyJson: { nullable: true, enum: [null] }, bodyHtml: { type: string } }
+    PluginExt: { type: object, additionalProperties: { type: object, additionalProperties: true } }
+    AdminEntryResponse: { type: object, required: [post], properties: { post: { $ref: '#/components/schemas/AdminEntry' } } }
+    ContentPostResponse:
+      type: object
+      required: [post, presentation]
+      properties:
+        post: { type: object, required: [id, kind, title, slug, bodyJson, updatedAt], properties: { id: { type: string }, kind: { type: string, enum: [post, page] }, title: { type: string }, slug: { type: string }, bodyJson: { type: object, additionalProperties: true }, updatedAt: { type: string, format: date-time } } }
+        presentation: { type: object, required: [activeThemeId], properties: { activeThemeId: { type: string } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true }, changeSetId: { type: string } } }
+  responses:
+    AdminEntryCreated: { description: Created entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminEntryResponse' } } } }
+    AdminEntryOk: { description: Updated entry, content: { application/json: { schema: { $ref: '#/components/schemas/AdminEntryResponse' } } } }
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    WorkspaceNotFound: { description: Path workspace does not match the bound workspace; runtime omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    PluginsReadForbidden: { description: Missing admin.plugins.read permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PluginsEnableForbidden: { description: Missing admin.plugins.enable permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ContentWriteForbidden: { description: Missing content.write permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Invalid entry input, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: title must be 200 characters or fewer, code: VALIDATION_ERROR } } } }
+    LegacyValidationError: { description: Invalid post input; this legacy update route omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    SlugConflict: { description: A different entry already owns the requested slug, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "slug 'hello' already exists", code: SLUG_CONFLICT } } } }
+    LegacyConflict: { description: Post update conflict; this legacy route omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    EntryNotFound: { description: Missing or wrong-kind page, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "page 'page-1' was not found", code: ENTRY_NOT_FOUND } } } }
+    LegacyEntryNotFound: { description: Missing post; this legacy route omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PluginOrWorkspaceNotFound: { description: Missing plugin or workspace, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PluginNotEnableable: { description: Invalid or incompatible plugin, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    DuplicateCommand: { description: Reused Idempotency-Key, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    PayloadTooLarge: { description: Serialized JSON body exceeds 1 MiB, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: Content too large to save., code: PAYLOAD_TOO_LARGE } } } }
+    NotFound: { description: Missing workspace, unpublished/missing post, or presentation settings, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }
+# Drift: DELETE /api/admin/v1/workspaces/{workspaceId}/plugins/{pluginId} is implemented but not
+# documented by SPEC-005 api.spec.md, so this fragment deliberately covers only its documented routes.

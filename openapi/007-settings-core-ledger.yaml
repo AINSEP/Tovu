@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Settings Core Ledger
+  version: "1.0.0"
+  description: Hand-verified against the current settings route handlers, shared session gate, and @jini-ai/cms settings validators on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+# Drift: SPEC-007 declares READ_STANDARD / WRITE_STANDARD limits, but the seven settings handlers do not instantiate or consult a rate limiter. No operation currently returns 429.
+paths:
+  # Drift: SPEC-007 lists /api/v1/admin/settings/* paths without a workspace segment. Runtime mounts every documented operation under /api/admin/v1/workspaces/{workspaceId}/settings/*.
+  /api/admin/v1/workspaces/{workspaceId}/settings/effective:
+    get:
+      operationId: get_effective_settings
+      tags: [settings]
+      summary: Resolve effective values for every active key in a namespace
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - { name: namespace, in: query, required: true, schema: { type: string }, example: core.presentation }
+        # Drift: SPEC-007 documents workspaceId as an optional query parameter; runtime ignores it and always reads the path's bound workspace.
+        - { name: principalId, in: query, schema: { type: string }, description: Defaults to the authenticated principal when omitted. A different principal requires settings.user.read. }
+      responses:
+        '200': { description: Resolved values, content: { application/json: { schema: { $ref: '#/components/schemas/EffectiveResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/settings/raw:
+    get:
+      operationId: get_raw_setting_layers
+      tags: [settings]
+      summary: Return raw values from each layer for one setting key
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        # Drift: SPEC-007 has no request contract for SETTINGS_GET_RAW. Runtime requires both namespace and key.
+        - { name: namespace, in: query, required: true, schema: { type: string } }
+        - { name: key, in: query, required: true, schema: { type: string } }
+        - { name: principalId, in: query, schema: { type: string }, description: Omit to exclude the user layer; a different principal requires settings.user.read. }
+      responses:
+        '200': { description: Raw layer values, content: { application/json: { schema: { $ref: '#/components/schemas/RawLayersResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/DefinitionOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/settings/definitions:
+    get:
+      operationId: list_setting_definitions
+      tags: [settings]
+      summary: List active and alias definitions ordered by namespace and key
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Definitions, content: { application/json: { schema: { $ref: '#/components/schemas/DefinitionsResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: register_setting_definitions
+      tags: [settings]
+      summary: Register or mutate setting definitions
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/RegisterDefinitionsRequest' } } }
+      responses:
+        '200': { description: Applied operations, content: { application/json: { schema: { $ref: '#/components/schemas/RegisterResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/settings/value:
+    put:
+      operationId: set_setting_value
+      tags: [settings]
+      summary: Set a setting value at a scope
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/SetValueRequest' } } } }
+      responses:
+        '200': { description: Written value and revision sequence, content: { application/json: { schema: { $ref: '#/components/schemas/ValueResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/DefinitionPrincipalOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/DefinitionTombstoned' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: clear_setting_value
+      tags: [settings]
+      summary: Clear a setting value at a scope
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      # Drift: SPEC-007 supplies no SETTINGS_CLEAR request contract; runtime requires this JSON body.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ClearValueRequest' } } } }
+      responses:
+        '200': { description: Cleared value and revision sequence, content: { application/json: { schema: { $ref: '#/components/schemas/ValueResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/DefinitionPrincipalOrWorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/DefinitionTombstoned' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/settings/reset:
+    post:
+      operationId: reset_settings_namespace
+      tags: [settings]
+      summary: Clear every active definition in a namespace at a scope
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ResetNamespaceRequest' } } } }
+      responses:
+        '200': { description: Reset result, content: { application/json: { schema: { $ref: '#/components/schemas/ResetResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Directly compared with the server-bound workspace; runtime performs no UUID-format validation., schema: { type: string, format: uuid } }
+  schemas:
+    JsonValue:
+      description: Any JSON value accepted by the definition's runtime schema.
+      nullable: true
+      oneOf: [{ type: object, additionalProperties: true }, { type: array, items: {} }, { type: string }, { type: number }, { type: boolean }]
+    SettingValueSchema:
+      oneOf:
+        - { type: object, required: [type], properties: { type: { type: string, enum: [string, number, boolean, json] }, nullable: { type: boolean } } }
+        - { type: object, required: [type, values], properties: { type: { type: string, enum: [enum] }, values: { type: array, items: { type: string } }, nullable: { type: boolean } } }
+    DefinitionRequestItem:
+      type: object
+      properties:
+        ownerKind: { type: string, enum: [core, site, theme] }
+        namespace: { type: string }
+        key: { type: string }
+        schemaJson: { $ref: '#/components/schemas/SettingValueSchema' }
+        # Drift: SPEC-007 calls defaultJson optional and object-only. Runtime accepts any JSON value, but register validation rejects an omitted or null default.
+        defaultJson: { $ref: '#/components/schemas/JsonValue' }
+        scopes: { type: integer, minimum: 1, maximum: 7 }
+        secret: { type: boolean, default: false, description: The runtime always rejects true with SECRET_NOT_SUPPORTED. }
+        op: { type: string, enum: [register, rename, retype, deprecate, tombstone], default: register }
+        newNamespace: { type: string }
+        newKey: { type: string }
+        # Drift: runtime accepts a coercion tag string or {tag:string}; SPEC-007 declares only an object.
+        coercionJson: { oneOf: [{ type: string }, { type: object, properties: { tag: { type: string } } }] }
+    RegisterDefinitionsRequest:
+      type: object
+      required: [definitions]
+      properties: { definitions: { type: array, items: { $ref: '#/components/schemas/DefinitionRequestItem' } } }
+    SetValueRequest:
+      type: object
+      required: [namespace, key, scope, valueJson]
+      properties:
+        namespace: { type: string }
+        key: { type: string }
+        scope: { type: string, enum: [global, workspace, user] }
+        workspaceId: { type: string, description: Optional only when absent or equal to the path workspace; a differing value is rejected with VALIDATION_ERROR. Ignored as a target for global scope. }
+        principalId: { type: string }
+        # Drift: SPEC-007 declares valueJson as an object. Runtime accepts any JSON value that satisfies the stored definition schema, including scalar values and null when nullable.
+        valueJson: { $ref: '#/components/schemas/JsonValue' }
+    ClearValueRequest:
+      type: object
+      required: [namespace, key, scope]
+      properties:
+        namespace: { type: string }
+        key: { type: string }
+        scope: { type: string, enum: [global, workspace, user] }
+        workspaceId: { type: string, description: Optional only when absent or equal to the path workspace; a differing value is rejected with VALIDATION_ERROR. }
+        principalId: { type: string }
+    ResetNamespaceRequest:
+      type: object
+      required: [namespace, scope]
+      properties:
+        namespace: { type: string }
+        scope: { type: string, enum: [global, workspace, user] }
+        workspaceId: { type: string, description: Optional only when absent or equal to the path workspace; a differing value is rejected with VALIDATION_ERROR. }
+    ResolvedValue:
+      type: object
+      required: [key, value, sourceLayer, defVersion]
+      properties:
+        key: { type: string }
+        value: { $ref: '#/components/schemas/JsonValue' }
+        sourceLayer: { type: string, enum: [user, workspace, global, default] }
+        defVersion: { type: integer }
+    EffectiveResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/ResolvedValue' } } } }
+    RawLayersResponse:
+      type: object
+      required: [key, global, workspace, user, default]
+      properties:
+        key: { type: string }
+        global: { $ref: '#/components/schemas/JsonValue' }
+        workspace: { $ref: '#/components/schemas/JsonValue' }
+        user: { $ref: '#/components/schemas/JsonValue' }
+        default: { $ref: '#/components/schemas/JsonValue' }
+    DefinitionSummary:
+      type: object
+      required: [namespace, key, ownerKind, scopes, status, version]
+      properties:
+        namespace: { type: string }
+        key: { type: string }
+        ownerKind: { type: string, enum: [core, site, theme] }
+        scopes: { type: integer }
+        status: { type: string, enum: [active, alias] }
+        version: { type: integer }
+    DefinitionsResponse: { type: object, required: [data], properties: { data: { type: array, items: { $ref: '#/components/schemas/DefinitionSummary' } } } }
+    AppliedDefinitionOperation: { type: object, required: [key, op, status], properties: { key: { type: string }, op: { type: string }, status: { type: string, enum: [applied] } } }
+    RegisterResponse: { type: object, required: [applied], properties: { applied: { type: array, items: { $ref: '#/components/schemas/AppliedDefinitionOperation' } } } }
+    ValueResponse:
+      type: object
+      required: [key, scope, value, revisionSeq]
+      properties:
+        key: { type: string, description: Concatenated namespace.key. }
+        scope: { type: string, enum: [global, workspace, user] }
+        value: { $ref: '#/components/schemas/JsonValue' }
+        revisionSeq: { type: integer }
+    ResetResponse: { type: object, required: [namespace, clearedCount, revisionSeqs], properties: { namespace: { type: string }, clearedCount: { type: integer }, revisionSeqs: { type: array, items: { type: integer } } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true } } }
+  responses:
+    Unauthenticated: { description: Missing or invalid admin session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Missing required settings permission, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceNotFound: { description: Path workspace differs from the server-bound workspace. Runtime response omits code., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    DefinitionOrWorkspaceNotFound: { description: Missing definition or path-workspace mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    DefinitionPrincipalOrWorkspaceNotFound: { description: Missing definition, target principal, or path-workspace mismatch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Invalid request, definition, scope, or value, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    DefinitionTombstoned: { description: Definition is tombstoned, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: setting has been tombstoned, code: DEFINITION_TOMBSTONED } } } }
+    Conflict: { description: Definition lifecycle conflict, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }

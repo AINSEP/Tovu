@@ -1,0 +1,265 @@
+openapi: 3.0.3
+info:
+  title: Tovu API — SEO
+  version: "1.0.0"
+  description: Hand-verified against current SEO route handlers, service validation, serializers, and shared session middleware on 2026-08-23.
+servers: [{ url: / }]
+security: [{ adminSessionCookie: [] }]
+paths:
+  /api/admin/v1/workspaces/{workspaceId}/seo/entries/{entryId}:
+    get:
+      operationId: get_seo_entry_meta
+      tags: [seo]
+      summary: Get resolved SEO metadata for an entry
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/EntryId' }]
+      responses:
+        # Drift: api.spec.md describes a bare SeoEntryMetaResponse with entryId and overrides; runtime returns { data: SeoMeta } only.
+        '200': { description: Resolved metadata, content: { application/json: { schema: { $ref: '#/components/schemas/SeoMetaResponse' }, example: { data: { title: Example, canonical: /example, robots: { noindex: false, nofollow: false }, openGraph: { title: Example, type: article, url: /example }, twitter: { card: summary_large_image, title: Example }, jsonLd: [{ '@context': 'https://schema.org', '@type': Article, headline: Example }] } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/EntryOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: put_seo_entry_meta
+      tags: [seo]
+      summary: Apply an SEO override patch to an entry
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/EntryId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SeoEntryPatch' }
+            example: { title: Example — Tovu, noindex: false, ogType: article }
+      responses:
+        # Drift: api.spec.md says null clears an override and returns overrides + effective meta. Runtime rejects null override values and returns { data: SeoMeta }.
+        '200': { description: Resolved metadata after the patch, content: { application/json: { schema: { $ref: '#/components/schemas/SeoMetaResponse' }, example: { data: { title: Example — Tovu, canonical: /example, robots: { noindex: false, nofollow: false }, openGraph: { title: Example — Tovu, type: article, url: /example }, twitter: { card: summary_large_image, title: Example — Tovu }, jsonLd: [{ '@context': 'https://schema.org', '@type': Article, headline: Example — Tovu }] } } } } }
+        '400': { $ref: '#/components/responses/EntryValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/EntryOrWorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/seo/entries/{entryId}/analyze:
+    get:
+      operationId: analyze_seo_entry
+      tags: [seo]
+      summary: Analyze an entry's resolved SEO metadata
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/EntryId' }]
+      responses:
+        # Drift: api.spec.md omits both the {data: ...} envelope and the runtime's resolved SeoMeta field.
+        '200': { description: Analysis result, content: { application/json: { schema: { $ref: '#/components/schemas/SeoAnalysisResponse' }, example: { data: { entryId: post-home, score: 100, issues: [], resolved: { title: Home, canonical: /, robots: { noindex: false, nofollow: false }, openGraph: { title: Home, type: article, url: / }, twitter: { card: summary_large_image, title: Home }, jsonLd: [{ '@context': 'https://schema.org', '@type': Article, headline: Home }] } } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/EntryOrWorkspaceNotFound' }
+        # Drift: api.spec.md does not list this runtime 500 response.
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/seo/settings:
+    get:
+      operationId: get_seo_settings
+      tags: [seo]
+      summary: Get workspace SEO settings
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        # Drift: api.spec.md describes a bare SeoSettingsResponse; runtime wraps it in {data: ...}.
+        '200': { description: Current settings, content: { application/json: { schema: { $ref: '#/components/schemas/SeoSettingsResponse' }, example: { data: { titleTemplate: '%s', defaultRobots: { noindex: false, nofollow: false }, sitemapEnabled: true, robotsRules: [] } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        # Drift: api.spec.md does not list this runtime workspace-mismatch 404.
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: api.spec.md does not list this runtime 500 response.
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      operationId: put_seo_settings
+      tags: [seo]
+      summary: Apply a workspace SEO settings patch
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SeoSettingsPatch' }
+            example: { titleTemplate: '%s — Example', sitemapEnabled: true }
+      responses:
+        # Drift: api.spec.md describes a bare SeoSettingsResponse; runtime wraps it in {data: ...}.
+        '200': { description: Settings after the patch, content: { application/json: { schema: { $ref: '#/components/schemas/SeoSettingsResponse' }, example: { data: { titleTemplate: '%s — Example', defaultRobots: { noindex: false, nofollow: false }, sitemapEnabled: true, robotsRules: [] } } } } }
+        '400': { $ref: '#/components/responses/SettingsValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        # Drift: api.spec.md does not list this runtime workspace-mismatch 404.
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        # Drift: api.spec.md does not list this runtime 500 response.
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/seo/sitemap/regenerate:
+    post:
+      operationId: regenerate_seo_sitemap
+      tags: [seo]
+      summary: Rebuild the sitemap cache immediately
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        # Drift: api.spec.md specifies {status: accepted, workspaceId}; runtime synchronously rebuilds then returns {data:{accepted:true}}.
+        '202': { description: Sitemap cache rebuilt, content: { application/json: { schema: { $ref: '#/components/schemas/SitemapRegenerateResponse' }, example: { data: { accepted: true } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        # Drift: api.spec.md does not list this runtime workspace-mismatch 404.
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /sitemap.xml:
+    get:
+      operationId: get_sitemap
+      tags: [seo]
+      summary: Get the public XML sitemap
+      security: []
+      responses:
+        '200': { description: Sitemap XML, headers: { Cache-Control: { schema: { type: string }, example: 'public, max-age=60, stale-while-revalidate=300' } }, content: { text/xml: { schema: { type: string }, example: '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n</urlset>\n' } } }
+        '500': { $ref: '#/components/responses/PublicInternalError' }
+  /robots.txt:
+    get:
+      operationId: get_robots
+      tags: [seo]
+      summary: Get the public robots policy
+      security: []
+      responses:
+        '200': { description: Robots text, headers: { Cache-Control: { schema: { type: string }, example: 'public, max-age=60, stale-while-revalidate=300' } }, content: { text/plain: { schema: { type: string }, example: 'User-agent: *\nAllow: /\n\nSitemap: /sitemap.xml\n' } } }
+        '500': { $ref: '#/components/responses/PublicInternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+  parameters:
+    # Drift: api.spec.md labels this UUID, but runtime only compares the path string to deps.workspaceId.
+    WorkspaceId: { name: workspaceId, in: path, required: true, schema: { type: string } }
+    # Drift: api.spec.md labels this UUID, but runtime performs no format validation before repository lookup.
+    EntryId: { name: entryId, in: path, required: true, schema: { type: string } }
+  schemas:
+    SeoEntryPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string, maxLength: 500 }
+        description: { type: string, maxLength: 500 }
+        # Drift: api.spec.md requires a URI; runtime accepts any string up to 2048 except unsafe javascript/data/vbscript/file schemes.
+        canonical: { type: string, maxLength: 2048 }
+        noindex: { type: boolean }
+        nofollow: { type: boolean }
+        schemaType: { type: string, maxLength: 500 }
+        ogTitle: { type: string, maxLength: 500 }
+        ogDescription: { type: string, maxLength: 500 }
+        ogImage: { type: string, maxLength: 2048 }
+        ogType: { type: string, enum: [website, article, profile] }
+        twitterCard: { type: string, enum: [summary, summary_large_image] }
+        twitterTitle: { type: string, maxLength: 500 }
+        twitterDescription: { type: string, maxLength: 500 }
+        twitterImage: { type: string, maxLength: 2048 }
+    SeoSettingsPatch:
+      type: object
+      # Runtime validates recognized properties only; unknown properties are ignored rather than rejected.
+      additionalProperties: true
+      properties:
+        # Drift: api.spec.md requires exactly one %s; runtime requires at least one and permits more.
+        titleTemplate: { type: string, maxLength: 500, pattern: '.*%s.*' }
+        defaultDescription: { type: string, nullable: true, maxLength: 500 }
+        defaultOgImage: { type: string, nullable: true, maxLength: 2048 }
+        # Drift: api.spec.md sets maxLength 100; runtime has no maximum-length check for twitterSite.
+        twitterSite: { type: string, nullable: true }
+        defaultRobots: { $ref: '#/components/schemas/RobotsDirective' }
+        sitemapEnabled: { type: boolean }
+        robotsRules:
+          type: array
+          maxItems: 50
+          items: { $ref: '#/components/schemas/RobotsRulePatch' }
+    RobotsDirective:
+      type: object
+      required: [noindex, nofollow]
+      additionalProperties: true
+      properties: { noindex: { type: boolean }, nofollow: { type: boolean } }
+    RobotsRulePatch:
+      type: object
+      required: [userAgent]
+      additionalProperties: true
+      properties:
+        userAgent: { type: string, minLength: 1 }
+        # Drift: runtime enforces array length (<=100) but does not validate allow/disallow item types.
+        allow: { type: array, maxItems: 100, items: {} }
+        disallow: { type: array, maxItems: 100, items: {} }
+    SeoMeta:
+      type: object
+      required: [title, canonical, robots, openGraph, twitter, jsonLd]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        canonical: { type: string }
+        robots: { $ref: '#/components/schemas/RobotsDirective' }
+        openGraph: { $ref: '#/components/schemas/OpenGraph' }
+        twitter: { $ref: '#/components/schemas/TwitterCard' }
+        jsonLd: { type: array, items: { type: object, additionalProperties: true } }
+    OpenGraph:
+      type: object
+      required: [title, type, url]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        type: { type: string, enum: [website, article, profile] }
+        url: { type: string }
+        image: { type: string }
+        siteName: { type: string }
+    TwitterCard:
+      type: object
+      required: [card, title]
+      properties:
+        card: { type: string, enum: [summary, summary_large_image] }
+        title: { type: string }
+        description: { type: string }
+        image: { type: string }
+        site: { type: string }
+    SeoMetaResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/SeoMeta' } } }
+    SeoIssue:
+      type: object
+      required: [code, severity, message]
+      properties:
+        code: { type: string }
+        severity: { type: string, enum: [error, warning, info] }
+        message: { type: string }
+        field: { type: string }
+    SeoAnalysis:
+      type: object
+      required: [entryId, score, issues, resolved]
+      properties:
+        entryId: { type: string }
+        score: { type: number }
+        issues: { type: array, items: { $ref: '#/components/schemas/SeoIssue' } }
+        resolved: { $ref: '#/components/schemas/SeoMeta' }
+    SeoAnalysisResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/SeoAnalysis' } } }
+    RobotsRule:
+      type: object
+      required: [userAgent]
+      properties:
+        userAgent: { type: string }
+        allow: { type: array, items: { type: string } }
+        disallow: { type: array, items: { type: string } }
+    SeoSettings:
+      type: object
+      required: [titleTemplate, defaultRobots, sitemapEnabled, robotsRules]
+      properties:
+        titleTemplate: { type: string }
+        defaultDescription: { type: string }
+        defaultOgImage: { type: string }
+        twitterSite: { type: string }
+        defaultRobots: { $ref: '#/components/schemas/RobotsDirective' }
+        sitemapEnabled: { type: boolean }
+        robotsRules: { type: array, items: { $ref: '#/components/schemas/RobotsRule' } }
+    SeoSettingsResponse: { type: object, required: [data], properties: { data: { $ref: '#/components/schemas/SeoSettings' } } }
+    SitemapRegenerateResponse: { type: object, required: [data], properties: { data: { type: object, required: [accepted], properties: { accepted: { type: boolean, enum: [true] } } } } }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        code: { type: string }
+        details: { type: object, additionalProperties: true }
+  responses:
+    Unauthenticated: { description: Missing or invalid session, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: unauthenticated, code: UNAUTHENTICATED } } } }
+    Forbidden: { description: Principal lacks admin.seo.manage, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "principal 'user' is not authorized for 'admin.seo.manage' (no grant)", code: FORBIDDEN, details: { permission: admin.seo.manage, reason: 'no grant' } } } } }
+    WorkspaceNotFound: { description: workspaceId differs from the process-bound workspace, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: workspace was not found } } } }
+    EntryOrWorkspaceNotFound: { description: Missing entry or workspace mismatch; their runtime bodies differ, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, examples: { entry: { value: { error: "entry 'missing' was not found", code: SEO_ENTRY_NOT_FOUND } }, workspace: { value: { error: workspace was not found } } } } } }
+    EntryValidationError: { description: Invalid SEO entry patch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, examples: { invalidField: { value: { error: "'title' must be a string", code: SEO_FIELD_VALIDATION_ERROR } }, unsafeCanonical: { value: { error: "'canonical' uses an unsafe URL scheme", code: SEO_INVALID_CANONICAL_URL } } } } } }
+    SettingsValidationError: { description: Invalid settings patch, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: "titleTemplate must contain '%s' at least once", code: SEO_SETTINGS_VALIDATION_ERROR } } } }
+    InternalError: { description: Internal error, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { error: internal error, code: INTERNAL_ERROR } } } }
+    PublicInternalError: { description: Internal error, content: { text/plain: { schema: { type: string }, example: internal error } } }
