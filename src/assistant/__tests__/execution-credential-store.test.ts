@@ -229,6 +229,16 @@ test("deleting an already-unset key is a harmless no-op, not an error", async ()
 // resolveExecutionCredential — must never throw
 // ---------------------------------------------------------------------------
 
+test("resolveExecutionCredential's onDecryptFailure defaults to a silent no-op — a decrypt failure with no callback supplied still just resolves null", async () => {
+  const { deps, repo } = makeDeps();
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "some-key" });
+
+  const otherSealer = new AesGcmSecretSealer(new InMemoryKeyring("different-generation"));
+  const resolved = await resolveExecutionCredential({ repo, sealer: otherSealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+
+  assert.equal(resolved, null, "the default no-op must still let the failure resolve to null rather than throwing");
+});
+
 test("resolveExecutionCredential returns null when no row exists", async () => {
   const { repo, sealer } = makeDeps();
   const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
