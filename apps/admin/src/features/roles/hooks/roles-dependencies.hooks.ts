@@ -1,4 +1,4 @@
-import { api, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { api, type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "../../../lib/api";
 import type { RolesPort } from "./roles-port.hooks";
 
 /**
@@ -17,6 +17,8 @@ export const defaultRolesPort: RolesPort = {
   updatePolicy: (target, options) => api.updatePolicy(target, options),
   deletePolicy: (policyId) => api.deletePolicy(policyId),
   writePolicyPermission: (input, options) => api.writePolicyPermission(input, options),
+  listPolicyPermissions: (policyId) => api.listPolicyPermissions(policyId),
+  removePolicyPermission: (input) => api.removePolicyPermission(input),
 };
 
 const FAKE_WORKSPACE_ID = "fake-ws";
@@ -60,6 +62,13 @@ export interface FakeRolesPortOptions {
   deletePolicyError?: Error;
   /** When set, `writePolicyPermission()` rejects with this instead of resolving. */
   writePermissionError?: Error;
+  /** When set, `listPolicyPermissions()` rejects with this instead of resolving. */
+  listPermissionsError?: Error;
+  /** When set, `removePolicyPermission()` rejects with this instead of resolving. */
+  removePermissionError?: Error;
+  /** Permission rows the fake starts with, so a test can open a policy that already HAS
+   *  permissions without writing them one call at a time. */
+  initialPolicyPermissions?: AdminPolicyPermission[];
 }
 
 /**
@@ -73,9 +82,13 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
   readonly roles: AdminRole[];
   /** Every policy currently in the fake's store, in list order. */
   readonly policies: AdminPolicy[];
+  /** Every policy-permission row currently in the fake's store (OQ-10), so a removal test can read
+   *  the outcome back the same way `roles`/`policies` already allow. */
+  readonly policyPermissions: AdminPolicyPermission[];
 } {
   const roles = [...(options.roles ?? [])];
   const policies = [...(options.policies ?? [])];
+  const policyPermissions = [...(options.initialPolicyPermissions ?? [])];
 
   function requireRole(roleId: string): AdminRole {
     const found = roles.find((r) => r.id === roleId);
@@ -92,6 +105,7 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
   return {
     roles,
     policies,
+    policyPermissions,
     async listRoles() {
       return { roles: [...roles] };
     },
@@ -145,7 +159,36 @@ export function createFakeRolesPort(options: FakeRolesPortOptions = {}): RolesPo
     async writePolicyPermission(input) {
       if (options.writePermissionError) throw options.writePermissionError;
       requirePolicy(input.policyId);
-      return { policyPermission: {} };
+      const created = {
+        id: `fake-perm-${policyPermissions.length + 1}`,
+        workspaceId: FAKE_WORKSPACE_ID,
+        policyId: input.policyId,
+        permission: input.permission,
+        resourceType: null,
+        constraintJson: null,
+      };
+      policyPermissions.push(created);
+      return { policyPermission: created };
+    },
+    async listPolicyPermissions(policyId) {
+      if (options.listPermissionsError) throw options.listPermissionsError;
+      requirePolicy(policyId);
+      return { policyPermissions: policyPermissions.filter((row) => row.policyId === policyId) };
+    },
+    async removePolicyPermission(input) {
+      if (options.removePermissionError) throw options.removePermissionError;
+      requirePolicy(input.policyId);
+      // Mirrors the server's membership proof: a row is only removable through the policy it
+      // actually belongs to, so a test cannot get a cross-policy delete past the fake either.
+      const index = policyPermissions.findIndex(
+        (row) => row.id === input.policyPermissionId && row.policyId === input.policyId,
+      );
+      if (index < 0) {
+        throw new Error(
+          `policy permission '${input.policyPermissionId}' was not found on policy '${input.policyId}'`,
+        );
+      }
+      policyPermissions.splice(index, 1);
     },
   };
 }

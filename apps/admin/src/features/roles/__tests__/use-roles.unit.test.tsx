@@ -318,7 +318,16 @@ describe("onWritePermission", () => {
       result.current.setResourceTypeInput("post");
     });
 
+    // Two responses: the write itself, then the permission-list reload it triggers (OQ-10) so the
+    // row it just created is present with the `id` its Remove button needs.
     fetchMock.mockResolvedValueOnce(jsonResponse({ policyPermission: {} }));
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        policyPermissions: [
+          { id: "pp-new", workspaceId: "w1", policyId: POLICY.id, permission: "content.write" },
+        ],
+      }),
+    );
 
     await act(async () => {
       await result.current.onWritePermission(POLICY.id);
@@ -327,6 +336,7 @@ describe("onWritePermission", () => {
     expect(result.current.permissionInput).toBe("");
     expect(result.current.resourceTypeInput).toBe("");
     expect(result.current.rowError).toBeNull();
+    expect(result.current.permissionRows.map((row) => row.permission)).toEqual(["content.write"]);
   });
 
   it("sets rowError with the unrecognized-permission copy and keeps the typed input on PERMISSION_UNKNOWN", async () => {
@@ -410,6 +420,93 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(port.roles).toEqual([]);
     await waitFor(() => expect(result.current.roles).toEqual([]));
+  });
+
+  // OQ-10 — a policy's permission set used to be append-only from this screen.
+  const PERMISSION_ROW = {
+    id: "pp-1",
+    workspaceId: "w1",
+    policyId: POLICY.id,
+    permission: "content.write",
+    resourceType: null,
+    constraintJson: null,
+  };
+
+  it("togglePermissionForm loads the policy's current permissions when it opens", async () => {
+    const port = createFakeRolesPort({
+      roles: [ROLE],
+      policies: [POLICY],
+      initialPolicyPermissions: [PERMISSION_ROW],
+    });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    expect(result.current.permissionRows).toEqual([]);
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+
+    await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
+    expect(result.current.permissionsLoading).toBe(false);
+  });
+
+  it("togglePermissionForm clears the loaded rows when it closes", async () => {
+    const port = createFakeRolesPort({
+      roles: [ROLE],
+      policies: [POLICY],
+      initialPolicyPermissions: [PERMISSION_ROW],
+    });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await waitFor(() => expect(result.current.permissionRows).toEqual([PERMISSION_ROW]));
+
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    expect(result.current.permissionPolicyId).toBeNull();
+    expect(result.current.permissionRows).toEqual([]);
+  });
+
+  it("onRemovePermission removes the row through the injected port and refreshes the list", async () => {
+    const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
+    const port = createFakeRolesPort({
+      roles: [ROLE],
+      policies: [POLICY],
+      initialPolicyPermissions: [PERMISSION_ROW, other],
+    });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await waitFor(() => expect(result.current.permissionRows).toHaveLength(2));
+
+    await act(async () => {
+      await result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+    });
+
+    expect(port.policyPermissions).toEqual([other]);
+    expect(result.current.permissionRows).toEqual([other]);
+    expect(result.current.rowError).toBeNull();
+    expect(result.current.removingPermissionId).toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onRemovePermission sets rowError from the injected port's configured failure and keeps the row", async () => {
+    const port = createFakeRolesPort({
+      roles: [ROLE],
+      policies: [POLICY],
+      initialPolicyPermissions: [PERMISSION_ROW],
+      removePermissionError: new Error("boom"),
+    });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    await waitFor(() => expect(result.current.permissionRows).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.onRemovePermission(POLICY.id, PERMISSION_ROW.id);
+    });
+
+    expect(result.current.rowError).toBe("boom");
+    expect(port.policyPermissions).toEqual([PERMISSION_ROW]);
+    expect(result.current.removingPermissionId).toBeNull();
   });
 
   it("onWritePermission sets rowError from the injected port's configured failure", async () => {
