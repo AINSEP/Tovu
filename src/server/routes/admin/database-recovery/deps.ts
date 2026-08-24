@@ -35,7 +35,20 @@ import type { DatabaseRecoveryDeps, RouteDeps } from "../../types.js";
  * directly instead of re-listing the keys via a second `Pick`; `workspaceId`/`authorize` (from
  * `IdentityDeps`) and `clock` (from `ClockDeps`, picked individually since `idGen` is never read
  * here) round out the same set as before, byte-for-byte.
+ *
+ * 2026-08-24 (`database/schema-state.ts`): `databaseIntrospection` joins the `Pick` above. The
+ * header's third paragraph listed it among the four fields deliberately excluded "even though the
+ * original Admin-UI backend-gap closure header comment covers them too", on the stated ground that
+ * "`database-recovery/deps.ts`'s real consumer never reads any of the four" — pulling one in would
+ * have widened rather than narrowed. That ground no longer holds for this one field:
+ * `registerAdminDatabaseSchemaStateRoute` (registered by the same `modules/database-recovery.ts`
+ * that consumes this type) reads `databaseIntrospection.getSchemaState()` as its entire body. The
+ * other three (`migrationRunsRepo`/`stampWatermark`/`gatedMutations`) are untouched and still have
+ * no consumer here. Added via `Pick<RouteDeps, ...>` rather than by moving the field into
+ * `DatabaseRecoveryDeps`, so `RouteDeps`'s own grouping is unchanged and no other consumer of that
+ * interface is affected.
  */
-export type DatabaseRecoveryRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock"> & DatabaseRecoveryDeps;
+export type DatabaseRecoveryRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "databaseIntrospection"> &
+  DatabaseRecoveryDeps;
 
 export type DatabaseRecoveryRouteRegistrar = (app: Express, deps: DatabaseRecoveryRouteDeps) => void;
