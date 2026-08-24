@@ -13,7 +13,10 @@ import {
   InMemorySessionRepo,
   InMemoryUserRepo,
 } from "@jini-ai/cms/identity";
+import { InMemoryApiKeyRepo } from "../repo.memory.js";
+import type { ApiKeyRepoPort } from "../api-key-types.js";
 import {
+  SqliteApiKeyRepo,
   SqlitePolicyPermissionRepo,
   SqlitePolicyRepo,
   SqlitePrincipalPolicyRepo,
@@ -37,9 +40,13 @@ import type {
 } from "@jini-ai/cms/identity";
 
 /**
- * @file Shared contract-test suite for the nine `identity` repo ports, run against both
+ * @file Shared contract-test suite for the identity repo ports, run against both
  * `repo.memory.ts` and `repo.sqlite.ts` — mirrors `src/members/__tests__/repo.contract.test.ts`'s
  * shape (that file's own header cites this exact convention).
+ *
+ * Nine of the ports (and their in-memory adapters) come from `@jini-ai/cms/identity`; the tenth,
+ * `ApiKeyRepoPort` (SPEC-006 REQ-08), is declared and adapted in THIS repo — see
+ * `identity/api-key-types.ts`. Both of its adapters are exercised by the same suite as the rest.
  */
 
 const WS = "workspace-1";
@@ -275,5 +282,79 @@ runRolePolicyRepoSuite("SqliteRolePolicyRepo", () => new SqliteRolePolicyRepo(op
 runPrincipalRoleRepoSuite("InMemoryPrincipalRoleRepo", () => new InMemoryPrincipalRoleRepo());
 runPrincipalRoleRepoSuite("SqlitePrincipalRoleRepo", () => new SqlitePrincipalRoleRepo(openContentDb(":memory:")));
 
+function runApiKeyRepoSuite(adapterName: string, makeRepo: () => ApiKeyRepoPort) {
+  const row = {
+    id: "ak-1",
+    workspaceId: WS,
+    principalId: "p-1",
+    label: "runner",
+    keyHash: "scrypt$16384$8$1$c2FsdA$ZGlnZXN0",
+    prefix: "tovu_ak_0123456789ab",
+    issuedPolicyId: "pol-frozen-1",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+
+  test(`[${adapterName}] ApiKeyRepoPort: save + findById round-trips every field, save is upsert`, async () => {
+    const repo = makeRepo();
+    await repo.save(row);
+    // Field-by-field rather than one `deepEqual`: the SQLite adapter materializes absent optional
+    // columns as explicit `undefined` keys while the in-memory one simply omits them, which is a
+    // difference in object shape, not in contract. The absent-column case is asserted below.
+    const found = await repo.findById({ workspaceId: WS, id: "ak-1" });
+    for (const [field, value] of Object.entries(row)) {
+      assert.equal(found?.[field as keyof typeof row], value, `round-trips ${field}`);
+    }
+
+    // Revocation is an upsert of the same row, which is how `revokeApiKey` writes it.
+    await repo.save({ ...row, revokedAt: "2026-01-03T00:00:00.000Z", lastUsedAt: "2026-01-02T00:00:00.000Z" });
+    const revoked = await repo.findById({ workspaceId: WS, id: "ak-1" });
+    assert.equal(revoked?.revokedAt, "2026-01-03T00:00:00.000Z");
+    assert.equal(revoked?.lastUsedAt, "2026-01-02T00:00:00.000Z");
+  });
+
+  test(`[${adapterName}] ApiKeyRepoPort: findByPrefix is the verification lookup, and is workspace-scoped`, async () => {
+    const repo = makeRepo();
+    await repo.save(row);
+    assert.equal((await repo.findByPrefix({ workspaceId: WS, prefix: row.prefix }))?.id, "ak-1");
+    assert.equal(await repo.findByPrefix({ workspaceId: WS, prefix: "tovu_ak_ffffffffffff" }), null);
+    // A key from another workspace must never resolve here — INV-01, composite (workspaceId, ...).
+    assert.equal(await repo.findByPrefix({ workspaceId: WS2, prefix: row.prefix }), null);
+    assert.equal(await repo.findById({ workspaceId: WS2, id: "ak-1" }), null);
+  });
+
+  test(`[${adapterName}] ApiKeyRepoPort: listByPrincipalId scopes by principal and workspace`, async () => {
+    const repo = makeRepo();
+    await repo.save(row);
+    await repo.save({ ...row, id: "ak-2", prefix: "tovu_ak_0123456789ac" });
+    await repo.save({ ...row, id: "ak-3", prefix: "tovu_ak_0123456789ad", principalId: "p-2" });
+    await repo.save({ ...row, id: "ak-4", prefix: "tovu_ak_0123456789ae", workspaceId: WS2 });
+
+    const rows = await repo.listByPrincipalId({ workspaceId: WS, principalId: "p-1" });
+    assert.deepEqual(rows.map((r) => r.id).sort(), ["ak-1", "ak-2"]);
+  });
+
+  test(`[${adapterName}] ApiKeyRepoPort: optional columns round-trip as undefined, not null`, async () => {
+    const repo = makeRepo();
+    const bare = {
+      id: "ak-bare",
+      workspaceId: WS,
+      principalId: "p-1",
+      label: "bare",
+      keyHash: "scrypt$16384$8$1$c2FsdA$ZGlnZXN0",
+      prefix: "tovu_ak_bbbbbbbbbbbb",
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    await repo.save(bare);
+    const found = await repo.findById({ workspaceId: WS, id: "ak-bare" });
+    assert.equal(found?.issuedPolicyId, undefined);
+    assert.equal(found?.lastUsedAt, undefined);
+    assert.equal(found?.expiresAt, undefined);
+    assert.equal(found?.revokedAt, undefined);
+  });
+}
+
 runPrincipalPolicyRepoSuite("InMemoryPrincipalPolicyRepo", () => new InMemoryPrincipalPolicyRepo());
 runPrincipalPolicyRepoSuite("SqlitePrincipalPolicyRepo", () => new SqlitePrincipalPolicyRepo(openContentDb(":memory:")));
+
+runApiKeyRepoSuite("InMemoryApiKeyRepo", () => new InMemoryApiKeyRepo());
+runApiKeyRepoSuite("SqliteApiKeyRepo", () => new SqliteApiKeyRepo(openContentDb(":memory:")));

@@ -10,6 +10,7 @@ import {
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types.js";
+import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 /**
@@ -35,6 +36,22 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate
  * - The login route is additionally guarded by the `LOGIN_STRICT` rate-limit
  *   profile (REQ-14/AC-18, `core/rate-limit/rate-limit.ts`) before credentials are checked.
  *
+ * SPEC-006 REQ-08 (2026-08-24): the gate now accepts a SECOND credential type — an issued API key
+ * presented as `Authorization: Bearer <raw-key>` (or `ApiKey <raw-key>`, the spelling api.spec §2
+ * uses; both are accepted so an ordinary HTTP client's bearer-token support works unchanged). Both
+ * credentials resolve to the same thing — a `PrincipalRecord` on `res.locals` — so every existing
+ * `getAuthedPrincipal`/`authorize()` call downstream is untouched by the addition: an api_key
+ * principal's grants come from its issuance snapshot and are evaluated by the same `authorize()`.
+ *
+ * The cookie is tried first, so a browser request behaves EXACTLY as before and the header path is
+ * reached only when there is no session to find.
+ *
+ * Scope: this applies to every surface that mounts `requireAdminSession`, which today is
+ * `/api/admin` (`modules/core.ts`) AND `/api/assistant/chats` (`modules/assistant-chats.ts`) — not
+ * `/api/admin` alone. Both are admin-authenticated surfaces whose per-route authorization is
+ * unchanged, so a key reaches exactly the routes its snapshotted permissions already allow;
+ * `openapi/006-identity-and-authorization.yaml` documents the `/api/admin` half.
+ *
  * Architectural role:
  * `requireAdminSession`/`registerAuthRoutes` are middleware/route factories
  * that close over the identity repos + hasher + the `identityReady` seed
@@ -47,6 +64,23 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate
  * session/credential implementation.
  */
 const SESSION_COOKIE = "tovu_session";
+
+/**
+ * `Bearer <raw-key>` or `ApiKey <raw-key>`, case-insensitive on the scheme. The captured group is
+ * a live credential: it is passed straight to `authenticateApiKey` and is never logged, echoed in
+ * an error body, or attached to `res.locals`.
+ */
+const API_KEY_AUTHORIZATION_PATTERN = /^(?:Bearer|ApiKey)[ \t]+(\S+)$/i;
+
+/** How the current request authenticated. Route families that must not be reachable by a machine
+ *  credential (see `routes/admin/api-keys/*`) branch on this. */
+export type AuthCredentialKind = "session" | "api_key";
+
+/** A resolved credential: who is calling, and which of the two credential types proved it. */
+export interface AuthenticatedCredential {
+  principal: PrincipalRecord;
+  kind: AuthCredentialKind;
+}
 
 /**
  * Deps `requireAdminSession`/`currentPrincipal` actually need: the identity repos (9 fields) plus
@@ -67,6 +101,18 @@ function identityReposFrom(deps: IdentityDeps): IdentityRepos {
     rolePolicies: deps.rolePolicyRepo,
     principalRoles: deps.principalRoleRepo,
     principalPolicies: deps.principalPolicyRepo,
+  };
+}
+
+/** Assemble the `ApiKeyServiceDeps` bag `authenticateApiKey` expects from `RouteDeps`'s flat fields. */
+function apiKeyServiceDepsFrom(deps: SessionAuthDeps): ApiKeyServiceDeps {
+  return {
+    repos: identityReposFrom(deps),
+    hasher: deps.passwordHasher,
+    clock: deps.clock,
+    idGen: deps.idGen,
+    apiKeys: deps.apiKeyRepo,
+    secretHasher: deps.apiKeySecretHasher,
   };
 }
 
@@ -93,24 +139,65 @@ function clearSessionCookie(res: Response): void {
   res.setHeader("Set-Cookie", `${SESSION_COOKIE}=; HttpOnly; Path=/; Max-Age=0; SameSite=Strict; Secure`);
 }
 
+/** Pull the raw key out of an `Authorization` header, or `null` when there is no key-shaped one. */
+function readApiKeyCredential(req: Request): string | null {
+  const header = req.headers.authorization;
+  if (!header) return null;
+  const match = API_KEY_AUTHORIZATION_PATTERN.exec(header.trim());
+  return match ? match[1] : null;
+}
+
 /**
- * Resolve the current request's session cookie to its principal, applying
- * every fail-closed check (EC-02/EC-03/EC-13) via `identity.validateSession`.
- * Awaits `deps.identityReady` first so this never races first-boot seeding.
+ * Resolve whichever credential this request carries to its principal, applying every fail-closed
+ * check for that credential type. Awaits `deps.identityReady` first so this never races first-boot
+ * seeding.
  *
- * @complexity O(1) — one cookie parse, one session/principal lookup.
+ * The cookie is tried first and the `Authorization` header only when no session resolved, so an
+ * existing browser request's behavior is bit-for-bit what it was before Bearer support landed.
+ * Both paths are all-or-nothing: `validateSession` and `authenticateApiKey` each return `null` for
+ * every rejection reason (missing, invalid, expired, revoked, disabled principal) rather than a
+ * distinguishable error, so the 401 below cannot be used as an oracle either way.
+ *
+ * @returns the principal plus WHICH credential proved it, or `null`.
+ * @complexity O(1) — one cookie parse plus one session lookup, or one header parse plus one
+ *   indexed api-key lookup and one key derivation.
+ * @overallScore 100
+ */
+export async function currentCredential(
+  deps: SessionAuthDeps,
+  req: Request
+): Promise<AuthenticatedCredential | null> {
+  const rawToken = readSessionToken(req);
+  if (rawToken) {
+    await deps.identityReady;
+    const resolved = await validateSession({
+      deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
+      input: { workspaceId: deps.workspaceId, rawToken },
+    });
+    if (resolved?.principal) return { principal: resolved.principal, kind: "session" };
+  }
+
+  const rawKey = readApiKeyCredential(req);
+  if (!rawKey) return null;
+
+  await deps.identityReady;
+  const authenticated = await authenticateApiKey({
+    deps: apiKeyServiceDepsFrom(deps),
+    input: { workspaceId: deps.workspaceId, rawKey },
+  });
+  return authenticated ? { principal: authenticated.principal, kind: "api_key" } : null;
+}
+
+/**
+ * Resolve the current request's credential to its principal, discarding which credential it was.
+ * Thin wrapper over `currentCredential` — kept because callers that only ever needed "who is
+ * calling" should not have to destructure a shape they ignore.
+ *
+ * @complexity O(1) — see `currentCredential`.
  * @overallScore 100
  */
 export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Promise<PrincipalRecord | null> {
-  const rawToken = readSessionToken(req);
-  if (!rawToken) return null;
-
-  await deps.identityReady;
-  const resolved = await validateSession({
-    deps: { repos: identityReposFrom(deps), hasher: deps.passwordHasher, clock: deps.clock, idGen: deps.idGen },
-    input: { workspaceId: deps.workspaceId, rawToken },
-  });
-  return resolved?.principal ?? null;
+  return (await currentCredential(deps, req))?.principal ?? null;
 }
 
 /**
@@ -129,6 +216,25 @@ export function getAuthedPrincipal(res: Response): PrincipalRecord {
   return principal;
 }
 
+/**
+ * Read HOW the current request authenticated (SPEC-006 REQ-08). Route families that must stay
+ * out of reach of a machine credential call this and refuse anything but `"session"` — the
+ * spec-level rule that an API key can never mint, issue, or revoke another API key, which is what
+ * keeps key issuance from being a privilege-escalation primitive.
+ *
+ * Throws if called on a request that didn't pass through `requireAdminSession` first — a wiring
+ * bug, not a runtime auth outcome (same contract as `getAuthedPrincipal`).
+ */
+export function getAuthedCredentialKind(res: Response): AuthCredentialKind {
+  const kind = res.locals.authCredentialKind as AuthCredentialKind | undefined;
+  if (!kind) {
+    throw new Error(
+      "getAuthedCredentialKind: no credential kind on res.locals — requireAdminSession must run before this route"
+    );
+  }
+  return kind;
+}
+
 /** Express middleware factory: reject unauthenticated /api/admin requests; attach the principal. */
 export function requireAdminSession(deps: SessionAuthDeps) {
   return async function requireAdminSessionMiddleware(
@@ -136,12 +242,13 @@ export function requireAdminSession(deps: SessionAuthDeps) {
     res: Response,
     next: NextFunction
   ): Promise<void> {
-    const principal = await currentPrincipal(deps, req);
-    if (!principal) {
+    const credential = await currentCredential(deps, req);
+    if (!credential) {
       res.status(401).json({ error: "unauthenticated", code: "UNAUTHENTICATED" });
       return;
     }
-    res.locals.principal = principal;
+    res.locals.principal = credential.principal;
+    res.locals.authCredentialKind = credential.kind;
     next();
   };
 }

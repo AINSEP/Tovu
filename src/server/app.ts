@@ -153,6 +153,7 @@ import { createMenusModule } from "./modules/menus.js";
 import { createWidgetsModule } from "./modules/widgets.js";
 import { createSettingsModule } from "./modules/settings.js";
 import { createUsersModule } from "./modules/users.js";
+import { createApiKeysModule } from "./modules/api-keys.js";
 import { createWorkspaceModule } from "./modules/workspace.js";
 import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
@@ -993,6 +994,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
   mountRoutes(app, createUsersModule(routeDeps));
+  // SPEC-006 REQ-08: the `api-keys` server module — the 3 api-key admin routes. Registered next to
+  // `users` because both are the ADR-021/SPEC-006 identity surface, but kept a separate module —
+  // see `modules/api-keys.ts` for why. Must sit after `createCoreModule` above, which mounts the
+  // `/api/admin` session gate these three routes rely on for both auth and credential-kind.
+  mountRoutes(app, createApiKeysModule(routeDeps));
   // SPEC-044: the `workspace` server module — 5 admin routes (list/create/get/update/delete), the
   // real successor to the original unauthenticated inline `POST /workspaces` route this file used
   // to own directly (see the file header note).

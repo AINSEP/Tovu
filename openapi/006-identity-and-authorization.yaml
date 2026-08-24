@@ -1,0 +1,440 @@
+openapi: 3.0.3
+info:
+  title: Tovu Admin API — Identity and Authorization
+  version: "1.0.0"
+  description: Hand-verified against the current route handlers, serializers, and identity-service validation code on 2026-08-24.
+servers: [{ url: / }]
+# Every /api/admin route accepts EITHER credential: the tovu_session cookie, or an issued API key
+# in an Authorization header. `middleware/dev-auth.ts` resolves whichever is present to the same
+# PrincipalRecord, so authorization downstream is identical for the two — an api_key principal's
+# grants come from its issuance snapshot and are evaluated by the same authorize(). The cookie is
+# tried first, so a browser request behaves exactly as it did before Bearer support landed.
+# Scope note: this is documented on the identity fragment only. The other openapi/*.yaml fragments
+# still declare the cookie alone at the document level; the header is accepted there at runtime
+# too, and sweeping all 15 was out of scope for the pass that implemented it (2026-08-24).
+security: [{ adminSessionCookie: [] }, { apiKeyAuthorization: [] }]
+# The three api-keys operations below are the deliberate exception: each overrides the above with
+# cookie-only security, because an API key must never be able to mint, issue, or revoke another —
+# that would make issuance a privilege-escalation primitive rather than a delegation a human can
+# withdraw. Enforced by `rejectApiKeyCredential` (routes/admin/api-keys/deps.ts), which returns
+# 403 with details.reason='credential_kind_not_permitted'.
+# Drift: api.spec.md applies READ_STANDARD/WRITE_STANDARD rate limits to every
+# users/roles/policies endpoint, and WRITE_STANDARD to the three api-keys endpoints. The current
+# handlers mount no such limiter; only login is rate-limited.
+paths:
+  /api/admin/v1/api-keys/principals:
+    post:
+      operationId: create_api_key_principal
+      tags: [api-keys]
+      summary: Mint a grantless api_key principal
+      description: >-
+        Mints the ACTIVE, grantless kind='api_key' principal that issue_api_key binds to — the sole
+        HTTP path that produces one. No principal_roles/principal_policies rows are written, which
+        is exactly the precondition issue_api_key re-verifies, so a key's authority ends up equal to
+        the policies snapshotted at issuance and never to grants the principal accumulated first.
+        The workspace is the caller's own, resolved from the credential; there is no request field
+        for it and therefore no cross-workspace mint. Requires apikey.manage. Handler:
+        src/server/routes/admin/api-keys/create-principal.ts.
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/CreateApiKeyPrincipalRequest' } } }
+      responses:
+        '201': { description: Created principal., content: { application/json: { schema: { $ref: '#/components/schemas/PrincipalResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenApiKeyManagement' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/api-keys:
+    post:
+      operationId: issue_api_key
+      tags: [api-keys]
+      summary: Issue an API key bound to a principal
+      description: >-
+        Issues a key bound to a grantless kind='api_key' principal. The requested policyIds are
+        SNAPSHOTTED at issuance — their permission rows are copied field-identically (resourceType
+        and constraintJson preserved per row, never widened) into a new immutable isFrozen,
+        machine-owned policy attached to that principal — so a later write to a source policy cannot
+        grow an already-issued key. Every permission the snapshot would confer must be held
+        UNCONSTRAINED by the caller (INV-07) or issuance is refused with no rows written at all,
+        including no orphan snapshot policy. Requires apikey.manage. Handler:
+        src/server/routes/admin/api-keys/issue.ts.
+      security: [{ adminSessionCookie: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/IssueApiKeyRequest' } } }
+      responses:
+        '201': { description: 'Raw key shown once; only a salted scrypt digest of its secret half is persisted, so no later read of any table can reproduce it.', content: { application/json: { schema: { $ref: '#/components/schemas/ApiKeyIssueResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenApiKeyIssuance' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/api-keys/{id}/revoke:
+    post:
+      operationId: revoke_api_key
+      tags: [api-keys]
+      summary: Revoke an API key
+      description: >-
+        Revokes a key. The effect is immediate and uncached: every request re-reads the key's
+        revokedAt, so the next request presenting it is rejected 401. The key's issuance snapshot is
+        emptied at the same time, leaving the bound principal holding nothing. Idempotent —
+        re-revoking an already-revoked key is 204, not a conflict, and does not move the original
+        timestamp. Requires apikey.manage. Handler: src/server/routes/admin/api-keys/revoke.ts.
+      # Disclosed deviation from state.spec.md §3, which calls for retiring the snapshot policy
+      # outright (its principal_policies row + the policies row + its policy_permissions).
+      # PrincipalPolicyRepoPort (@jini-ai/cms/identity) exposes no delete, and deleting the policies
+      # row while its join row survived would leave exactly the dangling reference INV-09 exists to
+      # prevent. So the snapshot's policy_permissions rows are deleted and the now-empty isFrozen
+      # policy and its join row remain. Same security outcome (the principal's effective permission
+      # set is empty); two inert rows instead of zero.
+      security: [{ adminSessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Api-key id. Passed to the identity service without route-level UUID validation.
+          schema: { type: string }
+      responses:
+        '204': { description: Revocation took effect immediately; no response body. }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenApiKeyManagement' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/auth/login:
+    post:
+      operationId: login
+      tags: [authentication]
+      summary: Create an admin session
+      security: []
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/LoginRequest' } } } }
+      responses:
+        # Drift: runtime returns {user:{id,username}}, not LoginResponse {data:{principal,sessionExpiresAt}}.
+        '200': { description: Session created, headers: { Set-Cookie: { schema: { type: string }, description: tovu_session cookie with HttpOnly, SameSite=Strict, Secure, Path=/, and Max-Age. } }, content: { application/json: { schema: { $ref: '#/components/schemas/LoginResponse' } } } }
+        # Drift: blank credentials also become this 401; the documented 400 VALIDATION_ERROR is not emitted.
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [authentication]
+      summary: Clear the current session cookie
+      # Drift: this route is registered before the /api/admin session gate; it accepts no credential and succeeds even without a cookie.
+      security: []
+      responses:
+        # Drift: api.spec.md declares authenticated 204 empty; runtime returns 200 {ok:true}.
+        '200': { description: Cookie cleared; supplied session token is revoked when present., headers: { Set-Cookie: { schema: { type: string } } }, content: { application/json: { schema: { $ref: '#/components/schemas/OkResponse' } } } }
+  /api/admin/v1/auth/me:
+    get:
+      operationId: get_current_identity
+      tags: [authentication]
+      summary: Get the session or api-key principal and effective permissions
+      # Drift CLOSED 2026-08-24. This previously read "runtime accepts only the tovu_session cookie;
+      # the documented ApiKey Authorization header has no implementation." The runtime now accepts an
+      # issued API key in an Authorization header on every /api/admin route, this one included, and
+      # resolves it to the bound api_key principal with its snapshotted effectivePermissions. Both
+      # the `ApiKey <raw-key>` spelling api.spec.md §2 uses and `Bearer <raw-key>` are accepted.
+      security: [{ adminSessionCookie: [] }, { apiKeyAuthorization: [] }]
+      responses:
+        # Drift: runtime returns {user,effectivePermissions}, not {data:{principal,effectivePermissions}}.
+        # For an api_key principal there is no users row, so `user.username` is the principal's
+        # displayName (the value create_api_key_principal was given), not a login name.
+        '200': { description: Current identity, content: { application/json: { schema: { $ref: '#/components/schemas/WhoAmIResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users:
+    get:
+      operationId: list_users
+      tags: [users]
+      summary: List human users
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Users, content: { application/json: { schema: { $ref: '#/components/schemas/UserListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_user
+      tags: [users]
+      summary: Create a human user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateUserRequest' } } } }
+      responses:
+        '201': { description: Created user, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}:
+    patch:
+      operationId: update_user
+      tags: [users]
+      summary: Update a user email
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      # Drift: api.spec.md says null clears email; the handler coerces null to the literal string "null". Missing or empty-string email clears it.
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateUserRequest' } } } }
+      responses:
+        '200': { description: Updated user, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/disable:
+    post:
+      operationId: disable_user
+      tags: [users]
+      summary: Disable a user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      responses:
+        '200': { description: Disabled user, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/OwnerRequired' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/enable:
+    post:
+      operationId: enable_user
+      tags: [users]
+      summary: Enable a human user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      responses:
+        '200': { description: Enabled user, content: { application/json: { schema: { $ref: '#/components/schemas/UserResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/reset-password:
+    post:
+      operationId: reset_user_password
+      tags: [users]
+      summary: Reset a user password and revoke their sessions
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ResetPasswordRequest' } } } }
+      responses:
+        '204': { description: Password reset; no response body. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/roles:
+    post:
+      operationId: assign_user_role
+      tags: [users]
+      summary: Assign a role to a human user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoleAssignmentRequest' } } } }
+      responses:
+        '201': { description: Assignment, content: { application/json: { schema: { $ref: '#/components/schemas/RoleAssignmentResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrGrantClamp' }
+        # Drift: missing principal or role returns {error} without the documented RESOURCE_NOT_FOUND code.
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/users/{principalId}/policies:
+    post:
+      operationId: attach_user_policy
+      tags: [users]
+      summary: Attach a policy to a human user
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PrincipalId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyAttachmentRequest' } } } }
+      responses:
+        '201': { description: Attachment, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyAttachmentResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrGrantClamp' }
+        # Drift: missing principal or policy returns {error} without the documented RESOURCE_NOT_FOUND code.
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/roles:
+    get:
+      operationId: list_roles
+      tags: [roles]
+      summary: List roles
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Roles, content: { application/json: { schema: { $ref: '#/components/schemas/RoleListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_role
+      tags: [roles]
+      summary: Create a non-built-in role
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoleRequest' } } } }
+      responses:
+        '201': { description: Created role, content: { application/json: { schema: { $ref: '#/components/schemas/RoleResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/roles/{roleId}:
+    patch:
+      operationId: update_role
+      tags: [roles]
+      summary: Rename a non-built-in role
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RoleId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/RoleRequest' } } } }
+      responses:
+        '200': { description: Updated role, content: { application/json: { schema: { $ref: '#/components/schemas/RoleResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: delete_role
+      tags: [roles]
+      summary: Delete an unassigned, non-built-in role
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/RoleId' }]
+      responses:
+        '204': { description: Role deleted; no response body. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/policies:
+    get:
+      operationId: list_policies
+      tags: [policies]
+      summary: List policies
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      responses:
+        '200': { description: Policies, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: create_policy
+      tags: [policies]
+      summary: Create a non-built-in, non-frozen policy
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreatePolicyRequest' } } } }
+      responses:
+        '201': { description: Created policy, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/WorkspaceNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/policies/{policyId}:
+    patch:
+      operationId: update_policy
+      tags: [policies]
+      summary: Update a non-built-in, non-frozen policy
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PolicyId' }]
+      # Drift: api.spec.md permits null description; the handler coerces null to the literal string "null".
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdatePolicyRequest' } } } }
+      responses:
+        '200': { description: Updated policy, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: delete_policy
+      tags: [policies]
+      summary: Delete an unreferenced, non-built-in, non-frozen policy
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PolicyId' }]
+      responses:
+        '204': { description: Policy deleted; no response body. }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /api/admin/v1/workspaces/{workspaceId}/policies/{policyId}/permissions:
+    post:
+      operationId: write_policy_permission
+      tags: [policies]
+      summary: Add a permission to a mutable policy
+      parameters: [{ $ref: '#/components/parameters/WorkspaceId' }, { $ref: '#/components/parameters/PolicyId' }]
+      # Drift: api.spec.md permits null resourceType/constraintJson; the handler coerces each null to the literal string "null".
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/WritePolicyPermissionRequest' } } } }
+      responses:
+        '201': { description: Created policy permission, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyPermissionResponse' } } } }
+        '400': { $ref: '#/components/responses/ValidationOrUnknownPermission' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/ForbiddenOrGrantClamp' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+components:
+  securitySchemes:
+    adminSessionCookie: { type: apiKey, in: cookie, name: tovu_session }
+    # Declared as an explicit header credential rather than `type: http, scheme: bearer` because the
+    # runtime accepts TWO spellings of the same header and an http/bearer scheme could express only
+    # one of them. Keeping it honest about both beats picking the tidier declaration.
+    apiKeyAuthorization: { type: apiKey, in: header, name: Authorization, description: 'An issued API key, sent as `Bearer <raw-key>` or `ApiKey <raw-key>` (case-insensitive scheme). Raw keys are emitted once, by issue_api_key, and are never returned by any other endpoint.' }
+  parameters:
+    WorkspaceId: { name: workspaceId, in: path, required: true, description: Compared directly with the server-bound workspace; no UUID-format validation is performed., schema: { type: string } }
+    PrincipalId: { name: principalId, in: path, required: true, description: Passed to the identity service without route-level UUID validation., schema: { type: string } }
+    RoleId: { name: roleId, in: path, required: true, description: Passed to the identity service without route-level UUID validation., schema: { type: string } }
+    PolicyId: { name: policyId, in: path, required: true, description: Passed to the identity service without route-level UUID validation., schema: { type: string } }
+  schemas:
+    LoginRequest: { type: object, required: [username, password], properties: { username: { type: string }, password: { type: string } } }
+    LoginResponse: { type: object, required: [user], properties: { user: { type: object, required: [id, username], properties: { id: { type: string }, username: { type: string } } } } }
+    WhoAmIResponse: { type: object, required: [user, effectivePermissions], properties: { user: { type: object, required: [id, username], properties: { id: { type: string }, username: { type: string } } }, effectivePermissions: { type: array, items: { type: string } } } }
+    OkResponse: { type: object, required: [ok], properties: { ok: { type: boolean, enum: [true] } } }
+    CreateUserRequest: { type: object, required: [username, password], properties: { username: { type: string, minLength: 1, description: Normalized to NFC lowercase before uniqueness checking. }, email: { type: string }, password: { type: string, minLength: 12, maxLength: 512, description: Length is measured in Unicode code points. } } }
+    UpdateUserRequest: { type: object, properties: { email: { type: string, description: Missing or empty string clears email; null is coerced to the string 'null'. Other properties are ignored. } } }
+    ResetPasswordRequest: { type: object, required: [password], properties: { password: { type: string, minLength: 12, maxLength: 512, description: Length is measured in Unicode code points. } } }
+    RoleAssignmentRequest: { type: object, required: [roleId], properties: { roleId: { type: string } } }
+    PolicyAttachmentRequest: { type: object, required: [policyId], properties: { policyId: { type: string } } }
+    RoleRequest: { type: object, required: [name], properties: { name: { type: string, minLength: 1, description: Whitespace-only names are rejected after trimming. } } }
+    CreatePolicyRequest: { type: object, required: [name], properties: { name: { type: string, minLength: 1, description: Whitespace-only names are rejected after trimming. }, description: { type: string } } }
+    UpdatePolicyRequest: { type: object, minProperties: 1, properties: { name: { type: string }, description: { type: string, description: null is coerced to the string 'null'. } } }
+    WritePolicyPermissionRequest: { type: object, required: [permission], properties: { permission: { type: string }, resourceType: { type: string, description: null is coerced to the string 'null'. }, constraintJson: { type: string, description: null is coerced to the string 'null'. } } }
+    AdminUser: { type: object, required: [principalId, workspaceId, username, status, createdAt, roleIds, policyIds], properties: { principalId: { type: string }, workspaceId: { type: string }, username: { type: string }, email: { type: string }, status: { type: string, enum: [active, disabled] }, createdAt: { type: string, format: date-time }, lastLoginAt: { type: string, format: date-time }, roleIds: { type: array, items: { type: string } }, policyIds: { type: array, items: { type: string } } } }
+    AdminRole: { type: object, required: [id, workspaceId, name, isBuiltin], properties: { id: { type: string }, workspaceId: { type: string }, name: { type: string }, isBuiltin: { type: boolean } } }
+    AdminPolicy: { type: object, required: [id, workspaceId, name, isBuiltin, isFrozen], properties: { id: { type: string }, workspaceId: { type: string }, name: { type: string }, description: { type: string }, isBuiltin: { type: boolean }, isFrozen: { type: boolean } } }
+    RoleAssignment: { type: object, required: [id, workspaceId, principalId, roleId], properties: { id: { type: string }, workspaceId: { type: string }, principalId: { type: string }, roleId: { type: string } } }
+    PolicyAttachment: { type: object, required: [id, workspaceId, principalId, policyId], properties: { id: { type: string }, workspaceId: { type: string }, principalId: { type: string }, policyId: { type: string } } }
+    PolicyPermission: { type: object, required: [id, workspaceId, policyId, permission, resourceType, constraintJson], properties: { id: { type: string }, workspaceId: { type: string }, policyId: { type: string }, permission: { type: string }, resourceType: { type: string, nullable: true }, constraintJson: { type: string, nullable: true } } }
+    UserResponse: { type: object, required: [user], properties: { user: { $ref: '#/components/schemas/AdminUser' } } }
+    UserListResponse: { type: object, required: [users], properties: { users: { type: array, items: { $ref: '#/components/schemas/AdminUser' } } } }
+    RoleResponse: { type: object, required: [role], properties: { role: { $ref: '#/components/schemas/AdminRole' } } }
+    RoleListResponse: { type: object, required: [roles], properties: { roles: { type: array, items: { $ref: '#/components/schemas/AdminRole' } } } }
+    PolicyResponse: { type: object, required: [policy], properties: { policy: { $ref: '#/components/schemas/AdminPolicy' } } }
+    PolicyListResponse: { type: object, required: [policies], properties: { policies: { type: array, items: { $ref: '#/components/schemas/AdminPolicy' } } } }
+    RoleAssignmentResponse: { type: object, required: [assignment], properties: { assignment: { $ref: '#/components/schemas/RoleAssignment' } } }
+    PolicyAttachmentResponse: { type: object, required: [attachment], properties: { attachment: { $ref: '#/components/schemas/PolicyAttachment' } } }
+    PolicyPermissionResponse: { type: object, required: [policyPermission], properties: { policyPermission: { $ref: '#/components/schemas/PolicyPermission' } } }
+    # SPEC-006 §1/§4 (api-keys) — live as of 2026-08-24; serializers in src/server/http/admin/api-keys.ts.
+    # `format: uuid` was dropped from the id-bearing request fields below: these handlers pass ids
+    # straight to the identity service with no route-level format validation, exactly as the
+    # WorkspaceId/PrincipalId path parameters above already document for the rest of this fragment.
+    CreateApiKeyPrincipalRequest: { type: object, required: [displayName], properties: { displayName: { type: string, minLength: 1, maxLength: 255, description: Bounds are measured after trimming; a whitespace-only value is rejected 400. Not unique-constrained — there is no login identity to collide. }, kind: { type: string, enum: [api_key], default: api_key, description: "Optional. Any other value — including 'user', 'system', and the deferred 'agent' — is rejected 400 VALIDATION_ERROR, so this endpoint can never become a second creation path for a privileged kind." } } }
+    PrincipalResponse: { type: object, required: [principal], properties: { principal: { type: object, required: [id, kind, status, workspaceId, displayName], properties: { id: { type: string }, kind: { type: string, enum: [api_key] }, status: { type: string, enum: [active, disabled], description: "Always 'active' on this response — a freshly minted principal is never disabled." }, workspaceId: { type: string }, displayName: { type: string } } } } }
+    IssueApiKeyRequest: { type: object, required: [principalId, label, policyIds], properties: { principalId: { type: string, description: "Must reference a kind='api_key' principal in the caller's workspace that is still grantless. A user/system target is rejected 400 (a key must not inherit a privileged principal's grants); an already-granted target is rejected 400; an unknown one is 404." }, label: { type: string, minLength: 1, maxLength: 255, description: Bounds are measured after trimming. }, policyIds: { type: array, minItems: 1, items: { type: string }, description: "Source policies to snapshot. A policy carrying the owner wildcard '*' is rejected 400 — an api-key snapshot may never carry it. An unknown policy is 404." }, expiresAt: { type: string, format: date-time, nullable: true, description: "Optional; null, absent, or empty string all mean no expiry. Canonicalized to UTC on write and compared as an instant, so an offset-bearing value is honored exactly." } } }
+    ApiKeyIssueResponse: { type: object, required: [apiKey], properties: { apiKey: { type: object, required: [id, rawKey, principalId, label, expiresAt], properties: { id: { type: string }, rawKey: { type: string, description: "The full key, shaped tovu_ak_<12 hex>.<43 base64url chars> — a non-secret prefix used as the lookup handle, plus 256 bits of CSPRNG secret. Shown once, here, and never returned by any other endpoint." }, principalId: { type: string }, label: { type: string }, expiresAt: { type: string, format: date-time, nullable: true } } } } }
+    ErrorResponse: { type: object, required: [error], properties: { error: { type: string }, code: { type: string }, details: { type: object, additionalProperties: true } } }
+  responses:
+    Unauthenticated: { description: Missing, invalid, expired, revoked, or disabled session; login also uses this for invalid credentials., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    Forbidden: { description: Caller lacks the required permission., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ForbiddenOrGrantClamp: { description: Caller lacks role.manage or the requested grant exceeds their unconstrained permissions., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ForbiddenApiKeyManagement: { description: "Caller lacks apikey.manage, OR authenticated with an API key rather than an admin session — a key may never mint, issue, or revoke another (code FORBIDDEN, details.reason='credential_kind_not_permitted'). The credential-kind check runs before the body is read and before any existence lookup, so it never reveals whether a target exists.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ForbiddenApiKeyIssuance: { description: "Everything ForbiddenApiKeyManagement covers, plus GRANT_EXCEEDS_ISSUER when the requested snapshot would confer a permission the caller does not hold unconstrained (INV-07); details.offendingPermissions names each one and no rows are written.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    WorkspaceNotFound: { description: "Workspace path mismatch. Runtime response is {error} with no code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    NotFound: { description: Missing target. Some assignment/attachment handlers omit code; other handlers send RESOURCE_NOT_FOUND., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationError: { description: Invalid input or immutable/invalid target., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    ValidationOrUnknownPermission: { description: Validation failure or an unregistered permission (PERMISSION_UNKNOWN)., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    OwnerRequired: { description: Disabling the seeded owner or final active owner wildcard principal is forbidden., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    Conflict: { description: Duplicate username or a still-referenced role/policy., content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    RateLimited: { description: More than 10 login attempts in 60 seconds for one client IP., headers: { Retry-After: { schema: { type: integer } } }, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+    InternalError: { description: "Internal error. Runtime body is {error: 'internal error'} with no code.", content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
