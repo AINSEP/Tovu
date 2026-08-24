@@ -19,18 +19,12 @@ import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 const MAX_BODY_STRING_LENGTH = 5000;
 
-/** Bounds every string value in an untrusted body before it reaches `submitForm` — defensive coercion, mirroring `analytics-ingest.ts`'s `parseBeacon`. */
+/** Truncates string values in an untrusted body before it reaches `submitForm`; other types pass through unchanged so `validateSubmissionPayload` can reject them by type, mirroring `analytics-ingest.ts`'s `parseBeacon`. */
 function boundBody(body: unknown): Record<string, unknown> {
   const raw = (body ?? {}) as Record<string, unknown>;
   const bounded: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (typeof value === "string") {
-      bounded[key] = value.slice(0, MAX_BODY_STRING_LENGTH);
-    } else if (typeof value === "boolean") {
-      bounded[key] = value;
-    }
-    // Other types (objects/arrays/numbers) are dropped — `validateSubmissionPayload` only ever
-    // accepts strings/booleans per the closed field-type vocabulary.
+    bounded[key] = typeof value === "string" ? value.slice(0, MAX_BODY_STRING_LENGTH) : value;
   }
   return bounded;
 }
