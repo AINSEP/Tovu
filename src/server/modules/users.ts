@@ -15,6 +15,8 @@ import { registerAdminRoleDeleteRoute } from "../routes/admin/users/delete-role.
 import { registerAdminPolicyUpdateRoute } from "../routes/admin/users/update-policy.js";
 import { registerAdminPolicyDeleteRoute } from "../routes/admin/users/delete-policy.js";
 import { registerAdminPolicyWritePermissionRoute } from "../routes/admin/users/write-policy-permission.js";
+import { registerAdminPolicyPermissionListRoute } from "../routes/admin/users/list-policy-permissions.js";
+import { registerAdminPolicyPermissionRemoveRoute } from "../routes/admin/users/remove-policy-permission.js";
 import type { UsersRouteDeps } from "../routes/admin/users/deps.js";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -35,6 +37,9 @@ import type { ServerModuleHandle } from "./types.js";
  * 0.6.0 (the users/roles/policies CRUD-completion amendment) adds 9 more: `disable`/`enable`/
  * `update`/`reset-password` (users), `update-role`/`delete-role` (roles), `update-policy`/
  * `delete-policy`/`write-policy-permission` (policies) — 17 registrations total.
+ *
+ * OQ-10 (2026-08-24) adds the last two: `list-policy-permissions`/`remove-policy-permission`,
+ * which together make a policy's permission set editable rather than append-only — 19 total.
  */
 export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
   return {
@@ -57,6 +62,8 @@ export function createUsersModule(deps: UsersRouteDeps): ServerModuleHandle {
       registerAdminPolicyUpdateRoute(app, deps);
       registerAdminPolicyDeleteRoute(app, deps);
       registerAdminPolicyWritePermissionRoute(app, deps);
+      registerAdminPolicyPermissionListRoute(app, deps);
+      registerAdminPolicyPermissionRemoveRoute(app, deps);
     },
   };
 }

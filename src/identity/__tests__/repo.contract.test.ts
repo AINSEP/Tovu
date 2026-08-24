@@ -205,6 +205,44 @@ function runPolicyPermissionRepoSuite(adapterName: string, makeRepo: () => Polic
     assert.deepEqual(await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-a" }), []);
     assert.equal((await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-b" })).length, 1, "a different policy's rows are untouched");
   });
+
+  test(`[${adapterName}] PolicyPermissionRepoPort: delete removes exactly one row by id (OQ-10)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-7", workspaceId: WS, policyId: "pol-c", permission: "content.read" });
+    await repo.save({ id: "pp-8", workspaceId: WS, policyId: "pol-c", permission: "content.write" });
+    await repo.save({ id: "pp-9", workspaceId: WS, policyId: "pol-d", permission: "content.read" });
+
+    await repo.delete({ workspaceId: WS, id: "pp-7" });
+
+    assert.deepEqual(
+      (await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-c" })).map((r) => r.permission),
+      ["content.write"],
+      "the policy's OTHER permission rows survive a single-row delete"
+    );
+    assert.equal(
+      (await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-d" })).length,
+      1,
+      "a different policy's rows are untouched"
+    );
+  });
+
+  test(`[${adapterName}] PolicyPermissionRepoPort: delete is a no-op for an unknown id (OQ-10)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-10", workspaceId: WS, policyId: "pol-e", permission: "content.read" });
+    await repo.delete({ workspaceId: WS, id: "no-such-row" });
+    assert.equal((await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-e" })).length, 1);
+  });
+
+  test(`[${adapterName}] PolicyPermissionRepoPort: delete is workspace-scoped (OQ-10)`, async () => {
+    const repo = makeRepo();
+    await repo.save({ id: "pp-11", workspaceId: WS, policyId: "pol-f", permission: "content.read" });
+    await repo.delete({ workspaceId: "some-other-workspace", id: "pp-11" });
+    assert.equal(
+      (await repo.listByPolicyId({ workspaceId: WS, policyId: "pol-f" })).length,
+      1,
+      "a delete scoped to another workspace must not reach this workspace's row"
+    );
+  });
 }
 
 function runRolePolicyRepoSuite(adapterName: string, makeRepo: () => RolePolicyRepoPort) {
