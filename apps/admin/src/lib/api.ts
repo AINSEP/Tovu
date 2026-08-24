@@ -905,6 +905,16 @@ export interface AdminMedia {
   width: number | null;
   height: number | null;
   cssClass: string | null;
+  /**
+   * The asset's real media type, sniffed server-side from the stored bytes — never the content
+   * type the browser reported at upload time. Drives the Media screen's "Images"/"Videos" tabs.
+   *
+   * `null` means "the server could not read this blob's bytes", NOT "unknown format": an
+   * unrecognized file reports the real answer `"application/octet-stream"`. A `null` row is
+   * therefore a genuine anomaly, and `filterMediaByTab` keeps it on the All tab rather than
+   * dropping it from the screen.
+   */
+  contentType: string | null;
 }
 
 export interface AdminWebhookDeliverySummary {

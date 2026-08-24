@@ -1,6 +1,7 @@
 import { ApiError, type AdminMedia } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { QueryKey } from "../../lib/fetch-query";
+import type { MediaTabId } from "./hooks/use-media-tabs.hooks";
 import { MEDIA_DICT } from "./media-i18n";
 
 /**
@@ -89,6 +90,48 @@ export function readFileAsBase64(file: File): Promise<string> {
     };
     reader.readAsDataURL(file);
   });
+}
+
+/**
+ * The grid contents for one tab: every asset on "all", and only assets whose sniffed
+ * `contentType` is in the matching family on "images"/"videos".
+ *
+ * Prefix matching on `image/`/`video/` rather than an enumerated list of the sniffer's current
+ * outputs: the server's sniffer allowlist can gain a format (another image codec, say) without
+ * this file having to learn about it, and a prefix cannot mis-sort a type it has never seen.
+ *
+ * Three kinds of asset are deliberately NOT in either filtered tab:
+ * - `application/octet-stream` — a REAL answer from the sniffer (an unrecognized file), not a
+ *   missing one. It is neither an image nor a video, so All is where it belongs.
+ * - `text/html`/`image/svg+xml` — markup the byte-serving route force-downloads as a stored-XSS
+ *   defusal. `image/svg+xml` does match the `image/` prefix and so DOES appear under Images, which
+ *   is correct: it is genuinely an image, and its card falls back to the non-previewable
+ *   placeholder exactly as it does on All.
+ * - `null` — see {@link hasUntypedMedia}.
+ *
+ * @complexity Time O(n), space O(n).
+ */
+export function filterMediaByTab(media: AdminMedia[], tab: MediaTabId): AdminMedia[] {
+  if (tab === "images") return media.filter((item) => item.contentType?.startsWith("image/") ?? false);
+  if (tab === "videos") return media.filter((item) => item.contentType?.startsWith("video/") ?? false);
+  return media;
+}
+
+/**
+ * Whether any asset has no recorded content type — what drives the filtered tabs' "some items
+ * aren't shown here" note.
+ *
+ * A `null` `contentType` does not mean "unknown format" (that is a real, recorded
+ * `application/octet-stream`); it means the server could not read that blob's bytes to sniff them,
+ * because the list route backfills every readable pre-existing row on read. So this is normally
+ * `false` and the note never renders. It exists because the alternative — a filtered tab that
+ * quietly drops rows it cannot classify — is worse than the honest placeholder these tabs replaced:
+ * an operator would have no way to tell "no images" from "images the server couldn't read".
+ *
+ * @complexity Time O(n), space O(1).
+ */
+export function hasUntypedMedia(media: AdminMedia[]): boolean {
+  return media.some((item) => item.contentType === null);
 }
 
 /** Alt text fallback chain for a previewed media asset: prefers the operator-set alt, falls back

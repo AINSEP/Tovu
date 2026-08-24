@@ -77,6 +77,7 @@ const DEFAULT_MEDIA: AdminMedia = {
   width: null,
   height: null,
   cssClass: null,
+  contentType: "image/png",
 };
 
 /**
