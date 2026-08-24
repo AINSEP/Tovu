@@ -1,5 +1,6 @@
 import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline.js";
 import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../routes/admin/database/restore-points.js";
+import { registerAdminDatabaseSchemaStateRoute } from "../routes/admin/database/schema-state.js";
 import { registerAdminRecoveryRestorePointsListRoute } from "../routes/admin/recovery/restore-points.js";
 import { registerAdminRecoveryDisclosureRoute } from "../routes/admin/recovery/disclosure.js";
 import { registerAdminRecoveryDeepLinkRoute } from "../routes/admin/recovery/deep-link.js";
@@ -20,10 +21,18 @@ import type { ServerModuleHandle } from "./types.js";
  * for the explicit disclosure of how `status.ts`'s `core/operation-lock` read (the prior audit's
  * Finding 3 fix) is preserved unchanged by this move.
  *
- * Owns 7 registrations, discovered by reading all 6 source files directly (`database/timeline.ts`,
- * `database/restore-points.ts` [2 registrars], `recovery/restore-points.ts`, `recovery/
- * disclosure.ts`, `recovery/deep-link.ts`, `recovery/status.ts`):
+ * Owns 8 registrations (7 originally, discovered by reading all 6 source files directly —
+ * `database/timeline.ts`, `database/restore-points.ts` [2 registrars], `recovery/restore-points.ts`,
+ * `recovery/disclosure.ts`, `recovery/deep-link.ts`, `recovery/status.ts` — plus `database/
+ * schema-state.ts`, added 2026-08-24):
  *  - `registerAdminDatabaseTimelineRoute` (Database's read-first Timeline)
+ *  - `registerAdminDatabaseSchemaStateRoute` (2026-08-24, ADR-041 §3 — Database's drift status;
+ *    the 8th registration, added after this header's original count. It is the first consumer of
+ *    `databaseIntrospection`, which `routes/admin/database-recovery/deps.ts` had excluded from its
+ *    narrow `Pick` precisely because nothing here read it — see that file's own 2026-08-24 note.
+ *    Read-only: it reports drift, and deliberately offers no repair action. Ordering is
+ *    irrelevant for the same reason the note below gives — `/api/admin/v1/database/schema-state`
+ *    is a fixed path no other registered layer can match.)
  *  - `registerAdminDatabaseRestorePointsListRoute` / `registerAdminDatabaseRestorePointsCreateRoute`
  *  - `registerAdminRecoveryRestorePointsListRoute` (Recovery's own restore-points list view —
  *    NOT named in the SPEC-042 requirement text's 6-registrar list, but real: confirmed present
@@ -50,6 +59,7 @@ export function createDatabaseRecoveryModule(deps: DatabaseRecoveryRouteDeps): S
     name: "database-recovery",
     registerRoutes: (app) => {
       registerAdminDatabaseTimelineRoute(app, deps);
+      registerAdminDatabaseSchemaStateRoute(app, deps);
       registerAdminDatabaseRestorePointsListRoute(app, deps);
       registerAdminDatabaseRestorePointsCreateRoute(app, deps);
       registerAdminRecoveryRestorePointsListRoute(app, deps);
