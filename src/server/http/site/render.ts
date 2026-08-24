@@ -555,6 +555,33 @@ function renderImageTag(props: {
 }
 
 /**
+ * Builds a real `<video>` tag for a resolved video media embed (video/embed capability,
+ * 2026-08-24) — {@link renderImageTag}'s sibling, same optional-attribute-omission convention, but
+ * points `src` at `/m/{assetId}/original` (`routes/site/media-rendition.ts`'s
+ * `registerMediaOriginalVideoRoute`) instead of the versioned transform URL: video has no
+ * transform/version to template in, since it bypasses the image-transform pipeline entirely (see
+ * that route's own doc for why). `alt` becomes the tag's fallback text node, not an `alt`
+ * attribute — `<video>` has no such attribute; a browser that can't play the element renders its
+ * children instead, so this is the same information in the shape `<video>` actually supports.
+ *
+ * @complexity O(1).
+ */
+function renderVideoTag(props: {
+  readonly assetId: string;
+  readonly alt: string;
+  readonly width: number | null;
+  readonly height: number | null;
+  readonly cssClass: string | null;
+}): string {
+  const src = `/m/${encodeURIComponent(props.assetId)}/original`;
+  const widthAttr = props.width != null ? ` width="${props.width}"` : "";
+  const heightAttr = props.height != null ? ` height="${props.height}"` : "";
+  const classAttr = props.cssClass ? ` class="${escapeHtml(props.cssClass)}"` : "";
+  const fallback = props.alt ? escapeHtml(props.alt) : "Your browser does not support the video tag.";
+  return `<video src="${escapeHtml(src)}" controls${widthAttr}${heightAttr}${classAttr}>${fallback}</video>`;
+}
+
+/**
  * Flattens a doc node's nested inline content down to its plain text — the heading label as a reader
  * sees it, with `bold`/`italic`/`link` marks and any other inline wrapper structure discarded. Used
  * only to derive {@link headingAnchorId}; the visible heading still renders through the normal
@@ -1572,37 +1599,44 @@ function renderWidgetPlaceholder(): string {
 }
 
 /**
- * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07) —
- * `resolver-service.ts`'s `resolveMediaTypeEmbeds` already did the I/O (asset lookup, transform
+ * Renders a resolved `data-embed-type="media"` Page embed (SPEC-047, generalized 2026-08-07;
+ * video/embed capability added 2026-08-24) — `resolver-service.ts`'s `resolveMediaTypeEmbeds`
+ * already did the I/O (asset lookup, content-type lookup, and — for a non-video asset — transform
  * version lookup) and only ever puts a `"media-image"` IR into its result map once every value
  * below is a validated primitive, so this function's own `isPlausibleMediaRefId`/`typeof` checks
  * are defense-in-depth (mirrors `renderExtraFieldAttrs`'s own re-check-even-though-upstream-
  * validated precedent), not the primary guard. A malformed `props` shape — which should never
  * happen from this codebase's own resolver, only from some future/foreign IR producer — degrades to
- * the ordinary widget placeholder rather than emitting a malformed or unsafe `<img>` tag.
+ * the ordinary widget placeholder rather than emitting a malformed or unsafe `<img>`/`<video>` tag.
  *
- * `props.width`/`height`/`cssClass` come through as `JsonValue` (a `WidgetRenderIR.props` is
- * `JsonObject`, so `null` and `number` both need explicit narrowing) — normalized to
- * {@link renderImageTag}'s `number | null` / `string | null` contract before delegating, same
- * "own it once, reuse everywhere" split `renderImageTag`'s own doc describes.
+ * Dispatches on `props.contentType` (present only for a video asset — see `resolveMediaTypeEmbeds`'s
+ * own doc for why an image asset's IR never carries it) to `renderVideoTag` instead of
+ * `renderImageTag`; `transformName`/`version` are irrelevant to a video tag and simply aren't read
+ * on that branch. `props.width`/`height`/`cssClass` come through as `JsonValue` (a
+ * `WidgetRenderIR.props` is `JsonObject`, so `null` and `number` both need explicit narrowing) —
+ * normalized to each render function's `number | null` / `string | null` contract before
+ * delegating, same "own it once, reuse everywhere" split `renderImageTag`'s own doc describes.
  */
 function renderWidgetMediaImage(props: JsonObject): string {
   const assetId = props.assetId;
-  const transformName = props.transformName;
-  const version = props.version;
-  if (
-    typeof assetId !== "string" ||
-    typeof transformName !== "string" ||
-    typeof version !== "number" ||
-    !isPlausibleMediaRefId(assetId) ||
-    !isPlausibleMediaRefId(transformName)
-  ) {
+  if (typeof assetId !== "string" || !isPlausibleMediaRefId(assetId)) {
     return renderWidgetPlaceholder();
   }
   const width = typeof props.width === "number" ? props.width : null;
   const height = typeof props.height === "number" ? props.height : null;
   const cssClass = typeof props.cssClass === "string" ? props.cssClass : null;
-  return renderImageTag({ assetId, transformName, version, alt: str(props.alt), width, height, cssClass });
+  const alt = str(props.alt);
+
+  if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {
+    return renderVideoTag({ assetId, alt, width, height, cssClass });
+  }
+
+  const transformName = props.transformName;
+  const version = props.version;
+  if (typeof transformName !== "string" || typeof version !== "number" || !isPlausibleMediaRefId(transformName)) {
+    return renderWidgetPlaceholder();
+  }
+  return renderImageTag({ assetId, transformName, version, alt, width, height, cssClass });
 }
 
 /**

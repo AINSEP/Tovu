@@ -219,7 +219,13 @@ export async function resolveWidgetsForRender(deps: RenderContextResolutionDeps,
 export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
-    deps: { entryRepo: deps.entryRepo, mediaRepo: deps.mediaRepo, transformRepo: deps.transformDefinitionRepo, postRepo: deps.postRepo },
+    deps: {
+      entryRepo: deps.entryRepo,
+      mediaRepo: deps.mediaRepo,
+      transformRepo: deps.transformDefinitionRepo,
+      postRepo: deps.postRepo,
+      mediaContentTypeStore: deps.mediaContentTypeStore,
+    },
     input: { workspaceId: deps.workspaceId, html: post.bodyHtml ?? "" },
   });
 }
@@ -401,7 +407,7 @@ export const MAX_CONTENT_EMBED_FETCHES = 50;
  * supertype of this, so every real call site passes its own full `deps` through unchanged. */
 export type ContentMarkerResolutionDeps = Pick<
   RouteDeps,
-  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo"
+  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "mediaContentTypeStore"
 >;
 
 /** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
@@ -419,7 +425,7 @@ export type ContentMarkerResolutionDeps = Pick<
  * full `deps` through unchanged. */
 export type TemplateRenderDeps = Pick<
   RouteDeps,
-  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "menuRepo" | "themes"
+  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "menuRepo" | "themes" | "mediaContentTypeStore"
 >;
 
 /**
@@ -436,7 +442,7 @@ export type TemplateRenderDeps = Pick<
  */
 export type RenderContextResolutionDeps = Pick<
   RouteDeps,
-  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo"
+  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo" | "mediaContentTypeStore"
 >;
 
 /**
@@ -499,7 +505,13 @@ export async function resolveHtmlFormatContentMarkers(
       const ownBody = entity.bodyHtml ?? "";
       const nestedHtml = await resolveHtmlFormatContentMarkers(deps, ownBody, depth + 1, budget);
       const nestedResolved = await resolveHtmlPageEmbeds({
-        deps: { entryRepo: deps.entryRepo, postRepo: deps.postRepo, mediaRepo: deps.mediaRepo, transformRepo: deps.transformDefinitionRepo },
+        deps: {
+          entryRepo: deps.entryRepo,
+          postRepo: deps.postRepo,
+          mediaRepo: deps.mediaRepo,
+          transformRepo: deps.transformDefinitionRepo,
+          mediaContentTypeStore: deps.mediaContentTypeStore,
+        },
         input: { workspaceId: deps.workspaceId, html: nestedHtml },
       });
       replacements.set(id, renderHtmlPageBody(nestedHtml, nestedResolved));
@@ -605,6 +617,7 @@ export async function renderViaTemplate(
       postRepo: deps.postRepo,
       mediaRepo: deps.mediaRepo,
       transformRepo: deps.transformDefinitionRepo,
+      mediaContentTypeStore: deps.mediaContentTypeStore,
       ...(pendingBodyJson !== undefined
         ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: pendingBodyJson } }
         : {}),

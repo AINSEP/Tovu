@@ -22,7 +22,7 @@
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort, EntryRecord, EntryRepoPort } from "../features/entries/index.js";
 import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index.js";
-import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { PostRepoPort } from "../features/post/index.js";
 import { findPublishedPostById } from "../features/post/index.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
@@ -305,6 +305,15 @@ export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps 
   readonly transformRepo?: TransformDefinitionRepoPort;
   readonly postRepo?: PostRepoPort;
   /**
+   * Video/embed capability (2026-08-24) — optional, same "degrade gracefully when absent" contract
+   * `mediaRepo`/`transformRepo` already have. When present, {@link resolveMediaTypeEmbeds} uses it
+   * to tell a video asset from an image one (keyed by `MediaRecord.source.sha256`, the same key
+   * `routes/admin/media/upload.ts` already records under). Absent (every pre-existing call site
+   * before this feature, and any future one that never touches media) means every asset resolves as
+   * an image exactly as it always has — this is additive, not a behavior change for images.
+   */
+  readonly mediaContentTypeStore?: MediaContentTypeStorePort;
+  /**
    * Template-preview pending-body fix (2026-08-12) — an explicitly-passed, per-call override for
    * exactly one entity id's content, consulted ONLY by {@link resolveContentTypeEmbeds}. Lets
    * `routes/admin/posts/template-preview.ts` preview the operator's unsaved, in-editor `bodyJson`
@@ -395,18 +404,18 @@ function isPlausibleMediaRefId(value: string): boolean {
  * own the actual URL templating and escaping (the "reuse, don't reimplement" split this dispatch was
  * asked for, mirroring how `resolveWidgetTypeEmbeds` resolves data and `renderWidgetIr` renders it).
  *
- * **Scope limitation versus the original implementation plan, disclosed rather than silently
- * narrowed.** The plan's step 3 called for dispatching by the asset's STORED MIME TYPE (image/
- * audio/video are "one media type", rendered differently per mime). `MediaRecord`
- * (`@jini-ai/cms/media`) has NO mime/contentType field — verified against the package's own
- * `media/types.d.ts` and `media/ports.d.ts`, not assumed: `contentType` exists only transiently in
- * `UploadMediaInput` at upload time and is never persisted onto the record `MediaRepoPort.findById`
- * returns. There is also no OTHER media-rendering precedent anywhere in this codebase to mirror —
- * the only existing one, `render.ts`'s TipTap `image` node case, is unconditionally image-only too.
- * Real mime-based dispatch would need a schema/persistence change outside this dispatch's scope, so
- * THIS resolver, like the rest of the codebase today, treats every `media` embed as an image.
- * Flagging for Coordinator/Architect review rather than either inventing a field that doesn't exist
- * or silently pretending the plan's dispatch-by-mime requirement was met.
+ * **Scope limitation versus the original implementation plan — CLOSED for video, still open for
+ * everything else (2026-08-24).** The plan's step 3 called for dispatching by the asset's STORED
+ * MIME TYPE. `MediaRecord` (`@jini-ai/cms/media`) still has no mime/contentType field of its own —
+ * that remains an upstream `@jini-ai/cms` gap, not fixed here — but this host now has a
+ * Tovu-owned side channel for it: `mediaContentTypeStore` (`media/content-type-store.ts`), keyed by
+ * `record.source.sha256`, already populated at upload time (`routes/admin/media/upload.ts`) for the
+ * admin Media screen's own Images/Videos filter. When present and it knows the asset's type as
+ * `video/*`, this resolver now skips the image-transform lookup entirely and resolves a `video`-kind
+ * IR instead — `render.ts`'s `renderWidgetMediaImage` branches on it. Everything else (no store
+ * supplied, a sha256 miss, or a non-video type) falls through to the exact image-only behavior this
+ * resolver has always had. Audio is still unhandled — no audio player exists anywhere in this
+ * codebase to dispatch to, and nothing in this pass's scope asked for one.
  *
  * Never throws (REQ-27): a missing `mediaRepo`/`transformRepo` dependency, an id/name that fails
  * {@link isPlausibleMediaRefId}'s shape check, a nonexistent asset, or an unregistered transform name
@@ -414,10 +423,12 @@ function isPlausibleMediaRefId(value: string): boolean {
  * an absent id to the REQ-28 placeholder exactly as it does for every other resolver here.
  *
  * @complexity O(e) over the media refs present (already capped at `MAX_HTML_EMBEDS_PER_PAGE`
- * upstream by `scanHtmlEmbeds`) — one `MediaRepoPort.findById` plus at most one
- * `getLatestTransformDefinition` call per ref, run concurrently via `Promise.all` (mirrors
+ * upstream by `scanHtmlEmbeds`) — one `MediaRepoPort.findById` plus, for a non-video asset, at most
+ * one `getLatestTransformDefinition` call per ref, run concurrently via `Promise.all` (mirrors
  * `pages.ts`'s `resolveMediaAssetMetadataForRender`'s own per-asset `findById` fan-out — the same
- * frozen-no-batch-primitive situation `MediaRepoPort` discloses there).
+ * frozen-no-batch-primitive situation `MediaRepoPort` discloses there). A video asset additionally
+ * costs one `mediaContentTypeStore.getMany` call (single-element, same no-batch shape) but skips the
+ * transform lookup entirely, so the per-ref cost never exceeds the pre-existing image path's.
  * @overallScore 100
  */
 async function resolveMediaTypeEmbeds(
@@ -426,7 +437,7 @@ async function resolveMediaTypeEmbeds(
   context: WidgetResolveContext
 ): Promise<ReadonlyMap<string, WidgetRenderIR>> {
   const resolved = new Map<string, WidgetRenderIR>();
-  const { mediaRepo, transformRepo } = deps;
+  const { mediaRepo, transformRepo, mediaContentTypeStore } = deps;
   if (!mediaRepo || !transformRepo) {
     if (refs.length > 0) {
       console.warn(
@@ -454,6 +465,23 @@ async function resolveMediaTypeEmbeds(
         console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset', {
           workspaceId: context.workspaceId,
           assetId,
+        });
+        return;
+      }
+
+      const contentType = mediaContentTypeStore
+        ? (await mediaContentTypeStore.getMany({ workspaceId: context.workspaceId, sha256s: [record.source.sha256] })).get(
+            record.source.sha256
+          )
+        : undefined;
+      if (contentType?.startsWith("video/")) {
+        // Video needs no transform lookup at all: `render.ts`'s video branch points straight at
+        // `/m/{assetId}/original` (the byte-passthrough route — see that route's own doc for why
+        // video can't go through the image-transform pipeline below), so `transformName`/`version`
+        // would be unused props for this IR.
+        resolved.set(assetId, {
+          componentId: "media-image",
+          props: { assetId, contentType, alt: record.alt, width: record.width, height: record.height, cssClass: record.cssClass },
         });
         return;
       }
