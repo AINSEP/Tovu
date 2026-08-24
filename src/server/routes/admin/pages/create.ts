@@ -1,4 +1,4 @@
-import { ForbiddenError, executeCommand } from "@jini-ai/cms/core";
+import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
 import { createPost, PostConflictError, PostValidationError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import {
@@ -82,6 +82,11 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
             code: "FORBIDDEN",
             details: { permission: err.permission, reason: err.reason },
           });
+          return;
+        }
+
+        if (err instanceof DuplicateCommandError) {
+          res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
           return;
         }
 

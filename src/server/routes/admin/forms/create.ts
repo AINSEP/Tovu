@@ -1,3 +1,4 @@
+import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
 import { createFormDefinition } from "#src/forms/write-service";
 import type { FieldDescriptor, NotifyConfig } from "#src/forms/index";
@@ -56,6 +57,10 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
 
       res.status(201).json(toAdminFormDefinitionResponse(definition));
     } catch (err) {
+      if (err instanceof DuplicateCommandError) {
+        res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+        return;
+      }
       if (mapFormsWriteError(err, res)) return;
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }

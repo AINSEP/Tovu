@@ -40,13 +40,18 @@ import type { RouteDeps } from "../../types.js";
  *   deps rather than re-derived so a composition root that overrides `TOVU_THEMES_DIR` rescans the
  *   same folder it originally discovered from, instead of silently repopulating the theme list from
  *   the default path.
- * - `entryRepo`/`mediaRepo`/`transformDefinitionRepo`/`menuRepo` (2026-08-11 template-preview fix):
- *   `posts/template-preview.ts` only — it renders a row through `routes/site/pages.ts`'s exported
- *   `renderViaTemplate`, the SAME real render pipeline the public site uses, so it needs that
- *   pipeline's full dependency set: `entryRepo`/`mediaRepo`/`transformDefinitionRepo` feed the
+ * - `entryRepo`/`mediaRepo`/`transformDefinitionRepo`/`menuRepo`/`mediaContentTypeStore`
+ *   (2026-08-11 template-preview fix; `mediaContentTypeStore` added 2026-08-24 for the video/embed
+ *   capability): `posts/template-preview.ts` only — it renders a row through `routes/site/pages.ts`'s
+ *   exported `renderViaTemplate`, the SAME real render pipeline the public site uses, so it needs
+ *   that pipeline's full dependency set: `entryRepo`/`mediaRepo`/`transformDefinitionRepo` feed the
  *   recursive content-marker and widget/media embed resolution, `menuRepo` feeds
- *   `resolveStaticMenusForRender`'s theme-nav lookup. A second, narrower render implementation here
- *   would be exactly the drift risk `renderViaTemplate`'s own doc says reuse avoids.
+ *   `resolveStaticMenusForRender`'s theme-nav lookup, and `mediaContentTypeStore` is what lets that
+ *   same resolution tell a video asset from an image one (`resolver-service.ts`'s
+ *   `resolveMediaTypeEmbeds`) — without it, a template preview would render a video embed as a
+ *   broken `<img>`, byte-identical to before this field existed only for previews, not the live site.
+ *   A second, narrower render implementation here would be exactly the drift risk `renderViaTemplate`'s
+ *   own doc says reuse avoids.
  *
  *   NOT widened for the 2026-08-12 `.liquid` Preview-tab fix: that route
  *   (`middleware/theme-page-preview.ts`) needs `requireAdminSession`'s own identity-repo dependency
@@ -75,6 +80,7 @@ export type ContentRouteDeps = Pick<
   | "mediaRepo"
   | "transformDefinitionRepo"
   | "menuRepo"
+  | "mediaContentTypeStore"
 >;
 
 export type ContentRouteRegistrar = (app: Express, deps: ContentRouteDeps) => void;
