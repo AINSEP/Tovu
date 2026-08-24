@@ -15,9 +15,10 @@ import type { MediaProviderRouteRegistrar } from "./deps.js";
  * sends its entire local map and expresses a cleared credential as an omission, so treating absence
  * as "leave alone" would make Clear silently do nothing.
  *
- * Gated by `media.write`, one step above the GET's `media.read`: this stores vendor API keys that
- * can spend real money, so it needs the same permission as mutating the asset library rather than
- * merely reading it.
+ * Gated by `admin.integrations.manage`, the same permission every other vendor-credential route in
+ * this codebase uses (connectors, commerce, external-mcp, and the webhook-subscription routes in
+ * `015-integrations.yaml`) — not `media.write`, which is deprecated and no longer granted to fresh
+ * admin roles, so it would silently lock new admins out of a feature legacy admins can still reach.
  *
  * The response never echoes key material — it is the same markers-only map GET returns. Three
  * failure outcomes, mirroring `put-site-credential.ts`'s split: 400 validation (unknown provider
@@ -35,15 +36,15 @@ export const registerAdminMediaPutProvidersRoute: MediaProviderRouteRegistrar = 
       const principal = getAuthedPrincipal(res);
       const authResult = await deps.authorize({
         principalId: principal.id,
-        permission: "media.write",
+        permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "media",
       });
       if (!authResult.allowed) {
         res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.write' (${authResult.reason})`,
+          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
           code: "FORBIDDEN",
-          details: { permission: "media.write", reason: authResult.reason },
+          details: { permission: "admin.integrations.manage", reason: authResult.reason },
         });
         return;
       }

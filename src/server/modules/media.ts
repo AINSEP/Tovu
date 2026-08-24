@@ -7,7 +7,7 @@ import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash.js";
 import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update.js";
 import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload.js";
 import type { MediaProviderRouteDeps, MediaRouteDeps } from "../routes/admin/media/deps.js";
-import { registerMediaRenditionRoute } from "../routes/site/media-rendition.js";
+import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "../routes/site/media-rendition.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**
@@ -34,6 +34,13 @@ import type { ServerModuleHandle } from "./types.js";
  * relative to the catch-all, and its fixed `/m/` prefix never overlaps any other route class in
  * this app. See SPEC-034 for the full disclosure.
  *
+ * `registerMediaOriginalVideoRoute` (`routes/site/media-rendition.ts`, 2026-08-24) is an 8th route:
+ * public and unauthenticated like the rendition route immediately above, but serves a video asset's
+ * ORIGINAL bytes directly rather than through the image-transform pipeline — see that function's
+ * own doc for why video can't go through `resolveMediaRendition` at all. Registered after the
+ * rendition route for readability (both are `/m/` routes); Express disambiguates them by path
+ * segment count, not registration order, so this ordering is not load-bearing.
+ *
  * `ServerModuleHandle` factories receive already-built ports, per the ADR-046 Phase 3 convention
  * established by `modules/forms.ts`/`modules/integrations.ts` — this module does not construct
  * `SharpImageTransformer`/`InMemoryImageTransformer` itself; the composition root
@@ -50,6 +57,7 @@ export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps)
       registerAdminMediaDeleteRoute(app, deps);
       registerAdminMediaOriginalRoute(app, deps);
       registerMediaRenditionRoute(app, deps);
+      registerMediaOriginalVideoRoute(app, deps);
       registerAdminMediaGetProvidersRoute(app, deps);
       registerAdminMediaPutProvidersRoute(app, deps);
     },

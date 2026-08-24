@@ -99,10 +99,24 @@ test("put-providers: mismatched workspaceId 404s", async (t) => {
   assert.equal(status, 404);
 });
 
-test("put-providers: forbidden (media.write denied) 403s", async (t) => {
+test("put-providers: forbidden (admin.integrations.manage denied) 403s", async (t) => {
   const app = buildApp({ authorize: async () => ({ allowed: false, reason: "no grant" }) });
-  const { status } = await put(t, app, { openai: { apiKey: "sk-1" } });
+  const { status, json } = await put(t, app, { openai: { apiKey: "sk-1" } });
   assert.equal(status, 403);
+  assert.equal((json as { details?: { permission?: string } }).details?.permission, "admin.integrations.manage");
+});
+
+test("put-providers: checks admin.integrations.manage, not the deprecated media.write", async (t) => {
+  let checkedPermission: string | undefined;
+  const app = buildApp({
+    authorize: async (input) => {
+      checkedPermission = input.permission;
+      return { allowed: true, reason: "matched" };
+    },
+  });
+  const { status } = await put(t, app, { openai: { apiKey: "sk-1" } });
+  assert.equal(status, 200);
+  assert.equal(checkedPermission, "admin.integrations.manage");
 });
 
 test("put-providers: unknown provider id 400s", async (t) => {

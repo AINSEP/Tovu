@@ -3,7 +3,7 @@ import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { MediaProvidersTab } from "@jini-ai/ui";
 
-import { MEDIA_PROVIDER_CATALOG } from "./media-provider-catalog";
+import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
 import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems } from "./rules";
@@ -699,8 +699,15 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
         // `@media (prefers-color-scheme: dark)` variant, so this tab renders dark on any OS/browser
         // set to dark mode while the rest of the (light-only) admin shell stays light. This screen
         // has no appearance control of its own, so pin to light rather than leave it themable.
-        <div data-theme="light">
-          <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} />
+        //
+        // `media-providers-panel` is the hook `styles.css`'s "Media providers tab" section
+        // overrides `--jini-bg-panel`/`--jini-bg-elevated` on — see that comment for why (owner
+        // report: the cards and their fields sat on a warm cream tone, not this admin's own
+        // neutral white). The class exists purely to out-specify Jini's own bare
+        // `[data-theme='light']` token rule regardless of stylesheet load order; it carries no
+        // rules of its own.
+        <div className="media-providers-panel" data-theme="light">
+          <MediaProvidersTab port={mediaProvidersPort} catalog={MEDIA_PROVIDER_CATALOG} pinnedProviderIds={PINNED_MEDIA_PROVIDER_IDS} />
         </div>
       ) : (
         // "all", "images" and "videos" all render the SAME grid, differing only in which items
