@@ -1,0 +1,1 @@
+ALTER TABLE `asset_blobs` ADD `content_type` text;

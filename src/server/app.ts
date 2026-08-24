@@ -69,6 +69,7 @@ import {
   InMemoryAssetRenditionRepo,
   InMemoryBlobStore,
   InMemoryImageTransformer,
+  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../media/index.js";
@@ -555,6 +556,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     mediaRepo: new InMemoryMediaRepo([]),
     assetBlobRepo: new InMemoryAssetBlobRepo([]),
     assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
+    mediaContentTypeStore: new InMemoryMediaContentTypeStore(),
     blobStore: new InMemoryBlobStore(),
     // ADR-027 §4 transform registry + rendition generation (new in this task): in-memory registry
     // rows (no SQLite adapter yet, same disclosed precedent as the media repos above) and the

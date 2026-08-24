@@ -95,6 +95,7 @@ import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../db/sqlite/o
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
+  SqliteMediaContentTypeStore,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
 } from "../db/sqlite/media-repo.sqlite.js";
@@ -807,6 +808,7 @@ export function createSqliteRouteDeps(
     mediaRepo: new SqliteMediaRepo(db),
     assetBlobRepo: new SqliteAssetBlobRepo(db),
     assetRenditionRepo: new SqliteAssetRenditionRepo(db),
+    mediaContentTypeStore: new SqliteMediaContentTypeStore(db),
     // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
     // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
     // needed (unlike `store`/`lipay`), so this is as cheap as `mediaRepo` above, not a `store`-

@@ -1,6 +1,7 @@
 import { MediaNotFoundError, trashMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
+import { readRecordedContentType } from "./content-type.js";
 import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
@@ -36,7 +37,7 @@ export const registerAdminMediaTrashRoute: MediaRouteRegistrar = (app, deps) => 
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: { workspaceId: deps.workspaceId, id: String(req.params.mediaId ?? "") },
       });
-      res.json({ media: toAdminMediaResponse(media) });
+      res.json({ media: toAdminMediaResponse(media, await readRecordedContentType(deps, media.source.sha256)) });
     } catch (err) {
       if (err instanceof MediaNotFoundError) {
         res.status(404).json({ error: err.message });

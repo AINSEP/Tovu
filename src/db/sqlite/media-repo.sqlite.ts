@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
+import type { MediaContentTypeStorePort } from "../../media/content-type-store.js";
 import type { UUID } from "@jini-ai/cms/core";
 import type {
   AssetBlobRepoPort,
@@ -141,6 +142,12 @@ export class SqliteAssetBlobRepo implements AssetBlobRepoPort {
       tombstonedAt: record.tombstonedAt ?? null,
     };
     if (existing) {
+      // `content_type` is deliberately absent from `values` above, so this `.set()` leaves the
+      // existing value alone. `AssetBlobRecord` is `@jini-ai/cms`'s frozen port type and has no
+      // content-type field, so anything this method could put there would be `null` — and this
+      // branch runs on `uploadMedia`'s dedup RESURRECT path (tombstoned -> active), which would
+      // then silently erase the recorded type of a blob that is being re-referenced, not deleted.
+      // The type is owned by `SqliteMediaContentTypeStore` below; this repo never writes it.
       this.db
         .update(assetBlobs)
         .set(values)
@@ -153,6 +160,46 @@ export class SqliteAssetBlobRepo implements AssetBlobRepoPort {
 
   async remove(required: { workspaceId: UUID; sha256: string }): Promise<void> {
     this.db.delete(assetBlobs).where(and(eq(assetBlobs.workspaceId, required.workspaceId), eq(assetBlobs.sha256, required.sha256))).run();
+  }
+}
+
+/**
+ * `MediaContentTypeStorePort`'s SQLite adapter — reads and writes `asset_blobs.content_type`, the
+ * one column on that table `SqliteAssetBlobRepo` above deliberately never touches (see its
+ * `save()` comment for why the two are split rather than merged).
+ *
+ * No row is ever INSERTED here: the blob row is always created first by `uploadMedia`'s own
+ * `blobRepo.save()` (its INV-1a "bytes before the media row" ordering guarantees it exists), so
+ * `set` is a pure column UPDATE. A `set` for a sha256 with no blob row updates nothing and throws
+ * nothing — the correct outcome, since there is no blob to describe.
+ */
+export class SqliteMediaContentTypeStore implements MediaContentTypeStorePort {
+  constructor(private readonly db: ContentDb) {}
+
+  async getMany(required: { workspaceId: UUID; sha256s: readonly string[] }): Promise<Map<string, string>> {
+    if (required.sha256s.length === 0) return new Map();
+    const rows = this.db
+      .select({ sha256: assetBlobs.sha256, contentType: assetBlobs.contentType })
+      .from(assetBlobs)
+      .where(and(eq(assetBlobs.workspaceId, required.workspaceId), inArray(assetBlobs.sha256, [...required.sha256s])))
+      .all();
+
+    const found = new Map<string, string>();
+    for (const row of rows) {
+      // A `null` column is "not sniffed yet" and must stay ABSENT from the map rather than become
+      // a null entry — the port's `getMany` contract is what lets a caller tell that apart from a
+      // recorded `application/octet-stream`.
+      if (row.contentType != null) found.set(row.sha256, row.contentType);
+    }
+    return found;
+  }
+
+  async set(required: { workspaceId: UUID; sha256: string; contentType: string }): Promise<void> {
+    this.db
+      .update(assetBlobs)
+      .set({ contentType: required.contentType })
+      .where(and(eq(assetBlobs.workspaceId, required.workspaceId), eq(assetBlobs.sha256, required.sha256)))
+      .run();
   }
 }
 

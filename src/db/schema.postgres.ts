@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 79
+ * Tables: 80
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -77,6 +77,23 @@ export const analyticsEvents = pgTable("analytics_events", {
     index("idx_analytics_events_workspace_list").on(t.workspaceId, t.id),
   ]);
 
+export const apiKeys = pgTable("api_keys", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  principalId: text("principal_id").notNull(),
+  label: text("label").notNull(),
+  keyHash: text("key_hash").notNull(),
+  prefix: text("prefix").notNull(),
+  issuedPolicyId: text("issued_policy_id"),
+  createdAt: text("created_at").notNull(),
+  lastUsedAt: text("last_used_at"),
+  expiresAt: text("expires_at"),
+  revokedAt: text("revoked_at"),
+}, (t) => [
+    uniqueIndex("idx_api_keys_workspace_prefix").on(t.workspaceId, t.prefix),
+    index("idx_api_keys_workspace_principal").on(t.workspaceId, t.principalId),
+  ]);
+
 export const assetBlobs = pgTable("asset_blobs", {
   id: text("id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
@@ -86,6 +103,7 @@ export const assetBlobs = pgTable("asset_blobs", {
   createdAt: text("created_at").notNull(),
   status: text("status").notNull(),
   tombstonedAt: text("tombstoned_at"),
+  contentType: text("content_type"),
 }, (t) => [
     uniqueIndex("idx_asset_blobs_workspace_sha256").on(t.workspaceId, t.sha256),
   ]);

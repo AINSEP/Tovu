@@ -16,6 +16,7 @@ import type {
   SessionRepoPort,
   UserRepoPort,
 } from "@jini-ai/cms/identity";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
@@ -53,6 +54,7 @@ import type {
   AssetRenditionRepoPort,
   BlobStorePort,
   ImageTransformerPort,
+  MediaContentTypeStorePort,
   MediaRepoPort,
   TransformDefinitionRepoPort,
 } from "../../media/index.js";
@@ -133,6 +135,12 @@ export interface IdentityDeps {
   principalPolicyRepo: PrincipalPolicyRepoPort;
   /** argon2id hashing seam (INV-05) — see `identity/hasher.ts`. */
   passwordHasher: PasswordHasherPort;
+  /** SPEC-006 REQ-08 — the `api_keys` repo port (`identity/api-key-types.ts`). Declared in this
+   *  repo rather than in `@jini-ai/cms/identity`, which scopes API keys out of its own surface. */
+  apiKeyRepo: ApiKeyRepoPort;
+  /** SPEC-006 REQ-08 — the api-key secret hashing seam, deliberately separate from
+   *  `passwordHasher`; see `identity/api-key-secret.ts`'s header for why the two are tuned apart. */
+  apiKeySecretHasher: ApiKeySecretHasherPort;
   /**
    * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
    * Seeding hashes the owner's password (async, argon2id), so
@@ -185,6 +193,13 @@ export interface MediaDeps {
   assetBlobRepo: AssetBlobRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
   blobStore: BlobStorePort;
+  /**
+   * The blob content-type side port (`media/content-type-store.ts`) — what the admin Media
+   * screen's "Images"/"Videos" tabs filter on. Separate from `assetBlobRepo` above even though
+   * both address the same `asset_blobs` table, because `AssetBlobRecord` is `@jini-ai/cms`'s
+   * frozen port type with no content-type field; see that module's header for the full rationale.
+   */
+  mediaContentTypeStore: MediaContentTypeStorePort;
   /**
    * ADR-027 §4 named transform registry + rendition generation — new in this
    * task (see `src/media/rendition-service.ts` file header for the disclosed
