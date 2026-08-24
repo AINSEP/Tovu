@@ -69,6 +69,33 @@ test("admin forms routes: create -> list -> get -> update golden path (AC-01/AC-
   assert.deepEqual(fetched.data.notify, { enabled: true, recipients: ["ops@example.com"] });
 });
 
+test("admin forms routes: reusing a create Idempotency-Key returns DUPLICATE_COMMAND", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const request = {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+      "Idempotency-Key": "form-create-idempotency-retry",
+    },
+    body: JSON.stringify({
+      name: "Idempotent Contact",
+      slug: "idempotent-contact",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }],
+    }),
+  };
+
+  const first = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, request);
+  assert.equal(first.status, 201);
+
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.ok(body.changeSetId);
+});
+
 test("admin forms routes: AC-03 — type:date is rejected, nothing created", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

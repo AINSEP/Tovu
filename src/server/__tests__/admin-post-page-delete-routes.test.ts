@@ -55,6 +55,50 @@ async function createRow(
   return { id: (JSON.parse(raw) as { post: { id: string } }).post.id };
 }
 
+test("POST post: reusing an Idempotency-Key returns DUPLICATE_COMMAND", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const request = {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+      "Idempotency-Key": "post-create-idempotency-retry",
+    },
+    body: JSON.stringify({ title: "Idempotent post" }),
+  };
+
+  const first = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts`, request);
+  assert.equal(first.status, 201);
+
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/posts`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.ok(body.changeSetId);
+});
+
+test("POST page: reusing an Idempotency-Key returns DUPLICATE_COMMAND", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const request = {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      cookie,
+      "Idempotency-Key": "page-create-idempotency-retry",
+    },
+    body: JSON.stringify({ title: "Idempotent page" }),
+  };
+
+  const first = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages`, request);
+  assert.equal(first.status, 201);
+
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.ok(body.changeSetId);
+});
+
 test("DELETE post: trashes the row, which then 404s and vanishes from the list", async (t) => {
   const { baseUrl, cookie } = await startServer(t);
   const { id } = await createRow(baseUrl, cookie, "posts", { title: "Doomed Post", status: "published" });
