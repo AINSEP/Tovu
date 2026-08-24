@@ -10,8 +10,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Analítica",
     "The most recent pageviews and events captured on this site.": "Las vistas de página y eventos más recientes capturados en este sitio.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Solo datos de ingesta sin procesar — las visitas más recientes que están actualmente en memoria. Todavía no hay una capa de agregación/resumen, por lo que aquí no hay totales, tendencias ni desgloses; eso llegará en una versión posterior.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Cada visita aparece en su propia fila, de la más reciente a la más antigua. Esto no es un resumen: todavía no hay totales, tendencias ni desgloses para comparar el tráfico a lo largo del tiempo.",
     "No hits recorded yet.": "Aún no se han registrado visitas.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Una vez que el beacon del sitio empiece a enviar tráfico, las visitas recientes aparecerán aquí.",
     Path: "Ruta",
@@ -26,8 +26,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Pemasaran",
     Analytics: "Analitik",
     "The most recent pageviews and events captured on this site.": "Tampilan halaman dan peristiwa terbaru yang tercatat di situs ini.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Hanya data mentah yang masuk — hit terbaru yang saat ini berada di memori. Belum ada lapisan agregasi/rollup, jadi tidak ada total, tren, atau rincian di sini; itu akan dibangun kemudian.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Setiap kunjungan ditampilkan pada barisnya sendiri, dari yang terbaru. Ini bukan ringkasan — belum ada total, tren, atau rincian untuk membandingkan lalu lintas dari waktu ke waktu.",
     "No hits recorded yet.": "Belum ada hit yang tercatat.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Setelah beacon situs mulai mengirim lalu lintas, hit terbaru akan muncul di sini.",
     Path: "Jalur",
@@ -42,8 +42,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Analytik",
     "The most recent pageviews and events captured on this site.": "Die neuesten Seitenaufrufe und Ereignisse, die auf dieser Website erfasst wurden.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Nur unverarbeitete Rohdaten — die neuesten Treffer, die sich derzeit im Speicher befinden. Es gibt noch keine Aggregations-/Rollup-Ebene, daher gibt es hier keine Summen, Trends oder Aufschlüsselungen; das folgt in einer späteren Version.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Jeder Besuch steht in einer eigenen Zeile, neueste zuerst. Dies ist keine Zusammenfassung — es gibt noch keine Summen, Trends oder Aufschlüsselungen, um den Traffic über die Zeit zu vergleichen.",
     "No hits recorded yet.": "Noch keine Treffer erfasst.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Sobald der Website-Beacon Traffic sendet, erscheinen hier aktuelle Treffer.",
     Path: "Pfad",
@@ -58,8 +58,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "营销",
     Analytics: "分析",
     "The most recent pageviews and events captured on this site.": "本网站捕获的最新页面浏览量和事件。",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "仅原始接收数据——当前存储在内存中的最新命中记录。目前还没有聚合/汇总层，因此这里没有总数、趋势或细分数据；这是后续版本的内容。",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "每次访问单独占一行，最新的在最前面。这不是汇总视图——目前还没有总计、趋势或细分，无法比较不同时间段的流量。",
     "No hits recorded yet.": "尚未记录任何命中。",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "一旦网站信标开始发送流量，最近的命中记录将显示在此处。",
     Path: "路径",
@@ -74,8 +74,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "行銷",
     Analytics: "分析",
     "The most recent pageviews and events captured on this site.": "本網站擷取的最新頁面瀏覽量與事件。",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "僅原始擷取資料——目前存放在記憶體中的最新命中記錄。目前尚無彙總層，因此這裡沒有總計、趨勢或細分資料；這將於後續版本建置。",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "每次造訪各占一列，最新的在最前面。這不是彙總檢視——目前還沒有總計、趨勢或細分，無法比較不同時間的流量。",
     "No hits recorded yet.": "尚未記錄任何命中。",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "一旦網站信標開始傳送流量，最近的命中記錄將顯示於此。",
     Path: "路徑",
@@ -90,8 +90,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Análise",
     "The most recent pageviews and events captured on this site.": "As visualizações de página e eventos mais recentes capturados neste site.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Somente dados brutos de ingestão — os acessos mais recentes atualmente em memória. Ainda não há uma camada de agregação/consolidação, portanto não há totais, tendências ou detalhamentos aqui; isso será construído posteriormente.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Cada visita aparece em sua própria linha, da mais recente para a mais antiga. Isto não é um resumo — ainda não há totais, tendências ou detalhamentos para comparar o tráfego ao longo do tempo.",
     "No hits recorded yet.": "Nenhum acesso registrado ainda.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Assim que o beacon do site começar a enviar tráfego, os acessos recentes aparecerão aqui.",
     Path: "Caminho",
@@ -106,8 +106,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Маркетинг",
     Analytics: "Аналитика",
     "The most recent pageviews and events captured on this site.": "Последние просмотры страниц и события, зафиксированные на этом сайте.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Только необработанные входящие данные — последние обращения, находящиеся сейчас в памяти. Слоя агрегации/сводки пока нет, поэтому здесь нет итогов, трендов или разбивок; это будет реализовано позже.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Каждый визит показан отдельной строкой, начиная с самых свежих. Это не сводка — пока нет итогов, трендов и разбивок, чтобы сравнивать трафик по времени.",
     "No hits recorded yet.": "Обращений пока не зафиксировано.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Как только маяк сайта начнёт отправлять трафик, последние обращения появятся здесь.",
     Path: "Путь",
@@ -122,8 +122,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "بازاریابی",
     Analytics: "تحلیل داده",
     "The most recent pageviews and events captured on this site.": "جدیدترین بازدیدهای صفحه و رویدادهای ثبت‌شده در این سایت.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "فقط داده‌های خام دریافتی — جدیدترین بازدیدهایی که در حال حاضر در حافظه هستند. هنوز لایه تجمیع/خلاصه‌سازی وجود ندارد، بنابراین هیچ مجموع، روند یا تفکیکی در اینجا موجود نیست؛ این بخش در نسخه‌های بعدی ساخته خواهد شد.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "هر بازدید در ردیف خودش نمایش داده می‌شود، از جدیدترین به قدیمی‌ترین. این یک خلاصه نیست — هنوز مجموع‌ها، روندها یا تفکیک‌هایی برای مقایسهٔ ترافیک در طول زمان وجود ندارد.",
     "No hits recorded yet.": "هنوز هیچ بازدیدی ثبت نشده است.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "به محض اینکه بیکن سایت شروع به ارسال ترافیک کند، بازدیدهای اخیر در اینجا نمایش داده می‌شوند.",
     Path: "مسیر",
@@ -138,8 +138,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "التسويق",
     Analytics: "التحليلات",
     "The most recent pageviews and events captured on this site.": "أحدث مشاهدات الصفحات والأحداث المسجَّلة على هذا الموقع.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "بيانات استيعاب أولية فقط — أحدث الزيارات الموجودة حاليًا في الذاكرة. لا توجد طبقة تجميع/تلخيص بعد، لذا لا توجد إجماليات أو اتجاهات أو تفصيلات هنا؛ سيتم بناء ذلك لاحقًا.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "كل زيارة معروضة في صف خاص بها، من الأحدث إلى الأقدم. هذه ليست نظرة موجزة — لا توجد بعد إجماليات أو اتجاهات أو تصنيفات لمقارنة حركة الزوار عبر الوقت.",
     "No hits recorded yet.": "لم يتم تسجيل أي زيارات بعد.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "بمجرد أن تبدأ منارة الموقع بإرسال الزيارات، ستظهر الزيارات الأخيرة هنا.",
     Path: "المسار",
@@ -154,8 +154,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "マーケティング",
     Analytics: "アナリティクス",
     "The most recent pageviews and events captured on this site.": "このサイトで記録された最新のページビューとイベントです。",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "生の取り込みデータのみです — 現在メモリ内にある最新のヒットです。まだ集計・ロールアップ層がないため、ここには合計、傾向、内訳はありません。これは今後実装予定です。",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "各アクセスが1行ずつ、新しい順に並んでいます。これは集計ではありません — 期間ごとのアクセスを比較するための合計・傾向・内訳はまだありません。",
     "No hits recorded yet.": "まだヒットは記録されていません。",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "サイトのビーコンがトラフィックの送信を開始すると、最近のヒットがここに表示されます。",
     Path: "パス",
@@ -170,8 +170,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "마케팅",
     Analytics: "분석",
     "The most recent pageviews and events captured on this site.": "이 사이트에서 캡처된 최신 페이지뷰 및 이벤트입니다.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "원시 수집 데이터만 제공됩니다 — 현재 메모리에 있는 최신 히트입니다. 아직 집계/롤업 계층이 없으므로 여기에는 합계, 추세 또는 분석이 없습니다. 이는 이후 버전에서 제공될 예정입니다.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "방문 하나가 한 행씩, 최신순으로 표시됩니다. 이 화면은 요약이 아닙니다 — 기간별 트래픽을 비교할 합계, 추세, 세부 분류는 아직 없습니다.",
     "No hits recorded yet.": "아직 기록된 히트가 없습니다.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "사이트 비콘이 트래픽을 전송하기 시작하면 최근 히트가 여기에 표시됩니다.",
     Path: "경로",
@@ -186,8 +186,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Analityka",
     "The most recent pageviews and events captured on this site.": "Najnowsze odsłony stron i zdarzenia zarejestrowane w tej witrynie.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Tylko surowe dane wejściowe — najnowsze odsłony aktualnie znajdujące się w pamięci. Nie ma jeszcze warstwy agregacji/podsumowań, więc nie ma tu sum, trendów ani podziałów; to zostanie zbudowane później.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Każda wizyta ma własny wiersz, od najnowszych. To nie jest podsumowanie — nie ma jeszcze sum, trendów ani zestawień pozwalających porównać ruch w czasie.",
     "No hits recorded yet.": "Nie zarejestrowano jeszcze żadnych odsłon.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Gdy tylko sygnalizator witryny zacznie wysyłać ruch, pojawią się tu najnowsze odsłony.",
     Path: "Ścieżka",
@@ -202,8 +202,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Elemzés",
     "The most recent pageviews and events captured on this site.": "Az ezen a webhelyen rögzített legutóbbi oldalmegtekintések és események.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Csak nyers bemeneti adatok — a memóriában jelenleg található legutóbbi találatok. Még nincs összesítési réteg, ezért itt nincsenek összegek, trendek vagy bontások; ez egy későbbi fejlesztés lesz.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Minden látogatás külön sorban szerepel, a legfrissebbel kezdve. Ez nem összegzés — még nincsenek összesítések, trendek vagy bontások, amelyekkel időben összehasonlítható a forgalom.",
     "No hits recorded yet.": "Még nincs rögzített találat.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Amint a webhely jelzőkódja elkezd forgalmat küldeni, a legutóbbi találatok itt fognak megjelenni.",
     Path: "Útvonal",
@@ -218,8 +218,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Analytique",
     "The most recent pageviews and events captured on this site.": "Les pages vues et événements les plus récents enregistrés sur ce site.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Données brutes d'ingestion uniquement — les visites les plus récentes actuellement en mémoire. Il n'y a pas encore de couche d'agrégation, il n'y a donc ici ni totaux, ni tendances, ni répartitions ; cela viendra dans une version ultérieure.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Chaque visite occupe sa propre ligne, de la plus récente à la plus ancienne. Ceci n'est pas un résumé — il n'y a pas encore de totaux, de tendances ni de répartitions pour comparer le trafic dans le temps.",
     "No hits recorded yet.": "Aucune visite enregistrée pour le moment.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Dès que le beacon du site commencera à envoyer du trafic, les visites récentes apparaîtront ici.",
     Path: "Chemin",
@@ -234,8 +234,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Маркетинг",
     Analytics: "Аналітика",
     "The most recent pageviews and events captured on this site.": "Останні перегляди сторінок і події, зафіксовані на цьому сайті.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Лише необроблені вхідні дані — останні звернення, що зараз перебувають у пам'яті. Шару агрегації/зведення поки немає, тому тут немає підсумків, трендів чи розбивок; це буде реалізовано пізніше.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Кожен візит показано окремим рядком, починаючи з найновіших. Це не зведення — поки що немає підсумків, трендів чи розбивок, щоб порівнювати трафік у часі.",
     "No hits recorded yet.": "Звернень поки не зафіксовано.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Щойно маяк сайту почне надсилати трафік, останні звернення з'являться тут.",
     Path: "Шлях",
@@ -250,8 +250,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Pazarlama",
     Analytics: "Analitik",
     "The most recent pageviews and events captured on this site.": "Bu sitede yakalanan en son sayfa görüntülemeleri ve etkinlikler.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Yalnızca ham alım verisi — şu anda bellekte bulunan en son isabetler. Henüz bir toplama/özetleme katmanı yok, bu nedenle burada toplamlar, eğilimler veya kırılımlar bulunmuyor; bu, ileride eklenecek.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Her ziyaret kendi satırında, en yenisi en üstte listelenir. Bu bir özet değil — trafiği zaman içinde karşılaştırmak için henüz toplamlar, eğilimler veya dökümler yok.",
     "No hits recorded yet.": "Henüz kaydedilmiş isabet yok.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Site beacon'ı trafik göndermeye başladığında, son isabetler burada görünecek.",
     Path: "Yol",
@@ -266,8 +266,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "การตลาด",
     Analytics: "การวิเคราะห์",
     "The most recent pageviews and events captured on this site.": "การดูหน้าเว็บและเหตุการณ์ล่าสุดที่บันทึกไว้ในไซต์นี้",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "ข้อมูลดิบที่รับเข้ามาเท่านั้น — การเข้าชมล่าสุดที่อยู่ในหน่วยความจำขณะนี้ ยังไม่มีเลเยอร์การรวม/สรุปข้อมูล จึงยังไม่มีผลรวม แนวโน้ม หรือการแจกแจงที่นี่ สิ่งนี้จะถูกสร้างในภายหลัง",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "การเข้าชมแต่ละครั้งจะแสดงเป็นแถวของตัวเอง เรียงจากใหม่ที่สุด นี่ไม่ใช่หน้าสรุป — ยังไม่มียอดรวม แนวโน้ม หรือการแยกย่อยสำหรับเปรียบเทียบทราฟฟิกในแต่ละช่วงเวลา",
     "No hits recorded yet.": "ยังไม่มีการบันทึกการเข้าชม",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "เมื่อบีคอนของไซต์เริ่มส่งทราฟฟิก การเข้าชมล่าสุดจะปรากฏที่นี่",
     Path: "เส้นทาง",
@@ -282,8 +282,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "Marketing",
     Analytics: "Analisi",
     "The most recent pageviews and events captured on this site.": "Le visualizzazioni di pagina e gli eventi più recenti registrati su questo sito.",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "Solo dati grezzi in ingresso — le visite più recenti attualmente in memoria. Non esiste ancora un livello di aggregazione, quindi qui non ci sono totali, tendenze o ripartizioni; questa funzionalità sarà sviluppata in seguito.",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "Ogni visita occupa una riga, dalla più recente alla meno recente. Questo non è un riepilogo — non ci sono ancora totali, tendenze o suddivisioni per confrontare il traffico nel tempo.",
     "No hits recorded yet.": "Nessuna visita registrata finora.",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "Non appena il beacon del sito inizierà a inviare traffico, le visite recenti appariranno qui.",
     Path: "Percorso",
@@ -298,8 +298,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "मार्केटिंग",
     Analytics: "एनालिटिक्स",
     "The most recent pageviews and events captured on this site.": "इस साइट पर दर्ज किए गए सबसे हाल के पेजव्यू और इवेंट।",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "केवल कच्चा इनगेस्ट डेटा — फ़िलहाल मेमोरी में मौजूद सबसे हाल के हिट। अभी तक कोई एग्रीगेशन/रोलअप लेयर नहीं है, इसलिए यहाँ कोई कुल योग, ट्रेंड या ब्रेकडाउन नहीं है; यह बाद के संस्करण में बनाया जाएगा।",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "हर विज़िट अपनी अलग पंक्ति में दिखती है, सबसे नई पहले। यह सारांश नहीं है — समय के साथ ट्रैफ़िक की तुलना करने के लिए अभी कुल, रुझान या विभाजन उपलब्ध नहीं हैं।",
     "No hits recorded yet.": "अभी तक कोई हिट दर्ज नहीं हुआ।",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "जैसे ही साइट बीकन ट्रैफ़िक भेजना शुरू करेगा, हाल के हिट यहाँ दिखाई देंगे।",
     Path: "पथ",
@@ -314,8 +314,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "مارکیٹنگ",
     Analytics: "تجزیات",
     "The most recent pageviews and events captured on this site.": "اس سائٹ پر ریکارڈ کیے گئے تازہ ترین پیج ویوز اور واقعات۔",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "صرف خام ان جیسٹ ڈیٹا — وہ تازہ ترین ہٹس جو اس وقت میموری میں موجود ہیں۔ ابھی تک کوئی ایگریگیشن/رول اپ لیئر موجود نہیں ہے، اس لیے یہاں کوئی مجموعی تعداد، رجحانات یا تفصیلات دستیاب نہیں ہیں؛ یہ بعد کے ورژن میں شامل کیا جائے گا۔",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "ہر وزٹ اپنی الگ سطر میں دکھایا جاتا ہے، سب سے نیا پہلے۔ یہ خلاصہ نہیں ہے — وقت کے ساتھ ٹریفک کا موازنہ کرنے کے لیے ابھی کل تعداد، رجحانات یا تفصیلات موجود نہیں ہیں۔",
     "No hits recorded yet.": "ابھی تک کوئی ہٹ ریکارڈ نہیں ہوا۔",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "جیسے ہی سائٹ بیکن ٹریفک بھیجنا شروع کرے گا، تازہ ترین ہٹس یہاں ظاہر ہوں گے۔",
     Path: "راستہ",
@@ -330,8 +330,8 @@ const ANALYTICS_DICT: Record<string, Record<string, string>> = {
     Marketing: "মার্কেটিং",
     Analytics: "অ্যানালিটিক্স",
     "The most recent pageviews and events captured on this site.": "এই সাইটে রেকর্ড করা সাম্প্রতিকতম পেজভিউ এবং ইভেন্টগুলো।",
-    "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.":
-      "শুধুমাত্র কাঁচা ইনজেস্ট ডেটা — বর্তমানে মেমোরিতে থাকা সাম্প্রতিকতম হিটগুলো। এখনো কোনো অ্যাগ্রিগেশন/রোলআপ স্তর নেই, তাই এখানে কোনো মোট সংখ্যা, ট্রেন্ড বা বিশ্লেষণ নেই; সেটি পরবর্তী সংস্করণে তৈরি করা হবে।",
+    "Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.":
+      "প্রতিটি ভিজিট আলাদা সারিতে দেখানো হয়, সবচেয়ে নতুনটি আগে। এটি কোনো সারসংক্ষেপ নয় — সময়ের সাথে ট্রাফিক তুলনা করার জন্য এখনও কোনো মোট, প্রবণতা বা বিভাজন নেই।",
     "No hits recorded yet.": "এখনো কোনো হিট রেকর্ড হয়নি।",
     "Once the site beacon starts sending traffic, recent hits will appear here.": "সাইট বিকন ট্রাফিক পাঠানো শুরু করলেই, সাম্প্রতিক হিটগুলো এখানে দেখা যাবে।",
     Path: "পাথ",

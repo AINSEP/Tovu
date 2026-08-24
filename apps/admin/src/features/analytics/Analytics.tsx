@@ -5,10 +5,15 @@ import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
  *
- * IMPORTANT — honesty note: this is a raw recent-hits list read straight off the in-memory ingest
- * buffer (`LocalBufferSink`), NOT a dashboard. There is no rollup/aggregation/time-series layer
- * built yet (that's a later Tier-3 build per the ADR) — so there are no totals, charts, or
- * breakdowns here on purpose. Do not read the absence of aggregates as a bug in this screen.
+ * IMPORTANT — honesty note: this is a raw recent-hits list, NOT a dashboard. There is no
+ * rollup/aggregation/time-series layer built yet (that's a later Tier-3 build per the ADR) — so
+ * there are no totals, charts, or breakdowns here on purpose. Do not read the absence of
+ * aggregates as a bug in this screen.
+ *
+ * The on-screen notice used to also claim the hits were "sitting in memory". That was false on a
+ * real install: `deps.ts` binds `SqliteBufferSink` (a durable table, no eviction), and the
+ * in-memory `LocalBufferSink` in `app.ts` is only ever reached under `TOVU_DB=memory`. The copy no
+ * longer makes any storage claim — only the aggregation claim, which is still true.
  *
  * Mirrors `features/posts/Posts.tsx`'s fetch/loading/error/empty-state shape. State and the fetch
  * live in `hooks/use-analytics.hooks.ts`.
@@ -37,7 +42,7 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
         </div>
       </div>
       <div className="notice">
-        {t("Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.")}
+        {t("Each visit is listed on its own row, newest first. This is not a summary — there are no totals, trends, or breakdowns to compare traffic over time yet.")}
       </div>
 
       <DataTable
