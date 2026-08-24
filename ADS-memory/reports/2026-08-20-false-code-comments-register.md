@@ -85,6 +85,25 @@ also covers `use-analytics.hooks.unit.test.ts` in the same directory).
 instructs the reader to *skip a verification path that exists*. Someone following it does manual
 browser QA and never runs the suite that would have caught them.
 
+**It was never true — a fourth failure shape.** This claim did not decay. The README and the test
+file it denies were added in the **same commit**, `26b70a97` (2026-08-05, "feat(pages):
+AI-authorable bespoke Pages…"), and the test file already carried its full set of `it()` blocks at
+that commit:
+
+```bash
+git log --diff-filter=A --format="%h %ad %s" --date=short -- \
+  apps/admin/src/features/analytics/README.md \
+  apps/admin/src/features/analytics/__tests__/Analytics.unit.test.tsx   # same SHA, both paths
+git show 26b70a97:apps/admin/src/features/analytics/__tests__/Analytics.unit.test.tsx | grep -c "  it("
+```
+
+The three shapes named elsewhere in this register are all about a claim *losing* its truth — stale
+citation (**F1**), correct facts licensing a wrong inference (**F2**), true premise with a conclusion
+never revisited after a migration (**7**). This one was false at the instant it was typed, by an
+author concurrently writing the thing it denies. That matters practically: the usual staleness
+heuristic — "check whether the comment predates the code it describes" — would **not** have caught
+it. It predates nothing. Only reading the sibling directory does.
+
 **Left open deliberately.** Found while fixing the in-memory copy (F6 below); fixing the README was
 outside that dispatch's scope. Whoever picks it up should re-count the tests at that moment rather
 than trusting a number in this entry.
@@ -104,6 +123,22 @@ fa, ar, ja, ko, pl, hu, fr, uk, tr, th, it, hi, ur, bn. Confirmed by counting lo
 Spanish-only will edit one block and ship, leaving 20 locales silently falling back to the English
 key — which is exactly the failure mode `dictionary-translator.ts` produces, since a missing key
 resolves to the raw key text rather than erroring.
+
+**Unlike O3, this one was true when written** — a clean instance of the "true premise, stale
+conclusion" shape named in entry **7**. Traced commit by commit:
+
+```bash
+for c in $(git log --reverse --format=%h -- apps/admin/src/features/analytics/analytics-i18n.ts); do
+  echo "$c locales=$(git show $c:apps/admin/src/features/analytics/analytics-i18n.ts \
+    | grep -cE '^  ("?[a-zA-Z-]+"?): \{')"
+done
+```
+
+`300406e7` (2026-08-08) created the file with **exactly 1** locale — the header was accurate that day.
+`8d800679` (2026-08-08, "wip(i18n): add 17 languages to analytics-i18n.ts") took it to 18 and left the
+header untouched; `62b32204` (2026-08-10) took it to 21, likewise. The header has been false since
+`8d800679` — and note that the commit which falsified it *announces the falsification in its own
+subject line*.
 
 **Found:** same dispatch and same date as O3, re-verified by the coordinator.
 
