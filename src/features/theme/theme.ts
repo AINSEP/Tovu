@@ -611,6 +611,49 @@ function validateTemplateDeclarations(
 }
 
 /**
+ * Page ids that live in `pages` but are never their own public URL: `index` is served at `/` by the
+ * home route, and `404` is the error document `handlePostNotFoundOnSlugRoute` renders WITH a 404
+ * status. Serving either at `/<id>` is a soft 404 — a real 200 response carrying error-page or
+ * duplicate-home content, which search engines index as genuine.
+ */
+const NON_ROUTABLE_THEME_PAGE_IDS: ReadonlySet<string> = new Set(["index", "404"]);
+
+/**
+ * Whether `pageId` is one of this theme's own standalone, publicly reachable pages — i.e. whether
+ * `GET /<pageId>` should render it directly.
+ *
+ * **Why this exists as one shared predicate.** A static theme's `pages` record
+ * (`DiscoveredTheme.pages`) holds two structurally identical but semantically different kinds of
+ * entry under the same string keys: real standalone marketing pages (`about`, `pricing`, …) AND
+ * content-embedding template shells a Post/Page selects via `templateChoice` (`blog-post`,
+ * `page-shell`, …, declared in `manifest.templates` and validated by
+ * {@link validateTemplateDeclarations} above). Nothing in the loaded theme shape distinguishes them
+ * by type — only which OTHER list names a given key. A shell served directly is a document whose
+ * `{"type":"content"}` marker was never substituted: structurally fine, content silently missing,
+ * the exact failure class {@link validateTemplateDeclarations}'s own doc calls "the worst failure
+ * class this codebase keeps hitting".
+ *
+ * The live `GET /:slug` resolver (`server/routes/site/pages.ts`'s `isMarketingPageSlug`) and the
+ * static exporter's route enumeration (`export/route-manifest.ts`) both have to answer this same
+ * question, and previously each spelled its own answer — the exporter excluded shells and `404`,
+ * the live route excluded neither, so `/blog-post` and `/404` were publicly reachable 200s on the
+ * running server while the export correctly omitted them. Two resolvers for one question is a
+ * drift waiting to happen; this is the single one both now call.
+ *
+ * NOT tier-gated: `pages` is empty for every non-static theme (`loadStaticTierAssets`'s own early
+ * return), and both callers already branch on `tier === "static"` for their own separate reasons
+ * (the live route to pick a resolution strategy, the exporter to skip the theme entirely). Gating
+ * here too would be a third copy of a guarantee that already holds twice over.
+ *
+ * @complexity O(t) over `manifest.templates`' length — 0–3 entries on every real theme on disk.
+ */
+export function isStandaloneThemePage(theme: DiscoveredTheme, pageId: string): boolean {
+  if (theme.pages[pageId] === undefined) return false;
+  if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId)) return false;
+  return !(theme.manifest.templates ?? []).some((entry) => entry.replace(/\.html$/, "") === pageId);
+}
+
+/**
  * Read the static tier's assets as one unit, or nothing at all for any other tier.
  *
  * A static theme is a different kind of artifact from every other tier — already-complete HTML

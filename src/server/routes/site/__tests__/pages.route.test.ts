@@ -379,3 +379,84 @@ test("GET / 500s with a generic 'Site error' when an unexpected exception is thr
   assert.equal(res.status, 500);
   assert.equal(await res.text(), "<h1>Site error</h1>", "the exact bare fallback body, not merely a 500 status");
 });
+
+/**
+ * A static theme shaped like every real one that ships a shared blog-post template: `pages` holds
+ * BOTH real standalone marketing pages (`about`) and content-embedding template shells
+ * (`blog-post`, `page-shell`) keyed identically, with only `manifest.templates` distinguishing the
+ * two (`theme.ts`'s `templates?: string[]`). Six real themes on disk are shaped this way today
+ * (`basic`, `portfolite`, `gracious-timing`, and all three `tailark-*`).
+ */
+function staticThemeWithTemplateShells(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "template-shell-test-theme",
+      name: "Template Shell Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: ["blog-post.html", "page-shell.html"],
+    },
+    dir: "/nonexistent/template-shell-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      about: "<html><body><main>About us</main></body></html>",
+      "404": "<html><body><main>Themed not found</main></body></html>",
+      "blog-post": '<html><body><main>{"type":"content"}</main></body></html>',
+      "page-shell": '<html><body><main>{"type":"content"}</main></body></html>',
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /:slug: a theme.manifest.templates shell is NOT its own reachable page", async (t) => {
+  const { server, baseUrl } = await startServer({
+    themes: [staticThemeWithTemplateShells()],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  // Control: a genuine marketing page in the same `pages` record must still serve, so a failure
+  // below is attributable to the templates exclusion specifically and not to the fixture being
+  // unreachable for some unrelated reason (a broken theme, a slug regex miss, a route ordering bug).
+  const control = await fetch(`${baseUrl}/about`);
+  assert.equal(control.status, 200, "control: a real marketing page in the same theme must still render");
+  assert.ok((await control.text()).includes("About us"), "control: and must render its own content");
+
+  for (const shell of ["blog-post", "page-shell"]) {
+    const res = await fetch(`${baseUrl}/${shell}`);
+    assert.equal(
+      res.status,
+      404,
+      `/${shell} is a content-embedding shell declared in theme.manifest.templates, not a standalone page -- serving it raw ships a document whose {"type":"content"} marker was never substituted`
+    );
+    assert.ok(
+      !(await res.text()).includes('{"type":"content"}'),
+      `/${shell} must not leak the unsubstituted content marker into a public response`
+    );
+  }
+});
+
+test("GET /404: a theme's own error page is not served as a 200 at its own slug", async (t) => {
+  const { server, baseUrl } = await startServer({
+    themes: [staticThemeWithTemplateShells()],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/404`);
+  assert.equal(
+    res.status,
+    404,
+    "pages/404.html is the error document, not a marketing page -- a 200 here is a soft 404 that search engines index as real content (route-manifest.ts already excludes it; isMarketingPageSlug did not)"
+  );
+});

@@ -1232,7 +1232,38 @@ Related open blocker: onboarding a *customer* (as opposed to a developer) is gat
 hosting, which does not exist yet — one running app resolves exactly one workspace at boot
 (`src/site-dir/resolve-workspace.ts:15-21`). See constraints doc §4.1.
 
-## Live minor defect found while building the static exporter: template shells are their own reachable URL (2026-08-15)
+## ✅ RESOLVED (2026-08-24) — template shells were their own reachable URL (found 2026-08-15)
+
+**Fixed, with one addition the original entry did not catch: `/404` had the same defect.**
+`isMarketingPageSlug` (`pages.ts`) excluded only `index`, so a static theme's own `pages/404.html`
+was ALSO served at `/404` with a **200 OK** — a soft 404, indexed by search engines as real content.
+`route-manifest.ts` already excluded it; the live route did not. Same root cause, same one-line fix,
+so it was closed in the same pass rather than left as a second entry.
+
+**What landed:** a single shared predicate, `isStandaloneThemePage(theme, pageId)`, in
+`src/features/theme/theme.ts` (next to `validateTemplateDeclarations`, which already owns `templates`
+semantics), exported via the theme barrel. It answers "is `GET /<pageId>` a real standalone page"
+once — excluding `index` (served at `/`), `404` (the error document), and every
+`manifest.templates` stem. Both call sites now import it instead of spelling their own answer:
+`server/routes/site/pages.ts`'s `isMarketingPageSlug` and `export/route-manifest.ts`'s
+`buildThemePageRoutes`.
+
+**Verified:** 2 regression tests in `src/server/routes/site/__tests__/pages.route.test.ts`, both
+confirmed RED first (200 where 404 was required) — one covering the template shells with a passing
+`/about` control proving the fixture was genuinely reachable, one covering `/404`. Scoped runs green
+afterwards: `src/features/theme/**` 464 pass, `src/export/**` + `src/server/routes/site/__tests__/**`
+102 pass, `npx tsc -p tsconfig.json --noEmit` clean.
+
+**Real-world blast radius closed:** 6 themes on disk declare `templates` — `basic`, `portfolite`,
+`gracious-timing`, and all three `tailark-*`. On each, `/blog-post`, `/page-shell` (and, on any theme
+shipping one, `/404`) were publicly reachable 200s.
+
+**The lesson, same family as the `isGeneratedThemePath` one recorded above:** two resolvers answering
+one question will drift, and the drift is invisible because each is internally consistent. The
+exporter was right and the live server was wrong for nine days, and nothing failed loudly — the
+export output simply disagreed with the running site.
+
+**Original entry, kept for context below.**
 
 **Not being fixed now — recorded so it is not lost, per the deployment-work session's own tracking
 convention.** Found while building `src/export/route-manifest.ts` (the static-site exporter's route
