@@ -975,6 +975,19 @@ export interface AdminPolicy {
   isFrozen: boolean;
 }
 
+/** One permission row written onto a policy (OQ-10). Mirrors `identity`'s `PolicyPermissionRecord`
+ *  — the shape `GET policies/:policyId/permissions` returns. `id` is what
+ *  {@link adminApi.removePolicyPermission} deletes by; nothing else in the admin exposed it, which
+ *  is why a policy's permission set used to be append-only from this UI. */
+export interface AdminPolicyPermission {
+  id: string;
+  workspaceId: string;
+  policyId: string;
+  permission: string;
+  resourceType?: string | null;
+  constraintJson?: string | null;
+}
+
 /** SPEC-044 (Workspace Administration) — mirrors `server/http/admin/workspace.ts`'s DTO. */
 export interface AdminWorkspace {
   id: string;
@@ -2137,6 +2150,14 @@ export const api = {
     request<{ policyPermission: unknown }>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}/permissions`, {
       method: "POST",
       body: JSON.stringify({ permission, resourceType: options.resourceType || undefined }),
+    }),
+  listPolicyPermissions: (policyId: string) =>
+    request<{ policyPermissions: AdminPolicyPermission[] }>(
+      `/workspaces/${WORKSPACE_ID}/policies/${policyId}/permissions`
+    ),
+  removePolicyPermission: ({ policyId, policyPermissionId }: { policyId: string; policyPermissionId: string }) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/policies/${policyId}/permissions/${policyPermissionId}`, {
+      method: "DELETE",
     }),
 
   // SPEC-044 (Workspace Administration). Note the path shape here differs from every call above:

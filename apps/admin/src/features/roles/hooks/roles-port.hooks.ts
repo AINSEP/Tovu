@@ -1,4 +1,4 @@
-import type { AdminPolicy, AdminRole } from "../../../lib/api";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../../lib/api";
 
 /**
  * @file What `use-roles.hooks.ts` needs from the outside world, as an interface rather than a
@@ -30,4 +30,9 @@ export interface RolesPort {
     input: { policyId: string; permission: string },
     options?: { resourceType?: string },
   ): Promise<{ policyPermission: unknown }>;
+  /** OQ-10 — the two calls that make a policy's permission set editable rather than append-only.
+   *  `listPolicyPermissions` is what yields the `id` `removePolicyPermission` needs; no other admin
+   *  call exposes one. */
+  listPolicyPermissions(policyId: string): Promise<{ policyPermissions: AdminPolicyPermission[] }>;
+  removePolicyPermission(input: { policyId: string; policyPermissionId: string }): Promise<void>;
 }

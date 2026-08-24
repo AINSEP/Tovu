@@ -1,6 +1,6 @@
 import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import type { AdminPolicy, AdminRole } from "../../lib/api";
+import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
 
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useWiredRoles } from "./hooks/use-roles.hooks";
@@ -23,9 +23,12 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } fro
  * rename/delete controls (the backend refuses them anyway, INV-06 — hiding the control avoids a
  * guaranteed-failing click).
  *
- * Scope note (unchanged from before 0.6.0): removing a single permission from a policy has no
- * transition (OQ-10, `feature.spec.md`) — the only way to shrink a policy's permission set is
- * delete (only when unused) + recreate.
+ * Scope note (RESOLVED 2026-08-24, was OQ-10): removing a single permission from a policy used to
+ * have no transition, so the only way to shrink a policy's permission set was delete (only when
+ * unused) + recreate — a dead end for a referenced policy, which INV-09 refuses to delete.
+ * `REMOVE_POLICY_PERMISSION` closes that. The same inline panel that adds a permission now also
+ * lists the policy's current ones and offers each a Remove; listing them at all is new too, since
+ * `AdminPolicy` carries no permissions field and nothing previously exposed a row id.
  *
  * Complexity-ceiling pass (2026-08-06): `Roles` and its policy-row map closure both scored over
  * the ceiling (18/10 and 13/13 — one over-sized "Policies" table section reported as two separate
@@ -179,6 +182,13 @@ export interface PolicyPermissionController {
   setResourceType: (resourceType: string) => void;
   toggleForm: (policyId: string) => void;
   write: (policyId: string) => Promise<void>;
+  /** The open policy's current permission rows, and the removal of one (OQ-10). Part of THIS
+   *  controller rather than {@link PolicyRowController} because the list is only ever shown inside
+   *  this same panel — it opens, loads, and closes with the add form. */
+  rows: AdminPolicyPermission[];
+  loading: boolean;
+  removingId: string | null;
+  remove: (policyId: string, policyPermissionId: string) => Promise<void>;
 }
 
 export interface PolicyRowProps {
@@ -240,13 +250,49 @@ interface PolicyPermissionFormProps {
   t: (key: string) => string;
 }
 
-/** The inline "Add permission" row — extracted out of `PolicyRow` verbatim, for the same reason as
+interface PolicyPermissionListProps {
+  policyId: string;
+  permission: PolicyPermissionController;
+  t: (key: string) => string;
+}
+
+/** The open policy's current permissions, each with a Remove (OQ-10). A separate top-level
+ *  function rather than a block inside `PolicyPermissionForm` for the same complexity-ceiling
+ *  reason `PolicyRowActions` is one: its loading/empty/list three-way branch plus the per-row
+ *  disabled ternary would otherwise all count in the form's own scope. */
+function PolicyPermissionList({ policyId, permission, t }: PolicyPermissionListProps) {
+  if (permission.loading) return <p className="muted-cell">{t("Loading permissions…")}</p>;
+  if (permission.rows.length === 0) return <p className="muted-cell">{t("No permissions yet.")}</p>;
+  return (
+    <ul className="permission-list">
+      {permission.rows.map((row) => (
+        <li key={row.id}>
+          <code>{row.permission}</code>
+          {row.resourceType ? <span className="muted-cell"> ({row.resourceType})</span> : null}
+          <button
+            type="button"
+            disabled={permission.removingId === row.id}
+            aria-label={`${t("Remove permission")} ${row.permission}`}
+            onClick={() => permission.remove(policyId, row.id)}
+          >
+            {permission.removingId === row.id ? t("Removing…") : t("Remove")}
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** The inline permission panel — the policy's current permissions (each removable) above the
+ *  "Add permission" form. Extracted out of `PolicyRow` verbatim, for the same reason as
  *  `PolicyRowActions` above. */
 function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermissionFormProps) {
   return (
     <tr>
       <td colSpan={4}>
         <div className="notice integrations-form">
+          <p>{t("Current permissions")}</p>
+          <PolicyPermissionList policyId={policyId} permission={permission} t={t} />
           <label>
             {t("Permission")}
             <span className="editor-actions">
@@ -501,6 +547,10 @@ export function Roles({ useRolesHook = useWiredRoles }: RolesProps = {}) {
     setResourceTypeInput,
     togglePermissionForm,
     onWritePermission,
+    permissionRows,
+    permissionsLoading,
+    removingPermissionId,
+    onRemovePermission,
 
     pendingRoleDelete,
     setPendingRoleDelete,
@@ -588,6 +638,10 @@ export function Roles({ useRolesHook = useWiredRoles }: RolesProps = {}) {
           setResourceType: setResourceTypeInput,
           toggleForm: togglePermissionForm,
           write: onWritePermission,
+          rows: permissionRows,
+          loading: permissionsLoading,
+          removingId: removingPermissionId,
+          remove: onRemovePermission,
         }}
         t={t}
         locale={locale}

@@ -13,6 +13,7 @@ import {
   type RoleRowController,
 } from "../Roles";
 import type { RolesController } from "../hooks/use-roles.hooks";
+import { t as realT } from "../roles-i18n";
 
 /**
  * @file `Roles` — markup-only assertions driven entirely through the injectable `useRolesHook` seam
@@ -86,6 +87,10 @@ function baseController(overrides: Partial<RolesController> = {}): RolesControll
     setResourceTypeInput: vi.fn(),
     togglePermissionForm: vi.fn(),
     onWritePermission: vi.fn(),
+    permissionRows: [],
+    permissionsLoading: false,
+    removingPermissionId: null,
+    onRemovePermission: vi.fn(),
 
     pendingRoleDelete: null,
     setPendingRoleDelete: vi.fn(),
@@ -317,6 +322,10 @@ describe("section/row controller seam", () => {
       setResourceType: vi.fn(),
       toggleForm: vi.fn(),
       write: vi.fn(),
+      rows: [],
+      loading: false,
+      removingId: null,
+      remove: vi.fn(),
       ...overrides,
     };
   }
@@ -359,5 +368,88 @@ describe("section/row controller seam", () => {
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
     expect(permission.write).toHaveBeenCalledWith(CUSTOM_POLICY.id);
     expect(row.saveRename).not.toHaveBeenCalled();
+  });
+
+  // OQ-10 — the open panel lists what the policy already holds, each row removable.
+  const PERMISSION_ROW = {
+    id: "pp-1",
+    workspaceId: "w1",
+    policyId: CUSTOM_POLICY.id,
+    permission: "content.write",
+    resourceType: null,
+    constraintJson: null,
+  };
+
+  function renderOpenPermissionPanel(permission: PolicyPermissionController) {
+    render(
+      <table>
+        <tbody>
+          <PolicyRow policy={CUSTOM_POLICY} row={policyRow()} permission={permission} t={t} locale="en" />
+        </tbody>
+      </table>,
+    );
+  }
+
+  it("lists the policy's current permissions and routes each Remove through the controller", async () => {
+    const permission = policyPermission({ openForPolicyId: CUSTOM_POLICY.id, rows: [PERMISSION_ROW] });
+    renderOpenPermissionPanel(permission);
+
+    expect(screen.getByText("content.write")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Remove permission content.write" }));
+    expect(permission.remove).toHaveBeenCalledWith(CUSTOM_POLICY.id, PERMISSION_ROW.id);
+  });
+
+  it("shows the empty state when the policy holds no permissions", () => {
+    renderOpenPermissionPanel(policyPermission({ openForPolicyId: CUSTOM_POLICY.id, rows: [] }));
+
+    expect(screen.getByText("No permissions yet.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Remove permission/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the loading state instead of the list while permissions are in flight", () => {
+    renderOpenPermissionPanel(policyPermission({ openForPolicyId: CUSTOM_POLICY.id, loading: true, rows: [] }));
+
+    expect(screen.getByText("Loading permissions…")).toBeInTheDocument();
+    expect(screen.queryByText("No permissions yet.")).not.toBeInTheDocument();
+  });
+
+  it("resolves every new permission-panel string through the REAL dictionary, not the English fallback", () => {
+    // The identity `t` above cannot catch a dictionary miss: `dictionary-translator` resolves a
+    // miss as `?? key`, so a string added to this component but NOT to `roles-i18n.ts` renders raw
+    // English in every locale with no error and no failing test. This binds the real translator to
+    // `es` and asserts the Spanish copy, which only passes if each key matches character for
+    // character (the ellipsis in "Loading permissions…" is the easiest one to get wrong).
+    const spanish = (key: string) => realT("es", key);
+    render(
+      <table>
+        <tbody>
+          <PolicyRow
+            policy={CUSTOM_POLICY}
+            row={policyRow()}
+            permission={policyPermission({ openForPolicyId: CUSTOM_POLICY.id, rows: [PERMISSION_ROW] })}
+            t={spanish}
+            locale="es"
+          />
+        </tbody>
+      </table>,
+    );
+
+    expect(screen.getByText("Permisos actuales")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quitar permiso content.write" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Quitar permiso/ })).toHaveTextContent("Quitar");
+  });
+
+  it("disables only the row whose removal is in flight", () => {
+    const other = { ...PERMISSION_ROW, id: "pp-2", permission: "content.read" };
+    renderOpenPermissionPanel(
+      policyPermission({
+        openForPolicyId: CUSTOM_POLICY.id,
+        rows: [PERMISSION_ROW, other],
+        removingId: PERMISSION_ROW.id,
+      }),
+    );
+
+    expect(screen.getByRole("button", { name: "Remove permission content.write" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Remove permission content.read" })).toBeEnabled();
   });
 });

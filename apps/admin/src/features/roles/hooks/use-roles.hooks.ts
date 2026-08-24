@@ -1,5 +1,5 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
@@ -103,6 +103,17 @@ export interface RolesController {
   togglePermissionForm: (policyId: string) => void;
   onWritePermission: (policyId: string) => Promise<void>;
 
+  /** OQ-10 — the open policy's CURRENT permission rows, so the form can show what is already
+   *  granted and offer each one a Remove. Empty whenever no form is open. Loaded on open (and
+   *  re-loaded after a write or a removal) rather than with the policy list, because
+   *  `listPolicies` does not carry permissions and only one policy's form is open at a time. */
+  permissionRows: AdminPolicyPermission[];
+  permissionsLoading: boolean;
+  /** Which permission row has its removal in flight — drives that row's own busy label, not a
+   *  page-wide spinner (same reasoning as `rowSavingId`). */
+  removingPermissionId: string | null;
+  onRemovePermission: (policyId: string, policyPermissionId: string) => Promise<void>;
+
   /** The role a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
    *  closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
    *  this is what drives its `open` prop. Separate state per table since a role and a policy delete
@@ -199,6 +210,9 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const [permissionPolicyId, setPermissionPolicyId] = useState<string | null>(null);
   const [permissionInput, setPermissionInput] = useState("");
   const [resourceTypeInput, setResourceTypeInput] = useState("");
+  const [permissionRows, setPermissionRows] = useState<AdminPolicyPermission[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [removingPermissionId, setRemovingPermissionId] = useState<string | null>(null);
 
   // The row a `RowMenu` "Delete" selection is asking to confirm — `null` when the dialog is
   // closed. `ConfirmDialog` stays mounted unconditionally below (see its own doc comment on why);
@@ -238,6 +252,11 @@ export function useRoles(deps: RolesDependencies): RolesController {
   const writePermissionMutation = useFetchMutation({
     run: (input: { policyId: string; permission: string; resourceType: string | undefined }) =>
       port.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
+  });
+  // Also no `invalidates`: removing a permission changes nothing `KEYS.list` caches (the policy
+  // list carries no permissions), so the refresh that matters is `loadPermissions` below.
+  const removePermissionMutation = useFetchMutation({
+    run: (input: { policyId: string; policyPermissionId: string }) => port.removePolicyPermission(input),
   });
 
   async function onCreateRole(e: React.FormEvent) {
@@ -333,11 +352,45 @@ export function useRoles(deps: RolesDependencies): RolesController {
     );
   }
 
+  /** Refresh the open form's permission list. Failures land in `rowError` like every other row
+   *  action rather than throwing — a list that cannot load must not take the form down with it. */
+  async function loadPermissions(policyId: string) {
+    setPermissionsLoading(true);
+    try {
+      const { policyPermissions } = await port.listPolicyPermissions(policyId);
+      setPermissionRows(policyPermissions);
+    } catch (e) {
+      setPermissionRows([]);
+      setRowError(describeApiError(e, t(locale, "failed to load permissions")));
+    } finally {
+      setPermissionsLoading(false);
+    }
+  }
+
   function togglePermissionForm(policyId: string) {
     setRowError(null);
     setPermissionInput("");
     setResourceTypeInput("");
-    setPermissionPolicyId((current) => (current === policyId ? null : policyId));
+    setPermissionPolicyId((current) => {
+      const closing = current === policyId;
+      // Clear first either way, so a re-open never flashes the previous policy's permissions.
+      setPermissionRows([]);
+      if (!closing) void loadPermissions(policyId);
+      return closing ? null : policyId;
+    });
+  }
+
+  async function onRemovePermission(policyId: string, policyPermissionId: string) {
+    setRemovingPermissionId(policyPermissionId);
+    setRowError(null);
+    try {
+      await removePermissionMutation.mutate({ policyId, policyPermissionId });
+      await loadPermissions(policyId);
+    } catch (e) {
+      setRowError(describeApiError(e, t(locale, "failed to remove permission")));
+    } finally {
+      setRemovingPermissionId(null);
+    }
   }
 
   async function onWritePermission(policyId: string) {
@@ -348,6 +401,9 @@ export function useRoles(deps: RolesDependencies): RolesController {
       await writePermissionMutation.mutate({ policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined });
       setPermissionInput("");
       setResourceTypeInput("");
+      // The row the write just created has to appear in the list, or its Remove button would not
+      // exist until the form was closed and re-opened.
+      await loadPermissions(policyId);
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to add permission")));
     } finally {
@@ -407,6 +463,11 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setResourceTypeInput,
     togglePermissionForm,
     onWritePermission,
+
+    permissionRows,
+    permissionsLoading,
+    removingPermissionId,
+    onRemovePermission,
 
     pendingRoleDelete,
     setPendingRoleDelete,
