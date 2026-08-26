@@ -194,6 +194,17 @@ describe("validateExternalMcpOAuthIdentity", () => {
     expect(validateExternalMcpOAuthIdentity({ authMode: "oauth", oauthProviderId: "example-oidc" })).toBeNull();
     expect(validateExternalMcpOAuthIdentity({ authMode: "oauth", oauthTokenEndpoint: "https://x.example/token" })).toBeNull();
   });
+
+  it("exempts a REMOTE oauth draft entirely — it can discover its own endpoints at connect", () => {
+    // The server accepts this row and runs RFC 9728 / RFC 8414 discovery against its URL. A rule
+    // that still demanded an endpoint here would make a hosted MCP server unattachable from the
+    // admin tab, which is the operator's only route to it.
+    expect(validateExternalMcpOAuthIdentity({ transport: "streamable_http", authMode: "oauth" })).toBeNull();
+    // Still flagged for stdio, which has no URL to discover from.
+    expect(validateExternalMcpOAuthIdentity({ transport: "stdio", authMode: "oauth" })).toBe(
+      "Enter a Provider ID, or fill in this connection's own Token endpoint.",
+    );
+  });
 });
 
 describe("buildExternalMcpCardHandles", () => {
