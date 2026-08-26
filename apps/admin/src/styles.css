@@ -1162,6 +1162,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   }
 
   .admin-content { padding: var(--space-4) var(--space-3); }
+
+  /* Bug fix (owner repro, 2026-08-26): the FAB's default (undragged) bottom-right position only
+     avoids the SHEET's own box (`avoidBottomPx` in `App.tsx`/`useFabPosition`) — it has no idea
+     where page content sits, so it rests directly above the sheet's top edge, squarely on top of
+     whatever card/form is in the ~42vh still exposed above it (measured live: it sat on top of
+     the Taxonomy page's "New term" card at 414x896). `.chat-sheet-bar` already renders its own
+     close button whenever the sheet is open (see `App.tsx`'s `<aside>`), so the FAB is fully
+     redundant here, not just misplaced — hiding it removes the overlap instead of trying to
+     out-guess every page's layout with smarter avoidance math. Scoped to `.is-open` only (not
+     `.is-expanded`): the sheet bar's close button is present in both the peek and expanded
+     states, so the FAB should disappear in both. Closing the sheet drops `.is-open`, so the
+     ordinary bottom-right FAB reappears immediately to reopen it. */
+  .admin-layout .admin-chat-dock.is-open + .chat-fab { display: none; }
 }
 
 /* Sheet chrome (drag handle, title, expand/close) — App.tsx-rendered, sitting above
