@@ -1,6 +1,7 @@
 import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminPolicy, AdminPolicyPermission, AdminRole } from "../../lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useWiredRoles } from "./hooks/use-roles.hooks";
@@ -90,6 +91,14 @@ export interface RolesSectionProps {
  *  Exported so a test can render it against hand-built controllers — the seam only counts as one if
  *  something other than `Roles` can drive it. */
 export function RolesSection({ roles, create, row, t, locale }: RolesSectionProps) {
+  // Role ids are stable and unique, so they disambiguate one row's menu from another's — same
+  // reasoning as every other list on this workstream. Built-in rows render no `RowMenu` at all (see
+  // the "actions" cell's own guard below), but a handle is still computed for every role so index
+  // alignment with `roles` never drifts.
+  const roleMenuHandles = buildAgentListHandles(
+    "roles-row",
+    roles.map((role) => role.id),
+  );
   return (
     <>
       <h2>{t("Roles")}</h2>
@@ -128,7 +137,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
           {
             key: "actions",
             header: t("More"),
-            cell: (role) =>
+            cell: (role, index) =>
               role.isBuiltin ? (
                 <span className="muted-cell">—</span>
               ) : row.editingId === role.id ? (
@@ -143,6 +152,7 @@ export function RolesSection({ roles, create, row, t, locale }: RolesSectionProp
               ) : (
                 <RowMenu
                   triggerLabel={`${t("Actions for role")} "${role.name}"`}
+                  agentHandle={`${roleMenuHandles[index]}-menu`}
                   items={roleMenuItems(role, { onRename: row.startRename, onDelete: row.requestDelete }, locale)}
                 />
               ),
@@ -195,6 +205,10 @@ export interface PolicyRowProps {
   policy: AdminPolicy;
   row: PolicyRowController;
   permission: PolicyPermissionController;
+  /** This row's own distinct handle base — computed once, across every rendered policy, by
+   *  `PoliciesSection` (via `buildAgentListHandles`); see `Users.tsx`'s `UserRowProps.agentBase`
+   *  for why a per-instance uniqueness search does not work here. */
+  agentBase: string;
   t: (key: string) => string;
   locale: string;
 }
@@ -203,6 +217,7 @@ interface PolicyRowActionsProps {
   policy: AdminPolicy;
   row: PolicyRowController;
   permission: PolicyPermissionController;
+  agentBase: string;
   t: (key: string) => string;
   locale: string;
 }
@@ -212,7 +227,7 @@ interface PolicyRowActionsProps {
  *  split pass because this cell's own branches (the `||` guard plus its two nested ternaries) were
  *  still counted in `PolicyRow`'s scope. Same "the panel, not the row, was the actual size" lesson
  *  `Users.tsx`'s `UserRow` -> `UserManagePanel` split already applied. */
-function PolicyRowActions({ policy, row, permission, t, locale }: PolicyRowActionsProps) {
+function PolicyRowActions({ policy, row, permission, agentBase, t, locale }: PolicyRowActionsProps) {
   if (policy.isBuiltin || policy.isFrozen) return <span className="muted-cell">—</span>;
   if (row.editingId === policy.id) {
     return (
@@ -229,6 +244,7 @@ function PolicyRowActions({ policy, row, permission, t, locale }: PolicyRowActio
   return (
     <RowMenu
       triggerLabel={`${t("Actions for policy")} "${policy.name}"`}
+      agentHandle={`${agentBase}-menu`}
       items={policyMenuItems(
         policy,
         permission.openForPolicyId,
@@ -325,7 +341,7 @@ function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermi
  *  element at the call site, same convention `Users.tsx`'s `UserRow` uses.
  *
  *  Exported for the same reason as {@link RolesSection}. */
-export function PolicyRow({ policy, row, permission, t, locale }: PolicyRowProps) {
+export function PolicyRow({ policy, row, permission, agentBase, t, locale }: PolicyRowProps) {
   const renaming = row.editingId === policy.id;
   return (
     <>
@@ -349,7 +365,7 @@ export function PolicyRow({ policy, row, permission, t, locale }: PolicyRowProps
           {policy.isFrozen ? ` ${t("(frozen)")}` : ""}
         </td>
         <td>
-          <PolicyRowActions policy={policy} row={row} permission={permission} t={t} locale={locale} />
+          <PolicyRowActions policy={policy} row={row} permission={permission} agentBase={agentBase} t={t} locale={locale} />
         </td>
       </tr>
       {permission.openForPolicyId === policy.id ? (
@@ -385,6 +401,11 @@ export interface PoliciesSectionProps {
  *  "policy">` rest object, which is what the old flat prop bag forced: with the props named, this
  *  section no longer has to restate the row's entire surface in its own type just to relay it. */
 export function PoliciesSection({ policies, create, row, permission, t, locale }: PoliciesSectionProps) {
+  // Policy ids are stable and unique, same reasoning as `RolesSection`'s `roleMenuHandles` above.
+  const policyMenuBases = buildAgentListHandles(
+    "policies-row",
+    policies.map((policy) => policy.id),
+  );
   return (
     <>
       <h2>{t("Policies")}</h2>
@@ -420,9 +441,16 @@ export function PoliciesSection({ policies, create, row, permission, t, locale }
               </tr>
             </thead>
             <tbody>
-              {policies.map((policy) => (
+              {policies.map((policy, index) => (
                 <Fragment key={policy.id}>
-                  <PolicyRow policy={policy} row={row} permission={permission} t={t} locale={locale} />
+                  <PolicyRow
+                    policy={policy}
+                    row={row}
+                    permission={permission}
+                    agentBase={policyMenuBases[index]!}
+                    t={t}
+                    locale={locale}
+                  />
                 </Fragment>
               ))}
             </tbody>

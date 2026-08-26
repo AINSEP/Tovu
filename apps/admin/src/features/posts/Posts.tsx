@@ -5,6 +5,7 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -75,6 +76,15 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // `rows={posts}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
   if (!posts) return null;
 
+  // Sorted once so both `rows` and the per-row RowMenu handles below walk the SAME order — post ids
+  // are stable and unique, so they disambiguate one row's menu from another's regardless of which
+  // way `updatedSort` is currently facing.
+  const sortedPosts = sortPostsByUpdated(posts, updatedSort);
+  const rowMenuHandles = buildAgentListHandles(
+    "posts-row",
+    sortedPosts.map((post) => post.id),
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -91,7 +101,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <DataTable
-        rows={sortPostsByUpdated(posts, updatedSort)}
+        rows={sortedPosts}
         rowKey={(post) => post.id}
         empty={
           <div className="card">
@@ -141,9 +151,10 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           {
             key: "actions",
             header: t("More"),
-            cell: (post) => (
+            cell: (post, index) => (
               <RowMenu
                 triggerLabel={`Actions for "${post.title}"`}
+                agentHandle={`${rowMenuHandles[index]}-menu`}
                 items={postRowMenuItems(
                   post,
                   {
