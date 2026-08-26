@@ -250,15 +250,31 @@ describe("useExternalMcp — updateSource", () => {
 });
 
 describe("useExternalMcp — addSource rejects a malformed OAuth identity before calling the API", () => {
-  it("rejects when authMode is oauth but neither a provider id nor a token endpoint is given", async () => {
+  it("rejects a STDIO oauth draft with neither a provider id nor a token endpoint", async () => {
     const { result } = renderHook(() => useExternalMcp());
 
     const outcome = await result.current.dependencies.port.addSource({
-      fields: { id: "hosted", transport: "streamable_http", url: "https://mcp.example.com", authMode: "oauth", oauthClientId: "abc" },
+      fields: { id: "local", transport: "stdio", command: "npx", authMode: "oauth", oauthClientId: "abc" },
     });
 
     expect(outcome).toEqual({ ok: false, message: "Enter a Provider ID, or fill in this connection's own Token endpoint." });
     expect(saveExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it("accepts a REMOTE oauth draft with no identity at all — the server discovers and registers", async () => {
+    // Was previously rejected here for every transport. A hosted MCP server that publishes RFC 9728
+    // metadata and an RFC 7591 registration endpoint has no client id a human could type, so
+    // blocking this draft made those servers unattachable from the admin tab.
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "hosted" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: { id: "hosted", transport: "streamable_http", url: "https://mcp.example.com/mcp", authMode: "oauth", oauthGrant: "authorization_code" },
+      });
+    });
+
+    expect(saveExternalMcpServer).toHaveBeenCalled();
   });
 
   it("accepts an OAuth draft that names a provider id, and carries the oauth block through to the write", async () => {
