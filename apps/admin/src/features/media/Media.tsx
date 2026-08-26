@@ -1,8 +1,10 @@
 import { useRef } from "react";
 import type { AdminMedia } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { MediaProvidersTab } from "@jini-ai/ui";
 
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
@@ -132,6 +134,12 @@ function ChevronIcon(props: { flip?: boolean }) {
 interface MediaPreviewProps {
   item: AdminMedia;
   onExpand?: () => void;
+  /** This card's own expand-button handle, or `undefined` when this instance has no expand button
+   *  at all (the lightbox's own reuse of this component omits it, same as it omits `onExpand`).
+   *  Passed down rather than derived here so the uniqueness search runs once, over the whole grid,
+   *  in `Media()` — see `Taxonomy.tsx`'s `NewTermForm.agentBase` for why a per-instance search
+   *  cannot dedupe across siblings. */
+  agentExpandHandle?: string;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real (wired) hook, so production callers pass nothing and behave exactly as
@@ -187,6 +195,9 @@ function MediaPreview(props: MediaPreviewProps) {
       className="media-card-expand"
       aria-label={`View "${props.item.title}" larger`}
       onClick={props.onExpand}
+      {...(props.agentExpandHandle
+        ? agentHandle(props.agentExpandHandle, { role: "button", label: "Open this asset larger in the lightbox" })
+        : {})}
     >
       <ExpandIcon />
     </button>
@@ -261,7 +272,13 @@ function EditMediaPanel(props: EditMediaPanelProps) {
   } = useEditMediaPanelHook({ item, onSaved, onCancel });
 
   return (
-    <div className="card media-edit-panel">
+    <div
+      className="card media-edit-panel"
+      {...agentHandle("media-edit-panel", {
+        role: "region",
+        label: "Edit media metadata — title, alt text, caption, credit, size and CSS class",
+      })}
+    >
       <div className="editor-header">
         <h2>
           {t("Editing")} "{item.title}"
@@ -280,6 +297,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-title-${item.id}`}
               value={draft.title}
               onChange={(e) => setTitle(e.target.value)}
+              {...agentHandle("media-edit-title", { role: "field", label: "This asset's title" })}
             />
           </div>
           <div className="field">
@@ -290,6 +308,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-alt-${item.id}`}
               value={draft.alt}
               onChange={(e) => setAlt(e.target.value)}
+              {...agentHandle("media-edit-alt", { role: "field", label: "This asset's alt text, for screen readers" })}
             />
           </div>
         </div>
@@ -302,6 +321,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-caption-${item.id}`}
               value={draft.caption}
               onChange={(e) => setCaption(e.target.value)}
+              {...agentHandle("media-edit-caption", { role: "field", label: "This asset's caption" })}
             />
           </div>
           <div className="field">
@@ -312,6 +332,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               id={`media-edit-credit-${item.id}`}
               value={draft.credit}
               onChange={(e) => setCredit(e.target.value)}
+              {...agentHandle("media-edit-credit", { role: "field", label: "This asset's credit / attribution" })}
             />
           </div>
         </div>
@@ -333,6 +354,10 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               placeholder="native"
               value={draft.width ?? ""}
               onChange={(e) => setWidth(e.target.value)}
+              {...agentHandle("media-edit-width", {
+                role: "field",
+                label: "Render width in pixels for this asset in post bodies — blank means native size",
+              })}
             />
           </div>
           <div className="field">
@@ -346,6 +371,10 @@ function EditMediaPanel(props: EditMediaPanelProps) {
               placeholder="native"
               value={draft.height ?? ""}
               onChange={(e) => setHeight(e.target.value)}
+              {...agentHandle("media-edit-height", {
+                role: "field",
+                label: "Render height in pixels for this asset in post bodies — blank means native size",
+              })}
             />
           </div>
         </div>
@@ -357,6 +386,7 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             id={`media-edit-css-class-${item.id}`}
             value={draft.cssClass ?? ""}
             onChange={(e) => setCssClass(e.target.value)}
+            {...agentHandle("media-edit-css-class", { role: "field", label: "Optional CSS class applied to this asset in post bodies" })}
           />
         </div>
         {/* User report: "where is the location of the asset? I dont see the location data" — there
@@ -375,7 +405,12 @@ function EditMediaPanel(props: EditMediaPanelProps) {
             >
               {originalUrl}
             </a>
-            <button type="button" className="btn-ghost" onClick={copyUrl}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={copyUrl}
+              {...agentHandle("media-edit-copy-url", { role: "button", label: "Copy this asset's file URL to the clipboard" })}
+            >
               {urlCopied ? t("Copied") : t("Copy")}
             </button>
           </div>
@@ -388,16 +423,32 @@ function EditMediaPanel(props: EditMediaPanelProps) {
           <span className="field-label">{t("sha256")}</span>
           <div className="field-readonly-row">
             <code className="field-mono field-readonly">{item.sha256}</code>
-            <button type="button" className="btn-ghost" onClick={copyHash}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={copyHash}
+              {...agentHandle("media-edit-copy-hash", { role: "button", label: "Copy this asset's sha256 hash to the clipboard" })}
+            >
               {hashCopied ? t("Copied") : t("Copy")}
             </button>
           </div>
         </div>
         <span className="editor-actions">
-          <button type="button" onClick={save} disabled={saving}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            {...agentHandle("media-edit-save", { role: "button", label: "Save this asset's metadata" })}
+          >
             {saving ? t("Saving…") : t("Save")}
           </button>
-          <button type="button" className="btn-secondary" onClick={onCancel} disabled={saving}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCancel}
+            disabled={saving}
+            {...agentHandle("media-edit-cancel", { role: "button", label: "Close this panel without saving" })}
+          >
             {t("Cancel")}
           </button>
         </span>
@@ -469,7 +520,14 @@ function MediaLightbox(props: MediaLightboxProps) {
                 {activeIndex! + 1} / {items.length}
               </span>
             ) : null}
-            <button type="button" ref={closeRef} className="media-lightbox-close" aria-label="Close" onClick={onClose}>
+            <button
+              type="button"
+              ref={closeRef}
+              className="media-lightbox-close"
+              aria-label="Close"
+              onClick={onClose}
+              {...agentHandle("media-lightbox-close", { role: "button", label: "Close the lightbox" })}
+            >
               <CloseIcon />
             </button>
           </div>
@@ -480,6 +538,7 @@ function MediaLightbox(props: MediaLightboxProps) {
                 className="media-lightbox-nav media-lightbox-nav-prev"
                 aria-label="Previous asset"
                 onClick={goToPrev}
+                {...agentHandle("media-lightbox-prev", { role: "button", label: "Show the previous asset" })}
               >
                 <ChevronIcon />
               </button>
@@ -499,6 +558,7 @@ function MediaLightbox(props: MediaLightboxProps) {
                 className="media-lightbox-nav media-lightbox-nav-next"
                 aria-label="Next asset"
                 onClick={goToNext}
+                {...agentHandle("media-lightbox-next", { role: "button", label: "Show the next asset" })}
               >
                 <ChevronIcon flip />
               </button>
@@ -529,10 +589,28 @@ function MediaToolbar({
   t: (key: string) => string;
 }) {
   return (
-    <div className="toolbar">
-      <input ref={fileInputRef} className="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
-      <input value={altDraft} onChange={(e) => setAltDraft(e.target.value)} placeholder={t("Alt text (optional)")} />
-      <button onClick={upload} disabled={uploading}>
+    <div
+      className="toolbar"
+      {...agentHandle("media-upload-toolbar", { role: "region", label: "Upload — choose a file, optional alt text, and Upload" })}
+    >
+      <input
+        ref={fileInputRef}
+        className="file-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        {...agentHandle("media-upload-file", { role: "field", label: "The file to upload — image/jpeg, png, webp or gif" })}
+      />
+      <input
+        value={altDraft}
+        onChange={(e) => setAltDraft(e.target.value)}
+        placeholder={t("Alt text (optional)")}
+        {...agentHandle("media-upload-alt", { role: "field", label: "Alt text for the file being uploaded" })}
+      />
+      <button
+        onClick={upload}
+        disabled={uploading}
+        {...agentHandle("media-upload-submit", { role: "button", label: "Upload the chosen file" })}
+      >
         {uploading ? t("Uploading…") : t("Upload")}
       </button>
     </div>
@@ -661,10 +739,19 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
   // a single filter over a media library is cheap next to the render it feeds, and a `useMemo`
   // here cannot be hoisted above the early returns without changing hook order.
   const visibleMedia = filterMediaByTab(media, activeTab);
+  // Asset ids are stable and unique, so they disambiguate one card's expand button from another's —
+  // same reasoning as every other list on this workstream.
+  const mediaExpandHandles = buildAgentListHandles(
+    "media-item",
+    visibleMedia.map((item) => item.id),
+  );
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("media-header", { role: "region", label: "Media header — page title" })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Media")}</h1>
@@ -686,6 +773,7 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
             className="media-tab"
             aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
+            {...agentHandle(`media-tab-${tab.id}`, { role: "button", label: `Switch to the ${tab.label} tab` })}
           >
             {t(tab.label)}
           </button>
@@ -763,7 +851,12 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
               {visibleMedia.map((item, index) => (
                 <div className="media-card" key={item.id}>
                   <div className="media-card-preview">
-                    <MediaPreview item={item} onExpand={() => setLightboxIndex(index)} t={t} />
+                    <MediaPreview
+                      item={item}
+                      onExpand={() => setLightboxIndex(index)}
+                      agentExpandHandle={`${mediaExpandHandles[index]}-expand`}
+                      t={t}
+                    />
                   </div>
                   <div className="media-card-body">
                     <p className="media-card-title" title={item.title}>
