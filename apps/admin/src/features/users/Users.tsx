@@ -1,6 +1,8 @@
 import { Fragment, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import type { AdminIdentityUser, AdminPolicy, AdminRole } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useWiredUsers } from "./hooks/use-users.hooks";
@@ -83,11 +85,21 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
       {formError ? <span className="save-error">{formError}</span> : null}
       <label>
         {t("Username")}
-        <input value={username} onChange={(e) => setUsername(e.target.value)} required />
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          required
+          {...agentHandle("users-new-username", { role: "field", label: "The new user's username" })}
+        />
       </label>
       <label>
         {t("Email (optional)")}
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          {...agentHandle("users-new-email", { role: "field", label: "The new user's email address" })}
+        />
       </label>
       <label>
         {t("Password")}
@@ -108,9 +120,17 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={1}
+          {...agentHandle("users-new-password", {
+            role: "field",
+            label: "The new user's password — a credential field, so only a human can fill it",
+          })}
         />
       </label>
-      <button type="submit" disabled={saving}>
+      <button
+        type="submit"
+        disabled={saving}
+        {...agentHandle("users-new-submit", { role: "button", label: "Create this operator account" })}
+      >
         {saving ? t("Creating…") : t("Create user")}
       </button>
     </form>
@@ -168,16 +188,28 @@ interface GrantSelectProps {
   submitLabel: string;
   grant: GrantSelectController;
   saving: boolean;
+  /** Distinct handle base for this grant — `UserManagePanel` renders this component twice (role,
+   *  policy), so a fixed name would collide (only one Manage panel is ever open at a time, but a
+   *  hardcoded handle in a shared component still means two call sites publish the SAME handle —
+   *  the exact trap this workstream's shared-component convention exists to avoid). */
+  agentBase: string;
   t: (key: string) => string;
 }
 
 /** The select-plus-button both grants render. */
-function GrantSelect({ principalId, label, placeholder, submitLabel, grant, saving, t }: GrantSelectProps) {
+function GrantSelect({ principalId, label, placeholder, submitLabel, grant, saving, agentBase, t }: GrantSelectProps) {
   return (
     <label>
       {label}
       <span className="editor-actions">
-        <select value={grant.pendingId} onChange={(e) => grant.setPendingId(e.target.value)}>
+        <select
+          value={grant.pendingId}
+          onChange={(e) => grant.setPendingId(e.target.value)}
+          {...agentHandle(`${agentBase}-select`, {
+            role: "field",
+            label: `${label} — set with page.select_option, not click`,
+          })}
+        >
           <option value="">{placeholder}</option>
           {grant.options.map((option) => (
             <option key={option.id} value={option.id}>
@@ -186,7 +218,12 @@ function GrantSelect({ principalId, label, placeholder, submitLabel, grant, savi
             </option>
           ))}
         </select>
-        <button type="button" disabled={!grant.pendingId || saving} onClick={() => grant.submit(principalId)}>
+        <button
+          type="button"
+          disabled={!grant.pendingId || saving}
+          onClick={() => grant.submit(principalId)}
+          {...agentHandle(`${agentBase}-submit`, { role: "button", label: `${submitLabel} the selected option to this user` })}
+        >
           {saving ? t("Saving…") : submitLabel}
         </button>
       </span>
@@ -218,11 +255,13 @@ export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps
                 value={manage.email.value}
                 onChange={(e) => manage.email.set(e.target.value)}
                 placeholder={t("(none)")}
+                {...agentHandle("user-manage-email", { role: "field", label: "This user's email address" })}
               />
               <button
                 type="button"
                 disabled={manage.email.saving}
                 onClick={() => manage.email.save(principalId)}
+                {...agentHandle("user-manage-email-save", { role: "button", label: "Save this user's email address" })}
               >
                 {manage.email.saving ? t("Saving…") : t("Save email")}
               </button>
@@ -235,6 +274,7 @@ export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps
             submitLabel={t("Assign")}
             grant={manage.roleGrant}
             saving={manage.saving}
+            agentBase="user-manage-role"
             t={t}
           />
           <GrantSelect
@@ -244,6 +284,7 @@ export function UserManagePanel({ principalId, manage, t }: UserManagePanelProps
             submitLabel={t("Attach")}
             grant={manage.policyGrant}
             saving={manage.saving}
+            agentBase="user-manage-policy"
             t={t}
           />
         </div>
@@ -270,13 +311,17 @@ export interface UserRowProps {
   policyById: ReadonlyMap<string, AdminPolicy>;
   actions: UserRowActionsController;
   manage: UserManageController;
+  /** This row's own distinct handle base — computed once, across every rendered row, by
+   *  `UsersTable` (via `buildAgentListHandles`); see `Taxonomy.tsx`'s `NewTermForm.agentBase` for
+   *  why a per-instance uniqueness search does not work here. */
+  agentBase: string;
   t: (key: string) => string;
   locale: string;
 }
 
 /** One user's row plus its optional expanded "Manage" row. `key` lives on the `<UserRow>` element at
  *  the call site, not inside here, since this is no longer the array-mapping callback itself. */
-function UserRow({ user, roleById, policyById, actions, manage, t, locale }: UserRowProps) {
+function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, locale }: UserRowProps) {
   const roleLabel = formatGrantLabel(user.roleIds, roleById);
   const policyLabel = formatGrantLabel(user.policyIds, policyById);
   return (
@@ -297,6 +342,10 @@ function UserRow({ user, roleById, policyById, actions, manage, t, locale }: Use
             className="link-button"
             onClick={() => actions.toggleExpanded(user)}
             aria-expanded={actions.expandedId === user.principalId}
+            {...agentHandle(`${agentBase}-manage`, {
+              role: "button",
+              label: "Open this user's Manage panel — edit email, assign a role, attach a policy",
+            })}
           >
             {user.username}
           </button>
@@ -363,6 +412,12 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
 
   const roleById = new Map<string, AdminRole>(roles.map((role) => [role.id, role]));
   const policyById = new Map<string, AdminPolicy>(policies.map((policy) => [policy.id, policy]));
+  // Principal ids are stable and unique, so they disambiguate one row's Manage toggle from
+  // another's — same reasoning as every other list on this workstream.
+  const rowHandles = buildAgentListHandles(
+    "users-row",
+    users.map((user) => user.principalId),
+  );
 
   return (
     <div className="table-scroll">
@@ -378,7 +433,7 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
           </tr>
         </thead>
         <tbody>
-          {users.map((user) => (
+          {users.map((user, index) => (
             <Fragment key={user.principalId}>
               <UserRow
                 user={user}
@@ -386,6 +441,7 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
                 policyById={policyById}
                 actions={actions}
                 manage={manage}
+                agentBase={rowHandles[index]!}
                 t={t}
                 locale={locale}
               />
@@ -459,6 +515,9 @@ interface RevealablePasswordFieldProps {
   onChange: (value: string) => void;
   visible: boolean;
   onToggleVisible: () => void;
+  /** Distinct handle base — `UserResetPasswordDialog` renders this twice (new password, confirm),
+   *  so a fixed name would collide, same reasoning as `GrantSelect.agentBase` above. */
+  agentBase: string;
   t: (key: string) => string;
 }
 
@@ -477,7 +536,7 @@ interface RevealablePasswordFieldProps {
  *  The input's inline `flex`/`minWidth` override neutralizes `styles.css`'s `.field input { width:
  *  100% }` fighting the toggle button for room inside the `.editor-actions` row below — an inline
  *  style wins on specificity without adding a new class to a stylesheet this feature doesn't own. */
-function RevealablePasswordField({ id, label, value, onChange, visible, onToggleVisible, t }: RevealablePasswordFieldProps) {
+function RevealablePasswordField({ id, label, value, onChange, visible, onToggleVisible, agentBase, t }: RevealablePasswordFieldProps) {
   const toggleLabel = visible ? t("Hide password") : t("Show password");
   return (
     <div className="field">
@@ -491,6 +550,10 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           value={value}
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: "1 1 auto", minWidth: 0 }}
+          {...agentHandle(agentBase, {
+            role: "field",
+            label: `${label} — a credential field, so only a human can fill it`,
+          })}
         />
         <button
           type="button"
@@ -499,6 +562,7 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           aria-pressed={visible}
           title={toggleLabel}
           onClick={onToggleVisible}
+          {...agentHandle(`${agentBase}-reveal`, { role: "button", label: `Show or hide the ${label.toLowerCase()} field's characters` })}
         >
           <span style={{ display: "inline-flex", width: 16, height: 16 }}>{visible ? <EyeOffIcon /> : <EyeIcon />}</span>
         </button>
@@ -578,6 +642,7 @@ function UserResetPasswordDialog({
               onChange={setNewPassword}
               visible={fields.showNewPassword}
               onToggleVisible={fields.toggleShowNewPassword}
+              agentBase="users-reset-password"
               t={t}
             />
             <RevealablePasswordField
@@ -587,6 +652,7 @@ function UserResetPasswordDialog({
               onChange={fields.setConfirmPassword}
               visible={fields.showConfirmPassword}
               onToggleVisible={fields.toggleShowConfirmPassword}
+              agentBase="users-reset-password-confirm"
               t={t}
             />
             {/* One shared slot, fixed precedence: a live mismatch always wins over a stale
@@ -628,7 +694,10 @@ interface UsersPageHeaderProps {
  *  its two `formOpen` ternaries (class, label) count against this function, not `Users`'. */
 function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
   return (
-    <div className="page-header">
+    <div
+      className="page-header"
+      {...agentHandle("users-header", { role: "region", label: "Users header — page title and the New user button" })}
+    >
       <div className="page-header-text">
         <p className="page-kicker">{t("People")}</p>
         <h1 className="page-title">{t("Users")}</h1>
@@ -640,7 +709,11 @@ function UsersPageHeader({ formOpen, setFormOpen, t }: UsersPageHeaderProps) {
         {/* Same toggle button throughout — reads "New user" (the page's one primary action) when
             closed, "Cancel" (a dismiss, not a create) once the form is open, so the tone follows
             the label instead of a second button competing with the form's own "Create user". */}
-        <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+        <button
+          className={formOpen ? "btn-secondary" : undefined}
+          onClick={() => setFormOpen((v) => !v)}
+          {...agentHandle("users-new-toggle", { role: "button", label: "Open or close the new-user form" })}
+        >
           {formOpen ? t("Cancel") : t("New user")}
         </button>
       </div>

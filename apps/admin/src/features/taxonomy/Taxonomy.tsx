@@ -1,5 +1,7 @@
 import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
 import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
 import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
@@ -76,6 +78,10 @@ import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
 export interface NewTermFormProps {
   taxonomy: AdminTaxonomyWithTerms;
   onCreated: () => void;
+  /** This group's own distinct handle base — computed once, across every rendered group, by
+   *  `namespaceList` (via `buildAgentListHandles`) and passed down; a `Set`-based uniqueness
+   *  search only works when it runs once over the whole list, not once per `NewTermForm` instance. */
+  agentBase: string;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. */
   useNewTermFormHook?: typeof useWiredNewTermForm;
@@ -83,7 +89,7 @@ export interface NewTermFormProps {
   t: (key: string) => string;
 }
 
-function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useWiredNewTermForm, t }: NewTermFormProps) {
+function NewTermForm({ taxonomy, onCreated, agentBase: base, useNewTermFormHook = useWiredNewTermForm, t }: NewTermFormProps) {
   const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({
     taxonomy,
     onCreated,
@@ -95,7 +101,15 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useWiredNewTerm
   // "add a row" affordance rather than a page-level action.
   if (!open) {
     return (
-      <button type="button" className="btn-ghost taxonomy-add-term-trigger" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="btn-ghost taxonomy-add-term-trigger"
+        onClick={() => setOpen(true)}
+        {...agentHandle(`${base}-open`, {
+          role: "button",
+          label: `Open the "add term" form for the "${taxonomy.taxonomy.name}" taxonomy`,
+        })}
+      >
         {t("+ Add term")}
       </button>
     );
@@ -113,9 +127,18 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useWiredNewTerm
           onChange={(e) => setName(e.target.value)}
           placeholder={t("Term name")}
           autoFocus
+          {...agentHandle(`${base}-name`, { role: "field", label: "The new term's name" })}
         />
         {taxonomy.taxonomy.hierarchical ? (
-          <select aria-label="Parent term" value={parentId} onChange={(e) => setParentId(e.target.value)}>
+          <select
+            aria-label="Parent term"
+            value={parentId}
+            onChange={(e) => setParentId(e.target.value)}
+            {...agentHandle(`${base}-parent`, {
+              role: "field",
+              label: "The new term's parent term, or top level — set with page.select_option, not click",
+            })}
+          >
             <option value="">{t("(top level)")}</option>
             {taxonomy.terms.map((term) => (
               <option key={term.id} value={term.id}>
@@ -126,10 +149,21 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useWiredNewTerm
         ) : null}
         {/* Secondary — repeated once per taxonomy group, not this page's one headline create
             ("Create taxonomy" above owns that). */}
-        <button type="submit" className="btn-secondary" disabled={saving}>
+        <button
+          type="submit"
+          className="btn-secondary"
+          disabled={saving}
+          {...agentHandle(`${base}-submit`, { role: "button", label: "Add this term to the taxonomy" })}
+        >
           {saving ? t("Saving…") : t("Add term")}
         </button>
-        <button type="button" className="btn-ghost" onClick={() => setOpen(false)} disabled={saving}>
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={() => setOpen(false)}
+          disabled={saving}
+          {...agentHandle(`${base}-cancel`, { role: "button", label: "Close this form without adding a term" })}
+        >
           {t("Cancel")}
         </button>
       </span>
@@ -163,15 +197,28 @@ function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxono
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Category"
+          {...agentHandle("taxonomy-new-name", { role: "field", label: "The new taxonomy's name" })}
         />
         <label>
-          <input type="checkbox" checked={hierarchical} onChange={(e) => setHierarchical(e.target.checked)} />
+          <input
+            type="checkbox"
+            checked={hierarchical}
+            onChange={(e) => setHierarchical(e.target.checked)}
+            {...agentHandle("taxonomy-new-hierarchical", {
+              role: "checkbox",
+              label: "Whether this taxonomy's terms can be nested under a parent term",
+            })}
+          />
           {t("Hierarchical")}
         </label>
         {/* The one page-level primary — the entry point for the whole feature. Everything below
             (per-group "Add term", the merge wizard's "Plan"/"Confirm") is scoped and repeated
             rather than a single headline action, so those stay secondary; see their own comments. */}
-        <button type="submit" disabled={saving}>
+        <button
+          type="submit"
+          disabled={saving}
+          {...agentHandle("taxonomy-new-submit", { role: "button", label: "Create this taxonomy" })}
+        >
           {saving ? t("Saving…") : t("Create taxonomy")}
         </button>
       </span>
@@ -210,7 +257,15 @@ interface MergeIdleStepProps {
 function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan, t }: MergeIdleStepProps) {
   return (
     <span className="editor-actions">
-      <select aria-label="Merge into" value={intoTermId} onChange={(e) => setIntoTermId(e.target.value)}>
+      <select
+        aria-label="Merge into"
+        value={intoTermId}
+        onChange={(e) => setIntoTermId(e.target.value)}
+        {...agentHandle("term-merge-target", {
+          role: "field",
+          label: "The term this one will be merged into — set with page.select_option, not click",
+        })}
+      >
         <option value="">{t("Choose a term…")}</option>
         {otherTerms.map((term) => (
           <option key={term.id} value={term.id}>
@@ -221,7 +276,16 @@ function MergeIdleStep({ otherTerms, intoTermId, setIntoTermId, busy, startPlan,
       {/* Secondary throughout this wizard's first two steps — planning/confirming a merge
           commits nothing yet ("nothing is merged yet" below), so neither reads as this
           screen's primary action. Only Execute (genuinely irreversible) escalates. */}
-      <button type="button" className="btn-secondary" onClick={startPlan} disabled={!intoTermId || busy}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={startPlan}
+        disabled={!intoTermId || busy}
+        {...agentHandle("term-merge-plan", {
+          role: "button",
+          label: "Plan the merge into the selected term — commits nothing yet",
+        })}
+      >
         {busy ? t("Planning…") : t("Plan merge")}
       </button>
     </span>
@@ -247,7 +311,16 @@ function MergePlannedStep({ termName, overlappingContentCount, busy, doConfirm, 
         )}{" "}
         <strong>{termName}</strong> {t("away. Confirming issues a one-time execution token — nothing is merged yet.")}
       </p>
-      <button type="button" className="btn-secondary" onClick={doConfirm} disabled={busy}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={doConfirm}
+        disabled={busy}
+        {...agentHandle("term-merge-confirm", {
+          role: "button",
+          label: "Confirm the plan and issue a one-time execution token — still commits nothing",
+        })}
+      >
         {busy ? t("Confirming…") : t("Confirm merge")}
       </button>
     </div>
@@ -266,7 +339,16 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
     <div>
       <p>{t("Confirmed. Executing merges the terms now — this cannot be undone.")}</p>
       {/* Genuinely irreversible, per the copy right above — `.btn-danger`, unlike Plan/Confirm. */}
-      <button type="button" className="btn-danger" onClick={doExecute} disabled={busy}>
+      <button
+        type="button"
+        className="btn-danger"
+        onClick={doExecute}
+        disabled={busy}
+        {...agentHandle("term-merge-execute", {
+          role: "button",
+          label: "Execute the merge now — this cannot be undone",
+        })}
+      >
         {busy ? t("Merging…") : t("Execute merge")}
       </button>
     </div>
@@ -341,9 +423,19 @@ function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPan
       </div>
       <form onSubmit={rename} className="collections-field-row">
         <label htmlFor="term-rename-input">{t("Rename")}</label>
-        <input id="term-rename-input" value={newName} onChange={(e) => setNewName(e.target.value)} />
+        <input
+          id="term-rename-input"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          {...agentHandle("term-detail-rename", { role: "field", label: "This term's new name" })}
+        />
         <span className="editor-actions">
-          <button type="submit" className="btn-secondary" disabled={saving}>
+          <button
+            type="submit"
+            className="btn-secondary"
+            disabled={saving}
+            {...agentHandle("term-detail-rename-save", { role: "button", label: "Save this term's new name" })}
+          >
             {saving ? t("Saving…") : t("Save")}
           </button>
           {message ? <span className="save-ok">{message}</span> : null}
@@ -373,7 +465,13 @@ interface TaxonomyPageHeaderProps {
  *  `Taxonomy` was still 13/10 (cyclomatic over the ceiling) with them inline. */
 function TaxonomyPageHeader({ formOpen, setFormOpen, t }: TaxonomyPageHeaderProps) {
   return (
-    <div className="page-header">
+    <div
+      className="page-header"
+      {...agentHandle("taxonomy-header", {
+        role: "region",
+        label: "Categories & Tags header — page title and the New taxonomy button",
+      })}
+    >
       <div className="page-header-text">
         <p className="page-kicker">{t("Content")}</p>
         <h1 className="page-title">{t("Categories & Tags")}</h1>
@@ -384,7 +482,14 @@ function TaxonomyPageHeader({ formOpen, setFormOpen, t }: TaxonomyPageHeaderProp
       {/* Same `formOpen` toggle idiom as `Integrations.tsx`'s "Add webhook" button — see
           `useTaxonomy`'s own comment for why this replaced the old always-open form. */}
       <div className="page-actions">
-        <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
+        <button
+          className={formOpen ? "btn-secondary" : undefined}
+          onClick={() => setFormOpen((v) => !v)}
+          {...agentHandle("taxonomy-new-toggle", {
+            role: "button",
+            label: "Open or close the new-taxonomy form",
+          })}
+        >
           {formOpen ? t("Cancel") : t("New taxonomy")}
         </button>
       </div>
@@ -567,9 +672,24 @@ function namespaceList(
   },
   t: (key: string) => string,
 ) {
+  // Computed once, across every group, so two taxonomies whose names slugify identically still get
+  // distinct handles — see `NewTermForm`'s own `agentBase` doc for why this cannot be derived
+  // independently inside each group's own `NewTermForm` instance.
+  const newTermFormBases = buildAgentListHandles(
+    "taxonomy-new-term",
+    taxonomies.map((group) => group.taxonomy.id),
+  );
+  // Term ids are globally unique across every taxonomy, not scoped per group — same reasoning
+  // `CollectionEntryEditor.tsx`'s `TermPicker` documents for its own flat `term-picker-term` list.
+  const termHandles = buildAgentListHandles(
+    "taxonomy-term",
+    taxonomies.flatMap((group) => group.terms.map((term) => term.id)),
+  );
+  let termHandleIndex = 0;
+
   return (
     <div className="settings-namespace-list">
-      {taxonomies.map((group) => {
+      {taxonomies.map((group, groupIndex) => {
         const byId = new Map(group.terms.map((term) => [term.id, term]));
         return (
           <section key={group.taxonomy.id} className="settings-namespace-group taxonomy-namespace-group">
@@ -607,6 +727,10 @@ function namespaceList(
                   // channels describing the same row.
                   const parentName =
                     group.taxonomy.hierarchical && term.parentId ? byId.get(term.parentId)?.name : undefined;
+                  // Consumed in rendered (group, then term) order, matching how `termHandles` was
+                  // built above via the identical `flatMap` order.
+                  const termHandle = termHandles[termHandleIndex];
+                  termHandleIndex += 1;
                   return (
                     <li
                       key={term.id}
@@ -624,7 +748,24 @@ function namespaceList(
                       tabIndex={0}
                       aria-selected={selectedTermId === term.id}
                     >
-                      <span className="settings-row-key">{term.name}</span>
+                      {/* The handle sits on this `<span>`, not the `<li>` it lives inside: the `<li>`
+                          also contains the RowMenu trigger button below as a descendant, and
+                          `controlOf`'s wrapper-descent (`element-handles.ts` in `@jini-ai/agentic`)
+                          would adopt that unrelated, unpublished button as "the control" for any
+                          handle placed on an ancestor that contains it — silently turning
+                          `page.click` on this row into "open the row menu" instead of "select this
+                          term". A plain `<span>` has no such descendant, so `page.click`'s
+                          `.click()` call on it bubbles a real click event up to the `<li>`'s own
+                          `onClick`, exactly as a user's click would. */}
+                      <span
+                        className="settings-row-key"
+                        {...agentHandle(termHandle, {
+                          role: "button",
+                          label: "Select this term to view and edit its details",
+                        })}
+                      >
+                        {term.name}
+                      </span>
                       <span className={`status status-${term.status}`}>{term.status}</span>
                       {/* Stops the click before it reaches the `<li>`'s own `onClick` above — without
                           this, opening the row menu (or picking an item in it) would ALSO select the
@@ -656,7 +797,7 @@ function namespaceList(
                 {deleteState.deleteTermBlocked.state.message}
               </p>
             ) : null}
-            <NewTermForm taxonomy={group} onCreated={load} t={t} />
+            <NewTermForm taxonomy={group} onCreated={load} agentBase={newTermFormBases[groupIndex]!} t={t} />
           </section>
         );
       })}
