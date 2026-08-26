@@ -1,8 +1,10 @@
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
 import "../../styles/form-field-attrs.css";
 
 import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
 import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
 import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
@@ -85,6 +87,10 @@ function FieldAttributesDialog({
     onSave,
     onCancel,
   });
+  // One dialog is ever open at a time (`editingAttrsIndex` gates a single instance below), so this
+  // needs no per-instance disambiguation — unlike the attribute rows inside it, which are a real
+  // repeated list and do need `buildAgentListHandles`'s uniqueness search.
+  const attrRowHandles = buildAgentListHandles("form-field-attrs-row", rows.map((row) => String(row._rowId)));
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
@@ -95,6 +101,10 @@ function FieldAttributesDialog({
         aria-labelledby="field-attrs-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
+        {...agentHandle("form-field-attrs-dialog", {
+          role: "region",
+          label: "Field attributes dialog — CSS classes and HTML attributes for one form field",
+        })}
       >
         <h2 id="field-attrs-title">
           {t("Field attributes —")} {fieldDisplayName(field, fieldIndex)}
@@ -125,6 +135,10 @@ function FieldAttributesDialog({
             value={className}
             placeholder="e.g. md:col-span-2 w-1/2 focus:ring-2"
             onChange={(e) => setClassName(e.target.value)}
+            {...agentHandle("form-field-attrs-classname", {
+              role: "field",
+              label: "CSS classes to add to this form field's input",
+            })}
           />
         </div>
 
@@ -148,6 +162,10 @@ function FieldAttributesDialog({
                   value={row.name}
                   placeholder="e.g. aria-label"
                   onChange={(e) => updateRow(row._rowId, { name: e.target.value })}
+                  {...agentHandle(`${attrRowHandles[index]}-name`, {
+                    role: "field",
+                    label: "This attribute's name — must be on the allowlisted set (aria-*, data-*, and a few others)",
+                  })}
                 />
               </div>
               <div className="field">
@@ -159,14 +177,34 @@ function FieldAttributesDialog({
                   value={row.value}
                   placeholder="e.g. Enter your work email"
                   onChange={(e) => updateRow(row._rowId, { value: e.target.value })}
+                  {...agentHandle(`${attrRowHandles[index]}-value`, {
+                    role: "field",
+                    label: "This attribute's value",
+                  })}
                 />
               </div>
-              <button type="button" className="btn-secondary" onClick={() => removeRow(row._rowId)}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => removeRow(row._rowId)}
+                {...agentHandle(`${attrRowHandles[index]}-remove`, {
+                  role: "button",
+                  label: "Remove this CSS-class/HTML-attribute row",
+                })}
+              >
                 {t("Remove")}
               </button>
             </fieldset>
           ))}
-          <button type="button" className="btn-secondary" onClick={addRow}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={addRow}
+            {...agentHandle("form-field-attrs-add-row", {
+              role: "button",
+              label: "Add another HTML attribute row to this field",
+            })}
+          >
             {t("Add attribute")}
           </button>
         </div>
@@ -178,8 +216,24 @@ function FieldAttributesDialog({
         ) : null}
 
         <span className="editor-actions">
-          <button type="submit">{t("Save")}</button>
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          <button
+            type="submit"
+            {...agentHandle("form-field-attrs-save", {
+              role: "button",
+              label: "Save this field's CSS classes and HTML attributes",
+            })}
+          >
+            {t("Save")}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCancel}
+            {...agentHandle("form-field-attrs-cancel", {
+              role: "button",
+              label: "Close this dialog without saving attribute changes",
+            })}
+          >
             {t("Cancel")}
           </button>
         </span>
@@ -207,10 +261,23 @@ function FormFieldsEditor({
 }: FormFieldsEditorProps) {
   const { editingAttrsIndex, openAttrsDialog, closeAttrsDialog, kebabRefs, updateField, addField, removeField } =
     useFormFieldsEditorHook({ fields, onChange });
+  // Field ids are the form's own field vocabulary and are unique once saved, but a freshly-added
+  // row starts with an empty id (see `rules.ts`'s `blankField`) — `buildAgentListHandles`'s
+  // position fallback covers that case the same way it covers any other unsluggable id.
+  const fieldHandles = buildAgentListHandles(
+    "form-field",
+    fields.map((field) => field.id),
+  );
 
   return (
     <>
-      <table className="list-table form-fields-table">
+      <table
+        className="list-table form-fields-table"
+        {...agentHandle("form-fields-table", {
+          role: "region",
+          label: "This form's field definitions — one row per field, in the order they render on the live form",
+        })}
+      >
         {/* Fixed proportional column widths (`forms.css`'s `table-layout: fixed`) rather than the
             browser's default content-driven auto layout — every cell here holds a live, unstyled-
             width `<input>`/`<select>`, so auto layout let six of them each claim their own
@@ -258,6 +325,7 @@ function FormFieldsEditor({
         <tbody>
           {fields.map((field, index) => {
             const isExisting = existingFieldIds.includes(field.id);
+            const base = fieldHandles[index];
             return (
               <tr key={index}>
                 <td>
@@ -266,6 +334,10 @@ function FormFieldsEditor({
                     value={field.id}
                     disabled={isExisting}
                     onChange={(e) => updateField(index, { id: e.target.value })}
+                    {...agentHandle(`${base}-id`, {
+                      role: "field",
+                      label: "This field's unique id — the key its value is submitted under. Locked once saved.",
+                    })}
                   />
                 </td>
                 <td>
@@ -273,6 +345,7 @@ function FormFieldsEditor({
                     aria-label={`Field ${index + 1} label`}
                     value={field.label}
                     onChange={(e) => updateField(index, { label: e.target.value })}
+                    {...agentHandle(`${base}-label`, { role: "field", label: "This field's on-page label" })}
                   />
                 </td>
                 <td>
@@ -280,6 +353,10 @@ function FormFieldsEditor({
                     aria-label={`Field ${index + 1} type`}
                     value={field.type}
                     onChange={(e) => updateField(index, { type: e.target.value as AdminFormField["type"] })}
+                    {...agentHandle(`${base}-type`, {
+                      role: "field",
+                      label: "This field's input type — set with page.select_option, not click",
+                    })}
                   >
                     {FIELD_TYPES.map((t) => (
                       <option key={t} value={t}>
@@ -294,6 +371,10 @@ function FormFieldsEditor({
                     aria-label={`Field ${index + 1} required`}
                     checked={field.required}
                     onChange={(e) => updateField(index, { required: e.target.checked })}
+                    {...agentHandle(`${base}-required`, {
+                      role: "checkbox",
+                      label: "Whether this field must be filled in before the form can be submitted",
+                    })}
                   />
                 </td>
                 <td>
@@ -307,6 +388,10 @@ function FormFieldsEditor({
                       onChange={(e) =>
                         updateField(index, { maxLength: e.target.value ? Number(e.target.value) : null })
                       }
+                      {...agentHandle(`${base}-max-length`, {
+                        role: "field",
+                        label: "The maximum number of characters this field accepts — blank means no limit",
+                      })}
                     />
                   )}
                 </td>
@@ -323,6 +408,10 @@ function FormFieldsEditor({
                     className="row-menu-trigger"
                     aria-label={`Attributes for field "${fieldDisplayName(field, index)}"`}
                     onClick={() => openAttrsDialog(index)}
+                    {...agentHandle(`${base}-attributes`, {
+                      role: "button",
+                      label: "Open this field's CSS classes and HTML attributes dialog",
+                    })}
                   >
                     <svg viewBox="0 0 18 18" fill="currentColor" aria-hidden="true">
                       <circle cx="9" cy="4.5" r="1.5" />
@@ -337,6 +426,10 @@ function FormFieldsEditor({
                     disabled={isExisting}
                     title={isExisting ? "Existing fields cannot be removed once created" : undefined}
                     onClick={() => removeField(index)}
+                    {...agentHandle(`${base}-remove`, {
+                      role: "button",
+                      label: "Remove this field from the form. Refused once the field has been saved.",
+                    })}
                   >
                     {t("Remove")}
                   </button>
@@ -348,7 +441,12 @@ function FormFieldsEditor({
         <tfoot>
           <tr>
             <td colSpan={7}>
-              <button type="button" className="btn-secondary" onClick={addField}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={addField}
+                {...agentHandle("form-fields-add", { role: "button", label: "Add a new field to this form" })}
+              >
                 {t("Add field")}
               </button>
             </td>
@@ -401,7 +499,12 @@ function FormSubmissionDetail({
 
   return (
     <div>
-      <button type="button" className="btn-secondary" onClick={onBack}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={onBack}
+        {...agentHandle("form-submission-back", { role: "link", label: "Back to this form's list of submissions" })}
+      >
         &larr; {t("Back to submissions")}
       </button>
       {error ? <div className="notice error">{error}</div> : null}
@@ -425,7 +528,16 @@ function FormSubmissionDetail({
           </tbody>
         </table>
       </div>
-      <button type="button" className="btn-danger" disabled={deleting} onClick={handleDelete}>
+      <button
+        type="button"
+        className="btn-danger"
+        disabled={deleting}
+        onClick={handleDelete}
+        {...agentHandle("form-submission-delete", {
+          role: "button",
+          label: "Delete this submission permanently. Asks for confirmation before deleting.",
+        })}
+      >
         {confirming ? t("Confirm delete") : t("Delete submission")}
       </button>
     </div>
@@ -464,6 +576,13 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
   if (!submissions) return <div className="notice">Loading submissions…</div>;
   if (submissions.length === 0) return <div className="empty-state">{t("No submissions yet.")}</div>;
 
+  // Submission ids are stable and unique, so they're what disambiguates one row's "View" button
+  // from another's — same reasoning as every other list on this workstream.
+  const viewHandles = buildAgentListHandles(
+    "form-submission-view",
+    submissions.map((s) => s.id),
+  );
+
   return (
     <div>
       {error ? <div className="notice error">{error}</div> : null}
@@ -475,8 +594,15 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
           { key: "source-ip", header: t("Source IP"), cell: (s) => s.sourceIp },
           {
             key: "view",
-            cell: (s) => (
-              <button type="button" onClick={() => setSelectedId(s.id)}>
+            cell: (s, index) => (
+              <button
+                type="button"
+                onClick={() => setSelectedId(s.id)}
+                {...agentHandle(viewHandles[index], {
+                  role: "button",
+                  label: "Open this submission's full details",
+                })}
+              >
                 {t("View")}
               </button>
             ),
@@ -484,7 +610,15 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         ]}
       />
       {nextCursor ? (
-        <button type="button" className="btn-secondary" onClick={() => load(nextCursor)}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => load(nextCursor)}
+          {...agentHandle("form-submissions-load-more", {
+            role: "button",
+            label: "Load the next page of submissions",
+          })}
+        >
           {t("Load more")}
         </button>
       ) : null}
@@ -552,13 +686,27 @@ function FormEditorFieldsBody(props: {
             <label className="field-label" htmlFor="form-name">
               {t("Name")}
             </label>
-            <input id="form-name" value={name} onChange={(e) => onNameChange(e.target.value)} />
+            <input
+              id="form-name"
+              value={name}
+              onChange={(e) => onNameChange(e.target.value)}
+              {...agentHandle("form-editor-name", { role: "field", label: "This form's display name" })}
+            />
           </div>
           <div className="field">
             <label className="field-label" htmlFor="form-slug">
               {t("Slug")}
             </label>
-            <input id="form-slug" value={slug} disabled={!isNew} onChange={(e) => onSlugChange(e.target.value)} />
+            <input
+              id="form-slug"
+              value={slug}
+              disabled={!isNew}
+              onChange={(e) => onSlugChange(e.target.value)}
+              {...agentHandle("form-editor-slug", {
+                role: "field",
+                label: "This form's URL slug — only editable while creating a new form",
+              })}
+            />
           </div>
         </div>
       </div>
@@ -575,6 +723,10 @@ function FormEditorFieldsBody(props: {
             type="checkbox"
             checked={notify.enabled}
             onChange={(e) => onNotifyChange({ ...notify, enabled: e.target.checked })}
+            {...agentHandle("form-editor-notify-enabled", {
+              role: "checkbox",
+              label: "Whether an email is sent to the recipients below on every new submission",
+            })}
           />
           {t("Enable email notification")}
         </label>
@@ -583,7 +735,15 @@ function FormEditorFieldsBody(props: {
             <label className="field-label" htmlFor="form-recipients">
               {t("Recipients (comma-separated)")}
             </label>
-            <input id="form-recipients" value={recipientsText} onChange={(e) => onRecipientsTextChange(e.target.value)} />
+            <input
+              id="form-recipients"
+              value={recipientsText}
+              onChange={(e) => onRecipientsTextChange(e.target.value)}
+              {...agentHandle("form-editor-notify-recipients", {
+                role: "field",
+                label: "Comma-separated email addresses notified on every new submission",
+              })}
+            />
           </div>
         ) : null}
       </div>
@@ -606,11 +766,24 @@ function FormEditorFieldsBody(props: {
             className={form.status === "active" ? "btn-warning" : "btn-secondary"}
             disabled={saving}
             onClick={onStatusToggle}
+            {...agentHandle("form-editor-status-toggle", {
+              role: "button",
+              label:
+                "Disable or re-enable this form — disabling stops it accepting new submissions without deleting it",
+            })}
           >
             {form.status === "active" ? t("Disable") : t("Enable")}
           </button>
         ) : null}
-        <button type="button" disabled={saving} onClick={onSave}>
+        <button
+          type="button"
+          disabled={saving}
+          onClick={onSave}
+          {...agentHandle("form-editor-save", {
+            role: "button",
+            label: "Save this form's name, slug, fields and notification settings",
+          })}
+        >
           {isNew ? t("Create form") : t("Save")}
         </button>
       </div>
@@ -665,6 +838,10 @@ function FormEditorTabStrip(props: {
           aria-controls={`form-panel-${formTab.id}`}
           tabIndex={tab === formTab.id ? 0 : -1}
           onClick={() => onTabChange(formTab.id)}
+          {...agentHandle(`form-tab-${formTab.id}`, {
+            role: "button",
+            label: formTab.id === "fields" ? "Switch to this form's Fields tab" : "Switch to this form's Submissions tab",
+          })}
         >
           {t(formTab.label)}
         </button>
@@ -769,10 +946,19 @@ export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: F
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("form-editor-header", {
+          role: "region",
+          label: "Form editor header — title and the Back to forms link",
+        })}
+      >
         <FormEditorHeaderText isNew={isNew} name={name} t={t} />
         <div className="page-actions">
-          <a href="/admin/forms">
+          <a
+            href="/admin/forms"
+            {...agentHandle("form-editor-back", { role: "link", label: "Back to the list of all forms" })}
+          >
             <button type="button" className="btn-secondary">
               {t("Back to forms")}
             </button>
