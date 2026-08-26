@@ -262,32 +262,27 @@ async function requireOAuthRecord(deps: ExternalMcpOAuthDeps, serverId: string):
   return record;
 }
 
-/**
- * Resolves the provider descriptor for a row: a registered id, or the operator's own endpoints.
- *
- * Both paths end at the same validated {@link OAuthProviderDescriptor}, which is what keeps every
- * flow in `src/oauth/` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
- * from which endpoints are present, so a row cannot claim a grant it has no endpoint for.
- *
- * @throws {OAuthError} `OAUTH_INVALID_REQUEST` / `OAUTH_UNSAFE_ENDPOINT`.
- * @complexity O(1).
- */
-function resolveProviderDescriptor(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord): OAuthProviderDescriptor {
-  const endpoints = JSON.parse(record.oauthEndpointsJson ?? "{}") as {
-    authorizationEndpoint?: string;
-    tokenEndpoint?: string;
-    deviceAuthorizationEndpoint?: string;
-  };
+/** The endpoint trio an operator may type onto a connection, as stored. Absent members mean "this
+ *  connection names a registered provider for that part instead". */
+interface StoredOAuthEndpoints {
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  deviceAuthorizationEndpoint?: string;
+}
 
-  if (endpoints.tokenEndpoint === undefined) {
-    if (record.oauthProviderId === null) {
-      throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, {
-        operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
-      });
-    }
-    return (deps.lookupProvider ?? getOAuthProvider)(record.oauthProviderId);
+/** Reads the stored endpoints column, tolerating a null or corrupt value as "none typed". */
+function readStoredEndpoints(record: ExternalMcpServerRecord): StoredOAuthEndpoints {
+  try {
+    const parsed: unknown = JSON.parse(record.oauthEndpointsJson ?? "{}");
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as StoredOAuthEndpoints) : {};
+  } catch {
+    return {};
   }
+}
 
+/** Builds a descriptor from the endpoints an operator typed on this connection.
+ *  @throws {OAuthError} When they do not form a usable provider. */
+function buildConnectionOwnedProvider(record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints & { tokenEndpoint: string }): OAuthProviderDescriptor {
   return buildOperatorOAuthProvider({
     providerId: record.oauthProviderId ?? `connection-${record.serverId}`,
     label: record.label ?? record.serverId,
@@ -296,6 +291,30 @@ function resolveProviderDescriptor(deps: ExternalMcpOAuthDeps, record: ExternalM
     ...(endpoints.deviceAuthorizationEndpoint === undefined ? {} : { deviceAuthorizationEndpoint: endpoints.deviceAuthorizationEndpoint }),
     scopes: JSON.parse(record.oauthScopesJson ?? "[]") as string[],
   });
+}
+
+/**
+ * Resolves the provider descriptor for a row: a registered id, or the operator's own endpoints.
+ *
+ * Both paths end at the same validated {@link OAuthProviderDescriptor}, which is what keeps every
+ * flow in `src/oauth/` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
+ * from which endpoints are present, so a row cannot claim a grant it has no endpoint for.
+ *
+ * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the row names neither, or
+ * `OAUTH_UNSAFE_ENDPOINT` when a typed endpoint fails the outbound-safety check.
+ * @complexity O(1).
+ */
+function resolveProviderDescriptor(deps: ExternalMcpOAuthDeps, record: ExternalMcpServerRecord): OAuthProviderDescriptor {
+  const endpoints = readStoredEndpoints(record);
+  if (endpoints.tokenEndpoint !== undefined) {
+    return buildConnectionOwnedProvider(record, { ...endpoints, tokenEndpoint: endpoints.tokenEndpoint });
+  }
+  if (record.oauthProviderId === null) {
+    throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, {
+      operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
+    });
+  }
+  return (deps.lookupProvider ?? getOAuthProvider)(record.oauthProviderId);
 }
 
 /** Builds the client identity for one row, unsealing the client secret only when there is one.

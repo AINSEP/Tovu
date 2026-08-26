@@ -95,11 +95,13 @@ test("the store is bounded — at the cap the oldest entry is evicted, never the
     store.put({ ownerKey: `ws:server-${index}`, providerId: "p", codeVerifier: "v".repeat(43), redirectUri: "https://tovu.example/cb", scopes: [] }),
   );
 
+  const [oldest, , , newest] = entries;
+  assert.ok(oldest && newest);
   assert.equal(store.size(), 3);
   // Oldest gone...
-  assertOAuthThrows(() => store.take({ state: entries[0]!.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
+  assertOAuthThrows(() => store.take({ state: oldest.state, ownerKey: "ws:server-0" }), "OAUTH_INVALID_STATE");
   // ...newest still redeemable, which is the property that keeps one caller from wedging the flow.
-  assert.equal(store.take({ state: entries[3]!.state, ownerKey: "ws:server-3" }).ownerKey, "ws:server-3");
+  assert.equal(store.take({ state: newest.state, ownerKey: "ws:server-3" }).ownerKey, "ws:server-3");
 });
 
 test("an unknown state is refused with the same message as an expired one", () => {
