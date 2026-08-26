@@ -1,5 +1,7 @@
 import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
@@ -55,6 +57,10 @@ function NewContentTypeDialog({
 }: NewContentTypeDialogProps) {
   const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =
     useNewContentTypeDialogHook({ onCreated, onCancel });
+  const fieldHandles = buildAgentListHandles(
+    "new-content-type-field",
+    fields.map((f) => String(f._rowId)),
+  );
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
@@ -65,71 +71,117 @@ function NewContentTypeDialog({
         aria-labelledby="new-content-type-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
+        {...agentHandle("new-content-type-dialog", {
+          role: "region",
+          label: "New content type dialog — its label, key, and field schema",
+        })}
       >
         <h2 id="new-content-type-title">{t("New content type")}</h2>
 
         <div className="field">
           <label className="field-label" htmlFor="ct-label">{t("Label")}</label>
-          <input id="ct-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Recipe" autoFocus />
+          <input
+            id="ct-label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="e.g. Recipe"
+            autoFocus
+            {...agentHandle("new-content-type-label", { role: "field", label: "This content type's display name" })}
+          />
         </div>
 
         <div className="field">
           <label className="field-label" htmlFor="ct-key">{t("Key")}</label>
-          <input id="ct-key" value={key} onChange={(e) => setKey(e.target.value)} placeholder="e.g. recipe" />
+          <input
+            id="ct-key"
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="e.g. recipe"
+            {...agentHandle("new-content-type-key", {
+              role: "field",
+              label: "This content type's machine key — used in its entries' URLs",
+            })}
+          />
         </div>
 
         <div>
           <p>{t("Fields")}</p>
-          {fields.map((f, index) => (
-            <fieldset key={f._rowId} className="collections-field-row">
-              <legend>{t("Field")} {index + 1}</legend>
-              <div className="field">
-                <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>{t("Name")}</label>
-                <input
-                  id={`ct-field-name-${f._rowId}`}
-                  value={f.name}
-                  onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                  placeholder="e.g. prep_time"
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>{t("Kind")}</label>
-                <select
-                  id={`ct-field-kind-${f._rowId}`}
-                  value={f.kind}
-                  onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-                >
-                  {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label className="form-checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={f.required}
-                  onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
-                />
-                {t("Required")}
-              </label>
-              <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
-                <input
-                  type="checkbox"
-                  checked={f.queryable}
-                  onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
-                />
-                {t("Queryable (adds a database index; keep this list small)")}
-              </label>
-              {fields.length > 1 ? (
-                <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
-                  {t("Remove field")}
-                </button>
-              ) : null}
-            </fieldset>
-          ))}
-          <button type="button" className="btn-secondary" onClick={addField}>
+          {fields.map((f, index) => {
+            const base = fieldHandles[index];
+            return (
+              <fieldset key={f._rowId} className="collections-field-row">
+                <legend>{t("Field")} {index + 1}</legend>
+                <div className="field">
+                  <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>{t("Name")}</label>
+                  <input
+                    id={`ct-field-name-${f._rowId}`}
+                    value={f.name}
+                    onChange={(e) => updateField(f._rowId, { name: e.target.value })}
+                    placeholder="e.g. prep_time"
+                    {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>{t("Kind")}</label>
+                  <select
+                    id={`ct-field-kind-${f._rowId}`}
+                    value={f.kind}
+                    onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+                    {...agentHandle(`${base}-kind`, {
+                      role: "field",
+                      label: "This field's data type — set with page.select_option, not click",
+                    })}
+                  >
+                    {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="form-checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={f.required}
+                    onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
+                    {...agentHandle(`${base}-required`, {
+                      role: "checkbox",
+                      label: "Whether every entry of this content type must set this field",
+                    })}
+                  />
+                  {t("Required")}
+                </label>
+                <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
+                  <input
+                    type="checkbox"
+                    checked={f.queryable}
+                    onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
+                    {...agentHandle(`${base}-queryable`, {
+                      role: "checkbox",
+                      label: "Whether this field gets a database index so entries can be filtered/sorted by it",
+                    })}
+                  />
+                  {t("Queryable (adds a database index; keep this list small)")}
+                </label>
+                {fields.length > 1 ? (
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeField(f._rowId)}
+                    {...agentHandle(`${base}-remove`, { role: "button", label: "Remove this field from the new content type" })}
+                  >
+                    {t("Remove field")}
+                  </button>
+                ) : null}
+              </fieldset>
+            );
+          })}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={addField}
+            {...agentHandle("new-content-type-add-field", { role: "button", label: "Add another field to this content type" })}
+          >
             {t("Add field")}
           </button>
         </div>
@@ -141,10 +193,19 @@ function NewContentTypeDialog({
         ) : null}
 
         <span className="editor-actions">
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle("new-content-type-submit", { role: "button", label: "Create this content type" })}
+          >
             {saving ? t("Saving…") : t("Create content type")}
           </button>
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCancel}
+            {...agentHandle("new-content-type-cancel", { role: "button", label: "Close this dialog without creating a content type" })}
+          >
             {t("Cancel")}
           </button>
         </span>
@@ -179,6 +240,10 @@ function EditFieldsDialog({
     onSaved,
     onCancel,
   });
+  const fieldHandles = buildAgentListHandles(
+    "edit-fields-field",
+    fields.map((f) => String(f._rowId)),
+  );
 
   return (
     <div className="settings-dialog-backdrop" onClick={onCancel}>
@@ -189,58 +254,88 @@ function EditFieldsDialog({
         aria-labelledby="edit-fields-title"
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
+        {...agentHandle("edit-fields-dialog", {
+          role: "region",
+          label: "Edit fields dialog — this content type's full field schema",
+        })}
       >
         <h2 id="edit-fields-title">{t("Edit fields —")} {contentType.label}</h2>
 
         <div>
-          {fields.map((f, index) => (
-            <fieldset key={f._rowId} className="collections-field-row">
-              <legend>{t("Field")} {index + 1}</legend>
-              <div className="field">
-                <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>{t("Name")}</label>
-                <input
-                  id={`ct-edit-field-name-${f._rowId}`}
-                  value={f.name}
-                  onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                  placeholder="e.g. prep_time"
-                />
-              </div>
-              <div className="field">
-                <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>{t("Kind")}</label>
-                <select
-                  id={`ct-edit-field-kind-${f._rowId}`}
-                  value={f.kind}
-                  onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+          {fields.map((f, index) => {
+            const base = fieldHandles[index];
+            return (
+              <fieldset key={f._rowId} className="collections-field-row">
+                <legend>{t("Field")} {index + 1}</legend>
+                <div className="field">
+                  <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>{t("Name")}</label>
+                  <input
+                    id={`ct-edit-field-name-${f._rowId}`}
+                    value={f.name}
+                    onChange={(e) => updateField(f._rowId, { name: e.target.value })}
+                    placeholder="e.g. prep_time"
+                    {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
+                  />
+                </div>
+                <div className="field">
+                  <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>{t("Kind")}</label>
+                  <select
+                    id={`ct-edit-field-kind-${f._rowId}`}
+                    value={f.kind}
+                    onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+                    {...agentHandle(`${base}-kind`, {
+                      role: "field",
+                      label: "This field's data type — set with page.select_option, not click",
+                    })}
+                  >
+                    {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <label className="form-checkbox-field">
+                  <input
+                    type="checkbox"
+                    checked={f.required}
+                    onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
+                    {...agentHandle(`${base}-required`, {
+                      role: "checkbox",
+                      label: "Whether every entry of this content type must set this field",
+                    })}
+                  />
+                  {t("Required")}
+                </label>
+                <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
+                  <input
+                    type="checkbox"
+                    checked={f.queryable}
+                    onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
+                    {...agentHandle(`${base}-queryable`, {
+                      role: "checkbox",
+                      label: "Whether this field gets a database index so entries can be filtered/sorted by it",
+                    })}
+                  />
+                  {t("Queryable (adds a database index; keep this list small)")}
+                </label>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => removeField(f._rowId)}
+                  {...agentHandle(`${base}-remove`, { role: "button", label: "Remove this field from this content type" })}
                 >
-                  {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {k}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <label className="form-checkbox-field">
-                <input
-                  type="checkbox"
-                  checked={f.required}
-                  onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
-                />
-                {t("Required")}
-              </label>
-              <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
-                <input
-                  type="checkbox"
-                  checked={f.queryable}
-                  onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
-                />
-                {t("Queryable (adds a database index; keep this list small)")}
-              </label>
-              <button type="button" className="btn-secondary" onClick={() => removeField(f._rowId)}>
-                {t("Remove field")}
-              </button>
-            </fieldset>
-          ))}
-          <button type="button" className="btn-secondary" onClick={addField}>
+                  {t("Remove field")}
+                </button>
+              </fieldset>
+            );
+          })}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={addField}
+            {...agentHandle("edit-fields-add-field", { role: "button", label: "Add another field to this content type" })}
+          >
             {t("Add field")}
           </button>
         </div>
@@ -252,10 +347,19 @@ function EditFieldsDialog({
         ) : null}
 
         <span className="editor-actions">
-          <button type="submit" disabled={saving}>
+          <button
+            type="submit"
+            disabled={saving}
+            {...agentHandle("edit-fields-submit", { role: "button", label: "Save this content type's field schema" })}
+          >
             {saving ? t("Saving…") : t("Save fields")}
           </button>
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCancel}
+            {...agentHandle("edit-fields-cancel", { role: "button", label: "Close this dialog without saving field changes" })}
+          >
             {t("Cancel")}
           </button>
         </span>
@@ -312,10 +416,21 @@ function LifecycleConfirmDialog({
             className={op === "deprecate" ? "btn-warning" : "btn-danger"}
             autoFocus={!autoFocusCancel}
             onClick={onConfirm}
+            {...agentHandle("lifecycle-confirm", {
+              role: "button",
+              label:
+                "Confirm this content type's lifecycle change — Deprecate is reversible, Tombstone is not from this screen",
+            })}
           >
             {op === "deprecate" ? t("Deprecate") : t("Tombstone")}
           </button>
-          <button type="button" className="btn-secondary" autoFocus={autoFocusCancel} onClick={onCancel}>
+          <button
+            type="button"
+            className="btn-secondary"
+            autoFocus={autoFocusCancel}
+            onClick={onCancel}
+            {...agentHandle("lifecycle-cancel", { role: "button", label: "Close this dialog without changing the lifecycle" })}
+          >
             {t("Cancel")}
           </button>
         </span>
@@ -405,16 +520,38 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
   if (error && !types) return <div className="notice error">{error}</div>;
   if (!types) return <div className="notice">Loading content types…</div>;
 
+  // Content type keys are stable and unique (the server's own primary key for this resource), so
+  // they disambiguate one row's entries link from another's — same reasoning as every other list
+  // on this workstream. Note: each row's "Actions" menu (Edit fields/Deprecate/Reactivate/
+  // Tombstone via `RowMenu`) is NOT independently addressable — `RowMenu` (`@jini-ai/admin/react`)
+  // publishes no agent handle of its own, so its trigger and its dropdown items are invisible to
+  // `page.find_elements` regardless of what this file does (see `FormsList.tsx`'s identical note).
+  const rowHandles = buildAgentListHandles(
+    "collections-row",
+    types.map((ct) => ct.key),
+  );
+
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("collections-header", {
+          role: "region",
+          label: "Collections list header — page title and the New content type button",
+        })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Collections")}</h1>
           <p className="page-description">{t("Content types you define, each with its own set of entries.")}</p>
         </div>
         <div className="page-actions">
-          <button onClick={() => setShowNewDialog(true)}>{t("New content type")}</button>
+          <button
+            onClick={() => setShowNewDialog(true)}
+            {...agentHandle("collections-new", { role: "button", label: "Define a new content type" })}
+          >
+            {t("New content type")}
+          </button>
         </div>
       </div>
 
@@ -449,7 +586,17 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           {
             key: "entries",
             header: t("Entries"),
-            cell: (ct) => <a href={`/admin/collections/${ct.key}`}>{t("Manage entries")}</a>,
+            cell: (ct, index) => (
+              <a
+                href={`/admin/collections/${ct.key}`}
+                {...agentHandle(`${rowHandles[index]}-entries`, {
+                  role: "link",
+                  label: "Open this content type's list of entries",
+                })}
+              >
+                {t("Manage entries")}
+              </a>
+            ),
           },
           {
             key: "actions",

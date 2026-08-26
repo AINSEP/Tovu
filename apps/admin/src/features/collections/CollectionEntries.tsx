@@ -1,5 +1,7 @@
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
 
 /**
@@ -34,13 +36,27 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
   }
 
   const label = contentType.label;
+  // Entry ids are stable and unique (the server's own primary key for this resource), so they
+  // disambiguate one row's edit link from another's — same reasoning as every other list on this
+  // workstream. This screen has no `RowMenu` (no per-row actions beyond opening the editor), so
+  // unlike `Collections.tsx`/`FormsList.tsx` there is no dropdown-action gap to note here.
+  const rowHandles = buildAgentListHandles(
+    "collection-entries-row",
+    entries.map((entry) => entry.id),
+  );
 
   return (
     <div className="page">
       <p className="muted-cell">
         <a href="/admin/collections">{t("Collections")}</a> / {label}
       </p>
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("collection-entries-header", {
+          role: "region",
+          label: "Entries list header — this content type's name and the New entry button",
+        })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{label}</h1>
@@ -52,7 +68,10 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           {/* Anchor-wrapping-a-button, unchanged — real navigation to the editor route, not a
               handler. `.btn-*` on a bare `<a>` is broken today (fix in flight elsewhere), so this
               stays exactly as it was rather than depending on that fix landing first. */}
-          <a href={`/admin/collections/${contentTypeKey}/new`}>
+          <a
+            href={`/admin/collections/${contentTypeKey}/new`}
+            {...agentHandle("collection-entries-new", { role: "link", label: "Create a new entry in this content type" })}
+          >
             <button>{t("New entry")}</button>
           </a>
         </div>
@@ -74,8 +93,13 @@ export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = u
           {
             key: "title",
             header: t("Title"),
-            cell: (entry) => (
-              <a href={`/admin/collections/${contentTypeKey}/${entry.id}`}>{entry.title}</a>
+            cell: (entry, index) => (
+              <a
+                href={`/admin/collections/${contentTypeKey}/${entry.id}`}
+                {...agentHandle(`${rowHandles[index]}-edit`, { role: "link", label: "Open this entry's editor" })}
+              >
+                {entry.title}
+              </a>
             ),
           },
           { key: "slug", header: "Slug", cell: (entry) => entry.slug },

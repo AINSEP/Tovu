@@ -1,5 +1,7 @@
 import { EditorContent, type Editor } from "@tiptap/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
@@ -36,18 +38,33 @@ function readExtSiteField(fieldsJson: unknown, name: string): unknown {
 }
 
 /** A `DynamicField` control's own props, once the field/value/onChange triple has been narrowed
- * down to the one input it renders. */
+ * down to the one input it renders.
+ *
+ * `agentHandleProps` is the same optional-pass-through shape this workstream's shared components
+ * use: `DynamicField` computes the one handle each field gets (see `EntryFieldsSection`'s own
+ * comment) and hands it down as ready-to-spread attribute props, so every one of the five controls
+ * below stays a one-line function while still publishing its own handle on the actual `<input>` —
+ * not a wrapper `<div>` around it, which `page.fill`/`page.select_option` cannot resolve into a
+ * fillable control. */
 interface FieldControlProps {
   inputId: string;
   value: unknown;
   onChange: (value: unknown) => void;
+  agentHandleProps: ReturnType<typeof agentHandle>;
 }
 
-function TextFieldControl({ inputId, value, onChange }: FieldControlProps) {
-  return <input id={inputId} value={typeof value === "string" ? value : ""} onChange={(e) => onChange(e.target.value)} />;
+function TextFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
+  return (
+    <input
+      id={inputId}
+      value={typeof value === "string" ? value : ""}
+      onChange={(e) => onChange(e.target.value)}
+      {...agentHandleProps}
+    />
+  );
 }
 
-function IntegerFieldControl({ inputId, value, onChange }: FieldControlProps) {
+function IntegerFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
   return (
     <input
       id={inputId}
@@ -55,32 +72,43 @@ function IntegerFieldControl({ inputId, value, onChange }: FieldControlProps) {
       step="1"
       value={typeof value === "number" ? value : ""}
       onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+      {...agentHandleProps}
     />
   );
 }
 
-function RealFieldControl({ inputId, value, onChange }: FieldControlProps) {
+function RealFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
   return (
     <input
       id={inputId}
       type="number"
       value={typeof value === "number" ? value : ""}
       onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+      {...agentHandleProps}
     />
   );
 }
 
-function BooleanFieldControl({ inputId, value, onChange }: FieldControlProps) {
-  return <input id={inputId} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />;
+function BooleanFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
+  return (
+    <input
+      id={inputId}
+      type="checkbox"
+      checked={value === true}
+      onChange={(e) => onChange(e.target.checked)}
+      {...agentHandleProps}
+    />
+  );
 }
 
-function DatetimeFieldControl({ inputId, value, onChange }: FieldControlProps) {
+function DatetimeFieldControl({ inputId, value, onChange, agentHandleProps }: FieldControlProps) {
   return (
     <input
       id={inputId}
       type="datetime-local"
       value={typeof value === "string" ? value : ""}
       onChange={(e) => onChange(e.target.value)}
+      {...agentHandleProps}
     />
   );
 }
@@ -101,8 +129,11 @@ function DynamicField(props: {
   field: ContentTypeFieldDef;
   value: unknown;
   onChange: (value: unknown) => void;
+  /** This field's own distinct handle base — see `EntryFieldsSection`'s own comment for why it's
+   *  computed once, up there (via `buildAgentListHandles`), rather than per-field here. */
+  agentBase: string;
 }) {
-  const { field, value, onChange } = props;
+  const { field, value, onChange, agentBase } = props;
   const inputId = `entry-field-${field.name}`;
   const Control = FIELD_CONTROLS[field.kind];
 
@@ -112,7 +143,15 @@ function DynamicField(props: {
         {field.name}
         {field.required ? " *" : ""}
       </label>
-      <Control inputId={inputId} value={value} onChange={onChange} />
+      <Control
+        inputId={inputId}
+        value={value}
+        onChange={onChange}
+        agentHandleProps={agentHandle(agentBase, {
+          role: field.kind === "boolean" ? "checkbox" : "field",
+          label: `This content type's "${field.name}" field${field.required ? " (required)" : ""}`,
+        })}
+      />
     </div>
   );
 }
@@ -140,6 +179,16 @@ function TermPicker(props: {
 
   if (props.taxonomies.length === 0) return null;
 
+  // Term ids are database row ids — globally unique across every taxonomy, not just within one —
+  // so one flat handle list across all taxonomies is correct; there is no per-taxonomy scoping to
+  // preserve the way `EXTERNAL_MCP_CARD_HANDLE_PREFIX`'s cards or this file's own `entry-field`s
+  // need.
+  const termHandles = buildAgentListHandles(
+    "term-picker-term",
+    props.taxonomies.flatMap(({ terms }) => terms.map((term) => term.id)),
+  );
+  let termHandleIndex = 0;
+
   return (
     <div className="collections-term-picker">
       <h3>{t("Categories & Tags")}</h3>
@@ -154,12 +203,27 @@ function TermPicker(props: {
           {terms.length === 0 ? (
             <p className="muted-cell">{t("No terms yet.")}</p>
           ) : (
-            terms.map((term) => (
-              <label key={term.id} className="collections-term-checkbox">
-                <input type="checkbox" checked={selected.has(term.id)} onChange={() => toggle(term.id)} />
-                {term.name}
-              </label>
-            ))
+            terms.map((term) => {
+              // Consumed in rendered (taxonomy, then term) order, matching how `termHandles` was
+              // built above via the identical `flatMap` order — a plain running index rather than
+              // a second id-keyed lookup, since this loop already visits every term exactly once.
+              const handle = termHandles[termHandleIndex];
+              termHandleIndex += 1;
+              return (
+                <label key={term.id} className="collections-term-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selected.has(term.id)}
+                    onChange={() => toggle(term.id)}
+                    {...agentHandle(handle, {
+                      role: "checkbox",
+                      label: `Assign the "${taxonomy.name}" term "${term.name}" to this entry`,
+                    })}
+                  />
+                  {term.name}
+                </label>
+              );
+            })
           )}
         </fieldset>
       ))}
@@ -171,7 +235,15 @@ function TermPicker(props: {
           `.editor-actions` audit — most of its ~30 other callers are small inline `<span>` groups
           inside a table row or compact form, not a bottom-of-block action bar). */}
       <span className="editor-actions term-picker-actions">
-        <button type="button" onClick={assign} disabled={saving || selected.size === 0}>
+        <button
+          type="button"
+          onClick={assign}
+          disabled={saving || selected.size === 0}
+          {...agentHandle("term-picker-assign", {
+            role: "button",
+            label: "Assign every checked term above to this entry",
+          })}
+        >
           {saving ? t("Assigning…") : t("Assign selected terms")}
         </button>
         {message ? <span className="save-ok">{message}</span> : null}
@@ -202,7 +274,14 @@ function EntryLifecycleButtons(props: {
   return (
     <>
       {entry && !isPublished ? (
-        <button type="button" onClick={() => onToggleLifecycle("publish")}>
+        <button
+          type="button"
+          onClick={() => onToggleLifecycle("publish")}
+          {...agentHandle("entry-publish", {
+            role: "button",
+            label: "Publish this entry immediately, saving its current title, fields and body",
+          })}
+        >
           {t("Publish")}
         </button>
       ) : null}
@@ -211,7 +290,15 @@ function EntryLifecycleButtons(props: {
           own Disable, not `.btn-danger`, which stays reserved for the genuinely destructive
           trash action. */}
       {entry && isPublished ? (
-        <button type="button" className="btn-warning" onClick={() => onToggleLifecycle("unpublish")}>
+        <button
+          type="button"
+          className="btn-warning"
+          onClick={() => onToggleLifecycle("unpublish")}
+          {...agentHandle("entry-unpublish", {
+            role: "button",
+            label: "Unpublish this entry — removes it from the live site without deleting it",
+          })}
+        >
           {t("Unpublish")}
         </button>
       ) : null}
@@ -219,7 +306,13 @@ function EntryLifecycleButtons(props: {
           primary weight — mirrors `PostEditor.tsx`'s identical Save/Publish pairing exactly.
           Once published, Publish is gone and Save is this screen's one remaining primary
           action, so it goes back to bare/primary. */}
-      <button type="button" className={entry && !isPublished ? "btn-secondary" : undefined} onClick={onSave} disabled={saving}>
+      <button
+        type="button"
+        className={entry && !isPublished ? "btn-secondary" : undefined}
+        onClick={onSave}
+        disabled={saving}
+        {...agentHandle("entry-save", { role: "button", label: "Save this entry's title, slug, fields and body" })}
+      >
         {saving ? t("Saving…") : t("Save")}
       </button>
     </>
@@ -241,7 +334,10 @@ function EntryPageActions(props: {
 
   return (
     <div className="page-actions">
-      <a href={`/admin/collections/${contentTypeKey}`}>
+      <a
+        href={`/admin/collections/${contentTypeKey}`}
+        {...agentHandle("entry-back", { role: "link", label: "Back to this content type's list of entries" })}
+      >
         <button type="button" className="btn-secondary">
           ← {contentTypeLabel}
         </button>
@@ -268,7 +364,15 @@ function EntrySlugField(props: { entry: { slug: string } | null | undefined; slu
       ) : (
         <label className="a11y-label-wrap">
           <span className="visually-hidden">Entry slug</span>
-          <input value={slug} onChange={(e) => onSlugChange(e.target.value)} placeholder="entry-slug" />
+          <input
+            value={slug}
+            onChange={(e) => onSlugChange(e.target.value)}
+            placeholder="entry-slug"
+            {...agentHandle("entry-slug", {
+              role: "field",
+              label: "This entry's URL slug — only editable while creating a new entry",
+            })}
+          />
         </label>
       )}
     </div>
@@ -287,15 +391,25 @@ function EntryFieldsSection(props: {
   const { fields, entry, extFields, onFieldChange, t } = props;
   if (fields.length === 0) return null;
 
+  // Field names are this content type's own schema keys, unique by construction (Collections.tsx's
+  // `EditFieldsDialog` is where they're defined) — `buildAgentListHandles` still slugifies+dedupes
+  // rather than assuming that, the same defensive stance every other list handle in this workstream
+  // takes (a schema author is still free to pick a name that isn't already handle-shaped).
+  const fieldHandles = buildAgentListHandles(
+    "entry-field",
+    fields.map((field) => field.name),
+  );
+
   return (
     <div className="collections-dynamic-fields">
       <h3>{t("Fields")}</h3>
-      {fields.map((field) => (
+      {fields.map((field, index) => (
         <DynamicField
           key={field.name}
           field={field}
           value={extFields[field.name] ?? readExtSiteField(entry?.fieldsJson, field.name)}
           onChange={(value) => onFieldChange(field.name, value)}
+          agentBase={fieldHandles[index]}
         />
       ))}
     </div>
@@ -354,7 +468,13 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("entry-header", {
+          role: "region",
+          label: "Entry editor header — back link, save status, publish state and the Save button",
+        })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">
@@ -380,17 +500,32 @@ export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
           rendered in the `!entry` (create) branch, matching that branch's own `<input>`. */}
       <label className="a11y-label-wrap">
         <span className="visually-hidden">Entry title</span>
-        <input className="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("Entry title")} />
+        <input
+          className="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={t("Entry title")}
+          {...agentHandle("entry-title", { role: "field", label: "This entry's title" })}
+        />
       </label>
       <EntrySlugField entry={entry} slug={slug} onSlugChange={setSlug} />
 
-      <div className="editor-shell">
+      <div
+        className="editor-shell"
+        {...agentHandle("entry-editor-shell", { role: "region", label: "Formatting toolbar and the entry body editor" })}
+      >
         <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
           <div className="grp">
             <WidgetEmbedInsertControl editor={editor} />
           </div>
         </div>
-        <div className="editor-body">
+        {/* `role: "field"`, not `region`: this is a TipTap `contenteditable`, which the page driver
+            treats as a fillable rich-text surface (see its `isEditableRegion`) — same convention
+            `PostEditor.tsx`'s own `post-body` handle documents. */}
+        <div
+          className="editor-body"
+          {...agentHandle("entry-body", { role: "field", label: "This entry's rich-text body content" })}
+        >
           <EditorContent editor={editor as Editor} />
         </div>
       </div>
