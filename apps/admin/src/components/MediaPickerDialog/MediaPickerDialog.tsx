@@ -1,5 +1,7 @@
 import { useId } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminMedia } from "../../lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
@@ -29,6 +31,20 @@ import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
  * does in `@jini-ai/admin`: this file stays props-and-JSX only, and the `useDialog` prop below lets
  * a test render this JSX against a fake hook — no real `api.listMedia()` call and no real
  * `document`-level keydown listener required.
+ *
+ * ## Agent handles
+ *
+ * Given `agentHandle="post-media"` this publishes:
+ *
+ * | element | handle | role |
+ * |---|---|---|
+ * | one grid item, keyed by the asset's own `id` | `post-media-item-<slug of id>` | `button` |
+ * | the Cancel button | `post-media-cancel` | `button` |
+ *
+ * Items sit under their own `-item-` namespace via `@jini-ai/agentic`'s `buildAgentListHandles`,
+ * the same "caller data cannot collide with this component's own literal segments" reasoning
+ * `source-config-list/agent-handles.ts` documents for its own `-field-`/`-item-` namespaces. Omit
+ * `agentHandle` and no `data-agent-*` markup is emitted at all.
  */
 
 export interface MediaPickerDialogProps {
@@ -38,11 +54,15 @@ export interface MediaPickerDialogProps {
    *  {@link useWiredMediaPickerDialog}; a test can pass a fake here to exercise `MediaPickerDialog`'s
    *  rendering without invoking `api.listMedia()` or a real `document` keydown listener at all. */
   useDialog?: typeof useWiredMediaPickerDialog;
+  /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
+   *  to leave it untagged. */
+  agentHandle?: string;
 }
 
-export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...props }: MediaPickerDialogProps) {
+export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, agentHandle: base, ...props }: MediaPickerDialogProps) {
   const { items, error, select, mediaOriginalUrl } = useDialog(props.onSelect, props.onCancel);
   const titleId = useId();
+  const itemHandles = base && items ? buildAgentListHandles(`${base}-item`, items.map((item) => item.id)) : undefined;
 
   return (
     <div className="settings-dialog-backdrop" onClick={props.onCancel}>
@@ -65,13 +85,14 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...pr
             </p>
           ) : (
             <div className="media-picker-grid">
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <button
                   key={item.id}
                   type="button"
                   className="media-picker-item"
                   title={item.title}
                   onClick={() => select(item)}
+                  {...(itemHandles ? agentHandle(itemHandles[index]!, { role: "button", label: item.title }) : {})}
                 >
                   <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
                   <span className="media-picker-item-title">{item.title}</span>
@@ -83,7 +104,12 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...pr
 
         <div className="widget-picker-footer">
           <span className="editor-actions">
-            <button type="button" className="btn-secondary" onClick={props.onCancel}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={props.onCancel}
+              {...(base ? agentHandle(`${base}-cancel`, { role: "button", label: "Close without choosing an image" }) : {})}
+            >
               Cancel
             </button>
           </span>

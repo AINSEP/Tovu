@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminWidgetType } from "../../lib/api";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
 import { Select } from "../Select/Select";
@@ -25,6 +26,22 @@ import { useWidgetAddControl, useWidgetPickerDialog } from "./WidgetPickerDialog
  * `useAddControl` on `WidgetAddControl`) — each does real IO (`useExistingInstances`'s fetch,
  * `useWidgetAddControl`'s `api.createWidget`) or DOM work (the Escape listener, the autofocus
  * effect), so a test can swap either for a fake without touching the network or `document`.
+ *
+ * ## Agent handles
+ *
+ * Given `agentHandle="place-widget"` this publishes:
+ *
+ * | element | handle | role |
+ * |---|---|---|
+ * | the "use existing" select (when shown) | `place-widget-existing-select` | via `Select`'s own scheme |
+ * | the "Use this widget" submit | `place-widget-existing-submit` | `button` |
+ * | the new-title field | `place-widget-new-title` | `field` |
+ * | the config sub-form | `place-widget-new-config` | via `WidgetConfigFields`'s own scheme |
+ * | the "Create and place" submit | `place-widget-new-submit` | `button` |
+ * | the Cancel button | `place-widget-cancel` | `button` |
+ *
+ * Omit `agentHandle` and no `data-agent-*` markup is emitted at all, including inside the two
+ * composed components above — they only tag their own sub-elements when handed a base.
  */
 
 export interface WidgetPickerDialogProps {
@@ -36,9 +53,12 @@ export interface WidgetPickerDialogProps {
    *  real {@link useWidgetPickerDialog}; a test can pass a fake here to exercise this component's
    *  rendering without the real `listWidgets` fetch or `document`-level Escape listener. */
   useDialog?: typeof useWidgetPickerDialog;
+  /** This dialog's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
+   *  to leave it untagged. */
+  agentHandle?: string;
 }
 
-export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, ...props }: WidgetPickerDialogProps) {
+export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHandle: base, ...props }: WidgetPickerDialogProps) {
   const {
     instances,
     loadError,
@@ -91,9 +111,15 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, ...props
                   onChange={setSelectedExistingId}
                   options={(instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }))}
                   placeholder="Choose a widget…"
+                  agentHandle={base ? `${base}-existing-select` : undefined}
                 />
               </div>
-              <button type="submit">Use this widget</button>
+              <button
+                type="submit"
+                {...(base ? agentHandle(`${base}-existing-submit`, { role: "button", label: "Use this widget" }) : {})}
+              >
+                Use this widget
+              </button>
             </form>
           ) : null}
 
@@ -103,16 +129,37 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, ...props
               <label className="field-label" htmlFor={newTitleInputId}>
                 Title
               </label>
-              <input id={newTitleInputId} ref={newTitleInputRef} value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+              <input
+                id={newTitleInputId}
+                ref={newTitleInputRef}
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                {...(base ? agentHandle(`${base}-new-title`, { role: "field", label: "The new widget's title" }) : {})}
+              />
             </div>
-            <WidgetConfigFields widgetType={props.widgetType} config={newConfig} onChange={setNewConfig} />
-            <button type="submit">Create and place</button>
+            <WidgetConfigFields
+              widgetType={props.widgetType}
+              config={newConfig}
+              onChange={setNewConfig}
+              agentHandle={base ? `${base}-new-config` : undefined}
+            />
+            <button
+              type="submit"
+              {...(base ? agentHandle(`${base}-new-submit`, { role: "button", label: "Create and place this widget" }) : {})}
+            >
+              Create and place
+            </button>
           </form>
         </div>
 
         <div className="widget-picker-footer">
           <span className="editor-actions">
-            <button type="button" className="btn-secondary" onClick={props.onCancel}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={props.onCancel}
+              {...(base ? agentHandle(`${base}-cancel`, { role: "button", label: "Close without placing a widget" }) : {})}
+            >
               Cancel
             </button>
           </span>
@@ -128,6 +175,13 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, ...props
  * this exact flow). One small control, reused by `WidgetRegionEditor.tsx`'s "+ Add widget" and the
  * TipTap toolbar's "Insert widget" button — avoids two independent implementations of the same
  * type-choice step.
+ *
+ * ## Agent handles
+ *
+ * Given `agentHandle="add-widget"` this publishes `<base>-type` (the type `Select`, via its own
+ * scheme) and `<base>-open` (the trigger button); the nested `WidgetPickerDialog`, once opened,
+ * gets `<base>-picker` as ITS OWN base — see that component's "Agent handles" doc for what that
+ * expands to. Omit `agentHandle` and none of it is tagged.
  */
 export interface WidgetAddControlProps {
   triggerLabel: string;
@@ -136,9 +190,12 @@ export interface WidgetAddControlProps {
    *  {@link useWidgetAddControl}; a test can pass a fake here to exercise this component's
    *  rendering without the real `api.createWidget` call. */
   useAddControl?: typeof useWidgetAddControl;
+  /** This control's own base handle — see this file's "Agent handles" doc above. Omit to leave it
+   *  (and the dialog it opens) untagged. */
+  agentHandle?: string;
 }
 
-export function WidgetAddControl({ useAddControl = useWidgetAddControl, ...props }: WidgetAddControlProps) {
+export function WidgetAddControl({ useAddControl = useWidgetAddControl, agentHandle: base, ...props }: WidgetAddControlProps) {
   const { pickerType, setPickerType, selectedType, setSelectedType, error, handleCreateNew, handleUseExisting } =
     useAddControl(props);
 
@@ -149,8 +206,13 @@ export function WidgetAddControl({ useAddControl = useWidgetAddControl, ...props
         onChange={(v) => setSelectedType(v as AdminWidgetType)}
         options={WIDGET_TYPE_OPTIONS}
         aria-label="Widget type"
+        agentHandle={base ? `${base}-type` : undefined}
       />
-      <button type="button" onClick={() => setPickerType(selectedType)}>
+      <button
+        type="button"
+        onClick={() => setPickerType(selectedType)}
+        {...(base ? agentHandle(`${base}-open`, { role: "button", label: props.triggerLabel }) : {})}
+      >
         {props.triggerLabel}
       </button>
       {error ? (
@@ -164,6 +226,7 @@ export function WidgetAddControl({ useAddControl = useWidgetAddControl, ...props
           onUseExisting={handleUseExisting}
           onCreateNew={handleCreateNew}
           onCancel={() => setPickerType(null)}
+          agentHandle={base ? `${base}-picker` : undefined}
         />
       ) : null}
     </span>
