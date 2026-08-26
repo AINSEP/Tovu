@@ -766,3 +766,123 @@ test("defaultConnect: a real child writing to stderr does not fail, hang, or lea
     await Promise.all(result.sessions.map((session) => session.close()));
   }
 });
+
+// ---------------------------------------------------------------------------
+// The hosted transport, end to end through the production connect path
+// ---------------------------------------------------------------------------
+
+/**
+ * A real MCP server over HTTP on loopback, for the same reason the stdio cases spawn a real child:
+ * to prove `defaultConnect` picks the right adapter and that a genuine network handshake completes.
+ * Everything below the assertion is production code — real fetch, real JSON-RPC, real admission.
+ */
+async function startLoopbackMcpServer(options: { requireBearer?: string } = {}): Promise<{
+  url: string;
+  /** Every Authorization header the server saw, so a test can prove the token really travelled. */
+  seenAuth: (string | undefined)[];
+  close: () => Promise<void>;
+}> {
+  const { createServer } = await import("node:http");
+  const seenAuth: (string | undefined)[] = [];
+
+  const server = createServer((request, response) => {
+    seenAuth.push(request.headers.authorization);
+    if (options.requireBearer !== undefined && request.headers.authorization !== `Bearer ${options.requireBearer}`) {
+      response.writeHead(401).end();
+      return;
+    }
+
+    const chunks: Buffer[] = [];
+    request.on("data", (chunk: Buffer) => chunks.push(chunk));
+    request.on("end", () => {
+      const body = Buffer.concat(chunks).toString("utf8");
+      const message = body === "" ? {} : (JSON.parse(body) as { id?: number; method?: string });
+
+      if (message.method === "notifications/initialized") {
+        response.writeHead(202).end();
+        return;
+      }
+      const result =
+        message.method === "initialize"
+          ? { protocolVersion: "2025-06-18", serverInfo: { name: "loopback", version: "1" } }
+          : message.method === "tools/list"
+            ? { tools: [{ name: "list_tables", description: "Lists all tables.", inputSchema: OBJECT_SCHEMA }] }
+            : {};
+
+      response
+        .writeHead(200, { "content-type": "application/json", "mcp-session-id": "loopback-session-1" })
+        .end(JSON.stringify({ jsonrpc: "2.0", id: message.id, result }));
+    });
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const address = server.address();
+  if (address === null || typeof address === "string") throw new Error("expected a TCP address");
+
+  return {
+    url: `http://127.0.0.1:${address.port}/mcp`,
+    seenAuth,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+test("omitting `connect` routes a HOSTED connection to the HTTP adapter — a real handshake over loopback", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+  const server = await startLoopbackMcpServer({ requireBearer: "at-live-1" });
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [
+      {
+        config: { ...CONFIG, allowedToolNames: ["list_tables"] },
+        launch: { url: server.url, headers: { authorization: "Bearer at-live-1" } },
+      },
+    ],
+    // No `connect` — forces the production `defaultConnect`, which is the dispatch under test.
+  });
+
+  try {
+    assert.deepEqual(
+      result.registeredToolIds,
+      ["mcp__supabase__list_tables"],
+      `the hosted tool should have been admitted and registered; log was: ${JSON.stringify(messages)}`,
+    );
+    // The server refused anything without the bearer, so reaching this line at all proves the token
+    // travelled — but assert it directly rather than inferring it from a 200.
+    assert.ok(
+      server.seenAuth.every((header) => header === "Bearer at-live-1"),
+      `every request must carry the token; saw ${JSON.stringify(server.seenAuth)}`,
+    );
+  } finally {
+    await Promise.all(result.sessions.map((session) => session.close()));
+    await server.close();
+  }
+});
+
+test("a hosted server that rejects the token is reported as a failed connection, and federation continues", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+  const server = await startLoopbackMcpServer({ requireBearer: "the-right-token" });
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: CONFIG, launch: { url: server.url, headers: { authorization: "Bearer the-wrong-token" } } }],
+  });
+
+  try {
+    assert.deepEqual(result.registeredToolIds, []);
+    // Fail-open per connection, and the reason must name reconnection — a 401 here means the stored
+    // authorization stopped working, which is an operator action, not a transient network fault.
+    assert.ok(
+      messages.some((message) => message.includes("401") && message.includes("reconnect it in Settings → External MCP")),
+      `expected a reported 401 naming the fix; got: ${JSON.stringify(messages)}`,
+    );
+  } finally {
+    await server.close();
+  }
+});
