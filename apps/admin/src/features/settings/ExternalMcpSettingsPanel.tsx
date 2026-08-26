@@ -10,7 +10,13 @@ import {
   type SourceConfigItem,
 } from "@jini-ai/ui";
 
-import { buildExternalMcpFieldSpecs, resolveExternalMcpEffectiveAuthMode, resolveExternalMcpEffectiveTransport } from "./rules";
+import {
+  buildExternalMcpCardHandles,
+  buildExternalMcpFieldSpecs,
+  EXTERNAL_MCP_ADD_FORM_HANDLE,
+  resolveExternalMcpEffectiveAuthMode,
+  resolveExternalMcpEffectiveTransport,
+} from "./rules";
 
 /**
  * Mirrors `@jini-ai/ui`'s own `source-config-list/constants.ts`'s `DRAFT_TEST_SCOPE` — the pseudo-id
@@ -65,6 +71,21 @@ const DRAFT_TEST_SCOPE = "__draft__";
  * reactivity via the add form above; changing an existing connection's transport is rare enough, and
  * remains fully correct at load and at save, that duplicating `SourceConfigItemCard`'s internal state
  * to close this gap was not judged worth the added surface for this pass.
+ *
+ * ## Agent handles
+ *
+ * The add form is published as `mcp-add` and each configured server as `mcp-server-<slug of its
+ * id>`; the `@jini-ai/ui` components derive every control's own handle from those two bases (see
+ * that package's `agent-handles.ts` for the scheme, and `rules.ts`'s `buildExternalMcpCardHandles`
+ * for how the per-card bases are kept distinct). That is what lets the assistant fill this form on
+ * the operator's behalf through `page.find_elements`/`page.fill`/`page.select_option` while the
+ * operator watches — the whole point of the reactive form above: a novice asks for a connection
+ * instead of learning which of fourteen fields apply to it.
+ *
+ * The agent does NOT get to finish the job alone, by design. `page.fill` refuses credential
+ * fields, so `mcp-add-field-oauth-client-secret` is discoverable and correctly labelled but only a
+ * human can type into it. That split is `@jini-ai/agentic`'s guard, not this file's, and is
+ * deliberately not routed around.
  */
 
 export interface ExternalMcpSettingsPanelProps {
@@ -110,6 +131,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
   }, [addForm.values, transportGuess, authModeGuess]);
 
   const banner = list.error;
+  const cardHandles = buildExternalMcpCardHandles(list.sources.map((source) => source.id));
 
   return (
     <section className="external-mcp-tab">
@@ -151,6 +173,7 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
           {...(list.testResults[DRAFT_TEST_SCOPE] ? { testResult: list.testResults[DRAFT_TEST_SCOPE] } : {})}
           onTest={() => void list.test(undefined, addForm.values)}
           addLabel="Add server"
+          agentHandle={EXTERNAL_MCP_ADD_FORM_HANDLE}
         />
       ) : null}
 
@@ -167,10 +190,11 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
         </div>
       ) : (
         <div className="source-config-list-items">
-          {list.sources.map((source) => (
+          {list.sources.map((source, index) => (
             <SourceConfigItemCard
               key={source.id}
               source={source}
+              agentHandle={cardHandles[index]}
               fieldSpecs={buildExternalMcpFieldSpecs(source.fields)}
               capabilities={list.capabilities}
               removing={list.isPending(source.id, "remove")}

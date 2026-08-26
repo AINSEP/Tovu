@@ -219,6 +219,58 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
   return specs;
 }
 
+// ---------------------------------------------------------------------------
+// External MCP: agent handles
+// ---------------------------------------------------------------------------
+//
+// `@jini-ai/ui`'s source-config components take ONE base handle each (`agentHandle`) and derive
+// every sub-element's handle from it themselves — see that package's `agent-handles.ts`. Tovu's
+// only job is to hand each mounted component a base, and to guarantee those bases are DISTINCT:
+// two cards under one base publish duplicate `data-agent-element` values, which does not fail
+// loudly — it silently makes `page.click`/`page.fill` ambiguous on whichever card the DOM happens
+// to reach first.
+
+/** The add form's base handle. Its own namespace, so no server id can ever collide with it. */
+export const EXTERNAL_MCP_ADD_FORM_HANDLE = "mcp-add";
+
+/** Every configured server's base handle starts here. Distinct from {@link EXTERNAL_MCP_ADD_FORM_HANDLE}. */
+export const EXTERNAL_MCP_CARD_HANDLE_PREFIX = "mcp-server";
+
+/**
+ * A distinct, stable base handle for each configured server, in list order.
+ *
+ * Derived from the server's own id rather than its position, so an agent reading `find_elements`
+ * sees `mcp-server-higgsfield-remove` and not `mcp-server-3-remove` — legibility is the whole
+ * point of publishing handles at all. Ids are slugified because a handle is `[a-z0-9-]` only and a
+ * server id is not (`My_Server.1` is a perfectly valid id), and because two different ids can
+ * slugify to the same thing, uniqueness is then enforced by suffixing.
+ *
+ * The suffix search is a loop rather than a single `-<index>` append on purpose: appending the
+ * index alone is NOT collision-proof. `["x", "x-3", "x"]` would give the third entry the fallback
+ * `mcp-server-x-3`, which the second entry already holds — the exact silent-ambiguity failure this
+ * function exists to prevent.
+ *
+ * @param sourceIds - The configured servers' ids, in the order they are rendered.
+ * @returns One base handle per id, positionally aligned with `sourceIds`, all distinct.
+ * @complexity Time O(n) typical, O(n²) worst case when every id slugifies identically; n is the
+ * number of MCP servers an operator has configured, which is single digits in practice. Space O(n).
+ */
+export function buildExternalMcpCardHandles(sourceIds: readonly string[]): string[] {
+  const used = new Set<string>();
+  return sourceIds.map((id, index) => {
+    const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+    const preferred = `${EXTERNAL_MCP_CARD_HANDLE_PREFIX}-${slug === "" ? index + 1 : slug}`;
+    let handle = preferred;
+    let suffix = 2;
+    while (used.has(handle)) {
+      handle = `${preferred}-${suffix}`;
+      suffix += 1;
+    }
+    used.add(handle);
+    return handle;
+  });
+}
+
 /**
  * The one cross-field OAuth rule `buildExternalMcpFieldSpecs`' per-field `required` flags cannot
  * express: an OAuth connection needs EITHER a registered provider id OR its own token endpoint, not
