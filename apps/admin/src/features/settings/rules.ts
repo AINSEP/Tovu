@@ -187,7 +187,18 @@ export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFie
           { value: "device_code", label: "Device code" },
         ],
       },
-      { key: "oauthClientId", label: "Client ID", kind: "text", required: true },
+      {
+        key: "oauthClientId",
+        label: "Client ID",
+        kind: "text",
+        // Required only for stdio, matching the server rule in `external-mcp-store.ts`: a REMOTE
+        // connection can run OAuth discovery against its own URL and mint a client for itself by
+        // RFC 7591 dynamic client registration, and a growing share of hosted MCP servers publish a
+        // registration endpoint and no developer console — so for those there is no client id a
+        // human could type. A stdio connection has no URL to discover from, so there it stands.
+        required: isStdio,
+        ...(isStdio ? {} : { placeholder: "leave blank to register with this server automatically" }),
+      },
       { key: "oauthClientSecret", label: "Client secret", kind: "password", placeholder: "leave blank to keep the stored secret" },
       { key: "oauthScopes", label: "Scopes", kind: "text", placeholder: "space- or comma-separated" },
     );
