@@ -211,6 +211,7 @@ export type {
   ExternalMcpServerRepoPort,
   ExternalMcpServerRecord,
   ExternalMcpServerView,
+  SaveExternalMcpOAuthInput,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
 
