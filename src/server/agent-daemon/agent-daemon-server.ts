@@ -86,6 +86,7 @@ type OnStartedContext = Parameters<RunStartHandler>[0];
 
 import { registerInstalledAgentPluginTools } from "../../features/agent-plugins/tool-registrations.js";
 import { registerInstalledSkillTools } from "../../features/skills/tool-registrations.js";
+import { registerEnabledPluginCapabilityTools } from "../../features/plugin-runtime/capability-tool-registrations.js";
 import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
@@ -887,6 +888,36 @@ async function start(): Promise<void> {
   } catch (error) {
     console.warn(
       `[agent-daemon] skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  /**
+   * Registers one real tool per ENABLED plugin-runtime plugin that declares a readable field (v1:
+   * the built-in Word Count plugin) — the fix for the 2026-08-26 registration-gap audit: Word Count
+   * was live, valid, and computing real data, but no tool anywhere ever exposed it, so a plain
+   * `search_tools` query for "compute word count or reading time statistics for post content"
+   * correctly found nothing. See `features/plugin-runtime/capability-tool-registrations.ts`'s own
+   * header for why this is a read-the-stored-output tool rather than a bigger "plugins declare
+   * invocable tools" contract change.
+   *
+   * Same placement/ordering/fail-open rationale as the two registrars immediately above: placed
+   * before `buildToolCatalogQuery`'s one-shot FTS snapshot (a tool registered after it is executable
+   * but invisible to `search_tools`), awaited for the same reason (`loadEnabledPluginCapabilityToolSources`
+   * reads discovery + activation state, and an un-awaited promise would let the snapshot win the
+   * race), and fail-open so a workspace with no enabled plugin-runtime plugins — or an unreadable
+   * plugin tree — does not stop the daemon booting over an optional extension.
+   */
+  try {
+    await registerEnabledPluginCapabilityTools(registry, {
+      authorize: routeDeps.authorize,
+      workspaceId: routeDeps.workspaceId,
+      postRepo: routeDeps.postRepo,
+      discoverPlugins: routeDeps.discoverPlugins,
+      pluginActivationRepo: routeDeps.pluginActivationRepo,
+    });
+  } catch (error) {
+    console.warn(
+      `[agent-daemon] plugin capability tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
