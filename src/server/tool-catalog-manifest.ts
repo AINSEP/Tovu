@@ -22,6 +22,7 @@ import { contributeNewsletterTools } from "../newsletter/tool-registrations.js";
 import { contributeRedirectsTools } from "../redirects/tool-registrations.js";
 import { contributeSeoTools } from "../seo/tool-registrations.js";
 import { contributeSettingsTools } from "../features/settings/tool-registrations.js";
+import { contributeSiteEvidenceTools } from "../features/site-evidence/tool-registrations.js";
 import { contributeSiteInspectionTools } from "../features/site-inspection/index.js";
 import { contributeSourceControlTools } from "../features/source-control/tool-registrations.js";
 import { contributeStaticPublishTools } from "../features/deployments/publish-agent-tools.js";
@@ -146,6 +147,12 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * rather than folded into this one). Neither call depends on the other's order, and neither reads
  * `features/agent-plugins` by name from `assistant/` — see `capability-tool-registrations.ts`'s own
  * header for the full design.
+ *
+ * `contributeSiteEvidenceTools()` (2026-08-26) is likewise not a 26th domain in that rollout: it is
+ * one new native tool (`site_collect_page_evidence`) in its own `features/site-evidence` module,
+ * added because a configuration snapshot cannot prove what a published page actually renders. It
+ * follows the same contributor shape as the 25 above and adds no new module edge — `server` already
+ * imports `features/*` by name throughout this file.
  */
 export function installFirstPartyToolContributors(): void {
   contributeCapabilityTools();
@@ -169,6 +176,7 @@ export function installFirstPartyToolContributors(): void {
   contributeRedirectsTools();
   contributeSeoTools();
   contributeSettingsTools();
+  contributeSiteEvidenceTools();
   contributeSiteInspectionTools();
   contributeSourceControlTools();
   contributeStaticPublishTools();

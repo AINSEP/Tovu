@@ -142,6 +142,13 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // `fetch_published_page`, and imports no other feature by name â€” every read is an injected port
   // bound in `features/site-inspection/deps.ts`, so it adds no runtime edge beyond the
   // `features/site-inspection -> assistant` one every contributor has.
+  //
+  // "site-evidence" (2026-08-26) is also not part of the 25-domain rollout: it is a genuinely NEW
+  // first-party domain (`features/site-evidence`), added because a configuration snapshot cannot
+  // establish what a published page actually renders. It carries exactly one tool,
+  // `site_collect_page_evidence`, wired through the standard `contributeSiteEvidenceTools()` shape
+  // with its own `agent-tools.ts` catalog â€” so unlike "capability" above it IS an ordinary domain,
+  // just one that did not exist when the rollout was counted.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "capability",
     "comments",
@@ -163,6 +170,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    "site-evidence",
     "site-inspection",
     "source-control",
     "static-publish",

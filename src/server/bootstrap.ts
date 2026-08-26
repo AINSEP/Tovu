@@ -1,6 +1,9 @@
 import { bootstrapStore } from "../features/plugins/store/store-plugin.js";
 import { reconcileInterruptedMigrationOnBoot } from "../features/database/boot/reconcile-interrupted-migration.js";
+import { resolveAgentPluginLayout } from "../features/agent-plugins/layout.js";
+import { seedBundledAgentPlugins } from "../features/agent-plugins/seed-bundled.js";
 import type { BootModule } from "./boot-lifecycle.js";
+import { bundledAgentPluginsDir } from "./deps.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
 
 /**
@@ -56,6 +59,35 @@ export function buildBootModules(deps: NewsletterRouteDeps, options: BuildBootMo
     { name: "seo", owner: "seo", criticality: "critical", prepare: () => deps.seoReady, start: noop, stop: noop },
     { name: "newsletter", owner: "newsletter", criticality: "optional", prepare: () => deps.newsletterReady, start: noop, stop: noop },
     { name: "comments", owner: "comments", criticality: "optional", prepare: () => deps.commentsReady, start: noop, stop: noop },
+    {
+      // Installs the Agent Plugins that ship with Tovu into this workspace's own package store and
+      // records each INACTIVE until an operator enables it (see
+      // `features/agent-plugins/seed-bundled.ts` for why it re-runs every boot rather than once).
+      //
+      // OPTIONAL, not critical, and deliberately so: a bundled plugin that fails to seed costs the
+      // operator one dormant, disabled capability. Refusing to boot a whole CMS over that would be a
+      // wildly disproportionate failure mode for a feature that is switched off by default anyway.
+      // Per-plugin failures are captured in the returned report and logged here rather than thrown,
+      // so one bad package cannot hide the others.
+      name: "bundled-agent-plugins",
+      owner: "features/agent-plugins",
+      criticality: "optional",
+      prepare: async () => {
+        const result = await seedBundledAgentPlugins({
+          layout: resolveAgentPluginLayout(),
+          workspaceId: deps.workspaceId,
+          sourceRoot: bundledAgentPluginsDir(),
+        });
+        for (const outcome of result.outcomes) {
+          if (outcome.status === "failed") {
+            // eslint-disable-next-line no-console
+            console.warn(`[bundled-agent-plugins] '${outcome.pluginId}' could not be seeded: ${outcome.reason}`);
+          }
+        }
+      },
+      start: noop,
+      stop: noop,
+    },
   ];
   if (!options.useMemory) {
     modules.push({

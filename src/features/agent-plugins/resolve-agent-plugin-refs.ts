@@ -7,13 +7,16 @@
  * ---------------------------------------------------------------------------
  * The activation-record gap this function works around (KNOWN GAP, not silently papered over)
  * ---------------------------------------------------------------------------
- * There is no record anywhere — confirmed 2026-08-21, zero hits in `src/db/` and `src/server/` —
- * of which installed digest is "the" current install for a plugin id in a workspace. Building that
- * (an operator-facing activation table, presumably alongside a future admission gate for MCP
- * servers — `capability-projection.ts`'s own header names the same deferred future work) is a
- * separate, later decision. Until it exists, this function scans every digest this workspace has
- * ever installed under `packages/sha256/*` and matches on the installed `plugin.json`'s own `name`
- * field:
+ * PARTIALLY CLOSED, 2026-08-26. `activation.ts` now records, per workspace, whether a plugin id is
+ * ENABLED — and this function refuses a pinned ref for a disabled one before it resolves anything.
+ * What that record deliberately does NOT carry is which installed DIGEST is current for a plugin
+ * id, which is the half of the original gap the paragraph below describes; a workspace with two
+ * digests of the same plugin is still an explicit error rather than a silent choice. Closing that
+ * half needs the operator-facing upgrade/pin flow (and, alongside it, the admission gate for MCP
+ * servers `capability-projection.ts`'s own header names) and remains a separate, later decision.
+ *
+ * So this function still scans every digest this workspace has ever installed under
+ * `packages/sha256/*` and matches on the installed `plugin.json`'s own `name` field:
  *
  * - Exactly one match: resolves normally.
  * - Zero matches: fails with a "not installed" reason — the operator pinned a chip for a plugin
@@ -49,6 +52,7 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 
+import { isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import { toAgentPluginSkillCapabilityId } from "./capability-id.js";
@@ -107,13 +111,30 @@ export type ResolveAgentPluginRefsResult =
  */
 export async function resolveAgentPluginRefs(
   pluginRefIds: readonly string[],
-  workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages">,
+  workspaceLayout: Pick<AgentPluginWorkspaceLayout, "packages" | "root">,
   deliveryMode: AgentPluginDeliveryMode = resolveAgentPluginDeliveryMode(),
 ): Promise<ResolveAgentPluginRefsResult> {
   if (pluginRefIds.length === 0) return { ok: true, promptPrefix: "" };
 
+  // ACTIVATION GATE (2026-08-26) — the third and last surface (see `activation.ts`). Read once per
+  // call rather than per ref: the record is one small file and every ref in a single run belongs to
+  // the same workspace.
+  const activations = await readAgentPluginActivations(workspaceLayout.root);
+
   const sections: string[] = [];
   for (const pluginRefId of pluginRefIds) {
+    if (!isAgentPluginActive(activations, pluginRefId)) {
+      // A distinct reason from "not installed", because the operator's remedy is different: the
+      // bytes ARE here and the fix is to enable the plugin, not to install it. Telling them to
+      // install something already present is the kind of wrong-but-plausible error message that
+      // costs an afternoon.
+      return {
+        ok: false,
+        reason:
+          `Agent Plugin '${pluginRefId}' is installed in this workspace but is not enabled — it ships with Tovu and ` +
+          "stays inactive until an operator turns it on. Enable it before pinning it to a run.",
+      };
+    }
     const resolved = await resolveOnePluginRef(pluginRefId, workspaceLayout.packages, deliveryMode);
     if (!resolved.ok) return resolved;
     sections.push(resolved.section);
