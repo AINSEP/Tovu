@@ -363,6 +363,7 @@ function UserRow({ user, roleById, policyById, actions, manage, agentBase, t, lo
               for why "Manage" keeps a static label instead of alternating with "Close". */}
           <RowMenu
             triggerLabel={`${t("Actions for user")} "${user.username}"`}
+            agentHandle={`${agentBase}-menu`}
             items={userRowMenuItems(
               user,
               actions.savingId === user.principalId,

@@ -679,6 +679,16 @@ function namespaceList(
     "taxonomy-new-term",
     taxonomies.map((group) => group.taxonomy.id),
   );
+  // Same id list as `newTermFormBases` above, so a taxonomy's "Delete taxonomy" menu handle and its
+  // "+ Add term" form handle share the same id-derived slug (e.g. `taxonomy-new-term-tax-a-open` /
+  // `taxonomy-menu-tax-a`) — an agent reading `page.find_elements` can tell they belong to the same
+  // group without cross-referencing anything else. `RowMenu`'s `agentHandle` prop only reached this
+  // package this session; before that, this menu (and the per-term one below) published no handle at
+  // all and its trigger/items were invisible to `page.find_elements` regardless of what this file did.
+  const taxonomyMenuHandles = buildAgentListHandles(
+    "taxonomy-menu",
+    taxonomies.map((group) => group.taxonomy.id),
+  );
   // Term ids are globally unique across every taxonomy, not scoped per group — same reasoning
   // `CollectionEntryEditor.tsx`'s `TermPicker` documents for its own flat `term-picker-term` list.
   const termHandles = buildAgentListHandles(
@@ -697,6 +707,7 @@ function namespaceList(
               <h2>{group.taxonomy.name}</h2>
               <RowMenu
                 triggerLabel={`Actions for taxonomy "${group.taxonomy.name}"`}
+                agentHandle={taxonomyMenuHandles[groupIndex]}
                 items={[
                   {
                     key: "delete",
@@ -776,6 +787,7 @@ function namespaceList(
                       <span onClick={(e) => e.stopPropagation()}>
                         <RowMenu
                           triggerLabel={`Actions for term "${term.name}"`}
+                          agentHandle={`${termHandle}-menu`}
                           items={[
                             {
                               key: "delete",

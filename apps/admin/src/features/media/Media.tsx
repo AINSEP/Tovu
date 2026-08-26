@@ -866,6 +866,7 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
                       <span className={`status status-${item.status}`}>{item.status}</span>
                       <RowMenu
                         triggerLabel={`Actions for "${item.title}"`}
+                        agentHandle={`${mediaExpandHandles[index]}-menu`}
                         items={mediaRowMenuItems(
                           item,
                           editingId,

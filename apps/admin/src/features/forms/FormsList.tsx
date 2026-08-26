@@ -62,12 +62,13 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
   if (!forms) return <div className="notice">Loading forms…</div>;
 
   // Form ids are stable and unique, so they disambiguate one row's edit link from another's —
-  // same reasoning as every other list on this workstream. Note: each row's "Actions" menu
-  // (Edit/Disable/Enable via `RowMenu`) is NOT independently addressable — `RowMenu`
-  // (`@jini-ai/admin/react`) publishes no agent handle of its own, so its trigger and its dropdown
-  // items are invisible to `page.find_elements` regardless of what this file does. The Disable/
-  // Enable action stays reachable another way: `FormEditor.tsx`'s own status toggle
-  // (`form-editor-status-toggle`) does the identical `api.updateForm({ status })` call.
+  // same reasoning as every other list on this workstream. Each row's "Actions" menu (Edit/Disable/
+  // Enable via `RowMenu`) shares this same per-row base (`${rowHandles[index]}-menu`) now that
+  // `RowMenu` (`@jini-ai/admin/react`) accepts an `agentHandle` prop — before this session it
+  // published none, so its trigger and dropdown items were invisible to `page.find_elements`
+  // regardless of what this file did. The Disable/Enable action also stays reachable another way:
+  // `FormEditor.tsx`'s own status toggle (`form-editor-status-toggle`) does the identical
+  // `api.updateForm({ status })` call.
   const rowHandles = buildAgentListHandles(
     "forms-row",
     forms.map((form) => form.id),
@@ -133,7 +134,13 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           {
             key: "actions",
             header: t("More"),
-            cell: (form) => <RowMenu triggerLabel={`Actions for form "${form.name}"`} items={rowMenuItems(form)} />,
+            cell: (form, index) => (
+              <RowMenu
+                triggerLabel={`Actions for form "${form.name}"`}
+                agentHandle={`${rowHandles[index]}-menu`}
+                items={rowMenuItems(form)}
+              />
+            ),
           },
         ]}
       />
