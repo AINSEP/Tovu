@@ -149,6 +149,8 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "..
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
+import { createPendingAuthorizationStore } from "#src/oauth/index";
 
 /**
  * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
@@ -677,6 +679,10 @@ export function createSqliteRouteDeps(
   // the full reasoning — this asymmetry is intentional, not a bug to reconcile.
   const siteAssistantSecretKeyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  // Held as a local rather than constructed inline, because the OAuth service below must be given
+  // the SAME repo instance the routes read through — two instances would refresh a token into one
+  // and read it back from the other.
+  const externalMcpServerRepo = new SqliteExternalMcpServerRepo(db);
 
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
@@ -740,7 +746,24 @@ export function createSqliteRouteDeps(
     adminExecutionCredentialRepo: new SqliteAdminExecutionCredentialRepo(db),
     // Same shared sealer/keyring again — one sealing capability across all three credential tables.
     mediaProviderCredentialRepo: new SqliteMediaProviderCredentialRepo(db),
-    externalMcpServerRepo: new SqliteExternalMcpServerRepo(db),
+    externalMcpServerRepo,
+    /**
+     * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
+     * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
+     * pending-authorization and device-authorization stores are in-memory and must be shared by the
+     * connect route and the public callback route — two routes in the same module, one instance,
+     * and a composition root is where "one instance" is expressible. See
+     * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
+     */
+    externalMcpOAuth: createExternalMcpOAuthService({
+      workspaceId,
+      repo: externalMcpServerRepo,
+      sealer: siteAssistantSecretSealer,
+      keyring: siteAssistantSecretKeyring,
+      clock,
+      pending: createPendingAuthorizationStore({ clock }),
+      devices: createDeviceAuthorizationStore(),
+    }),
     // Same shared sealer/keyring once more — see the note above the BYOK repo.
     composioConfigRepo,
     composioConnectors,
