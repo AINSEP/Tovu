@@ -213,44 +213,57 @@ export interface DiscoveryFixture extends LoopbackServer {
  * carries the resource's own path suffix, and the metadata advertises `none` among its token
  * endpoint auth methods.
  */
+/** The RFC 8414 document this fixture publishes, with the caller's overrides applied. A `null`
+ *  override DELETES that member, which is how a test models a server that omits one. */
+function buildFixtureMetadata(origin: string, options: DiscoveryFixtureOptions, resourceScopes: readonly string[]): Record<string, unknown> {
+  const document: Record<string, unknown> = {
+    issuer: origin,
+    authorization_endpoint: `${origin}/oauth2/authorize`,
+    token_endpoint: `${origin}/oauth2/token`,
+    registration_endpoint: `${origin}/oauth2/register`,
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    response_types_supported: ["code"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "none", "client_secret_post"],
+    scopes_supported: [...resourceScopes],
+  };
+  for (const [key, value] of Object.entries(options.metadata ?? {})) {
+    if (value === null) delete document[key];
+    else document[key] = value;
+  }
+  return document;
+}
+
+/** The `WWW-Authenticate` value a real hosted MCP server returns on an unauthenticated request. */
+function buildChallenge(origin: string, resourcePath: string, resourceScopes: readonly string[]): string {
+  return `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${resourcePath}", scope="${resourceScopes.join(" ")}"`;
+}
+
 export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {}): Promise<DiscoveryFixture> {
   const resourcePath = options.resourcePath ?? "/mcp";
   const resourceScopes = options.resourceScopes ?? ["openid", "email", "offline_access"];
   let origin = "";
 
+  const isProtectedResourcePath = (path: string): boolean =>
+    path === `/.well-known/oauth-protected-resource${resourcePath}` || path === "/.well-known/oauth-protected-resource";
+
   const server = await startLoopbackServer((req, res) => {
     const path = (req.url ?? "/").split("?")[0] ?? "/";
 
-    if (path === `/.well-known/oauth-protected-resource${resourcePath}` || path === "/.well-known/oauth-protected-resource") {
-      if (options.withoutProtectedResourceMetadata === true) {
-        sendJson(res, 404, { detail: "Not Found" });
-        return;
+    if (isProtectedResourcePath(path)) {
+      if (options.withoutProtectedResourceMetadata === true) sendJson(res, 404, { detail: "Not Found" });
+      else {
+        sendJson(res, 200, {
+          resource: `${origin}${resourcePath}`,
+          authorization_servers: [...(options.deadAuthorizationServers ?? []), origin],
+          scopes_supported: [...resourceScopes],
+        });
       }
-      sendJson(res, 200, {
-        resource: `${origin}${resourcePath}`,
-        authorization_servers: [...(options.deadAuthorizationServers ?? []), origin],
-        scopes_supported: [...resourceScopes],
-      });
       return;
     }
 
     if (path === "/.well-known/oauth-authorization-server") {
-      const base: Record<string, unknown> = {
-        issuer: origin,
-        authorization_endpoint: `${origin}/oauth2/authorize`,
-        token_endpoint: `${origin}/oauth2/token`,
-        registration_endpoint: `${origin}/oauth2/register`,
-        grant_types_supported: ["authorization_code", "refresh_token"],
-        response_types_supported: ["code"],
-        code_challenge_methods_supported: ["S256"],
-        token_endpoint_auth_methods_supported: ["client_secret_basic", "none", "client_secret_post"],
-        scopes_supported: [...resourceScopes],
-      };
-      for (const [key, value] of Object.entries(options.metadata ?? {})) {
-        if (value === null) delete base[key];
-        else base[key] = value;
-      }
-      sendJson(res, 200, base);
+      sendJson(res, 200, buildFixtureMetadata(origin, options, resourceScopes));
       return;
     }
 
@@ -262,7 +275,7 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
     if (path === resourcePath) {
       res.writeHead(401, {
         "content-type": "application/json",
-        "www-authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${resourcePath}", scope="${resourceScopes.join(" ")}"`,
+        "www-authenticate": buildChallenge(origin, resourcePath, resourceScopes),
       });
       res.end(JSON.stringify({ error: "unauthorized" }));
       return;
@@ -275,6 +288,6 @@ export async function startDiscoveryFixture(options: DiscoveryFixtureOptions = {
   return {
     ...server,
     resourceUrl: `${server.origin}${resourcePath}`,
-    wwwAuthenticate: `Bearer resource_metadata="${server.origin}/.well-known/oauth-protected-resource${resourcePath}", scope="${resourceScopes.join(" ")}"`,
+    wwwAuthenticate: buildChallenge(server.origin, resourcePath, resourceScopes),
   };
 }

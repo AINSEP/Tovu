@@ -762,9 +762,11 @@ function toFederatedLaunchSpec(target: ExternalMcpServerTarget): McpLaunchSpec {
  * registry here would put the store back in the business of the thing its header says it is not.
  */
 export interface SaveExternalMcpOAuthInput {
-  /** A registered provider id, or empty to define this connection's own endpoints below. */
+  /** A registered provider id, or empty to define this connection's own endpoints below — or, on a
+   *  REMOTE connection, to leave both to discovery at connect time. */
   providerId?: string;
   grant?: string;
+  /** Empty on a remote connection means "mint one by dynamic client registration at connect". */
   clientId?: string;
   /** SECRET. Sealed, never returned by any read model. */
   clientSecret?: string;
@@ -965,9 +967,23 @@ function assertOAuthGrant(grant: string): ExternalMcpOAuthGrant {
   return grant as ExternalMcpOAuthGrant;
 }
 
-/** @throws {ExternalMcpValidationError} On an empty or oversized client id. */
-function assertOAuthClientId(clientId: string): string {
+/**
+ * Validates a client id, or admits its absence on a row that can obtain one for itself.
+ *
+ * `selfConfigurable` is what makes an empty client id legitimate rather than a validation failure.
+ * A growing share of hosted authorization servers publish an RFC 7591 `registration_endpoint` and no
+ * developer console at all, so for those there is no human path to a client id — demanding one here
+ * would make the connection unreachable by any amount of operator effort. A row that carries a REMOTE
+ * URL can run discovery against it at connect time and mint one; a stdio row has nothing to discover
+ * from, so for those the requirement stands unchanged.
+ *
+ * @returns The validated client id, or `null` when the row will mint one at connect.
+ * @throws {ExternalMcpValidationError} On an empty client id the row cannot obtain, or an oversized one.
+ * @complexity O(1).
+ */
+function assertOAuthClientId(clientId: string, selfConfigurable: boolean): string | null {
   if (clientId === "") {
+    if (selfConfigurable) return null;
     throw new ExternalMcpValidationError("an OAuth connection needs a client id", "oauth.clientId");
   }
   if (clientId.length > MAX_OAUTH_FIELD_LENGTH) {
@@ -995,9 +1011,14 @@ function resolveOAuthEndpoints(
   return touchedIdentity ? buildOAuthEndpoints(oauth) : parseJsonObject(existing?.oauthEndpointsJson ?? null);
 }
 
-/** @throws {ExternalMcpValidationError} When neither identity is present, or the id is malformed. */
-function assertOAuthProviderIdentity(providerId: string, endpoints: Record<string, string>): void {
-  if (providerId === "" && endpoints.tokenEndpoint === undefined) {
+/**
+ * @param selfConfigurable - Whether this row can discover its own endpoints — see
+ *   {@link assertOAuthClientId} for the same argument applied to the client id.
+ * @throws {ExternalMcpValidationError} When neither identity is present on a row that cannot
+ *   discover one, or the id is malformed.
+ */
+function assertOAuthProviderIdentity(providerId: string, endpoints: Record<string, string>, selfConfigurable: boolean): void {
+  if (providerId === "" && endpoints.tokenEndpoint === undefined && !selfConfigurable) {
     throw new ExternalMcpValidationError(
       "an OAuth connection needs either a registered provider id or its own token endpoint",
       "oauth.providerId",
@@ -1014,10 +1035,11 @@ function assertOAuthProviderIdentity(providerId: string, endpoints: Record<strin
 function resolveOAuthProviderIdentity(
   oauth: SaveExternalMcpOAuthInput,
   existing: ExternalMcpServerRecord | null,
+  selfConfigurable: boolean,
 ): { readonly oauthProviderId: string | null; readonly oauthEndpointsJson: string | null } {
   const providerId = firstTrimmed(oauth.providerId, existing?.oauthProviderId);
   const endpoints = resolveOAuthEndpoints(oauth, existing);
-  assertOAuthProviderIdentity(providerId, endpoints);
+  assertOAuthProviderIdentity(providerId, endpoints, selfConfigurable);
 
   return {
     oauthProviderId: providerId === "" ? null : providerId,
@@ -1073,11 +1095,15 @@ function resolveOAuthFields(
   if (authMode !== "oauth") return NO_OAUTH_FIELDS;
 
   const oauth = input.oauth ?? {};
+  // Only a remote row has a URL for `external-mcp-oauth.ts` to run RFC 9728 / RFC 8414 discovery
+  // against, so only a remote row may leave its provider identity and client id to be filled in at
+  // connect time.
+  const selfConfigurable = transport !== "stdio";
 
   return {
-    ...resolveOAuthProviderIdentity(oauth, existing),
+    ...resolveOAuthProviderIdentity(oauth, existing, selfConfigurable),
     oauthGrant: assertOAuthGrant(firstTrimmed(oauth.grant, existing?.oauthGrant)),
-    oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId)),
+    oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId), selfConfigurable),
     oauthScopesJson: JSON.stringify(resolveSavedOAuthScopes(oauth, existing)),
     oauthTokenEnvName: resolveOAuthTokenEnvName(transport, oauth, existing),
     clientSecret: oauth.clientSecret,

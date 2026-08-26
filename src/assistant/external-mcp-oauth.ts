@@ -7,14 +7,18 @@ import {
   buildOperatorOAuthProvider,
   completeAuthorizationCode,
   createTokenRefresher,
+  discoverAuthorizationServer,
   getOAuthProvider,
   isOAuthError,
   OAuthError,
   pollDeviceAuthorizationOnce,
+  registerOAuthClientDynamically,
   requestOAuthToken,
   type AuthorizationCallbackParams,
   type DeviceAuthorization,
+  type DiscoveredOAuthConfiguration,
   type OAuthClient,
+  type OAuthClientAuthMethod,
   type OAuthFetch,
   type OAuthProviderDescriptor,
   type OAuthTokenSet,
@@ -263,11 +267,23 @@ async function requireOAuthRecord(deps: ExternalMcpOAuthDeps, serverId: string):
 }
 
 /** The endpoint trio an operator may type onto a connection, as stored. Absent members mean "this
- *  connection names a registered provider for that part instead". */
+ *  connection names a registered provider for that part instead", or — on a remote connection — that
+ *  discovery has not run yet. */
 interface StoredOAuthEndpoints {
   authorizationEndpoint?: string;
   tokenEndpoint?: string;
   deviceAuthorizationEndpoint?: string;
+  /**
+   * How the token endpoint expects this client to authenticate.
+   *
+   * Only ever written by dynamic client registration, and only when the authorization server
+   * volunteered a `client_secret` and asked for a secret-bearing method despite being asked for a
+   * public client. It is stored because {@link buildConnectionOwnedProvider} rebuilds the descriptor
+   * from this blob on every later call — a refresh six weeks from now has nothing else to read it
+   * from, and a client that keeps authenticating as `none` at a server that issued it a secret gets
+   * `invalid_client` on every token request.
+   */
+  clientAuth?: string;
 }
 
 /** Reads the stored endpoints column, tolerating a null or corrupt value as "none typed". */
@@ -289,8 +305,29 @@ function buildConnectionOwnedProvider(record: ExternalMcpServerRecord, endpoints
     tokenEndpoint: endpoints.tokenEndpoint,
     ...(endpoints.authorizationEndpoint === undefined ? {} : { authorizationEndpoint: endpoints.authorizationEndpoint }),
     ...(endpoints.deviceAuthorizationEndpoint === undefined ? {} : { deviceAuthorizationEndpoint: endpoints.deviceAuthorizationEndpoint }),
-    scopes: JSON.parse(record.oauthScopesJson ?? "[]") as string[],
+    scopes: readStoredScopes(record),
+    ...(readStoredClientAuth(endpoints) === null ? {} : { clientAuth: readStoredClientAuth(endpoints) as OAuthClientAuthMethod }),
   });
+}
+
+/** The three RFC 6749 §2.3 methods `token-endpoint.ts` can actually perform. A stored value outside
+ *  this set is treated as absent rather than trusted — the blob is plaintext on the row. */
+const STORED_CLIENT_AUTH_METHODS: readonly string[] = ["none", "client_secret_post", "client_secret_basic"];
+
+/** @complexity O(1). */
+function readStoredClientAuth(endpoints: StoredOAuthEndpoints): OAuthClientAuthMethod | null {
+  const stored = endpoints.clientAuth;
+  return stored !== undefined && STORED_CLIENT_AUTH_METHODS.includes(stored) ? (stored as OAuthClientAuthMethod) : null;
+}
+
+/** The scopes column, tolerating a null or corrupt value as "none requested". @complexity O(n). */
+function readStoredScopes(record: ExternalMcpServerRecord): string[] {
+  try {
+    const parsed: unknown = JSON.parse(record.oauthScopesJson ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((scope): scope is string => typeof scope === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -336,6 +373,197 @@ async function resolveClient(
     ...(payload.clientSecret === undefined ? {} : { clientSecret: payload.clientSecret }),
     authMethod: provider.clientAuth,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Self-configuration: discovery + dynamic client registration
+//
+// A connection may reach `beginConnect` missing the two things every grant needs: where the
+// authorization server is, and who Tovu is to it. Both used to be operator-typed, and for a provider
+// with a developer console that is still the right answer. A growing share of hosted MCP servers have
+// no console at all — they publish RFC 9728 / RFC 8414 metadata and an RFC 7591 registration endpoint
+// and expect clients to self-register — and for those there is no human path to a client id, so the
+// connection is unreachable without this.
+//
+// It runs ONLY in `beginConnect`, and what it learns is PERSISTED. The callback, poll and refresh
+// paths then read the row exactly as they did before, so there is one place where a connection can
+// change shape rather than four. Persisting is also what keeps registration a once-per-connection
+// event: an authorization server does not garbage-collect clients, so a connect that registered every
+// time would leave one dead client behind per retry.
+// ---------------------------------------------------------------------------
+
+/** Whether a row still has to be told where its authorization server is. @complexity O(1). */
+function needsEndpointDiscovery(record: ExternalMcpServerRecord, endpoints: StoredOAuthEndpoints): boolean {
+  return endpoints.tokenEndpoint === undefined && record.oauthProviderId === null;
+}
+
+/**
+ * Narrows a discovered authorization server into the blob shape the row stores.
+ *
+ * The `registration_endpoint` is deliberately NOT stored: nothing reads it once the client is minted,
+ * and a credential-adjacent URL kept for no reader is a liability rather than a convenience.
+ *
+ * @complexity O(1).
+ */
+function toStoredEndpoints(discovered: DiscoveredOAuthConfiguration): StoredOAuthEndpoints {
+  const server = discovered.server;
+  return {
+    tokenEndpoint: server.tokenEndpoint,
+    ...(server.authorizationEndpoint === null ? {} : { authorizationEndpoint: server.authorizationEndpoint }),
+    ...(server.deviceAuthorizationEndpoint === null ? {} : { deviceAuthorizationEndpoint: server.deviceAuthorizationEndpoint }),
+  };
+}
+
+/**
+ * Runs RFC 9728 / RFC 8414 discovery against the connection's own MCP endpoint.
+ *
+ * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the row has no URL to discover from — a stdio
+ *   connection, which the store still requires to name its provider explicitly. Same message the
+ *   non-discovering path has always used, because from the operator's side it is the same problem.
+ * @complexity O(1) in row size; a bounded, small number of outbound requests.
+ */
+async function discoverConnectionAuthorizationServer(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+): Promise<DiscoveredOAuthConfiguration> {
+  if (record.url === null) {
+    throw new OAuthError("OAUTH_INVALID_REQUEST", `external MCP server '${record.serverId}' names no OAuth provider and defines no token endpoint`, {
+      operatorAction: "Pick a provider, or type this connection's own OAuth endpoints, in Settings → External MCP.",
+    });
+  }
+  return discoverAuthorizationServer(
+    { ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
+    { resourceUrl: record.url, timeoutMs: CONNECT_TIMEOUT_MS },
+  );
+}
+
+/** The grant types to register for, derived from the row's own grant rather than asked for twice.
+ *  `refresh_token` is always included: it is what decides whether this connection survives its first
+ *  access-token expiry, and a server that does not support it ignores the entry. @complexity O(1). */
+function registrationGrantTypes(record: ExternalMcpServerRecord): readonly string[] {
+  return record.oauthGrant === "device_code"
+    ? ["urn:ietf:params:oauth:grant-type:device_code", "refresh_token"]
+    : ["authorization_code", "refresh_token"];
+}
+
+/**
+ * Mints a client for a connection that has none.
+ *
+ * @param input.redirectUri - Registered as this client's only callback. A server that pins redirect
+ *   URIs will refuse an authorization whose `redirect_uri` was not registered, so the value used at
+ *   authorization time is the value registered here — not a re-derived one.
+ * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the authorization server offers no registration
+ *   endpoint, which is the point at which an operator genuinely does have to supply a client id.
+ * @complexity O(1) — one bounded outbound request.
+ */
+async function mintClientForConnection(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+  discovered: DiscoveredOAuthConfiguration,
+  input: { readonly redirectUri: string; readonly scopes: readonly string[] },
+) {
+  const registrationEndpoint = discovered.server.registrationEndpoint;
+  if (registrationEndpoint === null) {
+    throw new OAuthError(
+      "OAUTH_INVALID_REQUEST",
+      `external MCP server '${record.serverId}' has no OAuth client id and its authorization server offers no dynamic client registration`,
+      { operatorAction: "Add this connection's OAuth client id in Settings → External MCP — this server does not mint them automatically." },
+    );
+  }
+  return registerOAuthClientDynamically(
+    { ...(deps.fetchFn === undefined ? {} : { fetchFn: deps.fetchFn }) },
+    {
+      registrationEndpoint,
+      clientName: record.label ?? record.serverId,
+      redirectUris: [input.redirectUri],
+      scopes: input.scopes,
+      grantTypes: registrationGrantTypes(record),
+      timeoutMs: CONNECT_TIMEOUT_MS,
+    },
+  );
+}
+
+/** Writes one connect's self-configuration onto the row, preserving anything already sealed beside it.
+ *
+ *  Read-modify-write for the same reason {@link persistTokens} is: sealing `{ clientSecret }` alone
+ *  would delete a token the connection is still holding.
+ *  @complexity O(1) — one unseal, one seal, one upsert. */
+async function persistSelfConfiguration(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+  identity: {
+    readonly endpoints: StoredOAuthEndpoints;
+    readonly scopes: readonly string[];
+    readonly clientId: string;
+    readonly clientSecret: string | undefined;
+  },
+): Promise<ExternalMcpServerRecord> {
+  const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
+  const clientSecret = identity.clientSecret ?? existing.clientSecret;
+  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, {
+    ...(clientSecret === undefined ? {} : { clientSecret }),
+    ...(existing.tokens === undefined ? {} : { tokens: existing.tokens }),
+  });
+
+  const next: ExternalMcpServerRecord = {
+    ...record,
+    oauthClientId: identity.clientId,
+    oauthEndpointsJson: JSON.stringify(identity.endpoints),
+    oauthScopesJson: JSON.stringify(identity.scopes),
+    sealedOAuth,
+    updatedAt: deps.clock.nowIso(),
+  };
+  await deps.repo.upsert(next);
+  return next;
+}
+
+/**
+ * Fills in whatever a connection is missing, persists it, and returns the row as it now stands.
+ *
+ * A no-op — and, importantly, ZERO outbound requests — for a connection that already names its
+ * endpoints and its client id. That is what keeps every existing connection behaving exactly as it
+ * did: self-configuration is reached only by a row that could not have connected at all before.
+ *
+ * Nothing is written until every step has succeeded, so a failed registration leaves the row exactly
+ * as it was and the operator's retry is a clean retry rather than one over half-written state.
+ *
+ * @param redirectUri - The absolute callback URL this connect will use, registered verbatim.
+ * @returns The row, self-configured if it needed to be.
+ * @throws {OAuthError} From discovery or registration; every one is terminal and nothing is retried.
+ * @complexity O(1) in row size; a bounded, small number of outbound requests, and none at all on the
+ *   already-configured path.
+ */
+async function selfConfigureConnection(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+  redirectUri: string,
+): Promise<ExternalMcpServerRecord> {
+  const stored = readStoredEndpoints(record);
+  const mustDiscover = needsEndpointDiscovery(record, stored);
+  if (!mustDiscover && record.oauthClientId !== null) return record;
+
+  const discovered = await discoverConnectionAuthorizationServer(deps, record);
+  const endpoints: StoredOAuthEndpoints = mustDiscover ? toStoredEndpoints(discovered) : { ...stored };
+  // Scopes the operator named win; an empty list adopts what the resource itself asks for, because a
+  // resource that advertises `offline_access` is naming the scope that decides whether this
+  // connection can ever refresh.
+  const operatorScopes = readStoredScopes(record);
+  const scopes = operatorScopes.length > 0 ? operatorScopes : [...discovered.resourceScopes];
+
+  // Narrowed on the field rather than on `mustRegister`, so there is no fallback that could write an
+  // empty client id if the two ever disagreed.
+  if (record.oauthClientId !== null) {
+    return persistSelfConfiguration(deps, record, { endpoints, scopes, clientId: record.oauthClientId, clientSecret: undefined });
+  }
+
+  const minted = await mintClientForConnection(deps, record, discovered, { redirectUri, scopes });
+  if (minted.clientSecret !== null) endpoints.clientAuth = minted.tokenEndpointAuthMethod;
+  return persistSelfConfiguration(deps, record, {
+    endpoints,
+    scopes,
+    clientId: minted.clientId,
+    clientSecret: minted.clientSecret ?? undefined,
+  });
 }
 
 /** The binding key an authorization `state` is issued against. Workspace-scoped so a state minted in
@@ -464,10 +692,12 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
 
   return {
     async beginConnect(input) {
-      const record = await requireOAuthRecord(deps, input.serverId);
+      // Self-configuration first: a row that names no endpoints or no client id gets them here, once,
+      // and every step below then reads an ordinary fully-specified connection.
+      const record = await selfConfigureConnection(deps, await requireOAuthRecord(deps, input.serverId), input.redirectUri);
       const provider = resolveProviderDescriptor(deps, record);
       const client = await resolveClient(deps, record, provider);
-      const scopes = JSON.parse(record.oauthScopesJson ?? "[]") as string[];
+      const scopes = readStoredScopes(record);
 
       if (record.oauthGrant === "device_code") {
         const authorization = await beginDeviceAuthorization(
