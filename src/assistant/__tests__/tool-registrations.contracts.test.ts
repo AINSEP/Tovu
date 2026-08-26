@@ -18,6 +18,7 @@ import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tool
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
+import { siteInspectionAgentToolCatalog } from "../../features/site-inspection/index.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
@@ -166,6 +167,12 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // `deployment_execute_static_publish` uses). See `features/source-control/tool-registrations.ts`'s
   // own file header.
   ...(sourceControlAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `site-inspection` (2026-08-26): both entries wired — `site_get_profile` (a config snapshot
+  // whose FIVE per-section authorization decisions live in `buildSiteProfile`, not in the handler,
+  // so its catalog `authorization.permission` is a visibility floor rather than the gate; see
+  // `features/site-inspection/agent-tools.ts`'s own header) and `fetch_published_page` (one
+  // same-origin render of this site's public surface, gated inline by the handler like `theme_list`).
+  ...(siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

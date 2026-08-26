@@ -129,6 +129,13 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // `features/theme/tool-registrations.ts`'s own header for the full trace, including its two prior
   // reverts). `post` is ALSO present below â€” converted last of the 25 (`fc8ad2a6`), covered by its
   // own test below, which was updated at the same time as this list.
+  //
+  // `site-inspection` (2026-08-26) is present below as a NEW domain, not a 26th entry in that
+  // rollout: it never existed before, so nothing about it was ever wired through `DOMAIN_SLICES`
+  // and there is no cycle history to record. It contributes `site_get_profile` and
+  // `fetch_published_page`, and imports no other feature by name â€” every read is an injected port
+  // bound in `features/site-inspection/deps.ts`, so it adds no runtime edge beyond the
+  // `features/site-inspection -> assistant` one every contributor has.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -149,6 +156,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    "site-inspection",
     "source-control",
     "static-publish",
     "taxonomy",
