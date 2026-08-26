@@ -90,7 +90,12 @@ async function installRealPackage(
 }
 
 test("resolves to an empty promptPrefix and touches no filesystem when pluginRefIds is empty", async () => {
-  const result = await resolveAgentPluginRefs([], { packages: "/does-not-exist-and-is-never-read" });
+  // Both paths are deliberately nonexistent: the empty-refs fast path must return before it touches
+  // EITHER `packages` (to list installs) or `root` (to read the activation record, added 2026-08-26).
+  const result = await resolveAgentPluginRefs([], {
+    packages: "/does-not-exist-and-is-never-read",
+    root: "/does-not-exist-and-is-never-read-either",
+  });
   assert.deepEqual(result, { ok: true, promptPrefix: "" });
 });
 

@@ -44,6 +44,7 @@
  */
 import path from "node:path";
 
+import { filterActiveAgentPlugins, readAgentPluginActivations } from "./activation.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import {
@@ -93,11 +94,19 @@ interface AgentPluginSkillCapabilityHandle {
  * @complexity O(d * s) in installed-digest count times average skills-per-digest — `listInstalledPlugins`'s own cost dominates.
  */
 async function listAgentPluginSkillCapabilities(ctx: CapabilitySourceContext): Promise<readonly CapabilityCard[]> {
-  const packagesDir = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).packages;
-  const installed = await listInstalledPlugins(packagesDir);
+  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
+  const installed = await listInstalledPlugins(workspaceLayout.packages);
+
+  // ACTIVATION GATE (2026-08-26). Discoverability is the first of the three surfaces an inactive
+  // plugin must be absent from — a bundled-but-not-yet-enabled package that still answered
+  // `capability_search` would be "inactive" in name only, since the model would find it, read its
+  // full SKILL.md through `capability_get`, and act on it without any operator having enabled
+  // anything. See `activation.ts` for why an ABSENT record means active.
+  const activations = await readAgentPluginActivations(workspaceLayout.root);
+  const active = filterActiveAgentPlugins(activations, installed, (plugin) => plugin.pluginId);
 
   const cards: CapabilityCard[] = [];
-  for (const plugin of installed) {
+  for (const plugin of active) {
     for (const skill of plugin.skills) {
       cards.push({
         id: toAgentPluginSkillCapabilityId(plugin.pluginId, plugin.archiveDigest, skill.name),

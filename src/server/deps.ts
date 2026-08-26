@@ -173,6 +173,22 @@ export function builtInThemesDir(): string {
 }
 
 /**
+ * Agent Plugins that ship WITH the product live in `src/agent-plugins/<pluginId>/`, copied to
+ * `dist/src/agent-plugins/` at build time and resolved package-relative to this file — the exact
+ * same shape as {@link builtInThemesDir} immediately above, for the same reason (CR-R04: a
+ * `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
+ *
+ * Deliberately NOT `infra/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
+ * root — gitignored runtime data (`infra/README.md`), populated by extraction, and frozen read-only
+ * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
+ * a release, and would collide with the content-addressed tree the installer owns. Bundled source
+ * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
+ */
+export function bundledAgentPluginsDir(): string {
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../agent-plugins");
+}
+
+/**
  * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the static-site export engine's default output
  * directory root. Read ONCE here (mirrors `builtInThemesDir()`/`mediaUploadsDir()` immediately
  * above) rather than re-read deep in `features/deployments/export-run.ts` (the admin route's export

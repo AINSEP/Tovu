@@ -10,6 +10,7 @@ import {
   type WirableToolDefinition,
 } from "@jini-ai/cms/core";
 
+import { filterActiveAgentPlugins, readAgentPluginActivations } from "./activation.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
 import { resolveAgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
@@ -288,13 +289,20 @@ export interface AgentPluginToolSource {
 export async function loadInstalledAgentPluginToolSources(ctx: {
   readonly workspaceId: string;
 }): Promise<readonly AgentPluginToolSource[]> {
-  const packagesDir = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId).packages;
-  const installed = await listInstalledPlugins(packagesDir);
+  const workspaceLayout = resolveAgentPluginLayout().forWorkspace(ctx.workspaceId);
+  const installed = await listInstalledPlugins(workspaceLayout.packages);
+
+  // ACTIVATION GATE (2026-08-26) — the second of three surfaces (see `activation.ts`). Filtered
+  // BEFORE the ambiguity check below on purpose: two installed digests of a plugin nobody has
+  // enabled is not an operator-actionable error, and throwing on it would let a dormant, disabled
+  // package break tool registration for every OTHER plugin in the workspace.
+  const activations = await readAgentPluginActivations(workspaceLayout.root);
+  const active = filterActiveAgentPlugins(activations, installed, (plugin) => plugin.pluginId);
 
   const digestByPluginId = new Map<string, string>();
   const sources: AgentPluginToolSource[] = [];
 
-  for (const plugin of installed) {
+  for (const plugin of active) {
     const priorDigest = digestByPluginId.get(plugin.pluginId);
     if (priorDigest !== undefined && priorDigest !== plugin.archiveDigest) {
       throw new Error(
