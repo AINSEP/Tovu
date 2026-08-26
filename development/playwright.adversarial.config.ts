@@ -39,9 +39,11 @@ const require = createRequire(import.meta.url);
  * NEVER `infra/content.db` (the owner's real dev database) — a fresh, disposable path in the OS temp
  * directory instead, unique per config-load so concurrent runs cannot collide.
  *
- * `TOVU_ENABLE_DEMO_TOOLS` is deliberately NOT set here, unlike `playwright.a2ui.config.ts`. Demo
- * tools only matter for the A2UI multi-turn exchange path, which needs a live spawned agent CLI to
- * open at all — out of scope for this config's own webServer the same way it was for the a2ui one.
+ * The in-chat UI tools do not matter for this config either way: the A2UI multi-turn exchange path
+ * they drive needs a live spawned agent CLI to open at all, which is out of scope for this config's
+ * own webServer. (This used to read as "`TOVU_ENABLE_DEMO_TOOLS` is deliberately NOT set here,
+ * unlike `playwright.a2ui.config.ts`" — that var stopped existing on 2026-08-26 and neither config
+ * sets it now.)
  *
  * Own ports, pinned away from every port already claimed by a concurrent dispatch in this session
  * (4319 daemon default, 3999, 4976, 4977, 4990, 4991, 4998, 4999, 5173): app 4992, daemon 4993.

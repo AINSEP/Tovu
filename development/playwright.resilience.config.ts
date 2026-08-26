@@ -7,9 +7,12 @@ import { defineConfig, devices } from "@playwright/test";
  * A dedicated config, mirroring `development/playwright.a2ui.config.ts`'s own reasoning for
  * existing rather than reusing the shared `playwright.config.ts`:
  *
- * 1. `TOVU_ENABLE_DEMO_TOOLS` must be set for `assistant_demo_a2ui`/`assistant_demo_choices` to
- *    register at all — a demo tool on the shared VRT config would be reachable from any test run
- *    using that config, not just this one.
+ * 1. HISTORICAL, no longer load-bearing: `TOVU_ENABLE_DEMO_TOOLS` had to be set for
+ *    `assistant_demo_a2ui`/`assistant_demo_choices` to register at all, and a demo tool on the
+ *    shared VRT config would then be reachable from any test run using it. That gate was removed on
+ *    2026-08-26 (see `src/assistant/demo-choices-tool.ts`) — both tools now register
+ *    unconditionally, and the var is gone from `webServer.command` below. Reason 2 alone still
+ *    requires a separate file.
  * 2. `webServer.cwd` must be set explicitly to the repo root — `playwright.config.ts`'s own
  *    `command` resolves `src/index.ts` relative to the CONFIG FILE's directory
  *    (`development/`) by default, which does not exist there. See `playwright.a2ui.config.ts`'s
@@ -53,7 +56,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_DB=memory TOVU_ENABLE_DEMO_TOOLS=1 JINI_AGENT_DAEMON_PORT=4353 node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4353 node --import tsx src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

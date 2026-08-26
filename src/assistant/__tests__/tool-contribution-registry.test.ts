@@ -257,22 +257,16 @@ test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the 
   // — a stale test, not a regression, and ours: completing our own rollout is what invalidated it.
   //
   // `demo-choices` is now the only non-demo-free option, and it is a genuine `DOMAIN_SLICES` entry,
-  // so the cross-seam property this test exists to prove is still really being proven. It is gated
-  // behind `TOVU_ENABLE_DEMO_TOOLS` (read at registration time, not per call — see
-  // `demo-choices-tool.ts`'s `demoToolsEnabled`), hence the env set/restore below.
+  // so the cross-seam property this test exists to prove is still really being proven. It used to
+  // need a `TOVU_ENABLE_DEMO_TOOLS` set/restore around this body; that gate was removed on
+  // 2026-08-26 (see `demo-choices-tool.ts`'s header) and the slice now registers unconditionally,
+  // so the fixture is just the real registration list.
   //
-  // If the demo slices are ever removed too, `DOMAIN_SLICES` becomes empty and the legacy seam
+  // If the in-chat UI slices are ever removed too, `DOMAIN_SLICES` becomes empty and the legacy seam
   // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
   // test that proves a seam still behaves correctly is worthless once there is no seam.
-  const previous = process.env.TOVU_ENABLE_DEMO_TOOLS;
-  process.env.TOVU_ENABLE_DEMO_TOOLS = "1";
-  try {
-    registerToolContributor(fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]));
-    assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
-  } finally {
-    if (previous === undefined) delete process.env.TOVU_ENABLE_DEMO_TOOLS;
-    else process.env.TOVU_ENABLE_DEMO_TOOLS = previous;
-  }
+  registerToolContributor(fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]));
+  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------

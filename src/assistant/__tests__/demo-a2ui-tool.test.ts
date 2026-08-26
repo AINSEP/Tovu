@@ -15,19 +15,10 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../cor
  * back into the next surface it sends, with the human's actions becoming the call's ordinary result.
  */
 
-/** Enables the env-gated demo tool for one builder call, then restores the environment. */
 function buildHandler(surfaceExchanges: SurfaceExchangeStore) {
-  const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
-  process.env["TOVU_ENABLE_DEMO_TOOLS"] = "1";
-  let registrations: ToolRegistration[];
-  try {
-    registrations = buildDemoA2uiRegistrations(undefined, { surfaceExchanges });
-  } finally {
-    if (previous === undefined) delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
-    else process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
-  }
+  const registrations: ToolRegistration[] = buildDemoA2uiRegistrations(undefined, { surfaceExchanges });
   const registration = registrations.find((r) => r.descriptor.id === DEMO_A2UI_TOOL_ID);
-  assert.ok(registration, "the demo tool must be wired when its env gate is set");
+  assert.ok(registration, "the tool must be wired");
   return registration.handler;
 }
 
@@ -171,11 +162,16 @@ test("with no emit seam the tool reports it cannot run, and opens no exchange", 
   assert.equal(result.reason, "no-surface-channel");
 });
 
-test("the tool stays unwired when its env gate is unset", () => {
+// See `demo-choices-tool.test.ts`'s equivalent for why this asserts the opposite of what it used to.
+test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    assert.deepEqual(buildDemoA2uiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() }), []);
+    const registrations = buildDemoA2uiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    assert.ok(
+      registrations.some((r) => r.descriptor.id === DEMO_A2UI_TOOL_ID),
+      "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
+    );
   } finally {
     if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
   }

@@ -18,24 +18,37 @@ import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../cor
  * of the fix: the tool call actually waits for that relay before declaring success.
  */
 
-/** Enables the env-gated demo tool for one builder call, then restores the environment.
- * `rejectionGraceMs` defaults to a tiny value — real production sizing (`RENDER_REJECTION_GRACE_MS`)
- * is a UX tradeoff, not something this suite needs to wait out on every run; only a test that
- * specifically wants to observe grace-period timing should override it. */
+/** `rejectionGraceMs` defaults to a tiny value — real production sizing
+ * (`RENDER_REJECTION_GRACE_MS`) is a UX tradeoff, not something this suite needs to wait out on
+ * every run; only a test that specifically wants to observe grace-period timing should override it. */
 function buildHandler(surfaceExchanges: SurfaceExchangeStore, rejectionGraceMs = 10) {
-  const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
-  process.env["TOVU_ENABLE_DEMO_TOOLS"] = "1";
-  let registrations: ToolRegistration[];
-  try {
-    registrations = buildRenderUiRegistrations(undefined, { surfaceExchanges }, { rejectionGraceMs });
-  } finally {
-    if (previous === undefined) delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
-    else process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
-  }
+  const registrations: ToolRegistration[] = buildRenderUiRegistrations(
+    undefined,
+    { surfaceExchanges },
+    { rejectionGraceMs },
+  );
   const registration = registrations.find((r) => r.descriptor.id === RENDER_UI_TOOL_ID);
-  assert.ok(registration, "the render-ui tool must be wired when its env gate is set");
+  assert.ok(registration, "the render-ui tool must be wired");
   return registration.handler;
 }
+
+// This file had NO registration test at all while the tool was gated, which is part of why its
+// private `renderUiToolsEnabled()` copy of the gate stayed invisible: nothing here ever exercised
+// the builder's own gating branch, so nothing had to change when the gate was found and removed.
+// Asserting registration under a hostile environment is what closes that hole.
+test("registers unconditionally — no environment can switch this tool off", () => {
+  const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
+  delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
+  try {
+    const registrations = buildRenderUiRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    assert.ok(
+      registrations.some((r) => r.descriptor.id === RENDER_UI_TOOL_ID),
+      "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
+    );
+  } finally {
+    if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
+  }
+});
 
 interface CallOptions {
   input?: unknown;

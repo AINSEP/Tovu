@@ -6,7 +6,6 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import { demoToolsEnabled } from "./demo-choices-tool.js";
 import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
 
 /**
@@ -27,12 +26,11 @@ import { renderSolidColorPng, type RgbColor } from "./demo-image-png.js";
  * zero new dependencies and zero network calls, which is what makes this the cheapest HONEST proof
  * available — not a stub that merely LOOKS like an image block.
  *
- * ## Why it is gated, and why the gate is an env var
+ * ## It ships enabled (2026-08-26)
  *
- * Same reasoning as `demo-choices-tool.ts`'s own header, word for word: registered only when
- * `TOVU_ENABLE_DEMO_TOOLS` is set, so a demo tool never costs context in a production prompt, and an
- * env var rather than a build flag keeps the check legible to `buildAssistantToolRegistrations`'s
- * catalog-vs-handler consistency guard at daemon boot.
+ * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set. That gate is gone — see
+ * `demo-choices-tool.ts`'s own header for the decision, which covered all four in-chat UI tools at
+ * once. The prompt-context cost of an always-on demo tool is real and was accepted knowingly.
  *
  * ## It writes nothing, and needs no `emitSurface`
  *
@@ -79,16 +77,13 @@ export const demoImageDerivedRisk: DerivedRiskByToolId = new Map<string, AgentTo
 const CATALOG_BY_ID = new Map(demoImageAgentToolCatalog.map((entry) => [entry.name, entry]));
 
 /**
- * Builds the demo registration, or none at all when the env gate is unset.
+ * Builds this tool's registration. Unconditional since 2026-08-26 — see this module's header.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature (`tool-registrations.ts`'s `DomainSlice.build`).
- * @returns A single registration, or an empty list — an empty slice is legal and is what keeps this
- * tool off the surface in a normal run.
+ * @returns A single registration.
  */
 export function buildDemoImageRegistrations(_routeDeps?: unknown): ToolRegistration[] {
-  if (!demoToolsEnabled()) return [];
-
   const handlers: Record<string, ToolHandler> = {
     [DEMO_IMAGE_TOOL_ID]: async () => {
       const png = renderSolidColorPng({ color: SWATCH_COLOR });

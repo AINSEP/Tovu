@@ -6,10 +6,12 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * A dedicated config rather than reusing `playwright.config.ts` for two reasons:
  *
- * 1. `TOVU_ENABLE_DEMO_TOOLS` must be set for `assistant_demo_a2ui`/`assistant_demo_choices` to
- *    register at all (see `src/assistant/demo-choices-tool.ts`) — the shared VRT config must NOT
- *    carry that, since a demo tool on a config other suites also boot against would be a surface a
- *    stray script could reach in any test run using that config, not just this one.
+ * 1. HISTORICAL, no longer load-bearing: `TOVU_ENABLE_DEMO_TOOLS` had to be set for
+ *    `assistant_demo_a2ui`/`assistant_demo_choices` to register at all, and the shared VRT config
+ *    must not carry a var that widens the tool surface of every suite booting against it. That gate
+ *    was removed on 2026-08-26 (see `src/assistant/demo-choices-tool.ts`) — both tools now register
+ *    unconditionally, so this reason no longer distinguishes this config from the shared one, and
+ *    the var is gone from `webServer.command` below. Reason 2 alone still requires a separate file.
  * 2. `playwright.config.ts`'s own `webServer.command` (`PORT=${PORT} ... node --import tsx
  *    src/index.ts`) is a path relative to the REPO ROOT, but Playwright spawns `webServer.command`
  *    with `cwd` defaulting to this config file's own directory (`development/`) when `webServer.cwd`
@@ -53,7 +55,7 @@ export default defineConfig({
   webServer: {
     // `JINI_AGENT_DAEMON_PORT` pinned away from the default 4319 — this suite must never collide
     // with another Tovu dev instance's own daemon subprocess running concurrently on the same box.
-    command: `PORT=${PORT} TOVU_DB=memory TOVU_ENABLE_DEMO_TOOLS=1 JINI_AGENT_DAEMON_PORT=4998 node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4998 node --import tsx src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

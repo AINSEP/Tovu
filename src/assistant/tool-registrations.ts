@@ -30,8 +30,19 @@
  * Database's, and Recovery is the one that declares it unwired (see {@link derivedRiskByToolId}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
  * a naive per-domain sum read 132 against a registry that holds 131.
- * The demo domains below (2026-08-22: three — `demo-choices`, `demo-a2ui`, `demo-image`) wire
- * nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are outside every number here.
+ * The four in-chat UI domains below — `demo-choices`, `demo-a2ui`, `demo-image`, `render-ui` — used
+ * to wire nothing unless `TOVU_ENABLE_DEMO_TOOLS` was set, and were therefore outside every number
+ * above. That gate was removed on 2026-08-26 (see `demo-choices-tool.ts`'s header), so each now
+ * contributes its one tool unconditionally: 150 -> 154.
+ * This line previously said "three" and omitted `render-ui`, which was gated on the same env var
+ * through its own private copy of the check rather than the shared `demoToolsEnabled()` helper —
+ * a grep for that helper's name did not find it. Corrected 2026-08-26.
+ *
+ * 2026-08-26, measured: `buildAssistantToolRegistrations(createRouteDeps())` after
+ * `installFirstPartyToolContributors()` returns **154** distinct tool ids, four of them the
+ * in-chat UI ones just un-gated. The per-domain table above is a 2026-08-05 snapshot summing to
+ * 131 and has NOT been re-measured since; domains added after that date (see the dated notes
+ * below) are why the live number is higher. Trust the measurement, not the table.
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -472,9 +483,10 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // entries above): `check:architecture` confirms 0 module cycles / largest SCC 0 with Themes wired
   // this way. No longer an entry here; it arrives via `contributeThemesTools()`, installed by
   // `server/tool-catalog-manifest.ts`.
-  // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — development-only surfaces for
-  // exercising a transport in a real chat pane. See each one's own module doc for why it is a tool
-  // rather than a test page, and why the gate is an env var.
+  // Last: the four in-chat UI surfaces. Three of them exercise a transport in a real chat pane;
+  // `render-ui` below is the general-purpose one. All four were gated behind
+  // TOVU_ENABLE_DEMO_TOOLS until 2026-08-26 and now register unconditionally — see each one's own
+  // module doc for why it is a tool rather than a test page.
   { domain: "demo-choices", build: buildDemoChoicesRegistrations, risk: demoChoicesDerivedRisk },
   // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
   // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
