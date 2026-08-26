@@ -37,8 +37,10 @@ test("begin returns the user-facing code and URL plus the secret device code", a
     expiresAt: "2026-08-25T12:15:00.000Z",
     intervalSeconds: 5,
   });
-  assert.equal(http.requests[0]!.url, "https://auth.example.com/device");
-  assert.equal(http.requests[0]!.body.get("scope"), "images:generate");
+  const startedRequest = http.requests[0];
+  assert.ok(startedRequest);
+  assert.equal(startedRequest.url, "https://auth.example.com/device");
+  assert.equal(startedRequest.body.get("scope"), "images:generate");
 });
 
 test("Google's pre-RFC `verification_url` spelling is accepted rather than reported as missing", async () => {
@@ -186,6 +188,8 @@ test("an approved poll returns the token set with the RFC 8628 grant type on the
 
   assert.equal(tokens.accessToken, "at-1");
   assert.equal(tokens.refreshToken, "rt-1");
-  assert.equal(http.requests[0]!.body.get("grant_type"), "urn:ietf:params:oauth:grant-type:device_code");
-  assert.equal(http.requests[0]!.body.get("device_code"), "dev-code-secret");
+  const pollRequest = http.requests[0];
+  assert.ok(pollRequest);
+  assert.equal(pollRequest.body.get("grant_type"), "urn:ietf:params:oauth:grant-type:device_code");
+  assert.equal(pollRequest.body.get("device_code"), "dev-code-secret");
 });

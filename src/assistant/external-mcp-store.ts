@@ -830,52 +830,82 @@ interface ResolvedOAuthFields {
  * offending form control (`oauth.clientId`, `oauth.grant`, ...).
  * @complexity O(n) in the number of scopes.
  */
-function resolveOAuthFields(
-  authMode: ExternalMcpAuthMode,
-  transport: ExternalMcpTransport,
-  input: SaveExternalMcpServerInput,
-  existing: ExternalMcpServerRecord | null,
-): ResolvedOAuthFields {
-  // A row that is not OAuth-authenticated keeps no OAuth identity at all. Clearing rather than
-  // preserving is deliberate: a row switched to `static_env` that still carried a provider and a
-  // client id would silently re-adopt them if it were ever switched back, along with a token issued
-  // under configuration nobody has looked at since.
-  if (authMode !== "oauth") {
-    return {
-      oauthProviderId: null,
-      oauthGrant: null,
-      oauthClientId: null,
-      oauthEndpointsJson: null,
-      oauthScopesJson: null,
-      oauthTokenEnvName: null,
-      clientSecret: "",
-    };
-  }
+/** The OAuth columns of a row that is NOT OAuth-authenticated: all cleared.
+ *
+ *  Cleared rather than preserved, deliberately: a row switched to `static_env` that still carried a
+ *  provider and a client id would silently re-adopt them if it were ever switched back, along with a
+ *  token issued under configuration nobody has looked at since. */
+const NO_OAUTH_FIELDS: ResolvedOAuthFields = {
+  oauthProviderId: null,
+  oauthGrant: null,
+  oauthClientId: null,
+  oauthEndpointsJson: null,
+  oauthScopesJson: null,
+  oauthTokenEnvName: null,
+  clientSecret: "",
+};
 
-  const oauth = input.oauth ?? {};
-  const grant = (oauth.grant ?? existing?.oauthGrant ?? "").trim();
+/**
+ * The first non-empty trimmed candidate, or `""`.
+ *
+ * Every OAuth identity field follows the same precedence — what the operator just submitted, then
+ * what the row already holds, then nothing — and writing that as a `??` chain at each field is both
+ * repetitive and, measurably, most of these functions' branch count. One helper makes the precedence
+ * a single named rule instead of five copies of it.
+ *
+ * @complexity O(n) in the number of candidates, each trimmed once.
+ */
+function firstTrimmed(...candidates: readonly (string | null | undefined)[]): string {
+  for (const candidate of candidates) {
+    const trimmed = candidate?.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+/** @throws {ExternalMcpValidationError} On a grant outside {@link EXTERNAL_MCP_OAUTH_GRANTS}. */
+function assertOAuthGrant(grant: string): ExternalMcpOAuthGrant {
   if (!EXTERNAL_MCP_OAUTH_GRANTS.includes(grant as ExternalMcpOAuthGrant)) {
     throw new ExternalMcpValidationError(
       `OAuth grant '${grant}' is not supported — expected one of ${EXTERNAL_MCP_OAUTH_GRANTS.join(", ")}`,
       "oauth.grant",
     );
   }
+  return grant as ExternalMcpOAuthGrant;
+}
 
-  const clientId = (oauth.clientId ?? existing?.oauthClientId ?? "").trim();
+/** @throws {ExternalMcpValidationError} On an empty or oversized client id. */
+function assertOAuthClientId(clientId: string): string {
   if (clientId === "") {
     throw new ExternalMcpValidationError("an OAuth connection needs a client id", "oauth.clientId");
   }
   if (clientId.length > MAX_OAUTH_FIELD_LENGTH) {
     throw new ExternalMcpValidationError(`the OAuth client id may be at most ${MAX_OAUTH_FIELD_LENGTH} characters`, "oauth.clientId");
   }
+  return clientId;
+}
 
-  const providerId = (oauth.providerId ?? existing?.oauthProviderId ?? "").trim();
-  // Endpoints are re-derived whenever the operator touched EITHER identity field, so clearing a
-  // provider id and typing endpoints (or the reverse) cannot leave half of the old pairing behind.
-  const endpoints =
-    oauth.providerId !== undefined || oauth.tokenEndpoint !== undefined
-      ? buildOAuthEndpoints(oauth)
-      : parseJsonObject(existing?.oauthEndpointsJson ?? null);
+/**
+ * Resolves the provider half of an OAuth connection: a registered provider id, its own endpoints, or
+ * both.
+ *
+ * Endpoints are re-derived whenever the operator touched EITHER identity field, so clearing a
+ * provider id and typing endpoints (or the reverse) cannot leave half of the old pairing behind.
+ *
+ * @throws {ExternalMcpValidationError} When neither a provider id nor a token endpoint is present,
+ * or the provider id is malformed.
+ * @complexity O(1).
+ */
+function resolveOAuthEndpoints(
+  oauth: SaveExternalMcpOAuthInput,
+  existing: ExternalMcpServerRecord | null,
+): Record<string, string> {
+  const touchedIdentity = oauth.providerId !== undefined || oauth.tokenEndpoint !== undefined;
+  return touchedIdentity ? buildOAuthEndpoints(oauth) : parseJsonObject(existing?.oauthEndpointsJson ?? null);
+}
+
+/** @throws {ExternalMcpValidationError} When neither identity is present, or the id is malformed. */
+function assertOAuthProviderIdentity(providerId: string, endpoints: Record<string, string>): void {
   if (providerId === "" && endpoints.tokenEndpoint === undefined) {
     throw new ExternalMcpValidationError(
       "an OAuth connection needs either a registered provider id or its own token endpoint",
@@ -888,34 +918,77 @@ function resolveOAuthFields(
       "oauth.providerId",
     );
   }
+}
 
-  const scopes = oauth.scopes === undefined ? parseJsonArray(existing?.oauthScopesJson ?? null) : parseOAuthScopes(oauth.scopes);
-
-  // Only `stdio` hands credentials to a child process, so only `stdio` needs a variable name for it.
-  let tokenEnvName: string | null = null;
-  if (transport === "stdio") {
-    tokenEnvName = (oauth.tokenEnvName ?? existing?.oauthTokenEnvName ?? "").trim() || null;
-    if (tokenEnvName === null) {
-      throw new ExternalMcpValidationError(
-        "a stdio server authenticated with OAuth needs the name of the environment variable that receives its access token",
-        "oauth.tokenEnvName",
-      );
-    }
-    if (!ENV_NAME_PATTERN.test(tokenEnvName)) {
-      throw new ExternalMcpValidationError(
-        `'${tokenEnvName}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
-        "oauth.tokenEnvName",
-      );
-    }
-  }
+function resolveOAuthProviderIdentity(
+  oauth: SaveExternalMcpOAuthInput,
+  existing: ExternalMcpServerRecord | null,
+): { readonly oauthProviderId: string | null; readonly oauthEndpointsJson: string | null } {
+  const providerId = firstTrimmed(oauth.providerId, existing?.oauthProviderId);
+  const endpoints = resolveOAuthEndpoints(oauth, existing);
+  assertOAuthProviderIdentity(providerId, endpoints);
 
   return {
     oauthProviderId: providerId === "" ? null : providerId,
-    oauthGrant: grant,
-    oauthClientId: clientId,
     oauthEndpointsJson: Object.keys(endpoints).length === 0 ? null : JSON.stringify(endpoints),
-    oauthScopesJson: JSON.stringify(scopes),
-    oauthTokenEnvName: tokenEnvName,
+  };
+}
+
+/**
+ * Resolves which child-process environment variable receives the access token.
+ *
+ * `null` for every non-`stdio` transport: only `stdio` hands credentials to a child process, so only
+ * `stdio` needs a name for one.
+ *
+ * @throws {ExternalMcpValidationError} When a stdio+OAuth row names none, or names an invalid one.
+ * @complexity O(n) in the name length.
+ */
+function resolveOAuthTokenEnvName(
+  transport: ExternalMcpTransport,
+  oauth: SaveExternalMcpOAuthInput,
+  existing: ExternalMcpServerRecord | null,
+): string | null {
+  if (transport !== "stdio") return null;
+
+  const tokenEnvName = firstTrimmed(oauth.tokenEnvName, existing?.oauthTokenEnvName);
+  if (tokenEnvName === "") {
+    throw new ExternalMcpValidationError(
+      "a stdio server authenticated with OAuth needs the name of the environment variable that receives its access token",
+      "oauth.tokenEnvName",
+    );
+  }
+  if (!ENV_NAME_PATTERN.test(tokenEnvName)) {
+    throw new ExternalMcpValidationError(
+      `'${tokenEnvName}' is not a valid environment variable name (letters, digits and underscore, not starting with a digit)`,
+      "oauth.tokenEnvName",
+    );
+  }
+  return tokenEnvName;
+}
+
+/** Scopes for one save. Absent input KEEPS the stored list (the three-state rule `env` sets); an
+ *  empty string clears it, since {@link parseOAuthScopes} of `""` is `[]`. */
+function resolveSavedOAuthScopes(oauth: SaveExternalMcpOAuthInput, existing: ExternalMcpServerRecord | null): string[] {
+  if (oauth.scopes === undefined) return parseJsonArray(existing?.oauthScopesJson ?? null);
+  return parseOAuthScopes(oauth.scopes);
+}
+
+function resolveOAuthFields(
+  authMode: ExternalMcpAuthMode,
+  transport: ExternalMcpTransport,
+  input: SaveExternalMcpServerInput,
+  existing: ExternalMcpServerRecord | null,
+): ResolvedOAuthFields {
+  if (authMode !== "oauth") return NO_OAUTH_FIELDS;
+
+  const oauth = input.oauth ?? {};
+
+  return {
+    ...resolveOAuthProviderIdentity(oauth, existing),
+    oauthGrant: assertOAuthGrant(firstTrimmed(oauth.grant, existing?.oauthGrant)),
+    oauthClientId: assertOAuthClientId(firstTrimmed(oauth.clientId, existing?.oauthClientId)),
+    oauthScopesJson: JSON.stringify(resolveSavedOAuthScopes(oauth, existing)),
+    oauthTokenEnvName: resolveOAuthTokenEnvName(transport, oauth, existing),
     clientSecret: oauth.clientSecret,
   };
 }
@@ -977,16 +1050,22 @@ async function resolveExternalMcpSealedEnv(
   }
 }
 
-/** A `stdio` row needs a command; a remote row needs a URL. Split out to keep
- *  {@link saveExternalMcpServer}'s complexity under the shop ceiling.
- *  @throws {ExternalMcpValidationError} When the transport's own required field is missing or unsafe. */
-function resolveTransportTarget(
-  transport: ExternalMcpTransport,
-  input: SaveExternalMcpServerInput,
-): { readonly command: string | null; readonly url: string | null } {
-  if (transport === "stdio") return { command: assertNonEmptyExternalMcpCommand(input.command), url: null };
+/** Hosts for which plaintext `http` is tolerated — a local development server, and nothing else. */
+const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 
-  const url = (input.url ?? "").trim();
+/**
+ * Validates a remote MCP server URL.
+ *
+ * Same rule the OAuth endpoints follow (`oauth/endpoint-safety.ts`): https, or http only for
+ * loopback. A remote MCP endpoint carries the bearer token this whole subsystem exists to obtain, so
+ * a plaintext one to anywhere but a developer's own machine is a credential on the wire.
+ *
+ * @returns The normalized absolute URL.
+ * @throws {ExternalMcpValidationError} On an empty, unparseable, or plaintext-non-loopback URL.
+ * @complexity O(n) in the URL length.
+ */
+function assertSafeRemoteMcpUrl(rawUrl: string, transport: ExternalMcpTransport): string {
+  const url = rawUrl.trim();
   if (url === "") {
     throw new ExternalMcpValidationError(`a ${transport} server needs a URL`, "url");
   }
@@ -996,12 +1075,23 @@ function resolveTransportTarget(
   } catch {
     throw new ExternalMcpValidationError(`'${url}' is not a valid absolute URL`, "url");
   }
-  // Same rule the OAuth endpoints follow: https, or http only for loopback. A remote MCP endpoint
-  // carries the bearer token this subsystem exists to obtain.
-  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1" || parsed.hostname === "[::1]"))) {
+  const loopback = LOOPBACK_HOSTNAMES.has(parsed.hostname.toLowerCase());
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && loopback)) {
     throw new ExternalMcpValidationError("a remote MCP server URL must use https (http is permitted only for loopback)", "url");
   }
-  return { command: null, url: parsed.toString() };
+  return parsed.toString();
+}
+
+/** A `stdio` row needs a command; a remote row needs a URL. Split out to keep
+ *  {@link saveExternalMcpServer}'s complexity under the shop ceiling.
+ *  @throws {ExternalMcpValidationError} When the transport's own required field is missing or unsafe. */
+function resolveTransportTarget(
+  transport: ExternalMcpTransport,
+  input: SaveExternalMcpServerInput,
+): { readonly command: string | null; readonly url: string | null } {
+  if (transport === "stdio") return { command: assertNonEmptyExternalMcpCommand(input.command), url: null };
+
+  return { command: null, url: assertSafeRemoteMcpUrl(input.url ?? "", transport) };
 }
 
 /**

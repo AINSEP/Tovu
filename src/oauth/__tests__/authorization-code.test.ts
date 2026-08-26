@@ -73,7 +73,8 @@ test("complete sends the matching code_verifier, the stored redirect_uri, and no
     { ownerKey: "ws:higgs", client: TEST_CLIENT, params: { state: started.state, code: "auth-code-1" } },
   );
 
-  const request = http.requests[0]!;
+  const request = http.requests[0];
+  assert.ok(request);
   assert.equal(request.method, "POST");
   assert.equal(request.url, "https://auth.example.com/token");
   assert.equal(request.redirect, "error");
