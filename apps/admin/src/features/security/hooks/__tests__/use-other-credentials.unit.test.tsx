@@ -7,6 +7,36 @@ import type { AdminMediaProviderMap } from "../../../../lib/api";
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
+import type { AdminExternalMcpServer } from "../../../../lib/api";
+
+/** Minimal, fully-shaped `AdminExternalMcpServer` fixture — the OAuth-related fields this suite
+ *  never exercises stay at their "nothing configured" defaults so each call site only spells out
+ *  what it actually varies. */
+function fakeExternalMcpServer(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalMcpServer {
+  return {
+    serverId: "local-fs",
+    label: "Local filesystem",
+    transport: "stdio",
+    authMode: "static_env",
+    enabled: true,
+    command: "npx",
+    url: null,
+    args: [],
+    allowedToolNames: [],
+    envNames: [],
+    oauth: {
+      providerId: null,
+      grant: null,
+      clientId: null,
+      scopes: [],
+      status: "disconnected",
+      expiresAt: null,
+      tokenEnvName: null,
+      hasStoredToken: false,
+    },
+    ...overrides,
+  };
+}
 
 /**
  * @file Coverage for `useOtherCredentials` (0/50 funcs) — the Tier-2 controller behind
@@ -85,7 +115,7 @@ describe("useOtherCredentials — reading all six stores", () => {
           never_connected: { status: "available" },
         }),
       listExternalMcpServers: () =>
-        Promise.resolve({ servers: [{ serverId: "local-fs", label: "Local filesystem", transport: "stdio", enabled: true, command: "npx", args: [], allowedToolNames: [], envNames: ["FOO", "BAR"] }] }),
+        Promise.resolve({ servers: [fakeExternalMcpServer({ envNames: ["FOO", "BAR"] })] }),
     });
 
     const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });
@@ -412,7 +442,7 @@ describe("useOtherCredentials — remove: per-store dispatch (writeRemove), all 
   it("external-mcp: deleteExternalMcpServer(itemId)", async () => {
     const deleteExternalMcpServer = vi.fn(() => Promise.resolve({ removed: true, restartRequired: true }));
     const port = createFakeOtherCredentialsPort({
-      listExternalMcpServers: () => Promise.resolve({ servers: [{ serverId: "s1", label: "S1", transport: "stdio", enabled: true, command: "x", args: [], allowedToolNames: [], envNames: [] }] }),
+      listExternalMcpServers: () => Promise.resolve({ servers: [fakeExternalMcpServer({ serverId: "s1", label: "S1", command: "x" })] }),
       deleteExternalMcpServer,
     });
     const { result } = renderHook(() => useOtherCredentials(port, T, LOCALE, { query: "", category: "all" }), { wrapper });

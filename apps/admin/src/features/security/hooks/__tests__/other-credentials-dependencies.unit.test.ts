@@ -210,11 +210,23 @@ describe("defaultOtherCredentialsPort — external MCP servers", () => {
     serverId: "local-fs",
     label: "Local filesystem",
     transport: "stdio",
+    authMode: "static_env",
     enabled: true,
     command: "npx",
+    url: null,
     args: [],
     allowedToolNames: [],
     envNames: [],
+    oauth: {
+      providerId: null,
+      grant: null,
+      clientId: null,
+      scopes: [],
+      status: "disconnected",
+      expiresAt: null,
+      tokenEnvName: null,
+      hasStoredToken: false,
+    },
   };
 
   it("listExternalMcpServers delegates to api.listExternalMcpServers", async () => {
@@ -267,7 +279,33 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
       getMediaProviders: () => Promise.resolve({ cloudinary: { apiKeyConfigured: true } }),
       getComposioConfig: () => Promise.resolve({ configured: true, apiKeyTail: "comp" }),
       listConnectors: () => Promise.resolve({ connectors: [{ id: "c1", name: "C1", provider: "p", category: "cat", status: "connected", tools: [] }] }),
-      listExternalMcpServers: () => Promise.resolve({ servers: [{ serverId: "s1", label: "S1", transport: "stdio", enabled: true, command: "x", args: [], allowedToolNames: [], envNames: ["FOO"] }] }),
+      listExternalMcpServers: () =>
+        Promise.resolve({
+          servers: [
+            {
+              serverId: "s1",
+              label: "S1",
+              transport: "stdio",
+              authMode: "static_env",
+              enabled: true,
+              command: "x",
+              url: null,
+              args: [],
+              allowedToolNames: [],
+              envNames: ["FOO"],
+              oauth: {
+                providerId: null,
+                grant: null,
+                clientId: null,
+                scopes: [],
+                status: "disconnected",
+                expiresAt: null,
+                tokenEnvName: null,
+                hasStoredToken: false,
+              },
+            },
+          ],
+        }),
     });
 
     await expect(port.getSiteAssistantCredential()).resolves.toMatchObject({ data: { masked: "••••site" } });

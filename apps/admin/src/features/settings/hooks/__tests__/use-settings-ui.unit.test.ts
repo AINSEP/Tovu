@@ -81,6 +81,6 @@ describe("useSettingsUi — composed sub-controllers are present", () => {
     expect(result.current.composio).toHaveProperty("save");
     expect(result.current.composio).toHaveProperty("clear");
     expect(result.current.externalMcp).toHaveProperty("dependencies");
-    expect(result.current.externalMcp.fieldSpecs.map((f) => f.key)).toContain("command");
+    expect(result.current.externalMcp).toHaveProperty("restartRequired");
   });
 });

@@ -5,7 +5,6 @@ import type {
   AddSourceResult,
   SourceConfigDependencies,
   SourceConfigItem,
-  SourceFieldSpec,
 } from "@jini-ai/ui";
 
 /**
@@ -19,25 +18,32 @@ type SourceUpdateInput = Parameters<
   NonNullable<SourceConfigDependencies<SourceConfigItem>["port"]["updateSource"]>
 >[1];
 
-import { api, describeApiError, type AdminExternalMcpServer, type AdminExternalMcpServerInput } from "../../../lib/api";
-import { mergeSourceUpdate } from "../rules";
+import {
+  api,
+  describeApiError,
+  type AdminExternalMcpOAuthInput,
+  type AdminExternalMcpServer,
+  type AdminExternalMcpServerInput,
+} from "../../../lib/api";
+import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExternalMcpOAuthIdentity } from "../rules";
 
 /**
  * @file The real transport behind Settings → External MCP, replacing the empty in-memory fake that
  * tab mounted while Tovu had no config store.
  *
- * ## Why the field specs are overridden rather than Jini's defaults
+ * ## Why field rendering is NOT driven by a fixed `SourceFieldSpec[]` here anymore
  *
- * `@jini-ai/ui`'s `MCP_SOURCE_FIELD_SPECS` were derived from Open Design's own MCP section, and
- * differ from what Tovu needs in two ways that both matter:
- *
- * 1. They offer a `transport` choice of `stdio | http`. Tovu federates over stdio only
- *    (`assistant/mcp-federation/adapter.stdio.ts` is the sole adapter), so offering `http` would
- *    let an operator fill in a whole form that the server then rejects.
- * 2. They have NO allowlist field at all. Federation is default-deny (`mcp-federation/trust.ts`
- *    R2), so a server saved without one contributes exactly zero tools. That control is the one
- *    doing the real security work — the design doc demonstrates it with Supabase's `execute_sql`,
- *    which reports `readOnlyHint: true` about itself — so the field is required here, not optional.
+ * Earlier versions of this file exported a single static `TOVU_MCP_FIELD_SPECS` array and Tovu
+ * mounted `@jini-ai/ui`'s assembled `ExternalMcpTab` directly against it. That stopped being viable
+ * once a server could be `stdio` OR `streamable_http`, with credentials `none`/`static_env`/`oauth`:
+ * a static spec list has no way to hide `url`/`command` or the OAuth block depending on what the
+ * operator is currently choosing, and showing every field for every combination unconditionally is
+ * exactly the "here are all the fields, figure out which apply" experience this tab exists to avoid.
+ * `../rules.ts`'s `buildExternalMcpFieldSpecs(values)` now computes the visible/required field set
+ * from the draft's current values, and `../components/ExternalMcpSettingsPanel.tsx` — Tovu's own
+ * replacement for `ExternalMcpTab` — recomputes it live as the operator types. This hook stays
+ * unchanged in shape (still a `SourceConfigDependencies` port), it just no longer also hands back one
+ * frozen spec list.
  *
  * ## The env field never round-trips a value
  *
@@ -49,42 +55,9 @@ import { mergeSourceUpdate } from "../rules";
  * exactly the failure the store's `undefined`-vs-`""` distinction exists to prevent. The cost is
  * that clearing credentials from the card alone is not expressible; removing and re-adding the
  * server is. Losing a token by accident is much worse than needing two steps to discard one.
+ * `oauthClientSecret` follows the identical rule, for the identical reason — no read model ever
+ * returns a stored client secret either.
  */
-
-/**
- * Tovu's own field specs — see this file's header for why Jini's defaults are not used.
- *
- * There is deliberately NO `transport` field. Jini's default specs render one as a required
- * `select`, but Tovu supports exactly one transport, so the control could only ever offer a single
- * option — and because the add form starts every field empty, a required select with one option is
- * not merely noise: it blocks submission with "Transport is required" until the operator opens a
- * dropdown to pick the only thing in it. Both the port and the write route default the value, so
- * omitting the field is also what keeps that default in one place. When a second transport is
- * implemented, this comes back as a real choice.
- *
- * `env` is a plain `textarea`, not Jini's `secret-textarea`. That kind masks a loaded value and
- * renders the control readOnly until revealed, which is right for a host that serves stored secrets
- * back to the form — and wrong here twice over: Tovu never returns an env VALUE (`toItem` always
- * sets it blank), so there is nothing to mask, and the readOnly rule applies even to an empty
- * field, so an operator cannot type a token at all without first hunting for a reveal toggle.
- */
-export const TOVU_MCP_FIELD_SPECS: readonly SourceFieldSpec[] = [
-  { key: "id", label: "ID", kind: "text", required: true, placeholder: "lowercase letters, digits and dashes" },
-  { key: "command", label: "Command", kind: "text", required: true, placeholder: "e.g. npx, node, /path/to/binary" },
-  { key: "args", label: "Args", kind: "text", placeholder: "space-separated" },
-  {
-    key: "allowedToolNames",
-    label: "Allowed tools",
-    kind: "text",
-    placeholder: "comma-separated — nothing runs unless it is listed here",
-  },
-  {
-    key: "env",
-    label: "Env (KEY=VALUE)",
-    kind: "textarea",
-    placeholder: "GITHUB_TOKEN=…  (leave blank to keep the stored values)",
-  },
-];
 
 function toItem(server: AdminExternalMcpServer): SourceConfigItem {
   return {
@@ -95,11 +68,31 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       id: server.serverId,
       transport: server.transport,
       command: server.command,
+      url: server.url ?? "",
       args: server.args.join(" "),
       allowedToolNames: server.allowedToolNames.join(", "),
+      authMode: server.authMode,
       // Never populated — see this file's header. The names are surfaced in `statusMessage` instead,
       // so an operator can still see which variables are set.
       env: "",
+      // The rest of the OAuth block is NOT secret (a client id travels in the authorization URL by
+      // design, same as the store's own doc comment on this), so it round-trips the real stored
+      // value — only `oauthClientSecret` stays blank, matching `env`.
+      oauthProviderId: server.oauth.providerId ?? "",
+      oauthGrant: server.oauth.grant ?? "",
+      oauthClientId: server.oauth.clientId ?? "",
+      oauthClientSecret: "",
+      oauthScopes: server.oauth.scopes.join(" "),
+      oauthTokenEnvName: server.oauth.tokenEnvName ?? "",
+      // The store's `ExternalMcpOAuthView` does not carry a connection's own endpoints back —
+      // `providerId` is enough to identify a registered one, and a connection with its own
+      // endpoints has no other read model for them today. Left blank rather than guessed; an
+      // operator editing a custom-endpoint connection re-enters them, the same disclosed gap
+      // `env`/`oauthClientSecret` already accept for secret-shaped fields (this one isn't secret,
+      // it just isn't surfaced yet — a future `oauthEndpoints` field on the view would close it).
+      oauthAuthorizationEndpoint: "",
+      oauthTokenEndpoint: "",
+      oauthDeviceAuthorizationEndpoint: "",
     },
     ...(server.envNames.length > 0
       ? { statusMessage: `Credentials set: ${server.envNames.join(", ")}` }
@@ -107,29 +100,62 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
   };
 }
 
+/** Builds the OAuth block for a save, or `undefined` when the draft's effective auth mode isn't
+ *  `oauth` — matching the store's own `resolveOAuthFields`, which ignores the whole block outside
+ *  that mode. Every member except `clientSecret` is sent as-is (never tri-state): the value the
+ *  operator sees IS the true current value (round-tripped by {@link toItem}, or freshly typed), so
+ *  there is no "untouched vs cleared" ambiguity to preserve — sending exactly what's shown is
+ *  simpler than reconstructing it, and the store's own `firstTrimmed` precedence treats a blank
+ *  string as "keep what's stored" for the identity fields regardless. `clientSecret` is the one
+ *  member with no round-trip at all (see this file's header), so it keeps the `env` convention: omit
+ *  when blank, so a save never silently wipes a stored secret.
+ *  @complexity O(1). */
+function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuthInput | undefined {
+  if (resolveExternalMcpEffectiveAuthMode(fields) !== "oauth") return undefined;
+  const clientSecret = fields.oauthClientSecret ?? "";
+  return {
+    providerId: fields.oauthProviderId ?? "",
+    grant: fields.oauthGrant ?? "",
+    clientId: fields.oauthClientId ?? "",
+    scopes: fields.oauthScopes ?? "",
+    tokenEnvName: fields.oauthTokenEnvName ?? "",
+    authorizationEndpoint: fields.oauthAuthorizationEndpoint ?? "",
+    tokenEndpoint: fields.oauthTokenEndpoint ?? "",
+    deviceAuthorizationEndpoint: fields.oauthDeviceAuthorizationEndpoint ?? "",
+    ...(clientSecret.trim() === "" ? {} : { clientSecret }),
+  };
+}
+
 /**
- * Builds the write body from a field map, omitting `env` when it is blank.
+ * Builds the write body from a field map, omitting `env`/`oauth.clientSecret` when blank.
+ *
+ * `command`/`url` are both always sent regardless of transport — harmless, since the store's own
+ * `resolveTransportTarget` reads only the one that matches `transport` and ignores the other, and
+ * sending both unconditionally is simpler than a transport-keyed omission that would buy nothing.
  *
  * @complexity O(1).
  * @overallScore 100
  */
 function toWriteBody(fields: Record<string, string>, enabled: boolean, label?: string): AdminExternalMcpServerInput {
   const env = fields.env ?? "";
+  const oauth = toOAuthWriteBody(fields);
   return {
     ...(label !== undefined ? { label } : {}),
     transport: fields.transport || "stdio",
     enabled,
     command: fields.command ?? "",
+    url: fields.url ?? "",
     args: fields.args ?? "",
     allowedToolNames: fields.allowedToolNames ?? "",
+    authMode: resolveExternalMcpEffectiveAuthMode(fields),
     // Blank means "untouched", never "clear" — see this file's header.
     ...(env.trim() === "" ? {} : { env }),
+    ...(oauth ? { oauth } : {}),
   };
 }
 
 export interface ExternalMcpController {
   dependencies: SourceConfigDependencies<SourceConfigItem>;
-  fieldSpecs: readonly SourceFieldSpec[];
   /** Set once any write succeeds — federation only re-reads the roster at daemon boot. */
   restartRequired: boolean;
 }
@@ -163,6 +189,8 @@ export function useExternalMcp(): ExternalMcpController {
         async addSource(input: AddSourceInput): Promise<AddSourceResult<SourceConfigItem>> {
           const serverId = (input.fields.id ?? "").trim();
           if (serverId === "") return { ok: false, message: "An ID is required." };
+          const oauthIdentityIssue = validateExternalMcpOAuthIdentity(input.fields);
+          if (oauthIdentityIssue) return { ok: false, message: oauthIdentityIssue };
           try {
             const { server } = await api.saveExternalMcpServer(
               serverId,
@@ -206,5 +234,5 @@ export function useExternalMcp(): ExternalMcpController {
     []
   );
 
-  return { dependencies, fieldSpecs: TOVU_MCP_FIELD_SPECS, restartRequired };
+  return { dependencies, restartRequired };
 }

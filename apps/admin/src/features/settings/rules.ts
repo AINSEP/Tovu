@@ -1,3 +1,5 @@
+import type { SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
+
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
 
 /**
@@ -64,6 +66,175 @@ export function mergeSourceUpdate(previous: PreviousSourceFields | undefined, pa
     enabled: patch.enabled ?? previous?.enabled ?? true,
     label: patch.label ?? previous?.label,
   };
+}
+
+// ---------------------------------------------------------------------------
+// External MCP: reactive field specs for transport + auth mode
+// ---------------------------------------------------------------------------
+//
+// `@jini-ai/ui`'s `SourceFieldSpec[]` is a flat, non-reactive array — the generic primitive has no
+// concept of "hide this field unless that other field has this value" (see `types.ts`'s own
+// `SourceFieldSpec` doc: `required` is a plain boolean, not a predicate). Rather than teach that
+// generic package a host-specific notion of conditional fields, the spec ARRAY ITSELF is recomputed
+// here, in Tovu, from the draft's current values — a field simply isn't in the array when it doesn't
+// apply, which means it is neither rendered (`SourceConfigAddForm`/`SourceConfigItemCard` only ever
+// map over what they're given) nor validated (`validateSourceDraft` only ever iterates what it's
+// given). `ExternalMcpSettingsPanel.tsx` is what makes the recomputation live as the operator types —
+// this module stays the pure decision, same split as the rest of this file.
+
+/** A server is `stdio` unless it explicitly says `streamable_http` — the same default
+ *  `parseExternalMcpPutBody` applies server-side, restated here so the add form shows the SAME
+ *  set of required/visible fields a freshly-opened, not-yet-touched draft would actually save as.
+ *  @complexity O(1). */
+export function resolveExternalMcpEffectiveTransport(values: SourceFieldValues): "stdio" | "streamable_http" {
+  return values.transport === "streamable_http" ? "streamable_http" : "stdio";
+}
+
+/** A server is `static_env` unless it explicitly says `none` or `oauth` — mirrors
+ *  `resolveExternalMcpAuthMode`'s server-side default for the identical reason
+ *  {@link resolveExternalMcpEffectiveTransport} does. @complexity O(1). */
+export function resolveExternalMcpEffectiveAuthMode(values: SourceFieldValues): "none" | "static_env" | "oauth" {
+  if (values.authMode === "none") return "none";
+  if (values.authMode === "oauth") return "oauth";
+  return "static_env";
+}
+
+/**
+ * Builds the field-spec list a draft's CURRENT `transport`/`authMode` values imply.
+ *
+ * Order matters for both forms this feeds: connection identity first, then how to reach it
+ * (transport-specific), then how to authenticate (auth-mode-specific) — an operator reads the form
+ * top to bottom in the order they'd naturally think through setting up a connection.
+ *
+ * @param values - The draft's current field values (or a saved item's `fields`, for the edit card).
+ * @returns The specs to render AND validate against for these values — nothing else exists to the
+ * form once this returns; see this module's own section header for why that is the whole mechanism.
+ * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
+ */
+export function buildExternalMcpFieldSpecs(values: SourceFieldValues): SourceFieldSpec[] {
+  const transport = resolveExternalMcpEffectiveTransport(values);
+  const authMode = resolveExternalMcpEffectiveAuthMode(values);
+  const isStdio = transport === "stdio";
+  const isOAuth = authMode === "oauth";
+
+  const specs: SourceFieldSpec[] = [
+    { key: "id", label: "ID", kind: "text", required: true, placeholder: "lowercase letters, digits and dashes" },
+    {
+      key: "transport",
+      label: "Connection type",
+      kind: "select",
+      required: true,
+      options: [
+        { value: "stdio", label: "Local command (stdio)" },
+        { value: "streamable_http", label: "Hosted server (URL)" },
+      ],
+    },
+  ];
+
+  if (isStdio) {
+    specs.push(
+      { key: "command", label: "Command", kind: "text", required: true, placeholder: "e.g. npx, node, /path/to/binary" },
+      { key: "args", label: "Args", kind: "text", placeholder: "space-separated" },
+    );
+  } else {
+    specs.push({ key: "url", label: "URL", kind: "text", required: true, placeholder: "https://…" });
+  }
+
+  specs.push({
+    key: "allowedToolNames",
+    label: "Allowed tools",
+    kind: "text",
+    placeholder: "comma-separated — nothing runs unless it is listed here",
+  });
+
+  if (isStdio) {
+    specs.push({
+      key: "env",
+      label: "Environment variables (KEY=VALUE)",
+      kind: "textarea",
+      placeholder: "GITHUB_TOKEN=…  (leave blank to keep the stored values)",
+    });
+  }
+
+  specs.push({
+    key: "authMode",
+    label: "Credentials",
+    kind: "select",
+    required: true,
+    options: [
+      { value: "none", label: "None needed" },
+      { value: "static_env", label: "API key / token (above)" },
+      { value: "oauth", label: "Connect via OAuth" },
+    ],
+  });
+
+  if (isOAuth) {
+    specs.push(
+      {
+        key: "oauthProviderId",
+        label: "Provider ID",
+        kind: "text",
+        placeholder: "leave blank to define this connection's own endpoints below",
+      },
+      {
+        key: "oauthGrant",
+        label: "Sign-in method",
+        kind: "select",
+        required: true,
+        options: [
+          { value: "authorization_code", label: "Browser sign-in" },
+          { value: "device_code", label: "Device code" },
+        ],
+      },
+      { key: "oauthClientId", label: "Client ID", kind: "text", required: true },
+      { key: "oauthClientSecret", label: "Client secret", kind: "password", placeholder: "leave blank to keep the stored secret" },
+      { key: "oauthScopes", label: "Scopes", kind: "text", placeholder: "space- or comma-separated" },
+    );
+    if (isStdio) {
+      specs.push({
+        key: "oauthTokenEnvName",
+        label: "Access token environment variable",
+        kind: "text",
+        required: true,
+        placeholder: "the variable name the command reads its token from",
+      });
+    }
+    specs.push(
+      {
+        key: "oauthAuthorizationEndpoint",
+        label: "Authorization endpoint",
+        kind: "text",
+        placeholder: "needed for Browser sign-in, unless Provider ID is set",
+      },
+      { key: "oauthTokenEndpoint", label: "Token endpoint", kind: "text", placeholder: "needed unless Provider ID is set" },
+      {
+        key: "oauthDeviceAuthorizationEndpoint",
+        label: "Device authorization endpoint",
+        kind: "text",
+        placeholder: "needed for Device code, unless Provider ID is set",
+      },
+    );
+  }
+
+  return specs;
+}
+
+/**
+ * The one cross-field OAuth rule `buildExternalMcpFieldSpecs`' per-field `required` flags cannot
+ * express: an OAuth connection needs EITHER a registered provider id OR its own token endpoint, not
+ * both — the same "OR", not "AND", `resolveOAuthProviderIdentity`/`assertOAuthProviderIdentity`
+ * enforce server-side. Checked manually, the same way `useExternalMcp`'s `addSource` already checks
+ * "An ID is required." before ever calling the API.
+ *
+ * @returns An operator-facing message when the rule is violated, else `null`.
+ * @complexity O(1).
+ */
+export function validateExternalMcpOAuthIdentity(values: SourceFieldValues): string | null {
+  if (resolveExternalMcpEffectiveAuthMode(values) !== "oauth") return null;
+  const hasProviderId = (values.oauthProviderId ?? "").trim() !== "";
+  const hasTokenEndpoint = (values.oauthTokenEndpoint ?? "").trim() !== "";
+  if (hasProviderId || hasTokenEndpoint) return null;
+  return "Enter a Provider ID, or fill in this connection's own Token endpoint.";
 }
 
 /** The subset of `SettingsSlice<T>` these functions actually read, kept generic-free so callers

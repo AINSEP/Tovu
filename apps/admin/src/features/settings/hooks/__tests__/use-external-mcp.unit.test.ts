@@ -34,14 +34,40 @@ function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalM
     serverId: "local-fs",
     label: "Local filesystem",
     transport: "stdio",
+    authMode: "static_env",
     enabled: true,
     command: "npx",
+    url: null,
     args: ["-y", "server-fs"],
     allowedToolNames: ["read_file"],
     envNames: [],
+    oauth: {
+      providerId: null,
+      grant: null,
+      clientId: null,
+      scopes: [],
+      status: "disconnected",
+      expiresAt: null,
+      tokenEnvName: null,
+      hasStoredToken: false,
+    },
     ...overrides,
   };
 }
+
+/** The OAuth-shaped flat fields every mapped `SourceConfigItem` carries when nothing OAuth-specific
+ *  is configured — spread into an expectation rather than repeated per test. */
+const BLANK_OAUTH_FIELDS = {
+  oauthProviderId: "",
+  oauthGrant: "",
+  oauthClientId: "",
+  oauthClientSecret: "",
+  oauthScopes: "",
+  oauthTokenEnvName: "",
+  oauthAuthorizationEndpoint: "",
+  oauthTokenEndpoint: "",
+  oauthDeviceAuthorizationEndpoint: "",
+};
 
 describe("useExternalMcp — fetchSources / toItem", () => {
   it("maps each server to a SourceConfigItem, joining args/allowedToolNames, always blanking env", async () => {
@@ -55,7 +81,17 @@ describe("useExternalMcp — fetchSources / toItem", () => {
         id: "local-fs",
         label: "Local filesystem",
         enabled: true,
-        fields: { id: "local-fs", transport: "stdio", command: "npx", args: "-y server-fs", allowedToolNames: "read_file", env: "" },
+        fields: {
+          id: "local-fs",
+          transport: "stdio",
+          command: "npx",
+          url: "",
+          args: "-y server-fs",
+          allowedToolNames: "read_file",
+          authMode: "static_env",
+          env: "",
+          ...BLANK_OAUTH_FIELDS,
+        },
         statusMessage: "Credentials set: GITHUB_TOKEN",
       },
     ]);
@@ -103,8 +139,10 @@ describe("useExternalMcp — addSource", () => {
       transport: "stdio",
       enabled: true,
       command: "",
+      url: "",
       args: "",
       allowedToolNames: "",
+      authMode: "static_env",
     });
   });
 
@@ -125,8 +163,10 @@ describe("useExternalMcp — addSource", () => {
       transport: "stdio",
       enabled: true,
       command: "npx",
+      url: "",
       args: "-y x",
       allowedToolNames: "tool_a",
+      authMode: "static_env",
       env: "FOO=bar",
     });
     expect(outcome).toEqual({ ok: true, source: expect.objectContaining({ id: "new-server" }) });
@@ -190,8 +230,10 @@ describe("useExternalMcp — updateSource", () => {
       transport: "stdio",
       enabled: false,
       command: "npx",
+      url: "",
       args: "-y x",
       allowedToolNames: "tool_a",
+      authMode: "static_env",
     });
   });
 
@@ -207,11 +249,79 @@ describe("useExternalMcp — updateSource", () => {
   });
 });
 
-describe("useExternalMcp — field specs", () => {
-  it("exposes Tovu's own field specs, with no transport field and env as a plain textarea", () => {
+describe("useExternalMcp — addSource rejects a malformed OAuth identity before calling the API", () => {
+  it("rejects when authMode is oauth but neither a provider id nor a token endpoint is given", async () => {
     const { result } = renderHook(() => useExternalMcp());
-    const keys = result.current.fieldSpecs.map((f) => f.key);
-    expect(keys).toEqual(["id", "command", "args", "allowedToolNames", "env"]);
-    expect(result.current.fieldSpecs.find((f) => f.key === "env")?.kind).toBe("textarea");
+
+    const outcome = await result.current.dependencies.port.addSource({
+      fields: { id: "hosted", transport: "streamable_http", url: "https://mcp.example.com", authMode: "oauth", oauthClientId: "abc" },
+    });
+
+    expect(outcome).toEqual({ ok: false, message: "Enter a Provider ID, or fill in this connection's own Token endpoint." });
+    expect(saveExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it("accepts an OAuth draft that names a provider id, and carries the oauth block through to the write", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "hosted" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: {
+          id: "hosted",
+          transport: "streamable_http",
+          url: "https://mcp.example.com",
+          authMode: "oauth",
+          oauthProviderId: "example-oidc",
+          oauthGrant: "authorization_code",
+          oauthClientId: "abc",
+          oauthClientSecret: "shh",
+          oauthScopes: "read write",
+        },
+      });
+    });
+
+    expect(saveExternalMcpServer).toHaveBeenCalledWith("hosted", {
+      transport: "streamable_http",
+      enabled: true,
+      command: "",
+      url: "https://mcp.example.com",
+      args: "",
+      allowedToolNames: "",
+      authMode: "oauth",
+      oauth: {
+        providerId: "example-oidc",
+        grant: "authorization_code",
+        clientId: "abc",
+        scopes: "read write",
+        tokenEnvName: "",
+        authorizationEndpoint: "",
+        tokenEndpoint: "",
+        deviceAuthorizationEndpoint: "",
+        clientSecret: "shh",
+      },
+    });
+  });
+
+  it("omits oauth.clientSecret when left blank, so an edit never silently clears a stored secret", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "hosted" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: {
+          id: "hosted",
+          transport: "streamable_http",
+          url: "https://mcp.example.com",
+          authMode: "oauth",
+          oauthProviderId: "example-oidc",
+          oauthGrant: "authorization_code",
+          oauthClientId: "abc",
+        },
+      });
+    });
+
+    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    expect(body.oauth).not.toHaveProperty("clientSecret");
   });
 });

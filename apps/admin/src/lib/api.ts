@@ -72,15 +72,66 @@ export type AdminMediaProviderMap = Record<string, AdminMediaProviderCredentials
  * variable names are what an operator needs in order to see which credentials are set, and the
  * values are what must never leave the server.
  */
+/**
+ * The OAuth half of {@link AdminExternalMcpServer}. Mirrors
+ * `src/assistant/external-mcp-store.ts`'s `ExternalMcpOAuthView` — never carries an access token, a
+ * refresh token, or a client secret; `hasStoredToken` is presence only, the same technique the view
+ * it mirrors uses.
+ */
+export interface AdminExternalMcpOAuthView {
+  providerId: string | null;
+  grant: string | null;
+  clientId: string | null;
+  scopes: string[];
+  status: string;
+  expiresAt: string | null;
+  tokenEnvName: string | null;
+  hasStoredToken: boolean;
+}
+
+/**
+ * One configured external MCP server, as the admin tab sees it. Mirrors
+ * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView`.
+ *
+ * `envNames` without any matching values is the whole point of the shape, not an omission: the
+ * variable names are what an operator needs in order to see which credentials are set, and the
+ * values are what must never leave the server. `url`/`authMode`/`oauth` are the same posture applied
+ * to the two fields the generic streamable-HTTP + OAuth transport added on top of the original
+ * stdio-only shape.
+ */
 export interface AdminExternalMcpServer {
   serverId: string;
   label: string;
   transport: string;
+  /** One of `src/assistant/external-mcp-store.ts`'s `EXTERNAL_MCP_AUTH_MODES` — `none` | `static_env` | `oauth`. */
+  authMode: string;
   enabled: boolean;
   command: string;
+  /** Endpoint for a `streamable_http` server. `null` for `stdio`, where `command` is used instead. */
+  url: string | null;
   args: string[];
   allowedToolNames: string[];
   envNames: string[];
+  oauth: AdminExternalMcpOAuthView;
+}
+
+/**
+ * The OAuth half of {@link AdminExternalMcpServerInput}. Every member is tri-state exactly as the
+ * store's own `SaveExternalMcpOAuthInput` is: an absent key keeps whatever is stored, a string
+ * replaces it. `clientSecret` is the one member that is ALSO write-only — no read model in this
+ * subsystem ever returns it, so the form can only ever send a new one or say nothing.
+ */
+export interface AdminExternalMcpOAuthInput {
+  providerId?: string;
+  grant?: string;
+  clientId?: string;
+  clientSecret?: string;
+  /** Raw operator input, comma- or space-separated. */
+  scopes?: string;
+  tokenEnvName?: string;
+  authorizationEndpoint?: string;
+  tokenEndpoint?: string;
+  deviceAuthorizationEndpoint?: string;
 }
 
 /**
@@ -93,10 +144,15 @@ export interface AdminExternalMcpServerInput {
   transport: string;
   enabled: boolean;
   command: string;
+  /** Endpoint for a `streamable_http` server. Ignored for `stdio`. */
+  url?: string;
   args: string;
   allowedToolNames: string;
   /** Omit to keep stored credentials; `""` to clear them. The distinction is load-bearing. */
   env?: string;
+  /** Absent keeps an existing row's auth mode; otherwise one of `none` | `static_env` | `oauth`. */
+  authMode?: string;
+  oauth?: AdminExternalMcpOAuthInput;
 }
 
 /** One required-for-production env var's presence — never its value. Mirrors
