@@ -22,6 +22,7 @@ import { contributeNewsletterTools } from "../newsletter/tool-registrations.js";
 import { contributeRedirectsTools } from "../redirects/tool-registrations.js";
 import { contributeSeoTools } from "../seo/tool-registrations.js";
 import { contributeSettingsTools } from "../features/settings/tool-registrations.js";
+import { contributeSiteInspectionTools } from "../features/site-inspection/index.js";
 import { contributeSourceControlTools } from "../features/source-control/tool-registrations.js";
 import { contributeStaticPublishTools } from "../features/deployments/publish-agent-tools.js";
 import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
@@ -110,6 +111,15 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * (that file's array is now empty of first-party domains save the two env-gated demo stubs; see its
  * own header).
  *
+ * `site-inspection` (2026-08-26) is a NEW domain rather than a 26th entry in that rollout's count:
+ * it did not exist before, so nothing about it was ever wired through `DOMAIN_SLICES`. It ships two
+ * tools — `site_get_profile` (a config snapshot aggregated by `features/site-inspection/
+ * site-profile.ts`, the same function `server/routes/admin/site/profile.ts` serves to `apps/admin`)
+ * and `fetch_published_page` (one same-origin render of this site's own public surface). It imports
+ * no other feature by name: every read is an injected port bound in `features/site-inspection/
+ * deps.ts` from the composition root's own bag, which is both what keeps this domain off the module
+ * graph and what makes its "cannot reach a credential store" claim checkable from one interface.
+ *
  * Idempotent: `registerToolContributor` (what each `contribute<Domain>Tools()` call ultimately
  * calls) replaces an existing entry by domain key rather than appending, so calling this function
  * more than once in the same process — a real thing both real callers below do NOT do (each calls
@@ -159,6 +169,7 @@ export function installFirstPartyToolContributors(): void {
   contributeRedirectsTools();
   contributeSeoTools();
   contributeSettingsTools();
+  contributeSiteInspectionTools();
   contributeSourceControlTools();
   contributeStaticPublishTools();
   contributeTaxonomyTools();

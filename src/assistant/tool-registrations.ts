@@ -164,6 +164,7 @@ import type { PostToolDeps } from "../features/post/tool-registrations.js";
 import type { PagesToolDeps } from "../features/pages/tool-registrations.js";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations.js";
 import type { SettingsToolDeps } from "../features/settings/tool-registrations.js";
+import type { SiteInspectionToolDeps } from "../features/site-inspection/index.js";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
@@ -213,6 +214,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   PagesToolDeps &
   RecoveryToolDeps &
   SettingsToolDeps &
+  SiteInspectionToolDeps &
   TaxonomyToolDeps &
   ThemeToolDeps &
   WorkspaceToolDeps &
