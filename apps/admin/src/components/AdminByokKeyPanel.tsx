@@ -1,3 +1,4 @@
+import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
 import type { AdminByokSaveState, AdminExecutionCredentialController } from "../hooks/use-admin-execution-credential.hooks";
 
 /**
@@ -12,10 +13,31 @@ import type { AdminByokSaveState, AdminExecutionCredentialController } from "../
  * is a sibling of `<ExecutionTab>`, not a child of it — it has to render regardless of whether BYOK
  * mode is even selected, since an admin might be sitting in Local CLI mode with a legacy key still
  * inert in this browser's `localStorage`.
+ *
+ * Both take an optional pass-through `agentHandle` — the caller names the one thing
+ * (`AdminByokMigrationPrompt`'s prompt, `AdminByokKeyFooter`'s footer), each component derives its
+ * own sub-handles from it via {@link byokAgentProps}. Omit and neither renders any `data-agent-*`
+ * markup at all.
  */
+
+/** Builds one of these two components' own `data-agent-*` sub-element props, or nothing when the
+ *  caller published no base handle — same local-helper shape `RowMenu.tsx` uses for its own
+ *  `rowMenuAgentProps`, kept local here since only these two components need it.
+ *
+ * @param base - The component's own handle from the caller, or `undefined` when none was published.
+ * @param action - The sub-element's name, appended to `base`.
+ * @param options - Role and stable label for this sub-element.
+ * @returns Spreadable attribute props, or `{}` when `base` is `undefined`.
+ * @complexity O(1). */
+function byokAgentProps(base: string | undefined, action: string, options: { role: AgentElementRole; label: string }) {
+  return base === undefined ? {} : agentHandle(`${base}-${action}`, options);
+}
 
 export interface AdminByokMigrationPromptProps {
   controller: AdminExecutionCredentialController;
+  /** This prompt's own base handle — see this file's header for the derived `-save`/`-dismiss`
+   *  sub-handles. Omit to leave it untagged. */
+  agentHandle?: string;
 }
 
 /**
@@ -26,7 +48,7 @@ export interface AdminByokMigrationPromptProps {
  * @complexity Time/space: O(1) — fixed markup, no iteration.
  * @overallScore 100
  */
-export function AdminByokMigrationPrompt({ controller }: AdminByokMigrationPromptProps) {
+export function AdminByokMigrationPrompt({ controller, agentHandle: base }: AdminByokMigrationPromptProps) {
   if (!controller.legacyKey) return null;
   const saving = controller.saveState.status === "saving";
 
@@ -38,10 +60,22 @@ export function AdminByokMigrationPrompt({ controller }: AdminByokMigrationPromp
         is; nothing is sent or cleared unless you confirm.
       </p>
       <div className="admin-byok-migration-actions">
-        <button type="button" className="btn-primary" onClick={() => void controller.migrateLegacyKey()} disabled={saving}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => void controller.migrateLegacyKey()}
+          disabled={saving}
+          {...byokAgentProps(base, "save", { role: "button", label: "Save this browser's key to your account" })}
+        >
           {saving ? "Saving…" : "Save to my account"}
         </button>
-        <button type="button" className="btn-secondary" onClick={controller.dismissLegacyPrompt} disabled={saving}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={controller.dismissLegacyPrompt}
+          disabled={saving}
+          {...byokAgentProps(base, "dismiss", { role: "button", label: "Dismiss this prompt without saving" })}
+        >
           Not now
         </button>
       </div>
@@ -52,6 +86,9 @@ export function AdminByokMigrationPrompt({ controller }: AdminByokMigrationPromp
 
 export interface AdminByokKeyFooterProps {
   controller: AdminExecutionCredentialController;
+  /** Publishes the "Save key" button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
+   *  Omit to leave it untagged. */
+  agentHandle?: string;
 }
 
 /**
@@ -77,7 +114,7 @@ export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"]
  * @complexity Time/space: O(1).
  * @overallScore 100
  */
-export function AdminByokKeyFooter({ controller }: AdminByokKeyFooterProps) {
+export function AdminByokKeyFooter({ controller, agentHandle: handle }: AdminByokKeyFooterProps) {
   const { saveState, canSaveKey, stored } = controller;
   const saving = saveState.status === "saving";
   const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false);
@@ -88,7 +125,13 @@ export function AdminByokKeyFooter({ controller }: AdminByokKeyFooterProps) {
         {/* Disabled until there is something meaningful to write — a typed key, or (for a
             protocol/model-only change) an already-stored one. Never fires automatically; see the
             hook's own doc for why this is the ONLY path that can persist the key. */}
-        <button type="button" className="btn-primary" onClick={() => void controller.saveKey()} disabled={!canSaveKey || saving}>
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => void controller.saveKey()}
+          disabled={!canSaveKey || saving}
+          {...(handle ? agentHandle(handle, { role: "button", label: "Save this API key" }) : {})}
+        >
           {saving ? "Saving…" : "Save key"}
         </button>
       </div>

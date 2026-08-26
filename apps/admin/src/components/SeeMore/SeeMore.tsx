@@ -1,4 +1,5 @@
 import "../../styles/see-more.css";
+import { agentHandle } from "@jini-ai/agentic";
 import { useSeeMoreClamp } from "./SeeMore.hooks";
 
 /**
@@ -52,6 +53,10 @@ export interface SeeMoreProps {
    *  {@link useSeeMoreClamp}; a test can pass a fake here to exercise `SeeMore`'s rendering without
    *  a real `scrollHeight`/`clientHeight` layout or a real `ResizeObserver`. */
   useClamp?: typeof useSeeMoreClamp;
+  /** Publishes the "See more"/"See less" toggle as agent-addressable via `agentHandle()`
+   *  (`@jini-ai/agentic`). Only meaningful when the content actually overflows and the toggle
+   *  renders at all — omit to leave it untagged, and every existing render stays byte-identical. */
+  agentHandle?: string;
 }
 
 const DEFAULT_LINES = 2;
@@ -94,7 +99,7 @@ export function resolveSeeMoreView({
   };
 }
 
-export function SeeMore({ useClamp = useSeeMoreClamp, ...props }: SeeMoreProps) {
+export function SeeMore({ useClamp = useSeeMoreClamp, agentHandle: handle, ...props }: SeeMoreProps) {
   const { children, lines = DEFAULT_LINES, moreLabel, lessLabel, className, textClassName, toggleClassName, toggleAriaLabel } = props;
 
   const { expanded, setExpanded, overflows, textRef, regionId, lineCount } = useClamp({ lines, children });
@@ -120,6 +125,7 @@ export function SeeMore({ useClamp = useSeeMoreClamp, ...props }: SeeMoreProps) 
           aria-controls={regionId}
           aria-label={toggleAriaLabel}
           onClick={() => setExpanded((current) => !current)}
+          {...(handle ? agentHandle(handle, { role: "button", label: toggleAriaLabel ?? view.toggleLabel }) : {})}
         >
           {view.toggleLabel}
         </button>

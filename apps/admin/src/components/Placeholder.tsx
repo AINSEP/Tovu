@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { getNav, type AdminNavItem } from "../nav";
 import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
@@ -103,10 +104,24 @@ function comingSoonDescription(locale: string, label: string): string {
   return interpolate(COMING_SOON_TEMPLATE[locale] ?? COMING_SOON_TEMPLATE.en, { label });
 }
 
-export function ComingSoonNotice(props: { kicker: string; label: string; locale?: string; note?: string }) {
+export function ComingSoonNotice(props: {
+  kicker: string;
+  label: string;
+  locale?: string;
+  note?: string;
+  /** Publishes this notice as an agent-observable status region via `agentHandle()`
+   *  (`@jini-ai/agentic`) — there is no control here to click, only a fact to read (`page.read_page`
+   *  et al). Omit to leave it untagged; every existing render then stays byte-identical. */
+  agentHandle?: string;
+}) {
   const locale = props.locale ?? DEFAULT_LOCALE;
   return (
-    <div className="page">
+    <div
+      className="page"
+      {...(props.agentHandle
+        ? agentHandle(props.agentHandle, { role: "status", label: `"${props.label}" is not built yet` })
+        : {})}
+    >
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{props.kicker}</p>
@@ -150,7 +165,14 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
   it: "Sezione sconosciuta",
 };
 
-export function Placeholder(props: { sectionId: string; note?: string }) {
+export function Placeholder(props: {
+  sectionId: string;
+  note?: string;
+  /** Passed straight through to {@link ComingSoonNotice}, or applied to this component's own
+   *  "Unknown section" notice when `sectionId` matches nothing in `getNav()`. Omit to leave either
+   *  branch untagged. */
+  agentHandle?: string;
+}) {
   // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
   // other host dependency in this file to combine it with, not rendered in a loop, and its only
   // renderers (App.tsx, panels.tsx) are both out of scope — so there is no duplicate fetch to
@@ -162,7 +184,10 @@ export function Placeholder(props: { sectionId: string; note?: string }) {
   if (!item) {
     const unknownSectionPrefix = UNKNOWN_SECTION_PREFIX[locale] ?? UNKNOWN_SECTION_PREFIX.en;
     return (
-      <div className="notice error">
+      <div
+        className="notice error"
+        {...(props.agentHandle ? agentHandle(props.agentHandle, { role: "status", label: "Unknown section" }) : {})}
+      >
         {unknownSectionPrefix}: {props.sectionId}
       </div>
     );
@@ -174,6 +199,7 @@ export function Placeholder(props: { sectionId: string; note?: string }) {
       label={translateAdminNavLabel(locale, item.label)}
       locale={locale}
       note={props.note}
+      agentHandle={props.agentHandle}
     />
   );
 }
