@@ -176,6 +176,43 @@ export const CONNECTOR_OUTBOUND_PER_IP: RateLimitProfile = {
   burst: 2,
 };
 
+/**
+ * `POST .../mcp-servers/:serverId/oauth/connect` and its device-poll sibling
+ * (`routes/admin/external-mcp/oauth-connect.ts`, `.../oauth-device-poll.ts`).
+ *
+ * Same self-DoS class {@link CONNECTOR_CONNECT_PER_IP} closes, with one addition specific to OAuth:
+ * every hit mints a pending `state` (or starts a device authorization) and makes a real outbound
+ * call to a third-party authorization server using the workspace's own client id. A double-clicked
+ * Connect button therefore accumulates pending authorizations AND can get the client id
+ * rate-limited or provisionally blocked provider-side — a self-inflicted denial of service against
+ * every admin in the workspace, not just the caller who caused it.
+ *
+ * Deliberately more generous than {@link CONNECTOR_CONNECT_PER_IP}: device-grant polling is a
+ * legitimate repeated call, driven by the provider's own `interval`, and a limiter tight enough for
+ * a one-shot connect would strangle a normal five-second poll over a two-minute approval. Keyed by
+ * `resolveClientIp(req)`, matching every other limiter in this file.
+ */
+export const EXTERNAL_MCP_OAUTH_PER_IP: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 40,
+  burst: 10,
+};
+
+/**
+ * The PUBLIC external-MCP OAuth callback (`routes/external-mcp/oauth-callback.ts`).
+ *
+ * Same role as {@link CONNECTOR_CALLBACK_PER_IP} on the other public callback: the route is
+ * anonymous by necessity (a `SameSite=Strict` cookie cannot survive the cross-site redirect that
+ * reaches it), and each hit can cost an outbound token exchange. The single-use 24-byte `state` is
+ * the real control; this is defence in depth, generous enough that a human retrying a flaky
+ * authorization never trips it.
+ */
+export const EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP: RateLimitProfile = {
+  windowSeconds: 60,
+  max: 20,
+  burst: 5,
+};
+
 /** Outcome of a single `checkRateLimit` call. */
 export type RateLimitResult =
   | { allowed: true }

@@ -18,6 +18,8 @@ import {
   toResolvedFederatedConnections,
 } from "../external-mcp-store.js";
 import { admitRemoteTools } from "../mcp-federation/trust.js";
+import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import type { ExternalMcpServerConfig } from "../external-mcp-store.js";
 
 /**
  * @file `external-mcp-store.ts` — the operator-editable roster behind Settings → External MCP.
@@ -27,6 +29,23 @@ import { admitRemoteTools } from "../mcp-federation/trust.js";
  * read model, and that the stored allowlist really does gate admission when handed to the actual
  * trust tier rather than merely being carried around.
  */
+
+/** Narrows a resolved config to its stdio target, failing the test rather than the type system if a
+ *  row that should have been local came back hosted. */
+function stdioTarget(config: ExternalMcpServerConfig | undefined): { command: string; args: string[]; env: Record<string, string> } {
+  assert.ok(config, "expected a resolved config");
+  assert.equal(config.target.kind, "stdio");
+  if (config.target.kind !== "stdio") throw new Error("unreachable");
+  return config.target;
+}
+
+/** The same narrowing one layer down, for a federation launch spec. */
+function stdioLaunch(connection: ResolvedFederatedConnection | undefined): { command: string; args: readonly string[]; env: Readonly<Record<string, string>> } {
+  assert.ok(connection, "expected a resolved connection");
+  assert.ok(!("url" in connection.launch), "expected a stdio launch spec");
+  if ("url" in connection.launch) throw new Error("unreachable");
+  return connection.launch;
+}
 
 const WORKSPACE = "workspace-1";
 const OTHER_WORKSPACE = "workspace-2";
@@ -74,8 +93,8 @@ test("saves a server and reads it back with its env decrypted", async () => {
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
   assert.equal(failures.length, 0);
   assert.equal(configs.length, 1);
-  assert.deepEqual(configs[0]?.env, { GITHUB_TOKEN: "ghp_secret_value" });
-  assert.deepEqual(configs[0]?.args, ["-y", "@modelcontextprotocol/server-github"]);
+  assert.deepEqual(stdioTarget(configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
+  assert.deepEqual(stdioTarget(configs[0]).args, ["-y", "@modelcontextprotocol/server-github"]);
   assert.deepEqual(configs[0]?.allowedToolNames, ["search_repositories", "get_file_contents"]);
 });
 
@@ -107,12 +126,12 @@ test("omitting env preserves the stored credentials, but an empty string clears 
   // A toggle from the summary row sends no env — the UI never received the value to send back.
   await saveExternalMcpServer(deps, { ...validInput(), enabled: true, env: undefined, label: "Renamed" });
   const kept = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  assert.deepEqual(kept.configs[0]?.env, { GITHUB_TOKEN: "ghp_secret_value" });
+  assert.deepEqual(stdioTarget(kept.configs[0]).env, { GITHUB_TOKEN: "ghp_secret_value" });
   assert.equal(kept.configs[0]?.label, "Renamed");
 
   await saveExternalMcpServer(deps, { ...validInput(), env: "" });
   const cleared = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  assert.deepEqual(cleared.configs[0]?.env, {});
+  assert.deepEqual(stdioTarget(cleared.configs[0]).env, {});
   const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
   assert.deepEqual(views[0]?.envNames, []);
 });
@@ -132,7 +151,7 @@ test("omitting env on a BRAND NEW server (nothing existing to preserve) saves wi
   await saveExternalMcpServer(deps, { ...validInput(), env: undefined });
 
   const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
-  assert.deepEqual(configs[0]?.env, {});
+  assert.deepEqual(stdioTarget(configs[0]).env, {});
   const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
   assert.deepEqual(view?.envNames, []);
 });
@@ -246,8 +265,8 @@ test("federation connections carry the operator allowlist and Tovu's own shared 
   const [connection] = toResolvedFederatedConnections(configs);
   assert.equal(connection?.config.connectionId, "github");
   assert.deepEqual(connection?.config.allowedToolNames, ["search_repositories", "get_file_contents"]);
-  assert.equal(connection?.launch.command, "npx");
-  assert.deepEqual(connection?.launch.env, { GITHUB_TOKEN: "ghp_secret_value" });
+  assert.equal(stdioLaunch(connection).command, "npx");
+  assert.deepEqual(stdioLaunch(connection).env, { GITHUB_TOKEN: "ghp_secret_value" });
   // Timeouts/caps are Tovu policy, not operator input, so they are not read off the row.
   assert.equal(typeof connection?.config.callTimeoutMs, "number");
   assert.ok((connection?.config.maxTools ?? 0) > 0);
@@ -425,7 +444,7 @@ test("a decrypted env block that is valid JSON but not an object (e.g. an array)
 
   const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
   assert.equal(failures.length, 0);
-  assert.deepEqual(configs[0]?.env, {});
+  assert.deepEqual(stdioTarget(configs[0]).env, {});
 });
 
 test("deleting a server removes it and reports whether anything was removed", async () => {
@@ -435,4 +454,169 @@ test("deleting a server removes it and reports whether anything was removed", as
   assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "github" }), true);
   assert.equal(await deleteExternalMcpServer({ repo }, { workspaceId: WORKSPACE, serverId: "github" }), false);
   assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE)).length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// Hosted (`streamable_http`) connections
+//
+// The transport that has no child process, and therefore no environment variable to put a token in.
+// Until these passed, an operator could SAVE a hosted OAuth connection and it would then be refused
+// at boot as an unsupported transport — the store and the runtime disagreeing about what the
+// product supports.
+// ---------------------------------------------------------------------------
+
+/** Narrows a resolved config to its hosted target. */
+function httpTarget(config: ExternalMcpServerConfig | undefined): { url: string; headers: Record<string, string> } {
+  assert.ok(config, "expected a resolved config");
+  assert.equal(config.target.kind, "streamable_http");
+  if (config.target.kind !== "streamable_http") throw new Error("unreachable");
+  return config.target;
+}
+
+/** A token resolver that hands back a fixed token, recording who asked. */
+function fakeTokenResolver(token = "at-live-1") {
+  const asked: string[] = [];
+  return {
+    asked,
+    port: {
+      async resolveAccessToken(input: { serverId: string }): Promise<string> {
+        asked.push(input.serverId);
+        return token;
+      },
+    },
+  };
+}
+
+/** Writes a hosted row straight to the repo, so these tests exercise the READ path in isolation
+ *  rather than re-testing the save path's validation alongside it. */
+async function seedHostedRow(
+  repo: InMemoryExternalMcpServerRepo,
+  overrides: Partial<Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0]> = {},
+): Promise<void> {
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "higgsfield",
+    label: "Higgsfield",
+    transport: "streamable_http",
+    authMode: "oauth",
+    enabled: true,
+    command: null,
+    url: "https://mcp.higgsfield.example/mcp",
+    args: null,
+    allowedToolNames: JSON.stringify(["generate_image"]),
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: "higgsfield",
+    oauthGrant: "authorization_code",
+    oauthClientId: "client-1",
+    oauthEndpointsJson: null,
+    oauthScopesJson: null,
+    oauthStatus: "connected",
+    oauthExpiresAt: "2099-01-01T00:00:00.000Z",
+    oauthTokenEnvName: null,
+    sealedOAuth: null,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+    ...overrides,
+  } as Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0]);
+}
+
+test("a connected hosted OAuth row resolves to its endpoint with the token in an Authorization header", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo);
+  const resolver = fakeTokenResolver("at-live-1");
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: resolver.port }, WORKSPACE);
+
+  assert.deepEqual(failures, []);
+  assert.equal(httpTarget(configs[0]).url, "https://mcp.higgsfield.example/mcp");
+  assert.equal(httpTarget(configs[0]).headers.authorization, "Bearer at-live-1");
+  assert.deepEqual(resolver.asked, ["higgsfield"]);
+});
+
+test("a hosted row needs NO tokenEnvName — that is a stdio-only concept", async () => {
+  const { repo, sealer } = makeDeps();
+  // The row above already has `oauthTokenEnvName: null`. Before hosted support this was a hard
+  // failure ("no environment variable name is configured"), which is the wrong question to ask of a
+  // server that has no child process.
+  await seedHostedRow(repo, { oauthTokenEnvName: null });
+
+  const { failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+
+  assert.deepEqual(failures, []);
+});
+
+test("a hosted row reaches federation as an HTTP launch spec carrying the same header", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo);
+
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver("at-2").port }, WORKSPACE);
+  const [connection] = toResolvedFederatedConnections(configs);
+
+  assert.ok(connection);
+  assert.ok("url" in connection.launch, "a hosted row must not be handed to the stdio adapter");
+  if (!("url" in connection.launch)) throw new Error("unreachable");
+  assert.equal(connection.launch.url, "https://mcp.higgsfield.example/mcp");
+  assert.equal(connection.launch.headers.authorization, "Bearer at-2");
+  assert.equal(connection.config.connectionId, "higgsfield");
+  assert.deepEqual(connection.config.allowedToolNames, ["generate_image"]);
+});
+
+test("a hosted row whose authorization expired is REPORTED, not silently dropped", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo, { oauthStatus: "needs_reauth" });
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+
+  assert.equal(configs.length, 0);
+  // The operator whose tools vanished needs the reason, and this string is the only thing carrying
+  // it at boot.
+  assert.match(failures[0]?.reason ?? "", /its authorization expired or was revoked — reconnect it in Settings → External MCP/);
+});
+
+test("a hosted row with no URL fails with a reason naming the URL, not a missing command", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo, { url: null });
+
+  const { failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+
+  assert.match(failures[0]?.reason ?? "", /no URL is configured to reach it/);
+});
+
+test("a hosted row's pasted env block is NOT promoted into request headers", async () => {
+  const { repo, sealer, keyring } = makeDeps();
+  const sealed = await sealer.seal({ plaintext: JSON.stringify({ SOME_LOCAL_VAR: "value" }), key: await keyring.activeKey() });
+  await seedHostedRow(repo, { envNames: JSON.stringify(["SOME_LOCAL_VAR"]), sealedEnv: sealed });
+
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver().port }, WORKSPACE);
+
+  // An operator typing FOO=bar meant an environment variable. Promoting it to a header would send a
+  // value they scoped to a local process to a third party over the network.
+  assert.deepEqual(Object.keys(httpTarget(configs[0]).headers), ["authorization"]);
+});
+
+test("a hosted row with no OAuth at all carries no Authorization header rather than an empty one", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo, { authMode: "none", oauthStatus: null, oauthProviderId: null, oauthGrant: null, oauthClientId: null });
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+
+  assert.deepEqual(failures, []);
+  assert.deepEqual(httpTarget(configs[0]).headers, {});
+});
+
+test("a stdio OAuth row still receives its token as an environment variable", async () => {
+  const { repo, sealer } = makeDeps();
+  await seedHostedRow(repo, {
+    serverId: "local-oauth",
+    transport: "stdio",
+    command: "npx",
+    url: null,
+    oauthTokenEnvName: "MCP_TOKEN",
+  });
+
+  const { configs, failures } = await readEnabledExternalMcpConfigs({ repo, sealer, oauth: fakeTokenResolver("at-stdio").port }, WORKSPACE);
+
+  assert.deepEqual(failures, []);
+  assert.equal(stdioTarget(configs[0]).env.MCP_TOKEN, "at-stdio");
 });

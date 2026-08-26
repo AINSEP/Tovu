@@ -49,6 +49,7 @@ import type { ComposioConfigRepoPort } from "../../connectors/composio-config-st
 import type { ComposioConnectors } from "../../connectors/composio-service.js";
 import type { MediaProviderCredentialRepoPort } from "../../media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
+import type { ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -286,6 +287,19 @@ export interface CredentialsDeps {
    * table, usable as soon as migrations run.
    */
   externalMcpServerRepo: ExternalMcpServerRepoPort;
+  /**
+   * The OAuth subsystem for `authMode: "oauth"` external MCP connections
+   * (`assistant/external-mcp-oauth.ts`), or absent.
+   *
+   * OPTIONAL, and the optionality is the contract rather than a convenience. The service holds
+   * in-memory pending-authorization and device-authorization state, so the start of a handshake and
+   * its completion must land on the SAME process — true for the main web server, which serves both
+   * the connect route and the public callback, and false for the agent daemon, which serves
+   * neither. A composition that cannot honour that must be able to leave this unset, and
+   * `modules/external-mcp.ts` then registers no OAuth routes at all: an unauthenticated public
+   * callback endpoint that can complete nothing should not exist.
+   */
+  externalMcpOAuth?: ExternalMcpOAuthService;
   /**
    * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
    * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s

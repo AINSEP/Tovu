@@ -1,8 +1,9 @@
 import type { ToolRegistration, ToolRegistry } from "@jini-ai/core";
 
+import { connectMcpHttpSession, createFetchMcpHttpExchange } from "./adapter.http.js";
 import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio.js";
 import type { ResolvedFederatedConnection } from "./config.js";
-import type { McpSessionPort } from "./ports.js";
+import { isHttpLaunchSpec, type McpSessionPort, type McpStdioLaunchSpec } from "./ports.js";
 import { listFederatedMcpPresets } from "./presets.js";
 import { federateSession, type FederationDeps } from "./registrations.js";
 // `registrations.ts` imports this type from `trust.ts` for its own use but does not re-export it,
@@ -213,16 +214,40 @@ function resolveRegisteredPresets(env: NodeJS.ProcessEnv, logger: FederationLogg
 }
 
 /**
- * The production session factory: spawn the server, handshake, and give up on the whole thing if
+ * The production session factory: reach the server, handshake, and give up on the whole thing if
  * the handshake outlasts `connectTimeoutMs`.
  *
- * The outer timeout is not redundant with the adapter's per-request one. That one bounds a request
- * whose channel is alive; this one bounds the case where `spawn` itself hangs — a command that
- * blocks before it ever writes, an `npx` fetching a package on a stalled network — where no request
- * has been sent yet and so nothing inside the adapter has started counting.
+ * Dispatches on the launch spec rather than on a configured transport name, so "which adapter" is
+ * decided by the shape of the thing that was resolved and cannot disagree with it.
  */
 async function defaultConnect(connection: ResolvedFederatedConnection): Promise<McpSessionPort> {
-  const channel = spawnMcpStdioChannel(connection.launch);
+  if (isHttpLaunchSpec(connection.launch)) {
+    return connectMcpHttpSession({
+      exchange: createFetchMcpHttpExchange(),
+      spec: connection.launch,
+      // The hosted adapter needs no outer race: its per-request timeout is enforced with an
+      // AbortSignal that also cancels the underlying request, so the handshake is already bounded.
+      // `connectTimeoutMs` is the right bound for it because the handshake IS the connect.
+      requestTimeoutMs: connection.config.connectTimeoutMs,
+    });
+  }
+  return connectMcpStdioSessionWithSpawnTimeout(connection, connection.launch);
+}
+
+/**
+ * The stdio session factory, with the outer timeout `spawn` requires.
+ *
+ * That timeout is not redundant with the adapter's per-request one. That one bounds a request whose
+ * channel is alive; this one bounds the case where `spawn` itself hangs — a command that blocks
+ * before it ever writes, an `npx` fetching a package on a stalled network — where no request has
+ * been sent yet and so nothing inside the adapter has started counting. The hosted transport has no
+ * equivalent gap, which is why only this arm needs the race.
+ */
+async function connectMcpStdioSessionWithSpawnTimeout(
+  connection: ResolvedFederatedConnection,
+  launch: McpStdioLaunchSpec,
+): Promise<McpSessionPort> {
+  const channel = spawnMcpStdioChannel(launch);
   const timeoutMs = connection.config.connectTimeoutMs;
 
   let timer: NodeJS.Timeout | undefined;

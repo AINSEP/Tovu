@@ -98,6 +98,7 @@ import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
+import { createPendingAuthorizationStore } from "#src/oauth/index";
 import {
   listAssistantAgents,
   rescanAssistantAgents,
@@ -108,6 +109,9 @@ import {
   FRONTEND_CONTROL_CAPABILITIES,
   attachFederatedMcpTools,
   type ResolvedFederatedConnection,
+  createDeviceAuthorizationStore,
+  createExternalMcpConnectionGate,
+  createExternalMcpOAuthService,
   readEnabledExternalMcpConfigs,
   toResolvedFederatedConnections,
   registerA2uiActionsRoute,
@@ -767,10 +771,41 @@ frontendControl.httpExtension(app, { adapter });
  * @complexity O(n) in the enabled server count.
  * @overallScore 100
  */
+/**
+ * This process's OWN OAuth service.
+ *
+ * Not `routeDeps.externalMcpOAuth` — that one lives in the web server, and this is a different
+ * process. The two share the only thing they must: the database row, which is where the sealed
+ * token, the plaintext expiry, and the cross-process refresh lease all live. Building a second
+ * service here is therefore not duplication; it is the daemon holding its own handle to shared
+ * state, and `tryClaimOAuthRefreshLease` is what keeps the two from redeeming one single-use
+ * rotating refresh token twice.
+ *
+ * Its pending-authorization and device-authorization stores are constructed and never used: this
+ * process serves no connect route and no callback route, so no handshake can start here. Only the
+ * refresh half of the service is reachable from the daemon.
+ */
+const externalMcpOAuth = createExternalMcpOAuthService({
+  workspaceId: routeDeps.workspaceId,
+  repo: routeDeps.externalMcpServerRepo,
+  sealer: routeDeps.siteAssistantSecretSealer,
+  keyring: routeDeps.siteAssistantSecretKeyring,
+  clock: routeDeps.clock,
+  pending: createPendingAuthorizationStore({ clock: routeDeps.clock }),
+  devices: createDeviceAuthorizationStore(),
+});
+
 async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedConnection[]> {
   try {
     const { configs, failures } = await readEnabledExternalMcpConfigs(
-      { repo: routeDeps.externalMcpServerRepo, sealer: routeDeps.siteAssistantSecretSealer },
+      {
+        repo: routeDeps.externalMcpServerRepo,
+        sealer: routeDeps.siteAssistantSecretSealer,
+        // Resolves (and refreshes, if due) the access token for an `authMode: "oauth"` row before
+        // its child process is launched with it. A row that needs re-authorization is reported in
+        // `failures` below rather than launched credential-free.
+        oauth: externalMcpOAuth.tokenResolver,
+      },
       routeDeps.workspaceId,
     );
     for (const failure of failures) {
@@ -790,7 +825,19 @@ async function start(): Promise<void> {
 
   await attachFederatedMcpTools({
     registry,
-    deps: { authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId },
+    deps: {
+      authorize: routeDeps.authorize,
+      workspaceId: routeDeps.workspaceId,
+      // Nothing here unregisters a federated tool once it is in the one-shot FTS index, so a
+      // connection whose authorization dies mid-run stays discoverable and selectable. The gate is
+      // what stops the model looping on it: every call to a `needs_reauth` connection returns one
+      // terminal, explicitly non-retryable message instead of a transient-looking transport error.
+      // See `mcp-federation/registrations.ts`'s `assertConnectionUsable` doc.
+      assertConnectionUsable: createExternalMcpConnectionGate({
+        workspaceId: routeDeps.workspaceId,
+        repo: routeDeps.externalMcpServerRepo,
+      }),
+    },
     extraConnections: await resolveStoredExternalMcpConnections(),
   });
 

@@ -18,16 +18,23 @@
  * `repo.sqlite.ts`/`repo.memory.ts` pair; `features/database/adapter.sqlite.ts`'s
  * `DatabaseIntrospectionPort`) is that an external boundary is a small interface this codebase
  * declares, with a real adapter and a test double on either side of it. {@link McpSessionPort} is
- * that interface; `adapter.stdio.ts` is the real side, `adapter.memory.ts` the doubles.
+ * that interface; `adapter.stdio.ts` and `adapter.http.ts` are the real sides, `adapter.memory.ts`
+ * the doubles.
  *
- * Two seams, not one, and deliberately so:
- * - {@link McpSessionPort} is the seam the federation layer (`registrations.ts`) depends on, so the
- *   trust tier and the registration wiring can be tested with no protocol at all.
- * - {@link McpStdioChannel} is the seam INSIDE the real stdio adapter, so that adapter's own
- *   JSON-RPC framing, handshake ordering, pagination and timeout behaviour are exercised against a
- *   scripted channel rather than only being stubbed past. A fake at the outer seam alone would test
- *   the fake; this way the real client code is under test too, which is what the "no live Supabase
- *   project in the sandbox" constraint requires if the protocol code is to mean anything.
+ * Layered seams, and deliberately so:
+ * - {@link McpSessionPort} is the OUTER seam, the one the federation layer (`registrations.ts`)
+ *   depends on, so the trust tier and the registration wiring can be tested with no protocol at
+ *   all. Both transports meet here, which is why adding the hosted one was an added adapter rather
+ *   than a redesign.
+ * - {@link McpStdioChannel} and {@link McpHttpExchange} are the INNER seams, one per transport, so
+ *   each adapter's own JSON-RPC framing, handshake ordering, pagination and timeout behaviour are
+ *   exercised against a scripted double rather than only being stubbed past. A fake at the outer
+ *   seam alone would test the fake; this way the real client code is under test too, which is what
+ *   the "no live third-party server in the sandbox" constraint requires if the protocol code is to
+ *   mean anything.
+ *
+ * The protocol logic ABOVE those inner seams is shared, not duplicated per transport — see
+ * `mcp-protocol.ts`.
  *
  * Everything a remote server sends across this boundary — tool names, descriptions, input schemas,
  * annotations, results — is UNTRUSTED INPUT. This file types it; it does not vet it. Vetting is
@@ -136,9 +143,10 @@ export interface FederatedMcpConnectionConfig {
   readonly maxTools: number;
 }
 
-/** How a federated connection is launched. Only stdio is implemented this pass — see
- * `ADS-memory/docs/architecture/reference/external-mcp-server-federation.md` for why the hosted HTTP
- * transport is deferred rather than half-built. */
+/** How a locally-launched federated connection is started.
+ *
+ * See {@link McpHttpLaunchSpec} for the hosted counterpart, and {@link McpLaunchSpec} for why the
+ * two are a union rather than one shape with optional halves. */
 export interface McpStdioLaunchSpec {
   readonly command: string;
   readonly args: readonly string[];
@@ -146,4 +154,74 @@ export interface McpStdioLaunchSpec {
    * are world-readable in `/proc/<pid>/cmdline` on Linux and in `ps` output everywhere. */
   readonly env: Readonly<Record<string, string>>;
   readonly cwd?: string;
+}
+
+/**
+ * How a HOSTED federated connection is reached: one URL, plus the headers that authenticate to it.
+ *
+ * `headers` is where an OAuth access token arrives, as `Authorization: Bearer ...`, and it is the
+ * hosted analogue of {@link McpStdioLaunchSpec.env}'s "secrets belong here and NOWHERE else" rule —
+ * never in `url`, which is logged by proxies, kept in browser history when an operator pastes it,
+ * and stored in plaintext on the connection row.
+ *
+ * Deliberately a plain header bag rather than a token field: this layer should not know that OAuth
+ * exists. It is handed headers and sends them. Which credential produced them, whether it can be
+ * refreshed, and what to do when it expires are all `assistant/external-mcp-oauth.ts`'s questions,
+ * decided before a launch spec is ever built.
+ */
+export interface McpHttpLaunchSpec {
+  /** Absolute `https:` URL of the server's MCP endpoint (`http:` only for loopback — enforced at
+   * save time by `external-mcp-store.ts`, not here). */
+  readonly url: string;
+  /** Sent on every request to the endpoint. Carries the bearer token, when there is one. */
+  readonly headers: Readonly<Record<string, string>>;
+}
+
+/**
+ * How a federated connection is reached, whichever transport it uses.
+ *
+ * A union rather than one struct with optional `command`/`url`, because the two are genuinely
+ * exclusive: a spec carrying both is not a degraded configuration to be tolerated, it is a bug, and
+ * a union makes that unrepresentable instead of a runtime check somebody has to remember to write.
+ *
+ * Narrow with {@link isHttpLaunchSpec}.
+ */
+export type McpLaunchSpec = McpStdioLaunchSpec | McpHttpLaunchSpec;
+
+/** Narrows a {@link McpLaunchSpec} to its hosted arm. */
+export function isHttpLaunchSpec(spec: McpLaunchSpec): spec is McpHttpLaunchSpec {
+  return "url" in spec;
+}
+
+/**
+ * The byte-level seam under `adapter.http.ts`, and the hosted counterpart to
+ * {@link McpStdioChannel}: one request/response exchange against the server's MCP endpoint.
+ *
+ * Deliberately narrower than `fetch`: a function that takes a body and returns a status, a content
+ * type, a couple of named headers, and text. That is everything the Streamable HTTP transport
+ * needs, and shrinking the seam is what lets the adapter's real protocol behaviour — handshake
+ * ordering, session-id propagation, SSE framing, pagination, error mapping — be tested against a
+ * scripted double instead of a live server, exactly as the stdio adapter's channel seam does.
+ */
+export interface McpHttpExchange {
+  send(request: {
+    readonly url: string;
+    /** `POST` carries a JSON-RPC frame; `DELETE` ends a session and carries no body. */
+    readonly method: "POST" | "DELETE";
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+    readonly signal?: AbortSignal;
+  }): Promise<McpHttpResponse>;
+}
+
+/** One response from an {@link McpHttpExchange}. */
+export interface McpHttpResponse {
+  readonly status: number;
+  /** Lowercased `content-type`, value only — parameters such as `; charset=utf-8` may be present
+   * and the adapter matches on the prefix. */
+  readonly contentType: string;
+  /** The server's `Mcp-Session-Id`, when it issued one. */
+  readonly sessionId?: string;
+  /** The full body. Bounded by the adapter's own cap before it is parsed. */
+  readonly text: string;
 }
