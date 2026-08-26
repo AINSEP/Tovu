@@ -522,10 +522,11 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
 
   // Content type keys are stable and unique (the server's own primary key for this resource), so
   // they disambiguate one row's entries link from another's — same reasoning as every other list
-  // on this workstream. Note: each row's "Actions" menu (Edit fields/Deprecate/Reactivate/
-  // Tombstone via `RowMenu`) is NOT independently addressable — `RowMenu` (`@jini-ai/admin/react`)
-  // publishes no agent handle of its own, so its trigger and its dropdown items are invisible to
-  // `page.find_elements` regardless of what this file does (see `FormsList.tsx`'s identical note).
+  // on this workstream. Each row's "Actions" menu (Edit fields/Deprecate/Reactivate/Tombstone via
+  // `RowMenu`) shares this same per-row base (`${rowHandles[index]}-menu`) now that `RowMenu`
+  // (`@jini-ai/admin/react`) accepts an `agentHandle` prop — before this session it published none,
+  // so its trigger and dropdown items were invisible to `page.find_elements` regardless of what this
+  // file did (see `FormsList.tsx`'s identical fix).
   const rowHandles = buildAgentListHandles(
     "collections-row",
     types.map((ct) => ct.key),
@@ -601,9 +602,10 @@ export function Collections({ useCollectionsHook = useWiredCollections }: Collec
           {
             key: "actions",
             header: t("More"),
-            cell: (ct) => (
+            cell: (ct, index) => (
               <RowMenu
                 triggerLabel={`Actions for content type "${ct.label}"`}
+                agentHandle={`${rowHandles[index]}-menu`}
                 items={contentTypeMenuItems(
                   ct,
                   {
