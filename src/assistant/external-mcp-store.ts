@@ -2,6 +2,7 @@ import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import type { McpLaunchSpec } from "./mcp-federation/ports.js";
 import { assertValidConnectionId } from "./mcp-federation/trust.js";
 
 /**
@@ -56,9 +57,6 @@ import { assertValidConnectionId } from "./mcp-federation/trust.js";
  */
 export const SUPPORTED_EXTERNAL_MCP_TRANSPORTS = ["stdio", "streamable_http"] as const;
 export type ExternalMcpTransport = (typeof SUPPORTED_EXTERNAL_MCP_TRANSPORTS)[number];
-
-/** Transports the federation layer can connect today — see {@link SUPPORTED_EXTERNAL_MCP_TRANSPORTS}. */
-export const FEDERATABLE_EXTERNAL_MCP_TRANSPORTS: readonly ExternalMcpTransport[] = ["stdio"];
 
 /**
  * How a server's credentials are obtained — independent of {@link ExternalMcpTransport}.
@@ -198,22 +196,47 @@ export interface ExternalMcpServerRepoPort {
 }
 
 /** The decrypted, validated domain shape. Only ever exists in memory. */
+/**
+ * Where a resolved connection's credentials go, which is the one thing the two transports do
+ * genuinely differently.
+ *
+ * A union rather than a flat shape with an empty `command` on one arm and an empty `url` on the
+ * other: a config carrying both is not a degraded row to tolerate, it is a bug, and this makes it
+ * unrepresentable. It mirrors `mcp-federation/ports.ts`'s `McpLaunchSpec` deliberately — this is
+ * the same distinction one layer earlier, before policy is attached.
+ */
+export type ExternalMcpServerTarget =
+  | {
+      readonly kind: "stdio";
+      readonly command: string;
+      readonly args: string[];
+      /**
+       * The child process's environment. For an `oauth` connection this ALREADY contains the
+       * resolved access token under the operator's chosen variable name — resolution happens before
+       * this shape exists, so nothing downstream needs to know whether a value came from a pasted
+       * block or a token endpoint.
+       */
+      readonly env: Record<string, string>;
+    }
+  | {
+      readonly kind: "streamable_http";
+      readonly url: string;
+      /**
+       * Request headers, carrying the resolved access token as `Authorization: Bearer ...` for an
+       * `oauth` connection. The hosted analogue of `env` above, and resolved at the same point for
+       * the same reason.
+       */
+      readonly headers: Record<string, string>;
+    };
+
 export interface ExternalMcpServerConfig {
   serverId: string;
   label: string;
   transport: ExternalMcpTransport;
   authMode: ExternalMcpAuthMode;
   enabled: boolean;
-  command: string;
-  args: string[];
   allowedToolNames: string[];
-  /**
-   * The child process's environment. For an `oauth` connection this ALREADY contains the resolved
-   * access token under the operator's chosen variable name — resolution happens before this shape
-   * exists, so nothing downstream needs to know whether a value came from a pasted block or a token
-   * endpoint.
-   */
-  env: Record<string, string>;
+  target: ExternalMcpServerTarget;
 }
 
 /** The OAuth half of {@link ExternalMcpServerView}. Non-secret by construction: no access token, no
@@ -542,31 +565,95 @@ function oauthStatusFailure(record: ExternalMcpServerRecord): string | null {
   return `it has not been authorized yet (status '${status}') — connect it in Settings → External MCP`;
 }
 
-/** Resolves the OAuth-derived environment for one record, or a failure reason.
- *  @complexity O(1) plus at most one token refresh round trip. */
-async function resolveExternalMcpOAuthEnv(
+/**
+ * Obtains one record's OAuth access token, or explains why it cannot be.
+ *
+ * Returns the raw token rather than a placement, because WHERE it goes is the transport's business:
+ * a child-process variable for `stdio`, an `Authorization` header for a hosted endpoint. Splitting
+ * "can we get a token" from "where does it go" is what stops the second question's answer from
+ * being duplicated per transport.
+ *
+ * @complexity O(1) plus at most one token refresh round trip.
+ */
+async function resolveExternalMcpAccessToken(
   record: ExternalMcpServerRecord,
   oauth: ExternalMcpOAuthTokenResolverPort | undefined,
-): Promise<{ readonly ok: true; readonly env: Record<string, string> } | { readonly ok: false; readonly reason: string }> {
+): Promise<{ readonly ok: true; readonly token: string } | { readonly ok: false; readonly reason: string }> {
   const statusFailure = oauthStatusFailure(record);
   if (statusFailure !== null) return { ok: false, reason: statusFailure };
-  if (!record.oauthTokenEnvName) {
-    return { ok: false, reason: "no environment variable name is configured to receive its OAuth access token" };
-  }
   if (!oauth) {
     return { ok: false, reason: "this process was not wired with an OAuth token resolver, so its access token cannot be obtained" };
   }
   try {
-    return { ok: true, env: { [record.oauthTokenEnvName]: await oauth.resolveAccessToken({ serverId: record.serverId }) } };
+    return { ok: true, token: await oauth.resolveAccessToken({ serverId: record.serverId }) };
   } catch (err) {
     return { ok: false, reason: `its OAuth access token could not be obtained: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
 
+/** A failure entry for one record, in the shape {@link readEnabledExternalMcpConfigs} collects. */
+function externalMcpFailure(record: ExternalMcpServerRecord, reason: string): { readonly ok: false; readonly failure: { serverId: string; reason: string } } {
+  return { ok: false, failure: { serverId: record.serverId, reason } };
+}
+
+/**
+ * Builds a `stdio` row's target: its pasted environment, plus the access token under the operator's
+ * chosen variable name when the row is OAuth-authenticated.
+ *
+ * The two credential sources compose rather than exclude: a server can need a pasted `BASE_URL` AND
+ * an OAuth bearer token. The OAuth-derived variable is applied LAST so it cannot be shadowed by a
+ * stale hand-typed copy of the same name in the pasted block.
+ */
+async function resolveStdioTarget(
+  record: ExternalMcpServerRecord,
+  env: Record<string, string>,
+  authMode: ExternalMcpAuthMode,
+  oauth: ExternalMcpOAuthTokenResolverPort | undefined,
+): Promise<{ readonly ok: true; readonly target: ExternalMcpServerTarget } | { readonly ok: false; readonly failure: { serverId: string; reason: string } }> {
+  if (!record.command) return externalMcpFailure(record, "no command is configured to launch it");
+
+  let resolvedEnv = env;
+  if (authMode === "oauth") {
+    if (!record.oauthTokenEnvName) {
+      return externalMcpFailure(record, "no environment variable name is configured to receive its OAuth access token");
+    }
+    const token = await resolveExternalMcpAccessToken(record, oauth);
+    if (!token.ok) return externalMcpFailure(record, token.reason);
+    resolvedEnv = { ...resolvedEnv, [record.oauthTokenEnvName]: token.token };
+  }
+
+  return { ok: true, target: { kind: "stdio", command: record.command, args: parseJsonArray(record.args), env: resolvedEnv } };
+}
+
+/**
+ * Builds a hosted row's target: its endpoint, plus the bearer header when the row is
+ * OAuth-authenticated.
+ *
+ * A hosted row's pasted `env` block is deliberately NOT turned into headers. An operator typing
+ * `FOO=bar` means an environment variable, and silently promoting it to a request header would send
+ * a value they scoped to a local process to a third party over the network. A hosted server that
+ * needs a non-OAuth header is a capability this does not yet have, and failing to have it is much
+ * better than guessing at it.
+ */
+async function resolveHttpTarget(
+  record: ExternalMcpServerRecord,
+  authMode: ExternalMcpAuthMode,
+  oauth: ExternalMcpOAuthTokenResolverPort | undefined,
+): Promise<{ readonly ok: true; readonly target: ExternalMcpServerTarget } | { readonly ok: false; readonly failure: { serverId: string; reason: string } }> {
+  if (!record.url) return externalMcpFailure(record, "no URL is configured to reach it");
+
+  const headers: Record<string, string> = {};
+  if (authMode === "oauth") {
+    const token = await resolveExternalMcpAccessToken(record, oauth);
+    if (!token.ok) return externalMcpFailure(record, token.reason);
+    headers.authorization = `Bearer ${token.token}`;
+  }
+
+  return { ok: true, target: { kind: "streamable_http", url: record.url, headers } };
+}
+
 /** Resolves one ENABLED record into either a usable config or a failure entry, for
- *  {@link readEnabledExternalMcpConfigs}'s loop. Split out purely to keep that function's
- *  complexity under the shop ceiling — behavior (including which failures are reported) is
- *  unchanged for `none`/`static_env` rows. */
+ *  {@link readEnabledExternalMcpConfigs}'s loop. */
 async function resolveExternalMcpConfig(
   record: ExternalMcpServerRecord,
   sealer: Pick<SecretSealerPort, "open">,
@@ -575,35 +662,31 @@ async function resolveExternalMcpConfig(
   | { readonly ok: true; readonly config: ExternalMcpServerConfig }
   | { readonly ok: false; readonly failure: { serverId: string; reason: string } }
 > {
-  if (!FEDERATABLE_EXTERNAL_MCP_TRANSPORTS.includes(record.transport as ExternalMcpTransport) || !record.command) {
-    return { ok: false, failure: { serverId: record.serverId, reason: `unsupported transport '${record.transport}' or missing command` } };
+  const transport = record.transport as ExternalMcpTransport;
+  if (!SUPPORTED_EXTERNAL_MCP_TRANSPORTS.includes(transport)) {
+    return externalMcpFailure(record, `unsupported transport '${record.transport}'`);
   }
+
   const opened = await openExternalMcpEnv(record, sealer);
-  if (!opened.ok) return { ok: false, failure: { serverId: record.serverId, reason: opened.reason } };
+  if (!opened.ok) return externalMcpFailure(record, opened.reason);
 
   const authMode = resolveExternalMcpAuthMode(record);
-  // The two credential sources compose rather than exclude: a server can need a pasted `BASE_URL`
-  // AND an OAuth bearer token. The OAuth-derived variable is applied LAST so it cannot be shadowed
-  // by a stale hand-typed copy of the same name in the pasted block.
-  let env = opened.env;
-  if (authMode === "oauth") {
-    const resolved = await resolveExternalMcpOAuthEnv(record, oauth);
-    if (!resolved.ok) return { ok: false, failure: { serverId: record.serverId, reason: resolved.reason } };
-    env = { ...env, ...resolved.env };
-  }
+  const resolved =
+    transport === "stdio"
+      ? await resolveStdioTarget(record, opened.env, authMode, oauth)
+      : await resolveHttpTarget(record, authMode, oauth);
+  if (!resolved.ok) return resolved;
 
   return {
     ok: true,
     config: {
       serverId: record.serverId,
       label: record.label ?? record.serverId,
-      transport: "stdio",
+      transport,
       authMode,
       enabled: true,
-      command: record.command,
-      args: parseJsonArray(record.args),
       allowedToolNames: parseJsonArray(record.allowedToolNames),
-      env,
+      target: resolved.target,
     },
   };
 }
@@ -650,15 +733,23 @@ export function toResolvedFederatedConnections(
       maxResultBytes: FEDERATED_CONNECTION_DEFAULTS.maxResultBytes,
       maxTools: FEDERATED_CONNECTION_DEFAULTS.maxTools,
     },
-    launch: {
-      command: config.command,
-      args: config.args,
-      // The child's environment REPLACES the daemon's rather than extending it, matching the
-      // Supabase preset. `PATH`/`HOME`/`TMPDIR` are added by the launcher, not here; anything else
-      // a server needs is an explicit, written-down grant in its own env block.
-      env: config.env,
-    },
+    launch: toFederatedLaunchSpec(config.target),
   }));
+}
+
+/** Maps a resolved target onto the federation layer's launch spec. The two shapes are deliberately
+ *  separate — this one is the store's, that one is federation's — so neither domain has to widen
+ *  when the other gains a field. */
+function toFederatedLaunchSpec(target: ExternalMcpServerTarget): McpLaunchSpec {
+  if (target.kind === "streamable_http") return { url: target.url, headers: target.headers };
+  return {
+    command: target.command,
+    args: target.args,
+    // The child's environment REPLACES the daemon's rather than extending it, matching the
+    // Supabase preset. `PATH`/`HOME`/`TMPDIR` are added by the launcher, not here; anything else
+    // a server needs is an explicit, written-down grant in its own env block.
+    env: target.env,
+  };
 }
 
 /**

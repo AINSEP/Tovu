@@ -120,7 +120,9 @@ test("a saved server reaches the daemon's read path with its env decrypted", asy
     deps.workspaceId,
   );
   assert.equal(configs.length, 1);
-  assert.deepEqual(configs[0]?.env, { GITHUB_TOKEN: DUMMY_TOKEN });
+  const target = configs[0]?.target;
+  assert.equal(target?.kind, "stdio");
+  assert.deepEqual(target?.kind === "stdio" ? target.env : null, { GITHUB_TOKEN: DUMMY_TOKEN });
 });
 
 test("omitting env preserves the stored token across an enable/disable toggle", async (t) => {
