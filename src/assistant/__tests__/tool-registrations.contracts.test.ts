@@ -20,6 +20,7 @@ import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
 import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
 import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
+import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
 import { formsAgentToolCatalog } from "../../forms/agent-tools.js";
@@ -171,6 +172,10 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // `deployment_execute_static_publish` uses). See `features/source-control/tool-registrations.ts`'s
   // own file header.
   ...(sourceControlAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `site-evidence` (2026-08-26): one tool, `site_collect_page_evidence` — the browser-backed
+  // render-truth capability. Registered through `contributeSiteEvidenceTools()` like every other
+  // domain, so its catalog belongs in this array for the same reason theirs do.
+  ...(siteEvidenceAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

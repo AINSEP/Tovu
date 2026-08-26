@@ -135,6 +135,13 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // `contributeCapabilityTools()`, a single tool PAIR (`capability_search`/`capability_get`)
   // registered into this same seam, not a per-domain catalog with its own `agent-tools.ts`. See that
   // file's own header for the full design and `server/tool-catalog-manifest.ts`'s own addendum.
+  //
+  // "site-evidence" (2026-08-26) is also not part of the 25-domain rollout: it is a genuinely NEW
+  // first-party domain (`features/site-evidence`), added because a configuration snapshot cannot
+  // establish what a published page actually renders. It carries exactly one tool,
+  // `site_collect_page_evidence`, wired through the standard `contributeSiteEvidenceTools()` shape
+  // with its own `agent-tools.ts` catalog â€” so unlike "capability" above it IS an ordinary domain,
+  // just one that did not exist when the rollout was counted.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "capability",
     "comments",
@@ -156,6 +163,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "redirects",
     "seo",
     "settings",
+    "site-evidence",
     "source-control",
     "static-publish",
     "taxonomy",
