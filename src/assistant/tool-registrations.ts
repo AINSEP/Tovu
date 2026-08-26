@@ -176,6 +176,7 @@ import type { MenusToolDeps } from "../navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../newsletter/tool-registrations.js";
 import type { RedirectsToolDeps } from "../redirects/tool-registrations.js";
 import type { SeoToolDeps } from "../seo/tool-registrations.js";
+import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../widgets/tool-registrations.js";
 import {
   assertToolIsWirable,
@@ -225,6 +226,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   NewsletterToolDeps &
   RedirectsToolDeps &
   SeoToolDeps &
+  SiteEvidenceToolDeps &
   WidgetsToolDeps;
 
 /**

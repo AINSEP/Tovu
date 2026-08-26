@@ -124,6 +124,42 @@ RUN apt-get update \
 
 ENV NODE_ENV=production
 
+# ---------------------------------------------------------------------------
+# Headless Chromium — for `site_collect_page_evidence` only.
+# ---------------------------------------------------------------------------
+# `playwright` is a real runtime dependency (package.json), but `npm install`
+# only installs the DRIVER. The browser binary is a separate ~150MB download
+# plus its shared libraries, and `-slim` carries almost none of them, which is
+# why this needs both `--with-deps` and its own layer.
+#
+# This is the single largest thing in this image after the two node_modules
+# trees, and it exists for exactly one capability: observing what a published
+# page actually renders (cookies before consent, rendered accessibility
+# structure, policy-page reachability) — facts no configuration snapshot can
+# establish. That tradeoff was argued explicitly rather than assumed; see
+# `ADS-memory/reports/swarm-consensus/runs/2026-08-26T005706Z-consensus-report.md`,
+# Q2-b, where it was the one genuinely unresolved point.
+#
+# HOW TO BUILD WITHOUT IT. Pass `--build-arg TOVU_INSTALL_BROWSER=0`. The image
+# is several hundred MB smaller and everything else works unchanged:
+# `openPlaywrightSiteEvidenceBrowser()` fails to launch, reports
+# `{ available: false, reason }`, and the tool returns every requested page under
+# `skipped` with that reason — which the `site-compliance` skill's output
+# contract requires it to report as "cannot determine", not as a pass. Degraded,
+# honest, and never silent.
+#
+# `PLAYWRIGHT_BROWSERS_PATH` is set to a world-readable location because the
+# browser is installed as root here and the process runs as `node` (see USER
+# below); the default per-user cache under /root would be unreadable to it.
+ARG TOVU_INSTALL_BROWSER=1
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/playwright-browsers
+RUN if [ "$TOVU_INSTALL_BROWSER" = "1" ]; then \
+      npx --yes playwright@1.61.1 install --with-deps chromium \
+      && chmod -R a+rX /opt/playwright-browsers; \
+    else \
+      echo "TOVU_INSTALL_BROWSER=0 — skipping Chromium; site_collect_page_evidence will report 'browser unavailable'."; \
+    fi
+
 # Both trees together, from the same stage, so every relative symlink created
 # by `npm install` still resolves. This is the single biggest contributor to
 # image size and the most obvious thing to optimise later — but correctness
