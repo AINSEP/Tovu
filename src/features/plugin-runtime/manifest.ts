@@ -48,6 +48,16 @@ export interface PluginManifestFieldDecl {
   readonly path: string;
   readonly type: "string" | "integer" | "number" | "boolean";
   readonly queryable: boolean;
+  /**
+   * Optional, human-readable, action-oriented description of what this field represents and how an
+   * agent should use it (2026-08-26 addition — `features/plugin-runtime/capability-tool-registrations.ts`
+   * is the sole consumer: it is folded into the indexed `search_tools` description for this plugin's
+   * capability-read tool when the plugin is enabled). Absent on every pre-existing manifest — this
+   * is additive, not a widened requirement, so no previously-valid manifest becomes invalid by
+   * omitting it; a plugin author who wants their capability to rank well against a real user query
+   * simply adds one.
+   */
+  readonly description?: string;
 }
 
 /** `tovu.plugin.json` — the ecosystem compatibility surface (state.spec.md §2, ADR-004). */
@@ -297,6 +307,17 @@ function validateField(field: unknown, expectedPrefix: string): PluginValidation
       code: "QUERYABLE_UNSUPPORTED_V1",
       file: null,
       message: `field '${String(decl.path)}' declares queryable:true, unsupported in v1 (OQ-04)`,
+    });
+  }
+  // Optional (2026-08-26 addition, see PluginManifestFieldDecl.description's own doc) — absent is
+  // always fine (most fields, and every pre-existing manifest, declare none); present-but-not-a-
+  // non-empty-string is rejected so a typo'd `description: ""` cannot silently ship an empty,
+  // useless search_tools description instead of a validation error a plugin author can act on.
+  if (decl.description !== undefined && (typeof decl.description !== "string" || decl.description.trim().length === 0)) {
+    errors.push({
+      code: "FIELD_DESCRIPTION_INVALID",
+      file: null,
+      message: `field '${String(decl.path)}' declares a 'description' that must be a non-empty string when present`,
     });
   }
   return errors;

@@ -187,3 +187,34 @@ test("REQ-01: validateManifest does not mutate its input manifest object", () =>
   validateManifest(required(manifest));
   assert.equal(JSON.stringify(manifest), before);
 });
+
+/**
+ * 2026-08-26 addition (`PluginManifestFieldDecl.description`, additive/optional — see this field's
+ * own doc for why): folded into `search_tools`' indexed description by
+ * `features/plugin-runtime/capability-tool-registrations.ts` when a plugin is enabled. Covered here
+ * because `validateField` is where it is (optionally) checked; the capability-tool consumer's own
+ * suite (`capability-tool-registrations.unit.test.ts`) covers what happens when it is present vs.
+ * absent at the tool-description level.
+ */
+test("a field description, when present, is accepted and produces zero errors", () => {
+  const result = validateManifest(
+    required(
+      validManifest({
+        fields: [{ path: "ext.word-count.count", type: "integer", queryable: false, description: "Word count and reading time for this post." }],
+      }),
+    ),
+  );
+  assert.deepEqual(result.errors, []);
+});
+
+test("a field description that is present but an empty/blank string is FIELD_DESCRIPTION_INVALID, not silently accepted", () => {
+  const result = validateManifest(
+    required(validManifest({ fields: [{ path: "ext.word-count.count", type: "integer", queryable: false, description: "   " }] })),
+  );
+  assert.ok(codesOf(result).includes("FIELD_DESCRIPTION_INVALID"));
+});
+
+test("omitting a field description entirely (every pre-existing manifest) still produces zero errors — this is additive, not a new requirement", () => {
+  const result = validateManifest(required(validManifest())); // validManifest()'s own fixture field has no `description`
+  assert.deepEqual(result.errors, []);
+});

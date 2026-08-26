@@ -31,7 +31,15 @@ export const WORD_COUNT_MANIFEST: PluginManifest = {
   tier: "tier-3", // v1's in-process ESM loader is exactly ADR-024's Tier-3 (feature.spec.md REQ-01 revision note).
   capabilities: ["content.read", "content.extend", "hooks.attach"],
   hooks: ["content.entry.beforeSave"],
-  fields: [{ path: "ext.word-count.count", type: "integer", queryable: false }],
+  fields: [
+    {
+      path: "ext.word-count.count",
+      type: "integer",
+      queryable: false,
+      description:
+        "This post's word count and estimated reading time — computed and stored automatically every time the post is saved while this plugin is enabled.",
+    },
+  ],
   integrity: {}, // built-in — no packaged files to hash (ADR Decision item 4).
 };
 
