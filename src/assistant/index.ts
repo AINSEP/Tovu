@@ -219,6 +219,7 @@ export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
 // server routes and the composition roots that consume it.
 export {
   createDeviceAuthorizationStore,
+  createExternalMcpConnectionGate,
   createExternalMcpOAuthService,
   ExternalMcpReauthRequiredError,
   externalMcpSettingsDeepLink,

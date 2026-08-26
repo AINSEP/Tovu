@@ -99,6 +99,86 @@ function registrationFor(registrations: ToolRegistration[], toolId: string): Too
 }
 
 // ---------------------------------------------------------------------------
+// Liveness gate — `FederationDeps.assertConnectionUsable`
+//
+// Nothing in `mcp-federation/` unregisters a federated tool, and it must not: `buildToolCatalogQuery`
+// snapshots the registry into a one-shot FTS index, so a removed tool would stay discoverable while
+// becoming unexecutable. The gate is what makes a dead connection refuse AT THE CALL with something
+// a model can act on, instead of a transient-looking transport error it will retry forever.
+// ---------------------------------------------------------------------------
+
+test("with no gate configured, behaviour is exactly what it was before the gate existed", async () => {
+  const order: string[] = [];
+  const { deps } = fakeDeps();
+  const { registrations } = await federateSession({ session: sessionFor(order), config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}));
+
+  assert.deepEqual(order, ["remote:list_tables"]);
+});
+
+test("a gate that refuses stops the call BEFORE anything crosses the network", async () => {
+  const order: string[] = [];
+  const base = fakeDeps();
+  const deps = {
+    ...base.deps,
+    assertConnectionUsable: (connectionId: string) => {
+      order.push(`gate:${connectionId}`);
+      throw new Error("supabase is disconnected: its authorization expired. Do not retry this tool.");
+    },
+  };
+  const { registrations } = await federateSession({ session: sessionFor(order), config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await assert.rejects(
+    () => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})),
+    (error: unknown) =>
+      error instanceof Error &&
+      error.message === "supabase is disconnected: its authorization expired. Do not retry this tool.",
+  );
+
+  // The gate ran, and nothing else did — no authorize, no outbound call.
+  assert.deepEqual(order, ["gate:supabase"]);
+  assert.deepEqual(base.order, []);
+});
+
+test("the gate runs BEFORE the permission check, so a disconnected server is not reported as a permission problem", async () => {
+  const order: string[] = [];
+  const base = fakeDeps({ allow: false });
+  const deps = {
+    ...base.deps,
+    assertConnectionUsable: (connectionId: string) => {
+      order.push(`gate:${connectionId}`);
+      throw new Error("disconnected");
+    },
+  };
+  const { registrations } = await federateSession({ session: sessionFor(), config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await assert.rejects(
+    () => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})),
+    (error: unknown) => error instanceof Error && error.message === "disconnected",
+  );
+  assert.deepEqual(order, ["gate:supabase"]);
+});
+
+test("a gate that passes lets the call through unchanged, and is asked about THIS connection", async () => {
+  const asked: string[] = [];
+  const order: string[] = [];
+  const base = fakeDeps();
+  const deps = {
+    ...base.deps,
+    assertConnectionUsable: async (connectionId: string) => {
+      asked.push(connectionId);
+    },
+  };
+  const { registrations } = await federateSession({ session: sessionFor(order), config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}));
+
+  assert.deepEqual(asked, ["supabase"]);
+  assert.deepEqual(order, ["remote:list_tables"]);
+});
+
+// ---------------------------------------------------------------------------
 // Registration shape
 // ---------------------------------------------------------------------------
 

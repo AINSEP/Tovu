@@ -149,6 +149,40 @@ export function createDeviceAuthorizationStore(): DeviceAuthorizationStore {
   };
 }
 
+/**
+ * Builds the liveness gate `mcp-federation/registrations.ts` checks before every federated call.
+ *
+ * ## Why this reads the database on every call, and why that is the right cost
+ *
+ * The connection's `oauthStatus` is PLAINTEXT on the row, so answering "is this server still
+ * authorized" is one indexed primary-key read and no keyring round trip. That matters because the
+ * process that DISCOVERS a dead grant is not necessarily the process serving the tool call: the
+ * agent daemon and the admin web server hold separate database handles, and an in-memory flag in
+ * either one would be invisible to the other. The row is the only thing both can see.
+ *
+ * A connection id with no row is passed through untouched. Federation's connection set is the union
+ * of this operator roster and `mcp-federation/presets.ts`'s environment-resolved presets, and a
+ * preset has no row here — refusing it would take out a working server to guard a state it cannot
+ * be in.
+ *
+ * @returns The gate. Never throws at construction.
+ * @complexity O(1) per call — one primary-key read, no unseal.
+ * @tradeoffs One read per federated tool call, rather than caching the status. A cache is what would
+ *   reintroduce the cross-process invisibility this exists to close, and the read is far cheaper
+ *   than the network round trip it guards.
+ */
+export function createExternalMcpConnectionGate(deps: {
+  readonly workspaceId: UUID;
+  readonly repo: Pick<ExternalMcpServerRepoPort, "findByServerId">;
+}): (connectionId: string) => Promise<void> {
+  return async (connectionId) => {
+    const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId: connectionId });
+    if (!record || resolveExternalMcpAuthMode(record) !== "oauth") return;
+    if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") return;
+    throw new ExternalMcpReauthRequiredError({ serverId: connectionId, label: record.label });
+  };
+}
+
 export interface ExternalMcpOAuthDeps {
   readonly workspaceId: UUID;
   readonly repo: ExternalMcpServerRepoPort;
