@@ -12,7 +12,8 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  * mechanism in this codebase that opens one (`assistant_demo_a2ui`, `assistant_demo_choices`, and —
  * until `fix-destructive-return-path`'s concurrent ADR-055 rewrite landed mid-dispatch —
  * `content_post_delete`) is reachable ONLY through `ToolExecutor.execute` invoked from inside a real
- * spawned agent CLI process (`TOVU_ENABLE_DEMO_TOOLS=1` plus an actual `claude -p`-style run). There
+ * spawned agent CLI process (an actual `claude -p`-style run; this also used to require
+ * `TOVU_ENABLE_DEMO_TOOLS=1`, removed 2026-08-26). There
  * is no test-only backdoor that opens an exchange without one — confirmed by reading
  * `demo-choices-tool.ts`/`demo-a2ui-tool.ts`/`tool-registrations.ts` in full: the store's `open()`
  * is called from inside a `ToolHandler`, nowhere else. That costs real money and several minutes per

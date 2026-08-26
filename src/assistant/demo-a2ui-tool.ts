@@ -13,7 +13,6 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import { demoToolsEnabled } from "./demo-choices-tool.js";
 import type { AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
 
 /**
@@ -146,13 +145,15 @@ function noAnswerResult(reason: "expired" | "abandoned"): Record<string, unknown
 }
 
 /**
- * Builds the demo registration, or none at all when the env gate is unset.
+ * Builds this tool's registration. Unconditional since 2026-08-26 — see `demo-choices-tool.ts`'s
+ * header for the decision that removed the `TOVU_ENABLE_DEMO_TOOLS` gate from all four in-chat UI
+ * tools.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
  * @param surfaces - Supplies the exchange store. Must be the same instance
  * `registerA2uiActionsRoute` was mounted with, or a clicked action reaches nothing.
- * @returns A single registration, or an empty list.
+ * @returns A single registration.
  * @complexity O(1) at build time; the handler itself is O(1) per turn plus the two round trips it
  * awaits.
  * @overallScore 100
@@ -161,8 +162,6 @@ export function buildDemoA2uiRegistrations(
   _routeDeps: unknown,
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
-  if (!demoToolsEnabled()) return [];
-
   const handlers: Record<string, ToolHandler> = {
     [DEMO_A2UI_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
       // Unlike `demo-choices-tool.ts`, there is no degraded second path for a missing emit seam —

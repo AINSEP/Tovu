@@ -91,6 +91,47 @@ two analytics files only. It is a 12-file mechanical header fix with no behavior
 
 ## FIXED — recorded for the pattern, do not re-fix
 
+### F9. `src/assistant/tool-registrations.ts` (lines 33-34, and the slice comment at ~475) — "three" demo domains, when there were four
+
+The file header said: "The demo domains below (2026-08-22: three — `demo-choices`, `demo-a2ui`,
+`demo-image`) wire nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are outside every number
+here." The slice comment lower down agreed, calling the group "development-only surfaces".
+
+**Why it was false:** there were four. `render-ui` is a `DOMAIN_SLICES` entry sitting immediately
+below the three named ones, gated on the very same env var. It was missed because the gate had
+**two implementations**: the three named domains call the shared `demoToolsEnabled()` exported from
+`demo-choices-tool.ts`, while `render-ui-tool.ts` carried its own private
+`renderUiToolsEnabled()` reading `process.env["TOVU_ENABLE_DEMO_TOOLS"] === "1"` directly. A
+`grep -rn "demoToolsEnabled"` — the natural way to inventory the gate — returns the three and not
+the fourth.
+
+**Why it mattered.** This was not a cosmetic miscount. The comment was used as an inventory: a
+prior session read it, reported "three tools" to the owner, and the owner approved un-gating
+against that three-item list. The fourth tool would have been un-gated without ever being named in
+the decision. Caught only because a later pass ran
+`grep -rn "TOVU_ENABLE_DEMO_TOOLS" src apps` — the env var, not the helper — and got a hit in a
+file the helper-grep had never surfaced.
+
+**Verify (against the pre-fix tree):**
+`grep -rn "demoToolsEnabled" src` returns 3 registration sites;
+`grep -rn "TOVU_ENABLE_DEMO_TOOLS" src` returns 4.
+
+**Fix:** 2026-08-26, same commit that removed the gate. Both comments corrected to name four
+domains; both gate implementations deleted; `render-ui-tool.ts`'s header now records the
+duplicate-implementation trap explicitly. The header's per-domain tool table was also annotated as
+a stale 2026-08-05 snapshot after a live measurement returned **154** wired tools against the 131 it
+still claims — see the pattern note below.
+
+**Patterns to carry forward:**
+1. **Grepping for a helper's NAME inventories callers of that helper, not instances of the
+   condition.** Grep the underlying thing — the env var, the literal, the config key — because a
+   second, private copy of the same check answers to no shared symbol.
+2. **A count in a comment is a claim about a list that has since changed.** Two numbers in this same
+   header were stale in the same way for the same reason. When a comment states a count, re-derive
+   it before quoting it to anyone — and prefer recording *how to measure* over recording the number.
+
+---
+
 ### F7. `apps/admin/src/features/analytics/README.md` (line 12) — "no unit test"
 
 The README states, in bold: "`Analytics.tsx` has **no unit test**. Treat a change here as unverified

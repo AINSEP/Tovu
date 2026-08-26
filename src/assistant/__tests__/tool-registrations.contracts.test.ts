@@ -5,6 +5,10 @@ import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } 
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { capabilityAgentToolCatalog } from "../capability-tool-registrations.js";
+import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
+import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
+import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
+import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
 import {
   contentTypesAgentToolCatalog,
@@ -183,6 +187,16 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // `features/site-inspection/agent-tools.ts`'s own header) and `fetch_published_page` (one
   // same-origin render of this site's public surface, gated inline by the handler like `theme_list`).
   ...(siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // The four in-chat UI domains (2026-08-26): one tool each — `assistant_demo_choices`,
+  // `assistant_demo_a2ui`, `assistant_demo_image`, `assistant_render_ui`. They were absent from
+  // this array for as long as `TOVU_ENABLE_DEMO_TOOLS` kept them unwired, so the contract checks
+  // below never saw them. Removing that gate is what put them in scope, and this file failing on
+  // exactly that is the guard working: a newly-wired tool with no catalog entry here is a tool
+  // publishing a descriptor nothing has checked against its own catalog.
+  ...(demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(demoImageAgentToolCatalog as unknown as AgentToolDefinition[]),
+  ...(renderUiAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

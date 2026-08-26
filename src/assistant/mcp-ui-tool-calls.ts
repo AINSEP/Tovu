@@ -13,7 +13,6 @@
  * daemon-side execution route and Tovu's session-authenticated proxy in front of it — see
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
-import { demoToolsEnabled } from "./demo-choices-tool.js";
 
 /**
  * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either
@@ -79,18 +78,20 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // nothing to protect here. (Verified 2026-08-12 against a real `ToolRegistry`/`ToolExecutor` pair —
   // see `mcp-ui-tool-calls-route.content-search.integration.test.ts`.)
   "content_post_search",
-  // Development only, and admitted under a DIFFERENT justification than the rule above — worth
-  // stating plainly rather than letting it read as a precedent. `assistant_demo_choices`
+  // Admitted under a DIFFERENT justification than the rule above — worth stating plainly rather
+  // than letting it read as a precedent. `assistant_demo_choices`
   // (`demo-choices-tool.ts`) performs no token redemption, because it has nothing to redeem: both
   // its branches are pure, it touches no repo, no command gateway, no outbox and no bus, so there
   // is no state a caller could reach through it. The rule above exists to stop this endpoint
   // becoming remote execution for a tool that DOES something; a tool that does nothing is outside
   // what that rule is protecting.
   //
-  // Present only when `TOVU_ENABLE_DEMO_TOOLS` is set, so the production allowlist is unchanged --
-  // and gated on the same variable as the tool's own registration, so the two cannot disagree
-  // about whether it exists. Do not copy this exemption for a tool with side effects.
-  ...(demoToolsEnabled() ? ["assistant_demo_choices"] : []),
+  // 2026-08-26: this entry used to be conditional on `TOVU_ENABLE_DEMO_TOOLS`, matching the gate on
+  // the tool's own registration so the two could not disagree about whether it existed. Both are
+  // now unconditional, so they still cannot disagree — the tool is always registered and always
+  // redeemable. Nothing about the reasoning above changes: it is admitted because it does nothing,
+  // not because it is a demo.
+  "assistant_demo_choices",
 ]);
 
 /**

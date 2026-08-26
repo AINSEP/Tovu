@@ -27,19 +27,10 @@ import {
  * sending would be waiting on a dialog nobody was ever shown.
  */
 
-/** Enables the env-gated demo tool for one builder call, then restores the environment. */
 function buildHandler(surfaceExchanges: SurfaceExchangeStore) {
-  const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
-  process.env["TOVU_ENABLE_DEMO_TOOLS"] = "1";
-  let registrations: ToolRegistration[];
-  try {
-    registrations = buildDemoChoicesRegistrations(undefined, { surfaceExchanges });
-  } finally {
-    if (previous === undefined) delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
-    else process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
-  }
+  const registrations: ToolRegistration[] = buildDemoChoicesRegistrations(undefined, { surfaceExchanges });
   const registration = registrations.find((r) => r.descriptor.id === DEMO_CHOICES_TOOL_ID);
-  assert.ok(registration, "the demo tool must be wired when its env gate is set");
+  assert.ok(registration, "the tool must be wired");
   return registration.handler;
 }
 
@@ -264,11 +255,19 @@ test("the fallback surface carries no exchange id, since nothing is waiting on i
   assert.ok(!html.includes(SURFACE_EXCHANGE_ID_PARAM), "an exchange id in a surface with no exchange behind it would name a call that does not exist");
 });
 
-test("the tool stays unwired when its env gate is unset", () => {
+// The inversion of the test this replaces ("stays unwired when its env gate is unset"). The gate was
+// removed on 2026-08-26 by owner decision; asserting the tool registers with a DELIBERATELY HOSTILE
+// environment is what would fail if someone re-introduced any env condition, which is the outcome
+// that decision rules out. See `demo-choices-tool.ts`'s header.
+test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    assert.deepEqual(buildDemoChoicesRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() }), []);
+    const registrations = buildDemoChoicesRegistrations(undefined, { surfaceExchanges: createSurfaceExchangeStore() });
+    assert.ok(
+      registrations.some((r) => r.descriptor.id === DEMO_CHOICES_TOOL_ID),
+      "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
+    );
   } finally {
     if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
   }

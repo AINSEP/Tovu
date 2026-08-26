@@ -14,8 +14,9 @@ import { defineConfig } from "@playwright/test";
  * `webServer`/timeout budget. Kept separate so the HTTP suite stays fast to rerun and this one stays
  * clearly opt-in (own npx invocation, own report line).
  *
- * No `TOVU_ENABLE_DEMO_TOOLS` — `content_post_delete` is a real, always-registered production tool,
- * not a demo one; this run needs nothing env-gated.
+ * This run needs nothing env-gated: `content_post_delete` is a real production tool. (It also used
+ * to be worth saying that `TOVU_ENABLE_DEMO_TOOLS` was deliberately unset here; that var stopped
+ * existing on 2026-08-26, when the in-chat UI tools were un-gated.)
  *
  * Own ports, distinct from every other port claimed in this session (4319, 3999, 4976, 4977, 4990,
  * 4991, 4998, 4999, 5173, and this dispatch's own 4992/4993/4995 already used by

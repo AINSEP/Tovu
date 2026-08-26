@@ -19,6 +19,14 @@ import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../c
  * registry-sourced ones like `shadcn.button`/`recharts.pie-chart`), then hand this tool a
  * `components` array in that same shape. Every component the catalog knows is usable — nothing
  * has to be pre-wired into this tool by hand.
+ *
+ * ## It ships enabled (2026-08-26)
+ *
+ * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set, through a PRIVATE copy of
+ * that check rather than `demo-choices-tool.ts`'s shared `demoToolsEnabled()`. That duplication is
+ * worth recording because of what it cost: a grep for the shared helper's name found the three
+ * scripted demos and missed this one, so the first attempt to inventory the gate under-counted it.
+ * Both implementations are now gone and the env var is read nowhere.
  */
 
 export const RENDER_UI_TOOL_ID = "assistant_render_ui";
@@ -96,11 +104,6 @@ function rejectionMessageOf(ack: SurfaceMessage | null): string | undefined {
   return typeof error?.message === "string" ? error.message : "The browser rejected this surface.";
 }
 
-/** Same env gate as the other dev-only demo surfaces — see `demo-choices-tool.ts`'s `demoToolsEnabled`. */
-function renderUiToolsEnabled(): boolean {
-  return process.env["TOVU_ENABLE_DEMO_TOOLS"] === "1";
-}
-
 export function buildRenderUiRegistrations(
   _routeDeps: unknown,
   surfaces: AssistantSurfaceDeps,
@@ -110,7 +113,6 @@ export function buildRenderUiRegistrations(
    * multi-second wait per run. */
   options: { rejectionGraceMs?: number } = {},
 ): ToolRegistration[] {
-  if (!renderUiToolsEnabled()) return [];
   const rejectionGraceMs = options.rejectionGraceMs ?? RENDER_REJECTION_GRACE_MS;
 
   const handlers: Record<string, ToolHandler> = {

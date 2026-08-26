@@ -12,20 +12,10 @@ import { DEMO_IMAGE_TOOL_ID, buildDemoImageRegistrations, demoImageAgentToolCata
  * decodable PNG — not merely a plausible-looking base64 string.
  */
 
-/** Enables the env-gated demo tool for one builder call, then restores the environment — same
- *  pattern as `demo-choices-tool.test.ts`'s own `buildHandler`. */
 function buildHandler(): ToolHandlerUnderTest {
-  const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
-  process.env["TOVU_ENABLE_DEMO_TOOLS"] = "1";
-  let registrations: ToolRegistration[];
-  try {
-    registrations = buildDemoImageRegistrations();
-  } finally {
-    if (previous === undefined) delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
-    else process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
-  }
+  const registrations: ToolRegistration[] = buildDemoImageRegistrations();
   const registration = registrations.find((r) => r.descriptor.id === DEMO_IMAGE_TOOL_ID);
-  assert.ok(registration, "the demo tool must be wired when its env gate is set");
+  assert.ok(registration, "the tool must be wired");
   return registration.handler as ToolHandlerUnderTest;
 }
 
@@ -47,11 +37,15 @@ function call(handler: ToolHandlerUnderTest) {
   });
 }
 
-test("the tool stays unwired when its env gate is unset", () => {
+// See `demo-choices-tool.test.ts`'s equivalent for why this asserts the opposite of what it used to.
+test("registers unconditionally — no environment can switch this tool off", () => {
   const previous = process.env["TOVU_ENABLE_DEMO_TOOLS"];
   delete process.env["TOVU_ENABLE_DEMO_TOOLS"];
   try {
-    assert.deepEqual(buildDemoImageRegistrations(), []);
+    assert.ok(
+      buildDemoImageRegistrations().some((r) => r.descriptor.id === DEMO_IMAGE_TOOL_ID),
+      "the tool must register even with TOVU_ENABLE_DEMO_TOOLS absent",
+    );
   } finally {
     if (previous !== undefined) process.env["TOVU_ENABLE_DEMO_TOOLS"] = previous;
   }

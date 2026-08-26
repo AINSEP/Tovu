@@ -5,15 +5,16 @@ import { test, expect } from "@playwright/test";
  * exercised against the REAL running Tovu proxy (`src/server/modules/assistant.ts`) fronting the
  * REAL daemon process this suite's `webServer` block spawns — not a hand-built express app, and not
  * a mocked `ToolExecutor`/`SurfaceExchangeStore`. This is deliberately the negative-path subset of
- * the transport's contract: every case here is reachable with NO open exchange (no agent run, no
- * `TOVU_ENABLE_DEMO_TOOLS`), so it stays fast and deterministic enough to run on every CI build.
+ * the transport's contract: every case here is reachable with NO open exchange and no agent run at
+ * all, so it stays fast and deterministic enough to run on every CI build.
  *
  * The positive-path properties — a live exchange actually receiving a human's click, the buffered
  * inbox not dropping a raced delivery, cross-principal isolation against a REAL open exchange, and
  * an actual `A2uiSurfaceCard`/`McpUiSurfaceCard` mounting in the browser — were verified by hand in
  * this same dispatch (`ADS-memory/.local-artifacts/reports/20260804-a2ui-e2e-verification.md`)
- * against a real `claude -p` agent run, but are NOT re-created here: they need
- * `TOVU_ENABLE_DEMO_TOOLS=1` and a real spawned agent CLI, which is too slow/costly (~$0.20,
+ * against a real `claude -p` agent run, but are NOT re-created here: they need a real spawned agent
+ * CLI (they also used to need `TOVU_ENABLE_DEMO_TOOLS=1`, removed 2026-08-26), which is too
+ * slow/costly (~$0.20,
  * ~3 minutes, an external model call) to hang a routine CI run on. That gap is a known, disclosed
  * limitation of this file, not an oversight — see the report above for why.
  */

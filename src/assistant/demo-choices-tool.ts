@@ -35,13 +35,14 @@ import {
  * event, `assistant-transport.ts` unwraps it, `McpUiSurfaceCard` mounts it, and the human's submit
  * travels back through `/api/admin/v1/mcp-ui/tool-calls`. Nothing about that path is stubbed here.
  *
- * ## Why it is gated, and why the gate is an env var rather than a build flag
+ * ## It ships enabled (2026-08-26)
  *
- * It is registered only when `TOVU_ENABLE_DEMO_TOOLS` is set. A demo tool on the shipped surface is
- * a tool a model can call in production for no reason, and every wired tool costs context in every
- * prompt. An env var rather than a build-time flag because the check has to be legible to
- * `buildAssistantToolRegistrations`'s own catalog-vs-handler consistency guard, which runs at daemon
- * boot on the real registration list — a stripped build would make the guard pass vacuously.
+ * This tool used to register only when `TOVU_ENABLE_DEMO_TOOLS` was set, on the reasoning that a
+ * demo tool on the shipped surface is one a model can call in production for no reason, and that
+ * every wired tool costs context in every prompt. The owner decided otherwise: the in-chat UI
+ * surfaces ship on, and the env gate was removed entirely along with the same gate on
+ * `demo-a2ui-tool.ts`, `demo-image-tool.ts` and `render-ui-tool.ts`. The context cost is real and
+ * was accepted knowingly — it is not an oversight, and this tool should not be re-gated.
  *
  * ## It writes nothing, deliberately
  *
@@ -70,15 +71,6 @@ import {
 
 /** The tool id, shared by the catalog, the handler, and the surface's own callback target. */
 export const DEMO_CHOICES_TOOL_ID = "assistant_demo_choices";
-
-/** Set to any non-empty value to wire this tool. Absent in normal runs. */
-const DEMO_TOOLS_ENV_VAR = "TOVU_ENABLE_DEMO_TOOLS";
-
-/** Whether demo tools are wired in this process. Read at registration time, not per call. */
-export function demoToolsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
-  const value = env[DEMO_TOOLS_ENV_VAR];
-  return typeof value === "string" && value.length > 0;
-}
 
 /** Mirrors each domain's own local catalog interface — see `features/post/agent-tools.ts:120`. */
 interface AgentToolDefinition {
@@ -254,21 +246,18 @@ async function awaitDemoChoicesSubmission(input: {
 }
 
 /**
- * Builds the demo registration, or none at all when the env gate is unset.
+ * Builds this tool's registration. Unconditional since 2026-08-26 — see this module's header.
  *
  * @param _routeDeps - Unused; this tool touches no domain dependency. Present because every domain
  * builder shares one signature.
  * @param surfaces - Supplies the exchange store. Must be the same instance
  * `registerMcpUiToolCallsRoute` was mounted with, or a submitted form reaches nothing.
- * @returns A single registration, or an empty list — an empty slice is legal and is what keeps this
- * tool off the surface in a normal run.
+ * @returns A single registration.
  */
 export function buildDemoChoicesRegistrations(
   _routeDeps: unknown,
   surfaces: AssistantSurfaceDeps,
 ): ToolRegistration[] {
-  if (!demoToolsEnabled()) return [];
-
   const handlers: Record<string, ToolHandler> = {
     [DEMO_CHOICES_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
       const input = (ctx.input ?? {}) as Record<string, unknown>;
