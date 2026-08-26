@@ -3,6 +3,7 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { memberRowMenuItems, type RowActionState } from "./rules";
 import { useWiredMembers } from "./hooks/use-members.hooks";
@@ -76,6 +77,10 @@ interface MemberRowProps {
   onToggleDetail: (member: AdminMember) => Promise<void>;
   onResendSignInLink: (member: AdminMember) => Promise<void>;
   setConfirmingDisable: (member: AdminMember) => void;
+  /** This row's own distinct handle base — computed once, across every rendered row, by `Members`
+   *  (via `buildAgentListHandles`); see `Users.tsx`'s `UserRowProps.agentBase` for why a
+   *  per-instance uniqueness search does not work here. */
+  agentBase: string;
   t: Translate;
   locale: string;
 }
@@ -93,6 +98,7 @@ function MemberRow({
   onToggleDetail,
   onResendSignInLink,
   setConfirmingDisable,
+  agentBase,
   t,
   locale,
 }: MemberRowProps) {
@@ -117,6 +123,7 @@ function MemberRow({
         <td>
           <RowMenu
             triggerLabel={`${t("Actions for member")} "${member.email}"`}
+            agentHandle={`${agentBase}-menu`}
             items={memberRowMenuItems(
               member,
               rowState,
@@ -173,6 +180,13 @@ export function Members({ useMembersHook = useWiredMembers }: MembersProps = {})
   if (error) return <div className="notice error">{error}</div>;
   if (!members) return <div className="notice">{t("Loading members…")}</div>;
 
+  // Member ids are stable and unique, so they disambiguate one row's menu from another's — same
+  // reasoning as every other list on this workstream.
+  const memberMenuBases = buildAgentListHandles(
+    "members-row",
+    members.map((member) => member.id),
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -207,7 +221,7 @@ export function Members({ useMembersHook = useWiredMembers }: MembersProps = {})
           </tr>
         </thead>
         <tbody>
-          {members.map((member) => (
+          {members.map((member, index) => (
             <MemberRow
               key={member.id}
               member={member}
@@ -219,6 +233,7 @@ export function Members({ useMembersHook = useWiredMembers }: MembersProps = {})
               onToggleDetail={onToggleDetail}
               onResendSignInLink={onResendSignInLink}
               setConfirmingDisable={setConfirmingDisable}
+              agentBase={memberMenuBases[index]!}
               t={t}
               locale={locale}
             />

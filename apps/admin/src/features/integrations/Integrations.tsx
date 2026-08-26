@@ -1,4 +1,5 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
@@ -120,6 +121,13 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
   if (error) return <div className="notice error">{error}</div>;
   if (!subscriptions) return <div className="notice">{t("Loading integrations…")}</div>;
 
+  // Subscription ids are stable and unique, so they disambiguate one row's menu from another's —
+  // same reasoning as every other list on this workstream.
+  const rowMenuHandles = buildAgentListHandles(
+    "integrations-row",
+    subscriptions.map((subscription) => subscription.id),
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -192,7 +200,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
           {
             key: "actions",
             headerLabel: t("Actions"),
-            cell: (subscription) =>
+            cell: (subscription, index) =>
               subscription.status === "disabled" ? (
                 // `disabled` on both old inline buttons for a `status === "disabled"` row — a
                 // built-in-row-style "nothing to do here" case, `RowMenu` has no equivalent
@@ -202,6 +210,7 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
               ) : (
                 <RowMenu
                   triggerLabel={actionsForWebhookLabel(locale, subscription.label)}
+                  agentHandle={`${rowMenuHandles[index]}-menu`}
                   items={integrationRowMenuItems(
                     subscription,
                     {

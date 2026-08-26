@@ -2,6 +2,7 @@ import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/ad
 
 import { describeApiError } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { redirectRowMenuItems } from "./rules";
 import { useWiredRedirects } from "./hooks/use-redirects.hooks";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
@@ -194,6 +195,13 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
   }
   if (!redirects) return <div className="notice">{t("Loading redirects…")}</div>;
 
+  // Redirect ids are stable and unique, so they disambiguate one row's menu from another's — same
+  // reasoning as every other list on this workstream.
+  const rowMenuHandles = buildAgentListHandles(
+    "redirects-row",
+    redirects.map((rule) => rule.id),
+  );
+
   return (
     <div className="page">
       <div className="page-header">
@@ -280,9 +288,15 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
           {
             key: "actions",
             header: t("More"),
-            cell: (rule) => {
+            cell: (rule, index) => {
               const items: RowMenuItem[] = redirectRowMenuItems(rule, { onToggleStatus, onRequestDelete }, locale);
-              return <RowMenu triggerLabel={actionsForRedirectLabel(locale, rule.fromPattern)} items={items} />;
+              return (
+                <RowMenu
+                  triggerLabel={actionsForRedirectLabel(locale, rule.fromPattern)}
+                  agentHandle={`${rowMenuHandles[index]}-menu`}
+                  items={items}
+                />
+              );
             },
           },
         ]}
