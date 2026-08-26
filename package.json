@@ -48,7 +48,6 @@
     "check:src-complexity-drift": "tsx development/scripts/check-src-complexity-drift.ts",
     "check:coverage-integrity": "tsx development/scripts/check-coverage-integrity.ts",
     "check:embed-marker-drift": "tsx development/scripts/check-embed-marker-drift.ts",
-    "check:theme-replaced-elements": "tsx development/scripts/check-theme-replaced-elements.ts",
     "check:seed-content-drift": "tsx development/scripts/generate-seed-content.ts --check",
     "check:route-coverage-floor": "tsx development/scripts/check-route-coverage-floor.ts",
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
