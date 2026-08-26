@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminFormDefinition, AdminMenu, AdminWidgetType } from "../../lib/api";
 import { useFetchedOptions } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
@@ -32,6 +33,31 @@ import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependenci
  * closure at all, so the port is exercised only on the real path, the same "one seam per reachable
  * boundary" reasoning `apps/admin/INFO.md`'s Components section gives for not double-injecting
  * `useWidgetPickerDialog`'s inner `useExistingInstances`.
+ *
+ * ## Agent handles
+ *
+ * `WidgetConfigFields` itself renders exactly one of the five sub-forms below (never more than
+ * one), so its own `agentHandle` prop is just forwarded to whichever type is active — the field
+ * names below are then each type's own, appended as `<base>-<field>`:
+ *
+ * | widget type | fields |
+ * |---|---|
+ * | `text` | `<base>-body` |
+ * | `social-links` | per row `i` (0-based): `<base>-link-<i>-platform`, `<base>-link-<i>-url`, `<base>-link-<i>-remove`; plus `<base>-add` |
+ * | `recent-entries` | `<base>-max-items`, `<base>-category-term-id` |
+ * | `menu` | `<base>-menu-ref` (a real `<select>` — `page.select_option` resolves it) |
+ * | `contact-form` | `<base>-form-definition-id` (a real `<select>`), `<base>-success-message` |
+ *
+ * `social-links` rows are keyed by array INDEX, not a stable id — the one deliberate exception to
+ * this workspace's "never an index" list-handle rule (see `@jini-ai/agentic`'s
+ * `buildAgentListHandles`). `SocialLink` (`{ platform, url }`) carries no id of its own in the
+ * widget's own `configSchema` (`src/widgets/registry.ts`), and inventing one here would mean
+ * changing a schema this component does not own, for a value that is re-fetched fresh on every
+ * page load anyway — removing a link DOES shift every later row's handle down by one for the rest
+ * of THIS editing session, a real but narrow tradeoff against redesigning a persisted schema this
+ * component only renders. Every other row/list handle in this app keeps the stable-id rule.
+ * `agentHandle` itself is NOT sanitized — the caller's own explicit choice of name, which fails
+ * loudly at first render if invalid. Omit it and no `data-agent-*` markup is emitted at all.
  */
 
 function textValue(config: Record<string, unknown>, key: string): string {
@@ -40,7 +66,11 @@ function textValue(config: Record<string, unknown>, key: string): string {
 }
 
 /** `text` (`src/widgets/registry.ts` TEXT_REGISTRATION: `{ body: string }`). */
-function TextConfigFields(props: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
+function TextConfigFields(props: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+}) {
   return (
     <div className="widget-config-fields">
       <label htmlFor="widget-field-body">Text</label>
@@ -49,6 +79,7 @@ function TextConfigFields(props: { config: Record<string, unknown>; onChange: (c
         rows={6}
         value={textValue(props.config, "body")}
         onChange={(e) => props.onChange({ ...props.config, body: e.target.value })}
+        {...(props.agentHandle ? agentHandle(`${props.agentHandle}-body`, { role: "field", label: "Text" }) : {})}
       />
     </div>
   );
@@ -60,8 +91,13 @@ interface SocialLink {
 }
 
 /** `social-links` (SOCIAL_LINKS_REGISTRATION: `{ links: [{platform,url}], max 20 }`). */
-function SocialLinksConfigFields(props: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
+function SocialLinksConfigFields(props: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+}) {
   const links: SocialLink[] = Array.isArray(props.config.links) ? (props.config.links as SocialLink[]) : [];
+  const base = props.agentHandle;
 
   function updateLink(index: number, patch: Partial<SocialLink>) {
     const next = links.map((l, i) => (i === index ? { ...l, ...patch } : l));
@@ -87,6 +123,7 @@ function SocialLinksConfigFields(props: { config: Record<string, unknown>; onCha
             value={link.platform}
             onChange={(e) => updateLink(i, { platform: e.target.value })}
             placeholder="e.g. GitHub"
+            {...(base ? agentHandle(`${base}-link-${i}-platform`, { role: "field", label: `Link ${i + 1} platform` }) : {})}
           />
           <label htmlFor={`widget-social-url-${i}`}>URL</label>
           <input
@@ -94,13 +131,23 @@ function SocialLinksConfigFields(props: { config: Record<string, unknown>; onCha
             value={link.url}
             onChange={(e) => updateLink(i, { url: e.target.value })}
             placeholder="https://…"
+            {...(base ? agentHandle(`${base}-link-${i}-url`, { role: "field", label: `Link ${i + 1} URL` }) : {})}
           />
-          <button type="button" onClick={() => removeLink(i)}>
+          <button
+            type="button"
+            onClick={() => removeLink(i)}
+            {...(base ? agentHandle(`${base}-link-${i}-remove`, { role: "button", label: `Remove link ${i + 1}` }) : {})}
+          >
             Remove
           </button>
         </fieldset>
       ))}
-      <button type="button" onClick={addLink} disabled={links.length >= 20}>
+      <button
+        type="button"
+        onClick={addLink}
+        disabled={links.length >= 20}
+        {...(base ? agentHandle(`${base}-add`, { role: "button", label: "Add a social link" }) : {})}
+      >
         Add link
       </button>
     </div>
@@ -108,8 +155,13 @@ function SocialLinksConfigFields(props: { config: Record<string, unknown>; onCha
 }
 
 /** `recent-entries` (RECENT_ENTRIES_REGISTRATION: `{ maxItems: 1-20, categoryTermId? }`). */
-function RecentEntriesConfigFields(props: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void }) {
+function RecentEntriesConfigFields(props: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+}) {
   const maxItems = typeof props.config.maxItems === "number" ? props.config.maxItems : 5;
+  const base = props.agentHandle;
   return (
     <div className="widget-config-fields">
       <label htmlFor="widget-field-maxItems">Max items</label>
@@ -121,6 +173,7 @@ function RecentEntriesConfigFields(props: { config: Record<string, unknown>; onC
         step={1}
         value={maxItems}
         onChange={(e) => props.onChange({ ...props.config, maxItems: e.target.value === "" ? undefined : Number(e.target.value) })}
+        {...(base ? agentHandle(`${base}-max-items`, { role: "field", label: "Max items" }) : {})}
       />
       {/* REQ-32/EC-03: a documented soft reference — plain text input, no taxonomy-term picker exists yet in this admin app. */}
       <label htmlFor="widget-field-categoryTermId">Category term id (optional)</label>
@@ -128,6 +181,7 @@ function RecentEntriesConfigFields(props: { config: Record<string, unknown>; onC
         id="widget-field-categoryTermId"
         value={textValue(props.config, "categoryTermId")}
         onChange={(e) => props.onChange({ ...props.config, categoryTermId: e.target.value || undefined })}
+        {...(base ? agentHandle(`${base}-category-term-id`, { role: "field", label: "Category term id" }) : {})}
       />
     </div>
   );
@@ -145,7 +199,11 @@ interface FetchedOptionsSeam {
 function MenuConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   ...props
-}: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+} & FetchedOptionsSeam) {
   const { items: menus, error } = useOptions<AdminMenu>(
     () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus),
     "failed to load menus",
@@ -161,6 +219,12 @@ function MenuConfigFields({
         id="widget-field-menuRef"
         value={textValue(props.config, "menuRef")}
         onChange={(e) => props.onChange({ ...props.config, menuRef: e.target.value })}
+        {...(props.agentHandle
+          ? agentHandle(`${props.agentHandle}-menu-ref`, {
+              role: "field",
+              label: "Menu — set with page.select_option, not click",
+            })
+          : {})}
       >
         <option value="">Choose a menu…</option>
         {menus.map((menu) => (
@@ -179,7 +243,11 @@ function MenuConfigFields({
 function ContactFormConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   ...props
-}: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
+}: {
+  config: Record<string, unknown>;
+  onChange: (config: Record<string, unknown>) => void;
+  agentHandle?: string;
+} & FetchedOptionsSeam) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
     () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data),
     "failed to load forms"
@@ -195,6 +263,12 @@ function ContactFormConfigFields({
         id="widget-field-formDefinitionId"
         value={textValue(props.config, "formDefinitionId")}
         onChange={(e) => props.onChange({ ...props.config, formDefinitionId: e.target.value })}
+        {...(props.agentHandle
+          ? agentHandle(`${props.agentHandle}-form-definition-id`, {
+              role: "field",
+              label: "Form — set with page.select_option, not click",
+            })
+          : {})}
       >
         <option value="">Choose a form…</option>
         {forms.map((form) => (
@@ -208,6 +282,9 @@ function ContactFormConfigFields({
         id="widget-field-successMessage"
         value={textValue(props.config, "successMessage")}
         onChange={(e) => props.onChange({ ...props.config, successMessage: e.target.value || undefined })}
+        {...(props.agentHandle
+          ? agentHandle(`${props.agentHandle}-success-message`, { role: "field", label: "Success message" })
+          : {})}
       />
     </div>
   );
@@ -218,19 +295,37 @@ export function WidgetConfigFields(
     widgetType: AdminWidgetType;
     config: Record<string, unknown>;
     onChange: (config: Record<string, unknown>) => void;
+    /** This sub-form's own base handle — see this file's "Agent handles" doc for the per-type
+     *  field list. Forwarded as-is to whichever of the five sub-forms below is active; omit to
+     *  leave every field untagged. */
+    agentHandle?: string;
   } & FetchedOptionsSeam
 ) {
   switch (props.widgetType) {
     case "text":
-      return <TextConfigFields config={props.config} onChange={props.onChange} />;
+      return <TextConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
     case "social-links":
-      return <SocialLinksConfigFields config={props.config} onChange={props.onChange} />;
+      return <SocialLinksConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
     case "recent-entries":
-      return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} />;
+      return <RecentEntriesConfigFields config={props.config} onChange={props.onChange} agentHandle={props.agentHandle} />;
     case "menu":
-      return <MenuConfigFields config={props.config} onChange={props.onChange} useFetchedOptions={props.useFetchedOptions} />;
+      return (
+        <MenuConfigFields
+          config={props.config}
+          onChange={props.onChange}
+          agentHandle={props.agentHandle}
+          useFetchedOptions={props.useFetchedOptions}
+        />
+      );
     case "contact-form":
-      return <ContactFormConfigFields config={props.config} onChange={props.onChange} useFetchedOptions={props.useFetchedOptions} />;
+      return (
+        <ContactFormConfigFields
+          config={props.config}
+          onChange={props.onChange}
+          agentHandle={props.agentHandle}
+          useFetchedOptions={props.useFetchedOptions}
+        />
+      );
     default:
       return null;
   }
