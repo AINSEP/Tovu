@@ -1285,7 +1285,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 :root[data-theme="dark"] .list-table td .btn-danger[data-armed="true"],
 :root[data-theme="dark"] .list-table td .btn-warning[data-armed="true"] { color: oklch(18% 0.006 260); }
-.status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; }
+.status { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
 .status-published { background: var(--ok-bg); color: var(--ok); }
 .status-draft { background: var(--surface-3); color: var(--muted); }
 /* A disabled form is switched off, not failed or destructive — so it takes the same muted
@@ -1419,7 +1419,17 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    The `<span>` vs `<div>` split is not a hard rule (case 1's header usage was a `<div>` too), but
    in practice every bottom-of-form case found so far has been a `<div>`. Check the actual
    surrounding markup before assuming which role a given caller is in. */
-.editor-actions { display: flex; gap: 0.6rem; align-items: center; }
+/* `flex-wrap: wrap` (web-design pass, 2026-08-26): narrow the admin content column enough — the
+   assistant chat pane open plus a fully expanded sidebar is the reported case — and a row that mixes
+   a text `<input>` with 1-2 buttons (`Taxonomy.tsx`'s `NewTermForm`/`NewTaxonomyForm` being the
+   found case) no longer fits on one line. Every element here has `overflow: visible` up to the
+   parent `.card`/`.taxonomy-namespace-group`, so with `nowrap` the overflow doesn't scroll or clip —
+   it bleeds out past the card's own border, left AND right, which is the actual bug (a static
+   border-box measurement of the card and the form both nest correctly; it's this row's rendered
+   CONTENT that escapes). Wrapping the row onto a second line keeps every child inside the card at
+   any width instead. Harmless for the ~30 button-only callers this class already has: none of them
+   are wide enough to trigger a wrap at any width this app supports, so this is a no-op for them. */
+.editor-actions { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
 .save-ok { color: var(--ok); font-size: 0.85rem; }
 .save-error { color: var(--danger); font-size: 0.85rem; }
 .editor-title { font-family: var(--font-display); font-size: 1.6rem; font-weight: 700; letter-spacing: -0.01em; padding: 0.6rem 0.2rem; width: 100%; border: none; border-bottom: 1px solid var(--border); border-radius: 0; background: transparent; color: var(--fg); }
@@ -2198,7 +2208,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * reusing the `.status` pill geometry above rather than introducing a new badge token. */
 .status-valid { background: var(--ok-bg); color: var(--ok); }
 .status-invalid, .status-incompatible { background: var(--danger-bg); color: var(--danger); }
-.tier { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; background: var(--surface-3); color: var(--muted); }
+.tier { padding: 0.15rem 0.55rem; border-radius: var(--r-pill); font-size: 0.72rem; font-weight: 600; background: var(--surface-3); color: var(--muted); white-space: nowrap; }
 .plugin-errors { margin: 0; padding-left: 1rem; font-size: 0.8rem; }
 
 .collections-type-dialog { max-width: 34rem; max-height: 85vh; overflow-y: auto; }
