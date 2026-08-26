@@ -1,4 +1,4 @@
-import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "./ports.js";
+import type { FederatedMcpConnectionConfig, McpLaunchSpec } from "./ports.js";
 
 /**
  * @file GENERIC configuration-resolution scaffolding for federated MCP connections — the parts every
@@ -23,15 +23,19 @@ import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "./ports.j
  */
 
 /**
- * One fully-resolved federated connection: what to launch, and the policy to hold it to.
+ * One fully-resolved federated connection: how to reach it, and the policy to hold it to.
  *
  * This is the whole contract between a vendor preset and core federation. A preset's entire job is
  * to produce one of these (or `null`); everything downstream — `presets.ts`, `bootstrap.ts`,
  * `trust.ts`, `registrations.ts` — is vendor-blind and works off this shape alone.
+ *
+ * `launch` is TRANSPORT-BLIND too: a local command or a hosted endpoint, and every policy field
+ * beside it applies identically to both. That is what lets an operator move a connection from a
+ * locally-launched server to the vendor's hosted one without any of the trust machinery noticing.
  */
 export interface ResolvedFederatedConnection {
   readonly config: FederatedMcpConnectionConfig;
-  readonly launch: McpStdioLaunchSpec;
+  readonly launch: McpLaunchSpec;
 }
 
 /**
