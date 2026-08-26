@@ -2075,9 +2075,9 @@ export const externalMcpServers = sqliteTable(
     /** Operator-chosen `[a-z0-9-]` id — see this table's header for why the charset is load-bearing. */
     serverId: text("server_id").notNull(),
     label: text("label"),
-    /** `'stdio'` or `'streamable_http'`. Only stdio can be federated today — see
-     *  `assistant/external-mcp-store.ts`'s `FEDERATABLE_EXTERNAL_MCP_TRANSPORTS`. ORTHOGONAL to
-     *  `auth_mode`: a stdio server can use OAuth, and an HTTP one can use a static token. */
+    /** `'stdio'` or `'streamable_http'` — see `assistant/external-mcp-store.ts`'s
+     *  `SUPPORTED_EXTERNAL_MCP_TRANSPORTS`. Both are federatable. ORTHOGONAL to `auth_mode`: a
+     *  stdio server can use OAuth, and an HTTP one can use a static token. */
     transport: text("transport").notNull(),
     /**
      * `'none' | 'static_env' | 'oauth'` — how credentials are obtained, independent of `transport`.

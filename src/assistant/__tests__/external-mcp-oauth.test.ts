@@ -341,7 +341,9 @@ test("boot-time federation injects the access token into the operator's chosen e
   assert.deepEqual(failures, []);
   assert.equal(configs.length, 1);
   assert.equal(configs[0]?.authMode, "oauth");
-  assert.deepEqual(configs[0]?.env, { HIGGS_TOKEN: "at-1" });
+  const target = configs[0]?.target;
+  assert.equal(target?.kind, "stdio");
+  assert.deepEqual(target?.kind === "stdio" ? target.env : null, { HIGGS_TOKEN: "at-1" });
 });
 
 test("a needs_reauth connection is REPORTED at boot, not silently dropped", async () => {
