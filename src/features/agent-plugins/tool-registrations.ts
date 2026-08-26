@@ -225,6 +225,13 @@ function summarizeSkillMarkdown(skillName: string, markdown: string): string {
  * this file's header. Names the default skill (and, when there is no eponymous skill, why the
  * fallback was chosen) so a caller reading only the description already knows what a bare call
  * returns.
+ *
+ * Leads with an imperative "use this before..." clause rather than a bare noun phrase — a live test
+ * found the model choosing a native verb-style tool (e.g. `theme_list`) over this plugin even when
+ * this plugin's own tool ranked #1 in search for the same query, on prompts where both plausibly fit
+ * ("make it look polished and professional"). The imperative opening is a controlled experiment
+ * against that selection bias, not a search-ranking change — the skill-vocabulary tail below is
+ * unchanged and still does the BM25 work.
  */
 function buildPluginToolDescription(
   pluginId: string,
@@ -238,6 +245,7 @@ function buildPluginToolDescription(
     : `Called with no argument, returns this plugin's own eponymous '${defaultSkillName}' skill.`;
   const details = skills.map((skill) => `${humanize(skill.name)} (${skill.name}) — ${skill.summary}`).join(" | ");
   return (
+    `Use this before making any design/implementation decision in its domain — ` +
     `${humanPlugin} guidance from the installed '${pluginId}' Agent Plugin, covering ${skills.length} ` +
     `skill${skills.length === 1 ? "" : "s"}: ${details} ${defaultNote} Pass the optional 'skill' argument ` +
     `to request a different one by name.`
