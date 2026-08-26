@@ -123,6 +123,75 @@ test("a resource that publishes no protected-resource metadata falls back to its
 });
 
 // ---------------------------------------------------------------------------
+// Which URL is actually requested
+//
+// The tests above prove discovery SUCCEEDS, but the fixture answers both well-known
+// candidates, so a wrong candidate order would pass them all. The requested path is
+// the single structural assumption a real connect depends on, so it is pinned here
+// against the shapes measured from a live hosted MCP server.
+// ---------------------------------------------------------------------------
+
+test("a resource at /mcp is asked for the PATH-INSERTED protected-resource document first", async () => {
+  const fixture = await startDiscoveryFixture({ resourcePath: "/mcp" });
+  try {
+    await discoverAuthorizationServer({}, { resourceUrl: fixture.resourceUrl });
+    const first = fixture.requests[0]?.url.split("?")[0];
+    // RFC 9728 §3.1 inserts the segment before the resource's path. A hosted MCP server
+    // measured in the wild serves exactly this and 404s the bare form, so an appended or
+    // bare-first candidate order would connect to nothing.
+    assert.equal(first, "/.well-known/oauth-protected-resource/mcp");
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("the bare protected-resource path is a FALLBACK, tried only after the path-inserted one", async () => {
+  const seen: string[] = [];
+  const server = await startLoopbackServer((req, res) => {
+    const path = (req.url ?? "/").split("?")[0] ?? "/";
+    seen.push(path);
+    if (path === "/.well-known/oauth-protected-resource") {
+      sendJson(res, 200, { authorization_servers: [], scopes_supported: ["email"] });
+      return;
+    }
+    if (path === "/.well-known/oauth-authorization-server") {
+      sendJson(res, 200, { issuer: "x", token_endpoint: `http://127.0.0.1:1/t` });
+      return;
+    }
+    sendJson(res, 404, { detail: "Not Found" });
+  });
+  try {
+    await discoverAuthorizationServer({}, { resourceUrl: `${server.origin}/mcp` });
+    assert.deepEqual(seen.slice(0, 2), ["/.well-known/oauth-protected-resource/mcp", "/.well-known/oauth-protected-resource"]);
+  } finally {
+    await server.close();
+  }
+});
+
+test("the issuer's RFC 8414 document is asked for before any OpenID Connect fallback", async () => {
+  const fixture = await startDiscoveryFixture();
+  try {
+    await discoverAuthorizationServer({}, { resourceUrl: fixture.resourceUrl });
+    const metadataRequests = fixture.requests.filter((request) => request.url.includes("/.well-known/") && !request.url.includes("protected-resource"));
+    assert.equal(metadataRequests[0]?.url.split("?")[0], "/.well-known/oauth-authorization-server");
+    // It succeeded on the first candidate, so no OpenID Connect path was ever tried.
+    assert.equal(metadataRequests.length, 1);
+  } finally {
+    await fixture.close();
+  }
+});
+
+test("a real hosted MCP server's 401 challenge parses to its exact metadata URL and scopes", () => {
+  // Verbatim from a live probe of a hosted MCP server, kept as a fixture so the parser is
+  // pinned against a header a real deployment actually emits rather than a tidied one.
+  const measured =
+    'Bearer resource_metadata="https://mcp.example.ai/.well-known/oauth-protected-resource/mcp", scope="openid email offline_access"';
+  assert.equal(parseResourceMetadataUrl(measured), "https://mcp.example.ai/.well-known/oauth-protected-resource/mcp");
+  // `offline_access` is the member that decides whether the connection can ever refresh.
+  assert.deepEqual(parseWwwAuthenticateScopes(measured), ["openid", "email", "offline_access"]);
+});
+
+// ---------------------------------------------------------------------------
 // One dead authorization server must not fail the flow — measured in the wild
 // ---------------------------------------------------------------------------
 

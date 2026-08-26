@@ -268,16 +268,22 @@ export function buildExternalMcpCardHandles(sourceIds: readonly string[]): strin
 
 /**
  * The one cross-field OAuth rule `buildExternalMcpFieldSpecs`' per-field `required` flags cannot
- * express: an OAuth connection needs EITHER a registered provider id OR its own token endpoint, not
- * both — the same "OR", not "AND", `resolveOAuthProviderIdentity`/`assertOAuthProviderIdentity`
+ * express: a STDIO OAuth connection needs EITHER a registered provider id OR its own token endpoint,
+ * not both — the same "OR", not "AND", `resolveOAuthProviderIdentity`/`assertOAuthProviderIdentity`
  * enforce server-side. Checked manually, the same way `useExternalMcp`'s `addSource` already checks
  * "An ID is required." before ever calling the API.
+ *
+ * A REMOTE connection is exempt, mirroring the same server-side exemption: it has a URL, so
+ * `external-mcp-oauth.ts` can run RFC 9728 / RFC 8414 discovery against it at connect time and learn
+ * the endpoints itself. Keeping the rule here for remote rows would re-close a path the server now
+ * deliberately opens, and the admin tab is the operator's only route to it.
  *
  * @returns An operator-facing message when the rule is violated, else `null`.
  * @complexity O(1).
  */
 export function validateExternalMcpOAuthIdentity(values: SourceFieldValues): string | null {
   if (resolveExternalMcpEffectiveAuthMode(values) !== "oauth") return null;
+  if (resolveExternalMcpEffectiveTransport(values) !== "stdio") return null;
   const hasProviderId = (values.oauthProviderId ?? "").trim() !== "";
   const hasTokenEndpoint = (values.oauthTokenEndpoint ?? "").trim() !== "";
   if (hasProviderId || hasTokenEndpoint) return null;
