@@ -34,10 +34,45 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     allowedToolNames: JSON.stringify(["search", "fetch"]),
     envNames: JSON.stringify(["API_KEY"]),
     sealedEnv: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
+    authMode: "static_env",
+    url: null,
+    oauthProviderId: null,
+    oauthGrant: null,
+    oauthClientId: null,
+    oauthEndpointsJson: null,
+    oauthScopesJson: null,
+    oauthStatus: null,
+    oauthExpiresAt: null,
+    oauthTokenEnvName: null,
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
   };
+}
+
+/** A fully OAuth-configured row: the second auth mode, the second sealed group, and every plaintext
+ *  OAuth column populated — so the round-trip test proves this adapter carries all of them, not just
+ *  the ones the static-env fixture happens to set. */
+function makeOAuthRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalMcpServerRecord {
+  return makeRecord({
+    serverId: "oauth-server",
+    authMode: "oauth",
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: "example-oidc",
+    oauthGrant: "device_code",
+    oauthClientId: "tovu-client",
+    oauthEndpointsJson: JSON.stringify({ tokenEndpoint: "https://auth.example.com/token" }),
+    oauthScopesJson: JSON.stringify(["images:generate"]),
+    oauthStatus: "connected",
+    oauthExpiresAt: "2026-08-21T02:00:00.000Z",
+    oauthTokenEnvName: "PROVIDER_TOKEN",
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth: { keyId: "k2", ciphertext: "b2F1dGg=", nonce: "bjI=", alg: "aes-256-gcm" },
+    ...overrides,
+  });
 }
 
 function seedWorkspaces(db: ReturnType<typeof openContentDb>, ids: string[]): void {
@@ -85,6 +120,69 @@ test("nullable plaintext fields (label, command, args, allowedToolNames) round-t
   await repo.upsert(record);
 
   assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "my-server" }), record);
+});
+
+test("an OAuth row round-trips every plaintext OAuth column AND the second sealed group", async () => {
+  const repo = makeRepo();
+  const record = makeOAuthRecord();
+
+  await repo.upsert(record);
+
+  assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "oauth-server" }), record);
+});
+
+test("the two sealed groups are independent — an OAuth blob with no env block satisfies both CHECKs", async () => {
+  const repo = makeRepo();
+
+  // Would violate `external_mcp_servers_sealed_shape` if the two groups shared one constraint.
+  await repo.upsert(makeOAuthRecord({ sealedEnv: null, envNames: null }));
+  await repo.upsert(makeRecord({ serverId: "env-only", sealedOAuth: null }));
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  assert.equal(rows.length, 2);
+  assert.equal(rows.find((row) => row.serverId === "oauth-server")?.sealedEnv, null);
+  assert.equal(rows.find((row) => row.serverId === "env-only")?.sealedOAuth, null);
+});
+
+test("tryClaimOAuthRefreshLease is a compare-and-set: the second concurrent claimant loses", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeOAuthRecord());
+  const claim = { workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER };
+
+  assert.equal(await repo.tryClaimOAuthRefreshLease(claim), true);
+  // The loser must observe the loss. If this ever returns true, two processes redeem the same
+  // single-use rotating refresh token and the connection dies until a human re-authorizes it.
+  assert.equal(await repo.tryClaimOAuthRefreshLease(claim), false);
+  assert.equal((await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "oauth-server" }))?.oauthRefreshLeaseUntil, LATER);
+});
+
+test("an EXPIRED lease is claimable again, so a crashed holder cannot wedge the connection", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeOAuthRecord());
+  await repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER });
+
+  const afterExpiry = "2026-08-21T02:00:00.000Z";
+  assert.equal(
+    await repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: afterExpiry, leaseUntil: "2026-08-21T03:00:00.000Z" }),
+    true,
+  );
+});
+
+test("releaseOAuthRefreshLease clears the lease so the next caller can claim immediately", async () => {
+  const repo = makeRepo();
+  await repo.upsert(makeOAuthRecord());
+  await repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER });
+
+  await repo.releaseOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "oauth-server" });
+
+  assert.equal((await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "oauth-server" }))?.oauthRefreshLeaseUntil, null);
+  assert.equal(await repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "oauth-server", nowIso: NOW, leaseUntil: LATER }), true);
+});
+
+test("claiming a lease on a row that does not exist reports failure rather than inventing one", async () => {
+  const repo = makeRepo();
+
+  assert.equal(await repo.tryClaimOAuthRefreshLease({ workspaceId: WORKSPACE, serverId: "absent", nowIso: NOW, leaseUntil: LATER }), false);
 });
 
 test("upsert on the same (workspaceId, serverId) updates in place rather than duplicating", async () => {
