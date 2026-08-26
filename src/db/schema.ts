@@ -2075,11 +2075,21 @@ export const externalMcpServers = sqliteTable(
     /** Operator-chosen `[a-z0-9-]` id — see this table's header for why the charset is load-bearing. */
     serverId: text("server_id").notNull(),
     label: text("label"),
-    /** `'stdio'` today — `mcp-federation/adapter.stdio.ts` is the only transport implemented.
-     *  Stored rather than assumed so adding one later is data, not a reinterpretation of old rows. */
+    /** `'stdio'` or `'streamable_http'`. Only stdio can be federated today — see
+     *  `assistant/external-mcp-store.ts`'s `FEDERATABLE_EXTERNAL_MCP_TRANSPORTS`. ORTHOGONAL to
+     *  `auth_mode`: a stdio server can use OAuth, and an HTTP one can use a static token. */
     transport: text("transport").notNull(),
+    /**
+     * `'none' | 'static_env' | 'oauth'` — how credentials are obtained, independent of `transport`.
+     * Defaulted to `'static_env'` rather than `'none'` so rows written before this column existed
+     * keep their meaning: the only credential mechanism that existed then was the env block, and a
+     * row with an empty block behaves identically under either value.
+     */
+    authMode: text("auth_mode").notNull().default("static_env"),
     enabled: integer("enabled", { mode: "boolean" }).notNull(),
     command: text("command"),
+    /** Endpoint for a remote transport. NULL for stdio, where `command` is used instead. */
+    url: text("url"),
     /** JSON array of argv strings. Secrets never belong here — argv is world-readable via `ps`. */
     args: text("args"),
     /** JSON array of admissible remote tool names. See this table's header. */
@@ -2094,6 +2104,41 @@ export const externalMcpServers = sqliteTable(
     sealedNonce: text("sealed_nonce"),
     /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
     sealedAlg: text("sealed_alg"),
+    /** Registered `src/oauth/` provider id this connection authorizes against, when it names one. */
+    oauthProviderId: text("oauth_provider_id"),
+    /** `'authorization_code' | 'device_code'`. Device grant is first-class: a self-hosted install
+     *  often has no publicly reachable callback URL, which is the only thing the other grant needs. */
+    oauthGrant: text("oauth_grant"),
+    /** Plaintext. A client id is not a secret — it travels in the authorization URL by design. */
+    oauthClientId: text("oauth_client_id"),
+    /** JSON object of operator-typed endpoints, for a connection that defines its own provider. */
+    oauthEndpointsJson: text("oauth_endpoints_json"),
+    /** JSON array of requested scopes. Non-secret. */
+    oauthScopesJson: text("oauth_scopes_json"),
+    /** `'disconnected' | 'pending' | 'connected' | 'needs_reauth'`. `needs_reauth` is a RUNTIME
+     *  lifecycle state, deliberately distinct from the boot-time "sealed blob will not decrypt"
+     *  path — one is operator-actionable, the other is a storage failure. */
+    oauthStatus: text("oauth_status"),
+    /**
+     * PLAINTEXT absolute expiry of the sealed access token, stored BESIDE the blob rather than
+     * inside it — the same split `env_names` makes beside the sealed env values, and load-bearing
+     * for the same kind of reason: expiry must be checkable by a scheduler and displayable in the
+     * admin tab without a keyring round trip, and answering "when does this die" must not be a code
+     * path that decrypts a live token.
+     */
+    oauthExpiresAt: text("oauth_expires_at"),
+    /** For stdio + OAuth: which child-process env variable receives the access token. A NAME, so
+     *  plaintext, exactly as `env_names` is. */
+    oauthTokenEnvName: text("oauth_token_env_name"),
+    /** Cross-process refresh lease. The admin server and the agent daemon are separate processes
+     *  with separate DB handles; without a compare-and-set here both can redeem the same single-use
+     *  rotating refresh token and kill the connection. Time-bounded so a crash cannot wedge it. */
+    oauthRefreshLeaseUntil: text("oauth_refresh_lease_until"),
+    /** Sealed `{ clientSecret?, tokens? }`. `SealedSecret.keyId`; NULL iff nothing is stored. */
+    oauthSealedKeyId: text("oauth_sealed_key_id"),
+    oauthSealedCiphertext: text("oauth_sealed_ciphertext"),
+    oauthSealedNonce: text("oauth_sealed_nonce"),
+    oauthSealedAlg: text("oauth_sealed_alg"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -2102,6 +2147,10 @@ export const externalMcpServers = sqliteTable(
     check(
       "external_mcp_servers_sealed_shape",
       sql`(${table.sealedKeyId} IS NULL AND ${table.sealedCiphertext} IS NULL AND ${table.sealedNonce} IS NULL AND ${table.sealedAlg} IS NULL) OR (${table.sealedKeyId} IS NOT NULL AND ${table.sealedCiphertext} IS NOT NULL AND ${table.sealedNonce} IS NOT NULL AND ${table.sealedAlg} IS NOT NULL)`
+    ),
+    check(
+      "external_mcp_servers_oauth_sealed_shape",
+      sql`(${table.oauthSealedKeyId} IS NULL AND ${table.oauthSealedCiphertext} IS NULL AND ${table.oauthSealedNonce} IS NULL AND ${table.oauthSealedAlg} IS NULL) OR (${table.oauthSealedKeyId} IS NOT NULL AND ${table.oauthSealedCiphertext} IS NOT NULL AND ${table.oauthSealedNonce} IS NOT NULL AND ${table.oauthSealedAlg} IS NOT NULL)`
     ),
   ]
 );
