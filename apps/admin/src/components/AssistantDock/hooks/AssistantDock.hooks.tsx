@@ -14,6 +14,7 @@ import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig }
 
 import { navigate } from "../../../lib/router";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../../../lib/settings-refresh-bus";
+import { publishContentRefresh } from "../../../lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "../../../lib/assistant-transport";
 import { isAgUiTransportEnabled } from "../../../lib/assistant-transport-ag-ui";
 import { useWiredAssistantChats, type UseAssistantChats } from "../../../hooks/use-assistant-chats.hooks";
@@ -950,19 +951,19 @@ export function useComposerDiscoverySelect(
 }
 
 /**
- * Whether a completed run's messages-change delta should trigger `publishSettingsRefresh()`, and
+ * Whether a completed run's messages-change delta should trigger the refresh announcements, and
  * what the next `settledRunMessageId` marker should be. Pulled out of `handleMessagesChange` so the
  * "fire once per finished run, not once per streaming delta" dedup logic is directly assertable
  * without a live `ChatPane`.
  *
  * Deliberately triggered by RUN COMPLETION rather than by inspecting the transcript for a settings
- * tool call. Matching tool names here would put a list of them in the admin shell, where it would
- * fall out of date the first time the catalog grows — and the whole cost of being wrong is a few
- * sub-millisecond SQLite reads per run. Ignorance is cheaper than coupling.
+ * or content tool call. Matching tool names here would put a list of them in the admin shell, where
+ * it would fall out of date the first time the catalog grows — and the whole cost of being wrong is
+ * a few sub-millisecond SQLite reads per run. Ignorance is cheaper than coupling.
  *
  * @param input.messages - The full transcript as of this `onMessagesChange` event.
  * @param input.settledRunMessageId - The last message id already published for, or `null`.
- * @returns `publish` (whether to call `publishSettingsRefresh()` now) and `nextSettledRunMessageId`
+ * @returns `publish` (whether to announce now) and `nextSettledRunMessageId`
  *   (what the caller's ref should hold next — unchanged when `publish` is `false`).
  * @example
  * const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
@@ -1000,10 +1001,17 @@ export function shouldPublishOnMessagesChange(
  * keeps rendering the value it fetched at mount, which reads as the tool having silently done
  * nothing.
  *
+ * The identical thing was true of CONTENT until 2026-08-26, just with no bus to say it on:
+ * `taxonomy_create_taxonomy` is agent-callable too, and the Categories & Tags screen sitting beside
+ * this dock kept listing what it fetched at mount until the operator hit Ctrl-R. So this publisher
+ * now announces on `lib/content-refresh-bus` as well. It is one trigger with two announcements, not
+ * a second trigger — the dedup below still fires it exactly once per finished run, and neither bus
+ * carries a payload, so widening what is announced cannot widen what any subscriber can read.
+ *
  * Deliberately triggered by RUN COMPLETION rather than by inspecting the transcript for a settings
- * tool call — see {@link shouldPublishOnMessagesChange}'s own doc for why. `undefined` scope
- * (rather than a namespace list) for the same reason: this publisher does not know what changed, and
- * saying so is more honest than guessing.
+ * or taxonomy tool call — see {@link shouldPublishOnMessagesChange}'s own doc for why. `undefined`
+ * scope (rather than a namespace or resource list) for the same reason: this publisher does not know
+ * what changed, and saying so is more honest than guessing.
  *
  * @param input.chats - {@link UseAssistantChats} — only `.onMessagesChange` is read.
  * @returns The memoized `onMessagesChange` callback.
@@ -1027,7 +1035,10 @@ export function useMessagesChangeHandler(
         settledRunMessageId: settledRunMessageId.current,
       });
       settledRunMessageId.current = nextSettledRunMessageId;
-      if (publish) publishSettingsRefresh();
+      if (publish) {
+        publishSettingsRefresh();
+        publishContentRefresh();
+      }
     },
     [chats],
   );

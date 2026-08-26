@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "../../../lib/content-refresh-bus";
 import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
 import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
+import { TAXONOMY_RESOURCE } from "../rules";
 
 /**
  * @file `useTaxonomy` — the top-level "Categories & Tags" screen state, extracted so it is
@@ -306,5 +308,103 @@ describe("useTaxonomy — injected port", () => {
 
     expect(result.current.deleteTermBlocked?.state.code).toBe("TERM_HAS_ASSIGNMENTS");
     expect(result.current.error).toBeNull();
+  });
+});
+
+/**
+ * Regression coverage for the 2026-08-26 bug: the assistant creates a taxonomy through
+ * `taxonomy_create_taxonomy`, the chat reports success, and this screen — open in the same tab,
+ * beside the dock — keeps listing only what it fetched at mount until the operator hits Ctrl-R.
+ *
+ * Driven through the REAL `lib/content-refresh-bus` rather than a fake, because the thing that was
+ * broken is the wiring between the two modules, not either one's internals. The port's own `groups`
+ * array standing in for the server-side write is what makes the assertion an equivalence invariant
+ * ("the list now CONTAINS the new taxonomy") rather than "a function was called".
+ */
+describe("useTaxonomy — content refresh bus", () => {
+  const NEW_GROUP = {
+    taxonomy: {
+      id: "tax2",
+      name: "Seasons",
+      hierarchical: false,
+      status: "active",
+      updatedAt: "2026-08-26T00:00:00.000Z",
+      version: 1,
+    },
+    terms: [],
+  };
+
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-created taxonomy appears without a reload", async () => {
+    const port = createFakeTaxonomyPort({ groups: [GROUP] });
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+
+    // The assistant's tool call landing server-side. The screen has no way to know it happened.
+    port.groups.push(NEW_GROUP);
+    expect(result.current.taxonomies).toEqual([GROUP]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP, NEW_GROUP]));
+  });
+
+  it("refreshes on a notification that names taxonomy, and ignores one that names only other resources", async () => {
+    const port = createFakeTaxonomyPort({ groups: [GROUP] });
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+
+    port.groups.push(NEW_GROUP);
+
+    // A narrowed notification about somebody else's resource must not cost this screen a refetch.
+    act(() => publishContentRefresh(["posts"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.taxonomies).toEqual([GROUP]);
+
+    act(() => publishContentRefresh([TAXONOMY_RESOURCE]));
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP, NEW_GROUP]));
+  });
+
+  it("keeps the loaded list rendered across the refresh instead of flashing back to null", async () => {
+    const port = createFakeTaxonomyPort({ groups: [GROUP] });
+    // Row counts rather than the rows themselves — the invariant is "never rendered empty", and a
+    // count cannot go stale against `AdminTaxonomyWithTerms`'s shape the way a structural copy can.
+    const renderedRowCounts: number[] = [];
+    const { result } = renderHook(
+      () => {
+        const controller = useTaxonomy(port, "en", (k) => k);
+        renderedRowCounts.push(controller.taxonomies?.length ?? 0);
+        return controller;
+      },
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+
+    const loadedAt = renderedRowCounts.length;
+    port.groups.push(NEW_GROUP);
+    act(() => publishContentRefresh());
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP, NEW_GROUP]));
+
+    // A background refresh is `status: "success"` + `isFetching: true`, never `loading`. If this
+    // screen ever rendered an empty list mid-refresh, every agent write would blank the table —
+    // a worse bug than the stale one being fixed here.
+    const duringRefresh = renderedRowCounts.slice(loadedAt);
+    expect(duringRefresh.length).toBeGreaterThan(0);
+    expect(duringRefresh).not.toContain(0);
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeTaxonomyPort({ groups: [GROUP] });
+    const listSpy = vi.spyOn(port, "listTaxonomies");
+    const { result, unmount } = renderHook(() => useTaxonomy(port, "en", (k) => k), { wrapper });
+    await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });
