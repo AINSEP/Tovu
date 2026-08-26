@@ -1,4 +1,6 @@
 import { createPortal } from "react-dom";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useSelectDropdown, type PanelPosition, type SelectOption } from "./Select.hooks";
 import "../../styles/select.css";
 
@@ -28,6 +30,26 @@ import "../../styles/select.css";
  * package). The `useDropdown` prop below is the same kind of injectable seam `ConfirmDialog`'s
  * `useDialog` prop is — it lets a test render this component's JSX against a fake without invoking
  * the real portal, `getBoundingClientRect`, or any of the scroll/resize/outside-click listeners.
+ *
+ * ## Agent handles
+ *
+ * Given `agentHandle="widget-type"` this publishes, whenever the panel is actually open:
+ *
+ * | element | handle | role |
+ * |---|---|---|
+ * | the trigger button | `widget-type` | `button` |
+ * | the search field (when shown) | `widget-type-search` | `field` |
+ * | one option, keyed by the option's own `value` | `widget-type-option-<slug of value>` | `button` |
+ *
+ * `page.select_option` does not resolve this component: its DOM is a `<button>` plus a portaled
+ * `<ul role="listbox">`, never a native `<select>` (see this file's own header for why), so an
+ * agent picks a value the same way a pointer does — click the trigger to open, then click the
+ * option's own handle. Options sit under their own `-option-` namespace via `@jini-ai/agentic`'s
+ * `buildAgentListHandles`, the same "caller data cannot collide with this component's own literal
+ * segments" reasoning `source-config-list/agent-handles.ts` documents for its own `-field-`/
+ * `-item-` namespaces. `agentHandle` itself is NOT sanitized — the caller's own explicit choice of
+ * name, which should fail loudly at first render if invalid rather than silently answer to a
+ * handle never actually written. Omit `agentHandle` and no `data-agent-*` markup is emitted at all.
  */
 
 export type { SelectOption };
@@ -45,6 +67,9 @@ export interface SelectProps {
    *  Defaults to the real {@link useSelectDropdown}; a test can pass a fake here to exercise
    *  `Select`'s rendering without driving the real positioning math, portal, or event listeners. */
   useDropdown?: typeof useSelectDropdown;
+  /** This select's own base handle — see this file's "Agent handles" doc for the full scheme. Omit
+   *  to leave it (and every option) untagged. */
+  agentHandle?: string;
 }
 
 /** One row of the option list — the `isSelected`/`isHighlighted` derivation, the option's
@@ -62,6 +87,7 @@ function SelectOptionRow({
   setOptionRef,
   onHighlight,
   onSelect,
+  agentHandle: optionHandle,
 }: {
   option: SelectOption;
   index: number;
@@ -71,6 +97,9 @@ function SelectOptionRow({
   setOptionRef: (index: number, el: HTMLLIElement | null) => void;
   onHighlight: (index: number) => void;
   onSelect: (option: SelectOption) => void;
+  /** This row's own already-resolved handle, positionally aligned by the caller — see `Select`'s
+   *  own "Agent handles" doc. `undefined` when the base `Select` published no handle at all. */
+  agentHandle?: string;
 }) {
   return (
     <li
@@ -81,6 +110,7 @@ function SelectOptionRow({
       className={`select-option${isSelected ? " is-selected" : ""}${isHighlighted ? " is-highlighted" : ""}`}
       onMouseEnter={() => onHighlight(index)}
       onClick={() => onSelect(option)}
+      {...(optionHandle ? agentHandle(optionHandle, { role: "button", label: option.label }) : {})}
     >
       <span className="select-option-label">{option.label}</span>
       {isSelected ? (
@@ -113,6 +143,8 @@ function SelectPanel({
   onHighlight,
   onSelect,
   onKeyDown,
+  searchHandle,
+  optionHandles,
 }: {
   panelRef: React.RefObject<HTMLDivElement | null>;
   position: PanelPosition;
@@ -129,6 +161,11 @@ function SelectPanel({
   onHighlight: (index: number) => void;
   onSelect: (option: SelectOption) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => void;
+  /** The search input's own handle, or `undefined` when `Select` published no base handle. */
+  searchHandle?: string;
+  /** One handle per entry in `filtered`, positionally aligned — see `Select`'s own "Agent handles"
+   *  doc. `undefined` (rather than an empty array) when `Select` published no base handle at all. */
+  optionHandles?: readonly string[];
 }) {
   return (
     <div
@@ -147,6 +184,7 @@ function SelectPanel({
           placeholder="Search…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          {...(searchHandle ? agentHandle(searchHandle, { role: "field", label: "Search the option list" }) : {})}
         />
       ) : null}
       <ul className="select-list" role="listbox" id={listboxId}>
@@ -166,6 +204,7 @@ function SelectPanel({
               setOptionRef={setOptionRef}
               onHighlight={onHighlight}
               onSelect={onSelect}
+              agentHandle={optionHandles?.[index]}
             />
           ))
         )}
@@ -183,7 +222,7 @@ export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, p
 }
 
 export function Select(props: SelectProps) {
-  const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown } = props;
+  const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown, agentHandle: base } = props;
   const ariaLabel = props["aria-label"];
   const ariaLabelledBy = props["aria-labelledby"];
 
@@ -217,6 +256,11 @@ export function Select(props: SelectProps) {
 
   const triggerLabel = resolveSelectTriggerLabel(selectedOption, placeholder);
   const activeDescendant = open && highlightedIndex >= 0 ? optionId(highlightedIndex) : undefined;
+  // One handle per FILTERED option, recomputed as the search query narrows the list — an option
+  // dropped by the current query has no rendered row to attach a handle to, so it is simply absent
+  // this render rather than holding a handle nothing resolves to. `undefined` (not an empty array)
+  // when `base` itself is unset, so `SelectPanel` can tell "opted out" apart from "no options match".
+  const optionHandles = base ? buildAgentListHandles(`${base}-option`, filtered.map((option) => option.value)) : undefined;
 
   return (
     <>
@@ -235,6 +279,7 @@ export function Select(props: SelectProps) {
         disabled={disabled}
         onClick={() => (open ? closePanel({ refocusTrigger: false }) : openPanel())}
         onKeyDown={handleTriggerKeyDown}
+        {...(base ? agentHandle(base, { role: "button", label: ariaLabel ?? placeholder ?? "Select an option" }) : {})}
       >
         <span className={triggerLabel.className}>{triggerLabel.text}</span>
         <span className="select-trigger-chevron" aria-hidden="true" />
@@ -258,6 +303,8 @@ export function Select(props: SelectProps) {
               onHighlight={setHighlightedIndex}
               onSelect={selectOption}
               onKeyDown={handlePanelKeyDown}
+              searchHandle={base ? `${base}-search` : undefined}
+              optionHandles={optionHandles}
             />,
             document.body
           )

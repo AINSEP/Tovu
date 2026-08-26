@@ -1,3 +1,5 @@
+import { agentHandle } from "@jini-ai/agentic";
+
 import { useImagePreviewModal } from "./ImagePreviewModal.hooks";
 
 /**
@@ -26,9 +28,12 @@ export interface ImagePreviewModalProps {
    *  {@link useImagePreviewModal}; a test can pass a fake here to exercise `ImagePreviewModal`'s
    *  rendering without a real `<dialog>` lifecycle. */
   useModal?: typeof useImagePreviewModal;
+  /** Publishes the close button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
+   *  Omit to leave it untagged — every existing render then stays byte-identical. */
+  agentHandle?: string;
 }
 
-export function ImagePreviewModal({ open, src, alt, onClose, useModal = useImagePreviewModal }: ImagePreviewModalProps) {
+export function ImagePreviewModal({ open, src, alt, onClose, useModal = useImagePreviewModal, agentHandle: handle }: ImagePreviewModalProps) {
   const { dialogRef, handleNativeCancel, handleBackdropClick } = useModal(open, onClose);
 
   return (
@@ -39,7 +44,13 @@ export function ImagePreviewModal({ open, src, alt, onClose, useModal = useImage
       onCancel={handleNativeCancel}
       onClick={handleBackdropClick}
     >
-      <button type="button" className="image-preview-modal-close" onClick={onClose} aria-label="Close preview">
+      <button
+        type="button"
+        className="image-preview-modal-close"
+        onClick={onClose}
+        aria-label="Close preview"
+        {...(handle ? agentHandle(handle, { role: "button", label: "Close preview" }) : {})}
+      >
         ×
       </button>
       <img src={src} alt={alt} />

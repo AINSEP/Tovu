@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { useInfoTip } from "./InfoTip.hooks";
 
@@ -38,9 +39,15 @@ export interface InfoTipProps {
    *  real {@link useInfoTip}; a test can pass a fake here to exercise `InfoTip`'s rendering with a
    *  fixed `open`/`placement`/`coords` instead of driving real hover/focus/measurement. */
   useTip?: typeof useInfoTip;
+  /** Publishes the "ⓘ" icon itself as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
+   *  A click ends up focusing the icon, which opens the bubble the same way hover does — so this
+   *  is tagged `role: "button"` despite having no `onClick` of its own. Omit to leave it untagged;
+   *  every existing render then stays byte-identical, since `agentHandle()` is only spread onto the
+   *  icon when a handle is present. */
+  agentHandle?: string;
 }
 
-export function InfoTip({ label, useTip = useInfoTip }: InfoTipProps) {
+export function InfoTip({ label, useTip = useInfoTip, agentHandle: handle }: InfoTipProps) {
   const { open, placement, coords, iconRef, show, hide, handleIconKeyDown } = useTip();
 
   return (
@@ -55,6 +62,7 @@ export function InfoTip({ label, useTip = useInfoTip }: InfoTipProps) {
         onFocus={show}
         onBlur={hide}
         onKeyDown={handleIconKeyDown}
+        {...(handle ? agentHandle(handle, { role: "button", label }) : {})}
       >
         ⓘ
       </span>
