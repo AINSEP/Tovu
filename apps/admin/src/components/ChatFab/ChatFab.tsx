@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { useFabPosition } from "./ChatFab.hooks";
 import { DEFAULT_LOCALE } from "../../lib/settings-tabs";
 import { interpolate } from "../../lib/template-i18n";
@@ -40,6 +41,9 @@ interface ChatFabProps {
    * `useFabPosition` the same way Jini's `ConfirmDialog` shortens `useConfirmDialog` to `useDialog`.
    */
   useFab?: typeof useFabPosition;
+  /** Publishes the FAB itself as agent-addressable via `agentHandle()` (`@jini-ai/agentic`). Omit
+   *  to leave it untagged — every existing render then stays byte-identical. */
+  agentHandle?: string;
 }
 
 const FAB_ACTION_TEMPLATE: Record<string, { open: string; close: string }> = {
@@ -84,7 +88,17 @@ function fabActionLabel(locale: string, action: "open" | "close", label: string)
  * toggle (see that function's own doc for why a plain `isDragging` check at this call site would
  * be timing-unsafe).
  */
-export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, avoidRightPx, ref, useFab = useFabPosition, locale = DEFAULT_LOCALE }: ChatFabProps) {
+export function ChatFab({
+  open,
+  onToggle,
+  label = "assistant",
+  avoidBottomPx,
+  avoidRightPx,
+  ref,
+  useFab = useFabPosition,
+  locale = DEFAULT_LOCALE,
+  agentHandle: handle,
+}: ChatFabProps) {
   const fab = useFab({ dockOpen: open, avoidBottomPx, avoidRightPx });
   const actionLabel = fabActionLabel(locale, open ? "close" : "open", label);
 
@@ -102,6 +116,7 @@ export function ChatFab({ open, onToggle, label = "assistant", avoidBottomPx, av
       aria-expanded={open}
       aria-label={actionLabel}
       title={actionLabel}
+      {...(handle ? agentHandle(handle, { role: "button", label: "Toggle the assistant dock" }) : {})}
     >
       {open ? (
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
