@@ -1147,21 +1147,43 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
      is a real feature, not a drive-by addition; disclosed as deferred in the handoff rather than
      bolted on incompletely. `hidden` already keeps the closed sheet out of the tab order and the
      accessibility tree for free (no rendering at all), which is the load-bearing requirement here. */
+  .admin-layout {
+    /* Shared with the padding-reservation rules below so the two snap heights can't drift apart. */
+    --chat-sheet-peek: 58vh;
+    --chat-sheet-expanded: 92vh;
+  }
   .admin-layout .admin-chat-dock {
     position: fixed; left: 0; right: 0; bottom: 0; top: auto;
     z-index: 55; flex: none; width: 100%; border-left: none;
     border-top: 1px solid var(--border); border-radius: 14px 14px 0 0;
     box-shadow: var(--shadow-md);
     flex-direction: column;
-    height: 58vh;
+    height: var(--chat-sheet-peek);
     transition: height 0.2s ease;
   }
-  .admin-layout .admin-chat-dock.is-expanded { height: 92vh; }
+  .admin-layout .admin-chat-dock.is-expanded { height: var(--chat-sheet-expanded); }
   @media (prefers-reduced-motion: reduce) {
     .admin-layout .admin-chat-dock { transition: none; }
   }
 
   .admin-content { padding: var(--space-4) var(--space-3); }
+
+  /* Owner repro, 2026-08-26: the sheet covers the bottom of the page with nothing left to scroll
+     into, so the last elements can never clear it. An `::after` spacer (not `padding-bottom`)
+     reserves that room: padding has a hard floor at its own value — on a short viewport with the
+     sheet expanded, `padding-bottom: 92vh` plus the existing padding-top exceeds `.admin-content`'s
+     entire flex-allotted height, which forces the box itself taller and pushes its true bottom
+     edge below the viewport (measured at 375x667: box overflowed by ~15px, leaving the last row
+     still 14px under the sheet at max scroll). A spacer is ordinary scrollable content instead, so
+     `overflow-y: auto` clips it like any other content and the box never grows past its own height.
+     `.admin-chat-dock` isn't a DOM sibling of `.admin-content` (it sits next to `.admin-main-col`,
+     `.admin-content`'s parent), hence `:has()` on the shared ancestor. */
+  .admin-layout:has(.admin-chat-dock.is-open) .admin-content::after {
+    content: ""; display: block; height: var(--chat-sheet-peek);
+  }
+  .admin-layout:has(.admin-chat-dock.is-open.is-expanded) .admin-content::after {
+    height: var(--chat-sheet-expanded);
+  }
 
   /* Bug fix (owner repro, 2026-08-26): the FAB's default (undragged) bottom-right position only
      avoids the SHEET's own box (`avoidBottomPx` in `App.tsx`/`useFabPosition`) — it has no idea
