@@ -144,9 +144,23 @@ describe("buildExternalMcpFieldSpecs — the reactive show/hide + required contr
       ]),
     );
     expect(requiredOf(values, "oauthGrant")).toBe(true);
+    // Still required here: a blank draft is stdio, which has no URL to discover a registration
+    // endpoint from.
     expect(requiredOf(values, "oauthClientId")).toBe(true);
     // Not required — a public/PKCE client legitimately has none, and the server never demands one.
     expect(requiredOf(values, "oauthClientSecret")).toBe(false);
+  });
+
+  it("a hosted OAuth connection may leave the client id blank — it can register itself", () => {
+    const values = { transport: "streamable_http", authMode: "oauth" };
+    // The server accepts a remote OAuth row with no client id and mints one by RFC 7591 dynamic
+    // client registration at connect. A form that still demanded one would make the whole path
+    // unreachable from the admin tab, which is the operator's only route to it.
+    expect(keysOf(values)).toContain("oauthClientId");
+    expect(requiredOf(values, "oauthClientId")).toBe(false);
+    // Nor a provider identity — discovery supplies both.
+    expect(requiredOf(values, "oauthProviderId")).toBe(false);
+    expect(requiredOf(values, "oauthTokenEndpoint")).toBe(false);
   });
 
   it("the OAuth access-token env var is only required for stdio + oauth, never for a hosted transport", () => {
