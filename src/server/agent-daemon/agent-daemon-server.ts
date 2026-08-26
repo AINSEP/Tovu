@@ -84,6 +84,8 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
+import { registerInstalledAgentPluginTools } from "../../features/agent-plugins/tool-registrations.js";
+import { registerInstalledSkillTools } from "../../features/skills/tool-registrations.js";
 import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
@@ -791,6 +793,55 @@ async function start(): Promise<void> {
     deps: { authorize: routeDeps.authorize, workspaceId: routeDeps.workspaceId },
     extraConnections: await resolveStoredExternalMcpConnections(),
   });
+
+  /**
+   * Registers every installed Agent Plugin as a real tool, so a plain `search_tools` reaches it the
+   * same way it already reaches the 147 native tools — the structural half of the capability-discovery
+   * work, complementing the prompt-side `TOVU_CAPABILITY_MANIFEST_ARM` affordance rather than
+   * replacing it. Bench measurement: #1 for 6 of 7 held-out design queries, and it FREED native tools
+   * rather than crowding them (`theme_read_file` #10 -> #4 on "design guidance").
+   *
+   * Placed here — inside `start()`, immediately before `buildToolCatalogQuery` — for exactly the
+   * ordering reason the block below records: that call snapshots `registry.list()` into a one-shot
+   * FTS index, so a tool registered after it is executable but INVISIBLE to `search_tools`, which is
+   * the half-wired state `tool-catalog-query.ts`'s header documents finding on 2026-07-30. Awaited
+   * for the same reason: `loadInstalledAgentPluginToolSources` reads the plugin tree off disk, and an
+   * un-awaited promise would let the snapshot win the race on a cold cache.
+   *
+   * Fail-open, matching `attachFederatedMcpTools` above: a workspace with no plugins installed, or an
+   * unreadable plugin tree, must not stop the daemon booting — the native catalog does not depend on
+   * this, and a boot failure here would take down the whole assistant over an optional extension.
+   */
+  try {
+    await registerInstalledAgentPluginTools(registry, { workspaceId: routeDeps.workspaceId });
+  } catch (error) {
+    console.warn(
+      `[agent-daemon] agent-plugin tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  /**
+   * Registers every installed standalone Agent Skill (`infra/skills/ws/<workspaceId>/<dir>/SKILL.md`
+   * — `features/skills/`) as a real tool, one skill per tool (`skill_<name>`), the same way the block
+   * immediately above does for installed Agent Plugins. The two features are deliberately separate
+   * (owner decision: "they are different things... a skills/ and a separate agent-plugins/
+   * directory") but share this file's same ordering constraint, so the call sits right next to its
+   * agent-plugin counterpart rather than elsewhere in `start()`: placed here, immediately before
+   * `buildToolCatalogQuery`, because that call snapshots `registry.list()` into a one-shot FTS index
+   * — a tool registered after it is executable but INVISIBLE to `search_tools`. Awaited for the same
+   * reason `registerInstalledAgentPluginTools` is: `loadInstalledSkillToolSources` reads the skills
+   * tree off disk, and an un-awaited promise would let the snapshot win the race on a cold cache.
+   *
+   * Fail-open, matching every other optional-extension registrar in this function: a workspace with
+   * no skills installed, or an unreadable skills tree, must not stop the daemon booting.
+   */
+  try {
+    await registerInstalledSkillTools(registry, { workspaceId: routeDeps.workspaceId });
+  } catch (error) {
+    console.warn(
+      `[agent-daemon] skill tools could not be registered, continuing without them — ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 
   // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
