@@ -1,5 +1,6 @@
 import type { ISODateTime } from "@jini-ai/cms/core";
 
+import { readBoundedOAuthJson } from "./bounded-json.js";
 import { assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "./endpoint-safety.js";
 import { mapProviderErrorCode, OAuthError } from "./errors.js";
 import type { OAuthClient, OAuthClock, OAuthFetch, OAuthProviderDescriptor, OAuthTokenSet } from "./ports.js";
@@ -37,6 +38,8 @@ const DEFAULT_POLL_INTERVAL_SECONDS = 5;
 const MAX_POLL_INTERVAL_SECONDS = 60;
 /** Ceiling on `expires_in` for the device code itself, in case a server omits or inflates it. */
 const MAX_DEVICE_CODE_LIFETIME_SECONDS = 30 * 60;
+/** Tighter than the module-wide cap: a device-authorization response is a handful of short fields,
+ *  so a body an order of magnitude larger is already not one. */
 const MAX_RESPONSE_BYTES = 16 * 1024;
 
 /** One started device authorization. `deviceCode` is the secret half; everything else is safe to
@@ -139,7 +142,7 @@ export async function beginDeviceAuthorization(
     });
   }
 
-  const body = parseDeviceResponse(await readBounded(response));
+  const body = (await readBoundedOAuthJson(response, DEVICE_RESPONSE_MESSAGES, MAX_RESPONSE_BYTES)) as RawDeviceAuthorizationResponse;
   if (!response.ok || typeof body.error === "string") {
     const providerErrorCode = typeof body.error === "string" ? body.error : undefined;
     throw new OAuthError(providerErrorCode ? mapProviderErrorCode(providerErrorCode) : "OAUTH_PROVIDER_REJECTED", `the authorization server refused the device authorization request (HTTP ${response.status})`, {
@@ -208,40 +211,10 @@ export async function pollDeviceAuthorizationOnce(
   });
 }
 
-/** Byte-bounded body read, same reasoning as `token-endpoint.ts`'s. */
-async function readBounded(response: Response): Promise<string> {
-  const body = response.body;
-  if (!body) return "";
-  const reader = body.getReader();
-  const chunks: Buffer[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_RESPONSE_BYTES) {
-        throw new OAuthError("OAUTH_MALFORMED_RESPONSE", `the device authorization response exceeded ${MAX_RESPONSE_BYTES} bytes`, {
-          operatorAction: "This provider's device-authorization endpoint is not behaving like an RFC 8628 endpoint.",
-        });
-      }
-      chunks.push(Buffer.from(value));
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  return Buffer.concat(chunks).toString("utf8");
-}
-
-function parseDeviceResponse(text: string): RawDeviceAuthorizationResponse {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
-    return parsed as RawDeviceAuthorizationResponse;
-  } catch (cause) {
-    throw new OAuthError("OAUTH_MALFORMED_RESPONSE", "the device authorization endpoint did not return a JSON object", {
-      operatorAction: "Check that the device authorization endpoint URL is correct.",
-      cause,
-    });
-  }
-}
+/** The exact strings this endpoint's bounded read reports. Pinned by tests. */
+const DEVICE_RESPONSE_MESSAGES = {
+  overflowMessage: `the device authorization response exceeded ${MAX_RESPONSE_BYTES} bytes`,
+  overflowOperatorAction: "This provider's device-authorization endpoint is not behaving like an RFC 8628 endpoint.",
+  notJsonMessage: "the device authorization endpoint did not return a JSON object",
+  notJsonOperatorAction: "Check that the device authorization endpoint URL is correct.",
+} as const;
