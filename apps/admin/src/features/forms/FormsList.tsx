@@ -1,6 +1,8 @@
 import { type AdminFormDefinition } from "../../lib/api";
 import { navigate } from "../../lib/router";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
 
 /**
@@ -59,16 +61,31 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
   if (error && !forms) return <div className="notice error">{error}</div>;
   if (!forms) return <div className="notice">Loading forms…</div>;
 
+  // Form ids are stable and unique, so they disambiguate one row's edit link from another's —
+  // same reasoning as every other list on this workstream. Note: each row's "Actions" menu
+  // (Edit/Disable/Enable via `RowMenu`) is NOT independently addressable — `RowMenu`
+  // (`@jini-ai/admin/react`) publishes no agent handle of its own, so its trigger and its dropdown
+  // items are invisible to `page.find_elements` regardless of what this file does. The Disable/
+  // Enable action stays reachable another way: `FormEditor.tsx`'s own status toggle
+  // (`form-editor-status-toggle`) does the identical `api.updateForm({ status })` call.
+  const rowHandles = buildAgentListHandles(
+    "forms-row",
+    forms.map((form) => form.id),
+  );
+
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("forms-header", { role: "region", label: "Forms list header — page title and the New form button" })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t("Content")}</p>
           <h1 className="page-title">{t("Forms")}</h1>
           <p className="page-description">{t("Manage the forms embedded across the site and their submissions.")}</p>
         </div>
         <div className="page-actions">
-          <a href="/admin/forms/new">
+          <a href="/admin/forms/new" {...agentHandle("forms-new", { role: "link", label: "Create a new form" })}>
             <button>{t("New form")}</button>
           </a>
         </div>
@@ -86,7 +103,21 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
           </div>
         }
         columns={[
-          { key: "name", header: t("Name"), cell: (form) => <a href={`/admin/forms/${form.id}`}>{form.name}</a> },
+          {
+            key: "name",
+            header: t("Name"),
+            cell: (form, index) => (
+              <a
+                href={`/admin/forms/${form.id}`}
+                {...agentHandle(`${rowHandles[index]}-edit`, {
+                  role: "link",
+                  label: "Open this form's editor",
+                })}
+              >
+                {form.name}
+              </a>
+            ),
+          },
           { key: "slug", header: t("Slug"), cell: (form) => form.slug },
           {
             key: "status",

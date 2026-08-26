@@ -1,5 +1,6 @@
 import type { SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
 
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
 
 /**
@@ -241,34 +242,17 @@ export const EXTERNAL_MCP_CARD_HANDLE_PREFIX = "mcp-server";
  *
  * Derived from the server's own id rather than its position, so an agent reading `find_elements`
  * sees `mcp-server-higgsfield-remove` and not `mcp-server-3-remove` — legibility is the whole
- * point of publishing handles at all. Ids are slugified because a handle is `[a-z0-9-]` only and a
- * server id is not (`My_Server.1` is a perfectly valid id), and because two different ids can
- * slugify to the same thing, uniqueness is then enforced by suffixing.
- *
- * The suffix search is a loop rather than a single `-<index>` append on purpose: appending the
- * index alone is NOT collision-proof. `["x", "x-3", "x"]` would give the third entry the fallback
- * `mcp-server-x-3`, which the second entry already holds — the exact silent-ambiguity failure this
- * function exists to prevent.
+ * point of publishing handles at all. The slugify + uniqueness-by-suffix-search mechanics now live
+ * in the shared {@link buildAgentListHandles} (extracted once a second list screen needed the
+ * identical logic); this function is kept as the named, typed entry point this feature's own
+ * callers and tests already use.
  *
  * @param sourceIds - The configured servers' ids, in the order they are rendered.
  * @returns One base handle per id, positionally aligned with `sourceIds`, all distinct.
- * @complexity Time O(n) typical, O(n²) worst case when every id slugifies identically; n is the
- * number of MCP servers an operator has configured, which is single digits in practice. Space O(n).
+ * @complexity See {@link buildAgentListHandles}.
  */
 export function buildExternalMcpCardHandles(sourceIds: readonly string[]): string[] {
-  const used = new Set<string>();
-  return sourceIds.map((id, index) => {
-    const slug = id.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const preferred = `${EXTERNAL_MCP_CARD_HANDLE_PREFIX}-${slug === "" ? index + 1 : slug}`;
-    let handle = preferred;
-    let suffix = 2;
-    while (used.has(handle)) {
-      handle = `${preferred}-${suffix}`;
-      suffix += 1;
-    }
-    used.add(handle);
-    return handle;
-  });
+  return buildAgentListHandles(EXTERNAL_MCP_CARD_HANDLE_PREFIX, sourceIds);
 }
 
 /**
