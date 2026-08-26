@@ -14,6 +14,7 @@ import { InfoTip } from "../../components/InfoTip";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -325,6 +326,7 @@ function ThemeExploreFileRow({
   commitRename,
   copyingPath,
   copyFile,
+  agentBase,
   t,
 }: {
   file: ThemeExploreFile;
@@ -338,6 +340,12 @@ function ThemeExploreFileRow({
   commitRename: () => void;
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
+  /** This row's own distinct handle base — computed once, across every file in every group, by
+   *  `ThemeExploreFileList` (via `buildAgentListHandles`); see `Users.tsx`'s
+   *  `UserRowProps.agentBase` for why a per-instance uniqueness search does not work here. Paths
+   *  are globally unique across groups, same reasoning `Taxonomy.tsx`'s `termHandles` documents for
+   *  its own flat, cross-group id list. */
+  agentBase: string;
   t: Translate;
 }) {
   const isSelected = selected === file.path;
@@ -375,6 +383,7 @@ function ThemeExploreFileRow({
           2026-08-11: "I like the fact that we got the error ... it should be a toast"). */}
       <RowMenu
         triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
+        agentHandle={`${agentBase}-menu`}
         items={[
           {
             key: "copy",
@@ -432,6 +441,16 @@ function ThemeExploreFileList({
   copyFile: (path: string) => Promise<void>;
   t: Translate;
 }) {
+  // File paths are globally unique across every group (a theme's editable surface is a flat set of
+  // relative paths, just displayed grouped by kind), so they disambiguate one row's menu from
+  // another's regardless of which group renders it — same reasoning `Taxonomy.tsx`'s `termHandles`
+  // documents for its own flat, cross-group id list. Computed once here, before the per-kind
+  // filtering below, so a path's handle never depends on which group it lands in.
+  const fileMenuHandles = buildAgentListHandles(
+    "theme-explore-file",
+    files.map((file) => file.path),
+  );
+  const fileMenuHandleByPath = new Map(files.map((file, index) => [file.path, fileMenuHandles[index]!]));
   return (
     // `.theme-explore-files-wrap` is the actual grid item (see `.theme-explore`'s own CSS comment for
     // why): it has no in-flow content of its own, only this absolutely-positioned `<nav>`, so it
@@ -462,6 +481,7 @@ function ThemeExploreFileList({
                     commitRename={commitRename}
                     copyingPath={copyingPath}
                     copyFile={copyFile}
+                    agentBase={fileMenuHandleByPath.get(file.path)!}
                     t={t}
                   />
                 ))}
