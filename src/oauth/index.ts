@@ -31,6 +31,30 @@ export type { PendingAuthorization, PendingAuthorizationStore, PendingAuthorizat
 
 export { assertSafeProviderEndpoint, assertSafeUserFacingUrl } from "./endpoint-safety.js";
 
+export { MAX_OAUTH_RESPONSE_BYTES } from "./bounded-json.js";
+
+export {
+  discoverAuthorizationServer,
+  discoverProtectedResourceMetadata,
+  fetchAuthorizationServerMetadata,
+  parseResourceMetadataUrl,
+  parseWwwAuthenticateScopes,
+} from "./discovery.js";
+export type {
+  DiscoverAuthorizationServerInput,
+  DiscoveredAuthorizationServer,
+  DiscoveredOAuthConfiguration,
+  DiscoveredProtectedResource,
+  OAuthDiscoveryDeps,
+} from "./discovery.js";
+
+export { registerOAuthClientDynamically } from "./dynamic-registration.js";
+export type {
+  DynamicClientRegistrationDeps,
+  DynamicClientRegistrationInput,
+  RegisteredOAuthClient,
+} from "./dynamic-registration.js";
+
 export { DEFAULT_TOKEN_REQUEST_TIMEOUT_MS, requestOAuthToken } from "./token-endpoint.js";
 export type { TokenRequestDeps, TokenRequestInput } from "./token-endpoint.js";
 

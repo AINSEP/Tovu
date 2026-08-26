@@ -1,5 +1,6 @@
 import type { ISODateTime } from "@jini-ai/cms/core";
 
+import { MAX_OAUTH_RESPONSE_BYTES, readBoundedOAuthJson } from "./bounded-json.js";
 import { assertSafeProviderEndpoint } from "./endpoint-safety.js";
 import { mapProviderErrorCode, OAuthError } from "./errors.js";
 import type { OAuthClient, OAuthClock, OAuthFetch, OAuthTokenSet } from "./ports.js";
@@ -19,16 +20,22 @@ import type { OAuthClient, OAuthClock, OAuthFetch, OAuthTokenSet } from "./ports
  *   operator's foreground action fast rather than hanging a spinner — the debate's Q3-e position,
  *   and the opposite of `mcp-federation/bootstrap.ts`'s deliberate boot-time fail-open, because
  *   nobody asked for a federated server at boot whereas somebody is watching this one.
- * - The response body is read through a BYTE-BOUNDED reader. `response.json()` on a hostile or
- *   broken endpoint will happily buffer until the process dies; a token response is a few hundred
- *   bytes, so anything past {@link MAX_RESPONSE_BYTES} is a malformed response, not a big one.
+ * - The response body is read through the BYTE-BOUNDED reader in `bounded-json.ts`. `response.json()`
+ *   on a hostile or broken endpoint will happily buffer until the process dies; a token response is a
+ *   few hundred bytes, so anything past the cap is a malformed response, not a big one.
  * - Redirects are refused. A 302 from a token endpoint would carry the client credentials in the
  *   form body to a host that was never validated.
  * - Nothing here retries. See `errors.ts` for why a code exchange is not safely repeatable.
  */
 
-/** Generous for a JSON token response, small enough that a hostile stream cannot exhaust memory. */
-const MAX_RESPONSE_BYTES = 64 * 1024;
+/** The exact strings this endpoint's bounded read reports. Pinned by tests. */
+const TOKEN_RESPONSE_MESSAGES = {
+  overflowMessage: `the authorization server's response exceeded ${MAX_OAUTH_RESPONSE_BYTES} bytes`,
+  overflowOperatorAction: "This provider's token endpoint is not behaving like an OAuth 2.0 endpoint.",
+  notJsonMessage: "the authorization server did not return a JSON object",
+  notJsonOperatorAction: "Check that the token endpoint URL points at an OAuth 2.0 token endpoint.",
+} as const;
+
 /** A human is waiting on this. Long enough for a slow but working provider, short enough that a
  *  dead one is reported while the operator still has the tab open. */
 export const DEFAULT_TOKEN_REQUEST_TIMEOUT_MS = 15_000;
@@ -45,37 +52,6 @@ export interface TokenRequestInput {
   /** The grant-specific form body. `client_id`/`client_secret` are added here per `client.authMethod`. */
   readonly params: Readonly<Record<string, string>>;
   readonly timeoutMs?: number;
-}
-
-/**
- * Reads at most `maxBytes` of a response body as UTF-8, aborting the stream past that.
- *
- * @throws {OAuthError} `OAUTH_MALFORMED_RESPONSE` when the body exceeds the cap.
- * @complexity O(n) in bytes read, hard-capped at `maxBytes`.
- */
-async function readBoundedText(response: Response, maxBytes: number): Promise<string> {
-  const body = response.body;
-  if (!body) return "";
-
-  const reader = body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        throw new OAuthError("OAUTH_MALFORMED_RESPONSE", `the authorization server's response exceeded ${maxBytes} bytes`, {
-          operatorAction: "This provider's token endpoint is not behaving like an OAuth 2.0 endpoint.",
-        });
-      }
-      chunks.push(value);
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-  }
-  return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
 }
 
 /** Builds the form body and headers for `client.authMethod`. Kept separate so the three grants
@@ -106,19 +82,6 @@ interface RawTokenResponse {
   error?: unknown;
   error_description?: unknown;
   interval?: unknown;
-}
-
-function parseJsonBody(text: string): RawTokenResponse {
-  try {
-    const parsed: unknown = JSON.parse(text);
-    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
-    return parsed as RawTokenResponse;
-  } catch (cause) {
-    throw new OAuthError("OAUTH_MALFORMED_RESPONSE", "the authorization server did not return a JSON object", {
-      operatorAction: "Check that the token endpoint URL points at an OAuth 2.0 token endpoint.",
-      cause,
-    });
-  }
 }
 
 /**
@@ -166,7 +129,7 @@ function parseScopes(scope: unknown): string[] {
  * @throws {OAuthError} `OAUTH_UNSAFE_ENDPOINT`, `OAUTH_PROVIDER_UNREACHABLE`,
  *   `OAUTH_MALFORMED_RESPONSE`, or whatever {@link toProviderError} maps the server's own error to.
  *   Every one of them is terminal except the two device-polling codes.
- * @complexity O(1) — one bounded outbound request, response capped at {@link MAX_RESPONSE_BYTES}.
+ * @complexity O(1) — one bounded outbound request, response capped at {@link MAX_OAUTH_RESPONSE_BYTES}.
  */
 export async function requestOAuthToken(deps: TokenRequestDeps, input: TokenRequestInput): Promise<OAuthTokenSet> {
   const endpoint = assertSafeProviderEndpoint(input.tokenEndpoint, "token endpoint");
@@ -196,7 +159,7 @@ export async function requestOAuthToken(deps: TokenRequestDeps, input: TokenRequ
     });
   }
 
-  const body = parseJsonBody(await readBoundedText(response, MAX_RESPONSE_BYTES));
+  const body = (await readBoundedOAuthJson(response, TOKEN_RESPONSE_MESSAGES)) as RawTokenResponse;
   // Checked before the status, because RFC 8628 §3.5's `authorization_pending` arrives as a 400
   // and is a normal, expected state rather than a failure.
   if (typeof body.error === "string" || !response.ok) throw toProviderError(body, response.status);
