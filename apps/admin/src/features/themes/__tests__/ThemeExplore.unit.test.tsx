@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { executePageCapability } from "@jini-ai/agentic/core";
+import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { ThemeExplore } from "../ThemeExplore";
 import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-theme-explore.hooks";
@@ -541,6 +543,69 @@ describe("per-file overflow menu — copy and rename", () => {
 
     await user.type(input, "{Escape}");
     expect(cancelRename).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * Regression test for this batch's RowMenu wiring (last screen in the "wire every `<RowMenu>` call
+ * site" workstream — see `taxonomy/__tests__/taxonomy-agent-drive.unit.test.tsx` for the original
+ * finding this reuses). Drives the real `executePageCapability` and the real `createDomPageDriver`,
+ * not `userEvent`.
+ *
+ * KNOWN GAP (documented fully in `taxonomy-agent-drive.unit.test.tsx`): `RowMenu` portals its
+ * dropdown to `document.body`, while Tovu's real agent bridge (`App.hooks.tsx`) scopes its driver to
+ * `contentEl` on purpose — narrower than `document.body`. The trigger is discoverable and clickable
+ * through that scoped root; the item it reveals is not. Asserted directly below (`root: container`,
+ * matching `contentEl`) rather than against `document.body`, which would hide the gap.
+ */
+describe("driving the per-file RowMenu through page.* verbs", () => {
+  interface FoundElement {
+    handle: string;
+    role?: string;
+    label: string;
+  }
+
+  async function handlesOf(driver: ReturnType<typeof createDomPageDriver>): Promise<string[]> {
+    const result = (await executePageCapability(driver, "page.find_elements", {})) as { elements: FoundElement[] };
+    return result.elements.map((element) => element.handle);
+  }
+
+  it("publishes a distinct, clickable handle per file, path-derived and shared across groups", async () => {
+    // "index"/"about" (pages), "nav" (partial) — three different groups, proving the handle is
+    // computed once across ALL files, not reset per group (see `ThemeExploreFileList`'s own comment).
+    const { container } = render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    await screen.findByRole("button", { name: "about" });
+    // Scoped to `container`, the same way `App.hooks.tsx` scopes the real bridge to `contentEl`
+    // rather than `document.body` — see this block's own doc comment above.
+    const driver = createDomPageDriver({ root: container, pages: {} });
+
+    const before = await handlesOf(driver);
+    expect(before).toContain("theme-explore-file-pages-index-html-menu");
+    expect(before).toContain("theme-explore-file-pages-about-html-menu");
+    expect(before).toContain("theme-explore-file-nav-html-menu");
+    // Distinct handles — path-derived, not position-derived. A duplicate would not fail loudly; it
+    // would make `page.click` silently resolve to whichever menu the DOM reaches first (see
+    // `buildAgentListHandles`'s own doc comment).
+    expect(new Set(before).size).toBe(before.length);
+    expect(before).not.toContain("theme-explore-file-pages-about-html-menu-item-copy");
+
+    // The trigger itself IS reachable and clickable through the scoped root — an ordinary
+    // descendant of `container`, not portaled.
+    await executePageCapability(driver, "page.click", { handle: "theme-explore-file-pages-about-html-menu" });
+    await driver.settle?.();
+
+    // Through the production-shaped scoped root, the opened item is still invisible — not because
+    // the click failed, but because `RowMenu` rendered it into `document.body`, outside `container`.
+    const afterScoped = await handlesOf(driver);
+    expect(afterScoped).not.toContain("theme-explore-file-pages-about-html-menu-item-copy");
+
+    // Proves the click DID work and the item DOES exist — just unreachable via the scoped root
+    // above. Never used by the real bridge; shown here only to isolate the cause.
+    const bodyDriver = createDomPageDriver({ root: document.body, pages: {} });
+    const bodyHandles = await handlesOf(bodyDriver);
+    expect(bodyHandles).toContain("theme-explore-file-pages-about-html-menu-item-copy");
+    // "about"'s own item, not "index"'s — "index"'s menu was never opened.
+    expect(bodyHandles).not.toContain("theme-explore-file-pages-index-html-menu-item-copy");
   });
 });
 
