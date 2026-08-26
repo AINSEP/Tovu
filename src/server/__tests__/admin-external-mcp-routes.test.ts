@@ -212,3 +212,125 @@ test("deleting a server removes it, and deleting an unknown id is 404", async (t
   const list = (await (await req(baseUrl, BASE, cookie)).json()) as { servers: unknown[] };
   assert.equal(list.servers.length, 0);
 });
+
+// ---------------------------------------------------------------------------
+// Hosted + OAuth connections over the wire
+//
+// Until these passed, the OAuth subsystem was unreachable through the API: the store, the flow
+// service and the connect/callback routes all existed, but the only WRITE route dropped `url`,
+// `authMode` and the whole `oauth` block, so no row could ever be put into `authMode: "oauth"` for
+// them to act on.
+// ---------------------------------------------------------------------------
+
+/** Reads one server out of the list response BY ID. Selecting by index would make these tests
+ *  depend on the roster's ordering, which no route promises. */
+async function fetchServer(baseUrl: string, cookie: string, serverId: string): Promise<Record<string, unknown>> {
+  const body = JSON.parse(await (await req(baseUrl, BASE, cookie)).text()) as { servers: Record<string, unknown>[] };
+  const found = body.servers.find((server) => server.serverId === serverId);
+  assert.ok(found, `expected a server '${serverId}' in ${JSON.stringify(body.servers.map((s) => s.serverId))}`);
+  return found;
+}
+
+const DUMMY_CLIENT_SECRET = "cs_UNIT_DUMMY_NOT_A_REAL_SECRET_9191";
+
+const hostedOAuthBody = {
+  label: "Higgsfield",
+  transport: "streamable_http",
+  authMode: "oauth",
+  enabled: true,
+  url: "https://mcp.higgsfield.example/mcp",
+  allowedToolNames: "generate_image",
+  oauth: {
+    grant: "authorization_code",
+    clientId: "client-abc",
+    clientSecret: DUMMY_CLIENT_SECRET,
+    scopes: "images:generate",
+    authorizationEndpoint: "https://auth.higgsfield.example/authorize",
+    tokenEndpoint: "https://auth.higgsfield.example/token",
+  },
+};
+
+test("a hosted OAuth server can be created over the wire, and its client secret never comes back", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await req(baseUrl, `${BASE}/higgsfield`, cookie, { method: "PUT", body: JSON.stringify(hostedOAuthBody) });
+  assert.equal(put.status, 200, await put.text().catch(() => ""));
+
+  const listText = await (await req(baseUrl, BASE, cookie)).text();
+  assert.equal(listText.includes(DUMMY_CLIENT_SECRET), false, "the read response must not carry the client secret");
+
+  const server = await fetchServer(baseUrl, cookie, "higgsfield");
+  const oauth = server.oauth as { grant: string | null; clientId: string | null; status: string; scopes: string[] };
+  assert.equal(server.transport, "streamable_http");
+  assert.equal(server.url, "https://mcp.higgsfield.example/mcp");
+  assert.equal(oauth.grant, "authorization_code");
+  assert.equal(oauth.clientId, "client-abc");
+  assert.deepEqual(oauth.scopes, ["images:generate"]);
+  // Configured but not yet authorized — the state the connect route exists to move it out of.
+  assert.equal(oauth.status, "disconnected");
+});
+
+test("a hosted server saved without a URL is a 400 naming the url field, not a 500", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await req(baseUrl, `${BASE}/nourl`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...hostedOAuthBody, url: undefined }),
+  });
+
+  assert.equal(put.status, 400);
+  const body = (await put.json()) as { code: string; details: { field: string } };
+  assert.equal(body.code, "INVALID_MCP_SERVER");
+  assert.equal(body.details.field, "url");
+});
+
+test("a plaintext non-loopback URL is refused — it would carry the bearer token in the clear", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await req(baseUrl, `${BASE}/insecure`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...hostedOAuthBody, url: "http://mcp.higgsfield.example/mcp" }),
+  });
+
+  assert.equal(put.status, 400);
+  assert.match((await put.text()), /must use https/);
+});
+
+test("a later PUT that omits the oauth block keeps the stored client id rather than clearing it", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await req(baseUrl, `${BASE}/higgsfield`, cookie, { method: "PUT", body: JSON.stringify(hostedOAuthBody) });
+
+  // Exactly what the summary-row toggle sends: no oauth block, because the UI never received the
+  // secret to send back. Collapsing that into "clear" is how a toggle silently breaks a working
+  // connection — the same failure the `env` three-state rule exists to prevent.
+  const toggled = await req(baseUrl, `${BASE}/higgsfield`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...hostedOAuthBody, oauth: undefined, enabled: false }),
+  });
+  assert.equal(toggled.status, 200, await toggled.text().catch(() => ""));
+
+  const server = await fetchServer(baseUrl, cookie, "higgsfield");
+  const oauth = server.oauth as { clientId: string | null; grant: string | null };
+  assert.equal(server.enabled, false);
+  assert.equal(oauth.clientId, "client-abc");
+  assert.equal(oauth.grant, "authorization_code");
+});
+
+test("authMode is not silently demoted to static_env by a PUT that omits it", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await req(baseUrl, `${BASE}/higgsfield`, cookie, { method: "PUT", body: JSON.stringify(hostedOAuthBody) });
+
+  await req(baseUrl, `${BASE}/higgsfield`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...hostedOAuthBody, authMode: undefined, label: "Renamed" }),
+  });
+
+  const server = await fetchServer(baseUrl, cookie, "higgsfield");
+  assert.equal(server.label, "Renamed");
+  assert.equal(server.authMode, "oauth", "a rename must not demote an OAuth connection");
+});
