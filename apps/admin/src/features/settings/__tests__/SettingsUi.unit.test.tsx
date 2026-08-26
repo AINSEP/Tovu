@@ -45,8 +45,6 @@ function makeSlice<T>(value: T): SettingsSlice<T> {
   };
 }
 
-import { TOVU_MCP_FIELD_SPECS } from "../hooks/use-external-mcp.hooks";
-
 function baseController(overrides: Partial<SettingsUiController> = {}): SettingsUiController {
   return {
     modalOpen: false,
@@ -58,13 +56,13 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
     mediaProvidersPort: createFakeMediaProvidersPort(),
     skillsPort: createFakeSkillsPort({ skills: [] }),
     // The real controller talks to `/mcp-servers`; these tests are about tab chrome, so the fake
-    // port stands in. `TOVU_MCP_FIELD_SPECS` is the REAL spec list, not a stub — the tab's rendered
-    // fields are part of what this suite covers.
+    // port stands in. `ExternalMcpSettingsPanel` computes its own field specs from `dependencies`'
+    // live draft now (`rules.ts`'s `buildExternalMcpFieldSpecs`) rather than taking a static list, so
+    // there is no `fieldSpecs` member left on this controller to fake.
     externalMcp: {
       dependencies: createFakeSourceConfigDependencies<SourceConfigItem>({
         createSource: (input) => ({ id: input.fields.id?.trim() || "mcp-test", fields: input.fields }),
       }),
-      fieldSpecs: TOVU_MCP_FIELD_SPECS,
       restartRequired: false,
     },
 

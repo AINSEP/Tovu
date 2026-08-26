@@ -20,12 +20,17 @@
  * telemetry toggles use below, fed an empty/fresh fake port so nothing
  * fabricated is shown. Memory and External MCP had no ready-made `*Tab`
  * export upstream as of the previous pass over this file — `MemorySettingsPanel`
- * (composing `MemoryList`/`MemoryHowPanel` with a new header) and
- * `ExternalMcpTab` (wrapping `source-config-list`'s generic `SourceConfigList`
- * primitive with an MCP-server field spec) were built for this pass; see
- * `packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx`
- * and `packages/ui/src/features/external-mcp/react/components/ExternalMcpTab.tsx`
- * in Jini for their own doc comments.
+ * (composing `MemoryList`/`MemoryHowPanel` with a new header) was built for
+ * that pass; see `packages/ui/src/features/memory/react/components/MemorySettingsPanel.tsx`
+ * in Jini for its own doc comment. External MCP originally mounted Jini's own
+ * `ExternalMcpTab` the same way, but that component takes a single static
+ * `fieldSpecs` prop with no way to react to what the operator is currently
+ * typing — fine while every server was `stdio`-only, not once a server's real
+ * shape depends on a live transport/auth-mode choice (`stdio`/`streamable_http`,
+ * `none`/`static_env`/`oauth`). It is now `./ExternalMcpSettingsPanel.tsx`, a
+ * Tovu-owned recomposition of the SAME lower-level `@jini-ai/ui` pieces
+ * `ExternalMcpTab` itself is built from — see that file's own doc comment for
+ * the full reasoning.
  *
  * Both render modes are exercised here on purpose. `SettingsDialogShell`
  * treats `onClose` as the modal/inline switch (omit it and the shell renders
@@ -44,7 +49,6 @@ import {
   AppearanceTab,
   ConnectorsBrowser,
   ExecutionTab,
-  ExternalMcpTab,
   I18nProvider,
   InstructionsTab,
   IntegrationsTab,
@@ -67,6 +71,7 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
+import { ExternalMcpSettingsPanel } from "./ExternalMcpSettingsPanel";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { navigate } from "../../lib/router";
@@ -650,24 +655,22 @@ export function SettingsUi(props: SettingsUiProps) {
        * Tovu is the one being connected TO. Live since the `external_mcp_servers`
        * store landed; this was previously an `inert` reference mount.
        *
-       * `fieldSpecs` is overridden rather than taking `@jini-ai/ui`'s default
-       * `MCP_SOURCE_FIELD_SPECS` for two reasons that both bite: those offer an
-       * `http` transport Tovu cannot federate, and they carry no allowlist field
-       * at all — and without one, `mcp-federation/trust.ts` R2's default-deny
-       * means a saved server contributes zero tools. See
-       * `use-external-mcp.hooks.ts`.
+       * `ExternalMcpSettingsPanel` (Tovu's own, `./ExternalMcpSettingsPanel.tsx`)
+       * computes its own field specs reactively from the transport/auth-mode the
+       * operator is currently choosing — see that file's own doc comment. See
+       * also `use-external-mcp.hooks.ts` for why the port carries an allowlist
+       * field at all (`mcp-federation/trust.ts` R2's default-deny means a saved
+       * server with none contributes zero tools).
        *
        * `saveStatusLabel` deliberately carries the restart notice instead of
        * "All changes saved": a saved row is persisted but NOT live, because the
        * admitted tool set is frozen at connect (R5). Telling an operator their
        * change is saved, when the running assistant still cannot see the server,
-       * would be true and useless. `configPath` is dropped — it pointed at OD's
-       * `.od/mcp-config.json`, a path Tovu has never had.
+       * would be true and useless.
        */
       panel: (
-        <ExternalMcpTab
+        <ExternalMcpSettingsPanel
           dependencies={s.externalMcp.dependencies}
-          fieldSpecs={s.externalMcp.fieldSpecs}
           saveStatusLabel={
             s.externalMcp.restartRequired
               ? tCap("Saved — restart Tovu to connect")
