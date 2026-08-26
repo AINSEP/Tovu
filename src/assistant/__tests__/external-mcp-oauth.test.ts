@@ -6,6 +6,7 @@ import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../oauth/index.js";
 import {
   createDeviceAuthorizationStore,
+  createExternalMcpConnectionGate,
   createExternalMcpOAuthService,
   ExternalMcpReauthRequiredError,
   externalMcpSettingsDeepLink,
@@ -518,4 +519,94 @@ test("a save that changes nothing about the OAuth binding leaves the live connec
 
 test("the settings deep link escapes its server id", () => {
   assert.equal(externalMcpSettingsDeepLink("a b&c"), "/settings/external-mcp?server=a%20b%26c");
+});
+
+// ---------------------------------------------------------------------------
+// The federation liveness gate
+//
+// Federated tools are registered once and never unregistered — `buildToolCatalogQuery` snapshots the
+// registry into a one-shot FTS index, so removal would leave a tool discoverable but unexecutable.
+// This gate is what makes a dead connection refuse at the call instead of the model looping on it.
+// ---------------------------------------------------------------------------
+
+test("the connection gate lets a healthy OAuth connection through", async () => {
+  const { repo, service } = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+  });
+  await connect(service);
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  await gate(SERVER);
+});
+
+test("the connection gate refuses a needs_reauth connection with the terminal, model-legible error", async () => {
+  const { repo, clock, service } = await makeHarness({
+    script: [
+      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { status: 400, json: { error: "invalid_grant" } },
+    ],
+  });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  let caught: unknown;
+  try {
+    await gate(SERVER);
+  } catch (error) {
+    caught = error;
+  }
+
+  assert.ok(caught instanceof ExternalMcpReauthRequiredError);
+  assert.equal(caught.retryable, false);
+  assert.match(caught.message, /Do not retry this tool\.$/);
+});
+
+test("the connection gate reads the ROW, so the daemon sees a state the web server discovered", async () => {
+  // Two independent gates over the same repo — the shape the two processes actually have. No
+  // in-memory flag is shared; only the row is.
+  const { repo, clock, service } = await makeHarness({
+    script: [
+      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { status: 400, json: { error: "invalid_grant" } },
+    ],
+  });
+  await connect(service);
+  const daemonGate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+  await daemonGate(SERVER);
+
+  // The "web server" discovers the dead grant.
+  clock.advance(60 * 60 * 1000);
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+
+  // The "daemon"'s gate, built before that happened, now refuses.
+  await assert.rejects(() => daemonGate(SERVER), (error: unknown) => error instanceof ExternalMcpReauthRequiredError);
+});
+
+test("the connection gate passes through a connection id it has no row for — presets have none", async () => {
+  const { repo } = await makeHarness();
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  await gate("supabase");
+});
+
+test("the connection gate ignores a static_env server, which has no authorization to lose", async () => {
+  const { repo, sealer, keyring, clock } = await makeHarness();
+  await saveExternalMcpServer(
+    { repo, sealer, keyring, clock },
+    {
+      workspaceId: WORKSPACE,
+      serverId: "plain",
+      transport: "stdio",
+      authMode: "static_env",
+      enabled: true,
+      command: "npx",
+      args: "-y plain-mcp",
+      allowedToolNames: "",
+    },
+  );
+  const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
+
+  await gate("plain");
 });
