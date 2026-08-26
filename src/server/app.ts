@@ -176,6 +176,7 @@ import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status.js";
 import { registerAdminAssistantDaemonRoutes } from "./routes/admin/system/assistant-daemon.js";
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview.js";
+import { registerAdminSiteProfileRoute } from "./routes/admin/site/profile.js";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source.js";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site.js";
 import { registerAdminCustomCredentialsRoutes } from "./routes/admin/system/custom-credentials.js";
@@ -881,6 +882,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // module-status route just above; see each route file's own header for why they share it.
   registerAdminDeploymentOverviewRoute(app, routeDeps);
   registerAdminDockerfileSourceRoute(app, routeDeps);
+  // The admin frontend's door to `buildSiteProfile()` — the SAME function the `site_get_profile`
+  // agent tool calls, because `apps/admin` is a browser bundle and cannot invoke an agent tool.
+  // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
+  // section's own domain permission. See that route file's header for why that difference matters.
+  registerAdminSiteProfileRoute(app, routeDeps);
   // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/export/`).
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
