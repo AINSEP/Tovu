@@ -29,6 +29,19 @@ export const KEYS = {
 };
 
 /**
+ * This feature's name on `lib/content-refresh-bus`, so a narrowed notification can say "taxonomy
+ * moved" without waking every other content screen. Lives here beside {@link KEYS} rather than in
+ * the bus module for the same reason `LANGUAGE_NAMESPACE` lives in `lib/settings-tabs` and
+ * `EXECUTION_NAMESPACE` in `lib/execution-settings`: the bus is a transport and owns no vocabulary,
+ * so each name belongs to the feature that answers to it.
+ *
+ * Distinct from `KEYS.list`'s `"taxonomies"` on purpose — that is a cache identity local to this
+ * client, this is a wire-visible resource name a server push will have to match in the SSE stage.
+ * Tying them together would make a cache-key rename a silent protocol break.
+ */
+export const TAXONOMY_RESOURCE = "taxonomy";
+
+/**
  * `useTaxonomy`'s page-level error banner, extracted out of that hook (`refactor/fetch-query`
  * complexity pass, 2026-08-12 — the hook's own precedence chain over three sources pushed it to
  * complexity 10 against a ceiling of 9). Precedence: an active delete's own hard failure outranks a

@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { describeDeleteBlocked, findSelectedTerm, KEYS, visibleTaxonomyError, type DeleteBlockedState } from "../rules";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "../../../lib/fetch-query";
+import { contentRefreshApplies, subscribeToContentRefresh } from "../../../lib/content-refresh-bus";
+import {
+  describeDeleteBlocked,
+  findSelectedTerm,
+  KEYS,
+  TAXONOMY_RESOURCE,
+  visibleTaxonomyError,
+  type DeleteBlockedState,
+} from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
@@ -57,6 +65,18 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * *blocked* (409) delete outcome is excluded from this banner entirely — it already has its own
  * scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot (see the controller doc comment below), so
  * showing the same refusal twice would be a second, redundant channel for the identical fact.
+ *
+ * `lib/content-refresh-bus` subscription (2026-08-26): writes this screen did not make — an
+ * assistant run that called `taxonomy_create_taxonomy` — now invalidate `KEYS.list` instead of
+ * being invisible until the operator reloads. Subscribed directly rather than through
+ * `TaxonomyPort`, unlike `use-admin-locale.hooks.ts`'s port-mediated `subscribeToSettingsRefresh`:
+ * that port exists to hide a `fetch`, and its subscribe member came along because the same file
+ * already owned the namespace-matching rule. This bus is a module singleton with no I/O, no DOM,
+ * and no browser API, so `INFO.md`'s rule 3 does not reach it — the same reading
+ * `useMessagesChangeHandler` states for its own publish side. Keeping it off the port also keeps
+ * `TaxonomyPort` honest for `use-term-detail-panel.hooks.ts`, which shares it and does not
+ * subscribe, and lets this feature's tests drive the REAL bus so the wiring between the two
+ * modules is what gets asserted.
  */
 
 export interface TaxonomyController {
@@ -122,6 +142,22 @@ async function runGuardedDelete(
 export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string): TaxonomyController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listTaxonomies() });
   const taxonomies = list.data?.items ?? null;
+
+  // Out-of-band writes — today an assistant run that called `taxonomy_create_taxonomy`, later an
+  // SSE frame from another tab. Invalidating rather than calling `list.refetch()` keeps this on the
+  // one cache identity `KEYS.list` names, so a second mounted reader of the same key (the term
+  // detail panel's parent, a future sidebar count) refreshes from the same notification instead of
+  // each screen needing its own subscription.
+  //
+  // The list stays rendered throughout: an invalidation of a cached query is `status: "success"` +
+  // `isFetching: true`, never `loading`, so `taxonomies` never returns to `null` and the table does
+  // not blank on every agent write.
+  const invalidate = useInvalidate();
+  useEffect(() => {
+    return subscribeToContentRefresh((scope) => {
+      if (contentRefreshApplies(scope, TAXONOMY_RESOURCE)) invalidate(KEYS.list);
+    });
+  }, [invalidate]);
 
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
