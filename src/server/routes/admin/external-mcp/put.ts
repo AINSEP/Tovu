@@ -1,6 +1,7 @@
 import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
+  type SaveExternalMcpOAuthInput,
   saveExternalMcpServer,
 } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
@@ -12,10 +13,49 @@ function asStringField(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Carries a string field ONLY when the caller actually sent one, so `undefined` (keep what is
+ *  stored) stays distinguishable from `""` (clear it). The `env` rule, applied to every field that
+ *  shares its three-way meaning. @complexity O(1). */
+function optionalStringField(value: unknown, key: string): Record<string, string> {
+  return typeof value === "string" ? { [key]: value } : {};
+}
+
 /**
- * This route's writable PUT fields, read off an untyped body in one place. `label` and `env` stay
- * spreadable-optional (an absent key vs. an explicit value are different things — see this route's
- * own doc comment on `env`'s three-way meaning); everything else gets its default here.
+ * The OAuth block of a PUT body.
+ *
+ * Every member is tri-state for the same reason `env` is: an operator renaming a connection, or
+ * toggling it off, sends no OAuth fields at all, and collapsing that into `""` would clear the
+ * client id and secret of a working connection. So absent keys are dropped rather than defaulted,
+ * and `saveExternalMcpServer` applies the keep/replace/clear rule.
+ *
+ * `clientSecret` is read here and never written back — no read model in this subsystem returns it.
+ *
+ * @complexity O(1).
+ */
+function parseExternalMcpOAuthBody(rawOAuth: unknown): { oauth?: SaveExternalMcpOAuthInput } {
+  if (rawOAuth === null || typeof rawOAuth !== "object" || Array.isArray(rawOAuth)) return {};
+  const oauth = rawOAuth as Record<string, unknown>;
+
+  const parsed: SaveExternalMcpOAuthInput = {
+    ...optionalStringField(oauth.providerId, "providerId"),
+    ...optionalStringField(oauth.grant, "grant"),
+    ...optionalStringField(oauth.clientId, "clientId"),
+    ...optionalStringField(oauth.clientSecret, "clientSecret"),
+    ...optionalStringField(oauth.scopes, "scopes"),
+    ...optionalStringField(oauth.tokenEnvName, "tokenEnvName"),
+    ...optionalStringField(oauth.authorizationEndpoint, "authorizationEndpoint"),
+    ...optionalStringField(oauth.tokenEndpoint, "tokenEndpoint"),
+    ...optionalStringField(oauth.deviceAuthorizationEndpoint, "deviceAuthorizationEndpoint"),
+  };
+
+  return Object.keys(parsed).length === 0 ? {} : { oauth: parsed };
+}
+
+/**
+ * This route's writable PUT fields, read off an untyped body in one place. `label`, `url`,
+ * `authMode`, `env` and the whole `oauth` block stay spreadable-optional (an absent key vs. an
+ * explicit value are different things — see this route's own doc comment on `env`'s three-way
+ * meaning); everything else gets its default here.
  *
  * @complexity O(1).
  */
@@ -23,15 +63,23 @@ function parseExternalMcpPutBody(rawBody: unknown) {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     ...(typeof body.label === "string" ? { label: body.label } : {}),
-    // Defaulted rather than required so a caller that omits it gets the only transport that
-    // exists, instead of a validation error naming a choice it was never offered.
+    // Defaulted rather than required so a caller that omits it gets the transport that every row
+    // written before a second one existed effectively had, instead of a validation error naming a
+    // choice it was never offered.
     transport: typeof body.transport === "string" ? body.transport : "stdio",
     enabled: body.enabled !== false,
     command: asStringField(body.command),
+    // Only meaningful for a remote transport, and tri-state so a stdio-shaped PUT does not clear a
+    // stored endpoint.
+    ...optionalStringField(body.url, "url"),
+    // Absent keeps an existing row's mode rather than silently demoting an OAuth connection to
+    // `static_env` — which is what a toggle or rename would otherwise do.
+    ...optionalStringField(body.authMode, "authMode"),
     args: asStringField(body.args),
     allowedToolNames: asStringField(body.allowedToolNames),
     // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
-    ...(typeof body.env === "string" ? { env: body.env } : {}),
+    ...optionalStringField(body.env, "env"),
+    ...parseExternalMcpOAuthBody(body.oauth),
   };
 }
 

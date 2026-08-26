@@ -50,6 +50,33 @@ import {
 export interface FederationDeps {
   readonly authorize: AuthorizeFn;
   readonly workspaceId: string;
+  /**
+   * A LIVENESS gate, checked before every federated call. Optional; when absent, behaviour is
+   * exactly what it was before this existed.
+   *
+   * ## Why a gate rather than unregistering the tools
+   *
+   * Nothing in this subtree unregisters anything, and that is structural rather than an omission:
+   * `buildToolCatalogQuery` snapshots `registry.list()` into a ONE-SHOT FTS index at boot, so a tool
+   * removed from the registry afterwards would still be discoverable by `search_tools` and
+   * `describe_tool` while no longer being executable — strictly worse than leaving it registered.
+   * `trust.ts` R5's "frozen at connect" guarantee rests on the same snapshot.
+   *
+   * So a connection that dies mid-run cannot be taken out of the catalog. What it CAN do is refuse
+   * at the call, with an error the model can act on. Without that, the failure surfaces as
+   * `mcp-federation: session is closed (<reason>)` — which reads like a transient fault, so the
+   * model searches, selects the same tool, fails, and searches again, burning the rest of the run on
+   * a server that cannot work until a human re-authorizes it.
+   *
+   * The gate is checked BEFORE the permission check for one reason: "this server is disconnected"
+   * is true regardless of who is asking, and reporting a permission failure to a principal who does
+   * have the permission would send them looking in the wrong place.
+   *
+   * @throws Whatever the composition root's terminal error is — for OAuth connections,
+   * `assistant/external-mcp-oauth.ts`'s `ExternalMcpReauthRequiredError`, whose message tells the
+   * model in words not to retry.
+   */
+  readonly assertConnectionUsable?: (connectionId: string) => void | Promise<void>;
 }
 
 export interface FederatedRegistrationResult {
@@ -89,6 +116,10 @@ export function buildFederatedMcpRegistrations(params: {
 
   const registrations = report.admitted.map((tool): ToolRegistration => {
     const handler: ToolHandler = async (ctx) => {
+      // Liveness first — see `FederationDeps.assertConnectionUsable` for why this precedes the
+      // permission check rather than following it.
+      await deps.assertConnectionUsable?.(config.connectionId);
+
       // ONE evaluator, run before anything crosses the network — not after, so a denied principal's
       // arguments are never even sent to a third party. `entityId` is the connection, so a
       // deployment can grant per-connection rather than all-or-nothing.

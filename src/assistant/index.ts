@@ -16,10 +16,13 @@
  *
  * Organized into six sections, matching the six independent consumer clusters the trace found.
  *
- * NOT re-exported here: `ChatStoreFactory` (`./persistence/tenant-scope`), `SiteAssistantCredentialRepoPort`
- * (`./site-credential-store`), `AdminExecutionCredentialRepoPort` (`./execution-credential-store`), and
- * `ExternalMcpServerRepoPort` (`./external-mcp-store`). All four are otherwise-qualifying type-only
- * symbols that `server/routes/types.ts` imports directly instead — deliberately, not an oversight.
+ * NOT re-exported here FOR `routes/types.ts`'s USE: `ChatStoreFactory` (`./persistence/tenant-scope`),
+ * `SiteAssistantCredentialRepoPort` (`./site-credential-store`), `AdminExecutionCredentialRepoPort`
+ * (`./execution-credential-store`), `ExternalMcpServerRepoPort` (`./external-mcp-store`), and
+ * `ExternalMcpOAuthService` (`./external-mcp-oauth`, added 2026-08-25 — it IS exported below for
+ * every other consumer, but `routes/types.ts` deep-imports it for the reason that follows). All five
+ * are otherwise-qualifying type-only symbols that `server/routes/types.ts` imports directly instead
+ * — deliberately, not an oversight.
  * `routes/types.ts` defines `RouteDeps`, a god-type with ~22 landing imports across `server/routes/**`
  * (2026-08-13 architecture audit). Measured empirically (`npm run check:architecture`, propagation
  * cost = mean fraction of the file graph reachable from each file): routing those 3 lines through
@@ -201,8 +204,33 @@ export {
   ExternalMcpValidationError,
   ExternalMcpSecretStoreUnconfiguredError,
 } from "./external-mcp-store.js";
-export type { ExternalMcpServerRepoPort, ExternalMcpServerRecord, ExternalMcpServerView } from "./external-mcp-store.js";
+export type {
+  ExternalMcpAuthMode,
+  ExternalMcpOAuthStatus,
+  ExternalMcpOAuthTokenResolverPort,
+  ExternalMcpServerRepoPort,
+  ExternalMcpServerRecord,
+  ExternalMcpServerView,
+  SaveExternalMcpOAuthInput,
+} from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
+
+// The OAuth half of the same surface — `authMode: "oauth"` connections. Exposed through this barrel
+// rather than deep-imported so the `no-deep-imports:assistant` boundary rule keeps holding for the
+// server routes and the composition roots that consume it.
+export {
+  createDeviceAuthorizationStore,
+  createExternalMcpConnectionGate,
+  createExternalMcpOAuthService,
+  ExternalMcpReauthRequiredError,
+  externalMcpSettingsDeepLink,
+} from "./external-mcp-oauth.js";
+export type {
+  DeviceAuthorizationStore,
+  ExternalMcpConnectStart,
+  ExternalMcpOAuthDeps,
+  ExternalMcpOAuthService,
+} from "./external-mcp-oauth.js";
 
 export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config.js";
 export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";

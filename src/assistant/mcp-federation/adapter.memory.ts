@@ -1,11 +1,11 @@
-import type { McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
+import type { McpHttpExchange, McpHttpResponse, McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
 
 /**
  * @file The in-memory doubles for both federation seams — ADR-006 rule-of-two's partner to
  * `adapter.stdio.ts`, and this codebase's usual `repo.memory.ts`/`repo.sqlite.ts` split applied to
  * an outbound protocol boundary instead of a database.
  *
- * Two doubles because there are two seams (see `ports.ts`), and they test different things:
+ * One double per seam (see `ports.ts`), and they test different things:
  *
  * - {@link InMemoryMcpSession} fakes `McpSessionPort`, i.e. "an MCP server exists and behaves". It
  *   is what `registrations.ts`'s tests use, so the trust tier and the registration wiring are
@@ -17,7 +17,10 @@ import type { McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolR
  *   can also misbehave on purpose — reply out of order, reply late, reply twice, never reply,
  *   send an unsolicited request, or die mid-flight.
  *
- * That second double is the one that makes the "no live Supabase project in this sandbox"
+ * - {@link ScriptedMcpHttpExchange} does the same for `McpHttpExchange`, the hosted transport's
+ *   seam, so `adapter.http.ts` is under test on the same terms.
+ *
+ * Those inner-seam doubles are the ones that make the "no live third-party server in this sandbox"
  * constraint survivable: the protocol code under test is the real production code, and only the
  * pipe beneath it is fake. A double at the outer seam alone would have proved only that the double
  * works.
@@ -143,6 +146,97 @@ export class ScriptedMcpStdioChannel implements McpStdioChannel {
   idFor(method: string): number | undefined {
     for (let i = this.sent.length - 1; i >= 0; i -= 1) {
       if (this.sent[i]?.method === method) return this.sent[i]?.id;
+    }
+    return undefined;
+  }
+}
+
+/** One request the fake exchange received from the client under test. */
+export interface CapturedHttpRequest {
+  readonly url: string;
+  readonly method: "POST" | "DELETE";
+  readonly headers: Readonly<Record<string, string>>;
+  /** The parsed JSON-RPC frame, or `undefined` for a bodyless request. */
+  readonly message: CapturedRpcMessage | undefined;
+}
+
+/** What a scripted server answers with. Defaults fill in the boring parts so a test states only
+ *  the field it is actually exercising. */
+export interface ScriptedHttpReply {
+  readonly status?: number;
+  readonly contentType?: string;
+  readonly sessionId?: string;
+  /** A JSON-RPC object (serialized for the client), or a raw string for malformed-body cases. */
+  readonly body?: unknown;
+}
+
+/**
+ * A fake {@link McpHttpExchange} that plays the SERVER side of MCP's Streamable HTTP transport.
+ *
+ * The hosted counterpart to {@link ScriptedMcpStdioChannel}, and it exists for the same reason: so
+ * `adapter.http.ts`'s REAL handshake ordering, session-id propagation, SSE framing, pagination,
+ * status mapping and timeout behaviour are exercised against something that can misbehave on
+ * purpose — answer 401, answer with an unparseable body, issue a header-injecting session id,
+ * paginate forever, or never answer at all — rather than against a stub of the client itself.
+ *
+ * `respond` is a plain function of the received request, so a test scripts a server by writing one.
+ * Returning `undefined` means "never answer", which is how the timeout path is reached: the
+ * returned promise stays pending until the client's own `AbortSignal` fires.
+ */
+export class ScriptedMcpHttpExchange implements McpHttpExchange {
+  /** Every request the client made, in order. */
+  readonly sent: CapturedHttpRequest[] = [];
+
+  private readonly respond: (request: CapturedHttpRequest) => ScriptedHttpReply | undefined;
+
+  constructor(options: { respond: (request: CapturedHttpRequest) => ScriptedHttpReply | undefined }) {
+    this.respond = options.respond;
+  }
+
+  async send(request: {
+    readonly url: string;
+    readonly method: "POST" | "DELETE";
+    readonly headers: Readonly<Record<string, string>>;
+    readonly body?: string;
+    readonly signal?: AbortSignal;
+  }): Promise<McpHttpResponse> {
+    const captured: CapturedHttpRequest = {
+      url: request.url,
+      method: request.method,
+      headers: { ...request.headers },
+      message: request.body === undefined ? undefined : (JSON.parse(request.body) as CapturedRpcMessage),
+    };
+    this.sent.push(captured);
+
+    const reply = this.respond(captured);
+    if (reply === undefined) return this.neverAnswer(request.signal);
+
+    return {
+      status: reply.status ?? 200,
+      contentType: reply.contentType ?? "application/json",
+      ...(reply.sessionId === undefined ? {} : { sessionId: reply.sessionId }),
+      text: typeof reply.body === "string" ? reply.body : JSON.stringify(reply.body ?? {}),
+    };
+  }
+
+  /** A server that accepts the request and then goes quiet. Settles only when the client aborts,
+   *  which is exactly what a real stalled connection does. */
+  private neverAnswer(signal: AbortSignal | undefined): Promise<McpHttpResponse> {
+    return new Promise<McpHttpResponse>((_resolve, reject) => {
+      if (!signal) return;
+      if (signal.aborted) {
+        reject(new Error("aborted"));
+        return;
+      }
+      signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+    });
+  }
+
+  /** The last request whose JSON-RPC `method` matches, for asserting on what was sent. */
+  lastRequestFor(method: string): CapturedHttpRequest | undefined {
+    for (let i = this.sent.length - 1; i >= 0; i -= 1) {
+      const candidate = this.sent[i];
+      if (candidate?.message?.method === method) return candidate;
     }
     return undefined;
   }

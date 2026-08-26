@@ -160,6 +160,8 @@ import { createIntegrationsModule } from "./modules/integrations.js";
 import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createConnectorsModule } from "./modules/connectors.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
+import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
+import { createPendingAuthorizationStore } from "#src/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
@@ -450,6 +452,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // distinct so this root's wiring shape matches `deps.ts`'s one-instance-per-purpose shape.
   const siteAssistantSecretKeyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer(siteAssistantSecretKeyring);
+  // Held as a local rather than constructed inline, because the OAuth service below must be given
+  // the SAME repo instance the routes read through — two instances would refresh a token into one
+  // and read it back from the other.
+  const externalMcpServerRepo = new InMemoryExternalMcpServerRepo();
 
   // Composio connectors, hermetic half. No boot `refresh()` here, unlike `deps.ts`: the in-memory
   // repo starts empty every time, so hydrating it could only ever install the same empty config
@@ -501,7 +507,24 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     siteAssistantSecretKeyring,
     adminExecutionCredentialRepo: new InMemoryAdminExecutionCredentialRepo(),
     mediaProviderCredentialRepo: new InMemoryMediaProviderCredentialRepo(),
-    externalMcpServerRepo: new InMemoryExternalMcpServerRepo(),
+    externalMcpServerRepo,
+    /**
+     * ADR-058 sealing again, one more consumer: the OAuth subsystem for `authMode: "oauth"`
+     * external MCP connections. Built HERE rather than inside `modules/external-mcp.ts` because its
+     * pending-authorization and device-authorization stores are in-memory and must be shared by the
+     * connect route and the public callback route — two routes in the same module, one instance,
+     * and a composition root is where "one instance" is expressible. See
+     * `routes/types.ts`'s `externalMcpOAuth` doc for why the field is optional at all.
+     */
+    externalMcpOAuth: createExternalMcpOAuthService({
+      workspaceId: seededWorkspace.id,
+      repo: externalMcpServerRepo,
+      sealer: siteAssistantSecretSealer,
+      keyring: siteAssistantSecretKeyring,
+      clock,
+      pending: createPendingAuthorizationStore({ clock }),
+      devices: createDeviceAuthorizationStore(),
+    }),
     composioConfigRepo,
     composioConnectors,
     executionSettingsReady,

@@ -1,5 +1,13 @@
 import { spawn } from "node:child_process";
 
+import {
+  buildInitializeParams,
+  drainToolsList,
+  type JsonRpcResponse,
+  McpProtocolError,
+  parseCallToolResult,
+  parseInitializeResult,
+} from "./mcp-protocol.js";
 import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
 
 /**
@@ -42,33 +50,10 @@ import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDes
  * adapter's own invention rather than a cross-domain-shared one.
  */
 
-/** The MCP revision this client negotiates. A server replying with a different one is accepted —
- * MCP's own rule is that the server names the version it will actually speak — but the value is
- * carried on the session so a mismatch is visible in logs rather than silent. */
-const CLIENT_PROTOCOL_VERSION = "2025-06-18";
-
-const CLIENT_INFO = { name: "tovu-assistant", version: "0.1.0" } as const;
-
-/** Bound on `tools/list` cursor-following. A server that returns a fresh `nextCursor` forever would
- * otherwise pin the daemon's boot at 100% CPU; `trust.ts`'s `maxTools` caps what is admitted, but
- * that check runs after this loop, so the loop needs its own bound. */
-const MAX_LIST_TOOLS_PAGES = 20;
-
 /** Bound on a single inbound line. A remote that streams one unterminated multi-gigabyte "message"
  * would otherwise grow the reassembly buffer without limit. 4 MiB is far above any legitimate MCP
  * message and far below anything that threatens the daemon. */
 const MAX_INBOUND_MESSAGE_BYTES = 4 * 1024 * 1024;
-
-interface JsonRpcResponse {
-  jsonrpc?: string;
-  id?: unknown;
-  result?: unknown;
-  error?: { code?: number; message?: string; data?: unknown };
-  method?: string;
-  params?: unknown;
-}
-
-class McpProtocolError extends Error {}
 
 /**
  * A connected MCP client session over one {@link McpStdioChannel}.
@@ -102,20 +87,7 @@ class McpStdioSession implements McpSessionPort {
    * @overallScore 100
    */
   async listTools(): Promise<RemoteToolDescriptor[]> {
-    const collected: RemoteToolDescriptor[] = [];
-    let cursor: string | undefined;
-
-    for (let page = 0; page < MAX_LIST_TOOLS_PAGES; page += 1) {
-      const result = await this.request("tools/list", cursor === undefined ? {} : { cursor });
-      const { tools, nextCursor } = parseToolsListPage(result);
-      collected.push(...tools);
-      if (nextCursor === undefined) return collected;
-      cursor = nextCursor;
-    }
-
-    throw new McpProtocolError(
-      `mcp-federation: the remote server kept returning a tools/list nextCursor past ${MAX_LIST_TOOLS_PAGES} pages — refusing to follow it further`,
-    );
+    return drainToolsList((params) => this.request("tools/list", params));
   }
 
   /**
@@ -123,16 +95,7 @@ class McpStdioSession implements McpSessionPort {
    * @overallScore 100
    */
   async callTool(request: { name: string; arguments: Record<string, unknown>; signal?: AbortSignal }): Promise<RemoteToolResult> {
-    const result = await this.request("tools/call", { name: request.name, arguments: request.arguments }, request.signal);
-    const record = asRecord(result);
-    if (!record) return { content: result };
-    return {
-      content: record.content,
-      structuredContent: record.structuredContent,
-      // The remote's own claim about its own outcome. Surfaced to the model inside the untrusted
-      // envelope (`trust.ts` R7); never used to decide anything on this side.
-      isError: record.isError === true,
-    };
+    return parseCallToolResult(await this.request("tools/call", { name: request.name, arguments: request.arguments }, request.signal));
   }
 
   async close(): Promise<void> {
@@ -143,18 +106,9 @@ class McpStdioSession implements McpSessionPort {
   /** Sends the handshake. Separate from the constructor because it is the one part that can fail,
    * and a session object that exists must be one that completed it. */
   async initialize(): Promise<void> {
-    const result = await this.request("initialize", {
-      protocolVersion: CLIENT_PROTOCOL_VERSION,
-      capabilities: {},
-      clientInfo: CLIENT_INFO,
-    });
-    const record = asRecord(result);
-    this.serverProtocolVersion = typeof record?.protocolVersion === "string" ? record.protocolVersion : "";
-    const info = asRecord(record?.serverInfo);
-    this.serverInfo = {
-      name: typeof info?.name === "string" ? info.name : undefined,
-      version: typeof info?.version === "string" ? info.version : undefined,
-    };
+    const identity = parseInitializeResult(await this.request("initialize", buildInitializeParams()));
+    this.serverProtocolVersion = identity.protocolVersion;
+    this.serverInfo = identity.info;
     // MCP requires this notification after a successful initialize, and requires that a
     // notification carry no `id` — a server is entitled to reject the session otherwise.
     this.channel.send(JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }));
@@ -393,11 +347,6 @@ function inheritedEnv(): Record<string, string> {
   return inherited;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
-
 /** Best-effort JSON-RPC parse of one inbound line, or `null` for anything that does not parse.
  *  Split out of {@link McpStdioSession.handleMessage} purely to keep that method's complexity under
  *  the shop ceiling. */
@@ -409,47 +358,4 @@ function parseJsonRpcLine(line: string): JsonRpcResponse | null {
   }
 }
 
-/** Narrows one `tools/list` response's `annotations` block. Shape only — the trust decisions all
- *  live in `trust.ts`. Split out of {@link asRemoteToolDescriptor} purely to keep that function's
- *  complexity under the shop ceiling. */
-function asRemoteToolAnnotations(record: Record<string, unknown> | null): RemoteToolDescriptor["annotations"] {
-  if (!record) return undefined;
-  return {
-    title: typeof record.title === "string" ? record.title : undefined,
-    readOnlyHint: typeof record.readOnlyHint === "boolean" ? record.readOnlyHint : undefined,
-    destructiveHint: typeof record.destructiveHint === "boolean" ? record.destructiveHint : undefined,
-    idempotentHint: typeof record.idempotentHint === "boolean" ? record.idempotentHint : undefined,
-    openWorldHint: typeof record.openWorldHint === "boolean" ? record.openWorldHint : undefined,
-  };
-}
 
-/** Narrows one `tools/list` entry, discarding anything without a usable `name`. Shape only — the
- * trust decisions all live in `trust.ts`. */
-function asRemoteToolDescriptor(value: unknown): RemoteToolDescriptor | null {
-  const record = asRecord(value);
-  if (!record || typeof record.name !== "string" || record.name.length === 0) return null;
-  return {
-    name: record.name,
-    description: typeof record.description === "string" ? record.description : undefined,
-    inputSchema: record.inputSchema,
-    annotations: asRemoteToolAnnotations(asRecord(record.annotations)),
-  };
-}
-
-/** Narrows one `tools/list` response page into its usable descriptors plus the cursor for the next
- *  page (`undefined` when there is none). A malformed entry is dropped rather than thrown on — one
- *  bad descriptor must not cost the operator every other tool on the same server; `trust.ts`
- *  refuses anything that survives this and still fails its own checks. Split out of
- *  {@link McpStdioSession.listTools} purely to keep that method's complexity under the shop
- *  ceiling. */
-function parseToolsListPage(result: unknown): { readonly tools: RemoteToolDescriptor[]; readonly nextCursor: string | undefined } {
-  const record = asRecord(result);
-  const rawTools = record && Array.isArray(record.tools) ? record.tools : [];
-  const tools: RemoteToolDescriptor[] = [];
-  for (const tool of rawTools) {
-    const descriptor = asRemoteToolDescriptor(tool);
-    if (descriptor) tools.push(descriptor);
-  }
-  const next = record?.nextCursor;
-  return { tools, nextCursor: typeof next === "string" && next.length > 0 ? next : undefined };
-}

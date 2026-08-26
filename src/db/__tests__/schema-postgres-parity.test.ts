@@ -251,6 +251,15 @@ test("sealed-shape CHECK SQL text is semantically exact on every credential tabl
       sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
     },
     {
+      // The SECOND sealed group on this table — the OAuth blob (`{ clientSecret?, tokens? }`), which
+      // varies independently of the env block: a server can hold an OAuth token and no env block, or
+      // both. Two CHECKs rather than one combined constraint, so neither group's shape can be
+      // satisfied by the other group's columns being set.
+      table: sqliteSchema.externalMcpServers,
+      checkName: "external_mcp_servers_oauth_sealed_shape",
+      sealedColumns: ["oauthSealedKeyId", "oauthSealedCiphertext", "oauthSealedNonce", "oauthSealedAlg"],
+    },
+    {
       table: sqliteSchema.composioConnectorCredentials,
       checkName: "composio_connector_credentials_sealed_shape",
       sealedColumns: ["sealedKeyId", "sealedCiphertext", "sealedNonce", "sealedAlg"],
