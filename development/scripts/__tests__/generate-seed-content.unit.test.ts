@@ -34,7 +34,7 @@ import { assertNoUndefinedProperties, generate } from "../generate-seed-content.
 test("generate() output matches the checked-in seed-content.json (this IS the unit test generate-seed-content.ts's header comment refers to)", () => {
   const checkedInPath = path.resolve(
     import.meta.dirname,
-    "../../../src/templates/starter/seed-content.json"
+    "../../../content/templates/starter/seed-content.json"
   );
   const checkedIn = fs.readFileSync(checkedInPath, "utf8");
   assert.equal(generate(), checkedIn);

@@ -18,7 +18,7 @@ import { validateThemePackage } from "./validation/validate-theme-package.js";
 
 /**
  * @file The local theme marketplace — a FAKE marketplace (no network, no remote catalog, no search,
- * no versioning; see `src/themes/__marketplace__/README.md`) that lets the download flow be built and
+ * no versioning; see `content/themes/__marketplace__/README.md`) that lets the download flow be built and
  * exercised end-to-end against a real fixture on disk.
  *
  * Download does two things in lockstep, per the product model this implements: it writes the
@@ -29,7 +29,7 @@ import { validateThemePackage } from "./validation/validate-theme-package.js";
  */
 
 /**
- * Shape every theme id on disk under `src/themes/` already matches (`basic`, `basic-1`,
+ * Shape every theme id on disk under `content/themes/` already matches (`basic`, `basic-1`,
  * `tailark-quartz-dark`, `basic-declarative`, …). A marketplace id — whether it comes from a fixture's
  * own `theme.json` or, for the download route, straight from a caller-supplied URL segment — ends up
  * inside a filesystem `join()`, so anything not shaped like an existing id is rejected before it ever

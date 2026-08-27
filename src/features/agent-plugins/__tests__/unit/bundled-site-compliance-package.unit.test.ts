@@ -25,7 +25,7 @@ import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manif
  *    liability", above the packaging question it was nominally about — so it gets a test.
  */
 
-const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../agent-plugins/site-compliance");
+const PACKAGE_ROOT = path.resolve(import.meta.dirname, "../../../../../content/agent-plugins/site-compliance");
 const SKILL_DIR = path.join(PACKAGE_ROOT, "skills", "site-compliance");
 
 async function readPackageFile(relativePath: string): Promise<string> {

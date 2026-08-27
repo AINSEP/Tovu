@@ -124,7 +124,7 @@ export interface ThemeManifest {
    * `resolveThemeLayout` (`theme-layout.ts`, 2026-08-19 architecture audit findings 1 & 2 — the one
    * apiVersion-aware source of truth every other consumer routes through) to pick the matching
    * sentinel/folder names at request/install time. As of the 2026-08-18 Milestone 3 migration, all
-   * seven built-in static themes (`src/themes/static/*`) declare `2` — this is the live, common case,
+   * seven built-in static themes (`content/themes/static/*`) declare `2` — this is the live, common case,
    * not a forward-looking one. Absent (or any value other than `2` — still fully supported for a
    * site-authored or marketplace theme) means v1's flat `css/styles.css`/`js/` shape, preserved
    * exactly, the only behavior this field had before Milestone 3 introduced `2`.
@@ -1165,7 +1165,7 @@ export const THEME_CATALOG_DIR = "__original-themes__";
 
 /**
  * The local marketplace fixture root under a themes root — a stand-in for a remote theme
- * marketplace (see `src/themes/__marketplace__/README.md` for what a real one would still need:
+ * marketplace (see `content/themes/__marketplace__/README.md` for what a real one would still need:
  * network, search, versioning). Same shape as {@link THEME_CATALOG_DIR}: `<tier>/<id>/` per
  * {@link ENGINE_SUBFOLDERS}, and the same NOT-a-tier/NOT-a-theme status, for the same reason —
  * discovery skips it outright. A marketplace entry becomes a real, runnable theme only via

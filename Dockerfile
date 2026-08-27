@@ -99,7 +99,9 @@ RUN npm install
 RUN npm --prefix apps/admin install && npm --prefix apps/admin run build
 RUN npm --prefix apps/site-chat install && npm --prefix apps/site-chat run build
 
-# `tsc` plus the asset copies (templates, themes, drizzle migrations, public).
+# `tsc` plus the asset copies. Stock DATA (templates, themes, agent-plugins, public) is copied
+# from `content/` to `dist/content/`; drizzle migrations stay under `dist/src/db/`. Each copy
+# `rm -rf`s its own target first, so a file deleted from source cannot survive into the image.
 RUN npm run build
 
 # Belt and braces. `Dockerfile.dockerignore` already excludes `Tovu/sites`, but

@@ -14,18 +14,18 @@ Three phases, one request:
 
 ### 1.1 Discovery (server boot)
 
-`builtInThemesDir()` resolves to `src/themes/` next to the compiled server code (never `process.cwd()`, so a globally-installed `tovu serve` still finds themes shipped with the package) — `src/server/deps.ts:143-145`. At boot, `discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" })` is called once and the result is held in `deps.themes` for the process lifetime (`src/server/deps.ts:617-618`, `src/server/app.ts:440-441`). There is no hot-reload: editing a theme file on disk does not change what a running server serves until the process restarts, *except* through the `theme_write_file` agent tool, which re-validates and effectively replaces the loaded theme content for that one theme after every write (`src/features/theme/agent-tools.ts:202`).
+`builtInThemesDir()` resolves to `content/themes/` next to the compiled server code (never `process.cwd()`, so a globally-installed `tovu serve` still finds themes shipped with the package) — `src/server/deps.ts:143-145`. At boot, `discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" })` is called once and the result is held in `deps.themes` for the process lifetime (`src/server/deps.ts:617-618`, `src/server/app.ts:440-441`). There is no hot-reload: editing a theme file on disk does not change what a running server serves until the process restarts, *except* through the `theme_write_file` agent tool, which re-validates and effectively replaces the loaded theme content for that one theme after every write (`src/features/theme/agent-tools.ts:202`).
 
 Discovery scans two kinds of location under the themes root (`src/features/theme/theme.ts:411-458`):
 
-- **Top-level folders** — direct children of `src/themes/` that are not one of the reserved engine-subfolder names.
+- **Top-level folders** — direct children of `content/themes/` that are not one of the reserved engine-subfolder names.
 - **Engine subfolders** — `declarative/`, `templated/`, `handlebars/`, `static/` (`ENGINE_SUBFOLDERS`, `src/features/theme/theme.ts:442`). Each is scanned as a themes root in its own right. A subfolder that doesn't exist is simply skipped, not an error.
 
 As of this session (2026-08-10), every theme lives under an engine subfolder — the bare top-level layer is empty in practice, though still supported (`src/features/theme/theme.ts:427-435`'s comment documents that `declarative` themes moved off the bare top level this same day, and the `liquidjs/` folder was renamed to `templated/` to match the tier name).
 
 Each candidate folder is loaded independently by `loadTheme()` (`src/features/theme/theme.ts:265-400`). A bad theme never breaks discovery for the others: `loadTheme` catches its own errors and returns `status: "invalid"` with a populated `errors` array instead of throwing (SPEC-004 REQ-10 "fault isolation", verified by the test at `src/features/theme/__tests__/theme.test.ts:162-175`).
 
-`src/theme-archive/` (7 old themes — `tovu-official`, `dispatch`, `grayscale`, `clean-blog`, `ledger`, `column`, `minima`) is **not** under `src/themes/` and is never scanned. These are dead artifacts from before the tier/engine-subfolder restructure, not live themes — see §8.1.
+`src/theme-archive/` (7 old themes — `tovu-official`, `dispatch`, `grayscale`, `clean-blog`, `ledger`, `column`, `minima`) is **not** under `content/themes/` and is never scanned. These are dead artifacts from before the tier/engine-subfolder restructure, not live themes — see §8.1.
 
 ### 1.2 Selection (per request, cheap)
 
@@ -68,10 +68,10 @@ There are four theme-content tiers with live implementations, plus a fifth (`cod
 
 | Tier | Format | Executes | Themes shipped today | Directory |
 |---|---|---|---|---|
-| `static` | Complete `.html` documents + CSS + JS, no templating language | Nothing server-side; theme's own client JS runs in the browser | **7** — `basic`, `fuel`, `gracious-timing`, `portfolite`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` | `src/themes/static/<id>/` |
-| `declarative` | JSON block tree over a fixed component registry | Nothing — pure data | **1** — `basic-declarative`, explicitly labeled `"Reference only — not wired into any site"` in its own `theme.json` description | `src/themes/declarative/<id>/` |
-| `templated` | LiquidJS templates | Sandboxed template logic, no JS (`eval`/`new Function` never used) | **1** — `storefront` | `src/themes/templated/<id>/` |
-| `handlebars` | Handlebars templates | Sandboxed template logic, same isolation posture as `templated` | **0** | `src/themes/handlebars/` (directory exists, empty) |
+| `static` | Complete `.html` documents + CSS + JS, no templating language | Nothing server-side; theme's own client JS runs in the browser | **7** — `basic`, `fuel`, `gracious-timing`, `portfolite`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` | `content/themes/static/<id>/` |
+| `declarative` | JSON block tree over a fixed component registry | Nothing — pure data | **1** — `basic-declarative`, explicitly labeled `"Reference only — not wired into any site"` in its own `theme.json` description | `content/themes/declarative/<id>/` |
+| `templated` | LiquidJS templates | Sandboxed template logic, no JS (`eval`/`new Function` never used) | **1** — `storefront` | `content/themes/templated/<id>/` |
+| `handlebars` | Handlebars templates | Sandboxed template logic, same isolation posture as `templated` | **0** | `content/themes/handlebars/` (directory exists, empty) |
 | `code` | (undeclared — would be trusted, signed-plugin JS) | Not built | 0, and no loader path exists | n/a |
 
 ### 2.1 `static` — the tier that actually ships content
@@ -84,7 +84,7 @@ Every theme a visitor can currently see is `static`. A static theme is a small m
 
 A JSON block tree (`{"type": "doc", "content": [...]}`) referencing a fixed, core-owned component registry (`COMPONENTS` in `render.ts:614-627`: `tovu/site-header`, `tovu/entry-list`, `tovu/entry-content`, `tovu/site-footer`, `tovu/hero`, `tovu/section`, `tovu/feature-grid`, `tovu/media-placeholder`, `tovu/announcement`, `tovu/nav`, `tovu/cta`, `tovu/footer`). No executable code — the whole appeal (per ADR-010) is that this format can be installed from a stranger with zero code-review risk, and generated/edited by an AI with zero code-execution risk.
 
-In practice this tier has exactly one theme, and its own `theme.json` description says it is a "reference only" port of the `basic` static theme's home/entry pages, "not wired into any site" (`src/themes/declarative/basic-declarative/theme.json`). If you want to see the JSON block-tree format, read that theme's `templates/home.json` and `templates/entry.json` — they're small and legible.
+In practice this tier has exactly one theme, and its own `theme.json` description says it is a "reference only" port of the `basic` static theme's home/entry pages, "not wired into any site" (`content/themes/declarative/basic-declarative/theme.json`). If you want to see the JSON block-tree format, read that theme's `templates/home.json` and `templates/entry.json` — they're small and legible.
 
 ### 2.3 `templated` (LiquidJS) — implemented, one real theme
 
@@ -92,7 +92,7 @@ LiquidJS templates (`.liquid` files) rendered inside an isolated `worker_threads
 
 Two seams bridge Liquid back to the trusted core (`render.ts:872-902`): `{% render_block component: "tovu/site-header", ... %}` renders a component from the *same* `COMPONENTS` registry the declarative tier uses, and `{{ post.content | raw }}` injects server-rendered, pre-sanitized TipTap HTML (the one value either tier is allowed to emit unescaped).
 
-`storefront` (`src/themes/templated/storefront/`) is the one real theme here — a small Shopify-style product grid that reads live data from the sample store plugin. Its `templates/home.liquid` is a good, short worked example of loops/conditionals (`{% for product in products %}`, `{% if products.size == 0 %}`).
+`storefront` (`content/themes/templated/storefront/`) is the one real theme here — a small Shopify-style product grid that reads live data from the sample store plugin. Its `templates/home.liquid` is a good, short worked example of loops/conditionals (`{% for product in products %}`, `{% if products.size == 0 %}`).
 
 ### 2.4 `handlebars` — fully wired, zero content
 
@@ -103,7 +103,7 @@ This is the gap most worth being precise about, because "empty directory" unders
 - `src/features/theme/handlebars-allowlist.ts` (385 lines) is a real, tested allowlist that rejects disallowed helpers, partials, decorators, and raw `{{{output}}}` outside one sanctioned path — and unlike the Liquid tier, it has **no** opt-out flag (`skipLiquidAllowlist` explicitly does not apply — `theme.ts:76-83`, confirmed by the test at `theme.test.ts:151-160`).
 - `src/server/http/site/handlebars-worker.ts` + `handlebars-sandbox.ts` render `.hbs` templates in an isolated worker exactly like the Liquid path, wired into `renderSite()`'s `handlebars` branch (`render.ts:1271-1283`).
 - The `theme_list` agent tool's schema lists `"handlebars"` as a filterable tier value (`src/features/theme/agent-tools.ts:125-127`).
-- The engine-subfolder scan includes `handlebars/` (`ENGINE_SUBFOLDERS`, `theme.ts:442`), and the folder exists on disk (`src/themes/handlebars/`) — but is empty.
+- The engine-subfolder scan includes `handlebars/` (`ENGINE_SUBFOLDERS`, `theme.ts:442`), and the folder exists on disk (`content/themes/handlebars/`) — but is empty.
 
 So: **this is not dead code and not a half-built stub.** The render pipeline, the security allowlist, the worker isolation, and the discovery path are all complete and covered by tests (`src/features/theme/__tests__/handlebars-allowlist.test.ts`, and the handlebars sections of `theme.test.ts`). What's missing is purely content: no one has authored a `.hbs` theme. If you want to build one, the mechanism will take it — there's just no existing example to copy from inside this repo (copy the LiquidJS `storefront` theme's *structure*, not its syntax, as your starting point: same `home`/`entry`/`products`/`product` template-id vocabulary, same `theme.json` shape, Handlebars syntax instead of Liquid).
 
@@ -129,7 +129,7 @@ Split deliberately into two tables, because this is a real (if now smaller) dive
 | `engine` | number | all | no (defaults to `1`) | Read but not currently branched on anywhere observed. |
 | `description` | string | all | no | Free text, shown in the `theme_list` agent tool and (presumably) an admin theme picker. |
 | `fonts` | string[] | all | no | Google Fonts family specs (e.g. `"Fraunces:opsz,wght@9..144,400"`), injected as `<link>` tags in `pageShell()` (`render.ts:1052-1057`). SPEC-004 CSS sanitization is stated to forbid external `@import` in theme CSS, which is why fonts live here instead — see §8.4 for the sanitization caveat. |
-| `regions` | string[] | all (declared, only meaningfully consumed outside `static`) | no | Widget-placement region keys (ADR-047 §2a) — see §6.4. **No live theme declares this field today** (verified: zero `"regions"` hits under `src/themes/`). |
+| `regions` | string[] | all (declared, only meaningfully consumed outside `static`) | no | Widget-placement region keys (ADR-047 §2a) — see §6.4. **No live theme declares this field today** (verified: zero `"regions"` hits under `content/themes/`). |
 | `skipLiquidAllowlist` | boolean | `templated` only | no (default `false`) | Opts a Liquid theme out of the tag/filter allowlist. Has no equivalent for `handlebars` — see §2.4. |
 | `postTemplate` | string[] | `static` only | no | Ordered list of `pages/*.html` filenames a Post author can pick between (§7.1). First entry is the implicit default. |
 | `modes` | string[] (e.g. `["dark","light"]`) | `static` only | no | The color-mode names this theme ships token overrides for. A mode name is nothing more than the value written into `data-theme` on `<html>` — it has no other effect on its own. See §3.3. |
@@ -162,7 +162,7 @@ The pattern isn't even consistently applied: `basic`, `tailark-dusk`, `tailark-q
 
 As of 2026-08-10, `modes`/`defaultMode` are parsed and `defaultMode` drives one concrete thing: the starting value of `data-theme` on the page's `<html>` element. `injectColorMode()` (`static-render.ts:231-234`) stamps `data-theme="<defaultMode>"` onto `<html>` at render time — unless the page's own source already carries a `data-theme` attribute (left alone), or the manifest declares no `defaultMode` (nothing is emitted, same as before this wiring). This is also the exact selector `tokensToRootCss()` (`static-render.ts:16-23`) already emitted its `tokens.light.json` override block under (`:root[data-theme="light"] { ... }`) — before this wiring, that block was loaded and emitted into every page but structurally unreachable, because nothing ever set the attribute it keys off.
 
-**A user-flippable toggle is still entirely the theme's own job.** The engine's responsibility ends at the server-rendered starting value; runtime switching is client-side, unchanged by this wiring: each static theme ships its own `js/theme-toggle.js`, which flips `data-theme` on `document.documentElement` in response to a `[data-theme-toggle]` button click (e.g. `src/themes/static/basic/js/theme-toggle.js:6-18`). A theme author who wants this needs exactly:
+**A user-flippable toggle is still entirely the theme's own job.** The engine's responsibility ends at the server-rendered starting value; runtime switching is client-side, unchanged by this wiring: each static theme ships its own `js/theme-toggle.js`, which flips `data-theme` on `document.documentElement` in response to a `[data-theme-toggle]` button click (e.g. `content/themes/static/basic/js/theme-toggle.js:6-18`). A theme author who wants this needs exactly:
 
 ```html
 <button data-theme-toggle>Toggle theme</button>
@@ -181,7 +181,7 @@ As of 2026-08-10, `modes`/`defaultMode` are parsed and `defaultMode` drives one 
 ## 4. Directory and file layout per tier
 
 ```
-src/themes/
+content/themes/
   static/<id>/
     theme.json
     tokens.json
@@ -258,7 +258,7 @@ The fallback is what renders if the token is ever absent; the real value comes f
 <div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
 ```
 
-Verified against the parser (`scanEmbedMarkers`, `src/core/embeds/marker.ts:133-163`, matching on `MARKER_PATTERN` at line 108, which locates exactly one `data-embed-config='...'` attribute per element) and against every live theme file (e.g. `src/themes/static/basic/pages/index.html:12`, `src/themes/static/basic/nav.html:7`). `type="partial"` is just another value of the `type` key, not a special attribute state — the real distinction was never the attribute names; it's what a `type` resolves against:
+Verified against the parser (`scanEmbedMarkers`, `src/core/embeds/marker.ts:133-163`, matching on `MARKER_PATTERN` at line 108, which locates exactly one `data-embed-config='...'` attribute per element) and against every live theme file (e.g. `content/themes/static/basic/pages/index.html:12`, `content/themes/static/basic/nav.html:7`). `type="partial"` is just another value of the `type` key, not a special attribute state — the real distinction was never the attribute names; it's what a `type` resolves against:
 
 - **`type="partial"`** — fills the marker with a *partial file* (`nav.html`, `footer.html`) that lives inside the same theme. Purely local to the theme; no repo/database lookup. Resolved by `resolveSlots()`.
 - **Every other `type`** (`menu`, `widget`, `form`, `media`, `post`, …) — fills the marker with *real content resolved from the CMS*. Requires a repo lookup by the route layer before rendering.
@@ -290,7 +290,7 @@ For each marker key present in the resolved slots map:
 
 A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_THEME_SLOTS`: `nav` → `nav.html` with `activeAttr: "data-nav-current"`, `footer` → `footer.html` with no variants map (so any footer variant falls through to the naming convention). A marker whose resolved partial doesn't exist still collapses to empty.
 
-**Worked example — `basic`** (`src/themes/static/basic/theme.json`, the only live theme with an explicit `variants` map):
+**Worked example — `basic`** (`content/themes/static/basic/theme.json`, the only live theme with an explicit `variants` map):
 
 ```json
 "slots": {
@@ -302,7 +302,7 @@ A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_T
 }
 ```
 
-`pages/signin.html` (`src/themes/static/basic/pages/signin.html`) uses both: `<div data-embed-config='{"type":"partial","id":"nav","current":"signin"}'></div>` (line 12) and `<div data-embed-config='{"type":"partial","id":"footer","variant":"minimal"}'></div>` (line 36), the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
+`pages/signin.html` (`content/themes/static/basic/pages/signin.html`) uses both: `<div data-embed-config='{"type":"partial","id":"nav","current":"signin"}'></div>` (line 12) and `<div data-embed-config='{"type":"partial","id":"footer","variant":"minimal"}'></div>` (line 36), the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
 
 ### 6.2 Menu embeds (`type="menu"`, `static` tier)
 
@@ -319,7 +319,7 @@ The route layer scans every page/partial for a `data-embed-config` marker whose 
 
 **This is a marker-scoped, all-or-nothing replacement**, not a merge — the regex substitutes the whole `<tag ...>...</tag>` span between the marker's opening and its own closing tag, captured and backreferenced by the marker's own tag name.
 
-**Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via a `"variant":"tree"` key in the same `data-embed-config` object — e.g. `<nav data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>` (`src/themes/static/basic/pages/blog-sidebar-template.html:32`). Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
+**Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via a `"variant":"tree"` key in the same `data-embed-config` object — e.g. `<nav data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>` (`content/themes/static/basic/pages/blog-sidebar-template.html:32`). Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
 
 ### 6.3 The nav-embed gap: not every theme wires this
 
@@ -335,7 +335,7 @@ The route layer scans every page/partial for a `data-embed-config` marker whose 
 | `tailark-quartz-dark` / Onyx | Yes |
 | `tailark-quartz-libre` / Meridian | Yes |
 
-`fuel`'s `nav.html` (`src/themes/static/fuel/nav.html`) has a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere in the file. **This means: on `fuel`, editing the CMS menu in the admin UI has zero visible effect on the public nav.** Every other one of the 6 remaining static themes does wire it, so the same CMS menu edit is visible there. This is a per-theme authoring gap, not a platform limitation — nothing stops `fuel`'s `nav.html` from being edited to add the marker; it just hasn't been.
+`fuel`'s `nav.html` (`content/themes/static/fuel/nav.html`) has a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere in the file. **This means: on `fuel`, editing the CMS menu in the admin UI has zero visible effect on the public nav.** Every other one of the 6 remaining static themes does wire it, so the same CMS menu edit is visible there. This is a per-theme authoring gap, not a platform limitation — nothing stops `fuel`'s `nav.html` from being edited to add the marker; it just hasn't been.
 
 *Correction to a starting assumption:* the task that produced this doc assumed `fuel`/Ember is *currently* the active theme. As of this session, the local dev database (`infra/content.db`, `presentation_settings` table) actually has `activeThemeId = "basic"` — not `fuel`. `basic` does wire the menu embed. The seed default (`src/server/seed.ts:255`, §8.1) now hardcodes `"basic"` directly, resolving without a fallback on a fresh workspace — it used to hardcode the undiscoverable `tovu-official` and rely on `resolveActiveTheme()`'s fallback (§1.2) landing on `basic` anyway. Whichever theme is active is admin-mutable at any time; don't treat "the active theme" as a fixed fact — check `presentation_settings` (or the admin UI) for ground truth. The `fuel`-hardcodes-its-nav fact itself is independent of which theme happens to be active and remains true regardless.
 
@@ -351,7 +351,7 @@ The `menu` embed described in §6.2 is **not** the same code path as this one �
 
 A theme can declare region keys it supports for widget placement (ADR-047 §2a): `"regions": ["header", "footer"]` in `theme.json` (parsed onto `manifest.regions`, `theme.ts:285`). A declarative-tier template then references one with `{"type": "region", "key": "footer"}`, or a Liquid/Handlebars template with `{% render_block region: "footer" %}` — both resolve through the same `renderWidgetRegion()` function (`render.ts:862-870`). The route layer resolves what's actually placed in each region ahead of render (`resolvePageWidgets`, called from `resolveWidgetsForRender`, `pages.ts:126-131`).
 
-**No live theme declares this field or uses this node type.** Verified: zero `"regions"` occurrences and zero `{"type": "region"...}` / `{% render_block region: ... %}` occurrences anywhere under `src/themes/`. The mechanism is fully implemented and tested (`theme.test.ts:186-226`) but has no real-world user yet.
+**No live theme declares this field or uses this node type.** Verified: zero `"regions"` occurrences and zero `{"type": "region"...}` / `{% render_block region: ... %}` occurrences anywhere under `content/themes/`. The mechanism is fully implemented and tested (`theme.test.ts:186-226`) but has no real-world user yet.
 
 ### 6.6 Page authoring regions (`data-agent-element` / `data-agent-role`) — a different concept entirely
 
@@ -389,7 +389,7 @@ This has nothing to do with which template a post renders through (that's §7.1)
 
 ### 8.1 The seed default — fixed 2026-08-10, was `tovu-official`
 
-Until 2026-08-10, `src/server/seed.ts:255` hardcoded `activeThemeId: "tovu-official"` as the default for a brand-new workspace. `tovu-official` lives only under `src/theme-archive/` (`src/theme-archive/tovu-official/`), which `builtInThemesDir()` never scans (`src/server/deps.ts:143-145` resolves to `src/themes/`, not `src/theme-archive/`) — on a fresh workspace that default never resolved to a real theme, and `resolveActiveTheme()`'s fallback silently picked the alphabetically-first valid discovered theme instead (which is also `basic`, so the *rendered result* never visibly changed — only the mechanism that produced it). The seed now hardcodes `activeThemeId: "basic"` directly (`src/themes/static/basic/`, a real, valid, currently shipping static theme), so `resolveActiveTheme()`'s direct-hit branch (`findTheme` + `status === "valid"`, `pages.ts:103-107`) resolves it on a fresh workspace without ever reaching the fallback line — verified by loading a fresh discovery pass and confirming `findTheme({ themes, id: "basic" })` returns `{ status: "valid", errors: [] }`.
+Until 2026-08-10, `src/server/seed.ts:255` hardcoded `activeThemeId: "tovu-official"` as the default for a brand-new workspace. `tovu-official` lives only under `src/theme-archive/` (`src/theme-archive/tovu-official/`), which `builtInThemesDir()` never scans (`src/server/deps.ts:143-145` resolves to `content/themes/`, not `src/theme-archive/`) — on a fresh workspace that default never resolved to a real theme, and `resolveActiveTheme()`'s fallback silently picked the alphabetically-first valid discovered theme instead (which is also `basic`, so the *rendered result* never visibly changed — only the mechanism that produced it). The seed now hardcodes `activeThemeId: "basic"` directly (`content/themes/static/basic/`, a real, valid, currently shipping static theme), so `resolveActiveTheme()`'s direct-hit branch (`findTheme` + `status === "valid"`, `pages.ts:103-107`) resolves it on a fresh workspace without ever reaching the fallback line — verified by loading a fresh discovery pass and confirming `findTheme({ themes, id: "basic" })` returns `{ status: "valid", errors: [] }`.
 
 ### 8.2 Nested nav/submenus never render, on any static theme
 
@@ -407,7 +407,7 @@ Covered in §5. `DiscoveredTheme.css`'s own field comment says "unsanitized in t
 
 ### 8.5 The `handlebars` tier is empty, but not dead
 
-Covered in full in §2.4. Restated because it's the most likely thing to be misjudged from the directory listing alone: `src/themes/handlebars/` being empty means "no one has authored a theme here," not "this code path doesn't work."
+Covered in full in §2.4. Restated because it's the most likely thing to be misjudged from the directory listing alone: `content/themes/handlebars/` being empty means "no one has authored a theme here," not "this code path doesn't work."
 
 ### 8.6 `theme.json`'s `pages` field is unread (the other three were wired 2026-08-10)
 
@@ -432,7 +432,7 @@ Theme files on disk are read once at process boot (`discoverAllBuiltInThemes`, c
 This is the smallest set of files that will actually render on the live site, assuming the theme becomes the active one (§1.2). Every field/mechanism used below is cited to the section that explains it.
 
 ```
-src/themes/static/my-theme/
+content/themes/static/my-theme/
   theme.json
   tokens.json
   css/styles.css

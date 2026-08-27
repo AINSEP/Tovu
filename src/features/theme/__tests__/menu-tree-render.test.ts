@@ -14,7 +14,7 @@ import type { DiscoveredTheme } from "../theme.js";
  * unification, where a marker carried separate `data-embed-type`/`data-embed-id` attributes plus an
  * optional `data-embed-config` for extras. The design was collapsed further, before this session, to
  * ONE `data-embed-config='{"type":...,"id":...}'` attribute (`src/core/embeds/marker.ts`'s
- * `MARKER_PATTERN`, confirmed against the real `src/themes/static/basic/nav.html` on disk) without
+ * `MARKER_PATTERN`, confirmed against the real `content/themes/static/basic/nav.html` on disk) without
  * static-render.test.ts being updated to match — every fixture in that file used an attribute shape
  * `scanEmbedMarkers` no longer recognizes at all, so its assertions were failing (or, per two
  * independent handoffs, some path through it hung outright) regardless of what they claimed to

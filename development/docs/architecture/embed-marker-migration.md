@@ -173,7 +173,7 @@ now scans the database for exactly this reason (skipping gracefully when none is
    for exactly what it does and does not buy.
 7. **Stale references to the old vocabulary** in comments and docs: `theme-authoring-guide.md`
    (§6.1 slots, and §8.2 which still claims nested menus never render — untrue since `77f567d`),
-   `src/themes/*/build-preview.mjs` (per-theme authoring preview scripts, 4 hits in `basic` alone —
+   `content/themes/*/build-preview.mjs` (per-theme authoring preview scripts, 4 hits in `basic` alone —
    these will silently stop resolving slots), and several theme `theme.json` descriptions.
 
 ## Open decision, not yet made

@@ -31,7 +31,8 @@ apps/admin/.certs/
 # its content.db + WAL sidecars, uploads/, themes/, skills/, agent-plugins/, the ADR-041 ops
 # journals, restore points, and out/ build output. None of it is source, and none of it may ever be
 # replaced by an upgrade: that is the whole point of the 2026-08-27 move off `infra/`, which had
-# runtime data and the product's own `src/themes/` tangled together.
+# runtime data and the product's own theme tree (then `src/themes/`, now `content/themes/`)
+# tangled together.
 # README.md stays tracked so the directory exists in a fresh clone -- openContentDb does not create
 # its parent, so an absent sites/ fails boot with SQLITE_CANTOPEN.
 sites/*
@@ -43,7 +44,7 @@ sites/*
 # discovered as extra copies of the theme they were migrating (see MIGRATION_STAGING_DIR_PREFIX in
 # src/features/theme/theme.ts, which also excludes this pattern from theme discovery as a second,
 # independent layer — this entry only stops it from being committed again).
-src/themes/**/.tovu-migrate-staging-*
+content/themes/**/.tovu-migrate-staging-*
 
 # Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
 AI-Dev-Shop/

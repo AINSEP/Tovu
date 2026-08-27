@@ -11,7 +11,7 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
  * (`css/`/`js/`, for `server/http/site/render.ts`'s static-tier branch, which rewrites a page's
  * `../css/`/`../js/` references to this prefix), EXTENDED 2026-08-12 to also cover `templated`-tier
- * theme folders (`src/themes/templated/`) so a Liquid theme's own images/screenshots — previously
+ * theme folders (`content/themes/templated/`) so a Liquid theme's own images/screenshots — previously
  * unreachable at any URL, the reason `storefront` ships zero images and `fashion-modern`'s hero photo
  * and admin-card screenshot both 404'd — can be requested the same way.
  *
@@ -43,7 +43,7 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
  * Anyone reasoning about what write access to a theme's files can expose over HTTP must start from
  * "every root passed to `themeRoots` is fully public, whole-folder," not from a narrower claim.
  *
- * `declarative`-tier themes (`src/themes/declarative/`) and the not-yet-built `handlebars` tier are
+ * `declarative`-tier themes (`content/themes/declarative/`) and the not-yet-built `handlebars` tier are
  * deliberately NOT in `themeRoots` here — no theme in either currently ships any asset a template
  * references by URL (declarative themes are pure JSON block trees; `handlebars/` has no theme folders
  * on disk at all yet), so adding either root would be speculative, untestable dead code. Add a root
@@ -99,7 +99,7 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
  *   screenshots) was servable over HTTP. Refusing the DOT rather than that one literal prefix is
  *   deliberate: it is strictly broader (any hidden dir -- .git, .env.d, a future scratch prefix --
  *   is refused for free), no legitimate theme id is dot-prefixed (verified against
- *   src/themes/static and src/themes/templated), and it needs NO import. The earlier form
+ *   content/themes/static and content/themes/templated), and it needs NO import. The earlier form
  *   imported MIGRATION_STAGING_DIR_PREFIX from features/theme/theme.ts, which made this the only
  *   file in src/server/ importing that 1134-line module and regressed four check:architecture
  *   metrics (propagation cost all-import 11.57->11.87 and runtime-only 1.75->1.8, module API

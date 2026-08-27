@@ -27,8 +27,15 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
  * `site-dir` domain logic. Pure read + pure mapping, no db/fs-write, no `cli`/`express` import.
  */
 
-/** `src/templates/` dir, resolved from this file's own location. */
-const TEMPLATES_ROOT = path.resolve(import.meta.dirname, "../templates");
+/**
+ * `content/templates/` dir, resolved from this file's own location, never `process.cwd()`.
+ *
+ * Two levels up, not one: templates are stock DATA and moved out of `src/` on 2026-08-27. The same
+ * offset holds in both layouts -- `src/site-dir/` -> `<repo>/content/templates` in the source tree,
+ * `dist/src/site-dir/` -> `dist/content/templates` in the compiled one -- because each is exactly
+ * two levels below its own root. `npm run build` copies the tree to that second location.
+ */
+const TEMPLATES_ROOT = path.resolve(import.meta.dirname, "../../content/templates");
 
 export interface ReadTemplateRequired {
   templateId: string;

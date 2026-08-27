@@ -9,7 +9,7 @@ import type { ThemeValidationIssue } from "./profiles.js";
  * top level (§16: "Unknown top-level manifest fields REJECTED (fail-closed)").
  *
  * ONLY invoked when `raw.apiVersion === 2` (see `validate-theme-package.ts`'s orchestrator). As of the
- * 2026-08-18 Milestone 3 migration, all seven built-in static themes (`src/themes/static/*`) declare
+ * 2026-08-18 Milestone 3 migration, all seven built-in static themes (`content/themes/static/*`) declare
  * `apiVersion: 2` and run through THIS module — it is production-critical, not speculative. A theme
  * with no `apiVersion` field (a v1 theme, none of which remain among the built-ins, but a site-authored
  * or marketplace one still can be) is unaffected, validated through `loadTheme()`'s own existing

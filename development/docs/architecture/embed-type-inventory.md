@@ -189,7 +189,7 @@ placeholder, which could only ever reference the entity being rendered. The lega
 
 **Uses `withInnerContent`/`withInnerContentFinal`, not a whole-element replace, for its own slot,
 unlike `post`/`partial`.** Both of those are bare, classless `<div>`s in every theme shipped in this
-repo (verified by grep across `src/themes/static/*/pages/*.html`) — whole-element replacement has
+repo (verified by grep across `content/themes/static/*/pages/*.html`) — whole-element replacement has
 never had a styling hook to lose for them. A `content` slot is far more likely to be authored as
 `<main class="page-body" data-embed-config='{"type":"content"}'></main>`, the same reason `menu`
 markers already use `withInnerContent`: the theme's own wrapper and its authored fallback content must

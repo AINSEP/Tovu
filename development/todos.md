@@ -1139,7 +1139,7 @@ vocabularies deliberately similar rather than letting them drift into two unrela
 
 ## Theme marketplace — local fixture only
 
-`src/themes/__marketplace__/` stands in for a remote marketplace so the download flow can be
+`content/themes/__marketplace__/` stands in for a remote marketplace so the download flow can be
 exercised end to end. No network, no search, no publisher identity, no versioning or update
 checks, no signing. A real one needs all of those, plus a stable upstream identity on `lineage`
 (local folder ids are per-install and mean nothing on another machine).

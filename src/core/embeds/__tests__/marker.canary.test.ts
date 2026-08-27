@@ -17,7 +17,7 @@ import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from 
  * amount of consumer-side work is worth doing yet.
  */
 
-const THEMES = path.join(process.cwd(), "src/themes/static");
+const THEMES = path.join(process.cwd(), "content/themes/static");
 const read = (rel: string): string => readFileSync(path.join(THEMES, rel), "utf8");
 
 /**

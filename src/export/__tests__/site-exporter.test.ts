@@ -242,7 +242,7 @@ test("exportSite: follows one hop out of a fetched CSS file's own url(...) refer
   // (extractCssUrls/fetchAssets' cssRefs follow-up) has no real content fixture to exercise it
   // through the live app as-is. `theme-static-assets.ts` resolves a theme's on-disk folder from two
   // HARDCODED roots with no override seam reachable from RouteDeps, so a fixture theme directory
-  // can't be substituted either without writing into the live `src/themes/static/` tree (shared by
+  // can't be substituted either without writing into the live `content/themes/static/` tree (shared by
   // 3 concurrent sessions tonight).
   //
   // Instead: `ExportSiteRouteDeps.createSiteApp` is itself the injectable seam — it already exists

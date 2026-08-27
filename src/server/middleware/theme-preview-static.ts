@@ -7,7 +7,7 @@ import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 
 /**
  * @file SPIKE — serves each `static`-tier theme's own preview build (under its `preview` folder in
- * `src/themes/static`) at `/theme-preview/{themeId}/{dark or light}/...`, so a `static` theme can be
+ * `content/themes/static`) at `/theme-preview/{themeId}/{dark or light}/...`, so a `static` theme can be
  * opened in a real browser against the running Tovu server instead of only a standalone
  * `python3 -m http.server`.
  *

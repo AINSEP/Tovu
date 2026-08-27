@@ -16,7 +16,7 @@ import { loadTheme } from "../theme.js";
  * pages, partials, or light tokens even when files with those exact names sit in its folder.
  */
 
-const STATIC_THEMES_DIR = path.join(process.cwd(), "src/themes/static");
+const STATIC_THEMES_DIR = path.join(process.cwd(), "content/themes/static");
 
 function makeStaticThemeDir(
   files: Record<string, string>,

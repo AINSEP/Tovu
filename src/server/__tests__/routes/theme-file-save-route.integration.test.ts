@@ -22,7 +22,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * fine) but "the rendered preview reflects it". Both are checked, in that order, so a regression
  * reports which half broke rather than just going red.
  *
- * Runs against a throwaway themes root (`fs.mkdtempSync`), never the real `src/themes/` — a dev
+ * Runs against a throwaway themes root (`fs.mkdtempSync`), never the real `content/themes/` — a dev
  * server may be serving off that checkout and this route writes real files.
  */
 

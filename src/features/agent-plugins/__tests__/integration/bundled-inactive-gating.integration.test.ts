@@ -14,7 +14,7 @@ import { loadInstalledAgentPluginToolSources } from "../../tool-registrations.js
  * @file The end-to-end proof that "bundled but inactive" is a real, enforced condition — not a
  * comment.
  *
- * Seeds the REAL `src/agent-plugins/site-compliance/` package (the bytes that ship with the
+ * Seeds the REAL `content/agent-plugins/site-compliance/` package (the bytes that ship with the
  * product, not a fixture) into a temp workspace, then asserts it is simultaneously:
  *
  * - **installed** — present on disk, indexable, so an operator can inspect and enable it; and
@@ -28,7 +28,7 @@ import { loadInstalledAgentPluginToolSources } from "../../tool-registrations.js
  */
 
 const WORKSPACE_ID = "33333333-3333-4333-8333-333333333333";
-const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../agent-plugins");
+const BUNDLED_SOURCE_ROOT = path.resolve(import.meta.dirname, "../../../../../content/agent-plugins");
 const PLUGIN_ID = "site-compliance";
 
 /** `install.ts` freezes published trees to 0o555, so a plain `rm -rf` of a temp install root fails

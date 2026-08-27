@@ -22,7 +22,7 @@ import { loadTheme } from "../theme.js";
  */
 
 function ledgerTemplate(name: "home" | "entry"): string {
-  // `ledger` was archived to `src/theme-archive/` (commit 4f6ce56, 2026-08-09); `src/themes/handlebars/`
+  // `ledger` was archived to `src/theme-archive/` (commit 4f6ce56, 2026-08-09); `content/themes/handlebars/`
   // has shipped zero themes since, so this is the only real (non-fixture) handlebars template source
   // left to certify the allowlist and `loadTheme`'s handlebars-tier path against — same re-point
   // `theme.test.ts` already made for `dispatch`, the templated-tier sibling of this same commit.
