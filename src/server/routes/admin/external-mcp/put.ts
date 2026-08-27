@@ -4,6 +4,7 @@ import {
   type SaveExternalMcpOAuthInput,
   saveExternalMcpServer,
 } from "#src/assistant/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -77,6 +78,12 @@ function parseExternalMcpPutBody(rawBody: unknown) {
     ...optionalStringField(body.authMode, "authMode"),
     args: asStringField(body.args),
     allowedToolNames: asStringField(body.allowedToolNames),
+    // Same `asStringField` treatment as `allowedToolNames` above — resent in full on every save, not
+    // tri-state. NOTE (task #30, R-3): a non-string body value (e.g. an array) collapses to `""`
+    // here, which for THIS field silently clears every write grant. Known, pre-existing behaviour of
+    // `asStringField` on the sibling field too — undesirable, but it fails CLOSED, so it is not fixed
+    // in this change. See `admin-external-mcp-routes.test.ts` for the pinned regression.
+    writeAllowedToolNames: asStringField(body.writeAllowedToolNames),
     // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
     ...optionalStringField(body.env, "env"),
     ...parseExternalMcpOAuthBody(body.oauth),
@@ -115,6 +122,10 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         {
           workspaceId: deps.workspaceId,
           serverId: String(req.params.serverId ?? ""),
+          // The guard above already authorized this same principal — a second, cheap read off
+          // `res.locals` (`getAuthedPrincipal` does no I/O), used ONLY to attribute a change to
+          // `writeAllowedToolNames` if this save makes one.
+          principalId: getAuthedPrincipal(res).id,
           ...parseExternalMcpPutBody(req.body),
         },
       );

@@ -2055,6 +2055,18 @@ export const composioConfig = sqliteTable(
  * classifying its own tools as safe is precisely what R2 exists to refuse, so this must never be
  * backfilled from what a server advertises about itself.
  *
+ * `write_allowed_tool_names` is a SECOND security column with the identical status and the
+ * identical rule — never backfilled from anything a server advertises about itself. It is
+ * `trust.ts` R3's override: a tool declaring `readOnlyHint: false` is admitted only when it appears
+ * in BOTH this list AND `allowed_tool_names`. Deliberately a second list rather than a flag on the
+ * first — "available to the model" and "allowed to write" are independent operator decisions, and a
+ * single list conflating them cannot express "readable but not writable" for the same tool. See
+ * `mcp-federation/ports.ts`'s `FederatedMcpConnectionConfig.writeAllowedToolNames` for the full
+ * argument. `write_grants_updated_by_principal_id` and `write_grants_updated_at` attribute the last
+ * change to that list — WHO authorized which writes, and WHEN — written only when the list's
+ * contents actually change, so a rename or an enable-toggle leaves them untouched. Both are nullable:
+ * a pre-existing row, or one whose write list has never been touched, has no author to name.
+ *
  * The env block is sealed as ONE blob rather than per-variable: it routinely carries live tokens,
  * and the whole block is handed to the child process together, so no read path wants one variable
  * without the others. `env_names` holds just the variable NAMES in plaintext so the tab can show
@@ -2094,6 +2106,12 @@ export const externalMcpServers = sqliteTable(
     args: text("args"),
     /** JSON array of admissible remote tool names. See this table's header. */
     allowedToolNames: text("allowed_tool_names"),
+    /** JSON array of remote tool names separately authorized to write. See this table's header. */
+    writeAllowedToolNames: text("write_allowed_tool_names"),
+    /** Principal who last CHANGED `write_allowed_tool_names`. NULL until that list is ever touched. */
+    writeGrantsUpdatedByPrincipalId: text("write_grants_updated_by_principal_id"),
+    /** When `write_allowed_tool_names` was last changed. NULL under the same condition. */
+    writeGrantsUpdatedAt: text("write_grants_updated_at"),
     /** JSON array of env variable NAMES, plaintext. Values live in the sealed columns below. */
     envNames: text("env_names"),
     /** `SealedSecret.keyId`; NULL iff no env block is stored. */

@@ -14,6 +14,7 @@ import {
   parseAllowedToolNames,
   parseArgs,
   parseEnvBlock,
+  parseWriteAllowedToolNames,
   readEnabledExternalMcpConfigs,
   saveExternalMcpServer,
   toResolvedFederatedConnections,
@@ -82,6 +83,8 @@ function validInput(overrides: Partial<Parameters<typeof saveExternalMcpServer>[
     command: "npx",
     args: "-y @modelcontextprotocol/server-github",
     allowedToolNames: "search_repositories, get_file_contents",
+    writeAllowedToolNames: "",
+    principalId: "principal-1",
     env: "GITHUB_TOKEN=ghp_secret_value",
     ...overrides,
   };
@@ -310,6 +313,231 @@ test("an allowlisted tool the server never advertises is reported rather than sw
     config: connection.config,
   });
   assert.deepEqual(report.allowlistedButAbsent, ["typo_tool"]);
+});
+
+// ---------------------------------------------------------------------------
+// The write-authorization list (C-005, C-006) and its attribution
+//
+// Phase 1 (`b3b61209`) landed `FederatedMcpConnectionConfig.writeAllowedToolNames` as a required
+// field the trust tier enforces. This section proves the STORE half: the second list persists,
+// round-trips through the real trust tier, is rejected at save when it is not a subset of the
+// allowlist (C-006), and its "who changed it, when" attribution is stamped only when it actually
+// changes (schema-decision.md Part 2.5).
+// ---------------------------------------------------------------------------
+
+test("a write-authorized tool round-trips through save, the real trust tier, and is admitted as a write", async () => {
+  const { deps, sealer, repo } = makeDeps();
+  await saveExternalMcpServer(
+    deps,
+    validInput({ allowedToolNames: "search_repositories, delete_repository", writeAllowedToolNames: "delete_repository" }),
+  );
+  const { configs } = await readEnabledExternalMcpConfigs({ repo, sealer }, WORKSPACE);
+  const [connection] = toResolvedFederatedConnections(configs);
+  assert.ok(connection);
+  assert.deepEqual(connection.config.writeAllowedToolNames, ["delete_repository"]);
+
+  // A hostile-ish server: it HONESTLY declares the write, unlike the R3-gap fixture in trust.test.ts.
+  const report = admitRemoteTools({
+    tools: [
+      { name: "search_repositories", inputSchema: { type: "object" } },
+      { name: "delete_repository", inputSchema: { type: "object" }, annotations: { readOnlyHint: false } },
+    ],
+    config: connection.config,
+  });
+
+  assert.deepEqual(
+    report.admitted.map((t) => t.remoteName).sort(),
+    ["delete_repository", "search_repositories"],
+  );
+});
+
+test("a write entry not in the allowlist is rejected at save, naming the offending tool (C-006)", async () => {
+  const { deps } = makeDeps();
+  await assert.rejects(
+    () =>
+      saveExternalMcpServer(
+        deps,
+        validInput({ allowedToolNames: "search_repositories", writeAllowedToolNames: "delete_repository" }),
+      ),
+    (err: unknown) =>
+      err instanceof ExternalMcpValidationError &&
+      err.field === "writeAllowedToolNames" &&
+      err.message ===
+        "'delete_repository' is authorized to write but is not in the allowlist — a tool must be allowlisted before it can be write-authorized",
+  );
+});
+
+test("a write entry outside the pattern the trust tier would refuse is rejected at save time", () => {
+  assert.throws(
+    () => parseWriteAllowedToolNames("valid_name, not a valid name"),
+    (err: unknown) => err instanceof ExternalMcpValidationError && err.field === "writeAllowedToolNames",
+  );
+});
+
+test("a NULL and a '[]' writeAllowedToolNames column both read as an empty list", async () => {
+  const { repo } = makeDeps();
+  const base = {
+    workspaceId: WORKSPACE,
+    transport: "stdio",
+    authMode: "static_env",
+    enabled: true,
+    command: "npx",
+    url: null,
+    args: "[]",
+    allowedToolNames: "[]",
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: null,
+    oauthGrant: null,
+    oauthClientId: null,
+    oauthEndpointsJson: null,
+    oauthScopesJson: null,
+    oauthStatus: null,
+    oauthExpiresAt: null,
+    oauthTokenEnvName: null,
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth: null,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  };
+  await repo.upsert({
+    ...base,
+    serverId: "null-write-list",
+    label: "Null",
+    writeAllowedToolNames: null,
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
+  });
+  await repo.upsert({
+    ...base,
+    serverId: "empty-write-list",
+    label: "Empty",
+    writeAllowedToolNames: "[]",
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
+  });
+
+  const views = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.deepEqual(views.find((v) => v.serverId === "null-write-list")?.writeAllowedToolNames, []);
+  assert.deepEqual(views.find((v) => v.serverId === "empty-write-list")?.writeAllowedToolNames, []);
+});
+
+test("the admin read model exposes the write list and its attribution, but still no env value", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+      principalId: "operator-9",
+    }),
+  );
+
+  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.deepEqual(view?.writeAllowedToolNames, ["delete_repository"]);
+  assert.equal(view?.writeGrantsUpdatedByPrincipalId, "operator-9");
+  assert.equal(view?.writeGrantsUpdatedAt, "2026-08-09T00:00:00.000Z");
+  assert.equal(JSON.stringify(view).includes("ghp_secret_value"), false);
+});
+
+test("attribution is stamped the first time the write list becomes non-empty", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ principalId: "alice" }));
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+      principalId: "alice",
+    }),
+  );
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(record?.writeGrantsUpdatedByPrincipalId, "alice");
+  assert.equal(record?.writeGrantsUpdatedAt, "2026-08-09T00:00:00.000Z");
+});
+
+test("a save that does not touch the write list (rename) leaves its attribution untouched", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+      principalId: "alice",
+    }),
+  );
+
+  // A DIFFERENT principal renames the connection without touching the write list.
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+      label: "Renamed",
+      principalId: "bob",
+    }),
+  );
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(record?.writeGrantsUpdatedByPrincipalId, "alice", "an unrelated save must not re-stamp attribution");
+});
+
+test("a save that CHANGES the write list re-stamps attribution to the new principal", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+      principalId: "alice",
+    }),
+  );
+
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "search_repositories, delete_repository",
+      principalId: "bob",
+    }),
+  );
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(record?.writeGrantsUpdatedByPrincipalId, "bob");
+});
+
+test("re-sending the same write list in a different order is NOT a change — attribution is not re-stamped", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository, fork_repository",
+      writeAllowedToolNames: "delete_repository, fork_repository",
+      principalId: "alice",
+    }),
+  );
+
+  await saveExternalMcpServer(
+    deps,
+    validInput({
+      allowedToolNames: "search_repositories, delete_repository, fork_repository",
+      writeAllowedToolNames: "fork_repository, delete_repository",
+      principalId: "bob",
+    }),
+  );
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(record?.writeGrantsUpdatedByPrincipalId, "alice", "the same set in a different order is not a change");
+});
+
+test("a brand-new server saved with an empty write list gets no attribution at all", async () => {
+  const { deps, repo } = makeDeps();
+  await saveExternalMcpServer(deps, validInput({ principalId: "alice" }));
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "github" });
+  assert.equal(record?.writeGrantsUpdatedByPrincipalId, null);
+  assert.equal(record?.writeGrantsUpdatedAt, null);
 });
 
 test("more than 64 environment variables are refused", () => {
