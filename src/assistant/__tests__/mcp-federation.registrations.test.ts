@@ -303,6 +303,79 @@ test("a remote result claiming isError is reported as data rather than acted on"
   assert.equal(result.federated.remoteReportedError, true);
 });
 
+// ---------------------------------------------------------------------------
+// Media — image blocks bypass the untrusted-data TEXT envelope
+//
+// R7 wraps everything in a JSON-stringified, byte-capped text boundary because that boundary
+// defends against prompt injection in TEXT a model reads as instructions. Base64 image bytes are
+// not that, and stringifying them into the SAME byte cap only bloats the envelope and then
+// truncates the base64 stream at an arbitrary byte, corrupting the image (task #18's actual bug: a
+// successful image generation arrived as a wall of truncated base64 text). Images must instead
+// reach `@jini-ai/daemon`'s `extractResultMedia` through a top-level `content` array — the exact
+// shape `demo-image-tool.ts` already proves end to end through the chat pane.
+// ---------------------------------------------------------------------------
+
+test("a federated image result is exposed as a top-level `content` array with the image intact — not stringified, not truncated", async () => {
+  const { deps } = fakeDeps();
+  // Comfortably under CONFIG.maxResultBytes (4096), so a failure here cannot be explained by size.
+  const imageData = "A".repeat(200);
+  const session = new InMemoryMcpSession({
+    tools: REMOTE_TOOLS,
+    onCall: () => ({
+      content: [
+        { type: "text", text: "Generated an image." },
+        // Deliberately not PNG — the fix must not assume a mime type.
+        { type: "image", mimeType: "image/jpeg", data: imageData },
+      ],
+    }),
+  });
+  const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
+
+  const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as {
+    content: Array<{ type: string; mimeType: string; data: string }>;
+    untrusted: string;
+  };
+
+  assert.deepEqual(result.content, [{ type: "image", mimeType: "image/jpeg", data: imageData }]);
+  assert.ok(result.untrusted.includes("Generated an image."));
+  // The image bytes must reach the model exactly once — via `content` — never duplicated into the
+  // wrapped text too.
+  assert.ok(!result.untrusted.includes(imageData));
+});
+
+test("an image over maxResultBytes is dropped rather than truncated into a corrupt image, and the drop is reported", async () => {
+  const { deps } = fakeDeps();
+  const oversizedData = "B".repeat(CONFIG.maxResultBytes + 1);
+  const session = new InMemoryMcpSession({
+    tools: REMOTE_TOOLS,
+    onCall: () => ({ content: [{ type: "image", mimeType: "image/png", data: oversizedData }] }),
+  });
+  const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
+
+  const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as {
+    content?: unknown[];
+    untrusted: string;
+  };
+
+  // Never truncated into `content` — a partial base64 stream is a corrupt image, not a degraded one.
+  assert.equal(result.content, undefined);
+  assert.ok(result.untrusted.includes("image/png"));
+  assert.ok(result.untrusted.includes(String(CONFIG.maxResultBytes)));
+  // Dropped whole, not partially stringified-then-truncated into the envelope — the failure mode
+  // this pins is a wrapped text that STARTS WITH a chunk of the oversized base64 stream, which is
+  // exactly what JSON-stringifying-then-byte-capping would produce.
+  assert.ok(!result.untrusted.includes(oversizedData.slice(0, 100)));
+});
+
+test("a text-only federated result gets no `content` key at all — nothing for extractResultMedia to touch, and R7's shape is unchanged", async () => {
+  const { deps } = fakeDeps();
+  const { registrations } = await federateSession({ session: sessionFor(), config: CONFIG, deps, nativeToolIds: new Set() });
+
+  const result = (await registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({}))) as Record<string, unknown>;
+
+  assert.equal("content" in result, false);
+});
+
 test("an omitted input is sent as {}, and a non-object input is refused rather than coerced", async () => {
   const { deps } = fakeDeps();
   const session = sessionFor();

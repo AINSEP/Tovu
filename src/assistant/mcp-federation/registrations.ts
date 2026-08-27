@@ -8,6 +8,7 @@ import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
+  extractFederatedImageBlocks,
   FEDERATED_ENTITY_TYPE,
   FEDERATED_TOOL_PERMISSION,
   wrapUntrustedResult,
@@ -138,6 +139,15 @@ export function buildFederatedMcpRegistrations(params: {
         signal: ctx.signal,
       });
 
+      // R7's media carve-out (trust.ts): image blocks are pulled out of `result.content` BEFORE the
+      // untrusted-data envelope is built, so they reach the model through the daemon's typed
+      // `media` channel (`extractResultMedia`) intact — see `extractFederatedImageBlocks`'s own doc
+      // for why stringifying them into the byte-capped text boundary instead would corrupt them.
+      const { images, remainder } = extractFederatedImageBlocks({
+        content: result.content,
+        maxResultBytes: config.maxResultBytes,
+      });
+
       // R7. Every federated result reaches the model inside an untrusted-data boundary, including
       // the remote's own `isError` claim — which is reported as data rather than acted on, because
       // a remote lying about its own success is not a case this side can adjudicate.
@@ -146,9 +156,14 @@ export function buildFederatedMcpRegistrations(params: {
         untrusted: wrapUntrustedResult({
           connectionLabel: config.label,
           remoteName: tool.remoteName,
-          result: { content: result.content, structuredContent: result.structuredContent },
+          result: { content: remainder, structuredContent: result.structuredContent },
           maxResultBytes: config.maxResultBytes,
         }),
+        // The ONLY field `@jini-ai/daemon`'s `extractResultMedia` reads to hoist inline media onto
+        // the `tool_result` wire event — see `demo-image-tool.ts` for the identical shape proven
+        // end to end through the chat pane. Omitted (not an empty array) when there is nothing to
+        // hoist, so a text-only result's return shape is byte-identical to before this existed.
+        ...(images.length > 0 ? { content: images } : {}),
       };
     };
 

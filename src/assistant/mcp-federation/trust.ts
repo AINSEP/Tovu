@@ -109,7 +109,12 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *
  * R7. UNTRUSTED-DATA BOUNDARY ON EVERY RESULT, byte-capped. Mirrors Supabase's own envelope, with
  *     a per-result `randomUUID()` delimiter so remote output cannot forge the closing tag and
- *     escape its own boundary.
+ *     escape its own boundary. Image content blocks are the one exception to "everything goes
+ *     through this boundary": {@link extractFederatedImageBlocks} pulls them out first and hands
+ *     them to the daemon's typed media channel instead, because the boundary exists to defend
+ *     against textual prompt injection and stringifying binary image bytes into it only bloats and
+ *     then truncates them into a corrupt image. See that function's doc for the full argument and
+ *     for how an oversized image is bounded instead.
  *
  * R8. ONE TOVU PERMISSION, CHECKED EVERY CALL. See {@link FEDERATED_TOOL_PERMISSION}.
  *
@@ -563,6 +568,95 @@ export function wrapUntrustedResult(params: { connectionLabel: string; remoteNam
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+/** MCP's own image content-block shape, exactly as `@jini-ai/daemon`'s `extractResultMedia` expects
+ * to find it inside a tool result's top-level `content` array — `mimeType`/`data` mirror MCP's
+ * `ImageContent` field names verbatim. Declared here rather than imported from the daemon package:
+ * `tool-result-media.ts` does not export this type from the package root (it is an internal seam
+ * between `delegated-tool-bridge.ts` and `agent-executor.ts`), and this file's own architectural
+ * role is "no I/O, no protocol, no registry" — pulling in a daemon-internal type would be a
+ * dependency this pure-function file does not otherwise have. The two sides agree by SHAPE. */
+export interface FederatedImageBlock {
+  readonly type: "image";
+  readonly mimeType: string;
+  readonly data: string;
+}
+
+/**
+ * R7's media carve-out: splits a remote's raw `content` array into well-formed image blocks and
+ * everything else, so {@link buildFederatedMcpRegistrations}'s handler can route each half through a
+ * different channel — images through the daemon's typed `media` channel (verbatim, in a top-level
+ * `content` array `extractResultMedia` recognizes), everything else through
+ * {@link wrapUntrustedResult}'s text boundary exactly as before.
+ *
+ * Why images do not belong inside the TEXT envelope: that boundary defends against prompt injection
+ * in text a model reads as instructions. Base64 image bytes are not that, and JSON-stringifying them
+ * into the envelope does two things, both bad — bloats the serialized payload past a byte cap sized
+ * for text, and, since the cap is applied AFTER stringifying, truncates the base64 stream at an
+ * arbitrary byte, corrupting the image rather than degrading it.
+ *
+ * They are not unbounded, though: each block's `data` is checked against the SAME `maxResultBytes` a
+ * text result already respects — {@link FederatedMcpConnectionConfig.maxResultBytes}'s own doc calls
+ * it "a single federated result's serialized size", and an oversized image is still a single
+ * federated result. An oversized image is DROPPED, not truncated (a partial base64 stream is a
+ * corrupt image, not a degraded one), and the drop is folded into the text remainder so it still
+ * reaches {@link wrapUntrustedResult} — "every refusal is reportable, never silent", the same
+ * discipline {@link admitRemoteTools} applies to a refused tool.
+ *
+ * @param params.content - The remote's raw `RemoteToolResult.content`, verbatim and untrusted.
+ * @param params.maxResultBytes - The connection's existing per-result byte cap, reused rather than a
+ * second image-specific limit invented for this one block type.
+ * @returns `images` (in arrival order, ready for the handler's top-level `content`) and `remainder`
+ * (every non-image entry, plus one synthetic text note when an image was dropped for size — ready to
+ * pass into {@link wrapUntrustedResult} in place of the original `content`).
+ * @complexity O(n) in the content length, plus O(m) in each image block's base64 length.
+ * @overallScore 100
+ */
+export function extractFederatedImageBlocks(params: { content: unknown; maxResultBytes: number }): {
+  readonly images: readonly FederatedImageBlock[];
+  readonly remainder: unknown;
+} {
+  const { content, maxResultBytes } = params;
+  if (!Array.isArray(content)) return { images: [], remainder: content };
+
+  const images: FederatedImageBlock[] = [];
+  const kept: unknown[] = [];
+  const oversizedMimeTypes: string[] = [];
+
+  for (const entry of content) {
+    const image = asFederatedImageBlock(entry);
+    if (!image) {
+      kept.push(entry);
+      continue;
+    }
+    if (image.data.length > maxResultBytes) {
+      oversizedMimeTypes.push(image.mimeType);
+      continue;
+    }
+    images.push(image);
+  }
+
+  if (oversizedMimeTypes.length > 0) {
+    kept.push({
+      type: "text",
+      text: `NOTE: ${oversizedMimeTypes.length} image block(s) exceeded the ${maxResultBytes}-byte limit and were omitted rather than truncated (${oversizedMimeTypes.join(", ")}).`,
+    });
+  }
+
+  return { images, remainder: kept };
+}
+
+/** Narrows one loosely-typed content-array entry to a well-formed {@link FederatedImageBlock}, or
+ *  `null` for anything else (wrong `type`, or a `type: 'image'` block missing/mistyping
+ *  `mimeType`/`data`) — the same fail-quiet posture `tool-result-media.ts`'s own `asImageBlock`
+ *  takes on a handler's untrusted return value. */
+function asFederatedImageBlock(value: unknown): FederatedImageBlock | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (record["type"] !== "image") return null;
+  if (typeof record["mimeType"] !== "string" || typeof record["data"] !== "string") return null;
+  return { type: "image", mimeType: record["mimeType"], data: record["data"] };
 }
 
 /** `JSON.stringify` that cannot throw the whole tool call away on a circular or unserializable
