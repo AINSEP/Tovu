@@ -67,11 +67,29 @@ import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports
  *     structural analogue of `DerivedRiskByToolId`: the classification that decides admission is
  *     authored by someone other than the thing being classified.
  *
- * R3. SELF-DECLARED HINTS DEMOTE ONLY, NEVER PROMOTE. `destructiveHint: true` or
+ * R3. SELF-DECLARED HINTS DEMOTE ONLY, NEVER PROMOTE — BY THE REMOTE. `destructiveHint: true` or
  *     `readOnlyHint: false` REMOVES an otherwise-allowlisted tool. `readOnlyHint: true` grants
  *     nothing. The untrusted party is given exactly one power over its own privileges — the power
  *     to reduce them — so lying is never profitable, only self-defeating. This is the single most
  *     important line in the file.
+ *
+ *     The TRUSTED party — the operator — has a separate power the remote does not: naming a tool in
+ *     `FederatedMcpConnectionConfig.writeAllowedToolNames` lifts the `readOnlyHint: false` refusal
+ *     for that tool alone. This is a SECOND, explicit list, not a flag on the first: a tool must
+ *     clear R2's allowlist before the write list is even consulted (see {@link classifyRemoteTool}'s
+ *     order, INV-002 in the write-tools outline), and every tool the operator has not named twice
+ *     keeps R3's exact original meaning. The override does NOT reach `destructiveHint: true` — that
+ *     refusal stays unconditional in this slice, regardless of either list, because the verified
+ *     live case motivating the override is a write, and the codebase's own native tier still
+ *     withholds irreversible operations on purpose (`database_execute_migrate_forward` unwired).
+ *
+ *     What the override does not fix, and cannot: a remote that declares NO annotations at all —
+ *     `annotations: undefined`, `{}`, or a bag with neither hint field set — is admitted with no
+ *     override needed and no operator awareness that a write may have just entered the catalog. R3
+ *     only ever catches a server that HONESTLY says `readOnlyHint: false`; a silent server was never
+ *     inside this rule's reach, override or not. That gap is real, is not closed by this file, and
+ *     is exactly why {@link describeRemoteToolSurface} exists — it is the surface that can mark a
+ *     silently-admitted tool as "the server does not say", which this gate alone cannot do.
  *
  * R4. SCHEMA REQUIRED. A tool whose `inputSchema` is not a JSON-Schema object is refused, matching
  *     `buildDomainRegistrations`'s identical native rule ("add one... so the model gets a contract,
@@ -151,6 +169,10 @@ const REMOTE_TOOL_NAME_PATTERN = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,63}$/;
 export type ToolRefusalReason =
   | "not-in-operator-allowlist"
   | "remote-declares-destructive"
+  /** Narrowed by R3's override: means "declares `readOnlyHint: false`, AND the operator has not
+   * ALSO named this tool in `writeAllowedToolNames`". The literal string is kept exactly as it was
+   * before the override existed, so existing log greps and test names naming this reason stay
+   * true — only the condition that produces it grew a second clause. */
   | "remote-declares-not-read-only"
   | "missing-or-invalid-input-schema"
   | "invalid-remote-tool-name"
@@ -168,6 +190,13 @@ export interface AdmittedFederatedTool {
   readonly inputSchema: Readonly<Record<string, unknown>>;
   /** Carried for audit/logging only. Never consulted for a grant — see R3. */
   readonly declaredAnnotations?: RemoteToolDescriptorAnnotations;
+  /** Whether the OPERATOR — not the remote — separately named this tool in `writeAllowedToolNames`.
+   * `true` means an explicit, second, write-specific decision was made about this exact tool. It
+   * does NOT mean the remote declared itself non-read-only, and `false` does NOT mean this tool
+   * cannot write: a tool that declares no hints at all can be admitted with `writeAuthorized: false`
+   * and still be capable of writing — see R3's header paragraph on the silent-write gap this field
+   * cannot close on its own. */
+  readonly writeAuthorized: boolean;
 }
 
 type RemoteToolDescriptorAnnotations = RemoteToolDescriptor["annotations"];
@@ -179,6 +208,11 @@ export interface FederatedAdmissionReport {
    * server's real surface. Surfaced rather than swallowed so a typo in an allowlist is visible
    * instead of silently yielding a smaller tool set than intended. */
   readonly allowlistedButAbsent: readonly string[];
+  /** Names in `writeAllowedToolNames` that are not ALSO in `allowedToolNames` — a write grant that
+   * can never take effect, because R2's allowlist runs first and would refuse the tool before the
+   * write override is ever consulted (INV-002). Sibling of {@link allowlistedButAbsent}: reported
+   * rather than silently inert, same "every refusal is reportable, never silent" discipline. */
+  readonly writeAllowedButNotAllowlisted: readonly string[];
 }
 
 /**
@@ -231,9 +265,12 @@ export function assertNoNativeCollision(federatedToolIds: readonly string[], nat
  * R2 + R3 + R4 + R6, applied to one remote server's advertised surface. The gate.
  *
  * Order matters and is deliberate: name validity, then the operator allowlist, then the remote's
- * own hints, then the schema. The allowlist is consulted BEFORE the hints so that the common
- * refusal ("we never asked for this tool") is the one reported, rather than a confusing complaint
- * about the annotations of a tool nobody wanted anyway.
+ * own hints (including the write-list override), then the schema. The allowlist is consulted
+ * BEFORE the hints so that the common refusal ("we never asked for this tool") is the one reported,
+ * rather than a confusing complaint about the annotations of a tool nobody wanted anyway — and so a
+ * tool named in `writeAllowedToolNames` but not in `allowedToolNames` can NEVER be admitted by the
+ * write list alone (INV-002): the allowlist check runs and refuses it before the write list is ever
+ * read.
  *
  * @param params.tools - The remote's `tools/list`, verbatim and untrusted.
  * @param params.config - The site owner's connection config, the trusted side.
@@ -247,11 +284,12 @@ type RemoteToolClassification =
 
 /**
  * Runs R2 + R3 + R4 + R6's gate against ONE remote tool — one iteration of
- * {@link admitRemoteTools}'s original inline loop body, extracted purely to keep that function's
- * complexity under the shop ceiling. This is a direct extraction, not a behavior change: the check
- * order (name validity, duplicate, allowlist, hints, schema, cap) and the exact point `seen` is
- * mutated (right after the duplicate check passes, BEFORE the allowlist check) are both preserved,
- * since {@link admitRemoteTools}'s own doc calls that order deliberate.
+ * {@link classifyRemoteToolSurface}'s loop body, extracted purely to keep that function's
+ * complexity under the shop ceiling. The check order (name validity, duplicate, allowlist, hints,
+ * schema, cap) and the exact point `seen` is mutated (right after the duplicate check passes,
+ * BEFORE the allowlist check) are both preserved from before the write-list override existed, since
+ * `admitRemoteTools`'s own doc calls that order deliberate. The one addition is `writeAllowed`,
+ * consulted only inside the existing hints step (INV-002) and never ahead of the allowlist check.
  *
  * @complexity O(1).
  * @overallScore 100
@@ -270,11 +308,17 @@ function admitRemoteToolName(remoteName: string, seen: Set<string>): ToolRefusal
   return null;
 }
 
-/** R3's gate: the ONLY direction a self-declared hint may move a tool. Split out of
- *  {@link classifyRemoteTool} purely to keep that function's complexity under the shop ceiling. */
-function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations): ToolRefusalReason | null {
+/** R3's gate: the ONLY directions a hint may move a tool — demotion by the remote (unconditional for
+ *  `destructiveHint`, overridable for `readOnlyHint: false`) and restoration by the operator's own
+ *  separate write list. Split out of {@link classifyRemoteTool} purely to keep that function's
+ *  complexity under the shop ceiling.
+ *
+ *  `writeAuthorized` lifts ONLY the `readOnlyHint: false` refusal. A tool declaring
+ *  `destructiveHint: true` is refused regardless of `writeAuthorized` — see R3's header for why the
+ *  override deliberately does not reach destructive tools in this slice. */
+function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations, writeAuthorized: boolean): ToolRefusalReason | null {
   if (annotations?.destructiveHint === true) return "remote-declares-destructive";
-  if (annotations?.readOnlyHint === false) return "remote-declares-not-read-only";
+  if (annotations?.readOnlyHint === false && !writeAuthorized) return "remote-declares-not-read-only";
   return null;
 }
 
@@ -282,6 +326,7 @@ function classifyRemoteTool(
   tool: RemoteToolDescriptor,
   config: FederatedMcpConnectionConfig,
   allowed: ReadonlySet<string>,
+  writeAllowed: ReadonlySet<string>,
   seen: Set<string>,
   admittedCount: number,
 ): RemoteToolClassification {
@@ -292,7 +337,8 @@ function classifyRemoteTool(
 
   if (!allowed.has(remoteName)) return { ok: false, remoteName, reason: "not-in-operator-allowlist" };
 
-  const hintRefusal = refusalForRemoteToolHints(tool.annotations);
+  const writeAuthorized = writeAllowed.has(remoteName);
+  const hintRefusal = refusalForRemoteToolHints(tool.annotations, writeAuthorized);
   if (hintRefusal) return { ok: false, remoteName, reason: hintRefusal };
 
   const inputSchema = asJsonSchemaObject(tool.inputSchema);
@@ -308,8 +354,42 @@ function classifyRemoteTool(
       description: describeFederatedTool({ label: config.label, remoteName, remoteDescription: tool.description }),
       inputSchema,
       declaredAnnotations: tool.annotations,
+      writeAuthorized,
     },
   };
+}
+
+/**
+ * One classification pass over a remote's advertised surface, threading the SAME `seen`/
+ * `admittedCount` bookkeeping {@link classifyRemoteTool} needs to stay order-sensitive.
+ *
+ * The single call site both {@link admitRemoteTools} and {@link describeRemoteToolSurface} reduce
+ * their own shape from — INV-005 (the two must always agree on which tools are admitted) is true BY
+ * CONSTRUCTION here, not by two independent implementations happening to match: there is only one
+ * place a tool is classified, and both public functions are thin reductions over its output.
+ *
+ * @complexity O(t) in the advertised tool count.
+ * @overallScore 100
+ */
+function classifyRemoteToolSurface(
+  tools: readonly RemoteToolDescriptor[],
+  config: FederatedMcpConnectionConfig,
+): readonly { readonly tool: RemoteToolDescriptor; readonly classification: RemoteToolClassification }[] {
+  assertValidConnectionId(config.connectionId);
+
+  const allowed = new Set(config.allowedToolNames);
+  const writeAllowed = new Set(config.writeAllowedToolNames);
+  const seen = new Set<string>();
+  const results: { tool: RemoteToolDescriptor; classification: RemoteToolClassification }[] = [];
+  let admittedCount = 0;
+
+  for (const tool of tools) {
+    const classification = classifyRemoteTool(tool, config, allowed, writeAllowed, seen, admittedCount);
+    if (classification.ok) admittedCount += 1;
+    results.push({ tool, classification });
+  }
+
+  return results;
 }
 
 export function admitRemoteTools(params: {
@@ -317,15 +397,10 @@ export function admitRemoteTools(params: {
   config: FederatedMcpConnectionConfig;
 }): FederatedAdmissionReport {
   const { tools, config } = params;
-  assertValidConnectionId(config.connectionId);
 
-  const allowed = new Set(config.allowedToolNames);
   const admitted: AdmittedFederatedTool[] = [];
   const refused: { remoteName: string; reason: ToolRefusalReason }[] = [];
-  const seen = new Set<string>();
-
-  for (const tool of tools) {
-    const classification = classifyRemoteTool(tool, config, allowed, seen, admitted.length);
+  for (const { classification } of classifyRemoteToolSurface(tools, config)) {
     if (classification.ok) admitted.push(classification.tool);
     else refused.push({ remoteName: classification.remoteName, reason: classification.reason });
   }
@@ -333,7 +408,82 @@ export function admitRemoteTools(params: {
   const advertised = new Set(tools.map((tool) => tool?.name).filter((name): name is string => typeof name === "string"));
   const allowlistedButAbsent = config.allowedToolNames.filter((name) => !advertised.has(name));
 
-  return { admitted, refused, allowlistedButAbsent };
+  const allowed = new Set(config.allowedToolNames);
+  const writeAllowedButNotAllowlisted = config.writeAllowedToolNames.filter((name) => !allowed.has(name));
+
+  return { admitted, refused, allowlistedButAbsent, writeAllowedButNotAllowlisted };
+}
+
+/** One ADVERTISED tool, described as an operator-facing record — §3.2 of the write-tools outline.
+ *  Unlike {@link FederatedAdmissionReport}, this covers every tool the remote listed, admitted or
+ *  not, so a UI can show the operator what they are choosing between rather than only what already
+ *  cleared the gate. */
+export interface RemoteToolSurfaceEntry {
+  /** The vendor's own name, before namespacing. */
+  readonly remoteName: string;
+  /** R6-processed, control-stripped, capped — safe to render even though the tool may be refused. */
+  readonly description: string;
+  /** Verbatim from the remote. May be `undefined` — see `hintsAbsent`. */
+  readonly declaredAnnotations?: RemoteToolDescriptorAnnotations;
+  /** `annotations?.readOnlyHint === false`, i.e. the remote itself claims this tool writes. */
+  readonly writeDeclared: boolean;
+  /** `annotations?.destructiveHint === true`. */
+  readonly destructiveDeclared: boolean;
+  /** No annotations object, or an annotations object with neither `readOnlyHint` nor
+   * `destructiveHint` set. MUST NOT be rendered as "read-only" by a consumer — it means the server
+   * said nothing, which per R3's header is exactly the case a write can slip through unmarked. */
+  readonly hintsAbsent: boolean;
+  /** The operator's R2 decision: is this name in `allowedToolNames`. */
+  readonly allowlisted: boolean;
+  /** The operator's R3-override decision: is this name in `writeAllowedToolNames`. */
+  readonly writeAllowed: boolean;
+  /** Whether {@link admitRemoteTools} would admit this tool today, for this exact input. */
+  readonly admitted: boolean;
+  /** Why the gate refused this tool, or `null` when `admitted` is `true`. */
+  readonly refusalReason: ToolRefusalReason | null;
+}
+
+/**
+ * Describes every tool a remote advertised, whether or not it clears the gate — the data
+ * {@link FederatedAdmissionReport} discards for a refused tool (only `{ remoteName, reason }`
+ * survives there) but a picker UI needs in full to let an operator make an informed write decision.
+ *
+ * Built on {@link classifyRemoteToolSurface}, the exact same classification pass
+ * {@link admitRemoteTools} reduces — see that function's doc for why this is what makes INV-005
+ * (this function and the gate always agreeing) true by construction rather than by convention.
+ *
+ * @param params.tools - The remote's `tools/list`, verbatim and untrusted.
+ * @param params.config - The site owner's connection config, the trusted side.
+ * @returns One entry per advertised tool, in advertised order.
+ * @complexity O(t) in the advertised tool count.
+ * @overallScore 100
+ */
+export function describeRemoteToolSurface(params: {
+  tools: readonly RemoteToolDescriptor[];
+  config: FederatedMcpConnectionConfig;
+}): readonly RemoteToolSurfaceEntry[] {
+  const { tools, config } = params;
+  const allowed = new Set(config.allowedToolNames);
+  const writeAllowed = new Set(config.writeAllowedToolNames);
+
+  return classifyRemoteToolSurface(tools, config).map(({ tool, classification }) => {
+    const remoteName = typeof tool?.name === "string" ? tool.name : "";
+    const annotations = tool?.annotations;
+    const hintsAbsent = annotations === undefined || (annotations.readOnlyHint === undefined && annotations.destructiveHint === undefined);
+
+    return {
+      remoteName,
+      description: describeFederatedTool({ label: config.label, remoteName, remoteDescription: tool?.description }),
+      declaredAnnotations: annotations,
+      writeDeclared: annotations?.readOnlyHint === false,
+      destructiveDeclared: annotations?.destructiveHint === true,
+      hintsAbsent,
+      allowlisted: allowed.has(remoteName),
+      writeAllowed: writeAllowed.has(remoteName),
+      admitted: classification.ok,
+      refusalReason: classification.ok ? null : classification.reason,
+    };
+  });
 }
 
 /**

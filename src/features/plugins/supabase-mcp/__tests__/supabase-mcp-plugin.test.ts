@@ -126,6 +126,9 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase (project abcdefghijklmnop)",
   allowedToolNames: SUPABASE_DEFAULT_ALLOWED_TOOLS,
+  // Mirrors the real preset's resolved connection: Supabase writes stay off (this file's own
+  // header). None of this suite's cases are about R3's write-list override.
+  writeAllowedToolNames: [],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 1_024,

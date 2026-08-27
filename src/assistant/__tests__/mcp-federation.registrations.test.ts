@@ -45,6 +45,9 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase (project abcdefghijklmnop)",
   allowedToolNames: ["list_tables", "get_advisors"],
+  // No write-authorized tools in this suite's fixture — none of the cases here are about R3's
+  // write-list override, which is covered by `mcp-federation.trust.test.ts`.
+  writeAllowedToolNames: [],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 4_096,

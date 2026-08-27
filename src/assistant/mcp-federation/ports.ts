@@ -133,6 +133,26 @@ export interface FederatedMcpConnectionConfig {
   readonly label: string;
   /** DEFAULT-DENY allowlist of REMOTE tool names (pre-namespacing). */
   readonly allowedToolNames: readonly string[];
+  /**
+   * DEFAULT-DENY, SECOND list of REMOTE tool names (pre-namespacing) the operator has separately
+   * authorized to write. A tool declaring `readOnlyHint: false` is admitted only if it appears in
+   * BOTH this list AND {@link allowedToolNames} — `trust.ts` R3's override, checked only after R2's
+   * allowlist passes. It is deliberately a second list rather than a flag on `allowedToolNames`:
+   * "available to the model" and "allowed to write" are independent operator decisions, and a
+   * single list conflating them cannot express "readable but not writable" for the same tool.
+   *
+   * Same "no safe default at this layer" rule as {@link allowedToolNames}: every connection that has
+   * never been told to allow a write must resolve to an empty list here, and a vendor preset that
+   * wants a non-empty default authors it itself, on purpose, the same way
+   * `supabase-mcp-plugin.ts`'s default allowlist is authored rather than inherited from the remote.
+   *
+   * Does NOT reach a tool declaring `destructiveHint: true` — that refusal is unconditional in this
+   * slice, regardless of either list. See `trust.ts`'s R3 header for the full argument, including
+   * the gap this override does not close: a remote that declares no annotations at all is admitted
+   * with no override needed, because R3 only ever catches a server that HONESTLY says
+   * `readOnlyHint: false`.
+   */
+  readonly writeAllowedToolNames: readonly string[];
   /** How long the initialize+list handshake may take before federation is abandoned for this boot. */
   readonly connectTimeoutMs: number;
   /** Per-`tools/call` ceiling. */
