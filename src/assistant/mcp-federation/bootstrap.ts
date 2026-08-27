@@ -59,6 +59,20 @@ export interface AttachFederatedToolsResult {
   readonly registeredToolIds: readonly string[];
   /** Live sessions, for the caller to close at shutdown. */
   readonly sessions: readonly McpSessionPort[];
+  /**
+   * One entry per connection that reached admission — i.e. every connection whose session
+   * connected and listed tools, whether or not any tool was ultimately registered. A connection
+   * that failed before `federateSession` ran (a bad spawn, a timed-out handshake, a collision) has
+   * no admission decision to report and contributes no entry here — see
+   * {@link attachOneFederatedConnection}'s catch branch.
+   *
+   * This is the same accounting `logFederatedAdmissionReport` already turns into stderr lines and
+   * then discards. Kept here so a caller (today, `agent-daemon-server.ts`, over `GET
+   * /api/federation/admissions`) can serve it to an operator instead of it only ever reaching
+   * whoever happens to be tailing the daemon's terminal at boot. See the write-tools implementation
+   * outline, C-009.
+   */
+  readonly reports: readonly { readonly connectionId: string; readonly report: FederatedAdmissionReport }[];
 }
 
 /**
@@ -75,7 +89,8 @@ export interface AttachFederatedToolsResult {
  * from the environment.
  * @param params.connect - Session factory, injected so tests substitute a double for the real
  * `spawn` + handshake.
- * @returns The registered ids and the open sessions. Never rejects.
+ * @returns The registered ids, the open sessions, and one admission report per connection that
+ *   reached admission. Never rejects.
  * @complexity O(c · t) in connections and their advertised tools.
  * @overallScore 100
  */
@@ -106,18 +121,20 @@ export async function attachFederatedMcpTools(params: {
     ...(params.extraConnections ?? []),
   ];
 
-  if (connections.length === 0) return { registeredToolIds: [], sessions: [] };
+  if (connections.length === 0) return { registeredToolIds: [], sessions: [], reports: [] };
 
   const registeredToolIds: string[] = [];
   const sessions: McpSessionPort[] = [];
+  const reports: { connectionId: string; report: FederatedAdmissionReport }[] = [];
 
   for (const connection of connections) {
     const attached = await attachOneFederatedConnection({ connection, registry: params.registry, deps: params.deps, connect, logger });
     registeredToolIds.push(...attached.registeredToolIds);
     if (attached.session) sessions.push(attached.session);
+    if (attached.report) reports.push({ connectionId: connection.config.connectionId, report: attached.report });
   }
 
-  return { registeredToolIds, sessions };
+  return { registeredToolIds, sessions, reports };
 }
 
 /** Registers every admitted tool from one connection's {@link federateSession} pass into
@@ -137,13 +154,27 @@ function registerFederatedTools(registry: ToolRegistry, registrations: readonly 
  *  `buildDomainRegistrations`'s own "silence is never the outcome" discipline. An operator
  *  debugging a missing tool needs the reason, and an operator reading logs after an incident needs
  *  to see what a remote TRIED to expose. Split out of {@link attachOneFederatedConnection} purely
- *  to keep that function's complexity under the shop ceiling. */
+ *  to keep that function's complexity under the shop ceiling.
+ *
+ *  The two `writeAuthorized`/`writeAllowedButNotAllowlisted` lines are WARN, not INFO, on purpose:
+ *  an operator-authorized write tool entering the model's catalog — or an operator's write
+ *  authorization silently doing nothing because the same name is missing from the allowlist — is a
+ *  security-relevant boot event, not routine informational noise. See the write-tools
+ *  implementation outline §9. */
 function logFederatedAdmissionReport(connectionId: string, report: FederatedAdmissionReport, logger: FederationLogger): void {
   for (const refusal of report.refused) {
     logger.warn(`mcp-federation: '${connectionId}' refused remote tool '${refusal.remoteName}' — ${refusal.reason}`);
   }
+  for (const admitted of report.admitted) {
+    if (admitted.writeAuthorized) {
+      logger.warn(`mcp-federation: '${connectionId}' admitted WRITE tool '${admitted.remoteName}' (operator-authorized)`);
+    }
+  }
   for (const absent of report.allowlistedButAbsent) {
     logger.warn(`mcp-federation: '${connectionId}' allowlists '${absent}' but the server never advertised it — check the allowlist for a typo, or the server's --features`);
+  }
+  for (const drift of report.writeAllowedButNotAllowlisted) {
+    logger.warn(`mcp-federation: '${connectionId}' write-authorizes '${drift}' but it is not in the allowlist — it will never be admitted until it is added to both`);
   }
 }
 
@@ -158,7 +189,13 @@ async function attachOneFederatedConnection(params: {
   deps: FederationDeps;
   connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
   logger: FederationLogger;
-}): Promise<{ readonly registeredToolIds: readonly string[]; readonly session: McpSessionPort | null }> {
+}): Promise<{
+  readonly registeredToolIds: readonly string[];
+  readonly session: McpSessionPort | null;
+  /** The admission report `federateSession` produced, or `null` when this connection never reached
+   *  that step (connect failed, listing failed, or a native-id collision dropped it whole). */
+  readonly report: FederatedAdmissionReport | null;
+}> {
   const { connection, registry, deps, connect, logger } = params;
   const { connectionId } = connection.config;
   let session: McpSessionPort | undefined;
@@ -176,12 +213,12 @@ async function attachOneFederatedConnection(params: {
     );
     logFederatedAdmissionReport(connectionId, report, logger);
 
-    return { registeredToolIds, session };
+    return { registeredToolIds, session, report };
   } catch (error) {
     logger.warn(`mcp-federation: '${connectionId}' failed, continuing without its tools — ${messageOf(error)}`);
     // A session that connected but failed during listing/admission still owns a child process.
     await session?.close().catch(() => undefined);
-    return { registeredToolIds: [], session: null };
+    return { registeredToolIds: [], session: null, report: null };
   }
 }
 
