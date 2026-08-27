@@ -320,6 +320,90 @@ test("a later PUT that omits the oauth block keeps the stored client id rather t
   assert.equal(oauth.grant, "authorization_code");
 });
 
+// ---------------------------------------------------------------------------
+// The write-authorization list (Phase 2A) and its attribution
+// ---------------------------------------------------------------------------
+
+test("a write-authorized tool round-trips over the wire and its attribution names the saving principal", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({
+      ...validBody,
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: "delete_repository",
+    }),
+  });
+  assert.equal(put.status, 200, await put.text().catch(() => ""));
+
+  const server = await fetchServer(baseUrl, cookie, "github");
+  assert.deepEqual(server.writeAllowedToolNames, ["delete_repository"]);
+  // The dev-session owner authenticated this request — whichever principal id that resolves to, it
+  // must be a non-empty string naming SOMEONE, not left null the way a pre-existing row's would be.
+  assert.equal(typeof server.writeGrantsUpdatedByPrincipalId, "string");
+  assert.ok((server.writeGrantsUpdatedByPrincipalId as string).length > 0);
+  assert.equal(typeof server.writeGrantsUpdatedAt, "string");
+});
+
+test("a write entry not in the allowlist is a 400 naming the writeAllowedToolNames field", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const put = await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...validBody, allowedToolNames: "search_repositories", writeAllowedToolNames: "delete_repository" }),
+  });
+
+  assert.equal(put.status, 400);
+  const body = (await put.json()) as { details: { field: string } };
+  assert.equal(body.details.field, "writeAllowedToolNames");
+});
+
+test("omitting writeAllowedToolNames on a later PUT clears it, exactly as allowedToolNames does — it is resent in full, not tri-state", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...validBody, allowedToolNames: "search_repositories, delete_repository", writeAllowedToolNames: "delete_repository" }),
+  });
+
+  const resaved = await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...validBody, allowedToolNames: "search_repositories, delete_repository" }),
+  });
+  assert.equal(resaved.status, 200);
+
+  const server = await fetchServer(baseUrl, cookie, "github");
+  assert.deepEqual(server.writeAllowedToolNames, []);
+});
+
+test("(task #30 / R-3, pinned not fixed) an array body value for writeAllowedToolNames collapses to '' via asStringField, clearing every write grant — fails CLOSED", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({ ...validBody, allowedToolNames: "search_repositories, delete_repository", writeAllowedToolNames: "delete_repository" }),
+  });
+
+  // The same pre-existing `asStringField` behaviour `allowedToolNames` already has (task #30):
+  // a non-string body value silently becomes `""` rather than a 400. Documented as a known,
+  // NOT-fixed-here bug — the assertion below pins that it fails CLOSED (grants cleared), not open.
+  const put = await req(baseUrl, `${BASE}/github`, cookie, {
+    method: "PUT",
+    body: JSON.stringify({
+      ...validBody,
+      allowedToolNames: "search_repositories, delete_repository",
+      writeAllowedToolNames: ["delete_repository"],
+    }),
+  });
+  assert.equal(put.status, 200, await put.text().catch(() => ""));
+
+  const server = await fetchServer(baseUrl, cookie, "github");
+  assert.deepEqual(server.writeAllowedToolNames, [], "an array input must clear the write list, never silently pass it through");
+});
+
 test("authMode is not silently demoted to static_env by a PUT that omits it", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

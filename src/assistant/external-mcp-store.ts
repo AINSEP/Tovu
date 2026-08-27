@@ -125,6 +125,18 @@ export interface ExternalMcpServerRecord {
   args: string | null;
   /** JSON array of admissible remote tool names, as stored. */
   allowedToolNames: string | null;
+  /**
+   * JSON array of remote tool names separately authorized to write, as stored. `trust.ts` R3's
+   * override — a tool declaring `readOnlyHint: false` is admitted only when it also appears in
+   * {@link allowedToolNames}. See `mcp-federation/ports.ts`'s `FederatedMcpConnectionConfig
+   * .writeAllowedToolNames` for the full argument.
+   */
+  writeAllowedToolNames: string | null;
+  /** Principal who last CHANGED {@link writeAllowedToolNames}'s contents. `null` until that list is
+   *  ever touched, or for a row written before this column existed. */
+  writeGrantsUpdatedByPrincipalId: string | null;
+  /** When {@link writeAllowedToolNames} was last changed. `null` under the same condition. */
+  writeGrantsUpdatedAt: ISODateTime | null;
   /** JSON array of env variable names, as stored. Plaintext by design. */
   envNames: string | null;
   sealedEnv: SealedSecret | null;
@@ -236,6 +248,9 @@ export interface ExternalMcpServerConfig {
   authMode: ExternalMcpAuthMode;
   enabled: boolean;
   allowedToolNames: string[];
+  /** The operator's second, write-authorization list. See {@link ExternalMcpServerRecord
+   *  .writeAllowedToolNames}. Passed through untouched for `trust.ts` to enforce. */
+  writeAllowedToolNames: string[];
   target: ExternalMcpServerTarget;
 }
 
@@ -266,6 +281,13 @@ export interface ExternalMcpServerView {
   url: string | null;
   args: string[];
   allowedToolNames: string[];
+  /** The operator's second, write-authorization list. See {@link ExternalMcpServerRecord
+   *  .writeAllowedToolNames}. */
+  writeAllowedToolNames: string[];
+  /** Who last changed {@link writeAllowedToolNames}, and when — so the tab can render "authorized by
+   *  X on Y". `null` until that list is ever touched. */
+  writeGrantsUpdatedByPrincipalId: string | null;
+  writeGrantsUpdatedAt: ISODateTime | null;
   /** Variable names only. The tab masks values it never receives. */
   envNames: string[];
   oauth: ExternalMcpOAuthView;
@@ -406,35 +428,93 @@ export function parseArgs(raw: string): string[] {
 }
 
 /**
- * Splits an operator's comma-separated allowlist of remote tool names.
+ * Splits an operator's comma-separated list of remote tool names, shared by {@link
+ * parseAllowedToolNames} and {@link parseWriteAllowedToolNames} — the two lists use the identical
+ * charset, cap and dedup rule, and differ only in which field a rejection names.
  *
- * An empty result is a legitimate, meaningful value — it yields a server that contributes zero
- * tools — so it is returned rather than rejected. That is the safe direction and matches
- * `trust.ts` R2's default-deny posture.
+ * An empty result is a legitimate, meaningful value on either list — it yields a server that
+ * contributes (or write-authorizes) zero tools — so it is returned rather than rejected. That is the
+ * safe direction and matches `trust.ts` R2's default-deny posture.
  *
  * @throws {ExternalMcpValidationError} On a name the trust tier would refuse anyway, so the operator
  * learns at save time instead of discovering an unexplained absence after a restart.
  * @complexity O(n) in the number of names.
- * @overallScore 100
  */
-export function parseAllowedToolNames(raw: string): string[] {
+function parseToolNameList(raw: string, field: string): string[] {
   const names = raw
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
 
   if (names.length > MAX_ALLOWED_TOOLS) {
-    throw new ExternalMcpValidationError(`at most ${MAX_ALLOWED_TOOLS} allowed tools are supported`, "allowedToolNames");
+    throw new ExternalMcpValidationError(`at most ${MAX_ALLOWED_TOOLS} tools are supported`, field);
   }
   for (const name of names) {
     if (!REMOTE_TOOL_NAME_PATTERN.test(name)) {
       throw new ExternalMcpValidationError(
         `'${name}' is not a valid MCP tool name, so the trust tier would refuse it on connect`,
-        "allowedToolNames",
+        field,
       );
     }
   }
   return [...new Set(names)];
+}
+
+/**
+ * Splits an operator's comma-separated allowlist of remote tool names.
+ *
+ * @throws {ExternalMcpValidationError} See {@link parseToolNameList}. `field` is `"allowedToolNames"`.
+ * @complexity O(n) in the number of names.
+ * @overallScore 100
+ */
+export function parseAllowedToolNames(raw: string): string[] {
+  return parseToolNameList(raw, "allowedToolNames");
+}
+
+/**
+ * Splits an operator's comma-separated list of remote tool names separately authorized to write —
+ * `trust.ts` R3's override, checked only after {@link parseAllowedToolNames}'s allowlist passes (see
+ * {@link assertWriteAllowlistSubset}).
+ *
+ * @throws {ExternalMcpValidationError} See {@link parseToolNameList}. `field` is
+ * `"writeAllowedToolNames"`.
+ * @complexity O(n) in the number of names.
+ * @overallScore 100
+ */
+export function parseWriteAllowedToolNames(raw: string): string[] {
+  return parseToolNameList(raw, "writeAllowedToolNames");
+}
+
+/**
+ * C-006: a tool may be write-authorized only if it is ALSO allowlisted. Enforced at save time so an
+ * operator learns of the mistake immediately rather than the entry sitting inert (or, worse, being
+ * misread as intentional) until a boot-time report surfaces it.
+ *
+ * @throws {ExternalMcpValidationError} Naming the first write-authorized tool absent from the
+ * allowlist, with `field === "writeAllowedToolNames"`.
+ * @complexity O(n) in the number of write-authorized names.
+ */
+function assertWriteAllowlistSubset(writeAllowedToolNames: readonly string[], allowedToolNames: readonly string[]): void {
+  const allowed = new Set(allowedToolNames);
+  for (const name of writeAllowedToolNames) {
+    if (!allowed.has(name)) {
+      throw new ExternalMcpValidationError(
+        `'${name}' is authorized to write but is not in the allowlist — a tool must be allowlisted before it can be write-authorized`,
+        "writeAllowedToolNames",
+      );
+    }
+  }
+}
+
+/** Whether two tool-name lists name the same SET of tools, ignoring order — the write list is a set
+ *  of operator decisions, not an ordered sequence, so a save that re-sends the same names in a
+ *  different order must not read as a change. Used only to decide whether {@link
+ *  resolveWriteGrantAttribution} owes a new attribution.
+ *  @complexity O(n) in the longer list. */
+function toolNameSetsEqual(a: readonly string[], b: readonly string[]): boolean {
+  if (a.length !== b.length) return false;
+  const setB = new Set(b);
+  return a.every((name) => setB.has(name));
 }
 
 /**
@@ -472,6 +552,9 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
     url: record.url,
     args: parseJsonArray(record.args),
     allowedToolNames: parseJsonArray(record.allowedToolNames),
+    writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
+    writeGrantsUpdatedByPrincipalId: record.writeGrantsUpdatedByPrincipalId,
+    writeGrantsUpdatedAt: record.writeGrantsUpdatedAt,
     envNames: parseJsonArray(record.envNames),
     oauth: {
       providerId: record.oauthProviderId,
@@ -686,6 +769,7 @@ async function resolveExternalMcpConfig(
       authMode,
       enabled: true,
       allowedToolNames: parseJsonArray(record.allowedToolNames),
+      writeAllowedToolNames: parseJsonArray(record.writeAllowedToolNames),
       target: resolved.target,
     },
   };
@@ -728,6 +812,7 @@ export function toResolvedFederatedConnections(
       connectionId: config.serverId,
       label: config.label,
       allowedToolNames: config.allowedToolNames,
+      writeAllowedToolNames: config.writeAllowedToolNames,
       connectTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.connectTimeoutMs,
       callTimeoutMs: FEDERATED_CONNECTION_DEFAULTS.callTimeoutMs,
       maxResultBytes: FEDERATED_CONNECTION_DEFAULTS.maxResultBytes,
@@ -795,9 +880,24 @@ export interface SaveExternalMcpServerInput {
   args: string;
   /** Raw operator input, comma-separated remote tool names. */
   allowedToolNames: string;
+  /** Raw operator input, comma-separated remote tool names the operator separately authorizes to
+   *  write. Same shape and same "resent in full on every save" convention as {@link
+   *  allowedToolNames} — this is NOT tri-state like {@link env}, because the admin tab shows this
+   *  list in the clear and can always resend it. Rejected at save (C-006) if it names a tool absent
+   *  from {@link allowedToolNames}. Defaulted defensively to `""` if a caller omits it, so a route or
+   *  test written before this field existed degrades to "no write grants" rather than throwing. */
+  writeAllowedToolNames: string;
   /** Raw operator input, `KEY=VALUE` per line. `undefined` leaves an existing block untouched. */
   env?: string;
   oauth?: SaveExternalMcpOAuthInput;
+  /**
+   * The principal performing this save, threaded from `getAuthedPrincipal(res)` at the route. Used
+   * ONLY to attribute a change to {@link writeAllowedToolNames} — see {@link
+   * resolveWriteGrantAttribution}. Required so every new caller has to supply one; a caller that
+   * never touches the write list never reads it, so an un-migrated caller cannot crash on its
+   * absence (see that function's doc).
+   */
+  principalId: string;
 }
 
 /**
@@ -1358,6 +1458,35 @@ async function resolveSealedOAuthBlob(
   return sealExternalMcpOAuthPayload(deps, next);
 }
 
+/**
+ * Resolves the two write-grant attribution columns for one save.
+ *
+ * Written ONLY when {@link writeAllowedToolNames}'s contents actually change — compared as a set
+ * against whatever the row already has — so a save that merely renames a connection or flips
+ * `enabled` does not stamp a new "authorized by / on" over an untouched grant. `input.principalId`
+ * is read only on the changed branch, which is what lets it stay a required TYPE without becoming a
+ * runtime hazard: a caller written before this field existed can only reach `undefined` here if it
+ * also never sets a non-empty {@link SaveExternalMcpServerInput.writeAllowedToolNames}, in which case
+ * the list never changes and this branch never runs.
+ *
+ * @complexity O(n) in the length of the longer list (via {@link toolNameSetsEqual}).
+ */
+function resolveWriteGrantAttribution(
+  input: Pick<SaveExternalMcpServerInput, "principalId">,
+  writeAllowedToolNames: readonly string[],
+  existing: ExternalMcpServerRecord | null,
+  nowIso: ISODateTime,
+): Pick<ExternalMcpServerRecord, "writeGrantsUpdatedByPrincipalId" | "writeGrantsUpdatedAt"> {
+  const previousWriteAllowedToolNames = parseJsonArray(existing?.writeAllowedToolNames ?? null);
+  if (toolNameSetsEqual(previousWriteAllowedToolNames, writeAllowedToolNames)) {
+    return {
+      writeGrantsUpdatedByPrincipalId: existing?.writeGrantsUpdatedByPrincipalId ?? null,
+      writeGrantsUpdatedAt: existing?.writeGrantsUpdatedAt ?? null,
+    };
+  }
+  return { writeGrantsUpdatedByPrincipalId: input.principalId, writeGrantsUpdatedAt: nowIso };
+}
+
 export async function saveExternalMcpServer(
   deps: ExternalMcpStoreDeps,
   input: SaveExternalMcpServerInput,
@@ -1369,6 +1498,12 @@ export async function saveExternalMcpServer(
   const { command, url } = resolveTransportTarget(transport, input);
   const args = parseArgs(input.args);
   const allowedToolNames = parseAllowedToolNames(input.allowedToolNames);
+  // `?? ""` is a defensive fallback, not the documented contract (the type requires the field): a
+  // caller that predates this field reaches `undefined` here, and must degrade to "no write grants"
+  // rather than throw on `undefined.split`. See `SaveExternalMcpServerInput.writeAllowedToolNames`'s
+  // doc.
+  const writeAllowedToolNames = parseWriteAllowedToolNames(input.writeAllowedToolNames ?? "");
+  assertWriteAllowlistSubset(writeAllowedToolNames, allowedToolNames);
 
   const existing = await deps.repo.findByServerId({ workspaceId: input.workspaceId, serverId });
   await assertUnderExternalMcpServerCap(deps, input.workspaceId, existing);
@@ -1379,6 +1514,7 @@ export async function saveExternalMcpServer(
   const sealedOAuth = await resolveSealedOAuthBlob(deps, oauthFields.clientSecret, runtime.keepToken ? existing : null);
 
   const now = deps.clock.nowIso();
+  const writeGrantAttribution = resolveWriteGrantAttribution(input, writeAllowedToolNames, existing, now);
   const record: ExternalMcpServerRecord = {
     workspaceId: input.workspaceId,
     serverId,
@@ -1390,6 +1526,9 @@ export async function saveExternalMcpServer(
     url,
     args: JSON.stringify(args),
     allowedToolNames: JSON.stringify(allowedToolNames),
+    writeAllowedToolNames: JSON.stringify(writeAllowedToolNames),
+    writeGrantsUpdatedByPrincipalId: writeGrantAttribution.writeGrantsUpdatedByPrincipalId,
+    writeGrantsUpdatedAt: writeGrantAttribution.writeGrantsUpdatedAt,
     envNames: JSON.stringify(envNames),
     sealedEnv,
     oauthProviderId: oauthFields.oauthProviderId,

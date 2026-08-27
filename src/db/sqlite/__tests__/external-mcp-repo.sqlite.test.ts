@@ -32,6 +32,9 @@ function makeRecord(overrides: Partial<ExternalMcpServerRecord> = {}): ExternalM
     command: "npx",
     args: JSON.stringify(["-y", "my-mcp-server"]),
     allowedToolNames: JSON.stringify(["search", "fetch"]),
+    writeAllowedToolNames: null,
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
     envNames: JSON.stringify(["API_KEY"]),
     sealedEnv: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     authMode: "static_env",
@@ -98,6 +101,19 @@ test("findByServerId returns null when no row matches", async () => {
 test("upsert then findByServerId round-trips a record exactly, including JSON-as-stored string columns", async () => {
   const repo = makeRepo();
   const record = makeRecord();
+
+  await repo.upsert(record);
+
+  assert.deepEqual(await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "my-server" }), record);
+});
+
+test("the write-authorization list and its attribution round-trip through a real column, not just the double", async () => {
+  const repo = makeRepo();
+  const record = makeRecord({
+    writeAllowedToolNames: JSON.stringify(["fetch"]),
+    writeGrantsUpdatedByPrincipalId: "principal-1",
+    writeGrantsUpdatedAt: "2026-08-21T00:30:00.000Z",
+  });
 
   await repo.upsert(record);
 

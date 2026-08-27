@@ -351,6 +351,13 @@
       "when": 1787711188470,
       "tag": "0049_common_cammi",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1787798603531,
+      "tag": "0050_warm_eternity",
+      "breakpoints": true
     }
   ]
 }
