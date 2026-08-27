@@ -5,7 +5,7 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
 /**
  * POST — download one marketplace fixture theme, installing it under a freshly assigned id (see
  * `nextAvailableThemeId`) and rescanning so it is immediately usable without a server restart. See
- * `src/themes/__marketplace__/README.md`: this is a local fixture standing in for a remote
+ * `content/themes/__marketplace__/README.md`: this is a local fixture standing in for a remote
  * marketplace, not a real download — no network call is made.
  *
  * Gated on `theme.set` — the same permission that governs the rest of the theme surface. Installing a

@@ -5,8 +5,8 @@
  * ---------------------------------------------------------------------------
  * "Bundled but inactive", concretely
  * ---------------------------------------------------------------------------
- * Bundled: the package's real files are tracked in this repository under `src/agent-plugins/<id>/`
- * and copied into `dist/` by `npm run build`, exactly like `src/themes/`. A fresh install has them
+ * Bundled: the package's real files are tracked in this repository under `content/agent-plugins/<id>/`
+ * and copied into `dist/` by `npm run build`, exactly like `content/themes/`. A fresh install has them
  * without downloading anything.
  *
  * Inactive: seeding writes `{ enabled: false, origin: "bundled" }` into the workspace's activation

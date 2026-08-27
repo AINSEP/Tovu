@@ -80,7 +80,7 @@ import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marke
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
-const THEMES_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src", "themes") : path.resolve(process.argv[dirFlagIndex + 1]);
+const THEMES_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "content", "themes") : path.resolve(process.argv[dirFlagIndex + 1]);
 const dbFlagIndex = process.argv.indexOf("--db");
 const CONTENT_DB = dbFlagIndex === -1 ? path.join(REPO_ROOT, "infra", "content.db") : path.resolve(process.argv[dbFlagIndex + 1]);
 const SKIP_DB = process.argv.includes("--no-db");

@@ -19,12 +19,12 @@ export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSever
  * @file The one public entry point for theme package validation — orchestrates the sibling check
  * modules (`manifest-v2.ts`, `structure.ts`, `references.ts`, `markup.ts`) behind a single call,
  * per-`profile` severity (`profiles.ts`). Callers: `tovu theme validate` (`src/cli/commands/theme/`),
- * `marketplace.ts`'s install path, and (future) a CI sweep over `src/themes/`.
+ * `marketplace.ts`'s install path, and (future) a CI sweep over `content/themes/`.
  *
  * ## Schema-version branching — why this exists at all
  *
  * Written when no theme on disk yet declared `apiVersion: 2` — that status changed with the
- * 2026-08-18 Milestone 3 migration: all seven built-in static themes (`src/themes/static/*`) now
+ * 2026-08-18 Milestone 3 migration: all seven built-in static themes (`content/themes/static/*`) now
  * declare it and run through the v2-strict path below in normal operation, not just in tests. A v1
  * theme (absent `apiVersion`) is still fully supported — a site-authored or marketplace theme can be
  * either — which is why this module still branches rather than assuming v2 unconditionally:

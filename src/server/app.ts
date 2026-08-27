@@ -112,6 +112,7 @@ import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory.js";
 import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory.js";
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
 import { createPluginsModule } from "./modules/plugins.js";
+import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
 import { createNavMenuReadModel } from "../navigation/index.js";
@@ -1007,6 +1008,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   mountRoutes(app, createWidgetsModule(routeDeps));
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
   mountRoutes(app, createPluginsModule(routeDeps));
+  // skills-composer-typeahead (implementation-outline.md, C-001/C-003) — the `skills` server
+  // module: GET .../skills, the browser-reachable enumeration of installed standalone Agent Skills.
+  mountRoutes(app, createSkillsModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
@@ -1171,7 +1175,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../public/agent-icons")));
+  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../content/public/agent-icons")));
 
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with

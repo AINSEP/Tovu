@@ -36,7 +36,7 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
 
   // "column" was archived (commit 4f6ce567, "6 new static themes... archive old ones") and is no
   // longer a discoverable built-in theme, so `validThemeIds` rejects it with a 400. "basic" is a
-  // live theme under `src/themes/static/` this seeded workspace can actually switch to.
+  // live theme under `content/themes/static/` this seeded workspace can actually switch to.
   const themeUpdate = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/presentation`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
@@ -687,7 +687,7 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       // flip) alongside the ARCH-001 scratch dirs, and its own manifest called it a "Test theme
       // ... experiment" that "bypasses the conformance gate rather than passing it" — so it was
       // removed from the product rather than blessed into this list. Restore with
-      // `git checkout 39096e15 -- src/themes/static/mui-marketing`, and if you do, add it back
+      // `git checkout 39096e15 -- content/themes/static/mui-marketing`, and if you do, add it back
       // here: this endpoint reports EVERY discovered theme regardless of validity (see the
       // comment above), so a restored folder WILL appear and fail this exact-match assertion.
       "portfolite",

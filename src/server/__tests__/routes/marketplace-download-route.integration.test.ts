@@ -11,14 +11,14 @@ import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Local marketplace fixture (build-only workstream, no spec id) — the download route's
- * collision path end-to-end. The real `src/themes/__marketplace__/static/basic` fixture deliberately
- * shares its id with the already-installed `src/themes/static/basic`; this certifies that shape
+ * collision path end-to-end. The real `content/themes/__marketplace__/static/basic` fixture deliberately
+ * shares its id with the already-installed `content/themes/static/basic`; this certifies that shape
  * directly: downloading a marketplace theme whose id collides with an installed one must land the new
  * copy at `<id>-1`, write BOTH the catalog original and the editable copy to disk, stamp both
  * manifests' `id` to match their own folder name, and be immediately loadable as `status: "valid"`
  * with no server restart.
  *
- * Runs against a throwaway themes root (`fs.mkdtempSync`), never the real `src/themes/` — a real
+ * Runs against a throwaway themes root (`fs.mkdtempSync`), never the real `content/themes/` — a real
  * dev server may be serving off that checkout, and this route's whole job is writing theme folders to
  * disk, so a test asserting on real writes must not land them where the running site could see them.
  */
@@ -39,7 +39,7 @@ function writeMinimalStaticTheme(dir: string, id: string, name: string): void {
  * The marketplace fixture also carries a `preview/index.html` — `build-preview.mjs`'s generated
  * output shape — so the download route's `preview/`-exclusion filter (`marketplace.ts`'s
  * `isGeneratedPreviewPath`) has something to actually exclude. Without this, the filter's own unit
- * test would be the only evidence it does anything, and the real `src/themes/__marketplace__/`
+ * test would be the only evidence it does anything, and the real `content/themes/__marketplace__/`
  * fixture this test otherwise mirrors doesn't happen to ship a `preview/` dir either.
  */
 function makeThemesRoot(): string {

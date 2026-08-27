@@ -14,7 +14,7 @@ import { seedSiteThemes } from "../seed-site-themes.js";
  * — which a Tovu upgrade replaces wholesale, destroying every edit the site owner had made.
  *
  * Every case runs against a throwaway stock tree and a throwaway site dir under `os.tmpdir()`,
- * never the real `src/themes/`.
+ * never the real `content/themes/`.
  */
 
 const tempRoots: string[] = [];

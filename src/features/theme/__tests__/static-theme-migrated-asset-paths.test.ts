@@ -17,7 +17,7 @@ import { loadTheme } from "../theme.js";
  * committed theme content, not in any code path a fixture exercises.
  */
 
-const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../themes/static");
+const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../content/themes/static");
 const MIGRATED_STATIC_THEME_IDS = [
   "fuel",
   "gracious-timing",

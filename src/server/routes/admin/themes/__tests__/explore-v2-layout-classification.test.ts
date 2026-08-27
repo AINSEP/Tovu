@@ -14,17 +14,17 @@ import type { ContentRouteDeps } from "../../content/deps.js";
 /**
  * @file 2026-08-19 architecture audit finding 2: `fileGroup`/`REQUIRED_THEME_FILES` in `explore.ts`
  * only ever recognized v1's flat `pages/`/root-`.html`-partial layout. Every real static theme on
- * disk today (`src/themes/static/basic` and its six siblings) is `apiVersion: 2`, whose pages live
+ * disk today (`content/themes/static/basic` and its six siblings) is `apiVersion: 2`, whose pages live
  * under `render/pages/` and partials under `render/partials/` — both fell into the `other` group
  * (unclassified, read-only, preview shows raw content) before this fix.
  *
- * Runs against the REAL `basic` theme on disk (`src/themes`), not a synthetic fixture, so this
+ * Runs against the REAL `basic` theme on disk (`content/themes`), not a synthetic fixture, so this
  * exercises the exact layout every operator actually sees, not a hand-built stand-in that could
  * encode the same wrong assumption the bug did.
  */
 
 const WORKSPACE_ID = "ws-v2-explore";
-const REAL_THEMES_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../../themes");
+const REAL_THEMES_DIR = join(fileURLToPath(new URL(".", import.meta.url)), "../../../../../../content/themes");
 
 function buildTestApp(): express.Express {
   const themes = discoverAllBuiltInThemes({ dir: REAL_THEMES_DIR, source: "built-in" });

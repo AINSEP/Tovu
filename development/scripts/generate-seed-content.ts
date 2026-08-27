@@ -1,5 +1,5 @@
 /**
- * @file Generates `src/templates/starter/seed-content.json` from `src/server/seed.ts`.
+ * @file Generates `content/templates/starter/seed-content.json` from `src/server/seed.ts`.
  *
  * Why generate rather than hand-maintain a second copy:
  * `seed.ts`'s `seededWorkspace`/`seededPosts`/`seededPresentation` are the REQ-02 binding source
@@ -25,7 +25,7 @@
  * generator carries `seededPosts` under the `entries` key to match the on-disk contract, not
  * `seed.ts`'s own export name.
  *
- * GENERATED FILE — DO NOT hand-edit `src/templates/starter/seed-content.json`. Edit
+ * GENERATED FILE — DO NOT hand-edit `content/templates/starter/seed-content.json`. Edit
  * `src/server/seed.ts` and regenerate; a direct edit here will be silently overwritten the next
  * time someone runs the generator, and will fail the drift check (`check-seed-content-drift.ts`)
  * in the meantime.
@@ -41,7 +41,7 @@ import { pathToFileURL } from "node:url";
 import { seededPosts, seededPresentation, seededWorkspace } from "../../src/server/seed.js";
 import type { TemplateSeedContent } from "../../src/site-dir/types.js";
 
-const OUT_PATH = path.resolve(import.meta.dirname, "../../src/templates/starter/seed-content.json");
+const OUT_PATH = path.resolve(import.meta.dirname, "../../content/templates/starter/seed-content.json");
 
 /**
  * Throws if any own-enumerable property anywhere in `value` (recursively, through plain objects
@@ -139,7 +139,7 @@ function main(): void {
     return;
   }
   process.stderr.write(
-    "DRIFT: src/templates/starter/seed-content.json does not match what src/server/seed.ts generates.\n" +
+    "DRIFT: content/templates/starter/seed-content.json does not match what src/server/seed.ts generates.\n" +
       "Run `npm run generate:seed-content` and commit the result.\n"
   );
   process.exit(1);

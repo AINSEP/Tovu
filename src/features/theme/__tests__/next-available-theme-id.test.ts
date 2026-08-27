@@ -13,7 +13,7 @@ import { nextAvailableThemeId, THEME_CATALOG_DIR } from "../theme.js";
  */
 
 /** A scratch themes root with an empty `<tier>/` and `<THEME_CATALOG_DIR>/<tier>/` pair, mirroring the
- * real `src/themes/` layout closely enough for `nextAvailableThemeId` to check against. */
+ * real `content/themes/` layout closely enough for `nextAvailableThemeId` to check against. */
 function makeThemesRoot(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-next-theme-id-"));
   fs.mkdirSync(path.join(root, "static"), { recursive: true });

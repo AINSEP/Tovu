@@ -19,7 +19,7 @@ import { waitForAgentDaemon } from "./daemon-ready.js";
  *    live home/post routes yet."
  * 2. The one fallback that WOULD reach a post (a widget bound into a site-wide theme region —
  *    header/footer — via `widgets_bind_region`/`widgets_set_region_placements`) is also dead today:
- *    every shipped `theme.json` under `src/themes/**` was checked and NONE declares a `regions`
+ *    every shipped `theme.json` under `content/themes/**` was checked and NONE declares a `regions`
  *    field, and `resolvePageWidgets` (`src/widgets/resolver-service.ts`) only ever iterates
  *    `theme.manifest.regions` — with that empty on every theme, nothing bound to a region renders
  *    on ANY live route today, posts included.
@@ -560,7 +560,7 @@ test.describe("EMPIRICAL PROBE: theme regions — observed, not just grepped", (
     // THE OBSERVATION (not an inference): with the widget genuinely bound AND placed in both
     // regions a theme commonly declares, it appears on NEITHER the home page NOR a real post. This
     // pins the current, empirically-confirmed behavior — every shipped `theme.json` under
-    // `src/themes/**` was independently checked and none declares a `regions` field, so
+    // `content/themes/**` was independently checked and none declares a `regions` field, so
     // `resolvePageWidgets` (`src/widgets/resolver-service.ts`) never has anything to iterate. If a
     // theme ever starts declaring regions, THESE assertions are the ones that will flip and need
     // updating — that is the intended trip-wire, not flakiness.

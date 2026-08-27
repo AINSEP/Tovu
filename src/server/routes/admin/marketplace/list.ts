@@ -3,7 +3,7 @@ import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
- * GET — list themes installable from the local marketplace fixture (`src/themes/__marketplace__/`;
+ * GET — list themes installable from the local marketplace fixture (`content/themes/__marketplace__/`;
  * see its README — this is a local stand-in for a remote marketplace, not a real one: no network, no
  * search, no versioning).
  *

@@ -33,7 +33,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSy
 import { join } from "node:path";
 import { substituteMarkers } from "#src/core/embeds/marker";
 
-const ROOT = join(import.meta.dirname, "..", "..", "src", "themes", "static", "basic");
+const ROOT = join(import.meta.dirname, "..", "..", "content", "themes", "static", "basic");
 
 function tokensToCss(darkTokens, lightTokens) {
   const darkLines = Object.entries(darkTokens).map(([k, v]) => `  ${k}: ${v};`);

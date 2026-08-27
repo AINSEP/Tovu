@@ -16,7 +16,7 @@ import type { RouteDeps } from "../../routes/types.js";
  * and the file-list regrouping that added `other` and narrowed `assets` to media extensions
  * (2026-08-11).
  *
- * Runs against a throwaway themes root (`fs.mkdtempSync`), never `src/themes/` — these routes write
+ * Runs against a throwaway themes root (`fs.mkdtempSync`), never `content/themes/` — these routes write
  * real files, and a dev server may be serving off that checkout.
  *
  * `reloadTheme` is checked the same way `theme-file-save-route.integration.test.ts` checks it for

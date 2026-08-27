@@ -121,7 +121,7 @@ test("T045: the real home-page render includes SEO's folded <title> tag, not jus
  * flagged in that commit's own message as the next gap. Uses the REAL default active theme (`basic`,
  * the alphabetically-first built-in — same theme T045 above already renders through) rather than a
  * synthetic fixture, so this proves the fix against the actual shipped marketing pages
- * (`src/themes/static/basic/render/pages/pricing.html`), not just a hand-built stand-in.
+ * (`content/themes/static/basic/render/pages/pricing.html`), not just a hand-built stand-in.
  */
 test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO's folded <title>/canonical, not the theme's own stale <title> or home's hardcoded \"/\" canonical", async (t) => {
   const deps = createRouteDeps();

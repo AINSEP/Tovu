@@ -29,7 +29,7 @@ import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
  * {@link scanEmbedMarkers}), never guessed.
  */
 
-const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../themes/static");
+const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../content/themes/static");
 
 /** A `data-embed-*` name in actual attribute position (`\s<name>=`), never a bare substring — several
  * theme files carry the retired vocabulary in prose COMMENTS describing their own pre-2026-08-10

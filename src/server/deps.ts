@@ -193,11 +193,18 @@ export function mediaUploadsDir(): string {
 }
 
 /**
- * The read-only STOCK themes tree that ships with the product: `src/themes/`, copied to
- * `dist/src/themes/` at build time (mirrors `src/templates/` -> `dist/src/templates/`) and resolved
- * package-relative to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read
- * `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
+ * The read-only STOCK themes tree that ships with the product: `content/themes/`, copied to
+ * `dist/content/themes/` at build time (mirrors `content/templates/` -> `dist/content/templates/`)
+ * and resolved package-relative to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used
+ * to read `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
  * checkout).
+ *
+ * TWO levels up, not one (2026-08-27: this tree moved out of `src/` — it holds zero `.ts` files and
+ * is data, not code). The offset is what makes the expression layout-portable, not the absolute
+ * result: `src/server/` and `dist/src/server/` are each exactly two levels below their own root, so
+ * `../../content/themes` lands on `<repo>/content/themes` under `tsx` and on `dist/content/themes`
+ * under `node dist/src/index.js`. A path that resolves correctly in only one of those two trees is
+ * the specific bug this shape avoids.
  *
  * SEED SOURCE ONLY as of 2026-08-27. Nothing serves or writes this tree at runtime any more —
  * `RouteDeps.themesDir` is {@link siteThemesDir}, and `seedSiteThemes()` copies this into a site
@@ -210,7 +217,7 @@ export function mediaUploadsDir(): string {
  * means.
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../../content/themes");
 }
 
 /**
@@ -227,10 +234,11 @@ export function siteThemesDir(): string {
 }
 
 /**
- * Agent Plugins that ship WITH the product live in `src/agent-plugins/<pluginId>/`, copied to
- * `dist/src/agent-plugins/` at build time and resolved package-relative to this file — the exact
- * same shape as {@link builtInThemesDir} immediately above, for the same reason (CR-R04: a
- * `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
+ * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
+ * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
+ * same shape as {@link builtInThemesDir} immediately above, including the two-levels-up offset that
+ * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
+ * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
  *
  * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
  * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
@@ -239,7 +247,7 @@ export function siteThemesDir(): string {
  * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
  */
 export function bundledAgentPluginsDir(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../agent-plugins");
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../../content/agent-plugins");
 }
 
 /**

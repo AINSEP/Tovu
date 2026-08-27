@@ -5,7 +5,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * @file Regression coverage for the owner-reported bug (2026-08-12): "clicking a .liquid file
  * downloads it instead of showing it" — reproduced across two sessions on `entry.liquid`,
  * `home.liquid`, and `product.liquid`, the required/near-required templates every `templated`-tier
- * theme ships (`src/themes/templated/storefront/templates/`, `.../fashion-modern/templates/`).
+ * theme ships (`content/themes/templated/storefront/templates/`, `.../fashion-modern/templates/`).
  *
  * Root cause: `ThemeExplore.tsx`'s Explore screen already has a proper file-preview pipeline (fetch
  * the source through the admin API, render it in a viewer) for every OTHER file kind, but a
@@ -86,7 +86,7 @@ test.describe("theme Explore — .liquid template preview", () => {
     await expect(sourceArea).toBeVisible({ timeout: 5_000 });
 
     // Real Liquid source, not an empty/placeholder textarea — `render_block` is a real tag this
-    // theme's own `entry.liquid` uses (see `src/themes/templated/storefront/templates/entry.liquid`).
+    // theme's own `entry.liquid` uses (see `content/themes/templated/storefront/templates/entry.liquid`).
     await expect(sourceArea).toHaveValue(/render_block/);
 
     // Read-only, matching the server's write gate (`isThemeFileWritable` — `.liquid` is not in

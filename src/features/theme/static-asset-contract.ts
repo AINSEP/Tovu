@@ -62,7 +62,7 @@ export function tokenStylesheetSentinel(apiVersion?: 2): string {
  * Deliberately does NOT match an unquoted value (`href=../css/x.css`) or whitespace around `=`
  * (`href = "../css/x.css"`) — both are valid HTML5, but neither is emitted by any formatter or
  * template engine in this codebase's toolchain, and none of the shipped static themes use them
- * (verified by grep across every `pages/*.html` file in each real theme under `src/themes/static`).
+ * (verified by grep across every `pages/*.html` file in each real theme under `content/themes/static`).
  * Handling every HTML attribute-syntax
  * variant here would trade a real, observed bug (quote style) for defense against a hypothetical one.
  * Any `../css/`/`../js/`/`../scripts/` reference this function still can't rewrite — for that reason or

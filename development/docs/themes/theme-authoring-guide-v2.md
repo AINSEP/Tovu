@@ -6,9 +6,9 @@
 >
 > - No migration has run. No validator enforces anything in this document. No `render/` folder,
 >   no `partials` manifest key, no `ai/` surface, no `AGENTS.md`-at-theme-root convention, no
->   `tests/cases.json` contract exists anywhere in `src/themes/` today.
-> - All ~10 themes currently on disk (`src/themes/static/*`, `src/themes/templated/storefront`,
->   `src/themes/declarative/basic-declarative`) use the shape documented in **v1**
+>   `tests/cases.json` contract exists anywhere in `content/themes/` today.
+> - All ~10 themes currently on disk (`content/themes/static/*`, `content/themes/templated/storefront`,
+>   `content/themes/declarative/basic-declarative`) use the shape documented in **v1**
 >   (`development/docs/themes/theme-authoring-guide.md`), not this one.
 > - This is the settled output of a 3-round, multi-model design debate
 >   (`ADS-memory/reports/swarm-consensus/runs/2026-08-17-tovu-theme-invariant-structure-consensus-report.md`),
@@ -287,9 +287,9 @@ Verified two ways:
    `MARKER_PATTERN`, matches exactly one `data-embed-config='...'` attribute per element
    (`marker.ts:108`).
 2. Live theme files, current `HEAD` —
-   `grep -n "data-embed" src/themes/static/basic/pages/index.html src/themes/static/basic/nav.html src/themes/static/basic/footer.html`
+   `grep -n "data-embed" content/themes/static/basic/pages/index.html content/themes/static/basic/nav.html content/themes/static/basic/footer.html`
    shows every marker in the shipped `basic` theme using this exact one-attribute shape (e.g.
-   `src/themes/static/basic/pages/index.html:12`:
+   `content/themes/static/basic/pages/index.html:12`:
    `<div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>`).
 
 Six `type` values exist in the codebase today; only `partial` resolves against theme-supplied
@@ -341,7 +341,7 @@ own:
   `renderWidgetRegion()` — `src/server/http/site/render.ts:1579`, called from two call sites at
   `render.ts:1700` and `render.ts:1752`.
 
-**No live theme declares this field today.** `grep -rln '"regions"' src/themes/` returns nothing.
+**No live theme declares this field today.** `grep -rln '"regions"' content/themes/` returns nothing.
 The mechanism is real, tested (v1 §6.5 cites `theme.test.ts:186-226`), and exercised by nothing
 currently shipping. Preserve this field's shape exactly as-is into schema v2 — it needs no rename
 and no restructuring, only continued wiring.
@@ -389,7 +389,7 @@ build on — there is none.
 
 ## 13. `AGENTS.md` (theme root) and `tests/` `[NOT YET IMPLEMENTED]`
 
-Verified: `find src/themes -iname "AGENTS.md"` and `find src/themes -type d -iname "tests"` both
+Verified: `find content/themes -iname "AGENTS.md"` and `find content/themes -type d -iname "tests"` both
 return nothing. No theme ships dev-time agent instructions or a `tests/cases.json` +
 `fixtures/`/`golden/` contract. The render-settle event contract the debate proposed
 (`{"event": "tovu:ready", "timeoutMs": ...}`, meant to fix `static/basic`'s own documented
@@ -397,7 +397,7 @@ mid-animation screenshot bug) is design text only — no test runner in this rep
 
 ## 14. License / attribution / category / tags `[NOT YET IMPLEMENTED]`
 
-Verified: `find src/themes -iname "LICENSE"` returns nothing — no theme ships a `LICENSE` file
+Verified: `find content/themes -iname "LICENSE"` returns nothing — no theme ships a `LICENSE` file
 today, structured or otherwise. `NOTICE.md` is the one REAL provenance mechanism in use today
 (free-text prose, present on `basic`, `fuel`, `gracious-timing`, `portfolite`). `theme.json`'s real
 `author?: string` field (`theme.ts:111-118`) is parsed and surfaced through the `theme_list`/

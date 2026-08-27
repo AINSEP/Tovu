@@ -1,7 +1,7 @@
 # Theme screenshot compression evidence
 
 Pixel-level before/after crops backing the `fuel` theme's screenshot conversion
-(`src/themes/static/fuel/screenshots/index.png` -> `index.jpg`, quality 85,
+(`content/themes/static/fuel/screenshots/index.png` -> `index.jpg`, quality 85,
 709,913 -> 113,705 bytes, -84%). Committed 2026-08-12 alongside that change so the
 "no visible quality loss" claim has evidence on disk instead of only a report.
 
