@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryChangeSetRepo } from "../../../core/commands/index.js";
+import { InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 import {
   FormFieldValidationError,

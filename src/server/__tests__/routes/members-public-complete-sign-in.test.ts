@@ -6,7 +6,7 @@ import { startTestServer } from "../helpers/http-test-server.js";
 import express from "express";
 
 import { createRouteDeps } from "../../app.js";
-import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MemberPublicRouteDeps } from "../../routes/members/deps.js";
 import { registerPublicMemberCompleteSignInRoute } from "../../routes/members/complete-sign-in.js";
 import { registerPublicMemberSignInRequestRoute } from "../../routes/members/sign-in.js";

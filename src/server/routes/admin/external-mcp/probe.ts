@@ -14,7 +14,7 @@ import {
 } from "#src/assistant/index";
 import { isHttpLaunchSpec, type FederatedMcpConnectionConfig, type McpHttpLaunchSpec, type McpSessionPort } from "#src/assistant/mcp-federation/ports";
 import { describeRemoteToolSurface } from "#src/assistant/mcp-federation/trust";
-import { CONNECTOR_OUTBOUND_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/core/rate-limit/rate-limit";
+import { CONNECTOR_OUTBOUND_PER_IP, createRateLimiter, resolveClientIp, type RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../core/commands/index.js";
+import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";

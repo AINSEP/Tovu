@@ -6,7 +6,7 @@ import type {
   AdminPresentation,
   ContentPost,
   ContentPostPayload,
-} from "#src/headless/index";
+} from "#src/contracts/headless/index";
 import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { toAdminPostResponse } from "../admin/posts.js";

@@ -20,8 +20,8 @@
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRepoPort } from "../entries/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
-import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { RateLimitProfile } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 import { createCommentHookRegistry } from "./hooks.js";
 import { createCommentIngressPolicy } from "./ingress.js";
 import type { EntryLookupResult } from "./ingress.js";

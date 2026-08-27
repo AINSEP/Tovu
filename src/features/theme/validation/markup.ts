@@ -1,4 +1,4 @@
-import { scanEmbedMarkers } from "#src/core/embeds/marker";
+import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
 import type { ThemeValidationIssue } from "./profiles.js";
 
 /**

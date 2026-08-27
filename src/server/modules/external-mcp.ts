@@ -2,7 +2,7 @@ import {
   createRateLimiter,
   EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
   EXTERNAL_MCP_OAUTH_PER_IP,
-} from "#src/core/rate-limit/rate-limit";
+} from "#src/contracts/core/rate-limit/rate-limit";
 import { registerAdminExternalMcpAdmissionsRoute } from "../routes/admin/external-mcp/admissions.js";
 import { registerAdminExternalMcpDeleteRoute } from "../routes/admin/external-mcp/delete.js";
 import type { ExternalMcpRouteDeps } from "../routes/admin/external-mcp/deps.js";

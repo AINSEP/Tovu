@@ -6,7 +6,7 @@ They are intentionally **server-only**:
 
 - `src/server/__specs__` owns HTTP/runtime/protocol behavior, composition rules, request contexts, response mapping, and route orchestration.
 - `src/features/**/__specs__` owns transport-independent business rules and state transitions.
-- `src/core/**/__specs__` owns framework/provider-agnostic contracts and event/outbox semantics.
+- `src/contracts/core/**/__specs__` owns framework/provider-agnostic contracts and event/outbox semantics.
 
 This suite is meant to cover the server responsibilities Tovu will need to replace what WordPress and Directus currently do on the backend, without collapsing domain logic into the transport layer.
 

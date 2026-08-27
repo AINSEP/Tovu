@@ -6,7 +6,7 @@ import {
   FormSubmissionValidationError,
 } from "#src/features/forms/index";
 import { submitForm, type SubmitFormDeps } from "#src/features/forms/submit-service";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
  * @file Public submission route for `forms` (SPEC-010 `FORMS_POST_SUBMIT`, REQ-05).

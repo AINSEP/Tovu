@@ -145,7 +145,7 @@ import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-too
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
 import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool.js";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 import { listToolContributors, type ToolContributor } from "./tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };

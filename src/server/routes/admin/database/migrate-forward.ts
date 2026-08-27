@@ -1,14 +1,14 @@
 import type { Express } from "express";
 
-import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/core/gated-mutations/gateway";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/core/gated-mutations/token";
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
+import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import {
   executeMigrateForward,
   MigrationAlreadyInFlightError,
   RestorePointUnavailableError,
 } from "#src/features/database/migrate-forward/execute";
-import { buildConfirmOnlyHooks } from "#src/core/gated-mutations/composition";
+import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "../../types.js";

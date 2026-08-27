@@ -872,7 +872,7 @@ export const DERIVED_OBJECTS: readonly DerivedObject[] = [
  * runner reaching for "how do I know the copy is caught up" trips over this doc comment instead of
  * silently wiring the watermark in as one.
  *
- * `database_write_watermark` (src/core/gated-mutations/watermark.ts) is OPT-IN: ordinary post
+ * `database_write_watermark` (src/contracts/core/gated-mutations/watermark.ts) is OPT-IN: ordinary post
  * save/delete paths never advance it, and the in-process operation lock (operation-lock.ts) does not
  * stop ordinary repository writes either. A copier that treats "watermark unchanged since bulk copy
  * started" as "nothing written since" WILL silently lose a post edited between bulk copy and

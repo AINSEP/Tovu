@@ -18,7 +18,7 @@ import {
   type DiscoveredTheme,
   type StaticMenuItem,
 } from "#src/features/theme/index";
-import { markersOfType, substituteMarkers, withInnerContentFinal } from "#src/core/embeds/marker";
+import { markersOfType, substituteMarkers, withInnerContentFinal } from "#src/contracts/core/embeds/marker";
 import {
   resolveHtmlPageEmbeds,
   resolvePageWidgets,

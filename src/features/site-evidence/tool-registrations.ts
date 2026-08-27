@@ -12,7 +12,7 @@ import {
 
 import { registerToolContributor } from "#src/assistant/index";
 
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID, type AgentToolDefinition } from "./agent-tools.js";
 import type { SiteEvidenceBrowserFactory } from "./browser-port.js";

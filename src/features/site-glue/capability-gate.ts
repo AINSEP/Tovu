@@ -27,7 +27,7 @@
  * — no host-specific dependency.
  */
 import type { GlueCapability } from "./manifest.js";
-import { SHARED_EXTENSION_CAPABILITIES } from "../../core/extension-capability-vocabulary.js";
+import { SHARED_EXTENSION_CAPABILITIES } from "../../contracts/core/extension-capability-vocabulary.js";
 
 /** Thrown synchronously when a glue module invokes a capability it did not declare (mirrors the
  * sibling mechanism's `CapabilityDeniedError` shape, generalized to `GlueCapability`). */

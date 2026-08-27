@@ -28,10 +28,18 @@ const HAND_WRITTEN_RULES = [
       // `features/post/index.ts`) to exercise a real implementation against its port contract,
       // which the plan doc's own reasoning treats as orthogonal to this rule's production-layering
       // concern (§1.3: "you cannot write a contract test without a concrete implementation").
-      name: "core-no-server-or-app-imports",
+      // Renamed from `core-no-server-or-app-imports` and widened from `^src/core` to all of
+      // `^src/contracts` (2026-08-27, src/ phase 3): `core` moved to `contracts/core` and
+      // `headless` joined it as `contracts/headless`, so the rule now names the bucket rather than
+      // one member of it. Widening was safe in one step for the same reason
+      // `feature-no-server-or-framework-imports`'s 2026-08-27 widening was: the production edge
+      // count out of the newly-covered area was already ZERO — `headless/` is DTO types only
+      // (measured across all of src: it has no outgoing intra-src import edge at all, production
+      // or test). This closes a gap; it does not ratchet a live violation into existence.
+      name: "contracts-no-server-or-app-imports",
       severity: "error",
-      comment: "src/core/** may not import src/server/**, apps/**, feature modules, or concrete infrastructure adapters.",
-      from: { path: "^src/core", pathNot: ".*/__tests__/.*" },
+      comment: "src/contracts/** may not import src/server/**, apps/**, feature slices, or concrete infrastructure adapters.",
+      from: { path: "^src/contracts", pathNot: ".*/__tests__/.*" },
       to: { path: "^(src/server|apps|src/features|src/db)" },
     },
     {
@@ -189,7 +197,7 @@ const HAND_WRITTEN_RULES = [
 // ---------------------------------------------------------------------------------------------
 
 // Only modules with a committed `index.ts` are guarded — a module without a door has no door to
-// bypass. `src/index.ts`, `src/core/index.ts`, `src/features/index.ts` are excluded on purpose:
+// bypass. `src/index.ts`, `src/contracts/core/index.ts`, `src/features/index.ts` are excluded on purpose:
 // they're pure re-export aggregators (verified by reading them), not domain modules with private
 // internals of their own — guarding them would make a legitimate deep-but-nested door (e.g.
 // `features/post/index.ts`, reached via `from "../../features/post"`) look like a violation of
@@ -202,8 +210,8 @@ const GUARDED_MODULES = [
   "analytics",
   "assistant",
   "features/comments",
-  "core/commands",
-  "core/events",
+  "contracts/core/commands",
+  "contracts/core/events",
   "features/commerce",
   "features/content-types",
   "features/deployments",
@@ -216,7 +224,7 @@ const GUARDED_MODULES = [
   "features/theme",
   "features/workspace",
   "features/forms",
-  "headless",
+  "contracts/headless",
   "http",
   "mail",
   "media",

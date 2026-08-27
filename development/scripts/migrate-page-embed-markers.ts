@@ -6,7 +6,7 @@
  * The 2026-08-10 marker unification (`b7acc21`) swept 184 markers across 93 theme files ON DISK.
  * Page bodies do not live on disk — they live in `posts.body_html` in `content.db`, and they were
  * never swept. A stored Page still carrying `data-embed-type="…"` is not merely stale spelling: the
- * shared parser (`src/core/embeds/marker.ts`) reads `data-embed-config` and nothing else, so such a
+ * shared parser (`src/contracts/core/embeds/marker.ts`) reads `data-embed-config` and nothing else, so such a
  * marker is INVISIBLE to every consumer. It renders to the visitor as an inert empty `<div>`, and its
  * `entry_refs` row (written under the pre-migration locator format) points at nothing any current
  * code path would reproduce. The embed is silently dead and nothing reports it.
@@ -47,9 +47,9 @@
 import path from "node:path";
 
 import { openContentDb, type ContentDb } from "../../src/db/sqlite/content-db.js";
-import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marker.js";
-import { extractHtmlEntryRefs } from "../../src/core/entry-refs/extractor.js";
-import { SqliteEntryRefsRepo } from "../../src/core/entry-refs/repo.sqlite.js";
+import { scanEmbedMarkers, describeRejection } from "../../src/contracts/core/embeds/marker.js";
+import { extractHtmlEntryRefs } from "../../src/contracts/core/entry-refs/extractor.js";
+import { SqliteEntryRefsRepo } from "../../src/contracts/core/entry-refs/repo.sqlite.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 

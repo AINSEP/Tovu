@@ -7,7 +7,7 @@ import {
   type PublishHistoryStore,
   type PublishTrigger,
 } from "../../features/deployments/static-publish/publish-history.js";
-import { resolvePublishHistoryListLimit } from "../../core/publish-history-list-limit.js";
+import { resolvePublishHistoryListLimit } from "../../contracts/core/publish-history-list-limit.js";
 import type { StaticPublishTargetId } from "../../features/deployments/static-publish/types.js";
 import { publishHistory } from "../schema.js";
 import type { ContentDb } from "./content-db.js";

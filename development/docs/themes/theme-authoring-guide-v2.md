@@ -281,7 +281,7 @@ ordinary object keys, not attribute names:
 
 Verified two ways:
 
-1. The parser itself — `src/core/embeds/marker.ts`. The file header states the vocabulary
+1. The parser itself — `src/contracts/core/embeds/marker.ts`. The file header states the vocabulary
    explicitly (lines 18-25): *"`type` and `id` are ordinary keys, not separate attributes, so a new
    key never requires a new attribute name."* The regex that locates every marker,
    `MARKER_PATTERN`, matches exactly one `data-embed-config='...'` attribute per element
@@ -599,6 +599,6 @@ for this tier at all (v1 §2.5). Do not build against it.
   §2 above and every rejected alternative with its reasoning.
 - `src/features/theme/theme.ts`, `src/features/theme/build-conformance.ts`,
   `src/features/theme/theme-files.ts`, `src/features/theme/code-tier-asset-normalizer.ts`,
-  `src/features/theme/marketplace.ts`, `src/core/embeds/marker.ts`,
+  `src/features/theme/marketplace.ts`, `src/contracts/core/embeds/marker.ts`,
   `src/server/middleware/theme-static-assets.ts` — the real source every `[REAL]` claim in this
   document cites. Re-check line numbers against current `HEAD` before trusting them verbatim.

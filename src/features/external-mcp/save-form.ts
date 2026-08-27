@@ -5,7 +5,7 @@ import {
   type UIResourceUri,
 } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ExternalMcpServerView } from "#src/assistant/index";
 
 /**

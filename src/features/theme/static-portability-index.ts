@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/core/embeds/marker";
+import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/contracts/core/embeds/marker";
 import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js";
 import { resolveThemeLayout } from "./theme-layout.js";
 

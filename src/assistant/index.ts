@@ -183,11 +183,11 @@ export { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 
 // `tool-surface-exchanges.ts` now lives in `core/` (2026-08-13 architecture audit item 7, executed
 // 2026-08-17) — `features/post/{delete-confirmation-ui, tool-registrations}.ts` and the other
-// cross-module consumers import it directly from `#src/core/tool-surface-exchanges` now, not through
+// cross-module consumers import it directly from `#src/contracts/core/tool-surface-exchanges` now, not through
 // this barrel. Only the ONE symbol pair `server/modules/assistant.ts` actually needs stays
 // re-exported here, byte-identical for that caller (`from "#src/assistant/index"` or `"../../assistant"`).
-export { SURFACE_EXCHANGE_ID_PARAM } from "../core/tool-surface-exchanges.js";
-export type { SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
+export { SURFACE_EXCHANGE_ID_PARAM } from "../contracts/core/tool-surface-exchanges.js";
+export type { SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)

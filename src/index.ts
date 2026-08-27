@@ -3,7 +3,7 @@ import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps.js";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory.js";
 import { runProductionReadinessGate } from "./server/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./identity/wiring.js";
-import { resolveRuntimeMode } from "#src/core/runtime-mode";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle.js";
 import { buildBootModules } from "./server/bootstrap.js";
 import { setReadinessSnapshot } from "./server/readiness-state.js";

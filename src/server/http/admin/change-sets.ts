@@ -1,4 +1,4 @@
-import type { ChangeSetItemRecord, ChangeSetRecord } from "#src/core/commands/index";
+import type { ChangeSetItemRecord, ChangeSetRecord } from "#src/contracts/core/commands/index";
 
 /**
  * @file HTTP response serializers for change sets (SPEC-001 api.spec §5).

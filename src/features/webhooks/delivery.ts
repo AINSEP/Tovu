@@ -19,7 +19,7 @@ import type {
  * - `enqueueDelivery` — Stage A. The outbox fan-out subscriber's per-event work: match a
  *   delivered domain event's topic against active subscriptions and enqueue one
  *   `webhook_deliveries` row per match, idempotently keyed on `(event_id, subscription_id)`.
- * - `processDueDeliveries` — Stage B, mirrors `src/core/events/outbox-worker.ts`'s
+ * - `processDueDeliveries` — Stage B, mirrors `src/contracts/core/events/outbox-worker.ts`'s
  *   `processOutbox`: claims due rows, runs the `webhooks.beforeDispatch` hook chain, signs, and
  *   POSTs via the injected `HttpClientPort`, then marks delivered/failed/dead.
  *

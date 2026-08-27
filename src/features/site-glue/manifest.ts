@@ -30,7 +30,7 @@
  * synthesis, Result 1).
  */
 
-import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../core/extension-capability-vocabulary.js";
+import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../contracts/core/extension-capability-vocabulary.js";
 
 /**
  * The closed, six-member call-site vocabulary (ADR-057 Decision 2). All six are valid at schema

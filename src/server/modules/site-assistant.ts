@@ -11,7 +11,7 @@ import {
   resolveSiteAssistantApiKey,
   type SiteAssistantModeResolution,
 } from "../../assistant/index.js";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
 // own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
 // (`server/routes/site/pages.ts`, `server/middleware/theme-page-preview.ts`) — this is the same edge,

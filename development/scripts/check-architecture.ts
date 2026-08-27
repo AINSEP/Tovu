@@ -38,7 +38,7 @@
  *   5. Bidirectional hub count — files above-median in BOTH transitive fan-in and transitive
  *                              fan-out (churn blast radius). All-import graph, same reasoning as
  *                              propagation cost above. Renamed from "core size" 2026-08-19 — that
- *                              name read as "files under `src/core`", but the check never looks at
+ *                              name read as "files under `src/contracts/core`", but the check never looks at
  *                              `moduleOf()` or any directory at all; it is a bidirectional-hub
  *                              detector over the whole file graph, with no membership list printed
  *                              even under `--list`. That made every claim about "the core" in
@@ -207,7 +207,7 @@ interface Baseline {
   deepImportsBypassingIndex: number;
   /** All-import graph — churn blast radius is a change-coupling concept, same reasoning as
    * `propagationCostPct`. Files above-median in BOTH transitive fan-in and transitive fan-out —
-   * a bidirectional structural hub, not a test of `src/core` (or any directory) membership.
+   * a bidirectional structural hub, not a test of `src/contracts/core` (or any directory) membership.
    * Renamed from `coreSize` 2026-08-19; same shape, same values.
    *
    * `medians` is FROZEN at `--update` time and reused on every subsequent check (added 2026-08-20).
@@ -753,7 +753,7 @@ function main(): void {
 
     // Membership for "bidirectional hub count" (formerly "core size") — every file above-median in
     // BOTH transitive fan-in and transitive fan-out, all-import graph. Printing this was the whole
-    // point of the 2026-08-19 rename: the old name implied `src/core` membership, but nothing about
+    // point of the 2026-08-19 rename: the old name implied `src/contracts/core` membership, but nothing about
     // the check ever tested that, and no version of this script printed which files it counted.
     console.log(`\n--- bidirectional hubs (fan-in > median AND fan-out > median, all-import), by combined degree ---`);
     for (const hub of hubMembers) {

@@ -1,8 +1,8 @@
 import type { ClockPort } from "@jini-ai/cms/core";
 
 import type { PostRecord, PostRepoPort } from "../post/index.js";
-import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
+import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,

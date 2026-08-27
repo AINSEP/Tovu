@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
+import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";

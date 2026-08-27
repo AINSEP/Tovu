@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
-import { InMemoryEventBus } from "../core/events/index.js";
+import { InMemoryEventBus } from "../contracts/core/events/index.js";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
@@ -87,7 +87,7 @@ import { ensureCoreMediaTransform } from "../media/bootstrap.js";
 import { createSqliteIdentityRouteDeps } from "../identity/wiring.js";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../features/forms/repo.sqlite.js";
 import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";
-import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { Express } from "express";
 import type { RouteDeps } from "./routes/types.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
@@ -147,8 +147,8 @@ import {
   sqliteStampWatermark,
 } from "../features/taxonomy/repo.sqlite.js";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
-import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition.js";
-import { resolveRuntimeMode } from "#src/core/runtime-mode";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../contracts/core/gated-mutations/composition.js";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
 import { createPendingAuthorizationStore } from "#src/oauth/index";

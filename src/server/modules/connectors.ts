@@ -3,7 +3,7 @@ import {
   CONNECTOR_CALLBACK_PER_IP,
   CONNECTOR_CONNECT_PER_IP,
   CONNECTOR_OUTBOUND_PER_IP,
-} from "#src/core/rate-limit/rate-limit";
+} from "#src/contracts/core/rate-limit/rate-limit";
 import { registerAdminConnectorsConnectRoute } from "../routes/admin/connectors/connect.js";
 import type {
   ConnectorsConfigRouteDeps,

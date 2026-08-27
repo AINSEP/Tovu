@@ -8,9 +8,9 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "#src/core/tool-surface-exchanges";
-import { InMemoryChangeSetRepo } from "#src/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
+} from "#src/contracts/core/tool-surface-exchanges";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "../repo.memory.js";
 import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 

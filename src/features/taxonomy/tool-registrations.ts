@@ -38,7 +38,7 @@ import {
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
-} from "../../core/gated-mutations/gateway.js";
+} from "../../contracts/core/gated-mutations/gateway.js";
 import { registerToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";

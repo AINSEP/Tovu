@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
 
-import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 /**
  * @file `tovu theme migrate <dir>` — process-spawn integration tier, mirroring

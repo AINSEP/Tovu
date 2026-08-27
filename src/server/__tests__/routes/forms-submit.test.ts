@@ -6,11 +6,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import type { FormDefinitionRecord } from "#src/features/forms/index";
-import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerFormsSubmitRoute } from "../../routes/site/forms-submit.js";
 
 /**

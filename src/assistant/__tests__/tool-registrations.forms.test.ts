@@ -15,7 +15,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo, ForbiddenError as CommandForbiddenError } from "../../core/commands/index.js";
+import { InMemoryChangeSetRepo, ForbiddenError as CommandForbiddenError } from "../../contracts/core/commands/index.js";
 import { formsAgentToolCatalog, type AgentToolDefinition } from "../../features/forms/agent-tools.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../../features/forms/types.js";

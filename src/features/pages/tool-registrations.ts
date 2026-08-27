@@ -12,7 +12,7 @@ import {
 
 import { registerToolContributor } from "#src/assistant/index";
 
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import { pagesAgentToolCatalog, type AgentToolDefinition as PagesAgentToolDefinition } from "./agent-tools.js";
 import { PageKindMismatchError, PageNotFoundError, type PagesHtmlDocumentStoreFactory } from "./html-document-store.sqlite.js";

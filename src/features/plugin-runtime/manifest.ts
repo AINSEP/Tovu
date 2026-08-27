@@ -25,7 +25,7 @@
  * `errors[]` — it never throws. Verified against `__tests__/unit/manifest.unit.test.ts`.
  */
 
-import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../core/extension-capability-vocabulary.js";
+import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../contracts/core/extension-capability-vocabulary.js";
 
 /** ADR-024 §1 trust-tier vocabulary (1.1.1 REQ-01 fix). Literal encoding reused verbatim from the
  * existing, approved SPEC-032/ADR-023 precedent (`DataModuleDecl.pluginTier`). */

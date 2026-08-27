@@ -24,7 +24,7 @@ import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,
 } from "../../features/recovery/repo.memory.js";
-import { buildGatewayDeps } from "../../core/gated-mutations/composition.js";
+import { buildGatewayDeps } from "../../contracts/core/gated-mutations/composition.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,

@@ -8,7 +8,7 @@ reliable and retryable.
 
 ## Scope
 
-This spec covers the outbox-driven event flow implemented in `src/core/events/`.
+This spec covers the outbox-driven event flow implemented in `src/contracts/core/events/`.
 
 ## Flow contract
 

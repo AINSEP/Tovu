@@ -1,5 +1,5 @@
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
-import type { AdminPresentation, HeadlessThemeSummary } from "#src/headless/index";
+import type { AdminPresentation, HeadlessThemeSummary } from "#src/contracts/headless/index";
 
 export function toAdminPresentationResponse(required: {
   settings: PresentationSettingsRecord;

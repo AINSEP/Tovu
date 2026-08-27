@@ -31,7 +31,7 @@
 // Confirmed by bisection; not our bug to fix here.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { substituteMarkers } from "#src/core/embeds/marker";
+import { substituteMarkers } from "#src/contracts/core/embeds/marker";
 
 const ROOT = join(import.meta.dirname, "..", "..", "content", "themes", "static", "basic");
 
@@ -45,7 +45,7 @@ function tokensToCss(darkTokens, lightTokens) {
 }
 
 function resolveSlots(html, { navHtml, footerHtml, footerMinimalHtml }) {
-  // Both slots go through the one shared marker parser (src/core/embeds/marker.ts) —
+  // Both slots go through the one shared marker parser (src/contracts/core/embeds/marker.ts) —
   // see development/docs/architecture/embed-marker-migration.md. `resolve` returning
   // undefined leaves a marker exactly as authored, which also covers every
   // `data-embed-config` this preview script doesn't know about (e.g. `type: "menu"`

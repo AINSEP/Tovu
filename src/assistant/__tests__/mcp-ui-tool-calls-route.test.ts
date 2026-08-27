@@ -9,7 +9,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file Route-level tests for the daemon-side half of the MCP-UI confirmation redemption endpoint

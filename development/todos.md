@@ -456,7 +456,7 @@ A "site" everywhere below = **a folder (install dir) with its own `content.db` +
 ## Accomplish (What We Need to Build)
 
 ### Foundation (active)
-- [ ] Split `src/core/ports.ts` into domain-focused port files (including `core/events/ports.ts`)
+- [ ] Split `src/contracts/core/ports.ts` into domain-focused port files (including `core/events/ports.ts`)
 - [ ] Add server route tests in `src/server/__tests__/` (status code + payload assertions)
 - [ ] Add first persistent adapter set (DB-backed repo + DB-backed outbox)
 - [ ] Add structured logging + request IDs

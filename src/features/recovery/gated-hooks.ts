@@ -3,9 +3,9 @@ import {
   ForbiddenError,
   PlanStaleError,
   type GatedMutationHooks,
-} from "../../core/gated-mutations/gateway.js";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../core/gated-mutations/token.js";
-import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition.js";
+} from "../../contracts/core/gated-mutations/gateway.js";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../contracts/core/gated-mutations/token.js";
+import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 import type {
   MigrationRunsRepoPort,
   SiteStatusPort,

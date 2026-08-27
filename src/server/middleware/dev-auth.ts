@@ -11,7 +11,7 @@ import {
 } from "@jini-ai/cms/identity";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types.js";
 import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/identity/api-key-service";
-import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).

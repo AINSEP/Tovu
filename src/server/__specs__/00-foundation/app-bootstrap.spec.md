@@ -51,10 +51,10 @@ The server wires feature use cases into transport handlers through explicit depe
 
 The server may depend on:
 
-- `src/core`
+- `src/contracts/core`
 - `src/features`
 
-Neither `src/core` nor `src/features` may depend back on `src/server`.
+Neither `src/contracts/core` nor `src/features` may depend back on `src/server`.
 
 ### 4. Middleware Installation
 

@@ -934,7 +934,7 @@ export interface PresentationSettings {
 }
 
 /**
- * ADR-020 capability tier, mirrored client-side from `#src/headless`'s `HeadlessThemeTier` —
+ * ADR-020 capability tier, mirrored client-side from `#src/contracts/headless`'s `HeadlessThemeTier` —
  * same decoupling precedent as every other client-side type in this file that mirrors a wire
  * contract rather than importing server internals.
  */
@@ -945,7 +945,7 @@ export interface AdminThemeSummary {
   id: string;
   tier: ThemeTier;
   /** Manifest schema version (`2`, or `undefined` for v1) — mirrored client-side from
-   *  `#src/headless`'s `HeadlessThemeSummary.apiVersion` (2026-08-19 architecture audit finding 1),
+   *  `#src/contracts/headless`'s `HeadlessThemeSummary.apiVersion` (2026-08-19 architecture audit finding 1),
    *  same decoupling precedent as `ThemeTier`'s own doc comment. Feeds `PostTemplateModal`'s "View
    *  Template" fetch, which needs to know whether this theme's page templates live under `pages/`
    *  or `render/pages/`. */

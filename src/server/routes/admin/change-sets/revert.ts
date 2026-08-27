@@ -6,7 +6,7 @@ import {
   RevertConflictError,
   RevertNotPossibleError,
   revertChangeSet,
-} from "#src/core/commands/index";
+} from "#src/contracts/core/commands/index";
 import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";

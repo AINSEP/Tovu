@@ -19,7 +19,7 @@ import os from "node:os";
 import path from "node:path";
 import test, { after } from "node:test";
 
-import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const GENERATOR = path.join("development", "scripts", "generate-postgres-schema.ts");

@@ -5,7 +5,7 @@ import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 
 import { RENDER_UI_TOOL_ID, buildRenderUiRegistrations } from "../render-ui-tool.js";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The bug this pins: `assistant_render_ui` used to return `{rendered: true}` the instant its

@@ -13,7 +13,7 @@ import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
  * re-fire the hook.** This is the dedicated, direct coverage the TDD dispatch requires for U-005.
  *
  * **Load-bearing TDD finding (see tasks.md T023 and this feature's test-certification.md):** the
- * post `update` reverter — originally shipped in `src/core/commands/appliers.ts`, moved to
+ * post `update` reverter — originally shipped in `src/contracts/core/commands/appliers.ts`, moved to
  * `src/features/post/reverters.ts` by the 2026-08-13 features-post-deep-import-trace.md Job 2
  * inversion, behavior unchanged by that move — calls `updatePost(...)` directly to restore the
  * pre-image, at the time this test was written. That is EXACTLY the illegal transition CIC U-005

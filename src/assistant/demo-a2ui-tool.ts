@@ -13,7 +13,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import type { AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file A development-only agent tool exercising the A2UI (a2ui-project/a2ui v1.0) inbound

@@ -37,8 +37,8 @@ import {
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
-} from "../../core/gated-mutations/gateway.js";
-import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
+} from "../../contracts/core/gated-mutations/gateway.js";
+import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";

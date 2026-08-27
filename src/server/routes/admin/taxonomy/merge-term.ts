@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/core/gated-mutations/gateway";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/core/gated-mutations/token";
+import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/contracts/core/gated-mutations/gateway";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/contracts/core/gated-mutations/token";
 import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError } from "#src/features/taxonomy/index";
-import { buildConfirmOnlyHooks } from "#src/core/gated-mutations/composition";
+import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMergeTermHooks } from "#src/features/taxonomy/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "../../types.js";

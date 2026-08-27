@@ -1,4 +1,4 @@
-import type { RateLimitProfile } from "#src/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
  * @file `FORMS_SUBMIT` rate-limit profile + composite key builder (SPEC-010 REQ-09, C-010/C-011).

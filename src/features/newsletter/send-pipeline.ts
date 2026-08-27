@@ -12,7 +12,7 @@
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
 import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
-import { processOutbox } from "../../core/events/index.js";
+import { processOutbox } from "../../contracts/core/events/index.js";
 import type { MailerPort } from "../../mail/index.js";
 import { transitionCampaignStatus } from "./campaign.js";
 import {

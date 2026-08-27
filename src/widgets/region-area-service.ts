@@ -18,8 +18,8 @@
  * `widgets` domain logic (implementation outline C-006).
  */
 import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports.js";
-import { extractEntryRefs } from "../core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../contracts/core/entry-refs/ports.js";
+import { extractEntryRefs } from "../contracts/core/entry-refs/extractor.js";
 import type { ContentTypeRepoPort } from "../features/content-types/index.js";
 import {
   VersionConflictError,

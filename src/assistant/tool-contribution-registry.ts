@@ -1,6 +1,6 @@
 import type { DerivedRiskByToolId, ToolRegistration } from "@jini-ai/cms/core";
 
-import type { AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
+import type { AssistantSurfaceDeps } from "../contracts/core/tool-surface-exchanges.js";
 import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
 
 /**

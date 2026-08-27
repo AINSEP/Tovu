@@ -127,7 +127,7 @@
     "contractMethod": "ChangeSetRepoPort.insert",
     "implementingClass": "InMemoryChangeSetRepo",
     "caller": "executeCommand",
-    "file": "src/core/commands/command.ts",
+    "file": "src/contracts/core/commands/command.ts",
     "line": 239,
     "coverageClass": "sequential_outbox"
   },
@@ -136,7 +136,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "executeCommand",
-    "file": "src/core/commands/command.ts",
+    "file": "src/contracts/core/commands/command.ts",
     "line": 288,
     "coverageClass": "sequential_outbox"
   },
@@ -145,7 +145,7 @@
     "contractMethod": "ChangeSetRepoPort.save",
     "implementingClass": "InMemoryChangeSetRepo",
     "caller": "revertChangeSet",
-    "file": "src/core/commands/revert.ts",
+    "file": "src/contracts/core/commands/revert.ts",
     "line": 131,
     "coverageClass": "sequential_outbox"
   },
@@ -154,7 +154,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "revertChangeSet",
-    "file": "src/core/commands/revert.ts",
+    "file": "src/contracts/core/commands/revert.ts",
     "line": 144,
     "coverageClass": "sequential_outbox"
   },
@@ -163,7 +163,7 @@
     "contractMethod": "EventBusPort.publishBatch",
     "implementingClass": "InMemoryEventBus",
     "caller": "(no caller found in project)",
-    "file": "src/core/events/memory-bus.ts",
+    "file": "src/contracts/core/events/memory-bus.ts",
     "line": 38,
     "coverageClass": "unknown"
   },
@@ -172,7 +172,7 @@
     "contractMethod": "EventBusPort.publish",
     "implementingClass": "InMemoryEventBus",
     "caller": "InMemoryEventBus.publishBatch",
-    "file": "src/core/events/memory-bus.ts",
+    "file": "src/contracts/core/events/memory-bus.ts",
     "line": 40,
     "coverageClass": "none"
   },
@@ -181,7 +181,7 @@
     "contractMethod": "EventBusPort.subscribeAll",
     "implementingClass": "InMemoryEventBus",
     "caller": "(no caller found in project)",
-    "file": "src/core/events/memory-bus.ts",
+    "file": "src/contracts/core/events/memory-bus.ts",
     "line": 63,
     "coverageClass": "unknown"
   },
@@ -190,7 +190,7 @@
     "contractMethod": "OutboxPort.claimPending",
     "implementingClass": "InMemoryOutbox",
     "caller": "processOutbox",
-    "file": "src/core/events/outbox-worker.ts",
+    "file": "src/contracts/core/events/outbox-worker.ts",
     "line": 26,
     "coverageClass": "executeCommand"
   },
@@ -199,7 +199,7 @@
     "contractMethod": "EventBusPort.publish",
     "implementingClass": "InMemoryEventBus",
     "caller": "processOutbox",
-    "file": "src/core/events/outbox-worker.ts",
+    "file": "src/contracts/core/events/outbox-worker.ts",
     "line": 30,
     "coverageClass": "executeCommand"
   },
@@ -208,7 +208,7 @@
     "contractMethod": "OutboxPort.markDelivered",
     "implementingClass": "InMemoryOutbox",
     "caller": "processOutbox",
-    "file": "src/core/events/outbox-worker.ts",
+    "file": "src/contracts/core/events/outbox-worker.ts",
     "line": 31,
     "coverageClass": "executeCommand"
   },
@@ -217,7 +217,7 @@
     "contractMethod": "OutboxPort.markFailed",
     "implementingClass": "InMemoryOutbox",
     "caller": "processOutbox",
-    "file": "src/core/events/outbox-worker.ts",
+    "file": "src/contracts/core/events/outbox-worker.ts",
     "line": 34,
     "coverageClass": "executeCommand"
   },
@@ -225,7 +225,7 @@
     "source": "port",
     "contractMethod": "ClockPort.nowIso",
     "caller": "(no implementation found in project)",
-    "file": "src/core/ports.ts",
+    "file": "src/contracts/core/ports.ts",
     "line": 140,
     "coverageClass": "unknown"
   },
@@ -233,7 +233,7 @@
     "source": "port",
     "contractMethod": "IdGeneratorPort.newId",
     "caller": "(no implementation found in project)",
-    "file": "src/core/ports.ts",
+    "file": "src/contracts/core/ports.ts",
     "line": 146,
     "coverageClass": "unknown"
   },

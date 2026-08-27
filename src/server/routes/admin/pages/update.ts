@@ -1,5 +1,5 @@
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
-import { processOutbox } from "#src/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/index";
 import {
   PostConflictError,
   PostNotFoundError,

@@ -3,8 +3,8 @@ import type { Express } from "express";
 import { ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
 import { isOAuthError } from "#src/oauth/index";
-import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
 

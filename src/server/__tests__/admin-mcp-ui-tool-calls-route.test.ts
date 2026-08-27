@@ -68,7 +68,7 @@ function harness() {
     const { createRouteDeps } = await import("../app.js");
     const { createAssistantModule } = await import("../modules/assistant.js");
     const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
-    const { createSurfaceExchangeStore } = await import("../../core/tool-surface-exchanges.js");
+    const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
 
     return {
       daemon: server,
