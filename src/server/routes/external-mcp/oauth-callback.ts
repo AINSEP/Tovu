@@ -1,9 +1,11 @@
 import type { Express } from "express";
 
+import { ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
+import { isOAuthError } from "#src/oauth/index";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "../oauth/callback-page.js";
+import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
 
 /**
@@ -29,10 +31,15 @@ import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "./oauth-callback-url.js";
  * them reaches a token endpoint. Nothing from the request reaches the response body — see
  * `routes/oauth/callback-page.ts`.
  *
- * ## Failures are logged, never rendered
+ * ## The full failure is logged, never rendered
  *
  * A completion failure can carry provider request detail, and this page is reachable by anyone who
- * can guess a URL. The reason goes to the server log; the browser gets one of two fixed strings.
+ * can guess a URL. The full reason — including anything `OAuthError.message` or a provider's own
+ * response carries — goes to the server log only. {@link classifyCallbackFailure} below is the one
+ * place that failure is translated into something safe to send back, and it reads only a closed
+ * union (`OAuthError.code`) or an error's class identity — never `.message`, never
+ * `OAuthError.providerErrorCode`. The browser gets one of a small, fixed set of Tovu-authored reasons
+ * (`OAuthCallbackFailureReason`), never a word of what the provider actually said.
  */
 
 export interface ExternalMcpOAuthCallbackRouteDeps {
@@ -52,6 +59,38 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
 }
 
 /**
+ * Classifies a caught completion failure into the closed, Tovu-authored reason vocabulary the
+ * callback page renders.
+ *
+ * This is the whole security boundary for this route: it reads only `error.code` — a closed union,
+ * `OAuthErrorCode` — or the error's class identity, and NEVER `error.message` or
+ * `OAuthError.providerErrorCode`, either of which can carry a provider's own response text verbatim
+ * (see `src/oauth/errors.ts`'s header). Whatever this function returns is
+ * safe to render and safe to put in the `postMessage` payload, because it can only ever be one of
+ * the six fixed strings in {@link OAuthCallbackFailureReason} — nothing it reads from `error` can
+ * reach the return value directly.
+ *
+ * `OAUTH_INVALID_STATE` covers an unknown, expired, replayed, or wrongly-owned state alike (see
+ * `authorization-code.ts`'s `completeAuthorizationCode` doc) — `"state_expired"` is the one reason
+ * name from the vocabulary that fits all of those, and is distinct from `"no_state"`, which the route
+ * itself reports before ever calling the service (the query carried no `state` at all). Any
+ * `OAuthError` code this function does not special-case, and any error that is not an `OAuthError` or
+ * an `ExternalMcpValidationError` at all, becomes `"exchange_failed"` — the same generic reason a
+ * caller that never classifies gets by default (`callback-page.ts`'s `renderOAuthCallbackPage`).
+ *
+ * @complexity O(1).
+ */
+function classifyCallbackFailure(error: unknown): OAuthCallbackFailureReason {
+  if (error instanceof ExternalMcpValidationError) return "server_unknown";
+  if (isOAuthError(error)) {
+    if (error.code === "OAUTH_INVALID_STATE") return "state_expired";
+    if (error.code === "OAUTH_ACCESS_DENIED") return "provider_denied";
+    return "exchange_failed";
+  }
+  return "exchange_failed";
+}
+
+/**
  * Mounts `GET {EXTERNAL_MCP_OAUTH_CALLBACK_PATH}/:serverId`.
  *
  * @complexity O(1) per request, plus one bounded token exchange.
@@ -61,14 +100,14 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
     // In front of everything, matching `composio-callback.ts`: the route is anonymous and each hit
     // can cost an outbound token exchange.
     if (!deps.callbackLimiter.check(resolveClientIp(req)).allowed) {
-      res.status(429).type("html").send(renderOAuthCallbackPage({ ok: false, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
+      res.status(429).type("html").send(renderOAuthCallbackPage({ ok: false, reason: "rate_limited", messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
       return;
     }
 
     const params = parseCallbackQuery(req.query as Record<string, unknown>);
     if (params.state === "") {
       // No state means this was not reached by a redirect the provider issued. Nothing to complete.
-      res.status(400).type("html").send(renderOAuthCallbackPage({ ok: false, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
+      res.status(400).type("html").send(renderOAuthCallbackPage({ ok: false, reason: "no_state", messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
       return;
     }
 
@@ -82,7 +121,9 @@ export function registerExternalMcpOAuthCallbackRoute(app: Express, deps: Extern
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error(`external-mcp oauth callback failed: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(400).type("html").send(renderOAuthCallbackPage({ ok: false, messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }));
+      res.status(400).type("html").send(
+        renderOAuthCallbackPage({ ok: false, reason: classifyCallbackFailure(error), messageType: EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE }),
+      );
     }
   });
 }
