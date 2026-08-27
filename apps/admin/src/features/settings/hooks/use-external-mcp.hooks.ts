@@ -102,26 +102,31 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
 
 /** Builds the OAuth block for a save, or `undefined` when the draft's effective auth mode isn't
  *  `oauth` — matching the store's own `resolveOAuthFields`, which ignores the whole block outside
- *  that mode. Every member except `clientSecret` is sent as-is (never tri-state): the value the
- *  operator sees IS the true current value (round-tripped by {@link toItem}, or freshly typed), so
- *  there is no "untouched vs cleared" ambiguity to preserve — sending exactly what's shown is
- *  simpler than reconstructing it, and the store's own `firstTrimmed` precedence treats a blank
- *  string as "keep what's stored" for the identity fields regardless. `clientSecret` is the one
- *  member with no round-trip at all (see this file's header), so it keeps the `env` convention: omit
- *  when blank, so a save never silently wipes a stored secret.
+ *  that mode. `grant`/`clientId`/`scopes`/`tokenEnvName` are sent as-is: {@link toItem} round-trips
+ *  their real stored value, so the store's own `firstTrimmed` precedence resolves them correctly
+ *  whether or not the operator touched them. `providerId` and the three endpoint fields are
+ *  omit-when-blank instead — the same convention `clientSecret` already uses — because the store
+ *  reads their PRESENCE, not their value, to decide whether this save touched the connection's OAuth
+ *  identity (`resolveOAuthEndpoints`). Endpoints are never round-tripped by {@link toItem} today, so
+ *  sending them as an always-present blank string made every save look like an identity change and
+ *  silently destroyed the stored token, refresh token, and DCR-minted client secret.
  *  @complexity O(1). */
 function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuthInput | undefined {
   if (resolveExternalMcpEffectiveAuthMode(fields) !== "oauth") return undefined;
+  const providerId = fields.oauthProviderId ?? "";
+  const authorizationEndpoint = fields.oauthAuthorizationEndpoint ?? "";
+  const tokenEndpoint = fields.oauthTokenEndpoint ?? "";
+  const deviceAuthorizationEndpoint = fields.oauthDeviceAuthorizationEndpoint ?? "";
   const clientSecret = fields.oauthClientSecret ?? "";
   return {
-    providerId: fields.oauthProviderId ?? "",
+    ...(providerId.trim() === "" ? {} : { providerId }),
     grant: fields.oauthGrant ?? "",
     clientId: fields.oauthClientId ?? "",
     scopes: fields.oauthScopes ?? "",
     tokenEnvName: fields.oauthTokenEnvName ?? "",
-    authorizationEndpoint: fields.oauthAuthorizationEndpoint ?? "",
-    tokenEndpoint: fields.oauthTokenEndpoint ?? "",
-    deviceAuthorizationEndpoint: fields.oauthDeviceAuthorizationEndpoint ?? "",
+    ...(authorizationEndpoint.trim() === "" ? {} : { authorizationEndpoint }),
+    ...(tokenEndpoint.trim() === "" ? {} : { tokenEndpoint }),
+    ...(deviceAuthorizationEndpoint.trim() === "" ? {} : { deviceAuthorizationEndpoint }),
     ...(clientSecret.trim() === "" ? {} : { clientSecret }),
   };
 }

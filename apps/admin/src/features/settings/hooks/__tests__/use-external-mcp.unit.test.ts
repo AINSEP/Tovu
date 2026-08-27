@@ -311,12 +311,65 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
         clientId: "abc",
         scopes: "read write",
         tokenEnvName: "",
-        authorizationEndpoint: "",
-        tokenEndpoint: "",
-        deviceAuthorizationEndpoint: "",
+        // No endpoints were typed, so all three are omitted rather than sent blank — see the test
+        // below for why that omission is load-bearing.
         clientSecret: "shh",
       },
     });
+  });
+
+  it("omits providerId and the three OAuth endpoints when blank, so an untouched save can't look like an identity change (C-011)", async () => {
+    // The store reads PRESENCE of `providerId`/`tokenEndpoint`, not their value, to decide whether a
+    // save touched the connection's OAuth identity. `toItem` cannot round-trip a connection's own
+    // endpoints yet, so if this hook sent them as an always-present blank string, every save —
+    // including one that only flips `enabled` — would rebuild `oauthEndpointsJson` from nothing and
+    // destroy the stored token. Mirrors the store-side regression in `external-mcp-store.test.ts`.
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "hosted" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: {
+          id: "hosted",
+          transport: "streamable_http",
+          url: "https://mcp.example.com",
+          authMode: "oauth",
+          oauthGrant: "authorization_code",
+          oauthClientId: "abc",
+          // oauthProviderId/oauthAuthorizationEndpoint/oauthTokenEndpoint/oauthDeviceAuthorizationEndpoint
+          // are absent — the same shape `toItem` produces for a connection with no registered provider.
+        },
+      });
+    });
+
+    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    expect(body.oauth).not.toHaveProperty("providerId");
+    expect(body.oauth).not.toHaveProperty("authorizationEndpoint");
+    expect(body.oauth).not.toHaveProperty("tokenEndpoint");
+    expect(body.oauth).not.toHaveProperty("deviceAuthorizationEndpoint");
+  });
+
+  it("includes providerId and an endpoint when the operator actually typed one", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "hosted" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: {
+          id: "hosted",
+          transport: "streamable_http",
+          url: "https://mcp.example.com",
+          authMode: "oauth",
+          oauthGrant: "authorization_code",
+          oauthClientId: "abc",
+          oauthProviderId: "example-oidc",
+          oauthTokenEndpoint: "https://auth.example.com/token",
+        },
+      });
+    });
+
+    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    expect(body.oauth).toMatchObject({ providerId: "example-oidc", tokenEndpoint: "https://auth.example.com/token" });
   });
 
   it("omits oauth.clientSecret when left blank, so an edit never silently clears a stored secret", async () => {
