@@ -264,7 +264,77 @@ export interface ThemeExploreDependencies {
   t: Translate;
 }
 
-export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDependencies): ThemeExploreController {
+/** Route-supplied inputs that only steer the FIRST render — everything here is read once, by the
+ *  initial-load effect, and never again. Kept out of {@link ThemeExploreDependencies} because these
+ *  are not injected collaborators; they are values off the URL. */
+export interface ThemeExploreOptions {
+  /**
+   * Page to open on, from `?page=` — the page ID (`about`), not a file path.
+   *
+   * Set by the Pages screen's "Theme Pages" tab, whose rows link straight here (see
+   * `features/pages/Pages.tsx`'s `themeStudioHref`). Absent, unknown, or naming a non-page file all
+   * degrade to the same default selection an unparameterized visit gets — a bad `?page=` must never
+   * be able to open Explore on nothing.
+   */
+  pageId?: string;
+}
+
+/**
+ * The page file `?page=` names, or `null` if it names none.
+ *
+ * Matched on a page file's LABEL — its basename minus `.html` (see {@link fileLabel}) — which is
+ * exactly the key `presentation/get.ts` builds `activeThemeStaticPageIds` from
+ * (`Object.keys(theme.pages)`, and `theme.ts` keys that map by `file.slice(0, -".html".length)`).
+ * Matching on the label rather than reconstructing a path is what makes one id work for both theme
+ * layouts: `about` finds a v1 theme's `pages/about.html` and a v2 theme's `render/pages/about.html`
+ * without this hook resolving which layout it is looking at. `index` needs no special case — inside
+ * a theme it is an ordinary page, and only the SITE's routing treats it specially.
+ *
+ * Constrained to `kind === "page"` so `?page=theme.css` cannot steer the initial selection onto a
+ * stylesheet. An empty string is treated as absent, not as an id to look up: `?page=` with no value
+ * is a malformed URL, not a request for a file named "".
+ *
+ * @complexity Time O(n) in `files.length` — one scan.
+ */
+function requestedPagePath(files: ThemeExploreFile[], pageId: string | undefined): string | null {
+  if (pageId === undefined || pageId === "") return null;
+  return files.find((f) => f.kind === "page" && f.label === pageId)?.path ?? null;
+}
+
+/**
+ * What to open when nothing was asked for — the pre-existing default, unchanged: `pages/index.html`,
+ * else the first page, else the first file, else nothing.
+ *
+ * @complexity Time O(n) in `files.length` — at most three independent scans, no nesting.
+ */
+function defaultSelectedPath(files: ThemeExploreFile[]): string | null {
+  return (
+    files.find((f) => f.path === "pages/index.html")?.path ??
+    files.find((f) => f.kind === "page")?.path ??
+    files[0]?.path ??
+    null
+  );
+}
+
+/**
+ * The file to open when the theme's listing first lands: the requested page, else the default.
+ *
+ * Split across the two helpers above rather than written as one `??` chain because that chain scored
+ * 11 against `apps/admin`'s 9/9 ceiling (`npm run check:admin-complexity-drift`) — every `??` and
+ * `?.` in it counts. The split is also the clearer shape: "a bad `?page=` degrades to the default"
+ * is now one readable line rather than a property of where a term sits in a five-deep chain.
+ *
+ * @complexity Time O(n) in `files.length`.
+ */
+function initialSelectedPath(files: ThemeExploreFile[], pageId: string | undefined): string | null {
+  return requestedPagePath(files, pageId) ?? defaultSelectedPath(files);
+}
+
+export function useThemeExplore(
+  themeId: string,
+  { port, t }: ThemeExploreDependencies,
+  { pageId }: ThemeExploreOptions = {}
+): ThemeExploreController {
   const [detail, setDetail] = useState<ThemeExploreDetail | null>(null);
   const [files, setFiles] = useState<ThemeExploreFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -290,14 +360,10 @@ export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDepend
         if (cancelled) return;
         setDetail(nextDetail);
         setFiles(nextFiles);
-        // Open `pages/index.html` by default — the page an author most likely wants first, and
-        // `loadTheme` requires it, so a valid theme always has one.
-        setSelected(
-          nextFiles.find((f) => f.path === "pages/index.html")?.path ??
-            nextFiles.find((f) => f.kind === "page")?.path ??
-            nextFiles[0]?.path ??
-            null
-        );
+        // `?page=` when the caller named one, else `pages/index.html` — the page an author most
+        // likely wants first, and `loadTheme` requires it, so a valid theme always has one. See
+        // {@link initialSelectedPath}.
+        setSelected(initialSelectedPath(nextFiles, pageId));
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : "failed to load theme");
@@ -305,7 +371,11 @@ export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDepend
     return () => {
       cancelled = true;
     };
-  }, [themeId, port]);
+    // `pageId` is a dep so that changing `?page=` in the address bar reselects, the same way
+    // changing `?theme=` reloads. It only ever moves on a real navigation, so this does not refetch
+    // on ordinary re-renders — and re-running the INITIAL-load effect is exactly right when it does
+    // move, since the URL naming a different page is a request for a different starting selection.
+  }, [themeId, port, pageId]);
 
   useEffect(() => {
     if (selected === null) return;
@@ -579,8 +649,8 @@ export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDepend
  * `ThemeExplore.tsx` composes this and a test composes {@link useThemeExplore} with
  * `createFakeThemeExplorePort`.
  */
-export function useWiredThemeExplore(themeId: string): ThemeExploreController {
+export function useWiredThemeExplore(themeId: string, options: ThemeExploreOptions = {}): ThemeExploreController {
   const locale = useAdminLocale();
   const t = (key: string): string => translateThemes(locale, key);
-  return useThemeExplore(themeId, { port: defaultThemeExplorePort, t });
+  return useThemeExplore(themeId, { port: defaultThemeExplorePort, t }, options);
 }

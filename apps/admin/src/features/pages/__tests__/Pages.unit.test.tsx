@@ -15,7 +15,16 @@ import type { AdminPost } from "../../../lib/api";
  * directly rather than through a real `fetch`.
  */
 
-vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
+/**
+ * Only `navigate` is faked. `adminHref` is kept REAL via `importOriginal` on purpose: the theme-page
+ * link assertions below check a literal `/admin/themes/explore?...`, and stubbing the very function
+ * that prepends the base would make those assertions self-fulfilling — they would pass just as
+ * happily if `Pages.tsx` emitted a route path with no base at all.
+ */
+vi.mock("../../../lib/router", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../../lib/router")>()),
+  navigate: vi.fn(),
+}));
 
 const PAGE: AdminPost = {
   id: "pg1",
@@ -52,7 +61,7 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
 }
 
 function themePagesController(overrides: Partial<ThemePagesController> = {}): ThemePagesController {
-  return { pageIds: [], error: null, ...overrides };
+  return { pageIds: [], activeThemeId: "basic", error: null, ...overrides };
 }
 
 /**
@@ -229,12 +238,56 @@ describe("Theme Pages tab", () => {
     expect(screen.queryByRole("button", { name: /Actions for/ })).not.toBeInTheDocument();
   });
 
-  it("links the 'index' page id at the site root, not literally /index — pages.ts's static-page route excludes that slug (home is served by the route === \"home\" branch instead)", async () => {
+  /**
+   * Owner request (2026-08-27): this cell used to link to the LIVE site. It now opens the theme
+   * studio focused on that page instead — the row is about the THEME's copy of the page, and the
+   * only useful thing to do with it from here is edit it.
+   */
+  it("links each theme page row to the theme studio with both params, not to the live site", async () => {
     const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["index"] });
+    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: "basic" });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    const link = screen.getByRole("link", { name: "/404" });
+    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=404");
+  });
+
+  /**
+   * An in-app admin destination, so it must NOT open a new tab: `installInternalLinkInterceptor`
+   * (`@jini-ai/admin/browser`) explicitly declines to intercept any anchor carrying a `target`, so
+   * leaving `target="_blank"` on would both full-page-load the SPA and strand the operator in a
+   * second tab.
+   */
+  it("navigates in place — no target/rel, so the SPA link interceptor handles it", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: "basic" });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    const link = screen.getByRole("link", { name: "/404" });
+    expect(link).not.toHaveAttribute("target");
+    expect(link).not.toHaveAttribute("rel");
+  });
+
+  it("percent-encodes both params, so a page id or theme id containing a space or & cannot forge a third param", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["my page&x=1"], activeThemeId: "b a&sic" });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    const link = screen.getByRole("link", { name: "/my page&x=1" });
+    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=b%20a%26sic&page=my%20page%26x%3D1");
+  });
+
+  it("still labels the 'index' page id as the site root, and points it at that page's own studio entry — pages.ts's static-page route excludes that slug (home is served by the route === \"home\" branch instead)", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["index"], activeThemeId: "basic" });
     await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
     const link = screen.getByRole("link", { name: "/" });
-    expect(link.getAttribute("href")).not.toMatch(/\/index$/);
+    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=index");
+  });
+
+  it("shows the page path as plain text, never a half-built ?theme= link, before the active theme id is known", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: null });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    expect(screen.getByText("Loading theme pages…")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "/404" })).not.toBeInTheDocument();
   });
 
   it("shows a sensible empty state, not the My Pages empty copy, when the active theme ships no pages", async () => {

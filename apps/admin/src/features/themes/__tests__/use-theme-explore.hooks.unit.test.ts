@@ -144,6 +144,65 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
  * own response, so a v2 theme's `render/pages/index.html` is locked too instead of silently allowing
  * an inline rename the server would then refuse with a round trip.
  */
+/**
+ * `?page=` preselection (2026-08-27, owner request) — the Theme Pages tab's URL cell now links here
+ * with the page it names, so Explore has to open ON that page instead of always on the theme's
+ * index. Matched on the file's LABEL (basename minus `.html`), which is exactly the key
+ * `presentation/get.ts` builds `activeThemeStaticPageIds` from (`Object.keys(theme.pages)`, and
+ * `theme.ts` keys that map by `file.slice(0, -".html".length)`) — so the same id round-trips through
+ * the URL for a v1 theme's `pages/x.html` and a v2 theme's `render/pages/x.html` alike, without this
+ * hook having to know which layout it is looking at.
+ */
+describe("useThemeExplore — ?page= preselection", () => {
+  const FILES = [
+    { path: "render/pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "render/pages/404.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "css/theme.css", group: "style" as const, readable: true, editable: true, resettable: true },
+  ];
+  const CONTENTS = {
+    "render/pages/index.html": "<h1>Home</h1>",
+    "render/pages/404.html": "<h1>Not found</h1>",
+    "css/theme.css": "body{}",
+  };
+
+  it("opens the page named by pageId, resolving the bare id against a v2 render/pages/ layout", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "404" }));
+    await waitFor(() => expect(result.current.selected).not.toBeNull());
+    expect(result.current.selected).toBe("render/pages/404.html");
+    await waitFor(() => expect(result.current.source).toBe("<h1>Not found</h1>"));
+  });
+
+  it("falls back to the default selection when pageId names a page this theme does not have", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "nope" }));
+    await waitFor(() => expect(result.current.selected).not.toBeNull());
+    expect(result.current.selected).toBe("render/pages/index.html");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("never resolves a pageId onto a non-page file, so ?page=theme.css cannot open a stylesheet", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "theme.css" }));
+    await waitFor(() => expect(result.current.selected).not.toBeNull());
+    expect(result.current.selected).toBe("render/pages/index.html");
+  });
+
+  it("keeps the pre-existing default selection when no pageId is supplied at all", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.selected).not.toBeNull());
+    expect(result.current.selected).toBe("render/pages/index.html");
+  });
+
+  it("resolves pageId 'index' to the theme's own index page — the one id that is not its own site route", async () => {
+    const port = createFakeThemeExplorePort({ files: FILES, contents: CONTENTS });
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }, { pageId: "index" }));
+    await waitFor(() => expect(result.current.selected).not.toBeNull());
+    expect(result.current.selected).toBe("render/pages/index.html");
+  });
+});
+
 describe("useThemeExplore — startRename's client-side lock mirrors the server's apiVersion-aware required files", () => {
   it("v1 (apiVersion undefined): locks pages/index.html, allows an ordinary page", async () => {
     const port = createFakeThemeExplorePort({

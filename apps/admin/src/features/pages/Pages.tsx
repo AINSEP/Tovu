@@ -4,7 +4,7 @@ import { useState, type ReactNode } from "react";
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { navigate } from "../../lib/router";
+import { adminHref, navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
 import { TabBar } from "../../components/TabBar";
 import { pageRowMenuItems } from "./rules";
@@ -29,7 +29,8 @@ import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
  * content and an operator's own authored content read as two different things that survive a theme
  * switch independently, and merging them into one list here would blur exactly that distinction.
  * A theme page has no `PostRecord` behind it (no id, no draft/published status, nothing to edit or
- * delete from this screen) — its row offers a "View" link only, not a `RowMenu`.
+ * delete from this screen) — its row offers a single link, not a `RowMenu`. That link goes to the
+ * THEME STUDIO (`/admin/themes/explore?theme=&page=`), not the live site: see {@link themeStudioHref}.
  */
 export interface PagesProps {
   /**
@@ -78,17 +79,43 @@ export function pagesListNotice(pages: AdminPost[] | null, error: string | null)
 }
 
 /**
- * The public URL for a theme page id. `"index"` is special: `pages.ts`'s static-page branch
- * explicitly excludes `slug === "index"` (confirmed live: `/index` 404s, `/` 200s) because the home
- * route is served by `render.ts`'s own `route === "home"` branch instead — the id `theme.pages` uses
- * internally is not the id the site actually routes it at. Every other page id IS also its own route
- * (`pages.ts`'s same branch matches `theme.pages[slug]` directly), so this is the one exception, not
- * a pattern to generalize.
+ * The site path a theme page id is SHOWN as in the URL column. `"index"` is special: `pages.ts`'s
+ * static-page branch explicitly excludes `slug === "index"` (confirmed live: `/index` 404s, `/`
+ * 200s) because the home route is served by `render.ts`'s own `route === "home"` branch instead —
+ * the id `theme.pages` uses internally is not the id the site actually routes it at. Every other
+ * page id IS also its own route (`pages.ts`'s same branch matches `theme.pages[slug]` directly), so
+ * this is the one exception, not a pattern to generalize.
+ *
+ * Label only, not a destination: see {@link themeStudioHref} for where the cell actually links.
  *
  * @complexity Time/space: O(1).
  */
-function themePageUrl(pageId: string): string {
-  return siteUrl(pageId === "index" ? "/" : `/${pageId}`);
+function themePagePath(pageId: string): string {
+  return pageId === "index" ? "/" : `/${pageId}`;
+}
+
+/**
+ * Where a theme page row links: the theme studio, opened on that page.
+ *
+ * Owner request (2026-08-27) — this cell used to link to the LIVE site (`siteUrl(...)`). A theme
+ * page is the THEME's file, and the only thing an operator can actually DO with one from this
+ * screen is edit it in Explore, so the row now points at the editor rather than at a preview the
+ * site nav already offers. The visible text still shows the public path (`themePagePath`), because
+ * "which URL does this page serve" is the one fact the column exists to state.
+ *
+ * `?theme=` and `?page=` rather than a path, matching `Themes.tsx`'s existing Explore button — both
+ * name content inside a theme, not a resource in the admin's own URL space (`panels.tsx`'s
+ * `theme-explore` route comment). Both are `encodeURIComponent`d: a theme or page id is a filename
+ * on disk, and an unescaped `&` or `=` in one would otherwise forge a third query parameter.
+ *
+ * `index` needs NO special case here, unlike the site path above — `?page=` names the theme's page
+ * id, and Explore resolves that id straight against the theme's own files, where `index` is an
+ * ordinary page like any other.
+ *
+ * @complexity Time/space: O(1).
+ */
+function themeStudioHref(themeId: string, pageId: string): string {
+  return adminHref(`/themes/explore?theme=${encodeURIComponent(themeId)}&page=${encodeURIComponent(pageId)}`);
 }
 
 /**
@@ -102,15 +129,23 @@ function themePageUrl(pageId: string): string {
  */
 function ThemePagesTab({
   pageIds,
+  activeThemeId,
   error,
   t,
 }: {
   pageIds: string[] | null;
+  activeThemeId: string | null;
   error: string | null;
   t: Translate;
 }): ReactNode {
   if (error && !pageIds) return <div className="notice error">{error}</div>;
-  if (!pageIds) return <div className="notice">{t("Loading theme pages…")}</div>;
+  // `activeThemeId` is gated together with `pageIds` rather than separately: both land from the one
+  // `getPresentation()` response, so this second condition is unreachable in practice — it exists to
+  // make a row with a page id but no theme id UNREPRESENTABLE in the markup below, since that state
+  // could only render a `?theme=` pointing at nothing. Narrowing it to `themeId` here also lets the
+  // `cell` closure below see a plain `string`, which a destructured parameter would not carry.
+  if (!pageIds || activeThemeId === null) return <div className="notice">{t("Loading theme pages…")}</div>;
+  const themeId = activeThemeId;
 
   return (
     <>
@@ -133,11 +168,13 @@ function ThemePagesTab({
           {
             key: "url",
             header: "URL",
-            cell: (pageId) => (
-              <a href={themePageUrl(pageId)} target="_blank" rel="noreferrer">
-                {pageId === "index" ? "/" : `/${pageId}`}
-              </a>
-            ),
+            // No `target`/`rel`: this is an in-app admin destination now, and
+            // `installInternalLinkInterceptor` (`@jini-ai/admin/browser`) deliberately declines to
+            // intercept any anchor carrying a `target`, so `_blank` would cost a full SPA reload in
+            // a second tab. Left as a plain `<a>` rather than a `navigate()` button for the reason
+            // that interceptor's own doc gives: a real href keeps middle-click, cmd-click and "copy
+            // link address" working for free, which a click handler would have to re-implement.
+            cell: (pageId) => <a href={themeStudioHref(themeId, pageId)}>{themePagePath(pageId)}</a>,
           },
           {
             key: "source",
@@ -166,7 +203,7 @@ export function Pages(props: PagesProps) {
     t,
     locale,
   } = usePagesHook();
-  const { pageIds: themePageIds, error: themePagesError } = useThemePagesHook();
+  const { pageIds: themePageIds, activeThemeId: themeId, error: themePagesError } = useThemePagesHook();
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — which tab is showing, no I/O
   // behind it — stays LOCAL rather than moving into `use-pages.hooks.ts`, unlike every other piece
   // of state on this screen. The line to draw: async/API/data state always moves into the hook;
@@ -260,7 +297,7 @@ export function Pages(props: PagesProps) {
           />
         </>
       ) : (
-        <ThemePagesTab pageIds={themePageIds} error={themePagesError} t={t} />
+        <ThemePagesTab pageIds={themePageIds} activeThemeId={themeId} error={themePagesError} t={t} />
       )}
       <ConfirmDialog
         open={pendingDelete !== null}
