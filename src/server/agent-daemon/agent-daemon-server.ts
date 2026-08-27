@@ -93,6 +93,7 @@ import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlit
 import { openContentDb } from "../../db/sqlite/content-db.js";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
+import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../app.js";
 import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
@@ -824,7 +825,7 @@ async function resolveStoredExternalMcpConnections(): Promise<ResolvedFederatedC
 async function start(): Promise<void> {
   registerSupabaseMcpPreset();
 
-  await attachFederatedMcpTools({
+  const { reports: federationAdmissionReports } = await attachFederatedMcpTools({
     registry,
     deps: {
       authorize: routeDeps.authorize,
@@ -841,6 +842,13 @@ async function start(): Promise<void> {
     },
     extraConnections: await resolveStoredExternalMcpConnections(),
   });
+
+  // What this boot actually admitted, over HTTP — see `federation-admissions-route.ts`'s own doc
+  // for why this is a one-time snapshot handed in here rather than a live re-read, and
+  // `daemon-auth.ts`'s gate (already mounted above, before any route) for why this needs no auth
+  // logic of its own: the path is not in that gate's `exemptPaths`, so it is covered like every
+  // other route in this process.
+  registerFederationAdmissionsRoute(app, { reports: federationAdmissionReports });
 
   /**
    * Registers every installed Agent Plugin as a real tool, so a plain `search_tools` reaches it the

@@ -865,6 +865,113 @@ test("omitting `connect` routes a HOSTED connection to the HTTP adapter — a re
   }
 });
 
+// ---------------------------------------------------------------------------
+// `AttachFederatedToolsResult.reports` — the boot admission accounting that was previously computed
+// and immediately discarded (C-009). Asserted entirely through `attachFederatedMcpTools`'s existing
+// injectable `connect`/fixture seam — no live daemon process anywhere in this file.
+// ---------------------------------------------------------------------------
+
+test("attachFederatedMcpTools returns one report per connection that reached admission, keyed by connectionId", async () => {
+  const registry = fakeRegistry();
+  const { logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: CONFIG, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => sessionFor(),
+  });
+
+  assert.equal(result.reports.length, 1);
+  assert.equal(result.reports[0]?.connectionId, "supabase");
+  assert.deepEqual(
+    result.reports[0]?.report.admitted.map((tool) => tool.remoteName),
+    ["list_tables", "get_advisors"],
+  );
+  assert.equal(result.reports[0]?.report.refused.find((entry) => entry.remoteName === "execute_sql")?.reason, "not-in-operator-allowlist");
+});
+
+test("a connection that fails before admission (bad handshake) contributes no report entry at all", async () => {
+  const registry = fakeRegistry();
+  const { logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: CONFIG, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => {
+      throw new Error("connect timed out after 15000ms");
+    },
+  });
+
+  assert.deepEqual(result.reports, []);
+});
+
+test("with no connections at all, reports is empty rather than omitted or throwing", async () => {
+  const registry = fakeRegistry();
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps, env: {} });
+
+  assert.deepEqual(result.reports, []);
+});
+
+test("an admitted write-authorized tool is logged as a WARN, naming the connection and the tool", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+  const writeConfig: FederatedMcpConnectionConfig = {
+    ...CONFIG,
+    allowedToolNames: ["generate_image"],
+    writeAllowedToolNames: ["generate_image"],
+  };
+  const session = new InMemoryMcpSession({
+    tools: [{ name: "generate_image", description: "Generates an image.", inputSchema: OBJECT_SCHEMA, annotations: { readOnlyHint: false } }],
+    onCall: () => ({ content: [{ type: "text", text: "ok" }] }),
+  });
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: writeConfig, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => session,
+  });
+
+  assert.deepEqual(result.registeredToolIds, ["mcp__supabase__generate_image"]);
+  assert.ok(
+    messages.some((message) => message.includes("warn:") && message.includes("admitted WRITE tool 'generate_image' (operator-authorized)")),
+    `expected a WARN line for the admitted write tool; got: ${JSON.stringify(messages)}`,
+  );
+});
+
+test("a write-authorized name absent from the allowlist is logged as drift, sibling of the allowlistedButAbsent line", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+  const driftConfig: FederatedMcpConnectionConfig = {
+    ...CONFIG,
+    // Write-authorized but never allowlisted — the operator ticked one box and not the other.
+    writeAllowedToolNames: ["forgot_to_allowlist"],
+  };
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [{ config: driftConfig, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => sessionFor(),
+  });
+
+  assert.equal(result.reports[0]?.report.writeAllowedButNotAllowlisted.length, 1);
+  assert.ok(
+    messages.some(
+      (message) =>
+        message.includes("warn:") &&
+        message.includes("write-authorizes 'forgot_to_allowlist' but it is not in the allowlist"),
+    ),
+    `expected a WARN drift line; got: ${JSON.stringify(messages)}`,
+  );
+});
+
 test("a hosted server that rejects the token is reported as a failed connection, and federation continues", async () => {
   const registry = fakeRegistry();
   const { messages, logger } = collectingLogger();
