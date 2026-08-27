@@ -5,7 +5,6 @@ import path from "node:path";
 import test from "node:test";
 
 import { readAgentPluginActivations, setAgentPluginActivation } from "../../activation.js";
-import { createAgentPluginSkillsCapabilitySource } from "../../capability-source.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { resolveAgentPluginRefs, listInstalledPlugins } from "../../resolve-agent-plugin-refs.js";
 import { seedBundledAgentPlugins } from "../../seed-bundled.js";
@@ -19,12 +18,13 @@ import { loadInstalledAgentPluginToolSources } from "../../tool-registrations.js
  * product, not a fixture) into a temp workspace, then asserts it is simultaneously:
  *
  * - **installed** — present on disk, indexable, so an operator can inspect and enable it; and
- * - **absent from all three consumption surfaces** — `capability_search` discovery, tool
- *   registration, and run-start prompt injection.
+ * - **absent from both consumption surfaces** — tool registration and run-start prompt injection.
+ *   (A third surface, `capability_search` discovery, was gated here too until that tool pair was
+ *   removed 2026-08-26 — see `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.)
  *
- * Then flips one activation record and asserts all three surfaces change together. If any single
- * surface were left ungated, this test would still pass on the other two — which is precisely why
- * all three are asserted here, in one place, rather than as three unrelated unit tests.
+ * Then flips one activation record and asserts both surfaces change together. If either surface
+ * were left ungated, this test would still pass on the other one — which is precisely why both are
+ * asserted here, in one place, rather than as two unrelated unit tests.
  */
 
 const WORKSPACE_ID = "33333333-3333-4333-8333-333333333333";
@@ -87,25 +87,14 @@ test("seeding installs the real bundled package and records it INACTIVE", async 
   });
 });
 
-test("GATE 1 (discovery): an inactive bundled plugin produces no capability card", async () => {
-  await withSeededWorkspace(async () => {
-    const cards = await createAgentPluginSkillsCapabilitySource().list({ workspaceId: WORKSPACE_ID });
-    assert.deepEqual(
-      cards.filter((card) => card.pluginId === PLUGIN_ID),
-      [],
-      "capability_search must not be able to find a plugin nobody has enabled",
-    );
-  });
-});
-
-test("GATE 2 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool", async () => {
+test("GATE 1 (tool registration): an inactive bundled plugin gets no agent_plugin_* tool", async () => {
   await withSeededWorkspace(async () => {
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
     assert.deepEqual(sources.filter((source) => source.pluginId === PLUGIN_ID), []);
   });
 });
 
-test("GATE 3 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'", async () => {
+test("GATE 2 (run-start injection): pinning an inactive plugin fails with 'not enabled', NOT 'not installed'", async () => {
   await withSeededWorkspace(async () => {
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
     const result = await resolveAgentPluginRefs([PLUGIN_ID], layout);
@@ -119,19 +108,16 @@ test("GATE 3 (run-start injection): pinning an inactive plugin fails with 'not e
   });
 });
 
-test("enabling the plugin opens all three gates together", async () => {
+test("enabling the plugin opens both gates together", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
 
-    const cards = await createAgentPluginSkillsCapabilitySource().list({ workspaceId: WORKSPACE_ID });
-    assert.ok(cards.some((card) => card.pluginId === PLUGIN_ID && card.skillName === PLUGIN_ID), "GATE 1 must open");
-
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
-    assert.ok(sources.some((source) => source.pluginId === PLUGIN_ID), "GATE 2 must open");
+    assert.ok(sources.some((source) => source.pluginId === PLUGIN_ID), "GATE 1 must open");
 
     const layout = resolveAgentPluginLayout().forWorkspace(WORKSPACE_ID);
     const injected = await resolveAgentPluginRefs([PLUGIN_ID], layout);
-    assert.equal(injected.ok, true, "GATE 3 must open");
+    assert.equal(injected.ok, true, "GATE 2 must open");
     assert.ok(injected.ok && injected.promptPrefix.includes("Site Compliance"));
     assert.ok(
       injected.ok && injected.promptPrefix.includes("Output Contract"),
@@ -144,9 +130,6 @@ test("disabling it again closes them", async () => {
   await withSeededWorkspace(async ({ workspaceRoot }) => {
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: true, actor: "test:operator" });
     await setAgentPluginActivation({ workspaceRoot, pluginId: PLUGIN_ID, enabled: false, actor: "test:operator" });
-
-    const cards = await createAgentPluginSkillsCapabilitySource().list({ workspaceId: WORKSPACE_ID });
-    assert.deepEqual(cards.filter((card) => card.pluginId === PLUGIN_ID), []);
 
     const sources = await loadInstalledAgentPluginToolSources({ workspaceId: WORKSPACE_ID });
     assert.deepEqual(sources.filter((source) => source.pluginId === PLUGIN_ID), []);

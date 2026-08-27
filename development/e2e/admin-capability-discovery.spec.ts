@@ -11,10 +11,9 @@ import { waitForAgentDaemon } from "./daemon-ready.js";
  *
  * Proves **capability discovery** end to end: a user asks a natural-language question in the real
  * admin assistant chat, and a real spawned `claude` CLI finds and calls the right INSTALLED
- * capability — the bundled UI/UX Design Agent Plugin, reachable via either of two simultaneously
- * -registered routes (see scenario A below) — with no plugin pinned from the composer and no prompt
- * nagging (`TOVU_CAPABILITY_MANIFEST_ARM` left at its `off` default, asserted below rather than
- * assumed).
+ * capability — the bundled UI/UX Design Agent Plugin, reachable via its `agent_plugin_ui_ux_design`
+ * tool (see scenario A below) — with no plugin pinned from the composer and no prompt nagging
+ * (`TOVU_CAPABILITY_MANIFEST_ARM` left at its `off` default, asserted below rather than assumed).
  *
  * ## Why the real signal is a second SQLite connection, not the rendered transcript
  *
@@ -34,10 +33,11 @@ import { waitForAgentDaemon } from "./daemon-ready.js";
  * ## Two scenarios, both real live agent runs, one measured PASS and one measured FAIL today
  *
  * - **A — uncontested**: a compliance/privacy question with no plausible native tool. Measured live
- *   (two independent real runs, 2026-08-24): the agent reaches the plugin's guidance unprompted, but
- *   not always through the same tool — one run called `agent_plugin_ui_ux_design` directly, another
- *   called the older `capability_search` -> `capability_get` pair for the SAME installed content. Both
- *   are registered simultaneously, so the assertion below accepts either route. A normal,
+ *   (2026-08-24): the agent reaches the plugin's guidance unprompted by calling
+ *   `agent_plugin_ui_ux_design`. (An earlier revision of this test also accepted a second route, the
+ *   older `capability_search` -> `capability_get` pair reaching the SAME installed content — that
+ *   pair was removed 2026-08-26, see `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`,
+ *   so `agent_plugin_ui_ux_design` is now the only route this scenario asserts.) A normal,
  *   expected-green test.
  * - **B — contested**: a "make my site look more polished" question, where a native `theme_*` tool
  *   plausibly fits the goal the agent forms. Measured live: the plugin ranks **#1** in the agent's own
@@ -62,12 +62,6 @@ import { waitForAgentDaemon } from "./daemon-ready.js";
 
 const WORKSPACE_ID = "workspace-local";
 const AGENT_PLUGIN_TOOL_ID = "agent_plugin_ui_ux_design";
-/** The older discovery route for the same installed plugin, registered simultaneously alongside
- *  `agent_plugin_ui_ux_design` (confirmed live, 2026-08-24 rerun of this suite: a real run reached the
- *  plugin's guidance through this pair, not the newer tool — see scenario A's own comment on why both
- *  routes count as success). */
-const CAPABILITY_SEARCH_TOOL_ID = "capability_search";
-const CAPABILITY_GET_TOOL_ID = "capability_get";
 
 interface ToolAttemptRow {
   toolId: string;
@@ -212,21 +206,17 @@ test.describe("capability discovery — a real agent finds and calls an installe
     expect(runId, "expected a server-side run id on the finished transcript").toBeTruthy();
 
     const toolCallOrder = readRequestedToolCallOrder(process.env.E2E_CAPABILITY_DISCOVERY_CONTENT_DB!, runId!);
-    // Asserts the OUTCOME (the agent reached the installed plugin's guidance), not one specific tool
-    // id. There are two live, simultaneously-registered routes to the SAME installed content — the
-    // newer `agent_plugin_ui_ux_design` tool, and the older `capability_search` -> `capability_get`
-    // catalog pair — and a real rerun of this exact suite (2026-08-24) took the OLDER route: pinning
-    // this assertion to `agent_plugin_ui_ux_design` alone made a genuine discovery-and-use success
-    // read as a failure. Either route is real, unaided discovery of an installed capability the agent
-    // was never pointed at, which is the property this scenario exists to prove.
-    const reachedViaAgentPluginTool = toolCallOrder.includes(AGENT_PLUGIN_TOOL_ID);
-    const reachedViaCapabilityCatalog = toolCallOrder.includes(CAPABILITY_SEARCH_TOOL_ID) && toolCallOrder.includes(CAPABILITY_GET_TOOL_ID);
+    // Asserts the OUTCOME (the agent reached the installed plugin's guidance) via the one route that
+    // now exists — `agent_plugin_ui_ux_design`, unaided `search_tools` discovery of an installed
+    // capability the agent was never pointed at, which is the property this scenario exists to prove.
+    // (A second route, the older `capability_search` -> `capability_get` catalog pair, was accepted
+    // here too until it was removed 2026-08-26 — see
+    // `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.)
     expect(
-      reachedViaAgentPluginTool || reachedViaCapabilityCatalog,
-      `expected the agent to reach the installed UI/UX Design Agent Plugin's guidance via EITHER route ` +
-        `— '${AGENT_PLUGIN_TOOL_ID}', or '${CAPABILITY_SEARCH_TOOL_ID}' followed by '${CAPABILITY_GET_TOOL_ID}' ` +
-        `— for an uncontested compliance question with no competing native tool. Tool calls actually ` +
-        `recorded for run ${runId}, in order: [${toolCallOrder.join(", ")}]`
+      toolCallOrder.includes(AGENT_PLUGIN_TOOL_ID),
+      `expected the agent to reach the installed UI/UX Design Agent Plugin's guidance via ` +
+        `'${AGENT_PLUGIN_TOOL_ID}' for an uncontested compliance question with no competing native ` +
+        `tool. Tool calls actually recorded for run ${runId}, in order: [${toolCallOrder.join(", ")}]`
     ).toBe(true);
   });
 

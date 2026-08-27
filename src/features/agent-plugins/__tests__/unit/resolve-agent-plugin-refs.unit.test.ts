@@ -306,14 +306,15 @@ test("frames the file inventory as instructions to follow, never as an optional 
 });
 
 /**
- * `pointer` delivery mode (2026-08-22) — the A/B arm that replaces the ~15KB injection with a short
- * mandatory instruction naming the exact `capability_get` call. These tests exist because the
- * pointer's whole value is in properties a "it returns a string" assertion would not catch: the id
- * has to be the one `capability_search` actually mints, the wording has to stay mandatory, and the
- * bulk content has to genuinely be gone rather than merely shortened.
+ * `pointer` delivery mode (2026-08-22, redirected 2026-08-26 — see
+ * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`) — the A/B arm that replaces the
+ * ~15KB injection with a short mandatory instruction naming the exact `agent_plugin_<pluginId>`
+ * call. These tests exist because the pointer's whole value is in properties a "it returns a
+ * string" assertion would not catch: the tool id has to be the real installed one, the wording has
+ * to stay mandatory, and the bulk content has to genuinely be gone rather than merely shortened.
  */
 
-test("pointer mode emits the exact capability id capability-source.ts mints, digest included", async () => {
+test("pointer mode emits the exact agent_plugin_<pluginId> tool id tool-registrations.ts mints", async () => {
   const { cwd, layout } = await freshLayout();
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-1");
@@ -321,20 +322,19 @@ test("pointer mode emits the exact capability id capability-source.ts mints, dig
     const result = await resolveAgentPluginRefs(["ui-ux-design"], layout, "pointer");
 
     assert.ok(result.ok);
-    // Built from the installed digest read back off disk, NOT from the same helper the production
-    // code uses — a shared helper would pass even if both sides drifted together.
-    const [digest] = await readdir(layout.packages);
-    const expectedId = `agent-plugin-skill:ui-ux-design:${digest}:ui-ux-design`;
+    // The install digest plays no part in this id (see `tool-registrations.ts`'s own header on why
+    // the digest is deliberately not folded into a plugin tool's id) — hyphens simply fold to
+    // underscores.
     assert.ok(
-      result.promptPrefix.includes(expectedId),
-      `pointer must name the real card id; got:\n${result.promptPrefix}`,
+      result.promptPrefix.includes("agent_plugin_ui_ux_design"),
+      `pointer must name the real installed tool id; got:\n${result.promptPrefix}`,
     );
   } finally {
     await forceRemove(cwd);
   }
 });
 
-test("pointer mode names the proxied bridge call, because capability_get is not in the agent's own namespace", async () => {
+test("pointer mode names the proxied bridge call, because the plugin tool is not in the agent's own namespace", async () => {
   const { cwd, layout } = await freshLayout();
   try {
     await installRealPackage(cwd, "ui-ux-design", REAL_SKILL_MARKDOWN, "archive-pointer-2");
@@ -345,7 +345,7 @@ test("pointer mode names the proxied bridge call, because capability_get is not 
     // Measured live 2026-08-22: the spawned agent reaches Tovu tools only through Jini's MCP proxy
     // and burned five discovery hops finding that route. A pointer naming only the bare tool would
     // name something that does not exist from the agent's side.
-    assert.ok(result.promptPrefix.includes("capability_get"));
+    assert.ok(result.promptPrefix.includes("agent_plugin_ui_ux_design({})"));
     assert.ok(result.promptPrefix.includes("mcp__jini__execute_delegated_tool"));
   } finally {
     await forceRemove(cwd);

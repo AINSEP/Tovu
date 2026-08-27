@@ -247,30 +247,16 @@ export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 // "port, not a file path" seam every other cross-module consumer of this barrel does. `features/post`
 // tried this seam too and reverted the same night — see `features/post/tool-registrations.ts`'s
 // trailing comment for why (it opened a new module cycle through `widgets`/`export`).
+//
+// A sibling CONTENT-source registry (`capability-source-registry.ts`) and the
+// `capability_search`/`capability_get` tool pair it fed used to live here as E3 — REMOVED
+// 2026-08-26 (owner call): every installed Agent Plugin now gets its own real tool,
+// `agent_plugin_<pluginId>` (`features/agent-plugins/tool-registrations.ts`), so a second
+// discovery index was no longer worth the ambiguity of two surfaces for the model to guess
+// between. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
 // ---------------------------------------------------------------------------------------------
 export { registerToolContributor } from "./tool-contribution-registry.js";
 export type { ToolContributor } from "./tool-contribution-registry.js";
-
-// ---------------------------------------------------------------------------------------------
-// E3 — Capability Source Registry
-//
-// The sibling seam a CONTENT source (today: `features/agent-plugins/capability-source.ts`)
-// registers into, so `capability-tool-registrations.ts`'s `capability_search`/`capability_get`
-// pair can discover every source without importing any of them by name — see
-// `capability-source-registry.ts`'s own header for why this is a second registry rather than
-// folded into E2 above (tool contributors vs. content sources are different shapes). Re-exported
-// here rather than deep-imported for the identical reason E2 is: a registering feature gets the
-// same "port, not a file path" seam every other cross-module consumer of this barrel does.
-// ---------------------------------------------------------------------------------------------
-export { registerCapabilitySource } from "./capability-source-registry.js";
-export type { CapabilityCard, CapabilitySource, CapabilitySourceContext } from "./capability-source-registry.js";
-
-// `capability_search`/`capability_get` themselves (the tool pair E3 above feeds) are assistant's
-// OWN content — unlike every `contribute<Domain>Tools()` in `server/tool-catalog-manifest.ts`,
-// which reaches into a FOREIGN feature module, this one reaches into `assistant/` itself, so it
-// belongs on this barrel exactly like `server/app.ts`'s/`server/deps.ts`'s own existing
-// `assistant/index.js` imports do, not as a deep import into `capability-tool-registrations.ts`.
-export { contributeCapabilityTools } from "./capability-tool-registrations.js";
 
 // ---------------------------------------------------------------------------------------------
 // F — Chat History Persistence (composition-root wiring)

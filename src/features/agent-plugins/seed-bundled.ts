@@ -10,13 +10,15 @@
  * without downloading anything.
  *
  * Inactive: seeding writes `{ enabled: false, origin: "bundled" }` into the workspace's activation
- * record (`activation.ts`) BEFORE the package can be read by anything, and the three places that
- * consume installed plugins all consult that record:
+ * record (`activation.ts`) BEFORE the package can be read by anything, and the two places that
+ * consume installed plugins both consult that record:
  *
- * - `capability-source.ts` — will not emit a capability card for it, so `capability_search` cannot
- *   find it;
  * - `tool-registrations.ts` — will not register its `agent_plugin_<id>` tool;
  * - `resolve-agent-plugin-refs.ts` — refuses to inject it even if a composer chip pins it by id.
+ *
+ * (A third surface, `capability-source.ts`'s `capability_search` discovery, was gated here too
+ * until that tool pair was removed 2026-08-26 — see
+ * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.)
  *
  * So "inactive" means genuinely undiscoverable and genuinely unexecutable, not merely
  * unadvertised.

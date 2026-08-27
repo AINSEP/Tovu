@@ -1,10 +1,10 @@
 /**
  * @file The CLI an operator types to turn a bundled Agent Plugin ON (or any installed one off).
  *
- * A plugin Tovu ships with is installed but **inactive** — undiscoverable by `capability_search`,
- * unregistered as a tool, and refused if a composer chip pins it — until this command records an
- * explicit decision. That is the whole point of the bundled-but-inactive model: the vendor supplies
- * the capability, the operator authorizes it.
+ * A plugin Tovu ships with is installed but **inactive** — unregistered as a tool (no
+ * `agent_plugin_<pluginId>`), and refused if a composer chip pins it — until this command records
+ * an explicit decision. That is the whole point of the bundled-but-inactive model: the vendor
+ * supplies the capability, the operator authorizes it.
  *
  * Thin composition over `src/features/agent-plugins/activation.ts` and `layout.ts` — no rule of its
  * own. Every guarantee (tenant-scoped path resolution, atomic write, provenance preservation) lives

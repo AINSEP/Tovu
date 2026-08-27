@@ -72,14 +72,18 @@ const CASES: readonly EvalCase[] = [
   { query: "send a login link to a member", expect: "members_request_magic_link" },
   { query: "what webhooks are set up", expect: "webhooks_list_subscriptions" },
   { query: "did that webhook actually fire", expect: "webhooks_get_deliveries" },
-  // Real recorded operator phrasing, not invented after the fact to game keyword choice — the exact
-  // query text `caseb` measured failing 2026-08-22
-  // (`ADS-memory/reports/2026-08-22-case-b-discovery-measurement.md`): `capability_search` never
-  // ranked at all, across 9 catalog searches in the real run. Left unpinned (no `alsoAcceptable`) on
-  // purpose: `theme_read_file`/`theme_list_files` legitimately also match "design" in their own
-  // keywords, and folding them into one combined rank would hide whether `capability_search` itself
-  // ever surfaces — which is the one thing this case exists to prove.
-  { query: "theme design tokens colors fonts brand style guide for this site", expect: "capability_search" },
+  // Real recorded operator phrasing, from `caseb`'s 2026-08-22 measurement
+  // (`ADS-memory/reports/2026-08-22-case-b-discovery-measurement.md`): the then-live `capability_search`
+  // never ranked at all, across 9 catalog searches in the real run. REMOVED 2026-08-26 (owner call
+  // — see `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`): `capability_search` is
+  // gone, and its replacement, the installed plugin's own `agent_plugin_ui_ux_design` tool, is
+  // registered through a SEPARATE async, disk-backed call (`registerInstalledAgentPluginTools`,
+  // called directly by `agent-daemon-server.ts`) that never runs through this eval's synchronous,
+  // no-filesystem `buildAssistantToolRegistrations` + `installFirstPartyToolContributors` setup —
+  // pinning this case to that tool id would only ever measure "not found," never a real ranking
+  // signal. This class of case (does an installed Agent Plugin's tool surface for a design-guidance
+  // query) is covered instead by `development/e2e/admin-capability-discovery.spec.ts`, which runs
+  // against a real daemon with the plugin actually seeded and active.
 ];
 
 /**
@@ -118,11 +122,12 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
   { query: "that extension is causing trouble, switch it off", expect: "plugins_set_enabled" },
   { query: "how do I put an entry in the header bar", expect: "menus_update_menu_tree", alsoAcceptable: ["menus_create_menu", "menus_assign_location", "menus_list_menus"] },
   { query: "show everyone on our email list", expect: "newsletter_list_subscriptions", alsoAcceptable: ["members_list"] },
-  // Genuinely held out: written after the keywords above were chosen, never consulted while choosing
-  // them, and deliberately avoids echoing "design guidance" — tests whether the category words
+  // Was pinned to the now-removed `capability_search`, testing whether the category words
   // (guide/playbook/reference/instructions) generalize to a differently-worded ask for the same kind
-  // of thing.
-  { query: "is there a playbook or reference doc installed that covers how we're supposed to do this", expect: "capability_search" },
+  // of thing. REMOVED 2026-08-26 for the same reason as the primary set's identical case above: its
+  // replacement, `agent_plugin_ui_ux_design`, is registered through a path this deterministic,
+  // no-filesystem eval never exercises — see that case's own comment and
+  // `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
 ];
 
 const SEARCH_LIMIT = 10;
@@ -177,11 +182,11 @@ function summarize(label: string, results: readonly CaseResult[]): void {
 }
 
 function run(): void {
-  // Registers all 25 first-party domains (comments, media, identity, ...) plus `capability_search`/
-  // `capability_get` into `tool-contribution-registry.ts`, the same call BOTH real boot paths
-  // (`agent-daemon-server.ts`, `assistant-byok.ts`) make before their own `buildAssistantToolRegistrations`
-  // call — see `tool-contribution-registry.ts`'s header: that function reads whatever is currently
-  // registered, so skipping this leaves `DOMAIN_SLICES` (now empty of first-party domains; see
+  // Registers all 25 first-party domains (comments, media, identity, ...) into
+  // `tool-contribution-registry.ts`, the same call BOTH real boot paths (`agent-daemon-server.ts`,
+  // `assistant-byok.ts`) make before their own `buildAssistantToolRegistrations` call — see
+  // `tool-contribution-registry.ts`'s header: that function reads whatever is currently registered,
+  // so skipping this leaves `DOMAIN_SLICES` (now empty of first-party domains; see
   // `tool-registrations.ts`'s own header) as the only source, and the catalog comes back empty.
   installFirstPartyToolContributors();
   const registry = createToolRegistry();

@@ -72,10 +72,19 @@ test("the mandate instruction closes the two escape routes real runs actually to
   assert.equal(/plausible/i.test(prefix), true);
 });
 
-test("manifest text names both search surfaces and the fallback bucket", () => {
+test("manifest text names the search surface and the fallback bucket", () => {
   assert.equal(CAPABILITY_MANIFEST_TEXT.includes("search_tools"), true);
-  assert.equal(CAPABILITY_MANIFEST_TEXT.includes("capability_search"), true);
   assert.equal(CAPABILITY_MANIFEST_TEXT.includes("Other installed capabilities"), true);
+});
+
+// Regression guard: `capability_search` was removed 2026-08-26 (owner call — every installed Agent
+// Plugin now gets its own real `agent_plugin_<pluginId>` tool, found through `search_tools` alone).
+// This text is server-injected into a live agent's prompt when an arm other than `off` is selected,
+// so a dangling reference here would point a real run at a tool that no longer exists. See
+// `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
+test("manifest text never points the agent at the removed capability_search tool", () => {
+  assert.equal(CAPABILITY_MANIFEST_TEXT.includes("capability_search"), false);
+  assert.equal(buildCapabilityManifestPrefix("mandate").includes("capability_search"), false);
 });
 
 test("manifest text is phrased as a pointer to a search vocabulary, never an existence claim", () => {
