@@ -96,11 +96,24 @@ import {
  * ---------------------------------------------------------------------------
  * Deliberately narrow, this pass
  * ---------------------------------------------------------------------------
- * - `--read-only` is ALWAYS passed and is not operator-configurable. A federated write path needs a
- *   confirmation transport Tovu does not have — the same gap that keeps
- *   `database_execute_migrate_forward` unwired (`tool-registration-kit.ts`'s
- *   `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT`). Offering federated writes before native
- *   ones would be the wrong order.
+ * - `--read-only` is ALWAYS passed and is not operator-configurable, and `writeAllowedToolNames` is
+ *   hardcoded to empty below — Supabase writes stay off in this pass. That is now a narrower claim
+ *   than this comment used to make, and the older version is corrected here: it is NOT that Tovu
+ *   lacks a confirmation transport. Tovu has one — `core/tool-surface-exchanges.ts` is a real,
+ *   channel-agnostic, held-open multi-message exchange inside one tool call, and
+ *   `ToolExecutionContext.emitSurface` is forwarded verbatim through the audit wrapper
+ *   (`tool-executor-audit.ts:149-162`); `content_post_delete` already reads it in production. Core
+ *   federation also now has its OWN write-authorization mechanism independent of that exchange —
+ *   `FederatedMcpConnectionConfig.writeAllowedToolNames`, consulted by `trust.ts` R3's override — and
+ *   it is available to any preset that wants it.
+ *
+ *   The reason Supabase stays read-only is ordering, not missing capability:
+ *   `database_execute_migrate_forward` — Tovu's OWN, first-party, reviewed migration tool — is still
+ *   unwired for exactly this class of risk (`tool-registration-kit.ts`'s
+ *   `ACTOR_CLASS_RULES_REQUIRING_CONFIRMATION_TRANSPORT`), and admitting a THIRD PARTY's
+ *   `apply_migration`/`execute_sql` before that native tool ships would invert an order this
+ *   codebase has otherwise kept on purpose. This preset is choosing not to opt in yet, not because
+ *   the plumbing to do so is missing.
  * - `--project-ref` is REQUIRED, not optional as it is upstream. Omitting it upstream means "the
  *   whole account"; requiring it here means a misconfiguration yields no connection rather than the
  *   broadest possible one. Fail closed, matching `daemon-auth.ts`'s posture.
@@ -238,6 +251,9 @@ export function resolveSupabaseMcpConnection(env: NodeJS.ProcessEnv = process.en
       connectionId: SUPABASE_CONNECTION_ID,
       label: `Supabase (project ${projectRef})`,
       allowedToolNames: defaults.allowedToolNames,
+      // Not operator-configurable in this pass — see this file's header. `--read-only` and an empty
+      // write list are the same decision made twice, at the transport and at the trust layer.
+      writeAllowedToolNames: [],
       connectTimeoutMs: defaults.connectTimeoutMs,
       callTimeoutMs: defaults.callTimeoutMs,
       maxResultBytes: defaults.maxResultBytes,

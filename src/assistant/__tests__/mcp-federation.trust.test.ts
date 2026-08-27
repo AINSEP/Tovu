@@ -7,6 +7,7 @@ import {
   assertNoNativeCollision,
   assertValidConnectionId,
   describeFederatedTool,
+  describeRemoteToolSurface,
   FEDERATED_TOOL_ID_PREFIX,
   federatedToolId,
   wrapUntrustedResult,
@@ -28,6 +29,9 @@ const CONFIG: FederatedMcpConnectionConfig = {
   connectionId: "supabase",
   label: "Supabase (project abcdefghijklmnop)",
   allowedToolNames: ["list_tables", "get_advisors"],
+  // Empty by default: every connection that has never been told to allow a write must resolve to
+  // no write authorization at all — the same "no safe default" rule `allowedToolNames` follows.
+  writeAllowedToolNames: [],
   connectTimeoutMs: 1_000,
   callTimeoutMs: 1_000,
   maxResultBytes: 1_024,
@@ -157,6 +161,21 @@ test("R3 (the load-bearing case): readOnlyHint:true grants NOTHING — a lying r
 
   assert.equal(report.admitted.length, 0);
   assert.equal(refusalFor(report, "drop_all_tables"), "not-in-operator-allowlist");
+
+  // INV-001, extended: naming it on the write list ALSO grants nothing on its own — R2's allowlist
+  // check runs before the write list is ever consulted (INV-002), so this is refused for the exact
+  // same reason as above, not a different one.
+  const reportWithWriteList = admitRemoteTools({
+    tools: [
+      remoteTool({
+        name: "drop_all_tables",
+        annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+      }),
+    ],
+    config: { ...CONFIG, writeAllowedToolNames: ["drop_all_tables"] },
+  });
+  assert.equal(reportWithWriteList.admitted.length, 0);
+  assert.equal(refusalFor(reportWithWriteList, "drop_all_tables"), "not-in-operator-allowlist");
 });
 
 test("R3: a remote that declares no annotations at all is admitted normally — the hint gate has nothing to demote on", () => {
@@ -186,6 +205,145 @@ test("R3: hints are carried for audit but are never the reason a tool was admitt
   });
 
   assert.deepEqual(report.admitted[0]?.declaredAnnotations, { readOnlyHint: true, openWorldHint: false });
+});
+
+test("R3: an admitted tool with no write authorization reports writeAuthorized: false", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "list_tables" })],
+    config: CONFIG,
+  });
+
+  assert.equal(report.admitted[0]?.writeAuthorized, false);
+});
+
+// ---------------------------------------------------------------------------
+// R3 override — a second, explicit operator list restores write access
+// (external-mcp-write-tools outline §2 candidate B; see trust.ts's updated R3 header)
+// ---------------------------------------------------------------------------
+
+// (a) still refused: covered above by "R3: a remote declaring readOnlyHint:false removes its own
+// tool" — that case's config carries an empty `writeAllowedToolNames`, so it is this override
+// section's baseline: the existing behaviour that must survive the change unmodified.
+
+test("(b) R3 override: a remote declaring readOnlyHint:false IS admitted once the operator separately authorizes it to write", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "get_advisors", annotations: { readOnlyHint: false, title: "Advisors" } })],
+    config: { ...CONFIG, writeAllowedToolNames: ["get_advisors"] },
+  });
+
+  assert.equal(report.admitted.length, 1);
+  const admitted = report.admitted[0];
+  assert.ok(admitted);
+  assert.equal(admitted.remoteName, "get_advisors");
+  assert.equal(admitted.writeAuthorized, true);
+  // Annotations still round-trip for audit, exactly as they do for any other admitted tool.
+  assert.deepEqual(admitted.declaredAnnotations, { readOnlyHint: false, title: "Advisors" });
+});
+
+test("(c) INV-002: a write-authorized tool absent from the allowlist is still not-in-operator-allowlist — the write list cannot bypass the allowlist", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "drop_all_tables", annotations: { readOnlyHint: false } })],
+    config: { ...CONFIG, allowedToolNames: ["list_tables"], writeAllowedToolNames: ["drop_all_tables"] },
+  });
+
+  assert.equal(report.admitted.length, 0);
+  assert.equal(refusalFor(report, "drop_all_tables"), "not-in-operator-allowlist");
+});
+
+test("(d) INV-003 / D-1: a tool on BOTH lists declaring destructiveHint:true is still refused — the write override does not reach destructive tools", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "drop_all_tables", annotations: { destructiveHint: true, readOnlyHint: false } })],
+    config: { ...CONFIG, allowedToolNames: ["drop_all_tables"], writeAllowedToolNames: ["drop_all_tables"] },
+  });
+
+  assert.equal(report.admitted.length, 0);
+  assert.equal(refusalFor(report, "drop_all_tables"), "remote-declares-destructive");
+});
+
+test("(e) INV-004: a write list naming a tool absent from the allowlist is reported as drift, never silent", () => {
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "list_tables" })],
+    config: { ...CONFIG, allowedToolNames: ["list_tables"], writeAllowedToolNames: ["list_tables", "get_advisors"] },
+  });
+
+  assert.deepEqual(report.writeAllowedButNotAllowlisted, ["get_advisors"]);
+});
+
+test("(f) the silent-write hole, documented: a remote that declares nothing writes without an override — R3 only catches honest servers", () => {
+  // The remote publishes no annotations at all for this tool. It is admitted — R3 has nothing to
+  // demote — with no write authorization and no operator awareness that this tool might write.
+  const report = admitRemoteTools({
+    tools: [remoteTool({ name: "list_tables", annotations: undefined })],
+    config: CONFIG,
+  });
+
+  assert.equal(report.admitted.length, 1);
+  const admitted = report.admitted[0];
+  assert.ok(admitted);
+  assert.equal(admitted.remoteName, "list_tables");
+  assert.equal(admitted.writeAuthorized, false);
+});
+
+test("(g) INV-005: describeRemoteToolSurface agrees with admitRemoteTools on which tools are admitted, for a mixed fixture", () => {
+  const config = {
+    ...CONFIG,
+    allowedToolNames: ["list_tables", "get_advisors", "drop_all_tables"],
+    writeAllowedToolNames: ["get_advisors"],
+  };
+  const tools = [
+    remoteTool({ name: "list_tables" }),
+    remoteTool({ name: "get_advisors", annotations: { readOnlyHint: false } }),
+    remoteTool({ name: "drop_all_tables", annotations: { destructiveHint: true } }),
+    remoteTool({ name: "pause_project" }), // never allowlisted
+  ];
+
+  const report = admitRemoteTools({ tools, config });
+  const surface = describeRemoteToolSurface({ tools, config });
+
+  assert.deepEqual(
+    surface.filter((entry) => entry.admitted).map((entry) => entry.remoteName),
+    report.admitted.map((tool) => tool.remoteName),
+  );
+});
+
+test("describeRemoteToolSurface: hintsAbsent is true only when neither readOnlyHint nor destructiveHint is set, and it must never be conflated with read-only", () => {
+  const config = { ...CONFIG, allowedToolNames: ["list_tables", "get_advisors", "pause_project"] };
+  const tools = [
+    remoteTool({ name: "list_tables" }), // no annotations object at all
+    remoteTool({ name: "get_advisors", annotations: {} }), // annotations present, no hints set
+    remoteTool({ name: "pause_project", annotations: { readOnlyHint: false } }), // a hint IS set
+  ];
+
+  const surface = describeRemoteToolSurface({ tools, config });
+  const byName = (name: string) => surface.find((entry) => entry.remoteName === name);
+
+  assert.equal(byName("list_tables")?.hintsAbsent, true);
+  assert.equal(byName("get_advisors")?.hintsAbsent, true);
+  assert.equal(byName("pause_project")?.hintsAbsent, false);
+  // The load-bearing copy-discipline assertion: an admitted, hints-absent tool is still admitted —
+  // "the server does not say" must never be read back as "therefore safe".
+  assert.equal(byName("list_tables")?.admitted, true);
+});
+
+test("describeRemoteToolSurface: writeDeclared/destructiveDeclared/allowlisted/writeAllowed/refusalReason describe a refused write tool completely", () => {
+  const config = { ...CONFIG, allowedToolNames: ["get_advisors"], writeAllowedToolNames: [] };
+  const surface = describeRemoteToolSurface({
+    tools: [remoteTool({ name: "get_advisors", annotations: { readOnlyHint: false } })],
+    config,
+  });
+
+  assert.deepEqual(surface[0], {
+    remoteName: "get_advisors",
+    description: describeFederatedTool({ label: config.label, remoteName: "get_advisors" }),
+    declaredAnnotations: { readOnlyHint: false },
+    writeDeclared: true,
+    destructiveDeclared: false,
+    hintsAbsent: false,
+    allowlisted: true,
+    writeAllowed: false,
+    admitted: false,
+    refusalReason: "remote-declares-not-read-only",
+  });
 });
 
 // ---------------------------------------------------------------------------
