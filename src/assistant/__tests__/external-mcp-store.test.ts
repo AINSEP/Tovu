@@ -10,6 +10,7 @@ import {
   ExternalMcpValidationError,
   deleteExternalMcpServer,
   listExternalMcpServerViews,
+  openExternalMcpOAuthPayload,
   parseAllowedToolNames,
   parseArgs,
   parseEnvBlock,
@@ -19,7 +20,7 @@ import {
 } from "../external-mcp-store.js";
 import { admitRemoteTools } from "../mcp-federation/trust.js";
 import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
-import type { ExternalMcpServerConfig } from "../external-mcp-store.js";
+import type { ExternalMcpServerConfig, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
 
 /**
  * @file `external-mcp-store.ts` — the operator-editable roster behind Settings → External MCP.
@@ -619,4 +620,146 @@ test("a stdio OAuth row still receives its token as an environment variable", as
 
   assert.deepEqual(failures, []);
   assert.equal(stdioTarget(configs[0]).env.MCP_TOKEN, "at-stdio");
+});
+
+// ---------------------------------------------------------------------------
+// OAuth token survival across a save (INV-001, INV-002)
+//
+// The admin form sends `providerId` and all three OAuth endpoint fields on EVERY save, blank or not
+// — `toItem` cannot round-trip a connection's own endpoints yet (see `use-external-mcp.hooks.ts`).
+// That made `resolveOAuthEndpoints` treat every save as an identity change: it rebuilt
+// `oauthEndpointsJson` from the (blank) operator input, changed the binding fingerprint, and — because
+// the fingerprint no longer matched — discarded the access token, the refresh token AND the
+// DCR-minted client secret on every edit, including one that only flipped `enabled`.
+// ---------------------------------------------------------------------------
+
+/** The OAuth write body the admin form sends TODAY for an untouched row: every identity/endpoint
+ *  field present, `providerId` and the three endpoints blank because this connection defines its own
+ *  endpoints (no registered provider) and `toItem` cannot round-trip them yet, `clientSecret` omitted
+ *  because no read model ever returns one to round-trip. */
+const TODAYS_UNTOUCHED_OAUTH_SAVE_BODY: SaveExternalMcpOAuthInput = {
+  providerId: "",
+  grant: "authorization_code",
+  clientId: "client-1",
+  scopes: "",
+  tokenEnvName: "",
+  authorizationEndpoint: "",
+  tokenEndpoint: "",
+  deviceAuthorizationEndpoint: "",
+};
+
+/** Seeds a row exactly as a completed connect leaves it: `persistSelfConfiguration` wrote this
+ *  connection's own endpoints plus the DCR-minted `clientAuth`, `persistTokens` sealed
+ *  `{clientSecret, tokens}`, and `setOAuthStatus` marked it connected. */
+async function seedConnectedOAuthRow(
+  repo: InMemoryExternalMcpServerRepo,
+  sealer: AesGcmSecretSealer,
+  keyring: InMemoryKeyring,
+): Promise<void> {
+  const sealedOAuth = await sealer.seal({
+    plaintext: JSON.stringify({
+      clientSecret: "dcr-minted-secret",
+      tokens: { accessToken: "at-1", refreshToken: "rt-1", tokenType: "Bearer", scopes: [], expiresAt: null },
+    }),
+    key: await keyring.activeKey(),
+  });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    serverId: "own-endpoint-server",
+    label: "Own Endpoint Server",
+    transport: "streamable_http",
+    authMode: "oauth",
+    enabled: true,
+    command: null,
+    url: "https://mcp.example.com/mcp",
+    args: null,
+    allowedToolNames: null,
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: null,
+    oauthGrant: "authorization_code",
+    oauthClientId: "client-1",
+    oauthEndpointsJson: JSON.stringify({
+      authorizationEndpoint: "https://auth.example.com/authorize",
+      tokenEndpoint: "https://auth.example.com/token",
+      deviceAuthorizationEndpoint: "https://auth.example.com/device",
+      clientAuth: "client_secret_post",
+    }),
+    oauthScopesJson: JSON.stringify([]),
+    oauthStatus: "connected",
+    oauthExpiresAt: "2099-01-01T00:00:00.000Z",
+    oauthTokenEnvName: null,
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth,
+    createdAt: "2026-08-09T00:00:00.000Z",
+    updatedAt: "2026-08-09T00:00:00.000Z",
+  } as Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0]);
+}
+
+/** Re-saves the seeded row exactly as the admin panel does when an operator flips `enabled` and
+ *  touches nothing else: same transport/url/command, today's OAuth body, only `enabled` changes. */
+function resaveFlippingEnabledOnly(): Parameters<typeof saveExternalMcpServer>[1] {
+  return {
+    workspaceId: WORKSPACE,
+    serverId: "own-endpoint-server",
+    transport: "streamable_http",
+    authMode: "oauth",
+    enabled: false,
+    command: "",
+    url: "https://mcp.example.com/mcp",
+    args: "",
+    allowedToolNames: "",
+    oauth: TODAYS_UNTOUCHED_OAUTH_SAVE_BODY,
+  };
+}
+
+test("INV-001: a save that only flips `enabled`, sending today's blank OAuth identity fields, preserves the stored token and client secret", async () => {
+  const { deps, repo, sealer, keyring } = makeDeps();
+  await seedConnectedOAuthRow(repo, sealer, keyring);
+
+  const view = await saveExternalMcpServer(deps, resaveFlippingEnabledOnly());
+
+  assert.equal(view.oauth.status, "connected", "the binding must read as unchanged, not disconnected");
+  assert.equal(view.oauth.hasStoredToken, true, "the sealed blob must survive");
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "own-endpoint-server" });
+  assert.ok(record?.sealedOAuth, "the sealed OAuth column must not be nulled");
+  const payload = await openExternalMcpOAuthPayload(sealer, record);
+  assert.equal(payload.clientSecret, "dcr-minted-secret", "the DCR-minted client secret must survive");
+  assert.equal(payload.tokens?.accessToken, "at-1", "the access token must survive");
+  assert.equal(payload.tokens?.refreshToken, "rt-1", "the refresh token must survive");
+});
+
+test("INV-002: the same save preserves `clientAuth`, which no operator can type", async () => {
+  const { deps, repo, sealer, keyring } = makeDeps();
+  await seedConnectedOAuthRow(repo, sealer, keyring);
+
+  await saveExternalMcpServer(deps, resaveFlippingEnabledOnly());
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "own-endpoint-server" });
+  const endpoints = JSON.parse(record?.oauthEndpointsJson ?? "{}");
+  assert.equal(endpoints.clientAuth, "client_secret_post");
+  // The two operator-typed endpoints the admin form still can't round-trip must also survive — this
+  // is what proves `clientAuth` didn't just get bolted onto an otherwise-emptied object.
+  assert.equal(endpoints.tokenEndpoint, "https://auth.example.com/token");
+  assert.equal(endpoints.authorizationEndpoint, "https://auth.example.com/authorize");
+});
+
+test("a genuine identity edit re-derives the operator's endpoints from scratch, but still keeps `clientAuth` (C-012 defense in depth)", async () => {
+  const { deps, repo, sealer, keyring } = makeDeps();
+  await seedConnectedOAuthRow(repo, sealer, keyring);
+
+  // A real edit: the operator retyped the token endpoint. This legitimately invalidates the stored
+  // token — unlike the two tests above, this save is EXPECTED to disconnect.
+  await saveExternalMcpServer(deps, {
+    ...resaveFlippingEnabledOnly(),
+    enabled: true,
+    oauth: { ...TODAYS_UNTOUCHED_OAUTH_SAVE_BODY, tokenEndpoint: "https://auth.example.com/new-token" },
+  });
+
+  const record = await repo.findByServerId({ workspaceId: WORKSPACE, serverId: "own-endpoint-server" });
+  assert.equal(record?.oauthStatus, "disconnected", "a genuinely new token endpoint invalidates the binding, same as before this fix");
+  const endpoints = JSON.parse(record?.oauthEndpointsJson ?? "{}");
+  assert.equal(endpoints.tokenEndpoint, "https://auth.example.com/new-token", "the newly typed endpoint wins");
+  assert.equal(endpoints.authorizationEndpoint, undefined, "an endpoint the operator didn't retype is not carried over — the documented re-derivation rule this fix must not disturb");
+  assert.equal(endpoints.clientAuth, "client_secret_post", "clientAuth alone survives even a genuine identity edit — no operator input could ever retype it");
 });

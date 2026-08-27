@@ -996,8 +996,16 @@ function assertOAuthClientId(clientId: string, selfConfigurable: boolean): strin
  * Resolves the provider half of an OAuth connection: a registered provider id, its own endpoints, or
  * both.
  *
- * Endpoints are re-derived whenever the operator touched EITHER identity field, so clearing a
- * provider id and typing endpoints (or the reverse) cannot leave half of the old pairing behind.
+ * Endpoints are re-derived whenever the operator actually TYPED into either identity field, so
+ * clearing a provider id and typing endpoints (or the reverse) cannot leave half of the old pairing
+ * behind. "Actually typed" is judged by content, not key presence: the admin form sends both fields
+ * on every save (it cannot round-trip a connection's own endpoints), so treating mere presence as a
+ * touch made an untouched save look like an identity change on every edit — see
+ * `use-external-mcp.hooks.ts`'s header for the caller-side half of this fix.
+ *
+ * `clientAuth` is exempted from re-derivation regardless of branch: it is server-owned, minted only
+ * by dynamic client registration (`external-mcp-oauth.ts`), and no operator input can express it, so
+ * even a save that legitimately edits the other endpoints must not drop it.
  *
  * @throws {ExternalMcpValidationError} When neither a provider id nor a token endpoint is present,
  * or the provider id is malformed.
@@ -1007,8 +1015,11 @@ function resolveOAuthEndpoints(
   oauth: SaveExternalMcpOAuthInput,
   existing: ExternalMcpServerRecord | null,
 ): Record<string, string> {
-  const touchedIdentity = oauth.providerId !== undefined || oauth.tokenEndpoint !== undefined;
-  return touchedIdentity ? buildOAuthEndpoints(oauth) : parseJsonObject(existing?.oauthEndpointsJson ?? null);
+  const stored = parseJsonObject(existing?.oauthEndpointsJson ?? null);
+  const touchedIdentity = (oauth.providerId ?? "").trim() !== "" || (oauth.tokenEndpoint ?? "").trim() !== "";
+  if (!touchedIdentity) return stored;
+  const rebuilt = buildOAuthEndpoints(oauth);
+  return stored.clientAuth === undefined ? rebuilt : { ...rebuilt, clientAuth: stored.clientAuth };
 }
 
 /**
