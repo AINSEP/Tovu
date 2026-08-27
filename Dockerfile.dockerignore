@@ -35,7 +35,7 @@ Tovu/apps/*/dist-debug
 # its WAL sidecars, uploads/ and ops state. Baking it into a published image
 # would ship their data to anyone who pulls it. The Dockerfile also `rm -rf`s
 # this in the build stage so an edit here cannot quietly reintroduce it.
-Tovu/infra
+Tovu/sites
 
 Tovu/.git
 Tovu/.github

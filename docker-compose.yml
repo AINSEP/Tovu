@@ -61,15 +61,16 @@ services:
       PORT: 3000
 
     volumes:
-      # ALL persistent state: content.db and its WAL sidecars, uploads/, and
-      # ops state. Everything else in the container is disposable and rebuilt
-      # from the image. Lose this and you lose the site.
+      # ALL persistent state: every site under `sites/<name>/` — its content.db
+      # and WAL sidecars, uploads/, themes/, skills/, and ops state. Everything
+      # else in the container is disposable and rebuilt from the image. Lose
+      # this and you lose the site.
       #
       # A named volume rather than a bind mount by default: SQLite in WAL mode
       # needs real POSIX locking, which is not guaranteed on every host
       # filesystem a bind mount might land on (network shares especially). If
       # you switch to a bind mount for easier backups, keep it on local disk.
-      - tovu-infra:/workspace/Tovu/infra
+      - tovu-sites:/workspace/Tovu/sites
 
     healthcheck:
       # Deliberately a plain TCP connect rather than a request to an
@@ -85,4 +86,4 @@ services:
       start_period: 60s
 
 volumes:
-  tovu-infra:
+  tovu-sites:

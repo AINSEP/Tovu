@@ -15,7 +15,7 @@ import {
 import { resolveSkillLayout } from "./layout.js";
 
 /**
- * @file Registers every installed standalone Agent Skill (`infra/skills/ws/<workspaceId>/<dir>/
+ * @file Registers every installed standalone Agent Skill (`<site>/skills/ws/<workspaceId>/<dir>/
  * SKILL.md`) as ONE real tool in the `ToolRegistry` — the standalone-skill counterpart to
  * `src/features/agent-plugins/tool-registrations.ts`, structurally mirrored but deliberately NOT
  * built on top of it (owner decision, verbatim: "they are different things. there should be a

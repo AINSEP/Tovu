@@ -102,12 +102,12 @@ RUN npm --prefix apps/site-chat install && npm --prefix apps/site-chat run build
 # `tsc` plus the asset copies (templates, themes, drizzle migrations, public).
 RUN npm run build
 
-# Belt and braces. `Dockerfile.dockerignore` already excludes `Tovu/infra`, but
-# that directory holds the developer's real `content.db`, WAL sidecars and
-# uploads — baking it into a published image would ship their data to whoever
-# pulls it. Removing it here means a dockerignore edit cannot quietly
-# reintroduce that.
-RUN rm -rf infra
+# Belt and braces. `Dockerfile.dockerignore` already excludes `Tovu/sites`, but
+# that directory holds every developer site's real `content.db`, WAL sidecars,
+# uploads and edited themes — baking it into a published image would ship their
+# data to whoever pulls it. Removing it here means a dockerignore edit cannot
+# quietly reintroduce that.
+RUN rm -rf sites
 
 # ---------------------------------------------------------------------------
 # Stage 3 — runtime.
@@ -179,13 +179,16 @@ ENV TOVU_ADMIN_DIST=/workspace/Tovu/apps/admin/dist \
     PORT=3000 \
     JINI_AGENT_DAEMON_PORT=4319
 
-# `infra/` is runtime state, never image content: `content.db` and its WAL
-# sidecars (`src/server/deps.ts:169`), `uploads/` (`deps.ts:133`), and ops
-# state. Both paths are resolved relative to the working directory, so the
-# volume mounts here. A missing or unwritable `infra/` fails boot with
-# SQLITE_CANTOPEN.
-RUN mkdir -p infra && chown -R node:node /workspace/Tovu/infra
-VOLUME ["/workspace/Tovu/infra"]
+# `sites/` is runtime state, never image content: each site's `content.db` and
+# WAL sidecars, `uploads/`, `themes/`, and ops state. Every one of those paths
+# derives from `site-dir/site-root.ts`'s `resolveSiteRoot()`, which is relative
+# to the working directory unless `TOVU_SITE_DIR` overrides it — so the volume
+# mounts here. A missing or unwritable site dir fails boot with SQLITE_CANTOPEN.
+#
+# Serving a site other than the default: set `TOVU_SITE=<name>` to pick another
+# folder under this volume, or `TOVU_SITE_DIR=/abs/path` to leave it entirely.
+RUN mkdir -p sites && chown -R node:node /workspace/Tovu/sites
+VOLUME ["/workspace/Tovu/sites"]
 
 # The image serves the site and admin on PORT. JINI_AGENT_DAEMON_PORT is
 # deliberately NOT exposed — the agent daemon is an internal process the API

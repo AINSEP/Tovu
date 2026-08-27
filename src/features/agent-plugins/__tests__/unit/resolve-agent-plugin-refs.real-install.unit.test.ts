@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,7 +12,7 @@ import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
  * @file Proves `resolveAgentPluginRefs()` — the exact function `agent-daemon-server.ts`'s
  * `onStarted` calls via `resolveAgentPluginPromptPrefix()` before every run — against the REAL,
  * already-installed `ui-ux-design` Agent Plugin package on THIS machine
- * (`infra/agent-plugins/ws/workspace-local/packages/sha256/<digest>/`), not a synthetic fixture
+ * (`sites/<name>/agent-plugins/ws/workspace-local/packages/sha256/<digest>/`), not a synthetic fixture
  * built by the test itself.
  *
  * `resolve-agent-plugin-refs.unit.test.ts` (sibling file) already proves the resolver's LOGIC
@@ -22,10 +23,10 @@ import { resolveAgentPluginRefs } from "../../resolve-agent-plugin-refs.js";
  * `ui-ux-design` prose, and `resolveAgentPluginRefs()` really does read it byte-for-byte off real
  * disk. Nothing here is asserted against a string this test itself wrote.
  *
- * ENVIRONMENT-SCOPED, not portable CI coverage: `infra/` is this repo's gitignored runtime-data
+ * ENVIRONMENT-SCOPED, not portable CI coverage: `sites/` is this repo's gitignored site-data
  * root (see `.gitignore` and `layout.ts`'s own header) — a machine that has never installed this
  * plugin (a fresh clone, a CI runner with no prior install step) has no
- * `infra/agent-plugins/ws/workspace-local/` tree at all. This test deliberately FAILS LOUDLY with
+ * `<site>/agent-plugins/ws/workspace-local/` tree at all. This test deliberately FAILS LOUDLY with
  * an explicit message naming the missing path in that case, rather than silently skipping — on a
  * machine where the plugin genuinely is not installed, "the wiring is proven" would be a false
  * claim to make quietly.
@@ -57,13 +58,19 @@ test("resolveAgentPluginRefs injects the REAL installed ui-ux-design SKILL.md ve
     );
     return;
   }
-  assert.equal(
-    digestDirs.length,
-    1,
-    `expected exactly one installed digest under ${layout.packages}, found: ${digestDirs.join(", ") || "(none)"}`,
+  // Locate the `ui-ux-design` package BY ITS SKILL, rather than asserting the tree holds exactly one
+  // digest and indexing [0]. That older form encoded "this machine has exactly one Agent Plugin
+  // installed", which was true when it was written and stopped being true the moment a second one
+  // (`site-compliance`) was installed beside it — a stale environment assumption failing as though
+  // it were a wiring regression. Package count was never what this test proves; the verbatim-bytes
+  // assertion below is.
+  const skillPaths = digestDirs.map((digest) => path.join(layout.packages, digest, "skills", PLUGIN_ID, "SKILL.md"));
+  const skillPath = skillPaths.find((candidate) => existsSync(candidate));
+  assert.ok(
+    skillPath !== undefined,
+    `expected one installed digest under ${layout.packages} to carry skills/${PLUGIN_ID}/SKILL.md, ` +
+      `searched: ${skillPaths.join(", ") || "(none)"}`,
   );
-
-  const skillPath = path.join(layout.packages, digestDirs[0] as string, "skills", PLUGIN_ID, "SKILL.md");
   const realSkillMarkdown = await readFile(skillPath, "utf8");
   assert.ok(realSkillMarkdown.length > 0, `real SKILL.md at ${skillPath} was unexpectedly empty`);
 

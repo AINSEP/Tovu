@@ -14,9 +14,22 @@ import { resolveSkillLayout } from "../../layout.js";
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 
-test("defaults to infra/skills under the given cwd", () => {
+test("defaults to sites/<DEFAULT_SITE_NAME>/skills under the given cwd", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
-  assert.equal(layout.root, path.resolve("/srv/tovu-site/infra/skills"));
+  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/tovu-com/skills"));
+});
+
+test("the default root follows TOVU_SITE, so a second local site gets its own skills tree", () => {
+  const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: { TOVU_SITE: "second-site" } });
+  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/second-site/skills"));
+});
+
+test("the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its skills", () => {
+  // The regression this whole 2026-08-27 change exists for: before it, an installed skill lived at
+  // `<cwd>/infra/skills` no matter where the SITE was, so a volume-mounted or relocated site
+  // silently left its own skill folders behind in the repo checkout.
+  const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: { TOVU_SITE_DIR: "/var/lib/tovu/acme" } });
+  assert.equal(layout.root, path.resolve("/var/lib/tovu/acme/skills"));
 });
 
 test("TOVU_SKILLS_DIR overrides the default root", () => {
@@ -49,14 +62,14 @@ test("two workspaces resolve to entirely disjoint trees", () => {
 test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   const ws = layout.forWorkspace("workspace-local");
-  assert.equal(ws.root, path.resolve("/srv/tovu-site/infra/skills/ws/workspace-local"));
+  assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-com/skills/ws/workspace-local"));
 });
 
 test("forWorkspace normalizes an uppercase id to a lowercase path segment", () => {
   const layout = resolveSkillLayout({ cwd: "/srv/tovu-site", env: {} });
   assert.equal(
     layout.forWorkspace("WORKSPACE-LOCAL").root,
-    path.resolve("/srv/tovu-site/infra/skills/ws/workspace-local"),
+    path.resolve("/srv/tovu-site/sites/tovu-com/skills/ws/workspace-local"),
   );
 });
 

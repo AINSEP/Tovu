@@ -24,7 +24,7 @@ import { installFirstPartyToolContributors } from "../../../../server/tool-catal
  * (`installFirstPartyToolContributors()` + `buildAssistantToolRegistrations(createRouteDeps())`),
  * then additionally registers this feature's `skill_incident_response` tool for a real installed
  * skill (the same `incident-response` fixture this feature ships at
- * `infra/skills/ws/workspace-local/incident-response/`, content reproduced literally below rather
+ * `<site>/skills/ws/workspace-local/incident-response/`, content reproduced literally below rather
  * than read off disk so this test does not depend on that fixture staying present) into the SAME
  * registry before seeding `buildToolCatalogQuery` — so ranking is measured against genuine
  * competition, not an isolated toy catalog.
@@ -34,7 +34,7 @@ import { installFirstPartyToolContributors } from "../../../../server/tool-catal
  * misses, per this feature's own instruction not to hide a bad result.
  */
 
-// Reproduced from `infra/skills/ws/workspace-local/incident-response/SKILL.md` (installed 2026-08-24
+// Reproduced from `<site>/skills/ws/workspace-local/incident-response/SKILL.md` (installed 2026-08-24
 // from the AI-Dev-Shop reference skill set) — real frontmatter, real body, not a synthetic stand-in.
 const INCIDENT_RESPONSE_SKILL_MD = `---
 name: incident-response

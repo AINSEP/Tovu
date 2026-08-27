@@ -7,6 +7,15 @@ development/coverage/
 # source. Added after an audit run left it untracked-but-not-ignored, where a wide `git add` would
 # have swept it into a commit.
 apps/admin/coverage/
+# Stray ROOT coverage output. Every `test:cov*` script in package.json writes to
+# `development/coverage/`, so nothing should land here -- but `apps/admin/vitest.config.ts` sets
+# `reportsDirectory: "./coverage"`, which resolves against the CWD, so running that config from
+# the repo root drops ~29MB at the root instead. Ignored rather than only deleted: it was
+# untracked AND unignored, so a wide `git add` would have committed it.
+/coverage/
+# Playwright's default output dir, written when a run starts from the repo root. Untracked and,
+# until now, unignored -- same wide-`git add` hazard as /coverage/ above.
+/test-results/
 # mkcert-issued locally-trusted dev TLS cert + private key for the admin Vite dev server
 # (`server.https` in `apps/admin/vite.config.ts`). Machine-specific, never shared or committed —
 # each contributor runs `mkcert -install` once and regenerates their own.
@@ -18,12 +27,15 @@ apps/admin/.certs/
 # The template is the one .env file that MUST be tracked — it is how a fresh clone learns which
 # variables a local boot needs. `development/scripts/dev.mjs` loads `.env` (never this file).
 !.env.example
-# infra/ is the site's runtime data folder: content.db + WAL sidecars, uploads/, the ADR-041 ops
-# journals, plugin snapshots, restore points. None of it is source. README.md stays tracked so the
-# directory exists in a fresh clone -- openContentDb does not create the parent, so an absent
-# infra/ fails boot with SQLITE_CANTOPEN.
-infra/*
-!infra/README.md
+# sites/ holds every SITE's own runtime data -- one folder per site (`sites/<name>/`), each owning
+# its content.db + WAL sidecars, uploads/, themes/, skills/, agent-plugins/, the ADR-041 ops
+# journals, restore points, and out/ build output. None of it is source, and none of it may ever be
+# replaced by an upgrade: that is the whole point of the 2026-08-27 move off `infra/`, which had
+# runtime data and the product's own `src/themes/` tangled together.
+# README.md stays tracked so the directory exists in a fresh clone -- openContentDb does not create
+# its parent, so an absent sites/ fails boot with SQLITE_CANTOPEN.
+sites/*
+!sites/README.md
 
 # `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
 # disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be

@@ -18,13 +18,15 @@
  * resolves WHERE that per-workspace directory of skill folders lives, not how one got there.
  *
  * ---------------------------------------------------------------------------
- * Env override and `infra/` convention (same shape as every other `TOVU_*_DIR`)
+ * Env override and `sites/<name>/` convention (same shape as every other `TOVU_*_DIR`)
  * ---------------------------------------------------------------------------
  * `TOVU_SKILLS_DIR` is required to be ABSOLUTE, for the identical reason `TOVU_AGENT_PLUGINS_DIR` is
  * (`agent-plugins/layout.ts`'s own header): a relative override resolved against an unpredictable
- * `cwd` is a correctness footgun, not a convenience. Defaults to `<cwd>/infra/skills`, the same
- * `infra/ws/<workspaceId>/` shape `infra/uploads/` and `infra/agent-plugins/` already use
- * (`infra/README.md`).
+ * `cwd` is a correctness footgun, not a convenience. Defaults to `<site>/skills`, the same
+ * `ws/<workspaceId>/` shape `<site>/uploads/` and `<site>/agent-plugins/` already use
+ * (`sites/README.md`), where `<site>` is {@link resolveSiteRoot}'s answer — NOT `<cwd>/infra/skills`
+ * as it was until 2026-08-27. Installed skills are site data: they must move with the site and
+ * survive an upgrade, which a repo-relative `infra/` could not promise.
  *
  * Deliberately does NOT import anything from `src/features/agent-plugins/` — Agent Skills and Agent
  * Plugins are different things with their own directories (owner decision, above), and this file's
@@ -38,11 +40,13 @@
  */
 import path from "node:path";
 
+import { resolveSiteRoot } from "../../site-dir/index.js";
+
 /**
  * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no
  * leading, trailing, or doubled separator. Mirrors `agent-plugins/layout.ts`'s own
  * `SAFE_ID_SEGMENT_PATTERN` — duplicated rather than imported (see this file's header) — and accepts
- * this instance's real workspace id (`workspace-local`, per `infra/uploads/ws/workspace-local/`) as
+ * this instance's real workspace id (`workspace-local`, per `<site>/uploads/ws/workspace-local/`) as
  * well as every UUID.
  */
 const SAFE_ID_SEGMENT_PATTERN = /^[a-z0-9]+(?:[-.][a-z0-9]+)*$/;
@@ -58,7 +62,7 @@ export interface SkillWorkspaceLayout {
 }
 
 export interface SkillLayout {
-  /** `infra/skills` (or `TOVU_SKILLS_DIR`) — the whole tree this feature owns. */
+  /** `<site>/skills` (or `TOVU_SKILLS_DIR`) — the whole tree this feature owns. */
   readonly root: string;
   /**
    * Resolves the workspace-scoped skills directory for one workspace.
@@ -91,7 +95,7 @@ export function resolveSkillLayout(optional: ResolveSkillLayoutOptional = {}): S
     throw new Error(`TOVU_SKILLS_DIR must be an absolute path, got '${override}'`);
   }
 
-  const root = path.resolve(override ?? path.join(cwd, "infra", "skills"));
+  const root = path.resolve(override ?? path.join(resolveSiteRoot({ cwd, env }), "skills"));
 
   return {
     root,

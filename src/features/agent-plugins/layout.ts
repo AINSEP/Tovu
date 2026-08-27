@@ -44,15 +44,21 @@
  * `data/ws/<workspaceId>/` branch alongside a shared `packages/`.
  *
  * ---------------------------------------------------------------------------
- * Env override and `infra/` convention (unchanged from the original design)
+ * Env override and `sites/<name>/` convention (root moved 2026-08-27; shape unchanged)
  * ---------------------------------------------------------------------------
- * `mediaUploadsDir()` (`src/server/deps.ts:129-135`) defaults to `join(process.cwd(), "infra",
- * "uploads")`, overridable by `TOVU_MEDIA_UPLOADS_DIR`; `builtInThemesDir()` (`deps.ts:143-145`)
- * follows the identical `TOVU_*_DIR` shape. `infra/` is the repo's own gitignored runtime-data root
- * (`.gitignore:17-22`, `infra/README.md`) and already contains a `ws/<workspaceId>/` shape for
- * per-workspace state (`infra/uploads/ws/<workspaceId>/blobs`) — this module's `ws/<workspaceId>/`
- * segment is the SAME existing convention, just applied one level higher (to the whole plugin tree,
- * not only a data subdirectory) than the module's original design used it.
+ * `mediaUploadsDir()` (`src/server/deps.ts`) defaults to `join(siteDir(), "uploads")`, overridable
+ * by `TOVU_MEDIA_UPLOADS_DIR`; `siteThemesDir()` follows the identical `TOVU_*_DIR` shape.
+ * `sites/<name>/` is the SITE's own gitignored runtime-data root (`.gitignore`, `sites/README.md`)
+ * and already contains a `ws/<workspaceId>/` shape for per-workspace state
+ * (`<site>/uploads/ws/<workspaceId>/blobs`) — this module's `ws/<workspaceId>/` segment is the SAME
+ * existing convention, just applied one level higher (to the whole plugin tree, not only a data
+ * subdirectory) than the module's original design used it.
+ *
+ * The root itself was `<cwd>/infra/agent-plugins` until 2026-08-27. That was wrong for the same
+ * reason the whole `infra/` -> `sites/` move exists: an installed plugin is SITE data, so it must
+ * travel with the site and survive an upgrade rather than sit beside the repo checkout. The default
+ * now comes from {@link resolveSiteRoot}, so `TOVU_SITE`/`TOVU_SITE_DIR` move it along with
+ * everything else the site owns. `TOVU_AGENT_PLUGINS_DIR` still overrides it outright.
  *
  * `TOVU_AGENT_PLUGINS_DIR` is required to be ABSOLUTE, stricter than `TOVU_MEDIA_UPLOADS_DIR`/
  * `TOVU_THEMES_DIR` (neither validates this) — a relative override resolved against an unpredictable
@@ -65,6 +71,8 @@
  */
 import path from "node:path";
 
+import { resolveSiteRoot } from "../../site-dir/index.js";
+
 /**
  * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no
  * leading, trailing, or doubled separator. Matches the Agent Plugins spec's own `name` grammar
@@ -74,12 +82,12 @@ import path from "node:path";
  *
  * WORKSPACE IDS, revised 2026-08-21 (owner decision, option B). `forWorkspace` previously required a
  * syntactic UUID. That was wrong about this product's own data: the real workspace id in
- * `infra/content.db` is the literal string `workspace-local`, so the UUID rule could never pass on a
+ * `<site>/content.db` is the literal string `workspace-local`, so the UUID rule could never pass on a
  * real caller's input and made `installAgentPluginFromUrl` unreachable outside tests. The check's
  * actual job was never "is this a UUID" — it was "can this string escape or split the path segment
  * I am about to build". This pattern does that job directly, still accepts every UUID the old rule
  * accepted (so no previously-valid id became invalid), and matches the shape this repo already
- * writes to disk elsewhere (`infra/uploads/ws/workspace-local/`).
+ * writes to disk elsewhere (`<site>/uploads/ws/workspace-local/`).
  *
  * Deliberately NOT relaxed further: `_`, uppercase (normalized before this is applied, never
  * accepted raw), and any Unicode remain rejected, because each would let two distinct ids collide
@@ -110,7 +118,7 @@ export interface AgentPluginWorkspaceLayout {
 }
 
 export interface AgentPluginLayout {
-  /** `infra/agent-plugins` (or `TOVU_AGENT_PLUGINS_DIR`) — the whole tree this feature owns. Not,
+  /** `<site>/agent-plugins` (or `TOVU_AGENT_PLUGINS_DIR`) — the whole tree this feature owns. Not,
    * by itself, a usable install/data location for any workspace — see `forWorkspace`. */
   readonly root: string;
   /**
@@ -146,7 +154,7 @@ export function resolveAgentPluginLayout(optional: ResolveAgentPluginLayoutOptio
     throw new Error(`TOVU_AGENT_PLUGINS_DIR must be an absolute path, got '${override}'`);
   }
 
-  const root = path.resolve(override ?? path.join(cwd, "infra", "agent-plugins"));
+  const root = path.resolve(override ?? path.join(resolveSiteRoot({ cwd, env }), "agent-plugins"));
 
   return {
     root,

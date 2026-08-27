@@ -229,7 +229,7 @@ export interface CommitSiteInput {
 }
 
 /**
- * Each source-control export RUN gets its OWN directory under `infra/` (the Docker-volume-mounted
+ * Each source-control export RUN gets its OWN directory under the site's `out/` (inside the
  * directory every other export/publish artifact already lives under) — `<parent>/github/<runId>`,
  * not merely `<parent>/github`. Exported (not merely internal) specifically so this per-run
  * isolation is directly testable — this file's own copy of `static-publish/adapter.ts`'s identical
@@ -246,7 +246,7 @@ export interface CommitSiteInput {
  * doc for why nothing downstream re-reads it from disk.
  *
  * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
- * `infra/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
+ * `<site>/out/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
  * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`server/app.ts`/`server/deps.ts`) and
  * threaded through as {@link CommitSiteInput.sourceControlExportRootDir} (2026-08-20
  * RouteDeps-narrowing fix — this used to be `input.routeDeps.sourceControlExportRootDir`; the field

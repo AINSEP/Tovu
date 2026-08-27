@@ -569,7 +569,7 @@ test("CLOSED: a layout literal stitching workspace A's `packages` onto workspace
 test("CLOSED: a layout never derived from forWorkspace() at all -- arbitrary strings -- is now a compile-time type error, and a cast-bypassed call fails at runtime instead of extracting outside the agent-plugins tree", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
   try {
-    // A location that has nothing to do with `infra/agent-plugins`, `resolveAgentPluginLayout`, or
+    // A location that has nothing to do with `<site>/agent-plugins`, `resolveAgentPluginLayout`, or
     // any workspace id at all -- the IDENTICAL hostile shape from the original gap this test used to
     // prove.
     const rogueRoot = path.join(cwd, "somewhere-else-entirely");

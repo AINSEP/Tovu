@@ -1183,7 +1183,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
   // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.
   registerThemePreviewStatic(app, {
-    themesStaticDir: path.resolve(import.meta.dirname, "../themes/static"),
+    // `routeDeps.themesDir`, not a package-relative path: since 2026-08-27 the themes a site
+    // actually serves live under `sites/<name>/themes/`, and this mount has to follow them or the
+    // preview renders the STOCK css while the live site renders the owner's edited copy. Reading it
+    // off `routeDeps` rather than calling `siteThemesDir()` here keeps the hermetic in-memory path
+    // (`createRouteDeps()` below, which stays on `builtInThemesDir()`) pointed at the same tree its
+    // own `deps.themes` was discovered from.
+    themesStaticDir: path.join(routeDeps.themesDir, "static"),
   });
 
   // Real (non-spike) asset serving for a theme's own files at /theme-assets/{id}/...: static-tier
@@ -1192,7 +1198,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
-    themeRoots: [path.resolve(import.meta.dirname, "../themes/static"), path.resolve(import.meta.dirname, "../themes/templated")],
+    // Site-relative for the same reason as `themesStaticDir` just above — this is the mount that
+    // serves the live site's own theme css/js, so a package-relative root here is precisely the bug
+    // the `sites/` move fixes.
+    themeRoots: [path.join(routeDeps.themesDir, "static"), path.join(routeDeps.themesDir, "templated")],
   });
 
   // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
