@@ -5,6 +5,7 @@ import type {
   AddSourceResult,
   SourceConfigDependencies,
   SourceConfigItem,
+  SourceTestResult,
 } from "@jini-ai/ui";
 
 /**
@@ -71,6 +72,11 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
       url: server.url ?? "",
       args: server.args.join(" "),
       allowedToolNames: server.allowedToolNames.join(", "),
+      // The operator's second, write-authorization list — same join convention as
+      // `allowedToolNames` immediately above, and round-tripped the same way (never blanked, unlike
+      // `env`/`oauthClientSecret`: the store returns this list in the clear, so there is nothing to
+      // protect by omitting it).
+      writeAllowedToolNames: server.writeAllowedToolNames.join(", "),
       authMode: server.authMode,
       // Never populated — see this file's header. The names are surfaced in `statusMessage` instead,
       // so an operator can still see which variables are set.
@@ -152,6 +158,10 @@ function toWriteBody(fields: Record<string, string>, enabled: boolean, label?: s
     url: fields.url ?? "",
     args: fields.args ?? "",
     allowedToolNames: fields.allowedToolNames ?? "",
+    // Resent in full on every save, same as `allowedToolNames` just above — NOT tri-state like
+    // `env` below, because the store always returns this list in the clear and the tab can always
+    // resend it. The server's own C-006 check rejects a name here absent from `allowedToolNames`.
+    writeAllowedToolNames: fields.writeAllowedToolNames ?? "",
     authMode: resolveExternalMcpEffectiveAuthMode(fields),
     // Blank means "untouched", never "clear" — see this file's header.
     ...(env.trim() === "" ? {} : { env }),
@@ -232,6 +242,46 @@ export function useExternalMcp(): ExternalMcpController {
             return item;
           } catch {
             return null;
+          }
+        },
+
+        /**
+         * Wired to `probeExternalMcpServer` (C-007, outline §3.1 Source A / §3.5's D-5). Its only
+         * effect is lighting up Jini's existing "Test" button — `useSourceConfigList.ts` derives
+         * `capabilities.canTest` from `Boolean(port.testSource)`, so implementing this method is
+         * what makes the button appear at all.
+         *
+         * `id` is `undefined` for the add-form's still-unsaved draft (Jini's generic "test before
+         * save" case). The probe route addresses an already-persisted server by id, so there is
+         * nothing to probe yet — this returns a failure rather than guessing at a URL/command the
+         * operator has not saved.
+         *
+         * `SourceTestResult` cannot carry a tool list (`{ ok, message?, latencyMs? }`), so this is
+         * a reachability check ONLY — it complements, and does not replace, the dedicated
+         * `ExternalMcpToolPicker` (Phase 4), which reads `probeExternalMcpServer`'s full
+         * `AdminRemoteToolSurfaceEntry[]` directly.
+         *
+         * The port's `draft` second parameter (unsaved field edits to test against, for an
+         * already-persisted item) is deliberately not accepted: `probeExternalMcpServer` (C-007)
+         * takes only a `serverId` path param and always connects using the server's LAST SAVED
+         * `url`/`command`, so there is nothing here that could honor an edited-but-unsaved value —
+         * testing an in-progress edit would require the probe route to accept a draft connection
+         * target, which is out of this slice's scope.
+         */
+        async testSource(id: string | undefined): Promise<SourceTestResult> {
+          if (id === undefined) {
+            return { ok: false, message: "Save this server before you can test it." };
+          }
+          const startedAt = Date.now();
+          try {
+            const { tools } = await api.probeExternalMcpServer(id);
+            return {
+              ok: true,
+              message: `${tools.length} tool${tools.length === 1 ? "" : "s"} advertised.`,
+              latencyMs: Date.now() - startedAt,
+            };
+          } catch (e) {
+            return { ok: false, message: describeApiError(e, "Could not reach this server. You can still type tool names by hand.") };
           }
         },
       },

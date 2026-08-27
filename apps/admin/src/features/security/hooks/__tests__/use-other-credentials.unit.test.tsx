@@ -23,6 +23,9 @@ function fakeExternalMcpServer(overrides: Partial<AdminExternalMcpServer> = {}):
     url: null,
     args: [],
     allowedToolNames: [],
+    writeAllowedToolNames: [],
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
     envNames: [],
     oauth: {
       providerId: null,
