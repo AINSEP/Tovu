@@ -203,6 +203,14 @@ export {
   deleteExternalMcpServer,
   ExternalMcpValidationError,
   ExternalMcpSecretStoreUnconfiguredError,
+  // Added 2026-08-26 (write-tools outline, C-007): the admin probe route (`routes/admin/
+  // external-mcp/probe.ts`) resolves ONE server's live connection target the same way the daemon's
+  // boot path does, so it can open its own short-lived session and ask `tools/list` — reusing this
+  // pair rather than re-deriving credential/target resolution a second time.
+  readEnabledExternalMcpConfigs,
+  toResolvedFederatedConnections,
+  resolveExternalMcpAuthMode,
+  resolveExternalMcpOAuthStatus,
 } from "./external-mcp-store.js";
 export type {
   ExternalMcpAuthMode,
@@ -212,6 +220,8 @@ export type {
   ExternalMcpServerRecord,
   ExternalMcpServerView,
   SaveExternalMcpOAuthInput,
+  // Added 2026-08-26, same reason as the value export above.
+  ExternalMcpServerConfig,
 } from "./external-mcp-store.js";
 export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
 
@@ -234,6 +244,13 @@ export type {
 
 export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config.js";
 export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+// Added 2026-08-26 (write-tools outline, C-007): the ONLY other external consumer of the hosted MCP
+// transport besides `mcp-federation/bootstrap.ts` itself — the admin probe route needs to open the
+// exact same kind of short-lived session bootstrap.ts's `defaultConnect` opens for a `streamable_http`
+// launch spec, so it can list a remote's tools on demand instead of waiting for the next daemon boot.
+// `adapter.stdio.ts` stays unexported and unreached from here: D-7 restricts the probe to hosted
+// connections only, so nothing outside `assistant/` needs the stdio transport's spawn path.
+export { connectMcpHttpSession, createFetchMcpHttpExchange } from "./mcp-federation/adapter.http.js";
 export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 
 // ---------------------------------------------------------------------------------------------
