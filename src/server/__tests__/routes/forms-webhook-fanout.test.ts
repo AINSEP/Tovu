@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/core/events/index";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
@@ -12,7 +12,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/fea
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { submitForm } from "#src/features/forms/submit-service";
 import type { FormDefinitionRecord } from "#src/features/forms/index";
-import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
  * @file Integration test proving the webhook fan-out reaches the existing delivery worker's

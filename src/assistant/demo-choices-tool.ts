@@ -16,7 +16,7 @@ import {
   type AssistantSurfaceDeps,
   type SurfaceExchange,
   type SurfaceMessage,
-} from "../core/tool-surface-exchanges.js";
+} from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and

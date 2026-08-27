@@ -9,7 +9,7 @@ import { executeMigrateForward } from "../../migrate-forward/execute.js";
  *
  * This package does NOT implement or test `core/operation-lock.ts` itself — that primitive is
  * designated and tested by the parallel SPEC-019 TDD dispatch (see
- * `src/core/__tests__/unit/operation-lock.unit.test.ts` and
+ * `src/contracts/core/__tests__/unit/operation-lock.unit.test.ts` and
  * `.../integration/operation-lock.cross-domain.integration.test.ts`, already written, read-only
  * reference here). This suite tests only THIS package's own wiring: that `executeMigrateForward`
  * (a) acquires the shared lock before invoking the state machine (U-003-ORD1, binding), (b) maps

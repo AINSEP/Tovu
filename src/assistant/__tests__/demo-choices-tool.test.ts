@@ -10,7 +10,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../core/tool-surface-exchanges.js";
+} from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The single-call MCP-UI return path, end to end through a real tool handler (ADR-055

@@ -40,8 +40,8 @@ import {
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 

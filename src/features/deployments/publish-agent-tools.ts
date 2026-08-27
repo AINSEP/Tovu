@@ -99,14 +99,14 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 // {@link ExportSiteBoundFn}'s return value — see that type's own doc for why this file declares its
 // own copy rather than naming `RouteDeps` (2026-08-20 RouteDeps-narrowing fix).
 import type { ExportReport } from "#src/export/index";
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
 import { registerToolContributor } from "#src/assistant/index";
 
-import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges.js";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
 // functions that use it, but not the type) — imported directly here so the extracted
 // `mapPublishOutcomeToToolResult`/`buildAlreadyRunningResult`/`handlePublishConfirmationAnswer`

@@ -73,7 +73,7 @@ import {
   type ToolRegistration,
   type OutboxPort,
 } from "@jini-ai/cms/core";
-import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands/index.js";
+import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge

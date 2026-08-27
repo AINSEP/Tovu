@@ -3,8 +3,8 @@ import type { Express } from "express";
 import type { ComposioConnectors } from "#src/connectors/composio-service";
 import { COMPOSIO_CALLBACK_PATH } from "../admin/connectors/callback-url.js";
 import { CONNECTOR_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "../oauth/callback-page.js";
-import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**
  * @file The PUBLIC Composio OAuth callback — the one connector route that is not behind

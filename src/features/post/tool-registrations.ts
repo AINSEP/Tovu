@@ -40,10 +40,10 @@ import {
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
-import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
+import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
-import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands/index.js";
-import { processOutbox } from "../../core/events/index.js";
+import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
+import { processOutbox } from "../../contracts/core/events/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 import {
   postAgentToolCatalog,

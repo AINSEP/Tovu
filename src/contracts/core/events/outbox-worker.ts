@@ -7,7 +7,7 @@ import type { ClockPort, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
  * Converts persisted outbox records into delivered bus events.
  *
  * How it relates to the project:
- * - Reads and updates outbox state through `OutboxPort` (`src/core/ports.ts`).
+ * - Reads and updates outbox state through `OutboxPort` (`src/contracts/core/ports.ts`).
  * - Publishes delivered events through `EventBusPort`.
  * - Called by `src/server/app.ts` after a successful command write.
  *

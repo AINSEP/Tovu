@@ -23,7 +23,7 @@ import {
   MemberNotFoundError,
   type MemberRecord,
 } from "../../features/members/index.js";
-import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,

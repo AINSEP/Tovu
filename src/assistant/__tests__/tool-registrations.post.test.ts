@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../core/commands/index.js";
-import { InMemoryEventBus, InMemoryOutbox } from "../../core/events/index.js";
+import { InMemoryChangeSetRepo } from "../../contracts/core/commands/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "../../contracts/core/events/index.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools.js";
 import type { RouteDeps } from "../../server/routes/types.js";

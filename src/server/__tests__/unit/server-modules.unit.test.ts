@@ -6,7 +6,7 @@ import express from "express";
 import { createCoreModule } from "../../modules/core.js";
 import { createFormsModule } from "../../modules/forms.js";
 import { createIntegrationsModule } from "../../modules/integrations.js";
-import { InMemoryEventBus } from "#src/core/events/index";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
 import { ConsoleMailerAdapter } from "#src/features/members/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";

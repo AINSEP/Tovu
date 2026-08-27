@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/cms/core";
-import { processOutbox } from "#src/core/events/index";
+import { processOutbox } from "#src/contracts/core/events/index";
 import { PostNotFoundError, deletePost, getAdminPostByIdOrSlug, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";

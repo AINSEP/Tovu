@@ -32,7 +32,7 @@
  * the same bundle shape.
  */
 import type { MembersWriteServiceDeps } from "#src/features/members/index";
-import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
+import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "../../types.js";
 
 /**

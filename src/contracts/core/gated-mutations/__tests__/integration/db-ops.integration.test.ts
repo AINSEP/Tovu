@@ -21,7 +21,7 @@ import { stampWatermarkTx } from "#src/db/sqlite/watermark";
  * Assumed seam design:
  *
  * ```ts
- * // src/core/gated-mutations/ports.ts
+ * // src/contracts/core/gated-mutations/ports.ts
  * export interface RestoreCapability {
  *   costClass: "cheap" | "expensive" | "unavailable";
  *   kind: "file-snapshot" | "logical-dump" | "external";

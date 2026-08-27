@@ -1,6 +1,6 @@
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { GatedMutationHooks } from "../../core/gated-mutations/gateway.js";
-import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition.js";
+import type { GatedMutationHooks } from "../../contracts/core/gated-mutations/gateway.js";
+import { planHashOf, resolveActorClassIdentity } from "../../contracts/core/gated-mutations/composition.js";
 
 /**
  * @file Database's `GatedMutationHooks` factory for the `migrate-forward` ceremony (SPEC-017

@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import test, { after } from "node:test";
 
 import { checkBuiltThemeConformance } from "../build-conformance.js";
-import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 /**
  * @file The real-bundler falsifying test (team-lead directive, 2026-08-12): every other test in this

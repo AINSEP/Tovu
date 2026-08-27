@@ -6,7 +6,7 @@ import path from "node:path";
 
 import type { Express } from "express";
 
-import { resolvePathWithin } from "#src/core/index";
+import { resolvePathWithin } from "#src/contracts/core/index";
 import { resolveThemeLayout } from "#src/features/theme/index";
 
 // No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single

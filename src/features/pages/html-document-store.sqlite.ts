@@ -3,8 +3,8 @@ import { and, eq } from "drizzle-orm";
 
 import { posts } from "../../db/schema.js";
 import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor.js";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
+import { extractHtmlEntryRefs } from "../../contracts/core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's implementation of `@jini-ai/vibecoding/html`'s

@@ -6,8 +6,8 @@ import express from "express";
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { InMemoryChangeSetRepo } from "#src/core/commands/index";
-import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -15,7 +15,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The real, non-mocked round trip through the MCP-UI callback route's Shape 1 (exchange

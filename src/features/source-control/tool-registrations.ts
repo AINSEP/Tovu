@@ -12,10 +12,10 @@ import {
 } from "@jini-ai/cms/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 
-import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
+import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
 import { listSourceControlCredentials } from "./store.js";

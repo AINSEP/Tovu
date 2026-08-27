@@ -32,12 +32,12 @@ This spec exists to prevent the transport layer from becoming an accidental mono
 - extension safety policy internals
 - content schema semantics
 
-Those belong in `src/features` or `src/core`.
+Those belong in `src/features` or `src/contracts/core`.
 
 ## Dependency Direction
 
-- `src/server` may depend on `src/core` and `src/features`.
-- `src/features` and `src/core` may not depend on `src/server`.
+- `src/server` may depend on `src/contracts/core` and `src/features`.
+- `src/features` and `src/contracts/core` may not depend on `src/server`.
 - Framework/runtime-specific objects must terminate at the server adapter boundary.
 
 ## Route Ownership Rule

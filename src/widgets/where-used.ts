@@ -22,7 +22,7 @@
  * for; that one needs an architecture decision, not a mechanical move (2026-08-12 Refactor pass).
  * The HTTP layer re-exports this symbol so its own consumers keep their existing import site.
  */
-import type { EntryRefRow } from "../core/entry-refs/types.js";
+import type { EntryRefRow } from "../contracts/core/entry-refs/types.js";
 
 /** One disclosed reference: which widgets-level location holds it, and where inside that source. */
 export interface WhereUsedReference {

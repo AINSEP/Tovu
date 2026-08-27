@@ -85,7 +85,7 @@ import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
 import { createRouteDeps } from "../../src/server/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../src/server/middleware/rate-limit";
-import { createSurfaceExchangeStore } from "../../src/core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "../../src/contracts/core/tool-surface-exchanges.js";
 import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
 import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
 import { resolveMcpJsonInjection } from "../../src/assistant/mcp-injection.js";

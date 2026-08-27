@@ -120,7 +120,7 @@ still needs a live endpoint. **You cannot find the server-dependent surface by g
 
 Most of these can run on trusted edge/serverless compute rather than the full Tovu listener. Two
 cannot be made browser-direct: IP-keyed rate limiting (composite `(sourceIp, formDefinitionId)`,
-`src/forms/submit-service.ts:87-95`, with `resolveClientIp` at `src/core/rate-limit/rate-limit.ts:315`
+`src/forms/submit-service.ts:87-95`, with `resolveClientIp` at `src/contracts/core/rate-limit/rate-limit.ts:315`
 called from the route layer), and the payments webhook, which needs a trusted raw-body
 signature-verifying endpoint (`payments-webhook.ts:7-25,72-99` — provider-generic, not Stripe-specific).
 

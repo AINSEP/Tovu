@@ -23,8 +23,8 @@
  * `bodyJson` capability which did not exist yet at that time.
  */
 import type { ClockPort, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports.js";
-import { extractEntryRefs } from "../core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../contracts/core/entry-refs/ports.js";
+import { extractEntryRefs } from "../contracts/core/entry-refs/extractor.js";
 import type { ContentTypeRepoPort } from "../features/content-types/index.js";
 import {
   VersionConflictError,

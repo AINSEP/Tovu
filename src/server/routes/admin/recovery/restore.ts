@@ -1,9 +1,9 @@
 import type { Express } from "express";
 
-import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { authorizeForHooks, confirm, execute, plan } from "#src/core/gated-mutations/gateway";
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
+import { authorizeForHooks, confirm, execute, plan } from "#src/contracts/core/gated-mutations/gateway";
 import { confirmRestore, executeRestore, planRestore } from "#src/features/recovery/recovery-orchestrator";
-import { buildConfirmOnlyHooks } from "#src/core/gated-mutations/composition";
+import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "#src/features/recovery/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "../../types.js";

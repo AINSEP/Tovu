@@ -60,7 +60,7 @@ import path from "node:path";
 
 import { openContentDb, type ContentDb } from "../../src/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../src/db/sqlite/db-ops.js";
-import { SqliteEntryRefsRepo } from "../../src/core/entry-refs/repo.sqlite.js";
+import { SqliteEntryRefsRepo } from "../../src/contracts/core/entry-refs/repo.sqlite.js";
 import { PagesHtmlDocumentStore } from "../../src/features/pages/html-document-store.js";
 import { renderDocNode } from "../../src/server/http/site/render.js";
 

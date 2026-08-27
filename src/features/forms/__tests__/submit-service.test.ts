@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../../../core/events/index.js";
-import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
+import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
+import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "../errors.js";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";

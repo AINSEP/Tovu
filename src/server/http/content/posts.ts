@@ -1,5 +1,5 @@
 import type { PostRecord } from "#src/features/post/index";
-import type { ContentPostPayload } from "#src/headless/index";
+import type { ContentPostPayload } from "#src/contracts/headless/index";
 import { toHeadlessContentPost } from "../shared/post.js";
 
 /**

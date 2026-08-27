@@ -16,7 +16,7 @@ import type {
  *
  * Purpose:
  * Zero-infrastructure test/dev doubles for `WebhookSubscriptionRepoPort` and
- * `WebhookDeliveryRepoPort`, mirroring `src/core/events/memory-bus.ts`'s `InMemoryOutbox` shape
+ * `WebhookDeliveryRepoPort`, mirroring `src/contracts/core/events/memory-bus.ts`'s `InMemoryOutbox` shape
  * (claim-then-mark lifecycle, `attempts` incremented at claim time, "failed" re-enters "pending"
  * per {@link import("./types.js").WebhookDeliveryStatus}'s own doc comment).
  *

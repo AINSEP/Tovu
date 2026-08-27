@@ -7,7 +7,7 @@ import * as path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 const require = createRequire(import.meta.url);
 

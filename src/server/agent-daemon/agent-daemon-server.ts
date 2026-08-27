@@ -98,8 +98,8 @@ import { createRouteDeps } from "../app.js";
 import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { resolveRuntimeMode } from "#src/core/runtime-mode";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { createPendingAuthorizationStore } from "#src/oauth/index";
 import {
   listAssistantAgents,
@@ -128,7 +128,7 @@ import {
   withToolAttemptAudit,
   buildAssistantToolRegistrations,
 } from "../../assistant/agent-daemon-port.js";
-import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;

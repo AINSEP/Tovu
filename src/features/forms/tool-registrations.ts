@@ -13,7 +13,7 @@
  * three self-enforcing tools would be a duplicate evaluator, and a `ToolPolicy`-only check would be
  * bypassable by any future non-tool caller of the same domain function.
  */
-import type { AuthorizeFn, ChangeSetRepoPort } from "../../core/commands/index.js";
+import type { AuthorizeFn, ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import {
   type OutboxPort,
   AGENT_TOOL_PRINCIPAL_KIND,

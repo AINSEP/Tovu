@@ -18,7 +18,7 @@
  * `extractHtmlEntryRefs()` sibling indexes supported markers in HTML page bodies.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "#src/core/embeds/marker";
+import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "#src/contracts/core/embeds/marker";
 import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 
 export interface ExtractEntryRefsInput {

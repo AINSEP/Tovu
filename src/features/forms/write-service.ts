@@ -4,7 +4,7 @@ import {
   type AuthorizeFn,
   type CommandActor,
   type ChangeSetRepoPort,
-} from "../../core/commands/index.js";
+} from "../../contracts/core/commands/index.js";
 import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
 import { validateFieldDescriptors } from "./forms.js";
 import type { FormDefinitionRepoPort } from "./ports.js";

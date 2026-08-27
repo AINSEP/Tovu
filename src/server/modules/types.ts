@@ -12,7 +12,7 @@ import type { BootModule } from "../boot-lifecycle.js";
  * module may own only routes (no subscriptions), only subscriptions (no new routes), or both.
  *
  * This is an APPLICATION-COMPOSITION convention, not a core port — it has no meaning outside
- * `src/server/`, is never imported by `src/core/**` or feature/domain code, and is not a generic
+ * `src/server/`, is never imported by `src/contracts/core/**` or feature/domain code, and is not a generic
  * IoC container: modules are composed by ordinary typed function calls in `bootstrap.ts`/`app.ts`,
  * nothing here does reflection or runtime service lookup.
  */

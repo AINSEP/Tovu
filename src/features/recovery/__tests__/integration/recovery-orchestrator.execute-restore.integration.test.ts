@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { executeRestore } from "../../recovery-orchestrator.js";
 
 /**

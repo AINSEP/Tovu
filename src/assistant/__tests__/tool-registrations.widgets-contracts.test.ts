@@ -19,7 +19,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryEntryRefsRepo } from "../../core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
 import { registerContentType } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryTokenStore } from "../../core/gated-mutations/token.js";
+import { InMemoryTokenStore } from "../../contracts/core/gated-mutations/token.js";
 import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
 import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools.js";
 import {

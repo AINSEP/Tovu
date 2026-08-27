@@ -83,10 +83,10 @@ for (const run of [1, 2, 4, 5, 6]) {
   });
 }
 
-test("real fixture: run5's src/core/embeds/marker.ts block is CONTAMINATED but not severe -- a different, real partial-match file", () => {
+test("real fixture: run5's src/contracts/core/embeds/marker.ts block is CONTAMINATED but not severe -- a different, real partial-match file", () => {
   const { contaminated } = checkCoverageIntegrity(readFixture("warn-run5-embeds-marker.lcov.info"));
   assert.equal(contaminated.length, 1);
-  assert.equal(contaminated[0].file, "src/core/embeds/marker.ts");
+  assert.equal(contaminated[0].file, "src/contracts/core/embeds/marker.ts");
   assert.equal(contaminated[0].severe, false);
 });
 

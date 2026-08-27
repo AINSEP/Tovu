@@ -7,7 +7,7 @@ import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
-import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { toWhereUsedResponse } from "../../where-used.js";
-import type { EntryRefRow } from "../../../core/entry-refs/types.js";
+import type { EntryRefRow } from "../../../contracts/core/entry-refs/types.js";
 
 /**
  * @file `toWhereUsedResponse` (REQ-34) — maps `entry_refs`' 4-way `sourceKind` union onto widgets'

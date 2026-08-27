@@ -1,8 +1,8 @@
 import type { Express, Request, Response } from "express";
 
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ConnectorsRouteDeps } from "./deps.js";
 import { sendConnectorError } from "./errors.js";
 

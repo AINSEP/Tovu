@@ -9,7 +9,7 @@
  * handler belongs to core or to a glue module — this attachment point does not wrap, retry, or
  * isolate anything of its own; it delegates straight to {@link GlueHostPort.subscribeEvent}, whose
  * real implementation is expected to register the handler on the host's live `EventBusPort`
- * (`src/core/events`), so delivery inherits the SAME retry/dead-letter path a real outbox event
+ * (`src/contracts/core/events`), so delivery inherits the SAME retry/dead-letter path a real outbox event
  * already goes through.
  *
  * Product-neutral core: depends only on `../ports` (the frozen `GlueHostPort` seam). No import of

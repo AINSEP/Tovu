@@ -28,7 +28,7 @@ import {
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
 } from "../errors.js";
-import { InMemoryEventBus, InMemoryOutbox } from "../../../core/events/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
 import type { MailerPort } from "../../../mail/index.js";

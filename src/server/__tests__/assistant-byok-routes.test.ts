@@ -7,7 +7,7 @@ import { createApp, createRouteDeps } from "../app.js";
 import { createAssistantByokModule } from "../modules/assistant-byok.js";
 import { registerAuthRoutes } from "../middleware/dev-auth.js";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/index.js";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";

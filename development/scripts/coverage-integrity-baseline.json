@@ -23,12 +23,12 @@
     "below -- only the CONTAMINATED (function-table-only) tier can be baselined away."
   ],
   "knownContaminated": [
-    "src/core/commands/appliers.ts",
-    "src/core/commands/index.ts",
-    "src/core/commands/repo.memory.ts",
-    "src/core/commands/revert.ts",
-    "src/core/embeds/marker.ts",
-    "src/core/tool-surface-exchanges.ts",
+    "src/contracts/core/commands/appliers.ts",
+    "src/contracts/core/commands/index.ts",
+    "src/contracts/core/commands/repo.memory.ts",
+    "src/contracts/core/commands/revert.ts",
+    "src/contracts/core/embeds/marker.ts",
+    "src/contracts/core/tool-surface-exchanges.ts",
     "src/db/schema.ts",
     "src/db/sqlite/content-db.ts",
     "src/db/sqlite/repo-helpers.ts",

@@ -19,7 +19,7 @@
  * caller's own job, exactly as it was before this module existed). That purity is what lets the admin
  * SPA (a browser bundle with no Node built-ins) import this module too, via the `@tovu/theme-layout`
  * alias (`apps/admin/vite.config.ts`/`vitest.config.ts`/`tsconfig.json`) — the same cross-runtime
- * precedent `src/headless` already established for wire-contract types, extended here to a pure
+ * precedent `src/contracts/headless` already established for wire-contract types, extended here to a pure
  * resolver function. Without this, the Explore screen's client-side rename-lock check and the server's
  * own classifier would need to independently agree on the same v1/v2 path facts forever — the exact
  * failure mode the audit found.

@@ -76,7 +76,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marker.js";
+import { scanEmbedMarkers, describeRejection } from "../../src/contracts/core/embeds/marker.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");

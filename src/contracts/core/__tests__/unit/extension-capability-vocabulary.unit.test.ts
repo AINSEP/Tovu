@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { SHARED_EXTENSION_CAPABILITIES } from "../../extension-capability-vocabulary.js";
-import { validateManifest } from "../../../features/plugin-runtime/manifest.js";
-import { validateGlueManifest } from "../../../features/site-glue/manifest.js";
+import { validateManifest } from "../../../../features/plugin-runtime/manifest.js";
+import { validateGlueManifest } from "../../../../features/site-glue/manifest.js";
 
 /**
  * @file Guards the single-source-of-truth invariant this module exists for: `content.read` /

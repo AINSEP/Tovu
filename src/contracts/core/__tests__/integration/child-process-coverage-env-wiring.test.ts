@@ -49,7 +49,7 @@ const CALLS_HELPER = /childProcessCoverageEnv\(/;
 for (const relativePath of NODE_CHILD_SPAWNING_FILES) {
   test(`${relativePath}: imports and calls childProcessCoverageEnv (its Node child spawn(s) must not inherit the runner's coverage dir)`, () => {
     const source = fs.readFileSync(path.join(REPO_ROOT, relativePath), "utf8");
-    assert.match(source, IMPORTS_HELPER, `${relativePath} does not import childProcessCoverageEnv from "#src/core/child-process-coverage-env"`);
+    assert.match(source, IMPORTS_HELPER, `${relativePath} does not import childProcessCoverageEnv from "#src/contracts/core/child-process-coverage-env"`);
     assert.match(source, CALLS_HELPER, `${relativePath} imports childProcessCoverageEnv but never calls it -- an unwired import gives no protection`);
   });
 }

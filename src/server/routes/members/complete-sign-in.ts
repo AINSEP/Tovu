@@ -2,7 +2,7 @@ import type { Express, Response } from "express";
 
 import { completeSignIn, MemberAuthError, MemberNotFoundError } from "#src/features/members/index";
 import { toPublicMemberResponse } from "../../http/members.js";
-import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**

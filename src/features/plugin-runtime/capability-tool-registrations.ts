@@ -10,7 +10,7 @@ import {
   type ToolRegistration,
   type WirableToolDefinition,
 } from "@jini-ai/cms/core";
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PluginActivationRepoPort } from "./activation.js";
 import type { PluginDiscoveryRecord } from "./discovery.js";
 import type { PluginManifest, PluginManifestFieldDecl } from "./manifest.js";

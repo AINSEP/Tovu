@@ -11,7 +11,7 @@ import type { AdminPost } from "../contracts.js";
  * `buildTiptapProps` below stands in for the real admin editor component's props contract
  * (`apps/admin/src/sections/PostEditor.tsx`'s TipTap integration expects a non-null document body) —
  * declared locally rather than imported, because `apps/admin` is a separate TypeScript project (its
- * own `tsconfig.json` includes `src` and, separately, `src/headless` from this repo's root) that
+ * own `tsconfig.json` includes `src` and, separately, `src/contracts/headless` from this repo's root) that
  * cannot import from `src/server`/`src/features`, and this test lives in the shared project
  * alongside `AdminPost` itself. The SHAPE below (`bodyJson: Record<string, unknown>`, required,
  * non-null) is the real contract, confirmed by direct read of `apps/admin/src/lib/api.ts`'s own

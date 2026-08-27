@@ -2,8 +2,8 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events/index.js";
-import { InMemoryChangeSetRepo } from "../core/commands/index.js";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../contracts/core/events/index.js";
+import { InMemoryChangeSetRepo } from "../contracts/core/commands/index.js";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo/index.js";
 import { registerPageHeadContributor } from "./http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post/index.js";
@@ -108,7 +108,7 @@ import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMig
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../features/entries/index.js";
 import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory.js";
-import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory.js";
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
 import { createPluginsModule } from "./modules/plugins.js";
@@ -128,8 +128,8 @@ import {
   noopStampWatermark,
 } from "../features/taxonomy/index.js";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
-import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition.js";
-import { resolveRuntimeMode } from "#src/core/runtime-mode";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../contracts/core/gated-mutations/composition.js";
+import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "./routes/admin/database/migrate-forward.js";
@@ -175,7 +175,7 @@ import {
   MAGIC_LINK_PER_EMAIL,
   MAGIC_LINK_PER_IP,
   SITE_ASSISTANT_PER_IP,
-} from "#src/core/rate-limit/rate-limit";
+} from "#src/contracts/core/rate-limit/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics.js";
 import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status.js";

@@ -8,9 +8,9 @@ import type { DomainEvent, EventBusPort, OutboxPort, OutboxRecord } from "@jini-
  * without a database, queue, or broker.
  *
  * How it relates to the project:
- * - Implements interfaces from `src/core/ports.ts`.
+ * - Implements interfaces from `src/contracts/core/ports.ts`.
  * - Used by `src/server/app.ts` as the concrete runtime wiring in development.
- * - Works with `src/core/events/outbox-worker.ts` to demonstrate hybrid sync + async flow.
+ * - Works with `src/contracts/core/events/outbox-worker.ts` to demonstrate hybrid sync + async flow.
  * - Used by tests to validate behavior without external dependencies.
  *
  * Architectural role:

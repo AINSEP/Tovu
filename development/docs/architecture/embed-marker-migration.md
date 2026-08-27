@@ -32,11 +32,11 @@ real fallback: when nothing resolves, it stays exactly as authored rather than b
 
 ## The one parser
 
-`src/core/embeds/marker.ts`. Every consumer calls it; **no consumer writes its own regex.** That is
+`src/contracts/core/embeds/marker.ts`. Every consumer calls it; **no consumer writes its own regex.** That is
 the whole point — there were four before, and they had already drifted apart.
 
 ```ts
-import { scanEmbedMarkers, markersOfType, describeRejection } from "#src/core/embeds/marker";
+import { scanEmbedMarkers, markersOfType, describeRejection } from "#src/contracts/core/embeds/marker";
 
 const { markers, rejected } = scanEmbedMarkers(html);
 for (const m of markers) {
@@ -98,10 +98,10 @@ split out of `scanEmbedMarkers` to get it from 10 to 9.
 
 ## Canaries — run these first, every time
 
-`src/core/embeds/__tests__/marker.canary.test.ts`, 9 tests, currently green.
+`src/contracts/core/embeds/__tests__/marker.canary.test.ts`, 9 tests, currently green.
 
 ```bash
-node --import tsx --test src/core/embeds/__tests__/marker.canary.test.ts
+node --import tsx --test src/contracts/core/embeds/__tests__/marker.canary.test.ts
 ```
 
 They run against the **real theme files on disk**, not fixtures, because a fixture suite only proves
@@ -113,7 +113,7 @@ consumer-side work is worth doing until it passes.
 ## Done
 
 - 184 markers across 93 theme files consolidated to the single attribute (`b7acc21`).
-- `src/core/embeds/marker.ts` — the shared parser, within 9/9, tsc clean.
+- `src/contracts/core/embeds/marker.ts` — the shared parser, within 9/9, tsc clean.
 - 9 canaries green against real themes.
 - **All four consumers rewired onto `scanEmbedMarkers`** (was item 1 below). Their local regexes are
   gone; `static-render.ts` landed in `ffb54fd`.

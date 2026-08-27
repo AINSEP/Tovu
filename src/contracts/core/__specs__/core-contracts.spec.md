@@ -7,7 +7,7 @@ HTTP frameworks, storage adapters, queue providers, and host-specific SDKs.
 
 ## Scope
 
-This spec covers the shared runtime contracts in `src/core/ports.ts`.
+This spec covers the shared runtime contracts in `src/contracts/core/ports.ts`.
 
 Current contract families:
 

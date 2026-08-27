@@ -3,7 +3,7 @@ import type { SiteProduct } from "../http/site/render.js";
 
 import type { ExportReport } from "#src/export/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands/index.js";
+import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,
@@ -63,7 +63,7 @@ import type { OriginRegistryPort } from "../../origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";
-import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
+import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline.js";
 import type {
   RestorePointListPort,
@@ -75,7 +75,7 @@ import type {
   MigrationRunsRepoPort,
   SiteStatusPort,
 } from "../../features/database/boot/reconcile-interrupted-migration.js";
-import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
+import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/index.js";
 import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
 import type { ContentTypeListPort } from "../../features/content-types/index.js";
@@ -95,11 +95,11 @@ import type {
 } from "../../features/taxonomy/index.js";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure.js";
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link.js";
-import type { GatewayDeps } from "../../core/gated-mutations/gateway.js";
+import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
 import type { WidgetRegionBindingRepoPort } from "../../widgets/ports.js";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";

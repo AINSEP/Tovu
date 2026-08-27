@@ -7,7 +7,7 @@
  * storage, and back out through dashboards and AI tools. TYPES ONLY — no feature logic.
  *
  * How it relates to the project:
- * - Reuses core primitives from `src/core/ports.ts` (UUID/ISODateTime/JsonObject) — this
+ * - Reuses core primitives from `src/contracts/core/ports.ts` (UUID/ISODateTime/JsonObject) — this
  *   file introduces no new primitive kinds, staying inside ADR-007's workspace-scoping and
  *   the frozen serializable ABI (ADR-024 §3 / ADR-005).
  * - Row types below are **core-owned single-writer sidecars** in the per-site `content.db`

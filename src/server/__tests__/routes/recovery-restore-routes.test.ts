@@ -5,7 +5,7 @@ import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../app.js";
-import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
+import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminRecoveryRestoreRoutes } from "../../routes/admin/recovery/restore.js";
 import type { RouteDeps } from "../../routes/types.js";

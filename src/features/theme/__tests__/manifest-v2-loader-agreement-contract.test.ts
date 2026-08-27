@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { markersOfType } from "#src/core/embeds/marker";
+import { markersOfType } from "#src/contracts/core/embeds/marker";
 import {
   discoverAllBuiltInThemes,
   downloadMarketplaceTheme,

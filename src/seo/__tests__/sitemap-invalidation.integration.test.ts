@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../core/events/index.js";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../contracts/core/events/index.js";
 import { InMemoryPostRepo, updatePost, type PostRecord } from "../../features/post/index.js";
 import { InMemorySettingsRepo } from "../../features/settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";

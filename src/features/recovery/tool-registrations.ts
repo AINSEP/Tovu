@@ -29,10 +29,10 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { GatewayDeps } from "../../core/gated-mutations/gateway.js";
-import { plan as gatewayPlan } from "../../core/gated-mutations/gateway.js";
-import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
-import { isOperationInFlight } from "../../core/operation-lock.js";
+import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
+import { plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
+import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
+import { isOperationInFlight } from "../../contracts/core/operation-lock.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {

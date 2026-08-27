@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { initSite } from "../../init-site.js";
-import { childProcessCoverageEnv } from "#src/core/child-process-coverage-env";
+import { childProcessCoverageEnv } from "#src/contracts/core/child-process-coverage-env";
 
 /**
  * @file SPEC-003 C-007 (`initSite`) — TDD certification, integration tier: fault injection.

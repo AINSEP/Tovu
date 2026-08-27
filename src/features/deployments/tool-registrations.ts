@@ -13,7 +13,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
 import type { DeploymentsReadRepoPort } from "./read-repo.js";
