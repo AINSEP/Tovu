@@ -4,8 +4,15 @@
  * `development/docs/architecture/wired-hooks-convention.md`.
  */
 export interface ThemePagesPort {
-  /** Narrowed to the one field this hook reads — the real `api.getPresentation()` also returns
-   *  `settings`/`availableThemes`/etc., which this hook never uses. Matches `page-editor-
-   *  port.hooks.ts`'s own narrowing precedent for the same route. */
-  getPresentation(): Promise<{ activeThemeStaticPageIds: string[] }>;
+  /** Narrowed to the two fields this hook reads — the real `api.getPresentation()` also returns
+   *  `availableThemes`/`activeThemeTemplates`/etc., which this hook never uses, and a WIDER
+   *  `settings` than the one field named here. Matches `page-editor-port.hooks.ts`'s own narrowing
+   *  precedent for the same route.
+   *
+   *  `settings.activeThemeId` (2026-08-27) is read for the Theme Pages tab's studio links, which
+   *  need `?theme=` as well as the page id. It is the same value the server derived
+   *  `activeThemeStaticPageIds` FROM (`presentation/get.ts` keys them off the active theme's own
+   *  `pages`), so taking both off one response is what keeps the two from ever disagreeing — a
+   *  second round trip could resolve a different active theme if one was activated in between. */
+  getPresentation(): Promise<{ settings: { activeThemeId: string }; activeThemeStaticPageIds: string[] }>;
 }

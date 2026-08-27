@@ -13,6 +13,10 @@ export const defaultThemePagesPort: ThemePagesPort = {
 
 /** Seed state for {@link createFakeThemePagesPort}. */
 export interface FakeThemePagesPortOptions {
+  /** Defaults to `"basic"` — the id of the theme every fresh workspace starts on, so a test that
+   *  does not care which theme is active still gets a realistic one rather than an empty string
+   *  that would silently produce a `?theme=` with no value. */
+  activeThemeId?: string;
   activeThemeStaticPageIds?: string[];
   /** When set, `getPresentation()` rejects with this instead of resolving — for load-failure
    *  tests. */
@@ -27,7 +31,10 @@ export function createFakeThemePagesPort(options: FakeThemePagesPortOptions = {}
   return {
     async getPresentation() {
       if (options.getPresentationError) throw options.getPresentationError;
-      return { activeThemeStaticPageIds: options.activeThemeStaticPageIds ?? [] };
+      return {
+        settings: { activeThemeId: options.activeThemeId ?? "basic" },
+        activeThemeStaticPageIds: options.activeThemeStaticPageIds ?? [],
+      };
     },
   };
 }

@@ -417,7 +417,12 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
           // The theme id rides in `?theme=` rather than the path because it names a theme, not a
           // resource in this app's own URL space. Read here from the router's own parsed `query`
           // rather than off `window` so the component stays a pure function of its props.
-          return <ThemeExplore themeId={ctx.query.get("theme") ?? ""} />;
+          //
+          // `?page=` (2026-08-27, optional) picks which of that theme's pages to open on — set by
+          // the Pages screen's "Theme Pages" rows. `?? undefined` rather than `themeId`'s `?? ""`:
+          // an absent `?page=` is a genuine, ordinary state (open the default page), whereas an
+          // absent `?theme=` is a malformed URL that has no screen to show.
+          return <ThemeExplore themeId={ctx.query.get("theme") ?? ""} pageId={ctx.query.get("page") ?? undefined} />;
         default:
           return <Themes />;
       }

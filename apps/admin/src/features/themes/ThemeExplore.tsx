@@ -78,6 +78,15 @@ import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-f
 export interface ThemeExploreProps {
   /** Theme id from `?theme=`. */
   themeId: string;
+  /**
+   * Page id from `?page=`, when the caller named one — the page to open ON, instead of the theme's
+   * index. `features/pages/Pages.tsx`'s "Theme Pages" tab is the only thing that sets it today: its
+   * rows link straight into this screen, focused on the row's own page.
+   *
+   * Optional, and a value naming no page of this theme is not an error — see
+   * `use-theme-explore.hooks.ts`'s `initialSelectedPath` for the fallback.
+   */
+  pageId?: string;
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
   useThemeExploreHook?: typeof useWiredThemeExplore;
 }
@@ -898,7 +907,7 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplore }: ThemeExploreProps) {
+export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredThemeExplore }: ThemeExploreProps) {
   const {
     detail,
     files,
@@ -934,7 +943,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplo
     copyingPath,
     copyFile,
     t,
-  } = useThemeExploreHook(themeId);
+  } = useThemeExploreHook(themeId, { pageId });
 
   // STAYS LOCAL — deliberately not moved into `useThemeExploreHook`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). This is interactive DOM chrome, not async/API state: nothing
