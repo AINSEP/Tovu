@@ -1,6 +1,4 @@
 import { contributeCommentsTools } from "../comments/tool-registrations.js";
-import { contributeCapabilityTools } from "../assistant/index.js";
-import { registerAgentPluginSkillsCapabilitySource } from "../features/agent-plugins/capability-source.js";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations.js";
 import { contributeDatabaseTools } from "../features/database/tool-registrations.js";
 import { contributeDeploymentsTools } from "../features/deployments/tool-registrations.js";
@@ -138,15 +136,16 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * are — plugin/data-module membership (`declareDataModule`) and AI-tool membership are deliberately
  * two different systems (see the 2026-08-17 architecture addendum this file implements).
  *
- * `contributeCapabilityTools()`/`registerAgentPluginSkillsCapabilitySource()` (2026-08-22) are a
- * different SHAPE from the 25 domains above, not a 26th entry in that rollout's count: the first
- * registers `capability_search`/`capability_get` — one tool PAIR, not a per-domain catalog — into
- * this same `tool-contribution-registry.ts` seam; the second registers Agent Plugins' Skills as the
- * first CONTENT source into the separate `capability-source-registry.ts` seam
- * (`assistant/capability-source-registry.ts`'s own header explains why that is a second registry
- * rather than folded into this one). Neither call depends on the other's order, and neither reads
- * `features/agent-plugins` by name from `assistant/` — see `capability-tool-registrations.ts`'s own
- * header for the full design.
+ * `capability_search`/`capability_get` (2026-08-22 through 2026-08-26) used to be registered here —
+ * a discovery-only tool PAIR backed by a second, parallel content-source registry
+ * (`assistant/capability-source-registry.ts`), fed by Agent Plugins' Skills. REMOVED 2026-08-26
+ * (owner call): every installed Agent Plugin now gets its own real tool, `agent_plugin_<pluginId>`
+ * (`features/agent-plugins/tool-registrations.ts`, wired at boot by
+ * `server/agent-daemon/agent-daemon-server.ts`), whose description already folds in every one of
+ * that plugin's skills' vocabulary — so `search_tools` alone finds what `capability_search` used to,
+ * with no second index for the agent to guess between. See
+ * `ADS-memory/knowledge/2026-08-26-removed-capability-search.md` for the full design that was
+ * removed and how to restore it if this trade is ever revisited.
  *
  * `contributeSiteEvidenceTools()` (2026-08-26) is likewise not a 26th domain in that rollout: it is
  * one new native tool (`site_collect_page_evidence`) in its own `features/site-evidence` module,
@@ -155,8 +154,6 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * imports `features/*` by name throughout this file.
  */
 export function installFirstPartyToolContributors(): void {
-  contributeCapabilityTools();
-  registerAgentPluginSkillsCapabilitySource();
   contributeCommentsTools();
   contributeContentTypesTools();
   contributeDatabaseTools();

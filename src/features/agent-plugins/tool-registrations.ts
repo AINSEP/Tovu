@@ -16,8 +16,16 @@ import { resolveAgentPluginLayout } from "./layout.js";
 import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
 
 /**
- * @file Registers every installed Agent Plugin as ONE real tool in the `ToolRegistry`, alongside —
- * not instead of — `capability-tool-registrations.ts`'s `capability_search`/`capability_get` pair.
+ * @file Registers every installed Agent Plugin as ONE real tool in the `ToolRegistry`.
+ *
+ * Until it registered alongside — not instead of — `capability-tool-registrations.ts`'s
+ * `capability_search`/`capability_get` pair, one tool PAIR feeding a second, parallel discovery
+ * index built from Agent Plugins' Skills. That pair was REMOVED 2026-08-26 (owner call): a second
+ * index made the agent guess which surface to query, and this file's own per-plugin tool already
+ * folds every one of a plugin's skills' vocabulary into one description (see "Why the description
+ * must still carry every skill's vocabulary" below), so `search_tools` alone now finds what the
+ * removed pair used to. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md` for the
+ * full design that was removed and how to restore it if this trade is ever revisited.
  *
  * ---------------------------------------------------------------------------
  * Supersedes the 2026-08-23 one-tool-PER-SKILL pilot
@@ -81,9 +89,9 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * a tool id is typed back into a model's `execute_delegated_tool` call after a `search_tools` hit,
  * and `tool-catalog.ts` (the FTS5 seed) weights `id` 6x `description` in `bm25()` — a 64-hex-char
  * digest folded into every id would only dilute that per-term signal for zero search benefit. That
- * tradeoff makes an ambiguous pluginId — two installed digests of the SAME plugin, which
- * `capability-source.ts` handles by minting two disjoint cards — a case this loader REFUSES
- * outright (see {@link loadInstalledAgentPluginToolSources}) rather than silently picking one, the
+ * tradeoff makes an ambiguous pluginId — two installed digests of the SAME plugin — a case this
+ * loader REFUSES outright (see {@link loadInstalledAgentPluginToolSources}) rather than silently
+ * picking one, the
  * same "loud, explicit ambiguity error" precedent `resolve-agent-plugin-refs.ts`'s own module doc
  * already establishes for a pinned ref that resolves to more than one digest. Adapted here from
  * per-(plugin,skill)-pair to per-plugin, since a plugin id is now the entire granularity of a tool.
@@ -129,29 +137,29 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * ---------------------------------------------------------------------------
  * SECURITY — no absolute host path ever reaches a tool id, description, schema, or handler output
  * ---------------------------------------------------------------------------
- * `capability-source-registry.ts`'s own header is explicit that a `CapabilityCard.handle` "must
- * never be serialized into a `capability_search`/`capability_get` response" because it carries
- * `packageRoot`/`skillPath` — absolute host paths. This module never constructs anything shaped
- * like a `handle` at all: {@link loadInstalledAgentPluginToolSources} uses `plugin.packageRoot`/
- * `skill.skillPath` ONLY as local arguments to the one `readInstalledSkillMarkdown` call that reads
- * each skill file, and neither value is stored on the returned {@link AgentPluginToolSource} or
- * threaded anywhere else. The id is built from `pluginId` (a plugin-declared identifier, not a
- * filesystem path); the description and the `skill` schema's `enum`/description are built from
- * skill names and their own frontmatter/prose; the handler returns `{ pluginId, skillName, guidance,
- * availableSkills, note? }`, where `guidance` is a skill's own markdown BODY — the exact same
- * content `capability_get` already returns for the same skill, never a path naming where it was
- * read from. Verified empirically, not just by construction: this file's own test suite installs a
- * real plugin into a temp directory (an absolute, unpredictable path by construction) and asserts
- * that path's string never appears in any registered id, description, schema, or handler output.
+ * The now-removed `capability-source-registry.ts`'s own header used to be explicit that a
+ * `CapabilityCard.handle` "must never be serialized into a `capability_search`/`capability_get`
+ * response" because it carries `packageRoot`/`skillPath` — absolute host paths. This module never
+ * constructs anything shaped like a `handle` at all: {@link loadInstalledAgentPluginToolSources}
+ * uses `plugin.packageRoot`/`skill.skillPath` ONLY as local arguments to the one
+ * `readInstalledSkillMarkdown` call that reads each skill file, and neither value is stored on the
+ * returned {@link AgentPluginToolSource} or threaded anywhere else. The id is built from `pluginId`
+ * (a plugin-declared identifier, not a filesystem path); the description and the `skill` schema's
+ * `enum`/description are built from skill names and their own frontmatter/prose; the handler
+ * returns `{ pluginId, skillName, guidance, availableSkills, note? }`, where `guidance` is a skill's
+ * own markdown BODY, never a path naming where it was read from. Verified empirically, not just by
+ * construction: this file's own test suite installs a real plugin into a temp directory (an
+ * absolute, unpredictable path by construction) and asserts that path's string never appears in any
+ * registered id, description, schema, or handler output.
  *
  * ---------------------------------------------------------------------------
  * Why this is NOT a `ToolContributor` (`tool-contribution-registry.ts`)
  * ---------------------------------------------------------------------------
  * Every other domain's contribution is synchronous — `ToolContributor.build: (routeDeps, surfaces)
  * => ToolRegistration[]` — because its tool ids are known statically at module load. This domain's
- * are not: which plugins/skills exist can only be learned by awaiting `listInstalledPlugins`, the
- * same disk read `capability-source.ts`'s own `list()` performs. This file exposes its own async
- * entry point, {@link registerInstalledAgentPluginTools}, which does exactly what
+ * are not: which plugins/skills exist can only be learned by awaiting `listInstalledPlugins`. This
+ * file exposes its own async entry point, {@link registerInstalledAgentPluginTools}, which does
+ * exactly what
  * `agent-daemon-server.ts`'s existing `for (const registration of build...())
  * registry.register(registration)` loops already do for `buildAssistantToolRegistrations`'s own
  * output — the same registration mechanism, called once more, after an await. It is not wired into
@@ -159,10 +167,10 @@ import { listInstalledPlugins } from "./resolve-agent-plugin-refs.js";
  * concurrent edit) — live-boot wiring stays a separate, later decision.
  */
 
-/** Title-cases a kebab-case name into human words. Duplicated from `capability-source.ts`'s own
- *  (unexported) `humanize` for the same reason THAT file duplicates it from `capability-projection.ts`:
- *  a private formatting helper of a sibling module, not a shared utility any of the three has
- *  promised to keep in sync. */
+/** Title-cases a kebab-case name into human words. Duplicated from `capability-projection.ts`'s own
+ *  (unexported) `humanize`: a private formatting helper of a sibling module, not a shared utility
+ *  either has promised to keep in sync. (A third copy lived in `capability-source.ts` until it was
+ *  removed 2026-08-26 — see `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.) */
 function humanize(value: string): string {
   return value
     .split("-")
@@ -343,8 +351,7 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
 }
 
 /** This module's own risk classification: every plugin tool is a pure read of already-installed,
- *  already-validated local content — no domain call, no write path, mirroring
- *  `capability_search`/`capability_get`'s identical `"none"` classification. */
+ *  already-validated local content — no domain call, no write path. */
 export function agentPluginToolDerivedRisk(sources: readonly AgentPluginToolSource[]): DerivedRiskByToolId {
   return new Map<string, AgentToolSideEffect>(sources.map((source) => [source.id, "none"]));
 }

@@ -130,11 +130,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // reverts). `post` is ALSO present below — converted last of the 25 (`fc8ad2a6`), covered by its
   // own test below, which was updated at the same time as this list.
   //
-  // "capability" (2026-08-22) is added below too, but it is NOT a 26th domain of the 25-domain
-  // rollout this comment otherwise describes — it is `capability-tool-registrations.ts`'s
-  // `contributeCapabilityTools()`, a single tool PAIR (`capability_search`/`capability_get`)
-  // registered into this same seam, not a per-domain catalog with its own `agent-tools.ts`. See that
-  // file's own header for the full design and `server/tool-catalog-manifest.ts`'s own addendum.
+  // A "capability" entry (2026-08-22) used to be listed below too — a single tool PAIR
+  // (`capability_search`/`capability_get`), not a per-domain catalog. REMOVED 2026-08-26 (owner
+  // call): every installed Agent Plugin now gets its own real `agent_plugin_<pluginId>` tool
+  // instead. See `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.
   //
   // `site-inspection` (2026-08-26) is present below as a NEW domain, not a 26th entry in that
   // rollout: it never existed before, so nothing about it was ever wired through `DOMAIN_SLICES`
@@ -147,10 +146,9 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // first-party domain (`features/site-evidence`), added because a configuration snapshot cannot
   // establish what a published page actually renders. It carries exactly one tool,
   // `site_collect_page_evidence`, wired through the standard `contributeSiteEvidenceTools()` shape
-  // with its own `agent-tools.ts` catalog — so unlike "capability" above it IS an ordinary domain,
-  // just one that did not exist when the rollout was counted.
+  // with its own `agent-tools.ts` catalog — an ordinary domain, just one that did not exist when
+  // the rollout was counted.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
-    "capability",
     "comments",
     "content-types",
     "database",

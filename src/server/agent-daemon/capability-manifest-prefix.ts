@@ -50,7 +50,7 @@ export function resolveCapabilityManifestArm(
  * isolation from category-derivation correctness. The "Other installed capabilities" line is the
  * fallback bucket the debate's kind-to-category concession assumes exists.
  */
-export const CAPABILITY_MANIFEST_TEXT = `Capability areas available in this workspace — search \`search_tools\` (native tools) or \`capability_search\` (installed skills/plugins) using terms like these before assuming a plausible answer is the only one:
+export const CAPABILITY_MANIFEST_TEXT = `Capability areas available in this workspace — search \`search_tools\` (native tools AND installed skills/plugins, one catalog) using terms like these before assuming a plausible answer is the only one:
 - Publish, deploy, and operate this site — deploy, host, publish, staging, release
 - Create and manage content — post, page, content, editor
 - Design and presentation — theme, design, style, layout
@@ -73,7 +73,7 @@ const GATE_INSTRUCTION = `Before proposing an implementation path for an ambiguo
  */
 const MANDATE_INSTRUCTION = `MANDATORY FIRST STEP — applies to your very first reply in this conversation, with no exceptions.
 
-Before you answer, before you ask a clarifying question, and before you read any file or call any other tool, you MUST first run at least one \`search_tools\` or \`capability_search\` query built from the category vocabulary above.
+Before you answer, before you ask a clarifying question, and before you read any file or call any other tool, you MUST first run at least one \`search_tools\` query built from the category vocabulary above.
 
 This applies EVEN IF:
 - you already believe you know what the user means, or

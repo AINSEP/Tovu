@@ -55,7 +55,6 @@ import path from "node:path";
 import { isAgentPluginActive, readAgentPluginActivations } from "./activation.js";
 import { indexInstalledRoot, type InstalledAgentPlugin } from "./install.js";
 import { readInstalledSkillMarkdown } from "./capability-projection.js";
-import { toAgentPluginSkillCapabilityId } from "./capability-id.js";
 import type { AgentPluginWorkspaceLayout } from "./layout.js";
 
 const SHA256_DIGEST_DIRNAME_PATTERN = /^[a-f0-9]{64}$/;
@@ -148,13 +147,16 @@ export async function resolveAgentPluginRefs(
  *  than passed to `indexInstalledRoot` — `packages/sha256/` is not asserted empty of anything else
  *  a future tool might place there, and a non-digest entry is not this function's to interpret.
  *
- *  Exported (2026-08-22) for a second caller outside this module: `capability-source.ts`'s
- *  capability-catalog source needs the SAME per-digest walk (every installed digest, whichever
- *  skills each one carries) to produce one capability card per skill folder per digest — the exact
- *  shape this function already builds, just consumed differently than `resolveOnePluginRef`'s own
- *  "resolve one pinned ref" use below. Reusing this rather than re-walking `packages/sha256/*` a
- *  second, less-validated way keeps the digest-directory-name check and the per-digest failure
- *  isolation in exactly one place. */
+ *  Exported for a second caller outside this module: `tool-registrations.ts`'s
+ *  `loadInstalledAgentPluginToolSources` needs the SAME per-digest walk (every installed digest,
+ *  whichever skills each one carries) to build one `agent_plugin_<pluginId>` tool per installed
+ *  plugin — the exact shape this function already builds, just consumed differently than
+ *  `resolveOnePluginRef`'s own "resolve one pinned ref" use below. (A third caller,
+ *  `capability-source.ts`'s now-removed capability-catalog source, used this the same way from
+ *  2026-08-22 until it was removed 2026-08-26 — see
+ *  `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`.) Reusing this rather than
+ *  re-walking `packages/sha256/*` a second, less-validated way keeps the digest-directory-name check
+ *  and the per-digest failure isolation in exactly one place. */
 export async function listInstalledPlugins(packagesDir: string): Promise<readonly InstalledAgentPlugin[]> {
   let entries: string[];
   try {
@@ -248,10 +250,23 @@ async function resolveOnePluginRef(
   };
 }
 
+/** `agent_plugin_<pluginId>` (hyphens folded to underscores) — the id
+ *  `features/agent-plugins/tool-registrations.ts`'s own `toAgentPluginToolId` mints for the same
+ *  plugin, duplicated here as a one-line transform rather than imported: that function is private to
+ *  a sibling module this file must not reach into (mirrors this codebase's own precedent for
+ *  `humanize()`, duplicated three times across `capability-projection.ts` /
+ *  (the now-removed) `capability-source.ts` / `tool-registrations.ts`, each with the same "private
+ *  formatting helper of a sibling module" reasoning). If the two ever drift, `resolve-agent-plugin-
+ *  refs.unit.test.ts`'s pointer-mode tests assert against the REAL installed tool id, not this
+ *  template, so a drift fails loudly there. */
+function toAgentPluginToolId(pluginId: string): string {
+  return `agent_plugin_${pluginId.replace(/-/g, "_")}`;
+}
+
 /**
  * `pointer` delivery — the ~400-byte replacement for the ~15KB `inject` section above.
  *
- * Three properties are load-bearing, each one bought with a measurement rather than reasoned from
+ * Two properties are load-bearing, each one bought with a measurement rather than reasoned from
  * first principles:
  *
  * 1. **It is mandatory, and says so.** The owner's framing is "the chip shouldn't inject anything, let
@@ -261,18 +276,23 @@ async function resolveOnePluginRef(
  *    hedging. Injection's one real virtue is that it is guaranteed; that virtue is kept here for the
  *    ~400 bytes and dropped for the 15KB.
  *
- * 2. **It names the bridge call, not just the tool.** `capability_get` is NOT in the spawned agent's
- *    tool namespace — measured live 2026-08-22 (`ADS-memory/reports/
- *    2026-08-22-capability-tools-first-live-run.md`): the agent reaches Tovu tools only through Jini's
- *    MCP proxy, and burned five discovery hops (`ToolSearch` x3, `search_tools`, `describe_tool` x2)
- *    locating that route on a prompt that named both tools explicitly and did nothing else. A pointer
- *    saying only "call capability_get" would name a tool that does not exist from the agent's side.
- *    The plain name is given FIRST and the proxied form second, so a Jini rename degrades this to the
+ * 2. **It names the bridge call, not just the tool.** Neither `agent_plugin_<pluginId>` nor its
+ *    now-removed predecessor `capability_get` is in the spawned agent's own tool namespace —
+ *    measured live 2026-08-22 (`ADS-memory/reports/2026-08-22-capability-tools-first-live-run.md`):
+ *    the agent reaches Tovu tools only through Jini's MCP proxy, and burned five discovery hops
+ *    (`ToolSearch` x3, `search_tools`, `describe_tool` x2) locating that route on a prompt that
+ *    named both tools explicitly and did nothing else. A pointer saying only "call
+ *    agent_plugin_<pluginId>" would name a tool that does not exist from the agent's side. The
+ *    plain name is given FIRST and the proxied form second, so a Jini rename degrades this to the
  *    still-workable "search for it" case rather than to a call that hard-fails.
  *
- * 3. **The id is minted by the same function `capability-source.ts` mints cards with**
- *    (`capability-id.ts`), never a template string written twice — see that file's header for why a
- *    drift here would be the most expensive possible failure in this feature.
+ * REDIRECTED 2026-08-26 (owner call, `ADS-memory/knowledge/2026-08-26-removed-capability-search.md`):
+ * this used to name `capability_get({ "id": <capability-id.ts's card id> })`. That tool pair is gone;
+ * `agent_plugin_<pluginId>` called with NO argument already returns exactly the same content — the
+ * plugin's own eponymous skill (`tool-registrations.ts`'s `loadInstalledAgentPluginToolSources`
+ * documents that default) — so the redirect changes delivery, never content. The eponymous-skill
+ * existence check below is unchanged from before this redirect: it is what makes "no argument"
+ * exactly correct rather than a guess.
  *
  * Deliberately points at the plugin's own EPONYMOUS skill, exactly what `inject` sends, so arm 2 and
  * arm 3 of the A/B differ in delivery alone and not in content.
@@ -283,8 +303,9 @@ function buildPointerSection(
 ): { readonly ok: true; readonly section: string } | { readonly ok: false; readonly reason: string } {
   // Parity with `inject`'s own failure: a pinned ref whose eponymous skill is missing must fail
   // loudly in BOTH modes. Without this check `pointer` would happily emit a well-formed instruction
-  // to fetch a card that `capability_search` can never return, and the run would look like the agent
-  // disobeyed rather than like the pin being wrong.
+  // whose no-argument default resolves to some OTHER (alphabetically-first) skill instead of the one
+  // the pin actually named, and the run would look like the agent disobeyed rather than like the pin
+  // being wrong.
   if (!plugin.skills.some((skill) => skill.name === pluginRefId)) {
     return {
       ok: false,
@@ -292,18 +313,18 @@ function buildPointerSection(
     };
   }
 
-  const capabilityId = toAgentPluginSkillCapabilityId(pluginRefId, plugin.archiveDigest, pluginRefId);
+  const toolId = toAgentPluginToolId(pluginRefId);
   const body = [
     `MANDATORY — before you begin this task, make this one tool call and follow what it returns:`,
     ``,
-    `  capability_get({ "id": "${capabilityId}" })`,
+    `  ${toolId}({})`,
     ``,
     `If your tools are proxied, that call is:`,
-    `  mcp__jini__execute_delegated_tool({ "toolId": "capability_get", "input": { "id": "${capabilityId}" } })`,
+    `  mcp__jini__execute_delegated_tool({ "toolId": "${toolId}", "input": {} })`,
     ``,
-    `What it returns is this Agent Plugin's own instructions — not a summary, and not background`,
-    `material you may skip. Follow them, including any files they direct you to load, before you`,
-    `start work.`,
+    `Called with no argument, it returns this Agent Plugin's own instructions — not a summary, and`,
+    `not background material you may skip. Follow them, including any files they direct you to load,`,
+    `before you start work.`,
   ].join("\n");
 
   return { ok: true, section: `<<AGENT_PLUGIN pluginId="${pluginRefId}">>\n${body}\n<</AGENT_PLUGIN>>` };
