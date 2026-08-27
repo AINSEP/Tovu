@@ -16,7 +16,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../newsletter/agent-tools.js";
+import { newsletterAgentToolCatalog, type AgentToolDefinition } from "../../features/newsletter/agent-tools.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -24,19 +24,19 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../../newsletter/repo.memory.js";
+} from "../../features/newsletter/repo.memory.js";
 import {
   NewsletterCampaignNotFoundError,
   NewsletterSubscriptionNotFoundError,
-} from "../../newsletter/errors.js";
-import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../newsletter/types.js";
+} from "../../features/newsletter/errors.js";
+import type { CampaignRecord, NewsletterListRow, SubscriptionRow } from "../../features/newsletter/types.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeNewsletterTools } from "../../newsletter/tool-registrations.js";
+import { contributeNewsletterTools } from "../../features/newsletter/tool-registrations.js";
 
 // Newsletter moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so

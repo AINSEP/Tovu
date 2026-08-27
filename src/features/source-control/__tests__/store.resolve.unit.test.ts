@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../webhooks/index.js";
 import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import {
   createSourceControlCredential,

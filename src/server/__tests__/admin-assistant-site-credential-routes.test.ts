@@ -7,8 +7,8 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createAssistantSettingsModule } from "../modules/assistant-settings.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../features/webhooks/index.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**

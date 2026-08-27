@@ -5,7 +5,7 @@ import {
   RedirectLoopError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "#src/redirects/index";
+} from "#src/features/redirects/index";
 
 /**
  * @file Shared error-response mapping for the `redirects` admin write routes.

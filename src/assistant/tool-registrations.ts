@@ -140,7 +140,7 @@
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` — nothing in THIS file
  * changes for that path, which is the property the registry exists to buy.
  */
-import type { CommentsToolDeps } from "../comments/tool-registrations.js";
+import type { CommentsToolDeps } from "../features/comments/tool-registrations.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
@@ -179,14 +179,14 @@ import type { SiteInspectionToolDeps } from "../features/site-inspection/index.j
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.js";
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
-import type { FormsToolDeps } from "../forms/tool-registrations.js";
+import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../identity/tool-registrations.js";
-import type { IntegrationsToolDeps } from "../webhooks/tool-registrations.js";
+import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps } from "../media/tool-registrations.js";
-import type { MembersToolDeps } from "../members/tool-registrations.js";
+import type { MembersToolDeps } from "../features/members/tool-registrations.js";
 import type { MenusToolDeps } from "../navigation/tool-registrations.js";
-import type { NewsletterToolDeps } from "../newsletter/tool-registrations.js";
-import type { RedirectsToolDeps } from "../redirects/tool-registrations.js";
+import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
+import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
 import type { SeoToolDeps } from "../seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
 import type { WidgetsToolDeps } from "../widgets/tool-registrations.js";

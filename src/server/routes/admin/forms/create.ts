@@ -1,7 +1,7 @@
 import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
-import { createFormDefinition } from "#src/forms/write-service";
-import type { FieldDescriptor, NotifyConfig } from "#src/forms/index";
+import { createFormDefinition } from "#src/features/forms/write-service";
+import type { FieldDescriptor, NotifyConfig } from "#src/features/forms/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 

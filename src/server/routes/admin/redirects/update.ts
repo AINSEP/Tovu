@@ -1,4 +1,4 @@
-import { updateRedirect, RedirectNotFoundError } from "#src/redirects/index";
+import { updateRedirect, RedirectNotFoundError } from "#src/features/redirects/index";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError, type RedirectErrorMapping } from "./shared.js";

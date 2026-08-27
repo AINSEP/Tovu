@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { CommentsSettingsValidationError, setCommentsSettings } from "#src/comments/index";
+import { CommentsSettingsValidationError, setCommentsSettings } from "#src/features/comments/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { CommentsModerationRouteDeps } from "./deps.js";
 

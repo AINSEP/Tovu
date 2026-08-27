@@ -1,5 +1,5 @@
-import { registerFormNotifySubscriber } from "../../forms/notify-subscriber.js";
-import type { RegisterFormNotifySubscriberDeps } from "../../forms/notify-subscriber.js";
+import { registerFormNotifySubscriber } from "../../features/forms/notify-subscriber.js";
+import type { RegisterFormNotifySubscriberDeps } from "../../features/forms/notify-subscriber.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

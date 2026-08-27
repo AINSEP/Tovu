@@ -1,4 +1,4 @@
-import { MemberNotFoundError } from "#src/members/index";
+import { MemberNotFoundError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

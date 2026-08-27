@@ -10,7 +10,7 @@ import {
 import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
 import { substituteHtmlEmbeds } from "#src/widgets/html-embeds";
-import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";
+import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 

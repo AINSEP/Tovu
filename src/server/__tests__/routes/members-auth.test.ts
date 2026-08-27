@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import type { MemberRecord } from "#src/members/index";
+import type { MemberRecord } from "#src/features/members/index";
 import { createRouteDeps } from "../../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/core/rate-limit/rate-limit";

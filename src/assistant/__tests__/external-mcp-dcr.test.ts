@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { createPendingAuthorizationStore } from "../../oauth/index.js";
 import { startDiscoveryFixture, startLoopbackServer, sendJson } from "../../oauth/__tests__/helpers.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import {

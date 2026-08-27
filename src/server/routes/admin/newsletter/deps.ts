@@ -22,15 +22,15 @@ import type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   SubscriberDirectoryPort,
-} from "#src/newsletter/index";
-import type { CampaignWriteServiceDeps } from "#src/newsletter/campaign-write-service";
-import type { ConfirmationDeps } from "#src/newsletter/confirmation";
-import type { HookRegistry } from "#src/newsletter/hooks";
-import type { ListsDeps } from "#src/newsletter/lists";
-import type { SendPipelineDeps } from "#src/newsletter/send-pipeline";
-import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/newsletter/subscriptions";
-import type { UnsubscribeDeps } from "#src/newsletter/unsubscribe";
-import type { KeyringPort } from "#src/webhooks/index";
+} from "#src/features/newsletter/index";
+import type { CampaignWriteServiceDeps } from "#src/features/newsletter/campaign-write-service";
+import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
+import type { HookRegistry } from "#src/features/newsletter/hooks";
+import type { ListsDeps } from "#src/features/newsletter/lists";
+import type { SendPipelineDeps } from "#src/features/newsletter/send-pipeline";
+import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/features/newsletter/subscriptions";
+import type { UnsubscribeDeps } from "#src/features/newsletter/unsubscribe";
+import type { KeyringPort } from "#src/features/webhooks/index";
 import type { RouteDeps } from "../../types.js";
 
 export interface NewsletterRouteDeps extends RouteDeps {

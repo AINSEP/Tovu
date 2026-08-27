@@ -1,7 +1,7 @@
 import type { ClockPort, UUID } from "@jini-ai/cms/core";
 import { ComposioConnectorProvider, ComposioConnectorService } from "@jini-ai/integrations/composio";
 
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../features/webhooks/index.js";
 import {
   createSnapshotComposioConfigStore,
   readComposioConfig,

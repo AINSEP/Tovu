@@ -1,6 +1,6 @@
 import type { Request } from "express";
 
-import type { MemberRecord } from "#src/members/index";
+import type { MemberRecord } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";

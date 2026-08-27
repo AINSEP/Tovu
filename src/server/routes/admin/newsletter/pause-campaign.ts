@@ -1,4 +1,4 @@
-import { pauseCampaign } from "#src/newsletter/send-pipeline";
+import { pauseCampaign } from "#src/features/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types.js";
 import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryFormDefinitionRepo } from "#src/forms/repo.memory";
-import type { FormDefinitionRecord } from "#src/forms/index";
+import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
+import type { FormDefinitionRecord } from "#src/features/forms/index";
 import { createContactFormResolver } from "../../resolvers/index.js";
 import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
 

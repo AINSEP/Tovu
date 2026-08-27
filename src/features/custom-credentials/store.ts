@@ -1,6 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { buildCustomCredentialAad } from "./aad.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,

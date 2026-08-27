@@ -28,7 +28,7 @@ import {
   type ToolContributor,
 } from "../tool-contribution-registry.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
-import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 
 /** A minimal, valid `ToolRegistration` — enough to satisfy `buildAssistantToolRegistrations`'s own
@@ -282,7 +282,7 @@ test("a real catalog entry from a NOT-installed contributor fails assertRiskMeta
 });
 
 test("installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else", async () => {
-  const { contributeCommentsTools } = await import("../../comments/tool-registrations.js");
+  const { contributeCommentsTools } = await import("../../features/comments/tool-registrations.js");
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
   assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));

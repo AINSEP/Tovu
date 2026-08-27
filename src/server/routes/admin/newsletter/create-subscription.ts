@@ -1,4 +1,4 @@
-import { saveSubscription } from "#src/newsletter/subscriptions";
+import { saveSubscription } from "#src/features/newsletter/subscriptions";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types.js";
 import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";

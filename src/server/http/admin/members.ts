@@ -1,4 +1,4 @@
-import type { MemberRecord, MemberStatus } from "#src/members/index";
+import type { MemberRecord, MemberStatus } from "#src/features/members/index";
 
 /**
  * @file Admin-facing member response DTO (mirrors `admin/posts.ts`'s pattern).

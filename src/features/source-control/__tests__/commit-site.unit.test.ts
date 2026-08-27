@@ -9,8 +9,8 @@ import express from "express";
 import { createApp, createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { createSourceControlCredential } from "../store.js";
 import {
   commitSiteToSourceControl,

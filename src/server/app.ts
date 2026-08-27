@@ -54,12 +54,12 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../members/index.js";
+} from "../features/members/index.js";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/index.js";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../webhooks/index.js";
-import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
-import { createKeyringBackedSigner } from "../webhooks/signing.keyring.js";
-import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../features/webhooks/index.js";
+import { InMemoryKeyring } from "../features/webhooks/keyring.memory.js";
+import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
+import { AesGcmSecretSealer } from "../features/webhooks/secret-sealer.aesgcm.js";
 import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory.js";
 import { createComposioConnectors } from "../connectors/composio-service.js";
 import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory.js";
@@ -81,17 +81,17 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../newsletter/repo.memory.js";
-import { ensureDefaultList } from "../newsletter/lists.js";
-import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../newsletter/send-pipeline.js";
-import type { SendBatchJob } from "../newsletter/index.js";
-import { MembersSubscriberDirectory } from "../members/index.js";
+} from "../features/newsletter/repo.memory.js";
+import { ensureDefaultList } from "../features/newsletter/lists.js";
+import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../features/newsletter/send-pipeline.js";
+import type { SendBatchJob } from "../features/newsletter/index.js";
+import { MembersSubscriberDirectory } from "../features/members/index.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
 import { toSendPipelineDeps } from "./routes/admin/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "./routes/site/newsletter-deps.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory.js";
-import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../features/forms/repo.memory.js";
+import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin/index.js";
 import {
   InMemoryRedirectRepo,
@@ -102,7 +102,7 @@ import {
   registerRedirectHitOutboxHandler,
   registerRedirectsPhaseHandlers,
   type RedirectsWriteDeps,
-} from "../redirects/index.js";
+} from "../features/redirects/index.js";
 import { registerSlugChangeCapture } from "../routing/index.js";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
@@ -116,9 +116,9 @@ import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
 import { createNavMenuReadModel } from "../navigation/index.js";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments/index.js";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
-import { InMemoryCommentRepo } from "../comments/repo.memory.js";
+import { InMemoryCommentRepo } from "../features/comments/repo.memory.js";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit.js";
 import {
   InMemoryEntryTermRepo,

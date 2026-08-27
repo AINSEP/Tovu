@@ -19,12 +19,12 @@ import {
   ForbiddenError as SettingsForbiddenError,
   InMemorySettingsRepo,
 } from "../../features/settings/index.js";
-import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../comments/agent-tools.js";
-import { InMemoryCommentRepo } from "../../comments/repo.memory.js";
-import { createCommentHookRegistry } from "../../comments/hooks.js";
-import { createCommentWriteService } from "../../comments/write-service.js";
-import { ensureCommentsSettingDefinitions } from "../../comments/settings.js";
-import type { CommentRecord } from "../../comments/types.js";
+import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../features/comments/agent-tools.js";
+import { InMemoryCommentRepo } from "../../features/comments/repo.memory.js";
+import { createCommentHookRegistry } from "../../features/comments/hooks.js";
+import { createCommentWriteService } from "../../features/comments/write-service.js";
+import { ensureCommentsSettingDefinitions } from "../../features/comments/settings.js";
+import type { CommentRecord } from "../../features/comments/types.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
@@ -32,7 +32,7 @@ import {
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeCommentsTools } from "../../comments/tool-registrations.js";
+import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
 
 // Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so

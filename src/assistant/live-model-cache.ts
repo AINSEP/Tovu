@@ -1,7 +1,7 @@
 import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
 import type { AgentModelSummary } from "@jini-ai/http-kit";
 
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "../features/webhooks/index.js";
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 
 /**

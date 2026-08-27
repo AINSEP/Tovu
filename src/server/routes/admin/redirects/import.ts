@@ -1,4 +1,4 @@
-import { importRedirects } from "#src/redirects/index";
+import { importRedirects } from "#src/features/redirects/index";
 import { toAdminRedirectImportResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 

@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ExportFailureSummary, ExportReport } from "#src/export/index";
 
 import { resolveDefaultForSourceControl } from "./store.js";

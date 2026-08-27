@@ -93,7 +93,7 @@ function roundPct(value: number): number {
  *   - RATCHETS measure hygiene — module API surface and bidirectional hub count are a proxy
  *     for discipline, not a cost anyone pays today, because nothing under `src/` is a published
  *     package: nobody
- *     imports `src/forms/` the way an npm consumer imports a package's `exports` map. A
+ *     imports `src/features/forms/` the way an npm consumer imports a package's `exports` map. A
  *     regression here is a signal worth fixing, not a reason to break the build.
  *
  * NOTE — this classification is specific to Tovu's `src/`. For the Jini packages (a separate

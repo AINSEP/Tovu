@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { MemberValidationError, requestSignInLink } from "#src/members/index";
+import { MemberValidationError, requestSignInLink } from "#src/features/members/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";

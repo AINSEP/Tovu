@@ -31,7 +31,7 @@
  * (`reverterDeps`) inline; factored out here because four route files share
  * the same bundle shape.
  */
-import type { MembersWriteServiceDeps } from "#src/members/index";
+import type { MembersWriteServiceDeps } from "#src/features/members/index";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { MembersDeps, RouteDeps } from "../../types.js";
 

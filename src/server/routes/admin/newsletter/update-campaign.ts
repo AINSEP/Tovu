@@ -1,5 +1,5 @@
-import { saveCampaign } from "#src/newsletter/campaign-write-service";
-import { NewsletterCampaignNotFoundError, type NewsletterCampaignRepoPort } from "#src/newsletter/index";
+import { saveCampaign } from "#src/features/newsletter/campaign-write-service";
+import { NewsletterCampaignNotFoundError, type NewsletterCampaignRepoPort } from "#src/features/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";

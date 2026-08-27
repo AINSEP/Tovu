@@ -4,7 +4,7 @@ import test from "node:test";
 import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import type { ToolDescriptor } from "@jini-ai/core";
 
-import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
 import {

@@ -32,12 +32,12 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "../../members/index.js";
+} from "../../features/members/index.js";
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
 import type { MailerPort } from "../../mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation/index.js";
-import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks/index.js";
-import type { WebhookSigner } from "../../webhooks/signing.js";
+import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
+import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
@@ -60,9 +60,9 @@ import type {
   TransformDefinitionRepoPort,
 } from "../../media/index.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
-import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects/index.js";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/index.js";
-import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../comments/index.js";
+import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
+import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline.js";
 import type {
