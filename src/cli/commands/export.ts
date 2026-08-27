@@ -105,6 +105,10 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
     db: bootResult.db,
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),
+    // Same install-dir-relative reasoning as `uploadsDir` right above (CR-R01): the default themes
+    // root is `process.cwd()`-relative, so without this a `<dir>` run would seed and serve a
+    // `sites/tovu-com/themes` beside the operator's shell instead of the site it was given.
+    themesDir: path.join(target, "themes"),
   });
   const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
 

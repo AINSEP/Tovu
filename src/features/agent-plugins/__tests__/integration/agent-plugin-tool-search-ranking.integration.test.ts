@@ -77,7 +77,7 @@ async function withAgentPluginsDir<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 // The reference plugin's 7 real skills, real frontmatter — sampled 2026-08-23 from the installed
-// fixture at infra/agent-plugins/ws/workspace-local/packages/sha256/.../skills/*/SKILL.md.
+// fixture at <site>/agent-plugins/ws/workspace-local/packages/sha256/.../skills/*/SKILL.md.
 const UI_UX_DESIGN_SKILLS: Readonly<Record<string, string>> = {
   "ui-ux-design": `---
 name: ui-ux-design

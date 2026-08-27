@@ -26,10 +26,11 @@ import { PagesHtmlDocumentStore } from "../features/pages/index.js";
 import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant/index.js";
 import { SqlitePresentationSettingsRepo } from "../features/presentation/index.js";
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite.js";
-import { discoverAllBuiltInThemes } from "../features/theme/index.js";
+import { discoverAllBuiltInThemes, seedSiteThemes } from "../features/theme/index.js";
 import { SqliteWorkspaceRepo } from "../features/workspace/index.js";
 import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
 import { resolveWorkspace } from "../site-dir/resolve-workspace.js";
+import { resolveSiteRoot } from "../site-dir/index.js";
 import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery.js";
 import { SqliteChangeSetRepo } from "../db/sqlite/change-set-repo.sqlite.js";
 import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite.js";
@@ -153,25 +154,76 @@ import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#
 import { createPendingAuthorizationStore } from "#src/oauth/index";
 
 /**
- * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
- * convention, mirroring `builtInThemesDir()`/`defaultContentDbPath()` above).
+ * The one site folder this process serves — the root every other runtime path below derives from.
+ *
+ * Replaces the old `infra/` convention (2026-08-27). `infra/` conflated two different things: the
+ * repo's own scratch space, and the SITE's data. They have opposite lifecycles — upgrading Tovu
+ * should replace the first and never touch the second — and keeping them in one directory is why
+ * a site's themes ended up living inside the package (`src/themes/`), where an upgrade destroys
+ * them along with their own "reset to original" backups.
+ *
+ * A site is a portable folder that owns its own `content.db`, `uploads/`, `themes/`, and journals
+ * — ADR-012's install-dir model, already implemented for the CLI by SPEC-003's `tovu init` /
+ * `tovu serve <dir>` (`site-dir/boot-site-dir.ts`). This function is that same model's DEFAULT for
+ * the non-CLI boot path (`src/index.ts`), which previously had no site folder at all and derived
+ * everything from `process.cwd()`.
+ *
+ * A thin `process`-reading wrapper, not the rule itself: {@link resolveSiteRoot} (`site-dir/`) owns
+ * the `TOVU_SITE_DIR` / `TOVU_SITE` precedence, because `features/skills/layout.ts` and
+ * `features/agent-plugins/layout.ts` need the same answer and must not import this composition
+ * root to get it. Every `TOVU_*_DIR` below still overrides its own subpath independently, so a
+ * deployment that relocates exactly one directory (a large uploads volume, say) does not have to
+ * move the rest.
  */
-export function mediaUploadsDir(): string {
-  // Sibling of `defaultContentDbPath()`'s `infra/content.db` — see its comment. Unlike the db
-  // path, this one is NOT derived from `dirname(contentDbPath)`, so it has to be moved explicitly;
-  // that independence is why `uploads/` was the one runtime directory that did not follow the
-  // database automatically.
-  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(process.cwd(), "infra", "uploads");
+export function siteDir(): string {
+  return resolveSiteRoot();
 }
 
 /**
- * Built-in themes ship in the `src/themes/` dir (SPEC-004 spike), copied to `dist/src/themes/`
- * at build time (mirrors `src/templates/` -> `dist/src/templates/`) and resolved package-relative
- * to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read `process.cwd()/themes`,
- * which is wrong whenever the CLI is invoked from outside the repo checkout).
+ * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/` convention,
+ * mirroring `defaultContentDbPath()` below).
+ */
+export function mediaUploadsDir(): string {
+  // Sibling of `defaultContentDbPath()`'s `<site>/content.db` — both now derive from the same
+  // {@link siteDir}. Note this one is NOT derived from `dirname(contentDbPath)`, so a deployment
+  // that overrides `TOVU_CONTENT_DB` alone still leaves uploads here; that independence is why
+  // `uploads/` was historically the one runtime directory that did not follow the database
+  // automatically, and it is preserved deliberately.
+  return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(siteDir(), "uploads");
+}
+
+/**
+ * The read-only STOCK themes tree that ships with the product: `src/themes/`, copied to
+ * `dist/src/themes/` at build time (mirrors `src/templates/` -> `dist/src/templates/`) and resolved
+ * package-relative to this file — never `process.cwd()` (CR-R04 fix: `tovu serve` used to read
+ * `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
+ * checkout).
+ *
+ * SEED SOURCE ONLY as of 2026-08-27. Nothing serves or writes this tree at runtime any more —
+ * `RouteDeps.themesDir` is {@link siteThemesDir}, and `seedSiteThemes()` copies this into a site
+ * once, on the first boot where the site has no `themes/` of its own. That split is the whole point
+ * of the `infra/` -> `sites/` move: an upgrade replaces `src/` (and therefore this tree), so a
+ * site's edited themes and their `__original-themes__/` backups cannot live here.
+ *
+ * The env var is `TOVU_STOCK_THEMES_DIR`, NOT `TOVU_THEMES_DIR` — the latter moved to
+ * {@link siteThemesDir}, where "where MY themes live" is what an operator setting it actually
+ * means.
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_THEMES_DIR ?? resolve(import.meta.dirname, "../themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../themes");
+}
+
+/**
+ * `TOVU_THEMES_DIR` env, then `<site>/themes` — the site's OWN themes root, and the only theme tree
+ * anything reads or writes at runtime (`RouteDeps.themesDir`: the Theme Studio's file editor, the
+ * agent theme tools, marketplace downloads, `__original-themes__/` resets, and both static-asset
+ * mounts in `server/app.ts`).
+ *
+ * Seeded from {@link builtInThemesDir} on a site's first boot — see `seedSiteThemes()`'s own header
+ * for why that copies the whole ~19MB tree rather than filling in on demand.
+ */
+export function siteThemesDir(): string {
+  return process.env.TOVU_THEMES_DIR ?? join(siteDir(), "themes");
 }
 
 /**
@@ -180,8 +232,8 @@ export function builtInThemesDir(): string {
  * same shape as {@link builtInThemesDir} immediately above, for the same reason (CR-R04: a
  * `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
  *
- * Deliberately NOT `infra/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
- * root — gitignored runtime data (`infra/README.md`), populated by extraction, and frozen read-only
+ * Deliberately NOT `<site>/agent-plugins/`. That directory is `layout.ts`'s per-workspace INSTALL
+ * root — gitignored site data (`sites/README.md`), populated by extraction, and frozen read-only
  * per digest. Product-shipped source cannot live there: it would not be tracked, would not ship in
  * a release, and would collide with the content-addressed tree the installer owns. Bundled source
  * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
@@ -191,8 +243,10 @@ export function bundledAgentPluginsDir(): string {
 }
 
 /**
- * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the static-site export engine's default output
- * directory root. Read ONCE here (mirrors `builtInThemesDir()`/`mediaUploadsDir()` immediately
+ * `TOVU_EXPORT_DIR` env, then `<site>/out/export` — the static-site export engine's default output
+ * directory root. Build OUTPUT, grouped under the site's `out/` so it is visibly regenerable and
+ * never confused with the site's own source data (`content.db`, `uploads/`, `themes/`).
+ * Read ONCE here (mirrors `siteThemesDir()`/`mediaUploadsDir()` immediately
  * above) rather than re-read deep in `features/deployments/export-run.ts` (the admin route's export
  * trigger + the `deployment_trigger_export` agent tool) or `cli/commands/export.ts` (`tovu export`)
  * — both now read `RouteDeps.exportOutputRootDir` instead, which this function feeds in both
@@ -201,11 +255,11 @@ export function bundledAgentPluginsDir(): string {
  * reasoning.
  */
 export function resolveExportOutputRootDir(): string {
-  return process.env.TOVU_EXPORT_DIR !== undefined ? resolve(process.env.TOVU_EXPORT_DIR) : resolve(process.cwd(), "infra", "export");
+  return process.env.TOVU_EXPORT_DIR !== undefined ? resolve(process.env.TOVU_EXPORT_DIR) : join(siteDir(), "out", "export");
 }
 
 /**
- * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<cwd>/infra/source-control-export` — the
+ * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<site>/out/source-control-export` — the
  * `source-control` domain's own export scratch directory, deliberately separate from
  * {@link resolveExportOutputRootDir} above so a static-site export and a source-control commit
  * export never race over the same on-disk output (see `features/source-control/commit-site.ts`'s
@@ -214,21 +268,21 @@ export function resolveExportOutputRootDir(): string {
 export function resolveSourceControlExportRootDir(): string {
   return process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
     ? resolve(process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
-    : resolve(process.cwd(), "infra", "source-control-export");
+    : join(siteDir(), "out", "source-control-export");
 }
 
 /**
- * `TOVU_PUBLISH_DIR` env, then `<cwd>/infra/publish` — the static-publish flow's parent output
+ * `TOVU_PUBLISH_DIR` env, then `<site>/out/publish` — the static-publish flow's parent output
  * directory; each target gets its own subdirectory under it (see
  * `features/deployments/static-publish/adapter.ts`'s `publishOutputDir`). Read ONCE here, same
  * reasoning as {@link resolveExportOutputRootDir}.
  */
 export function resolvePublishOutputRootDir(): string {
-  return process.env.TOVU_PUBLISH_DIR !== undefined ? resolve(process.env.TOVU_PUBLISH_DIR) : resolve(process.cwd(), "infra", "publish");
+  return process.env.TOVU_PUBLISH_DIR !== undefined ? resolve(process.env.TOVU_PUBLISH_DIR) : join(siteDir(), "out", "publish");
 }
 
 /**
- * `TOVU_PLUGINS_DIR` env, then `<cwd>/infra/plugins` — the instance-wide root `discoverPlugins()`
+ * `TOVU_PLUGINS_DIR` env, then `<site>/plugins` — the per-site root `discoverPlugins()`
  * scans for site-installed plugins (SPEC-005 REQ-02's `<install-dir>/plugins/<id>/<version>/`
  * layout; this function resolves the `<install-dir>/plugins` segment itself, matching what
  * `discoverPlugins({ installDir })`'s own fixtures pass — see `discovery.ts`'s
@@ -238,11 +292,11 @@ export function resolvePublishOutputRootDir(): string {
  * `ws/<workspaceId>/` tenant isolation, a DIFFERENT feature with its own later, separate tenancy
  * decision): SPEC-005's `plugin_activations` table is already the per-workspace boundary (REQ-07,
  * `workspaceId`+`pluginId` primary key) — an installed plugin ARTIFACT is shared across every
- * workspace on this instance, same as `builtInThemesDir()`'s themes; only its enabled/disabled
+ * workspace on this instance, same as `siteThemesDir()`'s themes; only its enabled/disabled
  * state is workspace-scoped. Read ONCE here, same reasoning as {@link resolveExportOutputRootDir}.
  */
 export function pluginsInstallDir(): string {
-  return process.env.TOVU_PLUGINS_DIR !== undefined ? resolve(process.env.TOVU_PLUGINS_DIR) : resolve(process.cwd(), "infra", "plugins");
+  return process.env.TOVU_PLUGINS_DIR !== undefined ? resolve(process.env.TOVU_PLUGINS_DIR) : join(siteDir(), "plugins");
 }
 
 /**
@@ -261,14 +315,15 @@ export function pluginsInstallDir(): string {
  * slice. Persistence here covers the content model (workspaces/posts/themes).
  */
 export function defaultContentDbPath(): string {
-  // `infra/`, not the bare working directory (2026-08-02). ADR-012's model is unchanged — a site
-  // is still a portable folder owning its own `content.db`/`uploads/` — but the *default* used to
-  // make the repo root itself that folder, and everything derived from `dirname(contentDbPath)`
-  // piled up beside it: the `ops/` sidecar journals, every plugin-migration snapshot, and every
-  // captured restore point. Naming a subdirectory keeps the install-dir model intact (a deployment
-  // still passes an explicit dir, and `TOVU_CONTENT_DB` still overrides) while giving the local
-  // dev site one home instead of scattering it across the repo root.
-  return process.env.TOVU_CONTENT_DB ?? join("infra", "content.db");
+  // `sites/<name>/content.db` (2026-08-27), via {@link siteDir}. Was `infra/content.db`, and before
+  // that the bare working directory. ADR-012's model is unchanged — a site is a portable folder
+  // owning its own `content.db`/`uploads/` — but the *default* now names a real site folder rather
+  // than a shared scratch directory, so everything derived from `dirname(contentDbPath)` (the `ops/`
+  // sidecar journals, every plugin-migration snapshot, every captured restore point, and
+  // `agent-daemon-server.ts`'s `uploads/chat-attachments`) lands inside that one site instead of
+  // beside the repo. A deployment still passes an explicit dir, and `TOVU_CONTENT_DB` still
+  // overrides this outright. ABSOLUTE now, where the old `join("infra", "content.db")` was relative.
+  return process.env.TOVU_CONTENT_DB ?? join(siteDir(), "content.db");
 }
 
 /**
@@ -300,6 +355,14 @@ export interface CreateSqliteRouteDepsOverrides {
    * falls back to `mediaUploadsDir()` — the legacy same-directory dev boot's existing behavior.
    */
   uploadsDir: string;
+  /**
+   * Install-dir-relative themes path — `cli/commands/{serve,export}.ts` supply `<dir>/themes`, for
+   * exactly the reason `uploadsDir` above exists (CR-R01): the default {@link siteThemesDir} is
+   * `process.cwd()`-relative, so `tovu serve <dir>` invoked from outside `<dir>` would otherwise
+   * seed and serve a `sites/tovu-com/themes` next to wherever the operator happened to be standing
+   * rather than the site it was told to run. Omitted, it falls back to {@link siteThemesDir}.
+   */
+  themesDir: string;
 }
 
 /**
@@ -337,6 +400,15 @@ export function createSqliteRouteDeps(
   overrides?: Partial<CreateSqliteRouteDepsOverrides>
 ): NewsletterRouteDeps {
   assertOverridesPairedOrAbsent(overrides);
+
+  // Resolved ONCE and threaded down, the same discipline `exportOutputRootDir`/`themesDir` already
+  // follow (see `routes/types.ts`). Seeded before anything discovers themes off it: on a site's
+  // first boot `<site>/themes` does not exist yet, and `discoverAllBuiltInThemes` below would
+  // otherwise hand the admin an empty theme list. Deliberately NOT done in `server/app.ts`'s
+  // in-memory `createRouteDeps()` — that is the hermetic/test path, and seeding there would copy
+  // the whole ~19MB stock tree per test run.
+  const resolvedThemesDir = overrides?.themesDir ?? siteThemesDir();
+  seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
 
   // When `overrides.db` is supplied (the install-dir `serve` path), reuse that SAME handle rather
   // than opening/migrating a second db — `bootSiteDir` has already validated, migrated, and
@@ -794,8 +866,8 @@ export function createSqliteRouteDeps(
     // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
     // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
     revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
-    themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
-    themesDir: builtInThemesDir(),
+    themes: discoverAllBuiltInThemes({ dir: resolvedThemesDir, source: "built-in" }),
+    themesDir: resolvedThemesDir,
     outbox,
     bus,
     clock,

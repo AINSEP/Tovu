@@ -18,18 +18,32 @@ import { resolveAgentPluginLayout } from "../../layout.js";
  * `install.ts` by mistake.
  *
  * Still mirrors this codebase's own `TOVU_*_DIR` convention: `mediaUploadsDir()`
- * (`src/server/deps.ts:134`) defaults to `join(process.cwd(), "infra", "uploads")`, overridden by
- * `TOVU_MEDIA_UPLOADS_DIR`; `infra/` is the repo's own gitignored runtime-data root
- * (`.gitignore:17-22`) and already has a `ws/<workspaceId>/` shape for uploads
- * (`infra/uploads/ws/workspace-local/`).
+ * (`src/server/deps.ts`) defaults to `join(siteDir(), "uploads")`, overridden by
+ * `TOVU_MEDIA_UPLOADS_DIR`; `sites/<name>/` is the site's own gitignored runtime-data root
+ * (`.gitignore`, `sites/README.md`) and already has a `ws/<workspaceId>/` shape for uploads
+ * (`sites/tovu-com/uploads/ws/workspace-local/`). The default moved off `<cwd>/infra/` on
+ * 2026-08-27 — see `site-dir/site-root.ts` for why `infra/` was the wrong lifecycle.
  */
 
 const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 const OTHER_WORKSPACE_ID = "22222222-2222-4222-8222-222222222222";
 
-test("defaults to infra/agent-plugins under the given cwd", () => {
+test("defaults to sites/<DEFAULT_SITE_NAME>/agent-plugins under the given cwd", () => {
   const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
-  assert.equal(layout.root, path.resolve("/srv/tovu-site/infra/agent-plugins"));
+  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/tovu-com/agent-plugins"));
+});
+
+test("the default root follows TOVU_SITE, so a second local site gets its own plugin tree", () => {
+  const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: { TOVU_SITE: "second-site" } });
+  assert.equal(layout.root, path.resolve("/srv/tovu-site/sites/second-site/agent-plugins"));
+});
+
+test("the default root follows TOVU_SITE_DIR — a site mounted outside the checkout keeps its plugins", () => {
+  // The regression this whole 2026-08-27 change exists for: before it, an installed plugin lived at
+  // `<cwd>/infra/agent-plugins` no matter where the SITE was, so a volume-mounted or relocated site
+  // silently left its own installs behind in the repo checkout.
+  const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: { TOVU_SITE_DIR: "/var/lib/tovu/acme" } });
+  assert.equal(layout.root, path.resolve("/var/lib/tovu/acme/agent-plugins"));
 });
 
 test("TOVU_AGENT_PLUGINS_DIR overrides the default root", () => {
@@ -96,7 +110,7 @@ test("forWorkspace rejects a workspace id that could escape its own path segment
  * Workspace id grammar, revised 2026-08-21 (owner decision: option B)
  * ---------------------------------------------------------------------------
  * `forWorkspace` originally required a syntactic UUID. This instance's REAL workspace id, read
- * straight out of `infra/content.db`, is the literal string `workspace-local` — so the UUID rule
+ * straight out of `sites/tovu-com/content.db`, is the literal string `workspace-local` — so the UUID rule
  * could never pass on real data; it was validating against a format the product does not use, and
  * `installAgentPluginFromUrl` was unreachable from any real caller because of it.
  *
@@ -104,26 +118,26 @@ test("forWorkspace rejects a workspace id that could escape its own path segment
  * out of a path built by string join. `layout.ts` already contains a pattern that does exactly that
  * job for plugin ids. The workspace check now uses the same grammar, which still accepts every UUID
  * this module ever accepted (the tests above are unchanged and still pass) while also accepting the
- * ids Tovu really issues — and `infra/uploads/ws/workspace-local/` shows that shape is already this
+ * ids Tovu really issues — and `sites/tovu-com/uploads/ws/workspace-local/` shows that shape is already this
  * repo's own on-disk convention (see this file's header).
  */
 
 test("forWorkspace accepts this instance's real, non-UUID workspace id", () => {
   const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
   const ws = layout.forWorkspace("workspace-local");
-  assert.equal(ws.root, path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local"));
-  assert.equal(ws.packages, path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local/packages/sha256"));
+  assert.equal(ws.root, path.resolve("/srv/tovu-site/sites/tovu-com/agent-plugins/ws/workspace-local"));
+  assert.equal(ws.packages, path.resolve("/srv/tovu-site/sites/tovu-com/agent-plugins/ws/workspace-local/packages/sha256"));
 });
 
 test("forWorkspace still normalizes an uppercase id to a lowercase path segment", () => {
   const layout = resolveAgentPluginLayout({ cwd: "/srv/tovu-site", env: {} });
   assert.equal(
     layout.forWorkspace("11111111-1111-4111-8111-11111111111A").root,
-    path.resolve("/srv/tovu-site/infra/agent-plugins/ws/11111111-1111-4111-8111-11111111111a"),
+    path.resolve("/srv/tovu-site/sites/tovu-com/agent-plugins/ws/11111111-1111-4111-8111-11111111111a"),
   );
   assert.equal(
     layout.forWorkspace("WORKSPACE-LOCAL").root,
-    path.resolve("/srv/tovu-site/infra/agent-plugins/ws/workspace-local"),
+    path.resolve("/srv/tovu-site/sites/tovu-com/agent-plugins/ws/workspace-local"),
   );
 });
 
