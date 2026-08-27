@@ -10,15 +10,19 @@ import type { AdminExternalMcpServer } from "../../../../lib/api";
  * .unit.test.ts` does for a live-binding surface.
  */
 
-const { listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer } = vi.hoisted(() => ({
+const { listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, probeExternalMcpServer } = vi.hoisted(() => ({
   listExternalMcpServers: vi.fn(),
   saveExternalMcpServer: vi.fn(),
   deleteExternalMcpServer: vi.fn(),
+  probeExternalMcpServer: vi.fn(),
 }));
 
 vi.mock("../../../../lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/api")>();
-  return { ...actual, api: { ...actual.api, listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer } };
+  return {
+    ...actual,
+    api: { ...actual.api, listExternalMcpServers, saveExternalMcpServer, deleteExternalMcpServer, probeExternalMcpServer },
+  };
 });
 
 const { useExternalMcp } = await import("../use-external-mcp.hooks");
@@ -27,6 +31,7 @@ beforeEach(() => {
   listExternalMcpServers.mockReset();
   saveExternalMcpServer.mockReset();
   deleteExternalMcpServer.mockReset();
+  probeExternalMcpServer.mockReset();
 });
 
 function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalMcpServer {
@@ -40,6 +45,9 @@ function server(overrides: Partial<AdminExternalMcpServer> = {}): AdminExternalM
     url: null,
     args: ["-y", "server-fs"],
     allowedToolNames: ["read_file"],
+    writeAllowedToolNames: [],
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
     envNames: [],
     oauth: {
       providerId: null,
@@ -88,6 +96,7 @@ describe("useExternalMcp — fetchSources / toItem", () => {
           url: "",
           args: "-y server-fs",
           allowedToolNames: "read_file",
+          writeAllowedToolNames: "",
           authMode: "static_env",
           env: "",
           ...BLANK_OAUTH_FIELDS,
@@ -95,6 +104,18 @@ describe("useExternalMcp — fetchSources / toItem", () => {
         statusMessage: "Credentials set: GITHUB_TOKEN",
       },
     ]);
+  });
+
+  it("joins writeAllowedToolNames the same way as allowedToolNames, comma-separated", async () => {
+    listExternalMcpServers.mockResolvedValue({
+      servers: [server({ allowedToolNames: ["read_file", "generate_image"], writeAllowedToolNames: ["generate_image"] })],
+    });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const items = await result.current.dependencies.port.fetchSources();
+
+    expect(items[0]!.fields.writeAllowedToolNames).toBe("generate_image");
+    expect(items[0]!.fields.allowedToolNames).toBe("read_file, generate_image");
   });
 
   it("omits statusMessage entirely when envNames is empty", async () => {
@@ -142,6 +163,7 @@ describe("useExternalMcp — addSource", () => {
       url: "",
       args: "",
       allowedToolNames: "",
+      writeAllowedToolNames: "",
       authMode: "static_env",
     });
   });
@@ -166,11 +188,26 @@ describe("useExternalMcp — addSource", () => {
       url: "",
       args: "-y x",
       allowedToolNames: "tool_a",
+      writeAllowedToolNames: "",
       authMode: "static_env",
       env: "FOO=bar",
     });
     expect(outcome).toEqual({ ok: true, source: expect.objectContaining({ id: "new-server" }) });
     await waitFor(() => expect(result.current.restartRequired).toBe(true));
+  });
+
+  it("sends a non-blank writeAllowedToolNames through unchanged, same as allowedToolNames", async () => {
+    saveExternalMcpServer.mockResolvedValue({ server: server({ serverId: "new-server" }), restartRequired: true });
+    const { result } = renderHook(() => useExternalMcp());
+
+    await act(async () => {
+      await result.current.dependencies.port.addSource({
+        fields: { id: "new-server", command: "npx", args: "", allowedToolNames: "generate_image", writeAllowedToolNames: "generate_image" },
+      });
+    });
+
+    const [, body] = saveExternalMcpServer.mock.calls[0]!;
+    expect(body.writeAllowedToolNames).toBe("generate_image");
   });
 
   it("a rejected save surfaces describeApiError's message, defaulting when the error carries none", async () => {
@@ -233,6 +270,7 @@ describe("useExternalMcp — updateSource", () => {
       url: "",
       args: "-y x",
       allowedToolNames: "tool_a",
+      writeAllowedToolNames: "",
       authMode: "static_env",
     });
   });
@@ -304,6 +342,7 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
       url: "https://mcp.example.com",
       args: "",
       allowedToolNames: "",
+      writeAllowedToolNames: "",
       authMode: "oauth",
       oauth: {
         providerId: "example-oidc",
@@ -392,5 +431,70 @@ describe("useExternalMcp — addSource rejects a malformed OAuth identity before
 
     const [, body] = saveExternalMcpServer.mock.calls[0]!;
     expect(body.oauth).not.toHaveProperty("clientSecret");
+  });
+});
+
+describe("useExternalMcp — testSource (D-5: wired to the probe route)", () => {
+  it("does not call the probe and fails with a save-first message when id is undefined (the add-form's unsaved draft)", async () => {
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!(undefined);
+
+    expect(outcome).toEqual({ ok: false, message: "Save this server before you can test it." });
+    expect(probeExternalMcpServer).not.toHaveBeenCalled();
+  });
+
+  it("calls api.probeExternalMcpServer(id) and reports the advertised tool count on success", async () => {
+    probeExternalMcpServer.mockResolvedValue({
+      tools: [{ remoteName: "read_file" }, { remoteName: "generate_image" }],
+      probedAt: "2026-08-26T00:00:00.000Z",
+    });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(probeExternalMcpServer).toHaveBeenCalledWith("local-fs");
+    expect(outcome.ok).toBe(true);
+    expect(outcome.message).toBe("2 tools advertised.");
+    expect(typeof outcome.latencyMs).toBe("number");
+  });
+
+  it("uses the singular 'tool' for exactly one advertised tool", async () => {
+    probeExternalMcpServer.mockResolvedValue({ tools: [{ remoteName: "read_file" }], probedAt: "2026-08-26T00:00:00.000Z" });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(outcome.message).toBe("1 tool advertised.");
+  });
+
+  it("reports zero tools rather than treating an empty surface as a failure", async () => {
+    probeExternalMcpServer.mockResolvedValue({ tools: [], probedAt: "2026-08-26T00:00:00.000Z" });
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(outcome).toMatchObject({ ok: true, message: "0 tools advertised." });
+  });
+
+  it("surfaces describeApiError's message on a rejected probe (e.g. an unreachable server)", async () => {
+    probeExternalMcpServer.mockRejectedValue(new Error("could not connect: ECONNREFUSED"));
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(outcome).toEqual({ ok: false, message: "could not connect: ECONNREFUSED" });
+  });
+
+  it("falls back to the picker's own unreachable-server copy when the rejection carries no message", async () => {
+    // Mirrors `describeApiError`'s own "no message on the error" branch — matches
+    // `external-mcp-i18n.ts`'s established "Could not reach this server..." copy so the same
+    // failure reads identically whether the operator hits it from the Test button or the picker.
+    probeExternalMcpServer.mockRejectedValue({});
+    const { result } = renderHook(() => useExternalMcp());
+
+    const outcome = await result.current.dependencies.port.testSource!("local-fs");
+
+    expect(outcome).toEqual({ ok: false, message: "Could not reach this server. You can still type tool names by hand." });
   });
 });

@@ -216,6 +216,9 @@ describe("defaultOtherCredentialsPort — external MCP servers", () => {
     url: null,
     args: [],
     allowedToolNames: [],
+    writeAllowedToolNames: [],
+    writeGrantsUpdatedByPrincipalId: null,
+    writeGrantsUpdatedAt: null,
     envNames: [],
     oauth: {
       providerId: null,
@@ -292,6 +295,9 @@ describe("createFakeOtherCredentialsPort — defaults", () => {
               url: null,
               args: [],
               allowedToolNames: [],
+              writeAllowedToolNames: [],
+              writeGrantsUpdatedByPrincipalId: null,
+              writeGrantsUpdatedAt: null,
               envNames: ["FOO"],
               oauth: {
                 providerId: null,

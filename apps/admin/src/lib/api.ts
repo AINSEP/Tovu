@@ -111,6 +111,22 @@ export interface AdminExternalMcpServer {
   url: string | null;
   args: string[];
   allowedToolNames: string[];
+  /**
+   * The operator's SECOND, write-authorization list — mirrors
+   * `src/assistant/external-mcp-store.ts`'s `ExternalMcpServerView.writeAllowedToolNames`. A remote
+   * tool declaring `readOnlyHint: false` is admitted only when it appears in BOTH this list and
+   * {@link allowedToolNames} (`mcp-federation/trust.ts` R3's override). Independent of
+   * `allowedToolNames`, never derived from it.
+   */
+  writeAllowedToolNames: string[];
+  /**
+   * Who last CHANGED {@link writeAllowedToolNames}, and when — mirrors the store's own view fields
+   * of the identical name. Both `null` until that list is ever touched, or for a row written before
+   * these columns existed. Read-only: there is no input counterpart, since a save attributes itself
+   * from the authenticated principal server-side rather than accepting a caller-supplied identity.
+   */
+  writeGrantsUpdatedByPrincipalId: string | null;
+  writeGrantsUpdatedAt: string | null;
   envNames: string[];
   oauth: AdminExternalMcpOAuthView;
 }
@@ -148,11 +164,108 @@ export interface AdminExternalMcpServerInput {
   url?: string;
   args: string;
   allowedToolNames: string;
+  /**
+   * Raw operator input, comma-separated remote tool names separately authorized to write. Same
+   * "resent in full on every save" convention as {@link allowedToolNames} — NOT tri-state like
+   * {@link env}, since the tab always has the current list in the clear and can always resend it.
+   * The server rejects a save (`ExternalMcpValidationError(field: "writeAllowedToolNames")`) if this
+   * names a tool absent from {@link allowedToolNames} — mirrors
+   * `src/assistant/external-mcp-store.ts`'s C-006 subset check.
+   */
+  writeAllowedToolNames: string;
   /** Omit to keep stored credentials; `""` to clear them. The distinction is load-bearing. */
   env?: string;
   /** Absent keeps an existing row's auth mode; otherwise one of `none` | `static_env` | `oauth`. */
   authMode?: string;
   oauth?: AdminExternalMcpOAuthInput;
+}
+
+/**
+ * MCP's per-tool behaviour hints, exactly as a remote server declares them — mirrors
+ * `src/assistant/mcp-federation/ports.ts`'s `RemoteToolAnnotations` verbatim. Self-declared by the
+ * thing being classified, so `mcp-federation/trust.ts` only ever lets these make a tool LESS
+ * available, never more; see {@link AdminRemoteToolSurfaceEntry.hintsAbsent} for the gap that leaves.
+ */
+export interface AdminRemoteToolAnnotations {
+  title?: string;
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
+/** One of `src/assistant/mcp-federation/trust.ts`'s `ToolRefusalReason` members — why the admission
+ *  gate would not admit a given tool today. */
+export type AdminToolRefusalReason =
+  | "not-in-operator-allowlist"
+  | "remote-declares-destructive"
+  | "remote-declares-not-read-only"
+  | "missing-or-invalid-input-schema"
+  | "invalid-remote-tool-name"
+  | "duplicate-remote-tool-name"
+  | "connection-tool-cap-reached";
+
+/**
+ * One ADVERTISED remote tool, described as an operator-facing record for the (not-yet-built)
+ * write-tool picker — mirrors `mcp-federation/trust.ts`'s `RemoteToolSurfaceEntry` verbatim, field
+ * names included, per `probeExternalMcpServer`'s response (C-007).
+ *
+ * Covers every tool the remote listed, admitted or not, so a future picker can show the operator
+ * what they are choosing between rather than only what already cleared the gate.
+ *
+ * `hintsAbsent` MUST NOT be rendered as "read-only" by any consumer — it means the remote said
+ * nothing about this tool, which is exactly the case a write can slip through unmarked today (see
+ * `external-mcp-i18n.ts`'s header for the copy discipline this drives).
+ */
+export interface AdminRemoteToolSurfaceEntry {
+  remoteName: string;
+  description: string;
+  declaredAnnotations?: AdminRemoteToolAnnotations;
+  writeDeclared: boolean;
+  destructiveDeclared: boolean;
+  hintsAbsent: boolean;
+  allowlisted: boolean;
+  writeAllowed: boolean;
+  admitted: boolean;
+  refusalReason: AdminToolRefusalReason | null;
+}
+
+/** `POST .../mcp-servers/:serverId/probe`'s response shape (C-007) — a live, on-demand read of what
+ *  the remote currently advertises. Never persisted server-side (a cache of third-party data does
+ *  not belong on the security row — see `schema-decision.md` Part 1), so `probedAt` is this call's
+ *  own timestamp, not a stored one. */
+export interface AdminExternalMcpProbeResult {
+  tools: AdminRemoteToolSurfaceEntry[];
+  probedAt: string;
+}
+
+/**
+ * One connection's live admission accounting from the RUNNING agent daemon — a subset of
+ * `mcp-federation/trust.ts`'s `FederatedAdmissionReport`, mirrored per connection the way
+ * `GET .../mcp-servers/admissions` proxies it from the daemon's own `GET /api/federation/admissions`
+ * (`src/server/routes/admin/external-mcp/admissions.ts`, C-008).
+ *
+ * `admitted` intentionally carries only what a drift banner needs (a name and whether it is
+ * write-authorized), not the full `AdmittedFederatedTool` the daemon holds (which also carries a
+ * `toolId` and the remote's raw input schema) — same "richer server shape, unread extra fields"
+ * precedent {@link AdminConnector}'s own doc states.
+ */
+export interface AdminFederatedAdmissionEntry {
+  connectionId: string;
+  admitted: { remoteName: string; writeAuthorized: boolean }[];
+  refused: { remoteName: string; reason: AdminToolRefusalReason }[];
+  /** Allowlisted names the remote never advertised — an operator's config drifting from the
+   *  server's real surface. */
+  allowlistedButAbsent: string[];
+  /** Names write-authorized but not also allowlisted — a write grant that can never take effect. */
+  writeAllowedButNotAllowlisted: string[];
+}
+
+/** `GET .../mcp-servers/admissions`'s response shape (C-008). A down daemon is a 503 — see
+ *  {@link api.getExternalMcpAdmissions}'s own doc — never an empty `connections` array, so "the
+ *  assistant is not running" and "it is running with nothing admitted" stay distinguishable. */
+export interface AdminExternalMcpAdmissionsSnapshot {
+  connections: AdminFederatedAdmissionEntry[];
 }
 
 /** One required-for-production env var's presence — never its value. Mirrors
@@ -2030,6 +2143,29 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}`,
       { method: "DELETE" }
     ),
+  /**
+   * Connects to one already-saved server RIGHT NOW, lists its tools, describes them, and closes —
+   * registering nothing (C-007, outline §3.1 Source A). A live snapshot of what the remote offers,
+   * never a stored one: federation re-applies the allowlist against a fresh `tools/list` at connect
+   * regardless, so this call cannot un-freeze anything the daemon holds.
+   *
+   * Also backs `useExternalMcp`'s `testSource` port method, which is what lights up Jini's existing
+   * "Test" button (`useSourceConfigList.ts`'s `capabilities.canTest`) for free.
+   */
+  probeExternalMcpServer: (serverId: string) =>
+    request<AdminExternalMcpProbeResult>(
+      `/workspaces/${WORKSPACE_ID}/mcp-servers/${encodeURIComponent(serverId)}/probe`,
+      { method: "POST" }
+    ),
+  /**
+   * What the RUNNING agent daemon actually admitted at its last boot, per connection (C-008,
+   * outline §3.1 Source B) — the only route that can answer "you ticked 3 tools; the assistant is
+   * running with 1." A stopped or unreachable daemon is a 503 (thrown as an `ApiError`), never a
+   * silently empty `connections` array — a caller must not read "cannot reach the daemon" as "the
+   * daemon is running with nothing admitted".
+   */
+  getExternalMcpAdmissions: () =>
+    request<AdminExternalMcpAdmissionsSnapshot>(`/workspaces/${WORKSPACE_ID}/mcp-servers/admissions`),
   /** Whether this workspace has a Composio API key, as markers only — drives `ConnectorsBrowser`'s
    *  `unlocked` prop. Never carries key material. */
   getComposioConfig: () =>
