@@ -1,6 +1,6 @@
 import type { Request } from "express";
 
-import { createSubscription, WebhookSubscriptionValidationError } from "#src/webhooks/index";
+import { createSubscription, WebhookSubscriptionValidationError } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";

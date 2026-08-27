@@ -1,6 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
+import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
 import type { McpLaunchSpec } from "./mcp-federation/ports.js";
 import { assertValidConnectionId } from "./mcp-federation/trust.js";

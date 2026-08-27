@@ -4,8 +4,8 @@ import test from "node:test";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import express from "express";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/index.js";
-import type { WebhookDeliveryRecord } from "../../webhooks/index.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/index.js";
+import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create.js";

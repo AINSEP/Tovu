@@ -13,7 +13,7 @@ import {
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../core/commands/index.js";
-import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { SecretSealerPort } from "../webhooks/index.js";
 
 import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
 import { registerToolContributor } from "#src/assistant/index";

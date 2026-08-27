@@ -6,12 +6,12 @@ import {
   type FormDefinitionRepoPort,
   type FormDefinitionStatus,
   type NotifyConfig,
-} from "#src/forms/index";
+} from "#src/features/forms/index";
 import {
   setFormDefinitionStatus,
   updateFormDefinition,
   type FormWriteServiceDeps,
-} from "#src/forms/write-service";
+} from "#src/features/forms/write-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 

@@ -8,7 +8,7 @@ import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
 import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
-import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
+import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import {
   contentTypesAgentToolCatalog,
   type AgentToolDefinition,
@@ -27,15 +27,15 @@ import { sourceControlAgentToolCatalog } from "../../features/source-control/too
 import { siteEvidenceAgentToolCatalog } from "../../features/site-evidence/agent-tools.js";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
-import { formsAgentToolCatalog } from "../../forms/agent-tools.js";
+import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
-import { getWebhooksAgentToolCatalog } from "../../webhooks/agent-tools.js";
+import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../media/index.js";
-import { membersAgentToolCatalog } from "../../members/agent-tools.js";
+import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../navigation/index.js";
-import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools.js";
-import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools.js";
+import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { getSeoAgentToolCatalog } from "../../seo/agent-tools.js";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";

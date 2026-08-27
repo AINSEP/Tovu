@@ -27,7 +27,7 @@
  */
 
 import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
-import type { SecretSealerPort } from "../webhooks/index.js";
+import type { SecretSealerPort } from "../features/webhooks/index.js";
 
 export interface ResolvedByokCredential {
   readonly protocol: "anthropic" | "openai" | "azure" | "google";

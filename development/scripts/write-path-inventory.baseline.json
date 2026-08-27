@@ -94,7 +94,7 @@
     "source": "port",
     "contractMethod": "CommentRepoPort.create",
     "caller": "(no implementation found in project)",
-    "file": "src/comments/ports.ts",
+    "file": "src/features/comments/ports.ts",
     "line": 54,
     "coverageClass": "unknown"
   },
@@ -102,7 +102,7 @@
     "source": "port",
     "contractMethod": "CommentRepoPort.applyModeration",
     "caller": "(no implementation found in project)",
-    "file": "src/comments/ports.ts",
+    "file": "src/features/comments/ports.ts",
     "line": 61,
     "coverageClass": "unknown"
   },
@@ -110,7 +110,7 @@
     "source": "port",
     "contractMethod": "SpamCheckPort.check",
     "caller": "(no implementation found in project)",
-    "file": "src/comments/ports.ts",
+    "file": "src/features/comments/ports.ts",
     "line": 82,
     "coverageClass": "unknown"
   },
@@ -118,7 +118,7 @@
     "source": "port",
     "contractMethod": "SpamCheckPort.report",
     "caller": "(no implementation found in project)",
-    "file": "src/comments/ports.ts",
+    "file": "src/features/comments/ports.ts",
     "line": 85,
     "coverageClass": "unknown"
   },
@@ -988,7 +988,7 @@
     "contractMethod": "EventBusPort.subscribe",
     "implementingClass": "InMemoryEventBus",
     "caller": "registerFormNotifySubscriber",
-    "file": "src/forms/notify-subscriber.ts",
+    "file": "src/features/forms/notify-subscriber.ts",
     "line": 48,
     "coverageClass": "none"
   },
@@ -997,7 +997,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "(anonymous)",
-    "file": "src/forms/notify-subscriber.ts",
+    "file": "src/features/forms/notify-subscriber.ts",
     "line": 64,
     "coverageClass": "none"
   },
@@ -1005,7 +1005,7 @@
     "source": "table",
     "contractMethod": "formDefinitions via this.db.insert",
     "caller": "SqliteFormDefinitionRepo.create",
-    "file": "src/forms/repo.sqlite.ts",
+    "file": "src/features/forms/repo.sqlite.ts",
     "line": 109,
     "coverageClass": "executeCommand"
   },
@@ -1013,7 +1013,7 @@
     "source": "table",
     "contractMethod": "formDefinitions via this.db\n      .update",
     "caller": "SqliteFormDefinitionRepo.update",
-    "file": "src/forms/repo.sqlite.ts",
+    "file": "src/features/forms/repo.sqlite.ts",
     "line": 121,
     "coverageClass": "executeCommand"
   },
@@ -1021,7 +1021,7 @@
     "source": "table",
     "contractMethod": "formSubmissions via this.db\n      .insert",
     "caller": "SqliteFormSubmissionRepo.create",
-    "file": "src/forms/repo.sqlite.ts",
+    "file": "src/features/forms/repo.sqlite.ts",
     "line": 142,
     "coverageClass": "sequential_outbox"
   },
@@ -1029,7 +1029,7 @@
     "source": "table",
     "contractMethod": "formSubmissions via this.db\n      .delete",
     "caller": "SqliteFormSubmissionRepo.delete",
-    "file": "src/forms/repo.sqlite.ts",
+    "file": "src/features/forms/repo.sqlite.ts",
     "line": 209,
     "coverageClass": "none"
   },
@@ -1038,7 +1038,7 @@
     "contractMethod": "FormSubmissionRepoPort.create",
     "implementingClass": "InMemoryFormSubmissionRepo",
     "caller": "submitForm",
-    "file": "src/forms/submit-service.ts",
+    "file": "src/features/forms/submit-service.ts",
     "line": 108,
     "coverageClass": "sequential_outbox"
   },
@@ -1047,7 +1047,7 @@
     "contractMethod": "FormSubmissionRepoPort.create",
     "implementingClass": "SqliteFormSubmissionRepo",
     "caller": "submitForm",
-    "file": "src/forms/submit-service.ts",
+    "file": "src/features/forms/submit-service.ts",
     "line": 108,
     "coverageClass": "sequential_outbox"
   },
@@ -1056,7 +1056,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "submitForm",
-    "file": "src/forms/submit-service.ts",
+    "file": "src/features/forms/submit-service.ts",
     "line": 111,
     "coverageClass": "sequential_outbox"
   },
@@ -1065,7 +1065,7 @@
     "contractMethod": "FormDefinitionRepoPort.create",
     "implementingClass": "InMemoryFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 137,
     "coverageClass": "executeCommand"
   },
@@ -1074,7 +1074,7 @@
     "contractMethod": "FormDefinitionRepoPort.create",
     "implementingClass": "SqliteFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 137,
     "coverageClass": "executeCommand"
   },
@@ -1083,7 +1083,7 @@
     "contractMethod": "FormDefinitionRepoPort.update",
     "implementingClass": "InMemoryFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 231,
     "coverageClass": "executeCommand"
   },
@@ -1092,7 +1092,7 @@
     "contractMethod": "FormDefinitionRepoPort.update",
     "implementingClass": "SqliteFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 231,
     "coverageClass": "executeCommand"
   },
@@ -1101,7 +1101,7 @@
     "contractMethod": "FormDefinitionRepoPort.update",
     "implementingClass": "InMemoryFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 287,
     "coverageClass": "executeCommand"
   },
@@ -1110,7 +1110,7 @@
     "contractMethod": "FormDefinitionRepoPort.update",
     "implementingClass": "SqliteFormDefinitionRepo",
     "caller": "{ result }",
-    "file": "src/forms/write-service.ts",
+    "file": "src/features/forms/write-service.ts",
     "line": 287,
     "coverageClass": "executeCommand"
   },
@@ -1610,7 +1610,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.enqueue",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 170,
     "coverageClass": "none"
   },
@@ -1619,7 +1619,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.enqueue",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 170,
     "coverageClass": "none"
   },
@@ -1628,7 +1628,7 @@
     "contractMethod": "DeliveryEnvelopeStore.save",
     "implementingClass": "InMemoryDeliveryEnvelopeStore",
     "caller": "enqueueDelivery",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 171,
     "coverageClass": "none"
   },
@@ -1637,7 +1637,7 @@
     "contractMethod": "DeliveryEnvelopeStore.save",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 171,
     "coverageClass": "none"
   },
@@ -1646,7 +1646,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.claimPending",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 257,
     "coverageClass": "none"
   },
@@ -1655,7 +1655,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.claimPending",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 257,
     "coverageClass": "none"
   },
@@ -1664,7 +1664,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 272,
     "coverageClass": "none"
   },
@@ -1673,7 +1673,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 272,
     "coverageClass": "none"
   },
@@ -1682,7 +1682,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markFailed",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 289,
     "coverageClass": "none"
   },
@@ -1691,7 +1691,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markFailed",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 289,
     "coverageClass": "none"
   },
@@ -1700,7 +1700,7 @@
     "contractMethod": "HttpClientPort.send",
     "implementingClass": "RecordingHttpClient",
     "caller": "attemptOneDelivery",
-    "file": "src/webhooks/delivery.ts",
+    "file": "src/features/webhooks/delivery.ts",
     "line": 360,
     "coverageClass": "none"
   },
@@ -1709,7 +1709,7 @@
     "contractMethod": "KeyringPort.activeKey",
     "implementingClass": "EnvOrFileKeyring",
     "caller": "(no caller found in project)",
-    "file": "src/webhooks/keyring.env.ts",
+    "file": "src/features/webhooks/keyring.env.ts",
     "line": 70,
     "coverageClass": "unknown"
   },
@@ -1718,7 +1718,7 @@
     "contractMethod": "KeyringPort.activeKey",
     "implementingClass": "InMemoryKeyring",
     "caller": "(no caller found in project)",
-    "file": "src/webhooks/keyring.memory.ts",
+    "file": "src/features/webhooks/keyring.memory.ts",
     "line": 25,
     "coverageClass": "unknown"
   },
@@ -1726,7 +1726,7 @@
     "source": "port",
     "contractMethod": "SecretSealerPort.seal",
     "caller": "(no implementation found in project)",
-    "file": "src/webhooks/ports.ts",
+    "file": "src/features/webhooks/ports.ts",
     "line": 94,
     "coverageClass": "unknown"
   },
@@ -1734,7 +1734,7 @@
     "source": "port",
     "contractMethod": "SecretSealerPort.open",
     "caller": "(no implementation found in project)",
-    "file": "src/webhooks/ports.ts",
+    "file": "src/features/webhooks/ports.ts",
     "line": 95,
     "coverageClass": "unknown"
   },
@@ -1742,7 +1742,7 @@
     "source": "port",
     "contractMethod": "IntegrationSecretRepoPort.insert",
     "caller": "(no implementation found in project)",
-    "file": "src/webhooks/ports.ts",
+    "file": "src/features/webhooks/ports.ts",
     "line": 150,
     "coverageClass": "unknown"
   },
@@ -1750,7 +1750,7 @@
     "source": "port",
     "contractMethod": "IntegrationSecretRepoPort.delete",
     "caller": "(no implementation found in project)",
-    "file": "src/webhooks/ports.ts",
+    "file": "src/features/webhooks/ports.ts",
     "line": 153,
     "coverageClass": "unknown"
   },
@@ -1758,7 +1758,7 @@
     "source": "table",
     "contractMethod": "webhookSubscriptions via this.db.insert",
     "caller": "SqliteWebhookSubscriptionRepo.insert",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 115,
     "coverageClass": "none"
   },
@@ -1766,7 +1766,7 @@
     "source": "table",
     "contractMethod": "webhookSubscriptions via this.db\n      .insert",
     "caller": "SqliteWebhookSubscriptionRepo.save",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 121,
     "coverageClass": "none"
   },
@@ -1774,7 +1774,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n        .insert",
     "caller": "SqliteWebhookDeliveryRepo.enqueue",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 193,
     "coverageClass": "none"
   },
@@ -1782,7 +1782,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n        .update",
     "caller": "SqliteWebhookDeliveryRepo.claimPending",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 235,
     "coverageClass": "none"
   },
@@ -1790,7 +1790,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.markDelivered",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 251,
     "coverageClass": "none"
   },
@@ -1798,7 +1798,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.markFailed",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 283,
     "coverageClass": "none"
   },
@@ -1806,7 +1806,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.save",
-    "file": "src/webhooks/repo.sqlite.ts",
+    "file": "src/features/webhooks/repo.sqlite.ts",
     "line": 333,
     "coverageClass": "none"
   },
@@ -1815,7 +1815,7 @@
     "contractMethod": "KeyringPort.deriveSigningSecret",
     "implementingClass": "EnvOrFileKeyring",
     "caller": "(anon class).signForSubscription",
-    "file": "src/webhooks/signing.keyring.ts",
+    "file": "src/features/webhooks/signing.keyring.ts",
     "line": 29,
     "coverageClass": "none"
   },
@@ -1824,7 +1824,7 @@
     "contractMethod": "KeyringPort.deriveSigningSecret",
     "implementingClass": "InMemoryKeyring",
     "caller": "(anon class).signForSubscription",
-    "file": "src/webhooks/signing.keyring.ts",
+    "file": "src/features/webhooks/signing.keyring.ts",
     "line": 29,
     "coverageClass": "none"
   },
@@ -1833,7 +1833,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.insert",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "createSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 107,
     "coverageClass": "none"
   },
@@ -1842,7 +1842,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.insert",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "createSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 107,
     "coverageClass": "none"
   },
@@ -1851,7 +1851,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "updateSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -1860,7 +1860,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "updateSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -1869,7 +1869,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "pauseSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 213,
     "coverageClass": "none"
   },
@@ -1878,7 +1878,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "pauseSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 213,
     "coverageClass": "none"
   },
@@ -1887,7 +1887,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "deleteSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 254,
     "coverageClass": "none"
   },
@@ -1896,7 +1896,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "deleteSubscription",
-    "file": "src/webhooks/subscriptions.ts",
+    "file": "src/features/webhooks/subscriptions.ts",
     "line": 254,
     "coverageClass": "none"
   },
@@ -2135,7 +2135,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "requestConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 102,
     "coverageClass": "ledger_only"
   },
@@ -2144,7 +2144,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "requestConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 102,
     "coverageClass": "ledger_only"
   },
@@ -2153,7 +2153,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 103,
     "coverageClass": "ledger_only"
   },
@@ -2162,7 +2162,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 103,
     "coverageClass": "ledger_only"
   },
@@ -2171,7 +2171,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 104,
     "coverageClass": "ledger_only"
   },
@@ -2180,7 +2180,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 104,
     "coverageClass": "ledger_only"
   },
@@ -2189,7 +2189,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "confirmConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 164,
     "coverageClass": "ledger_only"
   },
@@ -2198,7 +2198,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "confirmConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 164,
     "coverageClass": "ledger_only"
   },
@@ -2207,7 +2207,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 165,
     "coverageClass": "ledger_only"
   },
@@ -2216,7 +2216,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 165,
     "coverageClass": "ledger_only"
   },
@@ -2225,7 +2225,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 166,
     "coverageClass": "ledger_only"
   },
@@ -2234,7 +2234,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 166,
     "coverageClass": "ledger_only"
   },
@@ -2243,7 +2243,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "revokeConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 221,
     "coverageClass": "ledger_only"
   },
@@ -2252,7 +2252,7 @@
     "contractMethod": "MemberConsentRepoPort.transaction",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "revokeConsent",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 221,
     "coverageClass": "ledger_only"
   },
@@ -2261,7 +2261,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 222,
     "coverageClass": "ledger_only"
   },
@@ -2270,7 +2270,7 @@
     "contractMethod": "MemberConsentRepoPort.save",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 222,
     "coverageClass": "ledger_only"
   },
@@ -2279,7 +2279,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "InMemoryMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 223,
     "coverageClass": "ledger_only"
   },
@@ -2288,7 +2288,7 @@
     "contractMethod": "MemberConsentRepoPort.appendRevision",
     "implementingClass": "SqliteMemberConsentRepo",
     "caller": "(anonymous)",
-    "file": "src/members/consent-service.ts",
+    "file": "src/features/members/consent-service.ts",
     "line": 223,
     "coverageClass": "ledger_only"
   },
@@ -2297,7 +2297,7 @@
     "contractMethod": "MailerPort.sendBatch",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "(no caller found in project)",
-    "file": "src/members/mailer.console.ts",
+    "file": "src/features/members/mailer.console.ts",
     "line": 67,
     "coverageClass": "unknown"
   },
@@ -2306,7 +2306,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "ConsoleMailerAdapter.sendBatch",
-    "file": "src/members/mailer.console.ts",
+    "file": "src/features/members/mailer.console.ts",
     "line": 73,
     "coverageClass": "none"
   },
@@ -2315,7 +2315,7 @@
     "contractMethod": "MemberTierRepoPort.save",
     "implementingClass": "InMemoryMemberTierRepo",
     "caller": "(no caller found in project)",
-    "file": "src/members/repo.memory.ts",
+    "file": "src/features/members/repo.memory.ts",
     "line": 138,
     "coverageClass": "unknown"
   },
@@ -2324,7 +2324,7 @@
     "contractMethod": "MemberSessionRepoPort.revoke",
     "implementingClass": "InMemoryMemberSessionRepo",
     "caller": "(no caller found in project)",
-    "file": "src/members/repo.memory.ts",
+    "file": "src/features/members/repo.memory.ts",
     "line": 255,
     "coverageClass": "unknown"
   },
@@ -2332,7 +2332,7 @@
     "source": "table",
     "contractMethod": "members via this.db\n      .insert",
     "caller": "SqliteMemberRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 128,
     "coverageClass": "none"
   },
@@ -2341,7 +2341,7 @@
     "contractMethod": "MemberTierRepoPort.save",
     "implementingClass": "SqliteMemberTierRepo",
     "caller": "(no caller found in project)",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 181,
     "coverageClass": "unknown"
   },
@@ -2349,7 +2349,7 @@
     "source": "table",
     "contractMethod": "memberTiers via this.db\n      .insert",
     "caller": "SqliteMemberTierRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 200,
     "coverageClass": "none"
   },
@@ -2357,7 +2357,7 @@
     "source": "table",
     "contractMethod": "memberSubscriptions via this.db\n      .insert",
     "caller": "SqliteMemberSubscriptionRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 292,
     "coverageClass": "none"
   },
@@ -2365,7 +2365,7 @@
     "source": "table",
     "contractMethod": "memberSessions via this.db\n      .insert",
     "caller": "SqliteMemberSessionRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 349,
     "coverageClass": "none"
   },
@@ -2374,7 +2374,7 @@
     "contractMethod": "MemberSessionRepoPort.revoke",
     "implementingClass": "SqliteMemberSessionRepo",
     "caller": "(no caller found in project)",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 355,
     "coverageClass": "unknown"
   },
@@ -2382,7 +2382,7 @@
     "source": "table",
     "contractMethod": "memberSessions via this.db\n      .update",
     "caller": "SqliteMemberSessionRepo.revoke",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 357,
     "coverageClass": "none"
   },
@@ -2390,7 +2390,7 @@
     "source": "table",
     "contractMethod": "memberSessions via this.db\n      .update",
     "caller": "SqliteMemberSessionRepo.revokeAllForMember",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 365,
     "coverageClass": "none"
   },
@@ -2398,7 +2398,7 @@
     "source": "table",
     "contractMethod": "memberMagicTokens via this.db\n      .insert",
     "caller": "SqliteMagicLinkTokenRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 411,
     "coverageClass": "none"
   },
@@ -2406,7 +2406,7 @@
     "source": "table",
     "contractMethod": "memberMagicTokens via this.db\n      .update",
     "caller": "SqliteMagicLinkTokenRepo.consume",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 432,
     "coverageClass": "none"
   },
@@ -2414,7 +2414,7 @@
     "source": "table",
     "contractMethod": "memberConsents via this.db\n      .insert",
     "caller": "SqliteMemberConsentRepo.save",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 511,
     "coverageClass": "ledger_only"
   },
@@ -2422,7 +2422,7 @@
     "source": "table",
     "contractMethod": "memberRevisions via this.db\n      .insert",
     "caller": "SqliteMemberConsentRepo.appendRevision",
-    "file": "src/members/repo.sqlite.ts",
+    "file": "src/features/members/repo.sqlite.ts",
     "line": 519,
     "coverageClass": "ledger_only"
   },
@@ -2431,7 +2431,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 124,
     "coverageClass": "none"
   },
@@ -2440,7 +2440,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 124,
     "coverageClass": "none"
   },
@@ -2449,7 +2449,7 @@
     "contractMethod": "MagicLinkTokenRepoPort.save",
     "implementingClass": "InMemoryMagicLinkTokenRepo",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 130,
     "coverageClass": "none"
   },
@@ -2458,7 +2458,7 @@
     "contractMethod": "MagicLinkTokenRepoPort.save",
     "implementingClass": "SqliteMagicLinkTokenRepo",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 130,
     "coverageClass": "none"
   },
@@ -2467,7 +2467,7 @@
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 153,
     "coverageClass": "none"
   },
@@ -2476,7 +2476,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "requestSignInLink",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 189,
     "coverageClass": "none"
   },
@@ -2485,7 +2485,7 @@
     "contractMethod": "MagicLinkTokenRepoPort.consume",
     "implementingClass": "InMemoryMagicLinkTokenRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 224,
     "coverageClass": "none"
   },
@@ -2494,7 +2494,7 @@
     "contractMethod": "MagicLinkTokenRepoPort.consume",
     "implementingClass": "SqliteMagicLinkTokenRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 224,
     "coverageClass": "none"
   },
@@ -2503,7 +2503,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 250,
     "coverageClass": "none"
   },
@@ -2512,7 +2512,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 250,
     "coverageClass": "none"
   },
@@ -2521,7 +2521,7 @@
     "contractMethod": "MemberSessionRepoPort.save",
     "implementingClass": "InMemoryMemberSessionRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 263,
     "coverageClass": "none"
   },
@@ -2530,7 +2530,7 @@
     "contractMethod": "MemberSessionRepoPort.save",
     "implementingClass": "SqliteMemberSessionRepo",
     "caller": "completeSignIn",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 263,
     "coverageClass": "none"
   },
@@ -2539,7 +2539,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "updateProfile",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 301,
     "coverageClass": "none"
   },
@@ -2548,7 +2548,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "updateProfile",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 301,
     "coverageClass": "none"
   },
@@ -2557,7 +2557,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "InMemoryMemberRepo",
     "caller": "disableMember",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 336,
     "coverageClass": "none"
   },
@@ -2566,7 +2566,7 @@
     "contractMethod": "MemberRepoPort.save",
     "implementingClass": "SqliteMemberRepo",
     "caller": "disableMember",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 336,
     "coverageClass": "none"
   },
@@ -2575,7 +2575,7 @@
     "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
     "implementingClass": "InMemoryMemberSessionRepo",
     "caller": "disableMember",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 337,
     "coverageClass": "none"
   },
@@ -2584,7 +2584,7 @@
     "contractMethod": "MemberSessionRepoPort.revokeAllForMember",
     "implementingClass": "SqliteMemberSessionRepo",
     "caller": "disableMember",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 337,
     "coverageClass": "none"
   },
@@ -2593,7 +2593,7 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "InMemoryMemberSubscriptionRepo",
     "caller": "compSubscription",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 396,
     "coverageClass": "none"
   },
@@ -2602,7 +2602,7 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "SqliteMemberSubscriptionRepo",
     "caller": "compSubscription",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 396,
     "coverageClass": "none"
   },
@@ -2611,7 +2611,7 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "InMemoryMemberSubscriptionRepo",
     "caller": "setSubscriptionStatus",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 438,
     "coverageClass": "none"
   },
@@ -2620,7 +2620,7 @@
     "contractMethod": "MemberSubscriptionRepoPort.save",
     "implementingClass": "SqliteMemberSubscriptionRepo",
     "caller": "setSubscriptionStatus",
-    "file": "src/members/write-service.ts",
+    "file": "src/features/members/write-service.ts",
     "line": 438,
     "coverageClass": "none"
   },
@@ -2919,7 +2919,7 @@
     "contractMethod": "NewsletterListRepoPort.findById",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "requireEditableListId",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 58,
     "coverageClass": "none"
   },
@@ -2928,7 +2928,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "writeRevision",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 69,
     "coverageClass": "ledger_only"
   },
@@ -2937,7 +2937,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "writeRevision",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 69,
     "coverageClass": "ledger_only"
   },
@@ -2946,7 +2946,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "writeRevision",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 70,
     "coverageClass": "ledger_only"
   },
@@ -2955,7 +2955,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "writeRevision",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 70,
     "coverageClass": "ledger_only"
   },
@@ -2964,7 +2964,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "saveCampaign",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 109,
     "coverageClass": "none"
   },
@@ -2973,7 +2973,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "saveCampaign",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 109,
     "coverageClass": "none"
   },
@@ -2982,7 +2982,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "transitionAndWrite",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 175,
     "coverageClass": "none"
   },
@@ -2991,7 +2991,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "transitionAndWrite",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 175,
     "coverageClass": "none"
   },
@@ -3000,7 +3000,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "scheduleCampaign",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 205,
     "coverageClass": "none"
   },
@@ -3009,7 +3009,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "scheduleCampaign",
-    "file": "src/newsletter/campaign-write-service.ts",
+    "file": "src/features/newsletter/campaign-write-service.ts",
     "line": 205,
     "coverageClass": "none"
   },
@@ -3018,7 +3018,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.findUnconsumedBySubscription",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 57,
     "coverageClass": "none"
   },
@@ -3027,7 +3027,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 62,
     "coverageClass": "none"
   },
@@ -3036,7 +3036,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 62,
     "coverageClass": "none"
   },
@@ -3045,7 +3045,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 80,
     "coverageClass": "none"
   },
@@ -3054,7 +3054,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 80,
     "coverageClass": "none"
   },
@@ -3063,7 +3063,7 @@
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 82,
     "coverageClass": "none"
   },
@@ -3072,7 +3072,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "issueConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 85,
     "coverageClass": "none"
   },
@@ -3081,7 +3081,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.findByTokenHash",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 115,
     "coverageClass": "none"
   },
@@ -3090,7 +3090,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.findById",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 129,
     "coverageClass": "none"
   },
@@ -3099,7 +3099,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "InMemoryNewsletterConfirmationTokenRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 150,
     "coverageClass": "none"
   },
@@ -3108,7 +3108,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.save",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 150,
     "coverageClass": "none"
   },
@@ -3117,7 +3117,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "InMemoryNewsletterSubscriptionRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -3126,7 +3126,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "consumeConfirmationToken",
-    "file": "src/newsletter/confirmation.ts",
+    "file": "src/features/newsletter/confirmation.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -3135,7 +3135,7 @@
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
     "caller": "evaluateLaunchGate",
-    "file": "src/newsletter/launch-gate.ts",
+    "file": "src/features/newsletter/launch-gate.ts",
     "line": 77,
     "coverageClass": "ledger_only"
   },
@@ -3144,7 +3144,7 @@
     "contractMethod": "MailerPort.capabilities",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "evaluateLaunchGate",
-    "file": "src/newsletter/launch-gate.ts",
+    "file": "src/features/newsletter/launch-gate.ts",
     "line": 83,
     "coverageClass": "ledger_only"
   },
@@ -3153,7 +3153,7 @@
     "contractMethod": "NewsletterListRepoPort.findById",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "saveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 33,
     "coverageClass": "none"
   },
@@ -3162,7 +3162,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "InMemoryNewsletterListRepo",
     "caller": "saveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 36,
     "coverageClass": "none"
   },
@@ -3171,7 +3171,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "saveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 36,
     "coverageClass": "none"
   },
@@ -3180,7 +3180,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "InMemoryNewsletterListRepo",
     "caller": "saveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 50,
     "coverageClass": "none"
   },
@@ -3189,7 +3189,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "saveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 50,
     "coverageClass": "none"
   },
@@ -3198,7 +3198,7 @@
     "contractMethod": "NewsletterListRepoPort.findById",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "archiveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 60,
     "coverageClass": "none"
   },
@@ -3207,7 +3207,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "InMemoryNewsletterListRepo",
     "caller": "archiveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 66,
     "coverageClass": "none"
   },
@@ -3216,7 +3216,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "archiveList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 66,
     "coverageClass": "none"
   },
@@ -3225,7 +3225,7 @@
     "contractMethod": "NewsletterListRepoPort.findDefault",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "ensureDefaultList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 80,
     "coverageClass": "none"
   },
@@ -3234,7 +3234,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "InMemoryNewsletterListRepo",
     "caller": "ensureDefaultList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 94,
     "coverageClass": "none"
   },
@@ -3243,7 +3243,7 @@
     "contractMethod": "NewsletterListRepoPort.save",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "ensureDefaultList",
-    "file": "src/newsletter/lists.ts",
+    "file": "src/features/newsletter/lists.ts",
     "line": 94,
     "coverageClass": "none"
   },
@@ -3252,7 +3252,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.remove",
     "implementingClass": "InMemoryNewsletterSubscriptionRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.memory.ts",
+    "file": "src/features/newsletter/repo.memory.ts",
     "line": 160,
     "coverageClass": "unknown"
   },
@@ -3261,7 +3261,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "InMemoryNewsletterSendRepo",
     "caller": "InMemoryNewsletterSendRepo.saveBatch",
-    "file": "src/newsletter/repo.memory.ts",
+    "file": "src/features/newsletter/repo.memory.ts",
     "line": 255,
     "coverageClass": "sequential_outbox"
   },
@@ -3270,7 +3270,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "InMemoryNewsletterSendRepo.saveBatch",
-    "file": "src/newsletter/repo.memory.ts",
+    "file": "src/features/newsletter/repo.memory.ts",
     "line": 255,
     "coverageClass": "sequential_outbox"
   },
@@ -3278,7 +3278,7 @@
     "source": "table",
     "contractMethod": "newsletterCampaigns via this.db\n      .insert",
     "caller": "SqliteNewsletterCampaignRepo.saveCampaignRow",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 144,
     "coverageClass": "ledger_only"
   },
@@ -3286,7 +3286,7 @@
     "source": "table",
     "contractMethod": "newsletterCampaignRevisions via this.db\n      .insert",
     "caller": "SqliteNewsletterCampaignRepo.appendRevision",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 152,
     "coverageClass": "ledger_only"
   },
@@ -3295,7 +3295,7 @@
     "contractMethod": "NewsletterListRepoPort.list",
     "implementingClass": "SqliteNewsletterListRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 239,
     "coverageClass": "unknown"
   },
@@ -3304,7 +3304,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.list",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 320,
     "coverageClass": "unknown"
   },
@@ -3313,7 +3313,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.remove",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 374,
     "coverageClass": "unknown"
   },
@@ -3322,7 +3322,7 @@
     "contractMethod": "NewsletterAudienceSnapshotRepoPort.findByCampaignId",
     "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 405,
     "coverageClass": "unknown"
   },
@@ -3331,7 +3331,7 @@
     "contractMethod": "NewsletterSendRepoPort.findByIdempotencyKey",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 484,
     "coverageClass": "unknown"
   },
@@ -3340,7 +3340,7 @@
     "contractMethod": "NewsletterSendRepoPort.listPendingByAudienceSnapshot",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 510,
     "coverageClass": "unknown"
   },
@@ -3349,7 +3349,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "InMemoryNewsletterSendRepo",
     "caller": "SqliteNewsletterSendRepo.saveBatch",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 565,
     "coverageClass": "sequential_outbox"
   },
@@ -3358,7 +3358,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "SqliteNewsletterSendRepo.saveBatch",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 565,
     "coverageClass": "sequential_outbox"
   },
@@ -3367,7 +3367,7 @@
     "contractMethod": "NewsletterConfirmationTokenRepoPort.findById",
     "implementingClass": "SqliteNewsletterConfirmationTokenRepo",
     "caller": "(no caller found in project)",
-    "file": "src/newsletter/repo.sqlite.ts",
+    "file": "src/features/newsletter/repo.sqlite.ts",
     "line": 597,
     "coverageClass": "unknown"
   },
@@ -3376,7 +3376,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "authorizeSend",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 56,
     "coverageClass": "ledger_only"
   },
@@ -3385,7 +3385,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "authorizeSend",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 56,
     "coverageClass": "ledger_only"
   },
@@ -3394,7 +3394,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 73,
     "coverageClass": "ledger_only"
   },
@@ -3403,7 +3403,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 73,
     "coverageClass": "ledger_only"
   },
@@ -3412,7 +3412,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 76,
     "coverageClass": "ledger_only"
   },
@@ -3421,7 +3421,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.appendRevision",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 76,
     "coverageClass": "ledger_only"
   },
@@ -3430,7 +3430,7 @@
     "contractMethod": "NewsletterAudienceSnapshotRepoPort.findById",
     "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 97,
     "coverageClass": "sequential_outbox"
   },
@@ -3439,7 +3439,7 @@
     "contractMethod": "NewsletterSendRepoPort.listByCampaign",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 99,
     "coverageClass": "sequential_outbox"
   },
@@ -3448,7 +3448,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.listSubscribed",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 104,
     "coverageClass": "sequential_outbox"
   },
@@ -3457,7 +3457,7 @@
     "contractMethod": "NewsletterAudienceSnapshotRepoPort.save",
     "implementingClass": "InMemoryNewsletterAudienceSnapshotRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 144,
     "coverageClass": "sequential_outbox"
   },
@@ -3466,7 +3466,7 @@
     "contractMethod": "NewsletterAudienceSnapshotRepoPort.save",
     "implementingClass": "SqliteNewsletterAudienceSnapshotRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 144,
     "coverageClass": "sequential_outbox"
   },
@@ -3475,7 +3475,7 @@
     "contractMethod": "NewsletterSendRepoPort.saveBatch",
     "implementingClass": "InMemoryNewsletterSendRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 145,
     "coverageClass": "sequential_outbox"
   },
@@ -3484,7 +3484,7 @@
     "contractMethod": "NewsletterSendRepoPort.saveBatch",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 145,
     "coverageClass": "sequential_outbox"
   },
@@ -3493,7 +3493,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 148,
     "coverageClass": "sequential_outbox"
   },
@@ -3502,7 +3502,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 148,
     "coverageClass": "sequential_outbox"
   },
@@ -3511,7 +3511,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "freezeAudience",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 163,
     "coverageClass": "sequential_outbox"
   },
@@ -3520,7 +3520,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "dispatchRow",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 220,
     "coverageClass": "none"
   },
@@ -3529,7 +3529,7 @@
     "contractMethod": "NewsletterSendRepoPort.findById",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "recordResult",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 238,
     "coverageClass": "none"
   },
@@ -3538,7 +3538,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "InMemoryNewsletterSendRepo",
     "caller": "recordResult",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 251,
     "coverageClass": "none"
   },
@@ -3547,7 +3547,7 @@
     "contractMethod": "NewsletterSendRepoPort.save",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "recordResult",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 251,
     "coverageClass": "none"
   },
@@ -3556,7 +3556,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "recordResult",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 258,
     "coverageClass": "none"
   },
@@ -3565,7 +3565,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "recordResult",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 258,
     "coverageClass": "none"
   },
@@ -3574,7 +3574,7 @@
     "contractMethod": "NewsletterSendRepoPort.countPendingByCampaign",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "completeIfDrained",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 273,
     "coverageClass": "none"
   },
@@ -3583,7 +3583,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "completeIfDrained",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 281,
     "coverageClass": "none"
   },
@@ -3592,7 +3592,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "completeIfDrained",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 281,
     "coverageClass": "none"
   },
@@ -3601,7 +3601,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "transitionAndSave",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 305,
     "coverageClass": "none"
   },
@@ -3610,7 +3610,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.transaction",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "transitionAndSave",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 305,
     "coverageClass": "none"
   },
@@ -3619,7 +3619,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "InMemoryNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 312,
     "coverageClass": "none"
   },
@@ -3628,7 +3628,7 @@
     "contractMethod": "NewsletterCampaignRepoPort.saveCampaignRow",
     "implementingClass": "SqliteNewsletterCampaignRepo",
     "caller": "(anonymous)",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 312,
     "coverageClass": "none"
   },
@@ -3637,7 +3637,7 @@
     "contractMethod": "MailerPort.send",
     "implementingClass": "ConsoleMailerAdapter",
     "caller": "sendTestCampaign",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 336,
     "coverageClass": "none"
   },
@@ -3646,7 +3646,7 @@
     "contractMethod": "NewsletterSendRepoPort.findById",
     "implementingClass": "SqliteNewsletterSendRepo",
     "caller": "handleSendBatchClaimed",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 362,
     "coverageClass": "none"
   },
@@ -3655,7 +3655,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "handleSendBatchClaimed",
-    "file": "src/newsletter/send-pipeline.ts",
+    "file": "src/features/newsletter/send-pipeline.ts",
     "line": 364,
     "coverageClass": "none"
   },
@@ -3664,7 +3664,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "saveSubscription",
-    "file": "src/newsletter/subscriptions.ts",
+    "file": "src/features/newsletter/subscriptions.ts",
     "line": 37,
     "coverageClass": "none"
   },
@@ -3673,7 +3673,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "InMemoryNewsletterSubscriptionRepo",
     "caller": "saveSubscription",
-    "file": "src/newsletter/subscriptions.ts",
+    "file": "src/features/newsletter/subscriptions.ts",
     "line": 56,
     "coverageClass": "none"
   },
@@ -3682,7 +3682,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "saveSubscription",
-    "file": "src/newsletter/subscriptions.ts",
+    "file": "src/features/newsletter/subscriptions.ts",
     "line": 56,
     "coverageClass": "none"
   },
@@ -3691,7 +3691,7 @@
     "contractMethod": "KeyringPort.derive",
     "implementingClass": "EnvOrFileKeyring",
     "caller": "signature",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 53,
     "coverageClass": "none"
   },
@@ -3700,7 +3700,7 @@
     "contractMethod": "KeyringPort.derive",
     "implementingClass": "InMemoryKeyring",
     "caller": "signature",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 53,
     "coverageClass": "none"
   },
@@ -3709,7 +3709,7 @@
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
     "caller": "buildUnsubscribeLink",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 69,
     "coverageClass": "none"
   },
@@ -3718,7 +3718,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.findBySubscriberAndList",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "processUnsubscribe",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 103,
     "coverageClass": "none"
   },
@@ -3727,7 +3727,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "InMemoryNewsletterSubscriptionRepo",
     "caller": "processUnsubscribe",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 134,
     "coverageClass": "none"
   },
@@ -3736,7 +3736,7 @@
     "contractMethod": "NewsletterSubscriptionRepoPort.save",
     "implementingClass": "SqliteNewsletterSubscriptionRepo",
     "caller": "processUnsubscribe",
-    "file": "src/newsletter/unsubscribe.ts",
+    "file": "src/features/newsletter/unsubscribe.ts",
     "line": 134,
     "coverageClass": "none"
   },
@@ -3754,7 +3754,7 @@
     "contractMethod": "EventBusPort.subscribe",
     "implementingClass": "InMemoryEventBus",
     "caller": "registerRedirectHitOutboxHandler",
-    "file": "src/redirects/hit-sink.ts",
+    "file": "src/features/redirects/hit-sink.ts",
     "line": 72,
     "coverageClass": "none"
   },
@@ -3763,7 +3763,7 @@
     "contractMethod": "RedirectHitSink.record",
     "implementingClass": "RedirectHitSinkImpl",
     "caller": "(anonymous)",
-    "file": "src/redirects/hit-sink.ts",
+    "file": "src/features/redirects/hit-sink.ts",
     "line": 74,
     "coverageClass": "none"
   },
@@ -3772,7 +3772,7 @@
     "contractMethod": "OriginRegistryPort.canonicalOrigin",
     "implementingClass": "OriginRegistry",
     "caller": "toOracleCandidate",
-    "file": "src/redirects/phase-handler.ts",
+    "file": "src/features/redirects/phase-handler.ts",
     "line": 80,
     "coverageClass": "none"
   },
@@ -3781,7 +3781,7 @@
     "contractMethod": "OriginRegistryPort.isAllowedRedirectTarget",
     "implementingClass": "OriginRegistry",
     "caller": "RedirectPhaseHandlerResolver.resolve",
-    "file": "src/redirects/phase-handler.ts",
+    "file": "src/features/redirects/phase-handler.ts",
     "line": 137,
     "coverageClass": "none"
   },
@@ -3790,7 +3790,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "RedirectPhaseHandlerResolver.recordHitFireAndForget",
-    "file": "src/redirects/phase-handler.ts",
+    "file": "src/features/redirects/phase-handler.ts",
     "line": 166,
     "coverageClass": "sequential_outbox"
   },
@@ -3799,7 +3799,7 @@
     "contractMethod": "OriginRegistryPort.isAllowedRedirectTarget",
     "implementingClass": "OriginRegistry",
     "caller": "assertTargetAllowed",
-    "file": "src/redirects/redirects.ts",
+    "file": "src/features/redirects/redirects.ts",
     "line": 123,
     "coverageClass": "none"
   },
@@ -3808,7 +3808,7 @@
     "contractMethod": "OutboxPort.enqueue",
     "implementingClass": "InMemoryOutbox",
     "caller": "enqueueMutatedEvent",
-    "file": "src/redirects/redirects.ts",
+    "file": "src/features/redirects/redirects.ts",
     "line": 163,
     "coverageClass": "sequential_outbox"
   },
@@ -3817,7 +3817,7 @@
     "contractMethod": "RedirectRepoPort.save",
     "implementingClass": "InMemoryRedirectRepo",
     "caller": "(no caller found in project)",
-    "file": "src/redirects/repo.memory.ts",
+    "file": "src/features/redirects/repo.memory.ts",
     "line": 108,
     "coverageClass": "unknown"
   },
@@ -3826,7 +3826,7 @@
     "contractMethod": "RedirectRepoPort.tombstone",
     "implementingClass": "InMemoryRedirectRepo",
     "caller": "(no caller found in project)",
-    "file": "src/redirects/repo.memory.ts",
+    "file": "src/features/redirects/repo.memory.ts",
     "line": 113,
     "coverageClass": "unknown"
   },
@@ -3835,7 +3835,7 @@
     "contractMethod": "RedirectRepoPort.save",
     "implementingClass": "SqliteRedirectRepo",
     "caller": "(no caller found in project)",
-    "file": "src/redirects/repo.sqlite.ts",
+    "file": "src/features/redirects/repo.sqlite.ts",
     "line": 197,
     "coverageClass": "unknown"
   },
@@ -3844,7 +3844,7 @@
     "contractMethod": "RedirectRepoPort.tombstone",
     "implementingClass": "SqliteRedirectRepo",
     "caller": "(no caller found in project)",
-    "file": "src/redirects/repo.sqlite.ts",
+    "file": "src/features/redirects/repo.sqlite.ts",
     "line": 202,
     "coverageClass": "unknown"
   },
@@ -3852,7 +3852,7 @@
     "source": "table",
     "contractMethod": "redirects via this.db\n      .insert",
     "caller": "SqliteRedirectRepo.insertRedirect",
-    "file": "src/redirects/repo.sqlite.ts",
+    "file": "src/features/redirects/repo.sqlite.ts",
     "line": 221,
     "coverageClass": "none"
   },
@@ -3860,7 +3860,7 @@
     "source": "table",
     "contractMethod": "redirectRevisions via this.db.insert",
     "caller": "SqliteRedirectRepo.insertRevision",
-    "file": "src/redirects/repo.sqlite.ts",
+    "file": "src/features/redirects/repo.sqlite.ts",
     "line": 229,
     "coverageClass": "none"
   },

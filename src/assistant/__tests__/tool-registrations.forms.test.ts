@@ -16,13 +16,13 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryChangeSetRepo, ForbiddenError as CommandForbiddenError } from "../../core/commands/index.js";
-import { formsAgentToolCatalog, type AgentToolDefinition } from "../../forms/agent-tools.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../forms/repo.memory.js";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../../forms/types.js";
+import { formsAgentToolCatalog, type AgentToolDefinition } from "../../features/forms/agent-tools.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../features/forms/repo.memory.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "../../features/forms/types.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeFormsTools } from "../../forms/tool-registrations.js";
+import { contributeFormsTools } from "../../features/forms/tool-registrations.js";
 
 // Forms moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

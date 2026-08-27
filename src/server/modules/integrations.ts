@@ -1,10 +1,10 @@
-import { InMemoryDeliveryEnvelopeStore } from "../../webhooks/index.js";
+import { InMemoryDeliveryEnvelopeStore } from "../../features/webhooks/index.js";
 import type {
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
   WebhookTopic,
-} from "../../webhooks/index.js";
-import { enqueueDelivery } from "../../webhooks/delivery.js";
+} from "../../features/webhooks/index.js";
+import { enqueueDelivery } from "../../features/webhooks/delivery.js";
 import type { ClockPort, EventBusPort, IdGeneratorPort, JsonObject } from "@jini-ai/cms/core";
 import type { ServerModuleHandle } from "./types.js";
 

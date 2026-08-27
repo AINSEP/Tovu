@@ -1,4 +1,4 @@
-import type { MemberRecord, MemberStatus } from "../../members/index.js";
+import type { MemberRecord, MemberStatus } from "../../features/members/index.js";
 
 /**
  * @file Public-facing member response DTO (ADR-PIPE-013 Decision §2, C-014).

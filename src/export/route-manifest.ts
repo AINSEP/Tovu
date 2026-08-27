@@ -8,7 +8,7 @@ import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/i
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
-import type { RedirectRecord, RedirectRepoPort } from "#src/redirects/index";
+import type { RedirectRecord, RedirectRepoPort } from "#src/features/redirects/index";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
 
 /**

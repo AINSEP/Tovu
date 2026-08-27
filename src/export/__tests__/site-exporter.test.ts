@@ -8,7 +8,7 @@ import express from "express";
 import type { UUID } from "@jini-ai/cms/core";
 import { createApp, createRouteDeps } from "../../server/app.js";
 import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
-import type { RedirectRecord } from "../../redirects/index.js";
+import type { RedirectRecord } from "../../features/redirects/index.js";
 import { ExportOutputNotEmptyError, exportSite, firstExportFailure, redirectOutcomeFor } from "../site-exporter.js";
 import type { ExportReport } from "../site-exporter.js";
 

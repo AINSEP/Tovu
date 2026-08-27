@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Express, Request } from "express";
 
-import type { CommentIngressPolicy, CommentSubmission } from "#src/comments/index";
+import type { CommentIngressPolicy, CommentSubmission } from "#src/features/comments/index";
 
 /**
  * @file ADR-031 §4 (SPEC-033) — the public, unauthenticated comment submission route. The ONLY

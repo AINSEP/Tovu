@@ -1,7 +1,7 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import { extractGitHubLogin } from "../deployments/static-publish/index.js";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import { buildSourceControlCredentialAad } from "./aad.js";
 import type {
   SourceControlConnectionInput,

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { InMemoryFormDefinitionRepo } from "#src/forms/repo.memory";
+import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
 import type { NavMenuEntry, NavMenuReadModel } from "#src/navigation/index";
 import { createCoreResolvers } from "../../resolvers/create-core-resolvers.js";
 

@@ -1,5 +1,5 @@
-import { issueConfirmationToken } from "#src/newsletter/confirmation";
-import { NewsletterSubscriptionNotFoundError } from "#src/newsletter/index";
+import { issueConfirmationToken } from "#src/features/newsletter/confirmation";
+import { NewsletterSubscriptionNotFoundError } from "#src/features/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types.js";
 import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps.js";

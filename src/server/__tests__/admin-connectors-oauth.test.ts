@@ -7,8 +7,8 @@ import { startFakeComposio, type FakeComposioServer } from "../../../development
 import { InMemoryComposioConfigRepo } from "../../connectors/composio-config-store.memory.js";
 import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service.js";
 import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory.js";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createConnectorsModule } from "../modules/connectors.js";

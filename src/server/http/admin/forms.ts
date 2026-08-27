@@ -7,7 +7,7 @@ import {
   FormSubmissionNotFoundError,
   type FormDefinitionRecord,
   type FormSubmissionRecord,
-} from "#src/forms/index";
+} from "#src/features/forms/index";
 import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 
 /**

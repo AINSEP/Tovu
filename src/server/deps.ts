@@ -37,9 +37,9 @@ import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite.js";
 import { openDatabaseJournalDb } from "../db/sqlite/database-journal-db.js";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../db/sqlite/database-journal-repo.js";
 import { ensureSeoSettingDefinitions } from "../seo/index.js";
-import { installNewsletterDataModule } from "../newsletter/data-module-manifest.js";
-import { ensureDefaultList } from "../newsletter/lists.js";
-import { createHookRegistry } from "../newsletter/hooks.js";
+import { installNewsletterDataModule } from "../features/newsletter/data-module-manifest.js";
+import { ensureDefaultList } from "../features/newsletter/lists.js";
+import { createHookRegistry } from "../features/newsletter/hooks.js";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -47,8 +47,8 @@ import {
   SqliteNewsletterListRepo,
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
-} from "../newsletter/repo.sqlite.js";
-import { MembersSubscriberDirectory } from "../members/index.js";
+} from "../features/newsletter/repo.sqlite.js";
+import { MembersSubscriberDirectory } from "../features/members/index.js";
 import {
   seededPosts,
   seededPresentation,
@@ -64,14 +64,14 @@ import {
   SqliteMemberSessionRepo,
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
-} from "../members/index.js";
+} from "../features/members/index.js";
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite.js";
 import { rebuildNavLocationBindings } from "../navigation/index.js";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite.js";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite.js";
-import { EnvOrFileKeyring } from "../webhooks/keyring.env.js";
-import { createKeyringBackedSigner } from "../webhooks/signing.keyring.js";
-import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../features/webhooks/keyring.env.js";
+import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
+import { AesGcmSecretSealer } from "../features/webhooks/secret-sealer.aesgcm.js";
 import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite.js";
 import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite.js";
 import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite.js";
@@ -85,8 +85,8 @@ import {
 } from "../media/index.js";
 import { ensureCoreMediaTransform } from "../media/bootstrap.js";
 import { createSqliteIdentityRouteDeps } from "../identity/wiring.js";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite.js";
-import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile.js";
+import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../features/forms/repo.sqlite.js";
+import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/core/rate-limit/rate-limit";
 import type { Express } from "express";
 import type { RouteDeps } from "./routes/types.js";
@@ -109,7 +109,7 @@ import {
   registerRedirectsPhaseHandlers,
   SqliteRedirectRepo,
   type RedirectsWriteDeps,
-} from "../redirects/index.js";
+} from "../features/redirects/index.js";
 import { registerSlugChangeCapture } from "../routing/index.js";
 import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops.js";
 import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo.js";
@@ -125,7 +125,7 @@ import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
 import { createNavMenuReadModel } from "../navigation/index.js";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments/index.js";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
 import {
   ensureSettingsUiTabDefinitions,
   getEffective,
@@ -137,8 +137,8 @@ import {
   INSTRUCTIONS_NAMESPACE,
 } from "../features/settings/index.js";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
-import { SqliteCommentRepo } from "../comments/repo.sqlite.js";
-import { installCommentsDataModule } from "../comments/data-module-install.js";
+import { SqliteCommentRepo } from "../features/comments/repo.sqlite.js";
+import { installCommentsDataModule } from "../features/comments/data-module-install.js";
 import {
   SqliteEntryTermRepo,
   SqliteTaxonomyRepo,

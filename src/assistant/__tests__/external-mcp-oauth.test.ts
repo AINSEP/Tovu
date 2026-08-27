@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../oauth/index.js";
 import {
   createDeviceAuthorizationStore,

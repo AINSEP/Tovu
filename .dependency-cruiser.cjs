@@ -177,7 +177,7 @@ const HAND_WRITTEN_RULES = [
 const GUARDED_MODULES = [
   "analytics",
   "assistant",
-  "comments",
+  "features/comments",
   "core/commands",
   "core/events",
   "features/commerce",
@@ -191,23 +191,29 @@ const GUARDED_MODULES = [
   "features/taxonomy",
   "features/theme",
   "features/workspace",
-  "forms",
+  "features/forms",
   "headless",
   "http",
   "mail",
   "media",
-  "members",
+  "features/members",
   "navigation",
-  "newsletter",
+  "features/newsletter",
   "origin",
-  "redirects",
+  "features/redirects",
   "routing",
   "seo",
   "site-dir",
-  // Renamed from "integrations" (2026-08-17) — the folder is `src/webhooks/` now. The rule name
-  // is derived from this string, so leaving the old value here would have silently retired the
-  // module's ~88 no-deep-imports warnings without a single one being fixed.
-  "webhooks",
+  // Renamed from "integrations" (2026-08-17), then re-pathed from `webhooks` when the six
+  // misplaced feature slices moved under `src/features/` (2026-08-27) — the folder is
+  // `src/features/webhooks/` now. The rule name is derived from this string, so leaving a stale
+  // value here would silently retire the module's ~48 no-deep-imports warnings without a single
+  // one being fixed. Same hazard applies to the five sibling slices moved in that pass
+  // (`features/{comments,forms,members,newsletter,redirects}` above): the post-move violation
+  // total was re-measured at 92 (10 errors, 82 warnings) — identical to the pre-move total, and
+  // identical per rule — which is the evidence that the rename carried the rules rather than
+  // dropping them.
+  "features/webhooks",
   "widgets/resolvers",
 ];
 
@@ -316,25 +322,25 @@ const EXTRA_TO_EXEMPT = {
   // index.ts, deliberately leaving these Category-3 single-purpose files reached directly by
   // their one dedicated caller — barreling them would be "inventing a dispatcher nobody asked
   // for" (the trace's own words).
-  forms: [
-    "^src/forms/forms\\.ts$",
-    "^src/forms/notify-subscriber\\.ts$",
-    "^src/forms/submit-service\\.ts$",
-    "^src/forms/write-service\\.ts$",
+  "features/forms": [
+    "^src/features/forms/forms\\.ts$",
+    "^src/features/forms/notify-subscriber\\.ts$",
+    "^src/features/forms/submit-service\\.ts$",
+    "^src/features/forms/write-service\\.ts$",
   ],
   // trace-A's newsletter section (N-1): exposes only errors.ts/ports.ts through the new index.ts,
   // deliberately leaving these 7 Category-3 files — each already funneled through a scoped local
   // composition file (server/routes/admin/newsletter/deps.ts, type-only) or reached by one
   // dedicated route handler per function, the same "fragmented HTTP route handler" shape as
   // forms' write-service.ts above.
-  newsletter: [
-    "^src/newsletter/campaign-write-service\\.ts$",
-    "^src/newsletter/confirmation\\.ts$",
-    "^src/newsletter/hooks\\.ts$",
-    "^src/newsletter/lists\\.ts$",
-    "^src/newsletter/send-pipeline\\.ts$",
-    "^src/newsletter/subscriptions\\.ts$",
-    "^src/newsletter/unsubscribe\\.ts$",
+  "features/newsletter": [
+    "^src/features/newsletter/campaign-write-service\\.ts$",
+    "^src/features/newsletter/confirmation\\.ts$",
+    "^src/features/newsletter/hooks\\.ts$",
+    "^src/features/newsletter/lists\\.ts$",
+    "^src/features/newsletter/send-pipeline\\.ts$",
+    "^src/features/newsletter/subscriptions\\.ts$",
+    "^src/features/newsletter/unsubscribe\\.ts$",
   ],
   // 2026-08-17 no-deep-imports:features/deployments triage: `static-publish/` and
   // `publish-credentials/` are genuine nested modules — each has its own directory, its own
@@ -395,7 +401,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "features/commerce",
   "seo",
   "routing",
-  "members",
+  "features/members",
   // 2026-08-18 cheap-tail sweep (session 16 handoff's "Next Steps" item 1) — each driven to 0 and
   // re-verified:
   //  - widgets/resolvers: 3 wrong-door redirects, all onto a new barrel addition (the three real
@@ -413,7 +419,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   //    untouched by this promotion — companion rules stay warn until their own triage.
   "widgets/resolvers",
   "media",
-  "comments",
+  "features/comments",
   "site-dir",
 ]);
 

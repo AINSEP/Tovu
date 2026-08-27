@@ -1,4 +1,4 @@
-import type { WebhookDeliveryRecord } from "#src/webhooks/index";
+import type { WebhookDeliveryRecord } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps.js";

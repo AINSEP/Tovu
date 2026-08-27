@@ -1,5 +1,5 @@
-import { unsubscribeSubscription } from "#src/newsletter/subscriptions";
-import { NewsletterSubscriptionNotFoundError } from "#src/newsletter/index";
+import { unsubscribeSubscription } from "#src/features/newsletter/subscriptions";
+import { NewsletterSubscriptionNotFoundError } from "#src/features/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types.js";
 import { toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "./deps.js";

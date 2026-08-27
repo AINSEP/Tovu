@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
-import type { KeyringPort } from "../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../features/webhooks/index.js";
 import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";

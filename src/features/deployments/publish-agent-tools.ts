@@ -100,7 +100,7 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 // own copy rather than naming `RouteDeps` (2026-08-20 RouteDeps-narrowing fix).
 import type { ExportReport } from "#src/export/index";
 import type { AuthorizeFn } from "../../core/commands/index.js";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 

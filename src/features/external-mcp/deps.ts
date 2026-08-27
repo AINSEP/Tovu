@@ -2,7 +2,7 @@ import type { AuthorizeFn, ClockPort, UUID } from "@jini-ai/cms/core";
 
 // `#src/*` maps to `./src/*.ts` (package.json `imports`), so the subpath carries no `.js`
 // suffix — unlike a relative specifier, which does. `#src/assistant/index` below is the same shape.
-import type { KeyringPort, SecretSealerPort } from "#src/webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "#src/features/webhooks/index";
 import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/assistant/index";
 
 /**
@@ -15,7 +15,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRepoPort } from "#src/as
  *
  * `ExternalMcpServerRepoPort`/`ExternalMcpOAuthService` are type-imported from `#src/assistant/
  * index` rather than restated, unlike `AuthorizeFn`/`ClockPort` (an external package) and
- * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/webhooks/index.js`,
+ * `SecretSealerPort`/`KeyringPort` (restated as a type-only import from `#src/features/webhooks/index.js`,
  * ADR-058's shared sealer/keyring types, the same instances the Composio/BYOK/media-provider stores
  * share). This domain's `tool-registrations.ts` ALREADY value-imports `saveExternalMcpServer`/
  * `listExternalMcpServerViews`/etc. from that same `#src/assistant/index` barrel — the identical

@@ -64,7 +64,7 @@
     "src/features/theme/validation/references.ts",
     "src/features/theme/validation/structure.ts",
     "src/features/theme/validation/validate-theme-package.ts",
-    "src/forms/forms.ts",
+    "src/features/forms/forms.ts",
     "src/media/bootstrap.ts",
     "src/media/index.ts",
     "src/media/provider-credential-store.ts",

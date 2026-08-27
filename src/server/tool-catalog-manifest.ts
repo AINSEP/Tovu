@@ -1,4 +1,4 @@
-import { contributeCommentsTools } from "../comments/tool-registrations.js";
+import { contributeCommentsTools } from "../features/comments/tool-registrations.js";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations.js";
 import { contributeDatabaseTools } from "../features/database/tool-registrations.js";
 import { contributeDeploymentsTools } from "../features/deployments/tool-registrations.js";
@@ -10,14 +10,14 @@ import { contributeRecoveryTools } from "../features/recovery/tool-registrations
 import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations.js";
 import { contributeThemesTools } from "../features/theme/tool-registrations.js";
 import { contributeWorkspaceTools } from "../features/workspace/tool-registrations.js";
-import { contributeFormsTools } from "../forms/tool-registrations.js";
+import { contributeFormsTools } from "../features/forms/tool-registrations.js";
 import { contributeIdentityTools } from "../identity/tool-registrations.js";
-import { contributeWebhooksTools } from "../webhooks/tool-registrations.js";
+import { contributeWebhooksTools } from "../features/webhooks/tool-registrations.js";
 import { contributeMediaTools } from "../media/tool-registrations.js";
-import { contributeMembersTools } from "../members/tool-registrations.js";
+import { contributeMembersTools } from "../features/members/tool-registrations.js";
 import { contributeMenusTools } from "../navigation/tool-registrations.js";
-import { contributeNewsletterTools } from "../newsletter/tool-registrations.js";
-import { contributeRedirectsTools } from "../redirects/tool-registrations.js";
+import { contributeNewsletterTools } from "../features/newsletter/tool-registrations.js";
+import { contributeRedirectsTools } from "../features/redirects/tool-registrations.js";
 import { contributeSeoTools } from "../seo/tool-registrations.js";
 import { contributeSettingsTools } from "../features/settings/tool-registrations.js";
 import { contributeSiteEvidenceTools } from "../features/site-evidence/tool-registrations.js";

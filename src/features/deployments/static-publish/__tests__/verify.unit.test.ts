@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm.js";
-import { InMemoryKeyring } from "../../../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
 import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
 import type { PublishCredentialSource } from "../types.js";

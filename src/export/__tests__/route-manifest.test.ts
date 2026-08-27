@@ -5,8 +5,8 @@ import test from "node:test";
 import { createRouteDeps } from "../../server/app.js";
 import { InMemoryPostRepo } from "../../features/post/index.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
-import { InMemoryRedirectRepo } from "../../redirects/index.js";
-import type { RedirectRecord } from "../../redirects/index.js";
+import { InMemoryRedirectRepo } from "../../features/redirects/index.js";
+import type { RedirectRecord } from "../../features/redirects/index.js";
 import { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "../route-manifest.js";
 
 /** Minimal hand-built {@link DiscoveredTheme} fixture — every field `buildThemePageRoutes` /

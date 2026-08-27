@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SecretSealerPort } from "../../../webhooks/index.js";
+import type { SecretSealerPort } from "../../webhooks/index.js";
 import { resolveDefaultForPublish } from "../publish-credentials/store.js";
 import type { PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
 import type { PublishExecutionMode } from "../publish-credentials/execution-mode.js";
