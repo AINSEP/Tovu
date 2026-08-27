@@ -70,11 +70,35 @@ const HAND_WRITTEN_RULES = [
       // was already generic and never named `RouteDeps` — it was already the target shape this whole
       // fix aims every other call site at. Production violations verified at 0 under the reverted,
       // un-widened `from`/`to` below — promoted to `error` on that basis, not by exempting a category.
-      name: "feature-no-express-or-admin-imports",
+      // Widened 2026-08-27, from `src/server/routes` to ALL of `src/server`, and renamed to match
+      // (`feature-no-express-or-admin-imports` -> `feature-no-server-or-framework-imports`) — the
+      // old name described the old `to`. `src/features/INFO.md` has always said "Features should not
+      // import server/framework code", full stop; the rule only ever policed the `routes/` third of
+      // that, so an edge into `server/app.ts`, `server/deps.ts`, `server/http/**` or
+      // `server/modules/**` was unpoliced. Widening was safe to do in one step rather than
+      // incrementally because the production edge count into the newly-covered area was already
+      // ZERO — measured from dependency-cruiser's own module graph across all 33 slices, including
+      // the six moved under `src/features/` earlier the same day, before the change and re-verified
+      // at 0 after it. This closes a gap; it does not ratchet a live violation into existence.
+      //
+      // Note what this is NOT: an earlier session (2026-08-19) measured "61 features -> server
+      // calls" from a code-knowledge-graph and that number drove a planned remediation. It is an
+      // indexer artifact — 60 of the 61 bind an ordinary `readFileSync`/`existsSync`/`dirname` call
+      // anywhere under `src/features/` to the same-named properties of the stub fs object in
+      // `src/server/http/site/liquid-worker.ts` (lines 46-54), and the 61st points the wrong way
+      // (`features/database/migrate-forward/execute.ts` DECLARES an injected `gatewayExecute`
+      // parameter that `server/routes/admin/taxonomy/merge-term.ts` SUPPLIES — the server passing
+      // the feature what it needs, i.e. the fix, not the violation). Import-level ground truth was
+      // 0 the whole time. Do not re-derive a remediation backlog from that number.
+      //
+      // The two real production violations that did exist were both `import type { Express }` in
+      // `features/site-inspection/{deps,published-page}.ts`, fixed in the same commit by typing the
+      // port as Node's `RequestListener` — which is all `fetchPublishedPage` ever did with it.
+      name: "feature-no-server-or-framework-imports",
       severity: "error",
-      comment: "Feature/domain code may not import Express, route handlers, or admin-app code — including a type-only `RouteDeps`/route-handler-type edge, which is still a real \"knows-about\" coupling for this rule's purpose (contrast only-composition-constructs-concrete-adapters below, which polices runtime construction and so DOES exempt type-only edges). __tests__/ integration tests that construct a real Express app/RouteDeps fixture to exercise route or tool wiring end-to-end are exempted.",
+      comment: "Feature/domain code may not import Express, anything under src/server/**, or admin-app code — including a type-only `RouteDeps`/route-handler-type edge, which is still a real \"knows-about\" coupling for this rule's purpose (contrast only-composition-constructs-concrete-adapters below, which polices runtime construction and so DOES exempt type-only edges). __tests__/ integration tests that construct a real Express app/RouteDeps fixture to exercise route or tool wiring end-to-end are exempted.",
       from: { path: "^src/features", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(node_modules/express|src/server/routes|apps/admin)" },
+      to: { path: "^(node_modules/express|src/server|apps/admin)" },
     },
     {
       name: "only-composition-constructs-concrete-adapters",

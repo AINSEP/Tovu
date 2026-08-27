@@ -1,8 +1,6 @@
-import { createServer, type Server } from "node:http";
+import { createServer, type RequestListener, type Server } from "node:http";
 import { once } from "node:events";
 import type { AddressInfo } from "node:net";
-
-import type { Express } from "express";
 
 /**
  * @file `fetchPublishedPage()` — renders ONE route of this site's own public surface and returns
@@ -126,15 +124,24 @@ export interface PublishedPageResult {
 
 export interface FetchPublishedPageDeps {
   /**
-   * The SAME Express factory the static exporter renders through
-   * (`RouteDeps.createSiteApp`). Declared with METHOD syntax, and passed the deps bag itself, so
-   * this port satisfies BOTH shapes that field has had: the older
-   * `(routeDeps: RouteDeps) => Express` (which needs the argument) and the newer nullary
-   * `() => Express` (which ignores it). Method-syntax parameters are bivariant, so a real
-   * `RouteDeps`-typed implementation assigns to this narrower declaration without a cast, and the
-   * object handed in at runtime IS the composition root's real deps bag.
+   * The SAME site-app factory the static exporter renders through (`RouteDeps.createSiteApp`).
+   *
+   * Declared with METHOD syntax, and passed the deps bag itself, so this port satisfies BOTH shapes
+   * that field has had: the older `(routeDeps: RouteDeps) => Express` (which needs the argument) and
+   * the newer nullary `() => Express` (which ignores it). Method-syntax parameters are bivariant, so
+   * a real `RouteDeps`-typed implementation assigns to this narrower declaration without a cast, and
+   * the object handed in at runtime IS the composition root's real deps bag.
+   *
+   * Typed as Node's `RequestListener` rather than Express's `Express` because that is what this
+   * module actually consumes — the sole use is `createServer(deps.createSiteApp(deps))`, and
+   * `http.createServer` takes a request listener. Naming `Express` here made the feature import a
+   * web framework to describe a two-argument callback, which is the `features/` boundary violation
+   * `src/features/__tests__/features-no-server-imports.boundary.test.ts` fails on. A real Express
+   * app still satisfies this: `@types/express-serve-static-core`'s `Application` declares an
+   * explicit `(req: http.IncomingMessage, res: http.ServerResponse)` call signature, which is
+   * exactly why `createServer(app)` type-checked before this change and still does.
    */
-  createSiteApp(routeDeps: unknown): Express;
+  createSiteApp(routeDeps: unknown): RequestListener;
 }
 
 export interface FetchPublishedPageOptions {

@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { RequestListener } from "node:http";
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { SettingsRepoPort, getEffective } from "@jini-ai/cms/settings";
 
@@ -60,17 +60,18 @@ export interface SiteProfileSourceDeps {
 }
 
 /**
- * Everything the AGENT-TOOL adapter needs: the profile's read ports, plus the site's own Express
+ * Everything the AGENT-TOOL adapter needs: the profile's read ports, plus the site's own app
  * factory that `fetch_published_page` renders through.
  */
 export interface SiteInspectionToolDeps extends SiteProfileSourceDeps {
   /**
-   * The site's own Express factory (`RouteDeps.createSiteApp`), used by `fetchPublishedPage`.
+   * The site's own app factory (`RouteDeps.createSiteApp`), used by `fetchPublishedPage`.
    * Method syntax and an `unknown` parameter so this declaration satisfies both the historical
-   * `(routeDeps: RouteDeps) => Express` shape and the current nullary `() => Express` one — see
-   * `published-page.ts`'s `FetchPublishedPageDeps` for the full note.
+   * `(routeDeps: RouteDeps) => Express` shape and the current nullary `() => Express` one, and
+   * typed as Node's `RequestListener` because that is all `fetchPublishedPage` does with it — see
+   * `published-page.ts`'s `FetchPublishedPageDeps` for the full note on both points.
    */
-  createSiteApp(routeDeps: unknown): Express;
+  createSiteApp(routeDeps: unknown): RequestListener;
 }
 
 /**
