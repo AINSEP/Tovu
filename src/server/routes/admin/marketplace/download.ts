@@ -1,5 +1,5 @@
 import { downloadMarketplaceTheme, MarketplaceThemeError } from "#src/features/theme/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**

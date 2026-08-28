@@ -1,6 +1,6 @@
 import { listProviderModels } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 import { readOptionalString, validateSupportedProtocol, type SupportedExecutionProtocol } from "./execution-request-fields.js";
 import { resolveProbeCredential, type ProbeCredentialResolution } from "./stored-credential-probe.js";

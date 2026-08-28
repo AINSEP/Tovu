@@ -5,7 +5,7 @@ import express from "express";
 
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete.js";
 import { registerAdminMediaListRoute } from "../routes/admin/media/list.js";
 import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash.js";

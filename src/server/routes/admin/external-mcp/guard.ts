@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 
 /**

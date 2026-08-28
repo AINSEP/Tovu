@@ -2,7 +2,7 @@ import type { Response } from "express";
 
 import { deleteMenu, MenuLocationBoundError, MenuNotFoundError } from "#src/features/navigation/index";
 import { toAdminDeleteMenuResponse, type MenuRouteDeps, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /**
  * When `force` is set, checks the separate `admin.menus.delete.force` permission (ADR-PIPE-012

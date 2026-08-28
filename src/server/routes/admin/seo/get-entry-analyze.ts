@@ -1,5 +1,5 @@
 import { analyzeEntry, SeoEntryNotFoundError } from "#src/features/seo/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /** GET SEO score+issues for an entry (SPEC-008 api.spec.md `SEO_GET_ENTRY_ANALYZE`, tasks.md T047). */

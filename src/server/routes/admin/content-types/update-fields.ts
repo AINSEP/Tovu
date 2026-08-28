@@ -13,7 +13,7 @@ import {
 } from "#src/features/content-types/index";
 import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { updateContentTypeFields } from "#src/features/content-types/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
 function statusFor(error: Error): { status: number; code: string } {

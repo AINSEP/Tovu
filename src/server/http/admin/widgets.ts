@@ -2,7 +2,7 @@ import type { Response } from "express";
 
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { PrincipalRecord } from "@jini-ai/cms/identity";
-import { getAuthedPrincipal } from "../../middleware/dev-auth.js";
+import { getAuthedPrincipal } from "../../inbound/admin-http/dev-auth.js";
 import {
   WidgetAreaConflictError,
   WidgetAreaNotFoundError,

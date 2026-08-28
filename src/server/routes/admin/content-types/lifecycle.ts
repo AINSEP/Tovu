@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/content-types/index";
 import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "#src/features/content-types/index";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
 function statusFor(error: Error): { status: number; code: string } {

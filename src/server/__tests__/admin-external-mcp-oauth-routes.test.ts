@@ -6,7 +6,7 @@ import express from "express";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService, saveExternalMcpServer } from "../../assistant/index.js";
 import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import { EXTERNAL_MCP_OAUTH_CALLBACK_PATH } from "../routes/external-mcp/oauth-callback-url.js";
 import type { RouteDeps } from "../routes/types.js";

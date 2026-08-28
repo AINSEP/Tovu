@@ -19,7 +19,7 @@ import {
 // `registerToolContributor` edge, so importing the real function here (unlike from `assistant`)
 // cannot reopen the cycle that injection removed.
 import { extractGitHubLogin } from "#src/features/deployments/static-publish/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

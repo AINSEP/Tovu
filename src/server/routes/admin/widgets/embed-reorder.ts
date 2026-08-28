@@ -1,7 +1,7 @@
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { reorderWidgetEmbeds } from "#src/features/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "../../types.js";
 
 /** PUT a new widget-per-slot order for every EXISTING `widgetEmbed` node in a host entry's body

@@ -11,7 +11,7 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
  * `requireAdminSession`, and deliberately so.
  *
  * Why it cannot be authenticated the normal way: `tovu_session` is `SameSite=Strict`
- * (`middleware/dev-auth.ts`). Composio redirects the operator's browser here from its own origin,
+ * (`inbound/admin-http/dev-auth.ts`). Composio redirects the operator's browser here from its own origin,
  * which is a cross-site top-level navigation, so the browser sends NO cookie. An authenticated
  * callback would reject every real handshake. The cookie policy is correct and stays untouched.
  *

@@ -7,7 +7,7 @@ import type { ExternalMcpOAuthService, ExternalMcpServerRecord } from "../../ass
 import { saveExternalMcpServer } from "../../assistant/index.js";
 import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "../../assistant/mcp-federation/ports.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../routes/admin/external-mcp/probe.js";
 import type { RouteDeps } from "../routes/types.js";

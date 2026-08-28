@@ -102,7 +102,7 @@ function harness() {
 
     const { createRouteDeps } = await import("../runtime/composition/app.js");
     const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
-    const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
+    const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
     const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
 
     const deps = createRouteDeps();

@@ -6,7 +6,7 @@ import type { Express } from "express";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/composition/deps";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 import type { RouteDeps } from "#src/server/routes/types";
 

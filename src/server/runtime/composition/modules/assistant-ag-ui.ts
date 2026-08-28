@@ -50,7 +50,7 @@ import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
 
-import { getAuthedPrincipal, requireAdminSession } from "../../../middleware/dev-auth.js";
+import { getAuthedPrincipal, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";

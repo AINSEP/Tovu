@@ -49,7 +49,7 @@ function harness() {
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
 
     const { createRouteDeps } = await import("../runtime/composition/app.js");
-    const { registerAuthRoutes, requireAdminSession } = await import("../middleware/dev-auth.js");
+    const { registerAuthRoutes, requireAdminSession } = await import("../inbound/admin-http/dev-auth.js");
     const { createExternalMcpModule } = await import("../runtime/composition/modules/external-mcp.js");
 
     function buildApp(): express.Express {

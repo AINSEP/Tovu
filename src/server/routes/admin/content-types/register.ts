@@ -12,7 +12,7 @@ import {
 } from "#src/features/content-types/index";
 import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { registerContentType } from "#src/features/content-types/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
 /** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */

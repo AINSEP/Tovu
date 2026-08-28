@@ -7,7 +7,7 @@ import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";

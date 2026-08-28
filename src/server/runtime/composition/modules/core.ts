@@ -1,4 +1,4 @@
-import { registerAuthRoutes, requireAdminSession } from "../../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
 import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "../../../routes/ops/health.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { ServerModuleHandle } from "./types.js";
@@ -22,7 +22,7 @@ import type { ServerModuleHandle } from "./types.js";
  *
  * This is the one module in this repo's `ServerModuleHandle` convention that takes the full
  * `RouteDeps` bag rather than a narrow `Pick` — `registerAuthRoutes` is still typed against full
- * `RouteDeps` upstream in `middleware/dev-auth.ts` (this module's own `deps` param has to stay a
+ * `RouteDeps` upstream in `inbound/admin-http/dev-auth.ts` (this module's own `deps` param has to stay a
  * full `RouteDeps` on its account). `requireAdminSession` itself was narrowed to `SessionAuthDeps`
  * (2026-08-18, first slice of the `RouteDeps` decomposition — see `routes/types.ts`'s
  * `ClockDeps`/`IdentityDeps` doc); passing the full `deps` below into it still works unchanged

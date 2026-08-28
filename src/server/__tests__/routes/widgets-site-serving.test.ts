@@ -6,7 +6,7 @@ import express from "express";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createWidgetsModule } from "../../runtime/composition/modules/widgets.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";

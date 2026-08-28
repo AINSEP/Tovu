@@ -23,7 +23,7 @@ import {
   readThemeLineageFile,
   type ThemeFileWriteScope,
 } from "#src/features/theme/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps } from "../content/deps.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 

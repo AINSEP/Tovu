@@ -5,7 +5,7 @@ import express from "express";
 
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
-import { registerAuthRoutes } from "../middleware/dev-auth.js";
+import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
 

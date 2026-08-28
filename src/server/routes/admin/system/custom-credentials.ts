@@ -11,7 +11,7 @@ import {
   updateCustomCredential,
   type CustomCredentialSummary,
 } from "#src/features/custom-credentials/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

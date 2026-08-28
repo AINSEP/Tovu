@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { listRestorePoints } from "#src/features/database/restore-points";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /**

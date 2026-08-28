@@ -12,7 +12,7 @@ import {
   updateFormDefinition,
   type FormWriteServiceDeps,
 } from "#src/features/forms/write-service";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];

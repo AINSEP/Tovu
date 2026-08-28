@@ -1,5 +1,5 @@
 import { ADMIN_ASSISTANT_PERMISSION, deleteSiteAssistantCredential } from "#src/assistant/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**

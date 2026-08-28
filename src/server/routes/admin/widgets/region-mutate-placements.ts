@@ -2,7 +2,7 @@ import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
 import type { WidgetPlacementNode } from "#src/features/widgets/types";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "../../types.js";
 
 function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean } {

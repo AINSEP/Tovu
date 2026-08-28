@@ -6,7 +6,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import express from "express";
 
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
 import type { RouteDeps } from "../../routes/types.js";
 

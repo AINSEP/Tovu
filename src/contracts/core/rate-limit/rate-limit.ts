@@ -12,7 +12,7 @@ import type { ClockPort } from "@jini-ai/cms/core";
  * wired to a route today.
  *
  * How it relates to the project:
- * - `server/middleware/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
+ * - `server/inbound/admin-http/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
  *   before calling `identity.login()`, keyed by `resolveClientIp(req)`.
  * - Reuses the repo's injectable `ClockPort` (`{ nowIso(): ISODateTime }`,
  *   `core/ports.ts`) instead of `Date.now()` directly, matching the pattern

@@ -624,7 +624,7 @@ exists anywhere in `src/` yet, only a stub FAB.
 - [x] Define identity model (user, service account, workspace membership) — ADR-021 (one `principals` table: user/agent/api_key/system)
 - [x] Define RBAC model (roles, permissions, scopes) — ADR-021, `identity/permissions.ts` catalog
 - [x] Define policy evaluation model (resource/action/context) — ADR-021 `authorize()` is ordinary core code, flat permission strings, no separate PolicyPort
-- [x] Add auth middleware contract for server layer — `server/middleware/dev-auth.ts`, `getAuthedPrincipal`/`deps.authorize()` pattern used across every admin route
+- [x] Add auth middleware contract for server layer — `server/inbound/admin-http/dev-auth.ts`, `getAuthedPrincipal`/`deps.authorize()` pattern used across every admin route
 - [x] Add session/token strategy — `identity/auth-service.ts` (`SESSION_TTL_MS`, SHA-256-hashed session tokens, argon2id password hashing)
 - [x] Add audit trail for security-sensitive actions — change-sets (ADR-008), append-only revisions with actor+monotonic seq (ADR-022), the storage/migration/restore ledger (ADR-041)
 - [x] Add permission test matrix — `identity/__tests__/permissions.test.ts`, `permission-migrations.test.ts`

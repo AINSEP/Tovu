@@ -9,7 +9,7 @@ import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";
 import { createMediaModule } from "../../runtime/composition/modules/media.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";

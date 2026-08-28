@@ -4,7 +4,7 @@ import {
   type SaveExternalMcpOAuthInput,
   saveExternalMcpServer,
 } from "#src/assistant/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

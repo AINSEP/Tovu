@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { CommentsSettingsValidationError, setCommentsSettings } from "#src/features/comments/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { CommentsModerationRouteDeps } from "./deps.js";
 
 /** PUT (partial) workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered

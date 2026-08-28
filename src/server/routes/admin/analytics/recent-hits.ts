@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import type { AnalyticsSinkPort } from "#src/features/analytics/index";
 import type { DeviceClass, HitKind, NormalizedHit } from "#src/features/analytics/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -21,7 +21,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  * How it relates to the project:
  * - Mirrors `routes/admin/posts/list.ts`'s registrar shape and workspace-guard convention.
  * - `server/app.ts` gates all of `/api/admin` behind `requireAdminSession` before any admin
- *   registrar runs (see `middleware/dev-auth.ts`), same as every other admin route — but that only
+ *   registrar runs (see `inbound/admin-http/dev-auth.ts`), same as every other admin route — but that only
  *   proves *authentication*. FEAT-014/ADR-PIPE-014 closes the remaining *authorization* gap: this
  *   route previously had zero per-action `authorize()` call, unlike every sibling admin route.
  *   The principal-resolution → `authorize()` → 403-on-denial → proceed block below is byte-for-byte

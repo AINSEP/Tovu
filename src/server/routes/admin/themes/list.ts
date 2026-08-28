@@ -1,5 +1,5 @@
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /** Wire shape for one `THEMES_LIST` entry (SPEC-004 api.spec.md §5). */

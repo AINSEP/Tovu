@@ -2,7 +2,7 @@ import type { Response } from "express";
 
 import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { toAdminWorkspaceResponse } from "#src/server/http/admin/workspace";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /** This route's two writable PATCH fields — `undefined` means "leave unchanged" — read off an

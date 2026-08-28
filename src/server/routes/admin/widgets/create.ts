@@ -1,7 +1,7 @@
 import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { createWidgetInstance } from "#src/features/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WidgetTypeKey } from "#src/features/widgets/types";
 import type { RouteRegistrar } from "../../types.js";
 

@@ -1,7 +1,7 @@
 import { createMenu, MenuConflictError, MenuValidationError } from "#src/features/navigation/index";
 import type { NavItemNode } from "#src/features/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /** This route's three body fields, read off an untyped body in one place, or `null` if a present
  *  `items` isn't an array.

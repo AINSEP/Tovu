@@ -8,7 +8,7 @@ import express from "express";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRouteDeps } from "../http/admin/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location.js";
 import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create.js";
 import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete.js";

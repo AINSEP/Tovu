@@ -1,6 +1,6 @@
 import { createApiKeyPrincipal } from "#src/features/identity/api-key-service";
 import { toApiKeyPrincipalResponse } from "#src/server/http/admin/api-keys";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import {
   apiKeyServiceDepsFrom,
   rejectApiKeyCredential,

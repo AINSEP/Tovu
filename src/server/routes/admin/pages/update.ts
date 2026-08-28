@@ -13,7 +13,7 @@ import {
   CONTENT_ENTRY_MAX_BODY_BYTES,
   rejectOversizedJsonBody,
 } from "#src/server/middleware/body-size-limit";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
