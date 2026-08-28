@@ -358,7 +358,7 @@ describe("section/row controller seam", () => {
     render(
       <table>
         <tbody>
-          <PolicyRow policy={CUSTOM_POLICY} row={row} permission={permission} t={t} locale="en" />
+          <PolicyRow policy={CUSTOM_POLICY} row={row} permission={permission} agentBase="policy-row" t={t} locale="en" />
         </tbody>
       </table>,
     );
@@ -384,7 +384,7 @@ describe("section/row controller seam", () => {
     render(
       <table>
         <tbody>
-          <PolicyRow policy={CUSTOM_POLICY} row={policyRow()} permission={permission} t={t} locale="en" />
+          <PolicyRow policy={CUSTOM_POLICY} row={policyRow()} permission={permission} agentBase="policy-row" t={t} locale="en" />
         </tbody>
       </table>,
     );
@@ -427,6 +427,7 @@ describe("section/row controller seam", () => {
             policy={CUSTOM_POLICY}
             row={policyRow()}
             permission={policyPermission({ openForPolicyId: CUSTOM_POLICY.id, rows: [PERMISSION_ROW] })}
+            agentBase="policy-row"
             t={spanish}
             locale="es"
           />
