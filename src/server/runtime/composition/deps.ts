@@ -90,7 +90,7 @@ import { FORMS_SUBMIT_PROFILE } from "../../../features/forms/rate-limit-profile
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
 import type { Express } from "express";
 import type { RouteDeps } from "../../routes/types.js";
-import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
+import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "../../../features/origin/index.js";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../../platform/db/sqlite/origin-repo.sqlite.js";
 import {
@@ -199,12 +199,13 @@ export function mediaUploadsDir(): string {
  * to read `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
  * checkout).
  *
- * TWO levels up, not one (2026-08-27: this tree moved out of `src/` — it holds zero `.ts` files and
- * is data, not code). The offset is what makes the expression layout-portable, not the absolute
- * result: `src/server/` and `dist/src/server/` are each exactly two levels below their own root, so
- * `../../content/themes` lands on `<repo>/content/themes` under `tsx` and on `dist/content/themes`
- * under `node dist/src/index.js`. A path that resolves correctly in only one of those two trees is
- * the specific bug this shape avoids.
+ * FOUR levels up (2026-08-28: this file moved to `src/server/runtime/composition/`, two levels
+ * deeper than `src/server/` — the offset grew with it). The offset is what makes the expression
+ * layout-portable, not the absolute result: `src/server/runtime/composition/` and
+ * `dist/src/server/runtime/composition/` are each exactly four levels below their own root, so
+ * `../../../../content/themes` lands on `<repo>/content/themes` under `tsx` and on
+ * `dist/content/themes` under `node dist/src/index.js`. A path that resolves correctly in only one
+ * of those two trees is the specific bug this shape avoids.
  *
  * SEED SOURCE ONLY as of 2026-08-27. Nothing serves or writes this tree at runtime any more —
  * `RouteDeps.themesDir` is {@link siteThemesDir}, and `seedSiteThemes()` copies this into a site
@@ -217,7 +218,7 @@ export function mediaUploadsDir(): string {
  * means.
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../../content/themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../../../../content/themes");
 }
 
 /**
@@ -236,7 +237,7 @@ export function siteThemesDir(): string {
 /**
  * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
  * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
- * same shape as {@link builtInThemesDir} immediately above, including the two-levels-up offset that
+ * same shape as {@link builtInThemesDir} immediately above, including the four-levels-up offset that
  * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
  * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
  *
@@ -247,7 +248,7 @@ export function siteThemesDir(): string {
  * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
  */
 export function bundledAgentPluginsDir(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../../content/agent-plugins");
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../../../../content/agent-plugins");
 }
 
 /**

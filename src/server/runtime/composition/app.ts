@@ -86,8 +86,8 @@ import { ensureDefaultList } from "../../../features/newsletter/lists.js";
 import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../../../features/newsletter/send-pipeline.js";
 import type { SendBatchJob } from "../../../features/newsletter/index.js";
 import { MembersSubscriberDirectory } from "../../../features/members/index.js";
-import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
-import { toSendPipelineDeps } from "../../routes/admin/newsletter/deps.js";
+import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
+import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../../features/forms/repo.memory.js";
@@ -131,13 +131,13 @@ import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "..
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../../../contracts/core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { wrapMailerWithPurposeGate } from "../../../platform/mail/purpose-scoped-mailer.js";
-import { registerAdminTaxonomyMergeTermRoutes } from "../../routes/admin/taxonomy/merge-term.js";
-import { registerAdminDatabaseMigrateForwardRoutes } from "../../routes/admin/database/migrate-forward.js";
-import { registerAdminRecoveryRestoreRoutes } from "../../routes/admin/recovery/restore.js";
+import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/routes/taxonomy/merge-term.js";
+import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
+import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
-import { applyDevCors } from "../../middleware/dev-cors.js";
+import { applyDevCors } from "../../inbound/shared/dev-cors.js";
 import { applySiteServingGate } from "../../middleware/site-serving-gate.js";
-import { registerAdminStatic } from "../../middleware/admin-static.js";
+import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../middleware/site-chat-static.js";
 import { registerThemePreviewStatic } from "../../middleware/theme-preview-static.js";
 import { registerThemeStaticAssets } from "../../middleware/theme-static-assets.js";
@@ -167,7 +167,7 @@ import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
 import { createMembersModule } from "./modules/members.js";
-import type { MembersRouteDeps } from "../../routes/admin/members/deps.js";
+import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
 import type { MemberPublicRouteDeps } from "../../routes/members/deps.js";
 import {
   createRateLimiter,
@@ -178,18 +178,18 @@ import {
 } from "#src/contracts/core/rate-limit/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics.js";
 import { createCommerceModule } from "./modules/commerce.js";
-import { registerAdminModuleStatusRoute } from "../../routes/admin/system/module-status.js";
-import { registerAdminAssistantDaemonRoutes } from "../../routes/admin/system/assistant-daemon.js";
-import { registerAdminDeploymentOverviewRoute } from "../../routes/admin/system/deployment-overview.js";
-import { registerAdminSiteProfileRoute } from "../../routes/admin/site/profile.js";
-import { registerAdminDockerfileSourceRoute } from "../../routes/admin/system/dockerfile-source.js";
-import { registerAdminExportSiteRoutes } from "../../routes/admin/system/export-site.js";
-import { registerAdminCustomCredentialsRoutes } from "../../routes/admin/system/custom-credentials.js";
-import { registerAdminPublishCredentialsRoutes } from "../../routes/admin/system/publish-credentials.js";
-import { registerAdminSourceControlCredentialsRoutes } from "../../routes/admin/system/source-control-credentials.js";
-import { registerAdminVendorCredentialsRoutes } from "../../routes/admin/system/vendor-credentials.js";
-import { registerAdminPublishSiteRoutes } from "../../routes/admin/system/publish-site.js";
-import { registerAdminDeploymentsListRoute } from "../../routes/admin/deployments/list.js";
+import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
+import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
+import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
+import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
+import { registerAdminDockerfileSourceRoute } from "../../inbound/admin-http/routes/system/dockerfile-source.js";
+import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/system/export-site.js";
+import { registerAdminCustomCredentialsRoutes } from "../../inbound/admin-http/routes/system/custom-credentials.js";
+import { registerAdminPublishCredentialsRoutes } from "../../inbound/admin-http/routes/system/publish-credentials.js";
+import { registerAdminSourceControlCredentialsRoutes } from "../../inbound/admin-http/routes/system/source-control-credentials.js";
+import { registerAdminVendorCredentialsRoutes } from "../../inbound/admin-http/routes/system/vendor-credentials.js";
+import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
+import { registerAdminDeploymentsListRoute } from "../../inbound/admin-http/routes/deployments/list.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
 import { registerFormsSubmitRoute } from "../../routes/site/forms-submit.js";
 import { createRedirectsModule } from "./modules/redirects.js";
@@ -1166,7 +1166,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(import.meta.dirname, "../../apps/admin/dist"),
+    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(import.meta.dirname, "../../../../apps/admin/dist"),
   });
 
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
@@ -1175,13 +1175,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../content/public/agent-icons")));
+  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../../../content/public/agent-icons")));
 
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
   registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(import.meta.dirname, "../../apps/site-chat/dist"),
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(import.meta.dirname, "../../../../apps/site-chat/dist"),
   });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
