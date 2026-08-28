@@ -1,11 +1,11 @@
-import { registerAdminFormsCreateRoute } from "../../../inbound/admin-http/routes/forms/create.js";
-import { registerAdminFormsDeleteSubmissionRoute } from "../../../inbound/admin-http/routes/forms/delete-submission.js";
-import type { FormsRouteDeps } from "../../../inbound/admin-http/routes/forms/deps.js";
-import { registerAdminFormsGetRoute } from "../../../inbound/admin-http/routes/forms/get-by-id.js";
-import { registerAdminFormsGetSubmissionRoute } from "../../../inbound/admin-http/routes/forms/get-submission.js";
-import { registerAdminFormsListRoute } from "../../../inbound/admin-http/routes/forms/list.js";
-import { registerAdminFormsListSubmissionsRoute } from "../../../inbound/admin-http/routes/forms/list-submissions.js";
-import { registerAdminFormsUpdateRoute } from "../../../inbound/admin-http/routes/forms/update.js";
+import { registerAdminFormsCreateRoute } from "#src/server/inbound/admin-http/routes/forms/create";
+import { registerAdminFormsDeleteSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/delete-submission";
+import type { FormsRouteDeps } from "#src/server/inbound/admin-http/routes/forms/deps";
+import { registerAdminFormsGetRoute } from "#src/server/inbound/admin-http/routes/forms/get-by-id";
+import { registerAdminFormsGetSubmissionRoute } from "#src/server/inbound/admin-http/routes/forms/get-submission";
+import { registerAdminFormsListRoute } from "#src/server/inbound/admin-http/routes/forms/list";
+import { registerAdminFormsListSubmissionsRoute } from "#src/server/inbound/admin-http/routes/forms/list-submissions";
+import { registerAdminFormsUpdateRoute } from "#src/server/inbound/admin-http/routes/forms/update";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

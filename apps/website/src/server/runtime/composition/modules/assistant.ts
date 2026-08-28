@@ -56,9 +56,9 @@ import {
   MCP_UI_TOOL_CALLS_PATH,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "../../../../assistant/index.js";
-import { getAuthedPrincipal, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
-import type { RouteDeps } from "../../../routes/types.js";
+} from "#src/assistant/index";
+import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 

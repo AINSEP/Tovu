@@ -2,7 +2,7 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { reorderWidgetEmbeds } from "#src/features/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /** PUT a new widget-per-slot order for every EXISTING `widgetEmbed` node in a host entry's body
  * (SPEC-043 REQ-44/45), `widgets.place`-gated. */

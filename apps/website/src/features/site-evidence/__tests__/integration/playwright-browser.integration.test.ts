@@ -5,7 +5,7 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { OriginRegistryPort, VerifiedOrigin } from "../../../../features/origin/index.js";
+import type { OriginRegistryPort, VerifiedOrigin } from "#src/features/origin/index";
 import { collectPageEvidence } from "../../collect-page-evidence.js";
 import { openPlaywrightSiteEvidenceBrowser } from "../../playwright-browser.js";
 

@@ -6,7 +6,7 @@ import { confirmMergeTerm, executeMergeTerm, planMergeTerm, SameTermMergeError }
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMergeTermHooks } from "#src/features/taxonomy/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteDeps } from "../../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file SPEC-018 C-207 — `POST /api/admin/v1/taxonomy/terms/:id/merge/{plan,confirm,execute}`

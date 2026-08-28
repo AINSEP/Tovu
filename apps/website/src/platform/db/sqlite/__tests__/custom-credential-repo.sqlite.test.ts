@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { CustomCredentialSetRecord } from "../../../../features/custom-credentials/types.js";
+import type { CustomCredentialSetRecord } from "#src/features/custom-credentials/types";
 import { workspaces } from "../../schema.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteCustomCredentialSetRepo } from "../custom-credential-repo.sqlite.js";

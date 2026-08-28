@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { PublishHistoryEntry } from "../../../../features/deployments/static-publish/publish-history.js";
+import type { PublishHistoryEntry } from "#src/features/deployments/static-publish/publish-history";
 import { openContentDb } from "../content-db.js";
 import { SqlitePublishHistoryStore } from "../publish-history-repo.sqlite.js";
 import { workspaces } from "../../schema.js";

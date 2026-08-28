@@ -7,11 +7,11 @@ import test from "node:test";
 import { createToolRegistry } from "@jini-ai/core";
 
 import { registerInstalledSkillTools } from "../../tool-registrations.js";
-import { createRouteDeps } from "../../../../server/runtime/composition/app.js";
-import { buildAssistantToolRegistrations } from "../../../../assistant/tool-registrations.js";
-import { buildToolCatalogQuery } from "../../../../assistant/tool-catalog-query.js";
-import { resetToolContributorsForTests } from "../../../../assistant/tool-contribution-registry.js";
-import { installFirstPartyToolContributors } from "../../../../server/runtime/composition/tool-catalog-manifest.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
+import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 /**
  * @file Does a realistic operator query, run against the REAL ~150-tool catalog PLUS one installed

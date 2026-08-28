@@ -1,5 +1,5 @@
-import { registerSkillsListRoute } from "../../../inbound/admin-http/routes/skills/list.js";
-import type { RouteDeps } from "../../../routes/types.js";
+import { registerSkillsListRoute } from "#src/server/inbound/admin-http/routes/skills/list";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

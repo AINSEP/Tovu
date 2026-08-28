@@ -19,11 +19,11 @@ import test from "node:test";
  */
 
 const MEMBERS_WRITE_SERVICE = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "members", "write-service.ts"),
+  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "members", "write-service.ts"),
   "utf8"
 );
 const FORMS_NOTIFY_SUBSCRIBER = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "..", "..", "forms", "notify-subscriber.ts"),
+  path.join(import.meta.dirname, "..", "..", "..", "..", "features", "forms", "notify-subscriber.ts"),
   "utf8"
 );
 

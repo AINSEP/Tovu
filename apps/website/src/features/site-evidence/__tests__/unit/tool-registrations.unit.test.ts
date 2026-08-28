@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../../../features/origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import { siteEvidenceAgentToolCatalog, SITE_EVIDENCE_TOOL_ID } from "../../agent-tools.js";
 import type { SiteEvidenceBrowserFactory } from "../../browser-port.js";
 import {

@@ -75,7 +75,7 @@ test("installAgentPluginFromUrl downloads a real archive over loopback HTTP and 
       assert.equal(result.installed.pluginId, "ui-ux-design");
       assert.deepEqual(result.installed.skills, [{ name: "ui-ux-design", skillPath: "skills/ui-ux-design/SKILL.md" }]);
 
-      const expectedRoot = path.join(cwd, "infra", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256", expectedDigest);
+      const expectedRoot = path.join(cwd, "sites", "tovu-com", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256", expectedDigest);
       assert.equal(result.installed.packageRoot, expectedRoot);
 
       const info = await stat(expectedRoot);

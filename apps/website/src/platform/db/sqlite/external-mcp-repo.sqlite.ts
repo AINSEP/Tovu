@@ -2,7 +2,7 @@ import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../../assistant/index.js";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "#src/assistant/index";
 import { externalMcpServers } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 

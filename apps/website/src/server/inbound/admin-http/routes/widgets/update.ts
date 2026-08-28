@@ -2,7 +2,7 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { updateWidgetInstance } from "#src/features/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /** PUT an existing widget instance's config (SPEC-043 REQ-05/06), `widgets.update`-gated, OCC via `baseVersion`. */
 export const registerAdminWidgetUpdateRoute: RouteRegistrar = (app, deps) => {

@@ -1,12 +1,12 @@
-import { registerAdminContentTypeListRoute } from "../../../inbound/admin-http/routes/content-types/list.js";
-import { registerAdminContentTypeRegisterRoute } from "../../../inbound/admin-http/routes/content-types/register.js";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../../../inbound/admin-http/routes/content-types/update-fields.js";
-import { registerAdminContentTypeLifecycleRoute } from "../../../inbound/admin-http/routes/content-types/lifecycle.js";
-import type { ContentTypesRouteDeps } from "../../../inbound/admin-http/routes/content-types/deps.js";
-import { registerAdminEntryListRoute } from "../../../inbound/admin-http/routes/entries/list.js";
-import { registerAdminEntryCreateRoute } from "../../../inbound/admin-http/routes/entries/create.js";
-import { registerAdminEntryUpdateRoute } from "../../../inbound/admin-http/routes/entries/update.js";
-import { registerAdminEntryLifecycleRoute } from "../../../inbound/admin-http/routes/entries/lifecycle.js";
+import { registerAdminContentTypeListRoute } from "#src/server/inbound/admin-http/routes/content-types/list";
+import { registerAdminContentTypeRegisterRoute } from "#src/server/inbound/admin-http/routes/content-types/register";
+import { registerAdminContentTypeUpdateFieldsRoute } from "#src/server/inbound/admin-http/routes/content-types/update-fields";
+import { registerAdminContentTypeLifecycleRoute } from "#src/server/inbound/admin-http/routes/content-types/lifecycle";
+import type { ContentTypesRouteDeps } from "#src/server/inbound/admin-http/routes/content-types/deps";
+import { registerAdminEntryListRoute } from "#src/server/inbound/admin-http/routes/entries/list";
+import { registerAdminEntryCreateRoute } from "#src/server/inbound/admin-http/routes/entries/create";
+import { registerAdminEntryUpdateRoute } from "#src/server/inbound/admin-http/routes/entries/update";
+import { registerAdminEntryLifecycleRoute } from "#src/server/inbound/admin-http/routes/entries/lifecycle";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

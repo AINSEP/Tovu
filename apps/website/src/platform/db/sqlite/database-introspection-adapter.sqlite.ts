@@ -8,7 +8,7 @@ import type {
   DatabaseIntrospectionPort,
   PendingMigration,
   SchemaStateSummary,
-} from "../../../features/database/adapter.sqlite.js";
+} from "#src/features/database/adapter.sqlite";
 import type { ContentDb } from "./content-db.js";
 import type { SchemaSnapshot } from "../drift.js";
 

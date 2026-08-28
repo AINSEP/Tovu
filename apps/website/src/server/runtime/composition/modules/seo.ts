@@ -1,12 +1,12 @@
-import { registerAdminSeoGetEntryRoute } from "../../../inbound/admin-http/routes/seo/get-entry.js";
-import { registerAdminSeoPutEntryRoute } from "../../../inbound/admin-http/routes/seo/put-entry.js";
-import { registerAdminSeoGetEntryAnalyzeRoute } from "../../../inbound/admin-http/routes/seo/get-entry-analyze.js";
-import { registerAdminSeoGetSettingsRoute } from "../../../inbound/admin-http/routes/seo/get-settings.js";
-import { registerAdminSeoPutSettingsRoute } from "../../../inbound/admin-http/routes/seo/put-settings.js";
-import { registerAdminSeoPostSitemapRegenerateRoute } from "../../../inbound/admin-http/routes/seo/post-sitemap-regenerate.js";
-import { registerSeoSitemapRoute } from "../../../inbound/public-http/routes/site/sitemap.js";
-import { registerSeoRobotsRoute } from "../../../inbound/public-http/routes/site/robots.js";
-import type { SeoRouteDeps } from "../../../inbound/admin-http/routes/seo/deps.js";
+import { registerAdminSeoGetEntryRoute } from "#src/server/inbound/admin-http/routes/seo/get-entry";
+import { registerAdminSeoPutEntryRoute } from "#src/server/inbound/admin-http/routes/seo/put-entry";
+import { registerAdminSeoGetEntryAnalyzeRoute } from "#src/server/inbound/admin-http/routes/seo/get-entry-analyze";
+import { registerAdminSeoGetSettingsRoute } from "#src/server/inbound/admin-http/routes/seo/get-settings";
+import { registerAdminSeoPutSettingsRoute } from "#src/server/inbound/admin-http/routes/seo/put-settings";
+import { registerAdminSeoPostSitemapRegenerateRoute } from "#src/server/inbound/admin-http/routes/seo/post-sitemap-regenerate";
+import { registerSeoSitemapRoute } from "#src/server/inbound/public-http/routes/site/sitemap";
+import { registerSeoRobotsRoute } from "#src/server/inbound/public-http/routes/site/robots";
+import type { SeoRouteDeps } from "#src/server/inbound/admin-http/routes/seo/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

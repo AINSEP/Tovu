@@ -1,6 +1,6 @@
 import { archiveList } from "#src/features/newsletter/lists";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 import { toListsDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /** `ARCHIVE_LIST` (api.spec.md §1) — `POST .../newsletter/lists/:id/archive`. `admin.newsletter.list.manage`-gated. Rejects the default list (`NEWSLETTER_DEFAULT_LIST_PROTECTED`). */

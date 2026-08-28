@@ -1,11 +1,11 @@
-import { registerAdminMemberListRoute } from "../../../inbound/admin-http/routes/members/list.js";
-import { registerAdminMemberGetRoute } from "../../../inbound/admin-http/routes/members/get-by-id.js";
-import { registerAdminMemberDisableRoute } from "../../../inbound/admin-http/routes/members/disable.js";
-import { registerAdminMemberRequestMagicLinkRoute } from "../../../inbound/admin-http/routes/members/request-magic-link.js";
-import type { MembersRouteDeps } from "../../../inbound/admin-http/routes/members/deps.js";
-import { registerPublicMemberSignInRequestRoute } from "../../../inbound/public-http/routes/members/sign-in.js";
-import { registerPublicMemberCompleteSignInRoute } from "../../../inbound/public-http/routes/members/complete-sign-in.js";
-import type { MemberPublicRouteDeps } from "../../../inbound/public-http/routes/members/deps.js";
+import { registerAdminMemberListRoute } from "#src/server/inbound/admin-http/routes/members/list";
+import { registerAdminMemberGetRoute } from "#src/server/inbound/admin-http/routes/members/get-by-id";
+import { registerAdminMemberDisableRoute } from "#src/server/inbound/admin-http/routes/members/disable";
+import { registerAdminMemberRequestMagicLinkRoute } from "#src/server/inbound/admin-http/routes/members/request-magic-link";
+import type { MembersRouteDeps } from "#src/server/inbound/admin-http/routes/members/deps";
+import { registerPublicMemberSignInRequestRoute } from "#src/server/inbound/public-http/routes/members/sign-in";
+import { registerPublicMemberCompleteSignInRoute } from "#src/server/inbound/public-http/routes/members/complete-sign-in";
+import type { MemberPublicRouteDeps } from "#src/server/inbound/public-http/routes/members/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

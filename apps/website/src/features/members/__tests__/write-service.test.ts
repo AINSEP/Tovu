@@ -8,9 +8,9 @@ import type {
   MailerSendOptions,
   MailerSendResult,
   OutboundEmail,
-} from "../../../platform/mail/index.js";
+} from "#src/platform/mail/index";
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../../features/origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,

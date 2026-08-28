@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { ClockDeps, MediaDeps, RouteDeps } from "../../../../routes/types.js";
+import type { ClockDeps, MediaDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — narrow `RouteDeps` slice for the `media` server module.

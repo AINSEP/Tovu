@@ -28,12 +28,12 @@ import path from "node:path";
 import test from "node:test";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../..");
-const SRC_ROOT = path.join(REPO_ROOT, "src");
-const ASSISTANT_ROOT = path.join(REPO_ROOT, "src", "assistant");
+const SRC_ROOT = path.join(REPO_ROOT, "apps", "website", "src");
+const ASSISTANT_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "assistant");
 
 const GUARDED_TOP_LEVEL_DIRS = ["analytics", "features", "identity", "media", "navigation", "origin", "seo", "widgets"];
 
-const EXEMPT_FILES = new Set([path.join(REPO_ROOT, "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts")]);
+const EXEMPT_FILES = new Set([path.join(REPO_ROOT, "apps", "website", "src", "features", "plugins", "supabase-mcp", "supabase-mcp-plugin.ts")]);
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);

@@ -5,7 +5,7 @@ import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from "../publis
 import {
   MAX_PUBLISH_HISTORY_LIST_LIMIT,
   resolvePublishHistoryListLimit,
-} from "../../../../contracts/core/publish-history-list-limit.js";
+} from "#src/contracts/core/publish-history-list-limit";
 
 /**
  * @file `publish-history.ts`'s port and in-memory double, in isolation — the fix for Defect 2

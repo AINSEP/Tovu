@@ -1,8 +1,8 @@
 import { and, desc, eq, gte, lte, or, lt, type SQL } from "drizzle-orm";
 
-import type { LedgerReadPort, LedgerRow } from "../../../features/database/timeline.js";
-import type { BootLedgerPort, MigrationRunsRepoPort } from "../../../features/database/boot/reconcile-interrupted-migration.js";
-import type { CreateRestorePointRepoPort } from "../../../features/recovery/restore-points.js";
+import type { LedgerReadPort, LedgerRow } from "#src/features/database/timeline";
+import type { BootLedgerPort, MigrationRunsRepoPort } from "#src/features/database/boot/reconcile-interrupted-migration";
+import type { CreateRestorePointRepoPort } from "#src/features/recovery/restore-points";
 import * as schema from "./database-journal-schema.js";
 import type { DatabaseJournalDb } from "./database-journal-db.js";
 

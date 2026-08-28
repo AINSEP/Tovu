@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { FormFieldValidationError } from "../errors.js";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { submitForm } from "../submit-service.js";
 import { createFormDefinition } from "../write-service.js";
-import { InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import type { FormDefinitionRecord } from "../types.js";
 
 /**

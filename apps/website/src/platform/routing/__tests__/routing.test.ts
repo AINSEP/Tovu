@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo } from "../../../features/post/index.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget } from "../types.js";
 import {
   getNamedRoute,

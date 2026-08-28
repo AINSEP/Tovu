@@ -1,12 +1,12 @@
-import { registerAdminSettingsClearRoute } from "../../../inbound/admin-http/routes/settings/clear.js";
-import { registerAdminSettingsEventsRoute } from "../../../inbound/admin-http/routes/settings/events.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../../../inbound/admin-http/routes/settings/get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../../../inbound/admin-http/routes/settings/get-raw.js";
-import { registerAdminSettingsListDefinitionsRoute } from "../../../inbound/admin-http/routes/settings/list-definitions.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../../inbound/admin-http/routes/settings/register-definitions.js";
-import { registerAdminSettingsResetRoute } from "../../../inbound/admin-http/routes/settings/reset.js";
-import { registerAdminSettingsSetRoute } from "../../../inbound/admin-http/routes/settings/set.js";
-import type { SettingsRouteDeps } from "../../../inbound/admin-http/routes/settings/deps.js";
+import { registerAdminSettingsClearRoute } from "#src/server/inbound/admin-http/routes/settings/clear";
+import { registerAdminSettingsEventsRoute } from "#src/server/inbound/admin-http/routes/settings/events";
+import { registerAdminSettingsGetEffectiveRoute } from "#src/server/inbound/admin-http/routes/settings/get-effective";
+import { registerAdminSettingsGetRawRoute } from "#src/server/inbound/admin-http/routes/settings/get-raw";
+import { registerAdminSettingsListDefinitionsRoute } from "#src/server/inbound/admin-http/routes/settings/list-definitions";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "#src/server/inbound/admin-http/routes/settings/register-definitions";
+import { registerAdminSettingsResetRoute } from "#src/server/inbound/admin-http/routes/settings/reset";
+import { registerAdminSettingsSetRoute } from "#src/server/inbound/admin-http/routes/settings/set";
+import type { SettingsRouteDeps } from "#src/server/inbound/admin-http/routes/settings/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

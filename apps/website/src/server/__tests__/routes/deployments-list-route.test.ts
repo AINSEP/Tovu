@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { InMemoryDeploymentsReadRepo } from "../../../features/deployments/index.js";
-import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "../../../features/deployments/index.js";
+import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
+import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "#src/features/deployments/index";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

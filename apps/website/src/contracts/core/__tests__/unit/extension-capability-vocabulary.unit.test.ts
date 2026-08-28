@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 
 import { SHARED_EXTENSION_CAPABILITIES } from "../../extension-capability-vocabulary.js";
-import { validateManifest } from "../../../../features/plugin-runtime/manifest.js";
-import { validateGlueManifest } from "../../../../features/site-glue/manifest.js";
+import { validateManifest } from "#src/features/plugin-runtime/manifest";
+import { validateGlueManifest } from "#src/features/site-glue/manifest";
 
 /**
  * @file Guards the single-source-of-truth invariant this module exists for: `content.read` /
@@ -25,14 +25,14 @@ import { validateGlueManifest } from "../../../../features/site-glue/manifest.js
  */
 
 const SHARED_IMPORT_PATTERN =
-  /import\s*\{[^}]*SHARED_EXTENSION_CAPABILITIES[^}]*\}\s*from\s*["']\.\.\/\.\.\/core\/extension-capability-vocabulary\.js["'];?/;
+  /import\s*\{[^}]*SHARED_EXTENSION_CAPABILITIES[^}]*\}\s*from\s*["']\.\.\/\.\.\/contracts\/core\/extension-capability-vocabulary\.js["'];?/;
 
 function readSiblingSource(relativePath: string): string {
   return readFileSync(fileURLToPath(new URL(relativePath, import.meta.url)), "utf8");
 }
 
 test("plugin-runtime's manifest imports the shared vocabulary rather than re-declaring it", () => {
-  const source = readSiblingSource("../../../features/plugin-runtime/manifest.ts");
+  const source = readSiblingSource("../../../../features/plugin-runtime/manifest.ts");
   assert.match(
     source,
     SHARED_IMPORT_PATTERN,
@@ -42,7 +42,7 @@ test("plugin-runtime's manifest imports the shared vocabulary rather than re-dec
 });
 
 test("site-glue's manifest imports the shared vocabulary rather than re-declaring it", () => {
-  const source = readSiblingSource("../../../features/site-glue/manifest.ts");
+  const source = readSiblingSource("../../../../features/site-glue/manifest.ts");
   assert.match(
     source,
     SHARED_IMPORT_PATTERN,
@@ -52,7 +52,7 @@ test("site-glue's manifest imports the shared vocabulary rather than re-declarin
 });
 
 test("site-glue's capability gate imports the shared vocabulary rather than re-declaring it", () => {
-  const source = readSiblingSource("../../../features/site-glue/capability-gate.ts");
+  const source = readSiblingSource("../../../../features/site-glue/capability-gate.ts");
   assert.match(
     source,
     SHARED_IMPORT_PATTERN,
@@ -66,8 +66,8 @@ test("neither sibling imports the other feature's manifest module", () => {
   // headers legitimately *mention* the sibling mechanism by name when explaining why the shared
   // vocabulary lives in core/ instead of one importing the other.
   const importPathPattern = (siblingDir: string) => new RegExp(`from\\s+["'][^"']*/${siblingDir}/`);
-  const pluginSource = readSiblingSource("../../../features/plugin-runtime/manifest.ts");
-  const glueSource = readSiblingSource("../../../features/site-glue/manifest.ts");
+  const pluginSource = readSiblingSource("../../../../features/plugin-runtime/manifest.ts");
+  const glueSource = readSiblingSource("../../../../features/site-glue/manifest.ts");
   assert.doesNotMatch(
     pluginSource,
     importPathPattern("site-glue"),

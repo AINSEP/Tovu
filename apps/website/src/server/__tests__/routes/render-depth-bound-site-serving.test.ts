@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryPostRepo } from "../../../features/post/index.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";

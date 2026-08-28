@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import type { RedirectHitStats, RedirectRecord } from "#src/features/redirects/index";
 import type { RedirectsWriteDeps } from "#src/features/redirects/index";
-import type { RouteDeps } from "../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Response DTOs + route-dependency shape for the admin `redirects` HTTP

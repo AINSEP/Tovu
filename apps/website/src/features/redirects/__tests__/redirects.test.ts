@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "../../../contracts/core/events/index.js";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../../features/origin/index.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import { redirectMatcher } from "../matcher.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";

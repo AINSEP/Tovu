@@ -2,7 +2,7 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { removeWidgetEmbed } from "#src/features/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /** DELETE a `widgetEmbed` placement from a host entry's body (SPEC-043 REQ-44/45), `widgets.place`-gated. */
 export const registerAdminWidgetEmbedRemoveRoute: RouteRegistrar = (app, deps) => {

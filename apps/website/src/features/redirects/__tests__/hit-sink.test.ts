@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { RedirectHitSinkImpl, registerRedirectHitOutboxHandler } from "../hit-sink.js";
 import type { RedirectHitEvent } from "../ports.js";
 

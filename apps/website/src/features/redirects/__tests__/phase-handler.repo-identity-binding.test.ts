@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRouteDeps } from "../../../server/runtime/composition/app.js";
-import type { RouteDeps } from "../../../server/routes/types.js";
-import { resetRoutingRegistrationsForTests, runPostContentPhase } from "../../../platform/routing/routing.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import type { RouteDeps } from "#src/server/routes/types";
+import { resetRoutingRegistrationsForTests, runPostContentPhase } from "#src/platform/routing/routing";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
 import type { RedirectRecord, RedirectRevision } from "../types.js";
 

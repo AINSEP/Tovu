@@ -8,9 +8,9 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../contracts/core/tool-surface-exchanges.js";
-import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "../../../features/deployments/static-publish/index.js";
+import { buildStaticPublishRegistrations } from "#src/features/deployments/publish-agent-tools";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "#src/contracts/core/tool-surface-exchanges";
+import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "#src/features/deployments/static-publish/index";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/

@@ -4,21 +4,21 @@ import {
   CONNECTOR_CONNECT_PER_IP,
   CONNECTOR_OUTBOUND_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminConnectorsConnectRoute } from "../../../inbound/admin-http/routes/connectors/connect.js";
+import { registerAdminConnectorsConnectRoute } from "#src/server/inbound/admin-http/routes/connectors/connect";
 import type {
   ConnectorsConfigRouteDeps,
   ConnectorsRouteDeps,
-} from "../../../inbound/admin-http/routes/connectors/deps.js";
+} from "#src/server/inbound/admin-http/routes/connectors/deps";
 import {
   registerAdminConnectorsCancelRoute,
   registerAdminConnectorsDisconnectRoute,
-} from "../../../inbound/admin-http/routes/connectors/disconnect.js";
-import { registerAdminConnectorsGetByIdRoute } from "../../../inbound/admin-http/routes/connectors/get-by-id.js";
-import { registerAdminConnectorsGetConfigRoute } from "../../../inbound/admin-http/routes/connectors/get-config.js";
-import { registerAdminConnectorsListRoute } from "../../../inbound/admin-http/routes/connectors/list.js";
-import { registerAdminConnectorsPutConfigRoute } from "../../../inbound/admin-http/routes/connectors/put-config.js";
-import { registerAdminConnectorsStatusesRoute } from "../../../inbound/admin-http/routes/connectors/statuses.js";
-import { registerComposioCallbackRoute } from "../../../inbound/public-http/routes/connectors/composio-callback.js";
+} from "#src/server/inbound/admin-http/routes/connectors/disconnect";
+import { registerAdminConnectorsGetByIdRoute } from "#src/server/inbound/admin-http/routes/connectors/get-by-id";
+import { registerAdminConnectorsGetConfigRoute } from "#src/server/inbound/admin-http/routes/connectors/get-config";
+import { registerAdminConnectorsListRoute } from "#src/server/inbound/admin-http/routes/connectors/list";
+import { registerAdminConnectorsPutConfigRoute } from "#src/server/inbound/admin-http/routes/connectors/put-config";
+import { registerAdminConnectorsStatusesRoute } from "#src/server/inbound/admin-http/routes/connectors/statuses";
+import { registerComposioCallbackRoute } from "#src/server/inbound/public-http/routes/connectors/composio-callback";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

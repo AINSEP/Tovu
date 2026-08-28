@@ -3,7 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
-import type { MediaContentTypeStorePort } from "../../../features/media/content-type-store.js";
+import type { MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { UUID } from "@jini-ai/cms/core";
 import type {
   AssetBlobRepoPort,

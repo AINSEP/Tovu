@@ -1,6 +1,6 @@
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import { NewsletterCampaignNotFoundError } from "#src/features/newsletter/index";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 import type { NewsletterRouteDeps } from "./deps.js";
 
 /** `GET_CAMPAIGN` (api.spec.md §1) — fetch a single campaign. `admin.newsletter.read`-gated. */

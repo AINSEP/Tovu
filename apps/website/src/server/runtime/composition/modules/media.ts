@@ -1,13 +1,13 @@
-import { registerAdminMediaDeleteRoute } from "../../../inbound/admin-http/routes/media/delete.js";
-import { registerAdminMediaGetProvidersRoute } from "../../../inbound/admin-http/routes/media/get-providers.js";
-import { registerAdminMediaListRoute } from "../../../inbound/admin-http/routes/media/list.js";
-import { registerAdminMediaOriginalRoute } from "../../../inbound/admin-http/routes/media/original.js";
-import { registerAdminMediaPutProvidersRoute } from "../../../inbound/admin-http/routes/media/put-providers.js";
-import { registerAdminMediaTrashRoute } from "../../../inbound/admin-http/routes/media/trash.js";
-import { registerAdminMediaUpdateRoute } from "../../../inbound/admin-http/routes/media/update.js";
-import { registerAdminMediaUploadRoute } from "../../../inbound/admin-http/routes/media/upload.js";
-import type { MediaProviderRouteDeps, MediaRouteDeps } from "../../../inbound/admin-http/routes/media/deps.js";
-import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "../../../inbound/public-http/routes/site/media-rendition.js";
+import { registerAdminMediaDeleteRoute } from "#src/server/inbound/admin-http/routes/media/delete";
+import { registerAdminMediaGetProvidersRoute } from "#src/server/inbound/admin-http/routes/media/get-providers";
+import { registerAdminMediaListRoute } from "#src/server/inbound/admin-http/routes/media/list";
+import { registerAdminMediaOriginalRoute } from "#src/server/inbound/admin-http/routes/media/original";
+import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-http/routes/media/put-providers";
+import { registerAdminMediaTrashRoute } from "#src/server/inbound/admin-http/routes/media/trash";
+import { registerAdminMediaUpdateRoute } from "#src/server/inbound/admin-http/routes/media/update";
+import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
+import type { MediaProviderRouteDeps, MediaRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
+import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

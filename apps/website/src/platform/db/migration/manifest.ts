@@ -65,7 +65,7 @@
  */
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { ColumnDecl, ColumnType as PluginColumnType } from "../../../features/plugins/data-module.js";
+import type { ColumnDecl, ColumnType as PluginColumnType } from "#src/features/plugins/data-module";
 import * as schema from "../schema.js";
 
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");

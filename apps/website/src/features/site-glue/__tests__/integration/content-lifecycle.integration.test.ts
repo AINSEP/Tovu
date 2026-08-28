@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle.js";
 import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports.js";
-import { attachLoadedPlugin } from "../../../plugin-runtime/loader.js";
-import { createHookRegistry } from "../../../plugin-runtime/hook-registry.js";
+import { attachLoadedPlugin } from "#src/features/plugin-runtime/loader";
+import { createHookRegistry } from "#src/features/plugin-runtime/hook-registry";
 import type { ContentEntryDraft } from "@tovu/sdk";
 
 /**

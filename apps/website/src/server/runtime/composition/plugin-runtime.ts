@@ -4,17 +4,17 @@ import path from "node:path";
 
 import type { ClockPort } from "@jini-ai/cms/core";
 
-import type { PluginActivationRepoPort } from "../../../features/plugin-runtime/activation.js";
-import type { BuiltInPluginSource, PluginDiscoveryRecord } from "../../../features/plugin-runtime/discovery.js";
-import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "../../../features/plugin-runtime/discovery.js";
-import { createHookRegistry, type AttachmentSource, type HookRegistry } from "../../../features/plugin-runtime/hook-registry.js";
-import type { PluginManifest } from "../../../features/plugin-runtime/manifest.js";
-import { quarantinePlugin } from "../../../features/plugin-runtime/quarantine.js";
+import type { PluginActivationRepoPort } from "#src/features/plugin-runtime/activation";
+import type { BuiltInPluginSource, PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
+import { discoverPlugins as discoverPluginRuntimePlugins, siteEntryPath } from "#src/features/plugin-runtime/discovery";
+import { createHookRegistry, type AttachmentSource, type HookRegistry } from "#src/features/plugin-runtime/hook-registry";
+import type { PluginManifest } from "#src/features/plugin-runtime/manifest";
+import { quarantinePlugin } from "#src/features/plugin-runtime/quarantine";
 import {
   attachLoadedPlugin,
   loadPlugin,
   PluginLoadError,
-} from "../../../features/plugin-runtime/loader.js";
+} from "#src/features/plugin-runtime/loader";
 import {
   HOOK_CONTENT_ENTRY_BEFORE_SAVE,
   type BeforeSaveFilter,

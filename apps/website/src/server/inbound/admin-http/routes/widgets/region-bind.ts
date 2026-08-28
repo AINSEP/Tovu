@@ -1,7 +1,7 @@
 import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
 import { bindWidgetArea } from "#src/features/widgets/region-area-service";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /**
  * POST bind a new region by key (SPEC-043 REQ-11/13), `widgets.place`-gated. `bindWidgetArea`

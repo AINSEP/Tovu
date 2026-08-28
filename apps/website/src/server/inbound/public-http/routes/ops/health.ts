@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "../../../../runtime/lifecycle/readiness-state.js";
+import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 
 /** These 3 routes need no `RouteDeps` at all (health is dependency-free; readyz reads the
  * module-level readiness-state singleton) — a narrower type than `RouteRegistrar`, and the shape

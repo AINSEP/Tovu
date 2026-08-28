@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { FormsDeps, RouteDeps } from "../../../../routes/types.js";
+import type { FormsDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — narrow `RouteDeps` slice for the `forms-admin` server module.

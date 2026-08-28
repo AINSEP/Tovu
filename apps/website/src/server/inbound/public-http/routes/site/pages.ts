@@ -38,7 +38,7 @@ import {
   injectExtraHeadIntoStaticPage,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
-import type { RouteDeps, RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
  * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have

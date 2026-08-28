@@ -1,12 +1,12 @@
-import { registerAdminAssistantGetSettingsRoute } from "../../../inbound/admin-http/routes/assistant/get-settings.js";
-import { registerAdminAssistantPutSettingsRoute } from "../../../inbound/admin-http/routes/assistant/put-settings.js";
-import { registerAdminAssistantGetSiteCredentialRoute } from "../../../inbound/admin-http/routes/assistant/get-site-credential.js";
-import { registerAdminAssistantPutSiteCredentialRoute } from "../../../inbound/admin-http/routes/assistant/put-site-credential.js";
-import { registerAdminAssistantDeleteSiteCredentialRoute } from "../../../inbound/admin-http/routes/assistant/delete-site-credential.js";
-import { registerAdminAssistantGetExecutionCredentialRoute } from "../../../inbound/admin-http/routes/assistant/get-execution-credential.js";
-import { registerAdminAssistantPutExecutionCredentialRoute } from "../../../inbound/admin-http/routes/assistant/put-execution-credential.js";
-import { registerAdminAssistantDeleteExecutionCredentialRoute } from "../../../inbound/admin-http/routes/assistant/delete-execution-credential.js";
-import type { AssistantSettingsRouteDeps } from "../../../inbound/admin-http/routes/assistant/deps.js";
+import { registerAdminAssistantGetSettingsRoute } from "#src/server/inbound/admin-http/routes/assistant/get-settings";
+import { registerAdminAssistantPutSettingsRoute } from "#src/server/inbound/admin-http/routes/assistant/put-settings";
+import { registerAdminAssistantGetSiteCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/get-site-credential";
+import { registerAdminAssistantPutSiteCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/put-site-credential";
+import { registerAdminAssistantDeleteSiteCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/delete-site-credential";
+import { registerAdminAssistantGetExecutionCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/get-execution-credential";
+import { registerAdminAssistantPutExecutionCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/put-execution-credential";
+import { registerAdminAssistantDeleteExecutionCredentialRoute } from "#src/server/inbound/admin-http/routes/assistant/delete-execution-credential";
+import type { AssistantSettingsRouteDeps } from "#src/server/inbound/admin-http/routes/assistant/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

@@ -48,7 +48,7 @@ import { childProcessCoverageEnv } from "#src/contracts/core/child-process-cover
 
 const FIXTURE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "astro-bundler-probe");
 const DIST_DIR = path.join(FIXTURE_ROOT, "dist");
-const ASTRO_BIN = path.resolve(FIXTURE_ROOT, "../../../../../../node_modules/astro/bin/astro.mjs");
+const ASTRO_BIN = path.resolve(FIXTURE_ROOT, "../../../../../../../../node_modules/astro/bin/astro.mjs");
 
 function sha256(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex");

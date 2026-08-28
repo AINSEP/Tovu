@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { AkismetSpamCheck } from "../spam.external.js";
 import type { CommentRecord, CommentSubmission } from "../types.js";
 

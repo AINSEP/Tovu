@@ -1,7 +1,7 @@
 import { getWidgetInstance } from "#src/features/widgets/read-service";
 import { mapWidgetErrorToResponse, toWhereUsedResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /**
  * GET one widget instance (SPEC-043 REQ-04), plus its REQ-34 where-used disclosure — the exact

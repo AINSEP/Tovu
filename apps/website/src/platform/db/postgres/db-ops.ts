@@ -1,4 +1,4 @@
-import type { RestoreCapability } from "../../../contracts/core/gated-mutations/ports.js";
+import type { RestoreCapability } from "#src/contracts/core/gated-mutations/ports";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — Postgres restore-capability evaluation (pure logic only).

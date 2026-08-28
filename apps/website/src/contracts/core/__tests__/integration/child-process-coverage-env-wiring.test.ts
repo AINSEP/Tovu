@@ -43,7 +43,7 @@ const NODE_CHILD_SPAWNING_FILES = [
   "apps/website/src/__tests__/integration/port-in-use.integration.test.ts",
 ];
 
-const IMPORTS_HELPER = /from\s+["']#src\/core\/child-process-coverage-env["']/;
+const IMPORTS_HELPER = /from\s+["']#src\/contracts\/core\/child-process-coverage-env["']/;
 const CALLS_HELPER = /childProcessCoverageEnv\(/;
 
 for (const relativePath of NODE_CHILD_SPAWNING_FILES) {

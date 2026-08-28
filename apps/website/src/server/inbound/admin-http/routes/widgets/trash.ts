@@ -2,7 +2,7 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { trashWidgetInstance } from "#src/features/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /** POST trash a widget instance (SPEC-043 ADR-047 §7 deletion ladder, step 1 of 2) —
  * unconditional/soft/revisioned, `widgets.delete`-gated. Never blocked by references (EC-07). */

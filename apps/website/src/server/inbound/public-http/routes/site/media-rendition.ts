@@ -1,7 +1,7 @@
 import { ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
-import type { MediaRouteRegistrar } from "../../../admin-http/routes/media/deps.js";
-import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "../../../admin-http/routes/media/original.js";
+import type { MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
+import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
 
 /**
  * @file Public, unauthenticated media rendition serving route (ADR-027 §4

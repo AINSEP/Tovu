@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { createSiteCapabilityRegistry, type SiteAssistantCallerClass } from "../capability-registry.js";
 import { SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools.js";
-import { listPublishedPosts } from "../../../features/post/index.js";
+import { listPublishedPosts } from "#src/features/post/index";
 
 /**
  * SPEC-046 REQ-0 — proves the registry preserves the closed switch's guarantees while making the

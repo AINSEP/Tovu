@@ -84,13 +84,13 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
-import { registerInstalledAgentPluginTools } from "../../../features/agent-plugins/tool-registrations.js";
-import { registerInstalledSkillTools } from "../../../features/skills/tool-registrations.js";
-import { registerEnabledPluginCapabilityTools } from "../../../features/plugin-runtime/capability-tool-registrations.js";
-import { registerSupabaseMcpPreset } from "../../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
-import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit/repo.memory.js";
-import { SqliteToolAttemptAuditSink } from "../../../features/tool-audit/repo.sqlite.js";
-import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
+import { registerInstalledAgentPluginTools } from "#src/features/agent-plugins/tool-registrations";
+import { registerInstalledSkillTools } from "#src/features/skills/tool-registrations";
+import { registerEnabledPluginCapabilityTools } from "#src/features/plugin-runtime/capability-tool-registrations";
+import { registerSupabaseMcpPreset } from "#src/features/plugins/supabase-mcp/supabase-mcp-plugin";
+import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
@@ -127,8 +127,8 @@ import {
   buildToolCatalogQuery,
   withToolAttemptAudit,
   buildAssistantToolRegistrations,
-} from "../../../assistant/agent-daemon-port.js";
-import { createSurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
+} from "#src/assistant/agent-daemon-port";
+import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;

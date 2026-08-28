@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { detectsExplicitNavigationIntent, resolvePublicTarget } from "../client-directives.js";
-import { listPublishedPosts } from "../../../features/post/index.js";
+import { listPublishedPosts } from "#src/features/post/index";
 
 /**
  * SPEC-046 REQ-6/REQ-8 (`resolvePublicTarget`) and D-1 (`detectsExplicitNavigationIntent`). The

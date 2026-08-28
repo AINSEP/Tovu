@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ConnectorCredentialRow } from "../../../connectors/connector-credential-store.js";
+import type { ConnectorCredentialRow } from "#src/platform/connectors/connector-credential-store";
 import { workspaces } from "../../schema.js";
 import { openContentDb } from "../content-db.js";
 import { SqliteConnectorCredentialRepo } from "../composio-connector-credential-repo.sqlite.js";

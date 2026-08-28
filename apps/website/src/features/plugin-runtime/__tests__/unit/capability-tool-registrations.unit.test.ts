@@ -7,8 +7,8 @@ import type { PluginActivationRecord } from "../../activation.js";
 import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
 import type { PluginDiscoveryRecord } from "../../discovery.js";
 import type { PluginManifest } from "../../manifest.js";
-import { InMemoryPostRepo } from "../../../post/repo.memory.js";
-import type { PostRecord } from "../../../post/post.js";
+import { InMemoryPostRepo } from "#src/features/post/repo.memory";
+import type { PostRecord } from "#src/features/post/post";
 import {
   buildPluginCapabilityToolRegistrations,
   loadEnabledPluginCapabilityToolSources,
