@@ -136,7 +136,7 @@ import {
   SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
 } from "../features/settings/index.js";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../features/analytics/config.settings.js";
 import { SqliteCommentRepo } from "../features/comments/repo.sqlite.js";
 import { installCommentsDataModule } from "../features/comments/data-module-install.js";
 import {

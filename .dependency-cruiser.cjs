@@ -245,7 +245,7 @@ const HAND_WRITTEN_RULES = [
 // would be real narrowing — adding one and redirecting importers would relabel the same
 // commitment under one path, the exact anti-goal the plan doc's own dispatch ruled out.
 const GUARDED_MODULES = [
-  "analytics",
+  "features/analytics",
   "assistant",
   "features/comments",
   "contracts/core/commands",

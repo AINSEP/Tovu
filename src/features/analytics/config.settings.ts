@@ -5,7 +5,7 @@ import {
   type SettingDefinitionSpec,
   getEffective,
   type SettingsRepoPort,
-} from "../features/settings/index.js";
+} from "../settings/index.js";
 import type { AnalyticsConfigPort } from "./ports.js";
 import type { AnalyticsSiteConfig } from "./types.js";
 

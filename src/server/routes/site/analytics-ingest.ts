@@ -1,8 +1,8 @@
 import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import { ingestHit, type IngestHitDeps } from "#src/analytics/ingest";
-import type { IngestBeacon, IngestContext } from "#src/analytics/index";
+import { ingestHit, type IngestHitDeps } from "#src/features/analytics/ingest";
+import type { IngestBeacon, IngestContext } from "#src/features/analytics/index";
 
 /**
  * @file Public ingest beacon route for the `analytics` library (ADR-035 §5).
@@ -14,7 +14,7 @@ import type { IngestBeacon, IngestContext } from "#src/analytics/index";
  * (ADR-035 §5 — the beacon must work for anonymous visitors).
  *
  * How it relates to the project:
- * - Delegates all normalization/policy logic to `ingestHit` (`src/analytics/ingest.ts`); this file
+ * - Delegates all normalization/policy logic to `ingestHit` (`src/features/analytics/ingest.ts`); this file
  *   owns only the HTTP boundary: parsing the untrusted request body into an `IngestBeacon`, and
  *   pulling `ip`/`userAgent`/`acceptLanguage` off the request into an `IngestContext`.
  * - The response is ALWAYS `204 No Content`, regardless of `ingestHit`'s `{ accepted, reason }`

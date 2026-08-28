@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import type { NormalizedHit } from "#src/analytics/index";
+import type { NormalizedHit } from "#src/features/analytics/index";
 import { createRouteDeps } from "../../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminAnalyticsRecentHitsRoute } from "../../routes/admin/analytics/recent-hits.js";
