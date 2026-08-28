@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { BootModule } from "../../../boot-lifecycle.js";
+import type { BootModule } from "../../lifecycle/boot-lifecycle.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — the `ServerModule` convention.

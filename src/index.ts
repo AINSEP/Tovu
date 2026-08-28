@@ -4,9 +4,9 @@ import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-
 import { runProductionReadinessGate } from "./server/runtime/boot/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { runBootLifecycle } from "./server/boot-lifecycle.js";
+import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
-import { setReadinessSnapshot } from "./server/readiness-state.js";
+import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
 import { startAssistantDaemon } from "./server/agent-daemon/index.js";

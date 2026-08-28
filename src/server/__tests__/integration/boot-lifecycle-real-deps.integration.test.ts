@@ -5,8 +5,8 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
-import { runBootLifecycle } from "../../boot-lifecycle.js";
-import type { BootModule } from "../../boot-lifecycle.js";
+import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
+import type { BootModule } from "../../runtime/lifecycle/boot-lifecycle.js";
 
 /**
  * @file SPEC-030 AC-05 — proves the boot-lifecycle wrapper against the REAL `deps.ts` promises

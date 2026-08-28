@@ -7,7 +7,7 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { defaultContentDbPath, mediaUploadsDir } from "#src/server/runtime/composition/deps";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { isAssistantDaemonKnownFailed } from "#src/server/readiness-state";
+import { isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

@@ -7,7 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 

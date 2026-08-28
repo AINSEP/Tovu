@@ -8,7 +8,7 @@ import {
   isAssistantDaemonKnownFailed,
   recordAssistantDaemonFailure,
   setReadinessSnapshot,
-} from "../../readiness-state.js";
+} from "../../runtime/lifecycle/readiness-state.js";
 
 /**
  * @file Degraded-boot defect fix — unit coverage for the agent daemon's post-listen health being
