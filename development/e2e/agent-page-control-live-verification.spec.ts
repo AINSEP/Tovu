@@ -1,19 +1,12 @@
-import { createRequire } from "node:module";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures.js";
-import { waitForAgentDaemon } from "./daemon-ready.js";
-
-const require = createRequire(import.meta.url);
-
-// The REAL installed package Tovu's own daemon runs (`require.resolve` from this repo's root
+// The REAL installed package Tovu's own daemon runs (module resolution from this repo's root
 // resolves it to `node_modules/@jini-ai/agentic`, not a copy) — used unmodified in LEVEL 3 so the
 // schema validation, handle checks and the credential-withholding guard are the actual production
 // code, not a re-implementation of them.
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { executePageCapability } = require("@jini-ai/agentic") as {
-  executePageCapability: (driver: unknown, capabilityId: string, input: Record<string, unknown>) => Promise<unknown>;
-};
+import { executePageCapability } from "@jini-ai/agentic";
+import { loginAsAdmin } from "./auth-fixtures.js";
+import { waitForAgentDaemon } from "./daemon-ready.js";
 
 /**
  * @file Live verification of the one gap left open by `ADS-memory/reports/
@@ -338,7 +331,11 @@ test.describe.serial("Agent page-control — live verification", () => {
         const input = (frame["input"] ?? {}) as Record<string, unknown>;
         let body: Record<string, unknown>;
         try {
-          const output = await executePageCapability(driver, capabilityId, input);
+          const output = await executePageCapability(
+            driver as unknown as Parameters<typeof executePageCapability>[0],
+            capabilityId,
+            input,
+          );
           body = { invocationId, ok: true, output };
         } catch (error) {
           body = { invocationId, ok: false, message: error instanceof Error ? error.message : String(error) };
