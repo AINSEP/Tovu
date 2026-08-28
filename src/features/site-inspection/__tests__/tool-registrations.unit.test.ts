@@ -5,7 +5,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "../../../server/app.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
-import { listToolContributors, resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
+import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";
 import { PublishedPagePathError } from "../published-page.js";
 import { SITE_PROFILE_SECTION_NAMES } from "../site-profile.js";
@@ -68,7 +68,7 @@ test("site inspection: the catalog wires in full, with a published schema and a 
 
 test("site inspection: the contributor registers under its own domain key", () => {
   resetToolContributorsForTests();
-  contributeSiteInspectionTools();
+  registerToolContributor(contributeSiteInspectionTools());
 
   const contributors = listToolContributors();
   assert.equal(contributors.length, 1);
@@ -76,7 +76,7 @@ test("site inspection: the contributor registers under its own domain key", () =
   assert.equal(contributors[0]?.risk, siteInspectionDerivedRisk);
 
   // Idempotent: a double install replaces rather than duplicating, like every other domain.
-  contributeSiteInspectionTools();
+  registerToolContributor(contributeSiteInspectionTools());
   assert.equal(listToolContributors().length, 1);
   resetToolContributorsForTests();
 });

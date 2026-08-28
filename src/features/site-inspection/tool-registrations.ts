@@ -12,7 +12,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 
 import { SITE_INSPECTION_READ_PERMISSION, siteInspectionAgentToolCatalog } from "./agent-tools.js";
 import { toSiteProfileDeps, type SiteInspectionToolDeps } from "./deps.js";
@@ -175,10 +175,10 @@ export function buildSiteInspectionRegistrations(routeDeps: SiteInspectionToolDe
  * `assistant/tool-registrations.ts` reaches it only through a type-only import of
  * `SiteInspectionToolDeps`.
  */
-export function contributeSiteInspectionTools(): void {
-  registerToolContributor({
+export function contributeSiteInspectionTools(): ToolContributor {
+  return {
     domain: "site-inspection",
     build: buildSiteInspectionRegistrations,
     risk: siteInspectionDerivedRisk,
-  });
+  };
 }

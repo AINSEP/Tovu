@@ -10,7 +10,7 @@ import {
   type UUID,
 } from "@jini-ai/cms/core";
 
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
@@ -168,6 +168,6 @@ export { siteEvidenceDerivedRisk };
  * Contributes the site-evidence tool to the assistant's catalog — called once by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`.
  */
-export function contributeSiteEvidenceTools(): void {
-  registerToolContributor({ domain: "site-evidence", build: buildSiteEvidenceRegistrations, risk: siteEvidenceDerivedRisk });
+export function contributeSiteEvidenceTools(): ToolContributor {
+  return { domain: "site-evidence", build: buildSiteEvidenceRegistrations, risk: siteEvidenceDerivedRisk };
 }

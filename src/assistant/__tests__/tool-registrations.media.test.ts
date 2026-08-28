@@ -31,6 +31,7 @@ import {
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeMediaTools } from "../../media/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see
@@ -38,7 +39,7 @@ import { contributeMediaTools } from "../../media/tool-registrations.js";
 // wires it unless something explicitly installs it first, mirroring what the real composition roots
 // now do via `installFirstPartyToolContributors()`.
 resetToolContributorsForTests();
-contributeMediaTools();
+registerToolContributor(contributeMediaTools());
 
 const WORKSPACE_ID = "ws-media-tools";
 const PRINCIPAL_ID = "principal-under-test";

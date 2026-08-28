@@ -37,6 +37,7 @@ import {
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeNewsletterTools } from "../../features/newsletter/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Newsletter moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
@@ -44,7 +45,7 @@ import { contributeNewsletterTools } from "../../features/newsletter/tool-regist
 // it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
 resetToolContributorsForTests();
-contributeNewsletterTools();
+registerToolContributor(contributeNewsletterTools());
 
 const WORKSPACE_ID = "ws-newsletter-tools";
 const PRINCIPAL_ID = "principal-under-test";

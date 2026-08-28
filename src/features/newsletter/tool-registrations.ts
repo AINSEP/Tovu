@@ -27,7 +27,7 @@ import {
 } from "@jini-ai/cms/core";
 import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { newsletterAgentToolCatalog } from "./agent-tools.js";
 import {
   cancelCampaign,
@@ -475,6 +475,6 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
  * `assistant`, and a one-directional `newsletter -> assistant` registration call does not).
  */
-export function contributeNewsletterTools(): void {
-  registerToolContributor({ domain: "newsletter", build: buildNewsletterRegistrations, risk: newsletterDerivedRisk });
+export function contributeNewsletterTools(): ToolContributor {
+  return { domain: "newsletter", build: buildNewsletterRegistrations, risk: newsletterDerivedRisk };
 }

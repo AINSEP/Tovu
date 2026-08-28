@@ -17,7 +17,7 @@
  * `themes`/`post` reverts in the prior batch). With `widgets` already off the static array, no
  * remaining still-legacy domain imports `content-types`, so this edge is safe.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import {
   buildContentTypesRegistrations,
   contentTypesDerivedRisk,
@@ -32,6 +32,6 @@ export { buildContentTypesRegistrations, contentTypesDerivedRisk, type ContentTy
  * module. `assistant/tool-registrations.ts` no longer imports `buildContentTypesRegistrations`/
  * `contentTypesDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeContentTypesTools(): void {
-  registerToolContributor({ domain: "content-types", build: buildContentTypesRegistrations, risk: contentTypesDerivedRisk });
+export function contributeContentTypesTools(): ToolContributor {
+  return { domain: "content-types", build: buildContentTypesRegistrations, risk: contentTypesDerivedRisk };
 }

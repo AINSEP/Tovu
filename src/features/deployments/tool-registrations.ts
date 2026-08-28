@@ -14,7 +14,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools.js";
 import type { DeploymentsReadRepoPort } from "./read-repo.js";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
@@ -244,6 +244,6 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
  * one-directional. `check:architecture` confirms 0 module cycles / largest SCC 0 with Deployments
  * wired this way.
  */
-export function contributeDeploymentsTools(): void {
-  registerToolContributor({ domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk });
+export function contributeDeploymentsTools(): ToolContributor {
+  return { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk };
 }

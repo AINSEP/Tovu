@@ -20,6 +20,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../features/webhooks/agent-tools.js";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/repo.memory.js";
 import { contributeWebhooksTools } from "../../features/webhooks/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -33,7 +34,7 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
 // `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
 // own registration is the only one this process's registry holds while these tests run.
 resetToolContributorsForTests();
-contributeWebhooksTools();
+registerToolContributor(contributeWebhooksTools());
 
 const WORKSPACE_ID = "ws-webhooks-tools";
 const PRINCIPAL_ID = "principal-under-test";

@@ -28,6 +28,7 @@ import {
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeMenusTools } from "../../navigation/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Menus moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
@@ -35,7 +36,7 @@ import { contributeMenusTools } from "../../navigation/tool-registrations.js";
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
 resetToolContributorsForTests();
-contributeMenusTools();
+registerToolContributor(contributeMenusTools());
 
 const WORKSPACE_ID = "ws-menus-tools";
 const PRINCIPAL_ID = "principal-under-test";

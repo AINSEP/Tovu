@@ -11,6 +11,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Post moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, the last of this rollout's 25 domains — see
@@ -19,7 +20,7 @@ import { contributePostTools } from "../../features/post/tool-registrations.js";
 // first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`
 // — same fix `tool-registrations.entries.test.ts`/`tool-registrations.themes.test.ts` already apply.
 resetToolContributorsForTests();
-contributePostTools();
+registerToolContributor(contributePostTools());
 
 /**
  * @file The Posts + Pages tool-wiring test file — mirrors `tool-registrations.entries.test.ts`'s/

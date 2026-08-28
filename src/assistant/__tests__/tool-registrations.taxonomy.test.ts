@@ -17,6 +17,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 /**
  * @file The Taxonomy (Categories & Tags) tool-wiring test file — mirrors
@@ -38,7 +39,7 @@ import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrati
 // so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
 // it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
 resetToolContributorsForTests();
-contributeTaxonomyTools();
+registerToolContributor(contributeTaxonomyTools());
 
 const WORKSPACE_ID = "ws-taxonomy-tools";
 const PRINCIPAL_ID = "principal-under-test";

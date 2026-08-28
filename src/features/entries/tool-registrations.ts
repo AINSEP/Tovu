@@ -20,7 +20,7 @@
  * (`comments/index.ts`), but `comments` was already registry-converted in Stage 1, so that edge was
  * never a risk.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import {
   buildEntriesRegistrations,
   entriesDerivedRisk,
@@ -35,6 +35,6 @@ export { buildEntriesRegistrations, entriesDerivedRisk, type EntriesToolDeps };
  * module. `assistant/tool-registrations.ts` no longer imports `buildEntriesRegistrations`/
  * `entriesDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeEntriesTools(): void {
-  registerToolContributor({ domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk });
+export function contributeEntriesTools(): ToolContributor {
+  return { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk };
 }

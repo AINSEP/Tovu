@@ -74,7 +74,7 @@ import {
   type OutboxPort,
 } from "@jini-ai/cms/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
 // into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
@@ -235,6 +235,6 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegis
  * domain's round-trip risk. Every importer outside `server/*` is none — nothing else imports this
  * domain by name.
  */
-export function contributePluginsTools(): void {
-  registerToolContributor({ domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk });
+export function contributePluginsTools(): ToolContributor {
+  return { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk };
 }

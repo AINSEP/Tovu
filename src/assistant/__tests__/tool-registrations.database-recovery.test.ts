@@ -33,6 +33,7 @@ import {
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
@@ -44,8 +45,8 @@ import { contributeDatabaseTools } from "../../features/database/tool-registrati
 // `features/database/tool-registrations.ts`'s own header) — so it now needs the identical explicit
 // install call Recovery does, rather than arriving via `DOMAIN_SLICES`.
 resetToolContributorsForTests();
-contributeRecoveryTools();
-contributeDatabaseTools();
+registerToolContributor(contributeRecoveryTools());
+registerToolContributor(contributeDatabaseTools());
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test

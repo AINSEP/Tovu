@@ -33,7 +33,7 @@ import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.j
 import { plan as gatewayPlan } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
 import { isOperationInFlight } from "../../contracts/core/operation-lock.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
   MigrationRunsRepoPort,
@@ -304,6 +304,6 @@ export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolReg
  * are both `import type` — erased from the runtime-only graph `check:architecture` uses for module
  * cycles/SCC — so this domain does not carry `database`'s `db`-hub round-trip risk.
  */
-export function contributeRecoveryTools(): void {
-  registerToolContributor({ domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk });
+export function contributeRecoveryTools(): ToolContributor {
+  return { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk };
 }

@@ -30,7 +30,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { toWhereUsedResponse } from "./where-used.js";
 import { widgetsAgentToolCatalog } from "./agent-tools.js";
 import { requireWidgetPermission } from "./authorize-helper.js";
@@ -377,6 +377,6 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
  * so a later `content-types -> assistant` or `forms -> assistant` edge cannot round-trip back through
  * `widgets` to close a new cycle the way `themes`/`post` did in the prior batch.
  */
-export function contributeWidgetsTools(): void {
-  registerToolContributor({ domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk });
+export function contributeWidgetsTools(): ToolContributor {
+  return { domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk };
 }

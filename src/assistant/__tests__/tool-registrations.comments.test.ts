@@ -33,6 +33,7 @@ import {
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeCommentsTools } from "../../features/comments/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
@@ -41,7 +42,7 @@ import { contributeCommentsTools } from "../../features/comments/tool-registrati
 // `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
 // own registration is the only one this process's registry holds while these tests run.
 resetToolContributorsForTests();
-contributeCommentsTools();
+registerToolContributor(contributeCommentsTools());
 
 const WORKSPACE_ID = "ws-comments-tools";
 const PRINCIPAL_ID = "principal-under-test";

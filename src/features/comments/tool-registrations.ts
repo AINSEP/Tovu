@@ -27,7 +27,7 @@ import {
 } from "@jini-ai/cms/core";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { commentsAgentToolCatalog } from "./agent-tools.js";
 import type { CommentRepoPort } from "./ports.js";
 import { getCommentsSettings, setCommentsSettings } from "./settings.js";
@@ -248,6 +248,6 @@ export function buildCommentsRegistrations(routeDeps: CommentsToolDeps): ToolReg
  * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
  * `assistant`, and a one-directional `comments -> assistant` registration call does not).
  */
-export function contributeCommentsTools(): void {
-  registerToolContributor({ domain: "comments", build: buildCommentsRegistrations, risk: commentsDerivedRisk });
+export function contributeCommentsTools(): ToolContributor {
+  return { domain: "comments", build: buildCommentsRegistrations, risk: commentsDerivedRisk };
 }

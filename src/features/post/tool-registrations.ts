@@ -44,7 +44,7 @@ import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import {
   postAgentToolCatalog,
   type AgentToolDefinition as PostAgentToolDefinition,
@@ -684,6 +684,6 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 // largest SCC 0 with `post` wired this way — the last of the 25-domain rollout to convert. No
 // production `assistant/site/*` file value-imports `features/post` anymore; both keep only their
 // `import type` lines.
-export function contributePostTools(): void {
-  registerToolContributor({ domain: "post", build: buildPostRegistrations, risk: postDerivedRisk });
+export function contributePostTools(): ToolContributor {
+  return { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk };
 }

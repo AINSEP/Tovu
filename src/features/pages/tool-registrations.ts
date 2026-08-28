@@ -10,7 +10,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRepoPort } from "../post/index.js";
@@ -163,6 +163,6 @@ export { pagesDerivedRisk };
  * (`../post`, `../../core/commands`) are both `import type` only — erased at compile time, so
  * neither creates a runtime edge back toward `assistant`.
  */
-export function contributePagesTools(): void {
-  registerToolContributor({ domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk });
+export function contributePagesTools(): ToolContributor {
+  return { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk };
 }

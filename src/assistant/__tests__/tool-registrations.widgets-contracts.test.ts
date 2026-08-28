@@ -31,6 +31,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
@@ -38,7 +39,7 @@ import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
 // installs it first, mirroring what the real composition roots now do via
 // `installFirstPartyToolContributors()`.
 resetToolContributorsForTests();
-contributeWidgetsTools();
+registerToolContributor(contributeWidgetsTools());
 
 const WORKSPACE_ID = "ws-widgets-tools";
 const PRINCIPAL_ID = "principal-under-test";

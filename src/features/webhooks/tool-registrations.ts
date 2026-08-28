@@ -28,7 +28,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import type { OriginRegistryPort } from "../../origin/index.js";
 import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
@@ -285,6 +285,6 @@ export function buildWebhooksRegistrations(routeDeps: IntegrationsToolDeps): Too
  * test.ts`'s currently-failing DOMAIN_SLICES collision checks); changing it here risked colliding
  * with work this task was told not to touch. Flagged for the coordinator, not decided here.
  */
-export function contributeWebhooksTools(): void {
-  registerToolContributor({ domain: "integrations", build: buildWebhooksRegistrations, risk: webhooksDerivedRisk });
+export function contributeWebhooksTools(): ToolContributor {
+  return { domain: "integrations", build: buildWebhooksRegistrations, risk: webhooksDerivedRisk };
 }

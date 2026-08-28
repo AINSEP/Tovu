@@ -27,7 +27,7 @@
  * `check:architecture` confirms 0 module cycles with this conversion in place — see this repo's own
  * commit history for the before/after run in the same worktree.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps } from "@jini-ai/cms/media";
 
 export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
@@ -40,6 +40,6 @@ export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
  * replaced it — see this file's own header above for why the earlier attempt closed a cycle and why
  * this retry does not.
  */
-export function contributeMediaTools(): void {
-  registerToolContributor({ domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk });
+export function contributeMediaTools(): ToolContributor {
+  return { domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk };
 }

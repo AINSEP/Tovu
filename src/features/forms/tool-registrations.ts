@@ -28,7 +28,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { formsAgentToolCatalog } from "./agent-tools.js";
 import { FormFieldValidationError } from "./errors.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
@@ -341,6 +341,6 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
  * `widgets` off the static `DOMAIN_SLICES` array first, `assistant -> widgets -> forms -> assistant`
  * cannot close.
  */
-export function contributeFormsTools(): void {
-  registerToolContributor({ domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk });
+export function contributeFormsTools(): ToolContributor {
+  return { domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk };
 }
