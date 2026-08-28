@@ -582,7 +582,7 @@ function noDeepImportRules(mod) {
   ];
 }
 
-module.exports = {
+export default {
   forbidden: [...HAND_WRITTEN_RULES, ...GUARDED_MODULES.flatMap(noDeepImportRules)],
   options: {
     doNotFollow: { path: "node_modules" },

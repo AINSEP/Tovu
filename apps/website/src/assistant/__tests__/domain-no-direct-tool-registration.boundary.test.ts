@@ -5,7 +5,7 @@
  * own `contribute<Domain>Tools()`; only `server/tool-catalog-manifest.ts`'s
  * `installFirstPartyToolContributors()` may call `registerToolContributor` on the result.
  *
- * Why a test in ADDITION to `.dependency-cruiser.cjs`'s `domain-no-direct-assistant-tool-registration`:
+ * Why a test in ADDITION to `.dependency-cruiser.mjs`'s `domain-no-direct-assistant-tool-registration`:
  * `npm run check:boundaries` reports ~90 violations in other rule families today (deep-import
  * warnings that have not had their per-module triage yet). A gate that is already red cannot tell
  * anyone that violation #91 just landed — the exit code was non-zero before and stays non-zero after.

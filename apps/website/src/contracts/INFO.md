@@ -25,7 +25,7 @@ behavior that lives in the same folder, which is what makes them not contracts.)
 
 - Nothing here may import `src/server/**`, `apps/**`, a feature slice, or a concrete
   infrastructure adapter. ENFORCED by `contracts-no-server-or-app-imports` in
-  `.dependency-cruiser.cjs`, `error` severity. `__tests__/` is exempt — a contract test needs a
+  `.dependency-cruiser.mjs`, `error` severity. `__tests__/` is exempt — a contract test needs a
   concrete implementation to test the contract against.
 - The dependency direction is one-way: every other bucket may import `contracts/`; `contracts/`
   imports none of them.

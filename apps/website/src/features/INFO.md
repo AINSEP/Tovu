@@ -28,7 +28,7 @@ Every subdirectory of this folder is a slice; the list is not repeated here beca
 - Features must not import server/framework code — meaning Express, anything under
   `src/server/**`, or `apps/admin`. ENFORCED two ways, and both were verified to fail on a
   planted violation rather than assumed to work:
-  - `feature-no-server-or-framework-imports` in `.dependency-cruiser.cjs`, `error` severity.
+  - `feature-no-server-or-framework-imports` in `.dependency-cruiser.mjs`, `error` severity.
   - `__tests__/features-no-server-imports.boundary.test.ts`, which fails closed. The cruiser
     run reports 90 pre-existing violations in unrelated deep-import rule families, so its exit
     code cannot signal that a NEW boundary edge just landed; this test is green and so can go
@@ -36,5 +36,5 @@ Every subdirectory of this folder is a slice; the list is not repeated here beca
   `import type` is not exempt: naming a server type is still a "knows-about" coupling.
   `__tests__/` IS exempt — an integration test that boots a real app to exercise route or tool
   wiring needs the real concrete internals, the same carve-out every other boundary rule in
-  `.dependency-cruiser.cjs` already makes.
+  `.dependency-cruiser.mjs` already makes.
 - Keep each feature independently testable.

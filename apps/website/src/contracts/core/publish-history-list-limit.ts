@@ -7,7 +7,7 @@
  * module for business logic, the wrong direction, and the sole cause of a
  * `db <-> features/deployments` module cycle (2026-08-17 architecture audit, Candidate 3). Moving it
  * to `db/sqlite/` "solved" that cycle but only by trading it for a different rule's warning
- * (`only-composition-constructs-concrete-adapters`, `.dependency-cruiser.cjs`): a `list` bound is a
+ * (`only-composition-constructs-concrete-adapters`, `.dependency-cruiser.mjs`): a `list` bound is a
  * policy constant, not a storage concern, and `publish-history.ts`'s own value-import of it from
  * `src/platform/db/**` read as a feature reaching into a concrete adapter's home even though this file itself
  * has never held a Drizzle import.  Neither implementation's own file, nor `src/platform/db/sqlite/`, nor

@@ -51,7 +51,7 @@ export { InMemoryDeploymentsReadRepo } from "./repo.memory.js";
 // every one of this barrel's OTHER consumers — anyone reaching only `DeploymentsReadRepoPort`, say
 // — would have inherited both sub-features' entire transitive graph too. `static-publish/index.ts`
 // and `publish-credentials/index.ts` are registered as their own doors in `EXTRA_TO_EXEMPT` in
-// `.dependency-cruiser.cjs` instead — the `no-deep-imports:features/deployments` generator only
+// `.dependency-cruiser.mjs` instead — the `no-deep-imports:features/deployments` generator only
 // special-cases the top-level `index.ts` (it has no first-class concept of a nested guarded
 // sub-module), so this is that registration filling the gap, not a policy exception.
 
@@ -87,7 +87,7 @@ export {
 // set to every OTHER consumer of this barrel too — tried and reverted (2026-08-17
 // no-deep-imports:features/deployments triage): propagation cost (all-import) barely moved off
 // 15%+ until this one export was pulled back out. `publish-agent-tools.ts` is registered in
-// `EXTRA_TO_EXEMPT` in `.dependency-cruiser.cjs` instead, the same treatment as the
+// `EXTRA_TO_EXEMPT` in `.dependency-cruiser.mjs` instead, the same treatment as the
 // `static-publish`/`publish-credentials` sub-barrels above — it is also this module's own
 // `tool-registrations`/`agent-tools` seam file by name (`TOOL_REGISTRATION_SEAM_TO` already
 // recognizes it), so a direct reach from its two dedicated test consumers is the same

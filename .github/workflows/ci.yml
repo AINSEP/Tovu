@@ -1,7 +1,7 @@
 name: CI
 
 # SPEC-022 REQ-11/REQ-12 named `check:boundaries` and `check:inventory` as scripts written for
-# "whoever stands up CI later to wire in as-is" (see .dependency-cruiser.cjs and
+# "whoever stands up CI later to wire in as-is" (see .dependency-cruiser.mjs and
 # development/scripts/check-capability-inventory.ts) — this workflow is that wiring. Kept
 # intentionally small per this repo's Constitution Simplicity Gate: one OS, one Node version, no
 # matrix (two jobs as of 2026-08-16, `build-and-test` + `route-coverage`, run in parallel — see
@@ -288,7 +288,7 @@ jobs:
           echo "===== END ====="
 
       - name: Check architecture boundaries
-        # .dependency-cruiser.cjs rules are deliberately severity:"warn" (see file header) —
+        # .dependency-cruiser.mjs rules are deliberately severity:"warn" (see file header) —
         # this always exits 0 on ordinary violations by design, so no continue-on-error needed.
         # It only fails the step if the tool itself errors out.
         id: gate-boundaries

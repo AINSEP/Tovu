@@ -10,7 +10,7 @@
  *
  * Architectural role:
  * `site-dir` domain logic. No dependency on `cli/**` or `express` (INV-06, enforced by
- * `.dependency-cruiser.cjs`'s `site-dir-no-server-express-or-cli-imports` rule).
+ * `.dependency-cruiser.mjs`'s `site-dir-no-server-express-or-cli-imports` rule).
  */
 
 /** `SITE_CORRUPT` (exit 5) — workspace-row-count violation or an unreadable/locked `content.db` (state.spec.md §5, EC-05). */
