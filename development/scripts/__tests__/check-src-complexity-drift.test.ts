@@ -1,10 +1,8 @@
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
 import test from "node:test";
 
 import { diffAgainstBaseline, violationKey, type Violation } from "../check-src-complexity-drift.js";
-
-const require = createRequire(import.meta.url);
+import debt from "../src-complexity-debt.json" with { type: "json" };
 
 /**
  * @file Direct coverage for `diffAgainstBaseline`'s multiset behavior — the load-bearing part of
@@ -129,10 +127,8 @@ test("identity: two DIFFERENT files with the same rule and reason text are disti
 });
 
 test("real baseline snapshot: development/scripts/src-complexity-debt.json diffs clean against itself", () => {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires -- test-only, avoids importing the
-  // live-ESLint-scanning module at load time for an unrelated assertion.
-  const debt = require("../src-complexity-debt.json") as { violations: Violation[] };
-  const { added, removed } = diffAgainstBaseline(debt.violations, debt.violations);
+  const violations = (debt as { violations: Violation[] }).violations;
+  const { added, removed } = diffAgainstBaseline(violations, violations);
   assert.deepEqual(added, [], "a baseline diffed against itself must never report new violations");
   assert.deepEqual(removed, [], "a baseline diffed against itself must never report stale entries");
 });
