@@ -28,6 +28,7 @@ import {
 import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools.js";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings.js";
 import { contributeSeoTools } from "../../seo/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
@@ -42,7 +43,7 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
 // `installFirstPartyToolContributors()`. Reset first so this file's own registration is the only one
 // this process's registry holds while these tests run.
 resetToolContributorsForTests();
-contributeSeoTools();
+registerToolContributor(contributeSeoTools());
 
 const WORKSPACE_ID = "ws-seo-tools";
 const PRINCIPAL_ID = "principal-under-test";

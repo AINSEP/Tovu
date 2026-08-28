@@ -19,7 +19,7 @@
  * same-directory assumption. So `assistant -> themes -> navigation -> assistant` cannot close, unlike
  * the `themes -> export` cycle that blocked `themes`' own conversion.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildMenusRegistrations, menusDerivedRisk, type MenusToolDeps } from "@jini-ai/cms/navigation";
 
 export { buildMenusRegistrations, menusDerivedRisk, type MenusToolDeps };
@@ -30,6 +30,6 @@ export { buildMenusRegistrations, menusDerivedRisk, type MenusToolDeps };
  * module. `assistant/tool-registrations.ts` no longer imports `buildMenusRegistrations`/
  * `menusDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeMenusTools(): void {
-  registerToolContributor({ domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk });
+export function contributeMenusTools(): ToolContributor {
+  return { domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk };
 }

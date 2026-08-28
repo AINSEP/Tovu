@@ -16,7 +16,7 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 
 import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
@@ -517,6 +517,6 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
  * but it no longer reaches this domain transitively). `check:architecture` now reports 0 module
  * cycles / largest SCC 0 with Source Control wired this way.
  */
-export function contributeSourceControlTools(): void {
-  registerToolContributor({ domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk });
+export function contributeSourceControlTools(): ToolContributor {
+  return { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk };
 }

@@ -104,7 +104,7 @@ import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";
 import type { VendorCredentialSetRepoPort } from "../vendor-credentials/index.js";
 
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 
 import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
 // `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
@@ -1680,6 +1680,6 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
  * value import. Both converted together, `check:architecture` confirms 0 module cycles / largest SCC
  * 0.
  */
-export function contributeStaticPublishTools(): void {
-  registerToolContributor({ domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk });
+export function contributeStaticPublishTools(): ToolContributor {
+  return { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk };
 }

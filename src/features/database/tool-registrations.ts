@@ -39,7 +39,7 @@ import {
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
 import type { DbOpsPort } from "../../contracts/core/gated-mutations/ports.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
 import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
@@ -275,6 +275,6 @@ export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolReg
  * conversion landed. `check:architecture` now reports 0 module cycles / largest SCC 0 with Database
  * wired this way.
  */
-export function contributeDatabaseTools(): void {
-  registerToolContributor({ domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk });
+export function contributeDatabaseTools(): ToolContributor {
+  return { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk };
 }

@@ -1,3 +1,4 @@
+import { registerToolContributor } from "../assistant/index.js";
 import { contributeCommentsTools } from "../features/comments/tool-registrations.js";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations.js";
 import { contributeDatabaseTools } from "../features/database/tool-registrations.js";
@@ -119,11 +120,15 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * deps.ts` from the composition root's own bag, which is both what keeps this domain off the module
  * graph and what makes its "cannot reach a credential store" claim checkable from one interface.
  *
- * Idempotent: `registerToolContributor` (what each `contribute<Domain>Tools()` call ultimately
- * calls) replaces an existing entry by domain key rather than appending, so calling this function
- * more than once in the same process — a real thing both real callers below do NOT do (each calls
- * it exactly once, at boot), but that a shared test process legitimately might — is safe and leaves
- * the registry in the same state as calling it once.
+ * Idempotent: `registerToolContributor` — called here, once per domain, on the `ToolContributor`
+ * each `contribute<Domain>Tools()` returns (Phase 0 restructure, 2026-08-27: contributors used to
+ * call `registerToolContributor` themselves, which meant a domain/feature file importing the
+ * assistant runtime by value just to register itself; inverted so only this composition root does,
+ * enforced by the `domain-no-direct-assistant-tool-registration` dependency-cruiser rule) — replaces
+ * an existing entry by domain key rather than appending, so calling this function more than once in
+ * the same process — a real thing both real callers below do NOT do (each calls it exactly once, at
+ * boot), but that a shared test process legitimately might — is safe and leaves the registry in the
+ * same state as calling it once.
  *
  * Real callers (must run this BEFORE their own `buildAssistantToolRegistrations` call, since that
  * function reads whatever is currently registered):
@@ -154,31 +159,31 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
  * imports `features/*` by name throughout this file.
  */
 export function installFirstPartyToolContributors(): void {
-  contributeCommentsTools();
-  contributeContentTypesTools();
-  contributeDatabaseTools();
-  contributeDeploymentsTools();
-  contributeEntriesTools();
-  contributeFormsTools();
-  contributeIdentityTools();
-  contributeWebhooksTools();
-  contributeMediaTools();
-  contributeMembersTools();
-  contributeMenusTools();
-  contributeNewsletterTools();
-  contributePagesTools();
-  contributePluginsTools();
-  contributePostTools();
-  contributeRecoveryTools();
-  contributeRedirectsTools();
-  contributeSeoTools();
-  contributeSettingsTools();
-  contributeSiteEvidenceTools();
-  contributeSiteInspectionTools();
-  contributeSourceControlTools();
-  contributeStaticPublishTools();
-  contributeTaxonomyTools();
-  contributeThemesTools();
-  contributeWidgetsTools();
-  contributeWorkspaceTools();
+  registerToolContributor(contributeCommentsTools());
+  registerToolContributor(contributeContentTypesTools());
+  registerToolContributor(contributeDatabaseTools());
+  registerToolContributor(contributeDeploymentsTools());
+  registerToolContributor(contributeEntriesTools());
+  registerToolContributor(contributeFormsTools());
+  registerToolContributor(contributeIdentityTools());
+  registerToolContributor(contributeWebhooksTools());
+  registerToolContributor(contributeMediaTools());
+  registerToolContributor(contributeMembersTools());
+  registerToolContributor(contributeMenusTools());
+  registerToolContributor(contributeNewsletterTools());
+  registerToolContributor(contributePagesTools());
+  registerToolContributor(contributePluginsTools());
+  registerToolContributor(contributePostTools());
+  registerToolContributor(contributeRecoveryTools());
+  registerToolContributor(contributeRedirectsTools());
+  registerToolContributor(contributeSeoTools());
+  registerToolContributor(contributeSettingsTools());
+  registerToolContributor(contributeSiteEvidenceTools());
+  registerToolContributor(contributeSiteInspectionTools());
+  registerToolContributor(contributeSourceControlTools());
+  registerToolContributor(contributeStaticPublishTools());
+  registerToolContributor(contributeTaxonomyTools());
+  registerToolContributor(contributeThemesTools());
+  registerToolContributor(contributeWidgetsTools());
+  registerToolContributor(contributeWorkspaceTools());
 }

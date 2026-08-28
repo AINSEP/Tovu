@@ -35,7 +35,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../features/post/index.js";
 import type { SettingsRepoPort } from "../features/settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
@@ -255,6 +255,6 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
  * `../features/settings`, `../media`, `@jini-ai/cms/identity`) are all `import type` only — erased
  * at compile time, so none creates a runtime edge back toward `assistant`.
  */
-export function contributeSeoTools(): void {
-  registerToolContributor({ domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk });
+export function contributeSeoTools(): ToolContributor {
+  return { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk };
 }

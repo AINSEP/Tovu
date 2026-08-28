@@ -15,6 +15,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeSettingsTools } from "../../features/settings/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 
 /**
  * @file The Settings (SPEC-007) tool-wiring test file — mirrors
@@ -38,7 +39,7 @@ import { contributeSettingsTools } from "../../features/settings/tool-registrati
 // via `installFirstPartyToolContributors()` — same fix `tool-registrations.post.test.ts`/
 // `tool-registrations.entries.test.ts` already apply.
 resetToolContributorsForTests();
-contributeSettingsTools();
+registerToolContributor(contributeSettingsTools());
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";

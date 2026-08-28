@@ -14,7 +14,7 @@
  * by name, so there is no sibling domain still statically wired through `assistant` that could route
  * back through identity and close a new cycle.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps } from "@jini-ai/cms/identity";
 
 export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps };
@@ -25,6 +25,6 @@ export { buildIdentityRegistrations, identityDerivedRisk, type IdentityToolDeps 
  * module. `assistant/tool-registrations.ts` no longer imports `buildIdentityRegistrations`/
  * `identityDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeIdentityTools(): void {
-  registerToolContributor({ domain: "identity", build: buildIdentityRegistrations, risk: identityDerivedRisk });
+export function contributeIdentityTools(): ToolContributor {
+  return { domain: "identity", build: buildIdentityRegistrations, risk: identityDerivedRisk };
 }

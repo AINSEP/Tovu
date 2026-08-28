@@ -15,7 +15,7 @@
  * reachable from `assistant`) or a `import type` from `site-dir/*` (erased at compile time, no
  * runtime edge either way).
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDeps } from "@jini-ai/cms/workspace";
 
 export { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDeps };
@@ -26,6 +26,6 @@ export { buildWorkspaceRegistrations, workspaceDerivedRisk, type WorkspaceToolDe
  * module. `assistant/tool-registrations.ts` no longer imports `buildWorkspaceRegistrations`/
  * `workspaceDerivedRisk` by name; this is the seam that replaced it.
  */
-export function contributeWorkspaceTools(): void {
-  registerToolContributor({ domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk });
+export function contributeWorkspaceTools(): ToolContributor {
+  return { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk };
 }

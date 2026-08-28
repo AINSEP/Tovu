@@ -39,7 +39,7 @@ import {
   type GatedMutationHooks,
   type GatewayDeps,
 } from "../../contracts/core/gated-mutations/gateway.js";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post/index.js";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
 import { taxonomyAgentToolCatalog } from "./agent-tools.js";
@@ -253,6 +253,6 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
  * rollout — no sibling domain still statically wired through `assistant` imports `taxonomy`, so this
  * one-directional `taxonomy -> assistant` call closes no new cycle).
  */
-export function contributeTaxonomyTools(): void {
-  registerToolContributor({ domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk });
+export function contributeTaxonomyTools(): ToolContributor {
+  return { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk };
 }

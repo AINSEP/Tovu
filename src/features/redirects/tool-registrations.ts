@@ -27,7 +27,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
 import {
@@ -220,6 +220,6 @@ export function buildRedirectsRegistrations(routeDeps: RedirectsToolDeps): ToolR
  * rollout — no sibling domain still statically wired through `assistant` imports `redirects`, so this
  * one-directional `redirects -> assistant` call closes no new cycle).
  */
-export function contributeRedirectsTools(): void {
-  registerToolContributor({ domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk });
+export function contributeRedirectsTools(): ToolContributor {
+  return { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk };
 }

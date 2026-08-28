@@ -286,7 +286,7 @@ test("installing the contributor afterward makes the same id wirable — proving
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
   assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));
-  contributeCommentsTools();
+  registerToolContributor(contributeCommentsTools());
   assert.doesNotThrow(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));
 });
 

@@ -20,7 +20,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { membersAgentToolCatalog } from "./agent-tools.js";
 import type {
   MagicLinkTokenRepoPort,
@@ -218,6 +218,6 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
  * rollout — no sibling domain still statically wired through `assistant` imports `members`, so this
  * one-directional `members -> assistant` call closes no new cycle).
  */
-export function contributeMembersTools(): void {
-  registerToolContributor({ domain: "members", build: buildMembersRegistrations, risk: membersDerivedRisk });
+export function contributeMembersTools(): ToolContributor {
+  return { domain: "members", build: buildMembersRegistrations, risk: membersDerivedRisk };
 }

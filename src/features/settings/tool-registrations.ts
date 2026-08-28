@@ -26,7 +26,7 @@
  * at each of their 2+2 call sites in the same 2 files). `check:architecture` confirms 0 module cycles
  * / largest SCC 0 with `settings` wired this way.
  */
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import { buildSettingsRegistrations, settingsDerivedRisk } from "@jini-ai/cms/settings";
 
 export { buildSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps } from "@jini-ai/cms/settings";
@@ -40,6 +40,6 @@ export { buildSettingsRegistrations, settingsDerivedRisk, type SettingsToolDeps 
  * other domain in this rollout uses (see this file's header for why `settings` needed the 3 side-door
  * files fixed first rather than converting directly).
  */
-export function contributeSettingsTools(): void {
-  registerToolContributor({ domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk });
+export function contributeSettingsTools(): ToolContributor {
+  return { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk };
 }

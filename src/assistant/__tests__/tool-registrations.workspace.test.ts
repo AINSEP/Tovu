@@ -9,6 +9,7 @@ import {
   type WorkspaceAgentToolDefinition,
 } from "../../features/workspace/index.js";
 import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
+import { registerToolContributor } from "../tool-contribution-registry.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
@@ -28,7 +29,7 @@ import { resetToolContributorsForTests } from "../tool-contribution-registry.js"
  * this process's registry holds while these tests run.
  */
 resetToolContributorsForTests();
-contributeWorkspaceTools();
+registerToolContributor(contributeWorkspaceTools());
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";

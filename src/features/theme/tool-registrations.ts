@@ -37,7 +37,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { registerToolContributor } from "#src/assistant/index";
+import type { ToolContributor } from "#src/assistant/index";
 import {
   getThemesAgentToolCatalog,
   THEME_READ_PERMISSION,
@@ -315,6 +315,6 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
  * is untouched and still real; it simply no longer closes a cycle back to `assistant` now that
  * nothing reachable from `assistant` reaches `export`.
  */
-export function contributeThemesTools(): void {
-  registerToolContributor({ domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk });
+export function contributeThemesTools(): ToolContributor {
+  return { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk };
 }

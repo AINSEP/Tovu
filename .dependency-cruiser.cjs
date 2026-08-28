@@ -187,6 +187,44 @@ const HAND_WRITTEN_RULES = [
       },
       to: { path: "^(node:module|node:vm|src/server/boot/plugin-sdk-resolver\\.ts)$" },
     },
+    {
+      // Phase 0 restructure (2026-08-27, ADS-memory consensus report
+      // 2026-08-27-tovu-apps-website-restructure-consensus-report.md — Final Recommendation, Phase 0
+      // item 2). Before this, 27 domain/feature files each called `registerToolContributor` (`#src/
+      // assistant/index`) directly, inside their own `contribute<Domain>Tools()` function — a
+      // domain-to-assistant VALUE edge for the sole purpose of self-registering. Inverted:
+      // `contribute<Domain>Tools()` now RETURNS a `ToolContributor`, and only `server/
+      // tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` calls
+      // `registerToolContributor` on the result. `dependencyTypesNot: ["type-only"]` on `to` exempts
+      // the `import type { ToolContributor }` every converted contributor still needs to type its own
+      // return value — a type-only edge cannot call anything, same reasoning
+      // `only-composition-constructs-concrete-adapters` above already uses for the identical
+      // exemption shape. `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` is exempted by
+      // name: it value-imports `FEDERATED_CONNECTION_DEFAULTS`/`isFederationEnabled`/
+      // `parseAllowedToolNames` from the SAME barrel, but that is the deliberate MCP-federation-preset
+      // seam `assistant/index.ts`'s own "E — External MCP Federation" section documents as "the
+      // designed extension point, not a leak" — a different concern than the tool-contribution-
+      // registry edge this rule polices, and dependency-cruiser cannot distinguish two named imports
+      // through the same barrel file by import-path alone.
+      //
+      // Verified to fire, not assumed: planted `import { registerToolContributor } from
+      // "#src/assistant/index"; registerToolContributor({domain: "probe", build: () => [], risk: new
+      // Map()});` back into `src/features/taxonomy/tool-registrations.ts`, ran `npm run
+      // check:boundaries`, confirmed exactly one new `error` naming this rule and that file, then
+      // reverted the probe and re-ran to confirm a clean return to the pre-probe violation count.
+      name: "domain-no-direct-assistant-tool-registration",
+      severity: "error",
+      comment:
+        "Domain/feature modules may not call assistant's tool-contribution registry (registerToolContributor and friends) directly — only server/tool-catalog-manifest.ts's composition root may. A type-only import of ToolContributor to type a contribute<Domain>Tools() return value is fine and exempted.",
+      from: {
+        path: "^src/(analytics|features|identity|media|navigation|origin|seo|widgets)",
+        pathNot: [
+          ".*/__tests__/.*",
+          "^src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
+        ],
+      },
+      to: { path: "^src/assistant", dependencyTypesNot: ["type-only"] },
+    },
 ];
 
 // ---------------------------------------------------------------------------------------------
