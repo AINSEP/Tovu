@@ -2,7 +2,7 @@
  * @file Enforces `src/features/INFO.md`'s standing rule: "Features must not import server/framework
  * code." Until this file existed the rule was documentation, and documentation does not fail a build.
  *
- * Why a test in ADDITION to `.dependency-cruiser.cjs`'s `feature-no-server-or-framework-imports`:
+ * Why a test in ADDITION to `.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports`:
  * `npm run check:boundaries` reports 90 violations in other rule families today (deep-import warnings
  * that have not had their per-module triage yet). A gate that is already red cannot tell anyone that
  * violation #91 just landed — the exit code was non-zero before and stays non-zero after. This test
@@ -19,14 +19,14 @@
  * Method: scan every production `.ts`/`.tsx` under `src/features/`, extract every import specifier,
  * and resolve it. A specifier is a violation when it names the `express` package, resolves inside
  * `src/server/`, or names `apps/admin`. `__tests__/` is excluded, on exactly the reasoning
- * `.dependency-cruiser.cjs` already applies to every one of its own boundary rules: an integration
+ * `.dependency-cruiser.mjs` already applies to every one of its own boundary rules: an integration
  * test that boots a real Express app or `RouteDeps` bag to exercise route or tool wiring end-to-end
  * needs the real concrete internals, and that is orthogonal to this rule's production-layering
  * concern. There are 21 such test edges today and they are deliberately not counted here.
  *
  * `import type` is NOT exempt. A type-only edge still makes the feature name the thing it must not
  * know about, and this rule is a "knows-about" boundary rather than a runtime-construction one — the
- * distinction `.dependency-cruiser.cjs`'s `feature-no-server-or-framework-imports` comment draws
+ * distinction `.dependency-cruiser.mjs`'s `feature-no-server-or-framework-imports` comment draws
  * against `only-composition-constructs-concrete-adapters`, which polices construction and so does
  * exempt type-only edges. The two production violations this test was written against were both
  * `import type { Express } from "express"`.

@@ -40,7 +40,7 @@
     "test:cov:server:unit": "mkdir -p development/coverage && rm -f development/coverage/lcov.unit.info && node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} --experimental-test-coverage --test-coverage-exclude=\"**/__no_route_coverage_gate_exclusions__/**\" --test-reporter=lcov --test-reporter-destination=development/coverage/lcov.unit.info --test-reporter=dot --test-reporter-destination=stdout $(npx tsx development/scripts/list-server-test-files.ts unit)",
     "test:cov:server:integration": "mkdir -p development/coverage && rm -f development/coverage/lcov.integration.info && node --import tsx --test --experimental-test-module-mocks ${TEST_CONCURRENCY:+--test-concurrency=$TEST_CONCURRENCY} --experimental-test-coverage --test-coverage-exclude=\"**/__no_route_coverage_gate_exclusions__/**\" --test-reporter=lcov --test-reporter-destination=development/coverage/lcov.integration.info --test-reporter=dot --test-reporter-destination=stdout $(npx tsx development/scripts/list-server-test-files.ts integration)",
     "test:cov:server:tiered": "npm run test:cov:server:unit && npm run test:cov:server:integration",
-    "check:boundaries": "depcruise --config .dependency-cruiser.cjs apps/website/src",
+    "check:boundaries": "depcruise --config .dependency-cruiser.mjs apps/website/src",
     "check:architecture": "tsx development/scripts/check-architecture.ts",
     "check:inventory": "tsx development/scripts/check-capability-inventory.ts",
     "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
