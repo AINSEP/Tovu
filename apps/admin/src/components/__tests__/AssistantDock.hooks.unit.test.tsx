@@ -1008,7 +1008,9 @@ describe("useComposerDiscoverySelect", () => {
    * 2026-08-21: the "UI/UX Design (Agent Plugin)" row used to carry `insertText` and no
    * `pluginRefId` — selecting it typed an inert string into the draft. This is the regression
    * test proving the replacement: a `pluginRefId` capability pins a chip via `addPluginRef`
-   * instead, and never touches the draft the way a `resolve` binding would.
+   * instead of composing arbitrary text. It still clears the draft (`{ draft: "" }`, added
+   * 2026-08-24 to cover the `command`-bearing slash path — see the source's own comment on this
+   * branch) rather than leaving text behind.
    */
   it("pins a pluginRefId capability via addPluginRef instead of composing draft text", async () => {
     const capabilities = await projectionWith([
@@ -1030,7 +1032,7 @@ describe("useComposerDiscoverySelect", () => {
     });
 
     expect(addPluginRef).toHaveBeenCalledWith("ui-ux-design");
-    expect(outcome).toBeUndefined();
+    expect(outcome).toEqual({ draft: "" });
   });
 
   it("does not throw when addPluginRef is omitted for a pluginRefId capability — a documented no-op", async () => {
@@ -1051,7 +1053,7 @@ describe("useComposerDiscoverySelect", () => {
       source: "plus",
     });
 
-    expect(outcome).toBeUndefined();
+    expect(outcome).toEqual({ draft: "" });
   });
 });
 
