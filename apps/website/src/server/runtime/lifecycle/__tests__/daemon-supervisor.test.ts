@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { existsSync } from "node:fs";
 import test from "node:test";
 
 import { getReadinessSnapshot, clearAssistantDaemonFailure, setReadinessSnapshot } from "../readiness-state.js";
-import { createDaemonSupervisor } from "../daemon-supervisor.js";
+import { createDaemonSupervisor, resolveDaemonScriptPath } from "../daemon-supervisor.js";
 import type { SpawnedDaemonProcess } from "../daemon-supervisor.js";
 import { createRespawnPolicy, AGENT_DAEMON_EXIT_CODE } from "../../../../assistant/index.js";
 
@@ -66,6 +67,20 @@ test.afterEach(() => {
   // failure through the real `recordAssistantDaemonFailure` must leave it as it found it.
   clearAssistantDaemonFailure();
   setReadinessSnapshot({ ok: true, modules: [] });
+});
+
+test("resolveDaemonScriptPath() points at a script that actually exists on disk", () => {
+  // Regression: every other test in this file fakes `spawnDaemonProcess`, so none of them ever
+  // call the real `resolveDaemonScriptPath()` -- that's exactly how a same-directory `path.join`
+  // assumption silently outlived the `src/server/` split that moved `agent-daemon-server.ts` to
+  // `inbound/assistant/` while this file stayed in `runtime/lifecycle/`: nothing failed until a
+  // real `child_process.spawn` actually tried to load the wrong path
+  // (`ERR_MODULE_NOT_FOUND`, found running `npm run dev` for real after the 2026-08-28 rename).
+  // Asserting the resolved path exists is the cheapest check that would have caught it immediately.
+  assert.ok(
+    existsSync(resolveDaemonScriptPath()),
+    `resolveDaemonScriptPath() returned ${resolveDaemonScriptPath()}, which does not exist`,
+  );
 });
 
 test("an unexpected exit triggers an automatic respawn", async () => {
