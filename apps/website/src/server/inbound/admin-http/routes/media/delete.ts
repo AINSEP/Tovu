@@ -1,4 +1,5 @@
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 
@@ -20,21 +21,14 @@ export const registerAdminMediaDeleteRoute: MediaRouteRegistrar = (app, deps) =>
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "media.delete.force",
         workspaceId: deps.workspaceId,
         entityType: "media",
         entityId: String(req.params.mediaId ?? ""),
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'media.delete.force' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "media.delete.force", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const { purged } = await purgeMedia({
         deps: {
