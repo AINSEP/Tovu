@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 
+import { initSite } from "#src/platform/site-dir/init-site";
+
 import { seedSiteThemes } from "../seed-site-themes.js";
 
 /**
@@ -92,15 +94,15 @@ test("never overwrites an existing site themes dir — the owner's edits survive
   assert.equal(readFileSync(join(siteThemesDir, "static", "basic", "css", "theme.css"), "utf8"), "body{color:MINE}");
 });
 
-test("an existing but EMPTY site themes dir still counts as present — an operator's deliberate empty root is not refilled", () => {
+test("an existing but EMPTY site themes dir is treated as NOT yet seeded — `tovu init` pre-creates this exact empty dir, so presence alone can never be the signal", () => {
   const stockDir = makeStockTree();
   const siteThemesDir = join(makeEmptySiteRoot(), "themes");
   mkdirSync(siteThemesDir, { recursive: true });
 
   const result = seedSiteThemes({ stockDir, siteThemesDir });
 
-  assert.equal(result.status, "already-present");
-  assert.deepEqual(readdirSync(siteThemesDir), []);
+  assert.equal(result.status, "seeded");
+  assert.equal(readFileSync(join(siteThemesDir, "static", "basic", "css", "theme.css"), "utf8"), "body{color:stock}");
 });
 
 test("reports no-stock-source instead of throwing when the package has no themes tree", () => {
@@ -157,4 +159,24 @@ test("a leftover staging directory from an interrupted boot does not block the n
   assert.equal(seedSiteThemes({ stockDir, siteThemesDir }).status, "seeded");
   assert.ok(existsSync(join(siteThemesDir, "static", "basic", "css", "theme.css")));
   assert.equal(existsSync(join(siteRoot, ".themes-seed-staging")), false);
+});
+
+test("regression: a real `tovu init` site is actually seeded on first boot — `initSite` pre-creates themes/ empty (BR-01 step 4), and that must not be mistaken for already-seeded", () => {
+  const stockDir = makeStockTree();
+  const parent = mkdtempSync(join(tmpdir(), "tovu-regress-init-"));
+  tempRoots.push(parent);
+  const siteDir = join(parent, "site");
+
+  initSite({ dir: siteDir });
+
+  const siteThemesDir = join(siteDir, "themes");
+  assert.deepEqual(readdirSync(siteThemesDir), [], "precondition: init must have pre-created themes/ empty");
+
+  const result = seedSiteThemes({ stockDir, siteThemesDir });
+
+  assert.equal(result.status, "seeded", "an init-created empty themes/ dir must trigger a real seed, not be skipped as already-present");
+  assert.ok(
+    existsSync(join(siteThemesDir, "static", "basic", "css", "theme.css")),
+    "the site's themes/ dir must actually contain theme files after boot, not just report success"
+  );
 });
