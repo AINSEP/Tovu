@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/media/index";
+import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/features/media/index";
 import {
   MAX_CONTENT_EMBED_DEPTH,
   MAX_CONTENT_EMBED_FETCHES,

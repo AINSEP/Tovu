@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
-import type { AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "../../media/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../features/media/index.js";
+import type { AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "../../features/media/index.js";
 import { resolveSeoImageRef } from "../media.js";
 
 /**

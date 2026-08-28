@@ -1,4 +1,4 @@
-import { sniffContentType, type MediaRecord } from "#src/media/index";
+import { sniffContentType, type MediaRecord } from "#src/features/media/index";
 import type { MediaRouteDeps } from "./deps.js";
 
 /**

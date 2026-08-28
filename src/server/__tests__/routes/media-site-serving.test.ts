@@ -4,8 +4,8 @@ import test from "node:test";
 import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { registerTransform } from "#src/media/index";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/index";
+import { registerTransform } from "#src/features/media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import { createRouteDeps } from "../../app.js";
 import { createContentModule } from "../../modules/content.js";
 import { createMediaModule } from "../../modules/media.js";

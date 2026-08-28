@@ -1,4 +1,4 @@
-import type { MediaRecord } from "#src/media/index";
+import type { MediaRecord } from "#src/features/media/index";
 
 /**
  * @file Admin-facing media response DTO (mirrors `admin/members.ts` /

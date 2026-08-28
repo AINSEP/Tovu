@@ -14,7 +14,7 @@ import { contributeWorkspaceTools } from "../features/workspace/tool-registratio
 import { contributeFormsTools } from "../features/forms/tool-registrations.js";
 import { contributeIdentityTools } from "../features/identity/tool-registrations.js";
 import { contributeWebhooksTools } from "../features/webhooks/tool-registrations.js";
-import { contributeMediaTools } from "../media/tool-registrations.js";
+import { contributeMediaTools } from "../features/media/tool-registrations.js";
 import { contributeMembersTools } from "../features/members/tool-registrations.js";
 import { contributeMenusTools } from "../navigation/tool-registrations.js";
 import { contributeNewsletterTools } from "../features/newsletter/tool-registrations.js";

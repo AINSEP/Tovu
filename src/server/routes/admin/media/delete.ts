@@ -1,4 +1,4 @@
-import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/media/index";
+import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { MediaRouteRegistrar } from "./deps.js";
 
