@@ -84,20 +84,20 @@ import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunS
  *  name a type its one existing `RunStartHandler` import already carries structurally. */
 type OnStartedContext = Parameters<RunStartHandler>[0];
 
-import { registerInstalledAgentPluginTools } from "../../features/agent-plugins/tool-registrations.js";
-import { registerInstalledSkillTools } from "../../features/skills/tool-registrations.js";
-import { registerEnabledPluginCapabilityTools } from "../../features/plugin-runtime/capability-tool-registrations.js";
-import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
-import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
-import { openContentDb } from "../../platform/db/sqlite/content-db.js";
+import { registerInstalledAgentPluginTools } from "../../../features/agent-plugins/tool-registrations.js";
+import { registerInstalledSkillTools } from "../../../features/skills/tool-registrations.js";
+import { registerEnabledPluginCapabilityTools } from "../../../features/plugin-runtime/capability-tool-registrations.js";
+import { registerSupabaseMcpPreset } from "../../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
+import { createInMemoryToolAttemptAuditSink } from "../../../features/tool-audit/repo.memory.js";
+import { SqliteToolAttemptAuditSink } from "../../../features/tool-audit/repo.sqlite.js";
+import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
-import { createRouteDeps } from "../runtime/composition/app.js";
-import { installUnhandledRejectionGuard } from "../runtime/boot/process-error-guards.js";
-import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../runtime/composition/deps.js";
-import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
+import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
+import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../../runtime/composition/deps.js";
+import { installFirstPartyToolContributors } from "../../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
@@ -127,8 +127,8 @@ import {
   buildToolCatalogQuery,
   withToolAttemptAudit,
   buildAssistantToolRegistrations,
-} from "../../assistant/agent-daemon-port.js";
-import { createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
+} from "../../../assistant/agent-daemon-port.js";
+import { createSurfaceExchangeStore } from "../../../contracts/core/tool-surface-exchanges.js";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;

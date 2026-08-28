@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 
-import type { FederatedAdmissionReport } from "../../assistant/mcp-federation/trust.js";
+import type { FederatedAdmissionReport } from "../../../assistant/mcp-federation/trust.js";
 
 /**
  * @file `GET /api/federation/admissions` — reports what THIS daemon process actually admitted from

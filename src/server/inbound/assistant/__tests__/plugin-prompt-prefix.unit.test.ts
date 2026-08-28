@@ -37,7 +37,7 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
 // exactly as `onStarted` itself calls it) resolves `infra/agent-plugins` relative to
 // `process.cwd()` — this file relies on being invoked from the repo root, the standard
 // `node --import tsx --test <path>` invocation this repo's own test scripts use.
-const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../..");
 const WORKSPACE_ID = "workspace-local";
 const PLUGIN_ID = "ui-ux-design";
 

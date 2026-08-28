@@ -14,8 +14,8 @@
  */
 import type { RunStartHandler } from "@jini-ai/http-kit";
 
-import { resolveAgentPluginLayout } from "../../features/agent-plugins/layout.js";
-import { resolveAgentPluginRefs } from "../../features/agent-plugins/resolve-agent-plugin-refs.js";
+import { resolveAgentPluginLayout } from "../../../features/agent-plugins/layout.js";
+import { resolveAgentPluginRefs } from "../../../features/agent-plugins/resolve-agent-plugin-refs.js";
 
 type OnStartedContext = Parameters<RunStartHandler>[0];
 

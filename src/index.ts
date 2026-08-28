@@ -9,7 +9,7 @@ import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
-import { startAssistantDaemon } from "./server/agent-daemon/index.js";
+import { startAssistantDaemon } from "./server/inbound/assistant/index.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 
 /**
