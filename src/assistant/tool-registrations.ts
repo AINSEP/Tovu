@@ -184,7 +184,7 @@ import type { IdentityToolDeps } from "../features/identity/tool-registrations.j
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps } from "../features/media/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
-import type { MenusToolDeps } from "../navigation/tool-registrations.js";
+import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
 import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
 import type { SeoToolDeps } from "../seo/tool-registrations.js";

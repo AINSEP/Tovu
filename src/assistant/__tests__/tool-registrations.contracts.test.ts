@@ -33,7 +33,7 @@ import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
-import { menusAgentToolCatalog } from "../../navigation/index.js";
+import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
 import { getSeoAgentToolCatalog } from "../../seo/agent-tools.js";

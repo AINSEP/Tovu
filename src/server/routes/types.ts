@@ -35,7 +35,7 @@ import type {
 } from "../../features/members/index.js";
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
 import type { MailerPort } from "../../platform/mail/index.js";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation/index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../features/navigation/index.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";

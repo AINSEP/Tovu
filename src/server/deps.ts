@@ -66,8 +66,8 @@ import {
   SqliteMemberTierRepo,
 } from "../features/members/index.js";
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite.js";
-import { rebuildNavLocationBindings } from "../navigation/index.js";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite.js";
+import { rebuildNavLocationBindings } from "../features/navigation/index.js";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../features/navigation/repo.sqlite.js";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../platform/db/sqlite/webhook-repo.sqlite.js";
 import { EnvOrFileKeyring } from "../features/webhooks/keyring.env.js";
 import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
@@ -124,7 +124,7 @@ import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqli
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
-import { createNavMenuReadModel } from "../navigation/index.js";
+import { createNavMenuReadModel } from "../features/navigation/index.js";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
 import {
   ensureSettingsUiTabDefinitions,

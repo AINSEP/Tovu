@@ -7,8 +7,8 @@ import test from "node:test";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/navigation/index";
-import type { NavMenuEntry } from "#src/navigation/index";
+import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
+import type { NavMenuEntry } from "#src/features/navigation/index";
 import { createApp, createRouteDeps } from "../../../app.js";
 
 /**

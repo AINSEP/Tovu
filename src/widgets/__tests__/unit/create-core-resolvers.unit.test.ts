@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryFormDefinitionRepo } from "#src/features/forms/repo.memory";
-import type { NavMenuEntry, NavMenuReadModel } from "#src/navigation/index";
+import type { NavMenuEntry, NavMenuReadModel } from "#src/features/navigation/index";
 import { createCoreResolvers } from "../../resolvers/create-core-resolvers.js";
 
 /**

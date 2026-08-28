@@ -27,8 +27,8 @@ import {
 } from "#src/widgets/resolver-service";
 import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "#src/platform/routing/index";
-import { resolveMenuDoc } from "#src/navigation/index";
-import type { NavTarget, ResolveTargetHrefFn } from "#src/navigation/index";
+import { resolveMenuDoc } from "#src/features/navigation/index";
+import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
