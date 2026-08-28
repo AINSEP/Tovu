@@ -73,7 +73,7 @@ import {
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../media/index.js";
-import { createInMemoryIdentityRouteDeps } from "../identity/wiring.js";
+import { createInMemoryIdentityRouteDeps } from "../features/identity/wiring.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,

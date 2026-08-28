@@ -16,7 +16,7 @@ import type {
   SessionRepoPort,
   UserRepoPort,
 } from "@jini-ai/cms/identity";
-import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../identity/api-key-types.js";
+import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";

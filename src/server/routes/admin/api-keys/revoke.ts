@@ -1,4 +1,4 @@
-import { revokeApiKey } from "#src/identity/api-key-service";
+import { revokeApiKey } from "#src/features/identity/api-key-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import {
   apiKeyServiceDepsFrom,

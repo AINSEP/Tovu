@@ -84,7 +84,7 @@ import {
   SharpImageTransformer,
 } from "../media/index.js";
 import { ensureCoreMediaTransform } from "../media/bootstrap.js";
-import { createSqliteIdentityRouteDeps } from "../identity/wiring.js";
+import { createSqliteIdentityRouteDeps } from "../features/identity/wiring.js";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../features/forms/repo.sqlite.js";
 import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";

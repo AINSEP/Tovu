@@ -7,7 +7,7 @@ import {
   migrateDeprecatedPermissionGrants,
   registerPermissionMigration,
 } from "@jini-ai/cms/identity";
-import { NAVIGATION_PERMISSIONS } from "../../navigation/index.js";
+import { NAVIGATION_PERMISSIONS } from "../../../navigation/index.js";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
