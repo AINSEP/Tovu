@@ -508,8 +508,39 @@ function rewriteRouteBodyForBasePath(route: ManifestRoute, body: string, basePat
   return rewriteHtmlBasePath(body, basePath);
 }
 
+/** Bounds a single fetch against the in-process loopback server this file just booted — generous
+ *  enough that a genuinely slow (but working) render/asset response never trips it, but finite so a
+ *  hung render (a runaway worker-thread sandbox, `render.ts`'s own concern — not this file's) fails
+ *  the ONE affected route/asset instead of hanging the whole export forever. Mirrors the
+ *  `AbortSignal.timeout` pattern already used for outbound fetches elsewhere in this codebase
+ *  (`site-inspection/published-page.ts`, `external-mcp/admissions.ts`) rather than inventing a new
+ *  one. Not overridable per call — no caller threads options through these fetches today. */
+const EXPORT_FETCH_TIMEOUT_MS = 30_000;
+
+/** The one place every fetch below goes through — adds the timeout and turns a thrown network or
+ *  timeout failure into the same typed, non-throwing outcome `writeContentRoute` /
+ *  `writeRedirectRoute` / `writeNotFoundRoute` / `fetchOneAsset` already return for an unexpected
+ *  status code, so `exportSite`'s documented "never throws for an individual route or asset
+ *  failure" contract (this file's own header) holds for a hung/refused fetch too, not only for a
+ *  received-but-wrong-status response. */
+async function exportFetch(url: string, init?: RequestInit): Promise<{ ok: true; response: Response } | { ok: false; reason: string }> {
+  try {
+    const response = await fetch(url, { ...init, signal: AbortSignal.timeout(EXPORT_FETCH_TIMEOUT_MS) });
+    return { ok: true, response };
+  } catch (err) {
+    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      return { ok: false, reason: `GET ${url} timed out after ${EXPORT_FETCH_TIMEOUT_MS}ms` };
+    }
+    return { ok: false, reason: `GET ${url} failed: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
 async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const res = await fetch(`${baseUrl}${route.path}`);
+  const fetched = await exportFetch(`${baseUrl}${route.path}`);
+  if (!fetched.ok) {
+    return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
+  }
+  const res = fetched.response;
   if (res.status !== 200) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected 200, got ${res.status}` } };
   }
@@ -560,7 +591,11 @@ export function redirectOutcomeFor(status: number, locationHeader: string | null
  *  {@link redirectOutcomeFor} to the real response — never the manifest's own `redirectTarget`
  *  alone, so the written stub always reflects what the live server actually answered with. */
 async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const res = await fetch(`${baseUrl}${route.path}`, { redirect: "manual" });
+  const fetched = await exportFetch(`${baseUrl}${route.path}`, { redirect: "manual" });
+  if (!fetched.ok) {
+    return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
+  }
+  const res = fetched.response;
   const decision = redirectOutcomeFor(res.status, res.headers.get("location"), route.redirectTarget);
   if (decision.kind === "failed") {
     return { failed: { path: route.path, kind: route.kind, reason: decision.reason } };
@@ -580,7 +615,11 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
  *  the convention static hosts (Netlify, GitHub Pages, S3+CloudFront) already look for at the
  *  output root. */
 async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
-  const res = await fetch(`${baseUrl}${route.path}`);
+  const fetched = await exportFetch(`${baseUrl}${route.path}`);
+  if (!fetched.ok) {
+    return { failed: { path: route.path, kind: route.kind, reason: fetched.reason } };
+  }
+  const res = fetched.response;
   if (res.status < 400) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected a non-2xx response for the 404 probe, got ${res.status}` } };
   }
@@ -610,7 +649,11 @@ async function fetchOneAsset(
   baseUrl: string,
   outputDir: string
 ): Promise<{ ok: true; asset: ExportedAsset; cssRefs: string[] } | { ok: false; failure: FailedAsset }> {
-  const res = await fetch(`${baseUrl}${url}`);
+  const fetched = await exportFetch(`${baseUrl}${url}`);
+  if (!fetched.ok) {
+    return { ok: false, failure: { url, reason: fetched.reason } };
+  }
+  const res = fetched.response;
   if (!res.ok) {
     return { ok: false, failure: { url, reason: `GET ${url} -> ${res.status}` } };
   }
