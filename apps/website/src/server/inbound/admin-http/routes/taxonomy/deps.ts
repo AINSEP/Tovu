@@ -1,5 +1,3 @@
-import type { Express } from "express";
-
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -35,5 +33,3 @@ export type TaxonomyRouteDeps = Pick<
   | "postRepo"
   | "stampWatermark"
 >;
-
-export type TaxonomyRouteRegistrar = (app: Express, deps: TaxonomyRouteDeps) => void;

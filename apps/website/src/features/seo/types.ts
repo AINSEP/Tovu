@@ -22,7 +22,6 @@
  *    their declarations below for why.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { PostRecord } from "../post/index.js";
 import type { ThemeTier } from "../theme/index.js";
 
 /**
@@ -213,13 +212,6 @@ export interface SeoMeta {
   twitter: TwitterCard;
   jsonLd: JsonLdObject[];
 }
-
-/**
- * Compile-time guard: `PageHeadEntryRef`'s identity fields must remain a
- * subset of the live `PostRecord`. If `PostRecord` renames/removes one of
- * these, this alias fails to typecheck — pinned to the real content record.
- */
-export type EntrySnapshotIdentity = Pick<PostRecord, "id" | "workspaceId" | "slug" | "title" | "status">;
 
 // ---------------------------------------------------------------------------
 // 3. Sitemap + robots (declarative, cache-backed outputs)

@@ -1,5 +1,3 @@
-import type { Express } from "express";
-
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**
@@ -27,5 +25,3 @@ export type ContentTypesRouteDeps = Pick<
   RouteDeps,
   "workspaceId" | "authorize" | "clock" | "idGen" | "outbox" | "contentTypeRepo" | "contentTypeIndexProvisioner" | "entryRepo"
 >;
-
-export type ContentTypesRouteRegistrar = (app: Express, deps: ContentTypesRouteDeps) => void;
