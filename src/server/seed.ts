@@ -255,7 +255,7 @@ export const seededPosts: PostRecord[] = [
 
 export const seededPresentation: PresentationSettingsRecord = {
   workspaceId: seededWorkspace.id,
-  // `tovu-official` (until 2026-08-10) lived only under `src/theme-archive/`, which discovery never
+  // `tovu-official` (until 2026-08-10) lived only under `development/fixtures/theme-archive/`, which discovery never
   // scans — a fresh workspace's active theme silently fell through `resolveActiveTheme()`'s fallback
   // to whatever the alphabetically-first *valid* discovered theme happened to be, making the real
   // default effectively arbitrary. `basic` (`content/themes/static/basic/`) is a real, valid, currently

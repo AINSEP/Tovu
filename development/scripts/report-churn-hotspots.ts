@@ -69,7 +69,7 @@ import path from "node:path";
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const THRESHOLD = 9;
 
-/** Excluded from every scan. `content/themes` and `src/theme-archive` hold vendored/authored theme
+/** Excluded from every scan. `content/themes` and `development/fixtures/theme-archive` hold vendored/authored theme
  * sources rather than product code — owner instruction 2026-08-20 is that they are out of scope
  * for complexity work. The `.js`/`.mjs`/`.cjs` exclusions are the plugin trap in the header and
  * are NOT optional. */
@@ -78,7 +78,7 @@ const IGNORE_PATTERNS = [
   "**/*.mjs",
   "**/*.cjs",
   "content/themes/**",
-  "src/theme-archive/**",
+  "development/fixtures/theme-archive/**",
 ] as const;
 
 export interface Hotspot {
