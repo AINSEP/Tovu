@@ -39,7 +39,7 @@ export function applyRequestTracking(app: Express, deps: { observability: Observ
     const tracker = deps.observability.trackRequest({ method: req.method, path: req.path });
 
     res.on("finish", () => {
-      const routePattern = req.route ? `${req.baseUrl}${req.route.path as string}` : "unmatched";
+      const routePattern = req.route ? `${req.baseUrl}${req.route.path}` : "unmatched";
       tracker.end({ statusCode: res.statusCode, routePattern });
     });
 
