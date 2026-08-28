@@ -6,7 +6,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";

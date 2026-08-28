@@ -39,7 +39,7 @@ import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-too
 import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { widgetsAgentToolCatalog } from "../../features/widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
-import { createRouteDeps } from "../../server/app.js";
+import { createRouteDeps } from "../../server/runtime/composition/app.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import {
@@ -47,7 +47,7 @@ import {
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
+import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
 // `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
 // `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see

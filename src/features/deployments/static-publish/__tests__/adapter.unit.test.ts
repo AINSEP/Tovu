@@ -19,7 +19,7 @@ import {
 } from "@jini-ai/devops/deploy";
 import { S3CompatibleDeployTarget } from "../s3-compatible-target.js";
 
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import {

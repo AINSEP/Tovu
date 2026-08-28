@@ -4,10 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps, defaultDatabaseJournalDbPath } from "../../deps.js";
+import { createSqliteRouteDeps, defaultDatabaseJournalDbPath } from "../../runtime/composition/deps.js";
 import { buildBootModules } from "../../bootstrap.js";
 import { runBootLifecycle } from "../../boot-lifecycle.js";
-import { createApp } from "../../app.js";
+import { createApp } from "../../runtime/composition/app.js";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { SqliteMigrationRunsRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { loginAsOwner, startTestServer } from "../helpers/http-test-server.js";

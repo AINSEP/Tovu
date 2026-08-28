@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile.js";
 import { InMemoryDeploymentsReadRepo } from "../../repo.memory.js";
 import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../tool-registrations.js";

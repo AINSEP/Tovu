@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { LocalBufferSink } from "#src/features/analytics/repo.memory";
 import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";

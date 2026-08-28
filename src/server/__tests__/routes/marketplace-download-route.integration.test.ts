@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { discoverAllBuiltInThemes, MARKETPLACE_CATALOG_DIR, THEME_CATALOG_DIR } from "#src/features/theme/index";
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 

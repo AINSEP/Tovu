@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 
 /**
  * @file SPEC-039 (ADR-046 Phase 3) — explicit real-HTTP proof of AC-01/AC-02/AC-03.

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";

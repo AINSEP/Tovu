@@ -83,7 +83,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
-import { createRouteDeps } from "../../src/server/app.js";
+import { createRouteDeps } from "../../src/server/runtime/composition/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../src/server/middleware/rate-limit";
 import { createSurfaceExchangeStore } from "../../src/contracts/core/tool-surface-exchanges.js";
 import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";

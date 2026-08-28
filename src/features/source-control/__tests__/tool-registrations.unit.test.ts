@@ -6,7 +6,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
 import type { GitHubCommitAdapter, GitHubCommitAdapterResult } from "../commit-site.js";
 import { createSourceControlCredential } from "../store.js";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { AesGcmSecretSealer } from "../../../features/webhooks/secret-sealer.aesgcm.js";
 import type { KeyringPort } from "../../../features/webhooks/index.js";
 import { bootAuthenticated, loginAsOwner, startTestServer } from "../helpers/http-test-server.js";

@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { createApp, createRouteDeps } from "../app.js";
-import { createSiteAssistantModule } from "../modules/site-assistant.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import { createSiteAssistantModule } from "../runtime/composition/modules/site-assistant.js";
 import { setPublicAssistantSettings } from "../../assistant/index.js";
 import { startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";

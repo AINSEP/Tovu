@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { createRouteDeps } from "../../../server/app.js";
+import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import { InMemoryPostRepo } from "../../../features/post/index.js";
 import type { DiscoveredTheme } from "../../../features/theme/index.js";
 import { InMemoryRedirectRepo } from "../../../features/redirects/index.js";

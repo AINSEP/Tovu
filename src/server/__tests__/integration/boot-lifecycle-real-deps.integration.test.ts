@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps } from "../../deps.js";
+import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
 import { runBootLifecycle } from "../../boot-lifecycle.js";
 import type { BootModule } from "../../boot-lifecycle.js";
 

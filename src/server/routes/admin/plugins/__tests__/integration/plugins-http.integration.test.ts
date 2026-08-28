@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/middleware/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";

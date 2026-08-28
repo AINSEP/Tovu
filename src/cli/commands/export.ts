@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { createSqliteRouteDeps } from "../../server/deps.js";
+import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { exportSite, type ExportReport } from "../../platform/export/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";

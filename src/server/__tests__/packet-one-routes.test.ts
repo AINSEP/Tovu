@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 test("packet-one admin and content routes expose the seeded post loop", async (t) => {
   const server = createServer(createApp());

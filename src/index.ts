@@ -1,5 +1,5 @@
-import { createApp, createRouteDeps } from "./server/app.js";
-import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps.js";
+import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
+import { createSqliteRouteDeps, defaultContentDbPath } from "./server/runtime/composition/deps.js";
 import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "./server/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";

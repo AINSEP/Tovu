@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../readiness-state.js";
-import { defaultContentDbPath, mediaUploadsDir } from "../../deps.js";
+import { defaultContentDbPath, mediaUploadsDir } from "../../runtime/composition/deps.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

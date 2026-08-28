@@ -6,7 +6,7 @@ import express from "express";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../features/webhooks/index.js";
 import type { WebhookDeliveryRecord } from "../../features/webhooks/index.js";
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create.js";
 import { registerAdminIntegrationsDeleteRoute } from "../routes/admin/integrations/delete.js";

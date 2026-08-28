@@ -6,7 +6,7 @@ import express from "express";
 
 import { InMemoryPostRepo } from "../../../features/post/index.js";
 import { renderDocNode } from "../../http/site/render.js";
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 

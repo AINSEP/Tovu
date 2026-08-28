@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import {
   createCapturingResponse,

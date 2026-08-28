@@ -7,7 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { registerThemeStaticAssets } from "../theme-static-assets.js";
-import { createApp } from "../../app.js";
+import { createApp } from "../../runtime/composition/app.js";
 
 /**
  * @file Regression coverage for `registerThemeStaticAssets`'s 2026-08-12 extension from a single

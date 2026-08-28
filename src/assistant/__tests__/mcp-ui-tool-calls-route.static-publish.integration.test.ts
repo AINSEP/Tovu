@@ -6,7 +6,7 @@ import express from "express";
 import { createToolRegistry, type SurfaceEmission } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { buildStaticPublishRegistrations, type StaticPublishToolDeps } from "#src/features/deployments/publish-agent-tools";
 // Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
 // in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test bypasses

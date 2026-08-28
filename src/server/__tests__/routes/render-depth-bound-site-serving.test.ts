@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { InMemoryPostRepo } from "../../../features/post/index.js";
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
