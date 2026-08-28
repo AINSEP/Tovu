@@ -1,12 +1,12 @@
 import type { Express } from "express";
 
-import type { MenuRepoPort } from "#src/navigation/index";
+import type { MenuRepoPort } from "#src/features/navigation/index";
 import type {
   NavItemNode,
   NavLocationBindingRepoPort,
   NavLocationBindingRow,
   NavMenuEntry,
-} from "#src/navigation/index";
+} from "#src/features/navigation/index";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

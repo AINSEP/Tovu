@@ -267,7 +267,7 @@ const GUARDED_MODULES = [
   "platform/mail",
   "features/media",
   "features/members",
-  "navigation",
+  "features/navigation",
   "features/newsletter",
   "origin",
   "features/redirects",

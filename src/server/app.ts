@@ -55,7 +55,7 @@ import {
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
 } from "../features/members/index.js";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../features/navigation/index.js";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../features/webhooks/index.js";
 import { InMemoryKeyring } from "../features/webhooks/keyring.memory.js";
 import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
@@ -115,7 +115,7 @@ import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
-import { createNavMenuReadModel } from "../navigation/index.js";
+import { createNavMenuReadModel } from "../features/navigation/index.js";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../features/analytics/config.settings.js";
 import { InMemoryCommentRepo } from "../features/comments/repo.memory.js";

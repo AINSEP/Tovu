@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { createMenu } from "#src/navigation/index";
+import { createMenu } from "#src/features/navigation/index";
 import { createRouteDeps } from "../../app.js";
 import { createWidgetsModule } from "../../modules/widgets.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";

@@ -20,14 +20,14 @@ import {
   InMemoryNavLocationBindingRepo,
   menusAgentToolCatalog,
   type NavigationAgentToolDefinition,
-} from "../../navigation/index.js";
+} from "../../features/navigation/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeMenusTools } from "../../navigation/tool-registrations.js";
+import { contributeMenusTools } from "../../features/navigation/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Menus moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the

@@ -16,7 +16,7 @@ import { contributeIdentityTools } from "../features/identity/tool-registrations
 import { contributeWebhooksTools } from "../features/webhooks/tool-registrations.js";
 import { contributeMediaTools } from "../features/media/tool-registrations.js";
 import { contributeMembersTools } from "../features/members/tool-registrations.js";
-import { contributeMenusTools } from "../navigation/tool-registrations.js";
+import { contributeMenusTools } from "../features/navigation/tool-registrations.js";
 import { contributeNewsletterTools } from "../features/newsletter/tool-registrations.js";
 import { contributeRedirectsTools } from "../features/redirects/tool-registrations.js";
 import { contributeSeoTools } from "../seo/tool-registrations.js";
