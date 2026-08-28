@@ -2,7 +2,7 @@ import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { latestSurfaceIdIn, surfaceIdOf, useRoutedA2uiSurfaceCard } from "../hooks/use-routed-a2ui-surface-card.hooks";
-import { resetPlaygroundRenderTargetBus } from "../../../lib/playground-render-target-bus";
+import { resetPlaygroundRenderTargetBus } from "@/lib/playground-render-target-bus";
 
 /**
  * @file Direct coverage of `surfaceIdOf`/`latestSurfaceIdIn`, the pure helpers

@@ -1,8 +1,8 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType, AdminEntry } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminContentType, AdminEntry } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeCollectionEntriesPort } from "../hooks/collection-entries-dependencies.hooks";
 import { useCollectionEntries } from "../hooks/use-collection-entries.hooks";
 

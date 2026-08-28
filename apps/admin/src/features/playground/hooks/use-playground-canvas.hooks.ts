@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { setPlaygroundRenderTarget } from "../../../lib/playground-render-target-bus";
+import { setPlaygroundRenderTarget } from "@/lib/playground-render-target-bus";
 
 /**
  * @file `Playground`'s own half of the render-target-bus handshake — extracted out of

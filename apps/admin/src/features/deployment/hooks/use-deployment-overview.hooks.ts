@@ -1,8 +1,8 @@
-import { describeApiError, type AdminDeploymentOverview } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminDeploymentOverview } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, deploymentOverviewLoadErrorMessage } from "../deployment-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultDeploymentOverviewPort } from "./deployment-overview-dependencies.hooks";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 

@@ -1,8 +1,8 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { type AdminPolicy, type AdminPolicyPermission, type AdminRole } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { describeApiError, KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../roles-i18n";
 import { defaultRolesPort } from "./roles-dependencies.hooks";
 import type { RolesPort } from "./roles-port.hooks";

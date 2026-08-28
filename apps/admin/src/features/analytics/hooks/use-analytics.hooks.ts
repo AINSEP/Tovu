@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import type { AdminAnalyticsHit } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { AdminAnalyticsHit } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../analytics-i18n";
 import { defaultAnalyticsPort } from "./analytics-dependencies.hooks";
 import type { AnalyticsPort } from "./analytics-port.hooks";

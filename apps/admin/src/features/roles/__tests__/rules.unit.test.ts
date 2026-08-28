@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { ApiError, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { describeApiError, roleMenuItems, policyMenuItems } from "../rules";
 
 /**

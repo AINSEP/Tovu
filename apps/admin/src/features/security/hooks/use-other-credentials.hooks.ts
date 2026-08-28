@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminMediaProviderMap } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import { describeApiError, type AdminMediaProviderMap } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT, accessTokensLoadErrorMessage, accessTokenSaveErrorMessage } from "../security-i18n";
 import {
   OTHER_CREDENTIAL_STORES,

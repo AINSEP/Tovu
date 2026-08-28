@@ -1,4 +1,4 @@
-import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, RestoreExecuteResult } from "../../../lib/api";
+import type { AdminDisclosureResult, GatedConfirmResult, GatedPlanResult, RestoreExecuteResult } from "@/lib/api";
 
 /**
  * @file What `use-restore-flow.hooks.ts` needs from the outside world, as an interface rather than

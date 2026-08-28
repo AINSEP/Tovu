@@ -1,4 +1,4 @@
-import type { GatedConfirmResult, GatedPlanResult, MigrateForwardExecuteResult } from "../../../lib/api";
+import type { GatedConfirmResult, GatedPlanResult, MigrateForwardExecuteResult } from "@/lib/api";
 
 /**
  * @file What `use-migrate-forward-section.hooks.ts` needs from the outside world, as an interface

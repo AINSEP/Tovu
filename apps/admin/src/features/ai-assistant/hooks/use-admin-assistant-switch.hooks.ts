@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-import { getAssistantDockOpen, requestAssistantDock, subscribeToAssistantDock } from "../../../lib/assistant-dock-bus";
+import { getAssistantDockOpen, requestAssistantDock, subscribeToAssistantDock } from "@/lib/assistant-dock-bus";
 
 /**
  * @file State for `AdminAssistantSwitch` — whether the admin's own assistant dock is open.

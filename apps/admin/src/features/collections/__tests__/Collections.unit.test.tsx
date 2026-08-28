@@ -7,7 +7,7 @@ import type { CollectionsController } from "../hooks/use-collections.hooks";
 import type { NewContentTypeDialogController } from "../hooks/use-new-content-type-dialog.hooks";
 import type { EditFieldsDialogController } from "../hooks/use-edit-fields-dialog.hooks";
 import type { LifecycleConfirmDialogController } from "../hooks/use-lifecycle-confirm-dialog.hooks";
-import type { AdminContentType } from "../../../lib/api";
+import type { AdminContentType } from "@/lib/api";
 
 /**
  * @file `Collections` — the `/admin/collections` list screen (design-spec.md §1, ADR-022/ADR-043)

@@ -1,4 +1,4 @@
-import { api, type AdminComposioConfig } from "../../../lib/api";
+import { api, type AdminComposioConfig } from "@/lib/api";
 import type { ComposioConfigPort } from "./composio-config-port.hooks";
 
 /**

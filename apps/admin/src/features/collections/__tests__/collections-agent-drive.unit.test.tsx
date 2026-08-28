@@ -3,12 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { executePageCapability } from "@jini-ai/agentic/core";
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import { CollectionEntries } from "../CollectionEntries";
 import { Collections } from "../Collections";
 import type { CollectionsController } from "../hooks/use-collections.hooks";
-import type { AdminContentType } from "../../../lib/api";
+import type { AdminContentType } from "@/lib/api";
 
 /**
  * @file Regression test for this batch's agent-control tagging on the `collections` feature

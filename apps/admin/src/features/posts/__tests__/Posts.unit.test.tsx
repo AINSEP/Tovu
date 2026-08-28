@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
-import { navigate } from "../../../lib/router";
-import type { AdminPost } from "../../../lib/api";
+import { navigate } from "@/lib/router";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file `Posts` — markup-only list screen, twin of `features/pages/Pages.tsx`. Had NO test file

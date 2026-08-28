@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
 import type { TermPickerController } from "../hooks/use-term-picker.hooks";
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms, ContentTypeFieldDef } from "../../../lib/api";
+import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms, ContentTypeFieldDef } from "@/lib/api";
 
 /**
  * @file `CollectionEntryEditor` — the render-layer branches `CollectionEntryEditor.unit.test.tsx`

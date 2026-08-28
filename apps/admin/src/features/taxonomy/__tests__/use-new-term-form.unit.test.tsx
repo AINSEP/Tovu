@@ -1,10 +1,10 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useNewTermForm, useWiredNewTermForm } from "../hooks/use-new-term-form.hooks";
 import { createFakeNewTermFormPort } from "../hooks/new-term-form-dependencies.hooks";
-import type { AdminTaxonomyWithTerms } from "../../../lib/api";
+import type { AdminTaxonomyWithTerms } from "@/lib/api";
 
 /**
  * @file `useNewTermForm` — pins the client-side validation guard (name required, trimmed) and the

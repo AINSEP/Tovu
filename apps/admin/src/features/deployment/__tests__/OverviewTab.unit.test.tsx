@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { OverviewTab } from "../OverviewTab";
 import type { DeploymentOverviewController } from "../hooks/use-deployment-overview.hooks";
-import type { AdminDeploymentOverview } from "../../../lib/api";
+import type { AdminDeploymentOverview } from "@/lib/api";
 
 /**
  * @file `OverviewTab` — driven entirely through the `useDeploymentOverviewHook` DI seam (same

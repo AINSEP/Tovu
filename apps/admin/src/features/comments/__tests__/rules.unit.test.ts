@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminComment, type CommentsSettings } from "../../../lib/api";
+import { ApiError, type AdminComment, type CommentsSettings } from "@/lib/api";
 import {
   buildSettingsPatch,
   commentRowMenuItems,

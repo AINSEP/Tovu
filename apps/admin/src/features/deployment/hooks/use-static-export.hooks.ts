@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminExportRunSnapshot } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminExportRunSnapshot } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "../deployment-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
 import type { StaticExportPort } from "./static-export-port.hooks";
 

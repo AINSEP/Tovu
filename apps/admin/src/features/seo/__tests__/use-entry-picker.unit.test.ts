@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useEntryPicker } from "../hooks/use-entry-picker.hooks";
 import { createFakeSeoPort } from "../hooks/seo-dependencies.hooks";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file `useEntryPicker` — the SEO screen's post+page dropdown.

@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, api, type AdminWidget } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import { ApiError, api, type AdminWidget } from "@/lib/api";
+import { navigate } from "@/lib/router";
 import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
 import { staleVersionMessage, useWidgetInstanceEditor, useWiredWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
 

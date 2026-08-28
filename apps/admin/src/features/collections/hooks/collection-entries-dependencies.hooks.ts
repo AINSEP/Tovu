@@ -1,4 +1,4 @@
-import { api, type AdminContentType, type AdminEntry } from "../../../lib/api";
+import { api, type AdminContentType, type AdminEntry } from "@/lib/api";
 import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
 
 /**

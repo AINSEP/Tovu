@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultRestoreFlowPort } from "./restore-flow-dependencies.hooks";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 

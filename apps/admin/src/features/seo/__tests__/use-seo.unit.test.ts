@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSeo } from "../hooks/use-seo.hooks";
 import { createFakeSeoPort } from "../hooks/seo-dependencies.hooks";
-import type { SeoSettings } from "../../../lib/api";
+import type { SeoSettings } from "@/lib/api";
 
 /**
  * @file `useSeo` — the site-wide SEO settings form + sitemap regenerate action.

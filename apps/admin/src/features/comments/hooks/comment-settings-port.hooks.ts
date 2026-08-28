@@ -1,4 +1,4 @@
-import type { CommentsSettings } from "../../../lib/api";
+import type { CommentsSettings } from "@/lib/api";
 
 /**
  * @file What `use-comment-settings.hooks.ts` needs from the outside world, as an interface rather

@@ -1,4 +1,4 @@
-import { api, type AdminFormSubmission } from "../../../lib/api";
+import { api, type AdminFormSubmission } from "@/lib/api";
 import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
 
 /**

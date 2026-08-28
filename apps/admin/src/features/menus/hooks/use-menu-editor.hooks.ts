@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { type AdminMenu, type AdminMenuItem } from "../../../lib/api";
-import { navigate as realNavigate } from "../../../lib/router";
-import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { type AdminMenu, type AdminMenuItem } from "@/lib/api";
+import { navigate as realNavigate } from "@/lib/router";
+import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { MENUS_DICT } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.

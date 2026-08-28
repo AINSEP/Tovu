@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminFormField } from "../../../lib/api";
+import type { AdminFormField } from "@/lib/api";
 import { addAttrRow, attrRowsFromField, buildFieldAttributesPatch, removeAttrRow, updateAttrRow, type AttrRow } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 

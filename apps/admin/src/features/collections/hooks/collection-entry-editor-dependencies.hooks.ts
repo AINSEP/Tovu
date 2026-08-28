@@ -1,4 +1,4 @@
-import { api, type AdminContentType, type AdminEntry, type AdminTaxonomyWithTerms } from "../../../lib/api";
+import { api, type AdminContentType, type AdminEntry, type AdminTaxonomyWithTerms } from "@/lib/api";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";
 
 /**

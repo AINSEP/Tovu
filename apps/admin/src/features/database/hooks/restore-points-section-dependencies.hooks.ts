@@ -1,4 +1,4 @@
-import { api, type AdminRestorePoint, type AdminRestorePointSummary } from "../../../lib/api";
+import { api, type AdminRestorePoint, type AdminRestorePointSummary } from "@/lib/api";
 import type { RestorePointsSectionPort } from "./restore-points-section-port.hooks";
 
 /**

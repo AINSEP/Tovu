@@ -5,7 +5,7 @@ import {
   type SeoEntryMeta,
   type SeoEntryOverridesPatch,
   type SeoSettings,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { SeoPort } from "./seo-port.hooks";
 
 /**

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { QueueSection } from "../Comments";
 import type { CommentQueueController } from "../hooks/use-comment-queue.hooks";
 import { emptyRowState } from "../rules";
-import type { AdminComment } from "../../../lib/api";
+import type { AdminComment } from "@/lib/api";
 
 /**
  * @file First direct test for `QueueSection` (previously module-private, only reachable through

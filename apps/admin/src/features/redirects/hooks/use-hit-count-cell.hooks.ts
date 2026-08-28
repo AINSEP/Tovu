@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import type { AdminRedirectHitStats } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
+import type { AdminRedirectHitStats } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file The lazy per-row hit-count cell (SPEC-037 REQ-03), so `HitCountCell` in `Redirects.tsx` is

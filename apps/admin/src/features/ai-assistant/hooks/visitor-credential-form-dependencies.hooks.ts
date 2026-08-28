@@ -1,4 +1,4 @@
-import { api, type SiteAssistantCredential } from "../../../lib/api";
+import { api, type SiteAssistantCredential } from "@/lib/api";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
 /**

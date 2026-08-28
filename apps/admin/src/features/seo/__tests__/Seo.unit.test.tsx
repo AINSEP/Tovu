@@ -7,7 +7,7 @@ import type { SeoController } from "../hooks/use-seo.hooks";
 import type { EntryPickerController } from "../hooks/use-entry-picker.hooks";
 import type { SeoEntryPanelController } from "../hooks/use-seo-entry-panel.hooks";
 import type { SeoEntrySectionController } from "../hooks/use-seo-entry-section.hooks";
-import type { AdminPost, SeoEntryAnalysis, SeoEntryMeta, SeoSettings } from "../../../lib/api";
+import type { AdminPost, SeoEntryAnalysis, SeoEntryMeta, SeoSettings } from "@/lib/api";
 
 /**
  * @file `Seo` — the SEO settings screen (SPEC-008 §2.4/§2.5/§2.6, SPEC-037 REQ-06/07/08). Only

@@ -11,6 +11,7 @@
     "isolatedModules": true,
     "types": ["vite/client"],
     "paths": {
+      "@/*": ["./src/*"],
       "@tovu/headless": ["../website/src/contracts/headless/index.ts"],
       "@tovu/theme-layout": ["../website/src/features/theme/theme-layout.ts"]
     }

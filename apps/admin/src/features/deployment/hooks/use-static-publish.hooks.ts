@@ -6,9 +6,9 @@ import {
   type AdminStaticPublishConfig,
   type AdminStaticPublishPreview,
   type AdminStaticPublishTargetId,
-} from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+} from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
   t as defaultT,
   publishLoadErrorMessage,
@@ -16,7 +16,7 @@ import {
   publishPreviewErrorMessage,
   publishTriggerErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 

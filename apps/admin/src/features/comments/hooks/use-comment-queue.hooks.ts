@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
-import { describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "../../../lib/api";
-import { useFetchQuery, useInvalidate } from "../../../lib/fetch-query";
+import { describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "@/lib/api";
+import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { KEYS, describeModerationError, emptyRowState, type RowActionState } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../comments-i18n";
 import { defaultCommentQueuePort } from "./comment-queue-dependencies.hooks";
 import type { CommentQueuePort } from "./comment-queue-port.hooks";

@@ -10,8 +10,8 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
-import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "../../../lib/api";
-import { createExecutionPort } from "../../../lib/execution-settings";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import { createExecutionPort } from "@/lib/execution-settings";
 import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, hasUsableKey, isPresetSuppliedEndpoint } from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
 import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";

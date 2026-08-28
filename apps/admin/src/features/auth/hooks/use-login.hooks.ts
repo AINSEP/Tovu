@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminUser } from "../../../lib/api";
+import type { AdminUser } from "@/lib/api";
 import { defaultLoginPort } from "./login-dependencies.hooks";
 import type { LoginPort } from "./login-port.hooks";
 

@@ -11,7 +11,7 @@ import {
   visibleRedirectsError,
   type WriteState,
 } from "../rules";
-import type { AdminRedirect } from "../../../lib/api";
+import type { AdminRedirect } from "@/lib/api";
 
 /**
  * @file Pure-logic coverage for `features/redirects/rules.ts`. `rules.ts` has no React and no I/O,

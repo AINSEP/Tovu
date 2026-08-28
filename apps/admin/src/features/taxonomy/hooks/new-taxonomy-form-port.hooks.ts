@@ -1,4 +1,4 @@
-import type { AdminTaxonomy } from "../../../lib/api";
+import type { AdminTaxonomy } from "@/lib/api";
 
 /**
  * @file What `useNewTaxonomyForm` needs from the outside world, as an interface rather than a

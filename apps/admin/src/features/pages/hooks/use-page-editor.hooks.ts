@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { AdminPost } from "../../../lib/api";
-import { navigate as defaultNavigate } from "../../../lib/router";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { AdminPost } from "@/lib/api";
+import { navigate as defaultNavigate } from "@/lib/router";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
 import { buildPageSavePlan, pageSaveSuccessMessage } from "../rules";

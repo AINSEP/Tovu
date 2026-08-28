@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
 import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
-import type { AdminTerm } from "../../../lib/api";
+import type { AdminTerm } from "@/lib/api";
 
 /**
  * @file `useMergeTermSection` — the plan/confirm/execute merge-term ceremony (ADR-044,

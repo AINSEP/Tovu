@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { describeApiError, type AdminLedgerRow } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminLedgerRow } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
-import { navigate } from "../../../lib/router";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { navigate } from "@/lib/router";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultTimelineSectionPort } from "./timeline-section-dependencies.hooks";
 import type { TimelineSectionPort } from "./timeline-section-port.hooks";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { AdminIdentityUser } from "../../../lib/api";
+import type { AdminIdentityUser } from "@/lib/api";
 
 /**
  * @file The reset-password dialog's own confirm-field and reveal-toggle state — client-side only,

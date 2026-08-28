@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { actionLabel, orEmpty, sortIssuesBySeverity } from "../rules";
-import type { SeoIssue } from "../../../lib/api";
+import type { SeoIssue } from "@/lib/api";
 
 /**
  * @file Pure-logic coverage for `features/seo/rules.ts` — `sortIssuesBySeverity` is the whole

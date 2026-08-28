@@ -1,4 +1,4 @@
-import { api, type AdminDeploymentOverview } from "../../../lib/api";
+import { api, type AdminDeploymentOverview } from "@/lib/api";
 import type { DeploymentOverviewPort } from "./deployment-overview-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

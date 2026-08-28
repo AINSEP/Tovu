@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRecoveryStatus, AdminRestorePoint } from "../../../lib/api";
+import type { AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
 import { createFakeRecoveryPort } from "../hooks/recovery-dependencies.hooks";
 

@@ -1,4 +1,4 @@
-import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "../../../lib/api";
+import type { AdminRecoveryDeepLinkResult, AdminRecoveryStatus, AdminRestorePoint, DatabaseContextEnvelope } from "@/lib/api";
 
 /**
  * @file What `use-recovery.hooks.ts` needs from the outside world, as an interface rather than a

@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { FetchQueryProvider } from "../../../../lib/fetch-query";
-import type { AdminPublishCredentialSummary } from "../../../../lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { AdminPublishCredentialSummary } from "@/lib/api";
 import { useAccessTokens } from "../use-access-tokens.hooks";
 import { createFakeAccessTokensPort } from "../access-tokens-dependencies.hooks";
 import type { AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../use-access-tokens.hooks";

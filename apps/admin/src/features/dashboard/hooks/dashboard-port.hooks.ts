@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file What `use-dashboard.hooks.ts` needs from the outside world, as an interface rather than a

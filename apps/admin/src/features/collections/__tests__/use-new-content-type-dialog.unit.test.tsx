@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { ApiError } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
 import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
 

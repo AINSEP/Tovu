@@ -1,6 +1,6 @@
-import type { Translate } from "../../../lib/dictionary-translator";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS, resolveSchemaStateWarning, type SchemaStateWarning } from "../rules";
 import { t } from "../database-i18n";
 import { defaultSchemaStateSectionPort } from "./schema-state-section-dependencies.hooks";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { type AdminContentType } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
+import { type AdminContentType } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
 import {
   addDraftField,
   describeEditFieldsError,

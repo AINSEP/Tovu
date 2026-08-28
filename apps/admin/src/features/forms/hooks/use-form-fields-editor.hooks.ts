@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import type { AdminFormField } from "../../../lib/api";
+import type { AdminFormField } from "@/lib/api";
 import { addFormField, removeFormField, updateFormField } from "../rules";
 
 /**

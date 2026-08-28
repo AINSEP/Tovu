@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminContentType } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
 import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 

@@ -1,7 +1,7 @@
-import { describeApiError, type AdminRestorePoint } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminRestorePoint } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultRestorePointsSectionPort } from "./restore-points-section-dependencies.hooks";
 import type { RestorePointsSectionPort } from "./restore-points-section-port.hooks";

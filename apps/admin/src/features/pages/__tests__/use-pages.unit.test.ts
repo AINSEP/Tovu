@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
 

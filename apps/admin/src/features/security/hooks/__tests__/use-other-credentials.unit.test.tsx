@@ -2,12 +2,12 @@ import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../../lib/fetch-query";
-import type { AdminMediaProviderMap } from "../../../../lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
+import type { AdminMediaProviderMap } from "@/lib/api";
 import { useOtherCredentials, useWiredOtherCredentials } from "../use-other-credentials.hooks";
 import type { OtherCredentialGroupState } from "../use-other-credentials.hooks";
 import { createFakeOtherCredentialsPort } from "../other-credentials-dependencies.hooks";
-import type { AdminExternalMcpServer } from "../../../../lib/api";
+import type { AdminExternalMcpServer } from "@/lib/api";
 
 /** Minimal, fully-shaped `AdminExternalMcpServer` fixture — the OAuth-related fields this suite
  *  never exercises stay at their "nothing configured" defaults so each call site only spells out

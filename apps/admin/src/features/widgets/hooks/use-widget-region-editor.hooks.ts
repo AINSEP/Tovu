@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
+import { describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "@/lib/api";
 import { buildDraftPlacement, movePlacement, resolveWidgetRegionSaveError } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 

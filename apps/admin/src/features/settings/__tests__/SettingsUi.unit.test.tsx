@@ -10,16 +10,16 @@ import {
 
 import { SettingsUi } from "../SettingsUi";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
-import type { SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
-import type { AdminExecutionCredentialController } from "../../../hooks/use-admin-execution-credential.hooks";
-import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "../../../lib/execution-settings";
+import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
+import type { AdminExecutionCredentialController } from "@/hooks/use-admin-execution-credential.hooks";
+import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 import {
   DEFAULT_APPEARANCE,
   DEFAULT_INSTRUCTIONS,
   DEFAULT_LOCALE,
   DEFAULT_NOTIFICATIONS,
   DEFAULT_PRIVACY,
-} from "../../../lib/settings-tabs";
+} from "@/lib/settings-tabs";
 
 /**
  * @file `SettingsUi` — the Open Design settings-dialog port, driven entirely through the

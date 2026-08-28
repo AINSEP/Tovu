@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminWidgetRegionBinding } from "../../../lib/api";
-import { navigate as realNavigate } from "../../../lib/router";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminWidgetRegionBinding } from "@/lib/api";
+import { navigate as realNavigate } from "@/lib/router";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 

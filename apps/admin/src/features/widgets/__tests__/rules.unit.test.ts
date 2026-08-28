@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminWidget } from "../../../lib/api";
+import { ApiError, type AdminWidget } from "@/lib/api";
 import {
   buildDraftPlacement,
   describeReferencingLocations,

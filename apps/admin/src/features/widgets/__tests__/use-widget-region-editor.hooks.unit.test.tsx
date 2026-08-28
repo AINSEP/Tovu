@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
+import { api, type AdminWidgetArea, type AdminWidgetPlacement } from "@/lib/api";
 import { createFakeWidgetRegionsPort } from "../hooks/widget-regions-dependencies.hooks";
 import { useWidgetRegionEditor } from "../hooks/use-widget-region-editor.hooks";
 

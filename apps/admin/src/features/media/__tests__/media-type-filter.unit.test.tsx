@@ -3,8 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import { filterMediaByTab, hasUntypedMedia } from "../rules";
-import type { AdminMedia } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminMedia } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 
 /**
  * @file The Media screen's "Images"/"Videos" type filter — the UI half of the `contentType` field

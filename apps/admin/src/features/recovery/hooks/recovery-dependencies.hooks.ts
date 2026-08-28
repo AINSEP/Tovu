@@ -4,7 +4,7 @@ import {
   type AdminRecoveryStatus,
   type AdminRestorePoint,
   type DatabaseContextEnvelope,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { RecoveryPort } from "./recovery-port.hooks";
 
 /**

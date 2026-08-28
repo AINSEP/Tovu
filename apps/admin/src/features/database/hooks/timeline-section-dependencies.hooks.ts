@@ -1,4 +1,4 @@
-import { api, type AdminLedgerRow } from "../../../lib/api";
+import { api, type AdminLedgerRow } from "@/lib/api";
 import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /**

@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "../../../../lib/api";
-import { FetchQueryProvider } from "../../../../lib/fetch-query";
+import { ApiError } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useDockerfileSource } from "../use-dockerfile-source.hooks";
 import { createFakeDockerfileSourcePort, FAKE_DOCKERFILE_ETAG } from "../dockerfile-source-dependencies.hooks";
 

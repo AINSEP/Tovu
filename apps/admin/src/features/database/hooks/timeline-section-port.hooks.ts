@@ -1,4 +1,4 @@
-import type { AdminLedgerRow } from "../../../lib/api";
+import type { AdminLedgerRow } from "@/lib/api";
 
 /**
  * @file What `use-timeline-section.hooks.ts` needs from the outside world, as an interface rather

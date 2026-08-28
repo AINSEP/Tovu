@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError } from "../../../lib/api";
+import { ApiError } from "@/lib/api";
 import { useAssistantDaemonRestart } from "../hooks/use-assistant-daemon-restart.hooks";
 import { createFakeAssistantDaemonRestartPort } from "../hooks/assistant-daemon-restart-dependencies.hooks";
 import type { AssistantDaemonRestartPort } from "../hooks/assistant-daemon-restart-port.hooks";

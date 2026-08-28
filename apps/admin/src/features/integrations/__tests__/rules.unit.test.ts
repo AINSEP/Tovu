@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminWebhookDelivery, AdminWebhookSubscription } from "../../../lib/api";
+import type { AdminWebhookDelivery, AdminWebhookSubscription } from "@/lib/api";
 import { displayTimestamp, integrationRowMenuItems, parseTopics } from "../rules";
 
 /**

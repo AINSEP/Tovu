@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminPublishCredentialSummary } from "../../../lib/api";
+import { ApiError, type AdminPublishCredentialSummary } from "@/lib/api";
 import {
   FULL_SITE_PROVIDERS,
   PUBLISH_CLI_TOOLS,

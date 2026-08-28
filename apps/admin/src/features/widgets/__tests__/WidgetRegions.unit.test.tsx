@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { WidgetRegions } from "../WidgetRegions";
 import type { WidgetRegionsController } from "../hooks/use-widget-regions.hooks";
-import type { AdminWidgetRegionBinding } from "../../../lib/api";
+import type { AdminWidgetRegionBinding } from "@/lib/api";
 
 /**
  * @file `WidgetRegions` — `/admin/widgets/regions`, driven through the `useWidgetRegionsHook`

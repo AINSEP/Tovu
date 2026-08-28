@@ -4,7 +4,7 @@ import type {
   AdminCustomCredentialSummary,
   AdminPublishCredentialSummary,
   AdminSourceControlCredentialSummary,
-} from "../../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file Coverage for `access-tokens-dependencies.hooks.ts` — two independent surfaces:

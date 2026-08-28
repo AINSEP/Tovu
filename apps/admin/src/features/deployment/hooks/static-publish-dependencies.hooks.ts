@@ -1,4 +1,4 @@
-import { api, type AdminPublishRunSnapshot, type AdminStaticPublishPreview } from "../../../lib/api";
+import { api, type AdminPublishRunSnapshot, type AdminStaticPublishPreview } from "@/lib/api";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

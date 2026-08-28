@@ -1,4 +1,4 @@
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "../../../lib/api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
 
 /**
  * @file What `useStaticPublish` needs from the outside world, as an interface rather than a direct

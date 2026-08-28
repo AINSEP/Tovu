@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translatePlugins } from "../plugins-i18n";
 import type { BundledAgentPlugin } from "../agent-plugin-catalog";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file State for the Agent Plugins screen, so `AgentPlugins.tsx` is only markup — same split as

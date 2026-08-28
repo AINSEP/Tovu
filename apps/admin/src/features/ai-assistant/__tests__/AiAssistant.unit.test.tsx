@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AiAssistant } from "../AiAssistant";
-import { getNav } from "../../../nav";
+import { getNav } from "@/nav";
 
 /**
  * @file The "AI Assistant" admin screen — the public assistant's master switch plus the

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { navigate as defaultNavigate } from "../../../lib/router";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { navigate as defaultNavigate } from "@/lib/router";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { FORM_TABS, KEYS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients, visibleFormEditorError } from "../rules";
 import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";

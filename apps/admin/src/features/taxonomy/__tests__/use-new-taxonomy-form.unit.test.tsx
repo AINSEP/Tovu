@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useNewTaxonomyForm, useWiredNewTaxonomyForm } from "../hooks/use-new-taxonomy-form.hooks";
 import { createFakeNewTaxonomyFormPort } from "../hooks/new-taxonomy-form-dependencies.hooks";
 

@@ -2,8 +2,8 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminTaxonomyWithTerms, AdminTerm } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { Taxonomy } from "../Taxonomy";
 import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
 

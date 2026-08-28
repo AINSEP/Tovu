@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminConnector } from "../../../lib/api";
+import type { AdminConnector } from "@/lib/api";
 
 /**
  * @file Coverage for `connectors-port.ts` (0/8 funcs) — Tovu's real `ConnectorsPort`

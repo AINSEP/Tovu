@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import { api, type AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "@/lib/api";
 
 /**
  * @file `PostEditor` — pins three new/fixed user-visible behaviors from the forms/PostEditor deep

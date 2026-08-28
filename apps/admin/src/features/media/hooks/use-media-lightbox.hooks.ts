@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
 
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "@/lib/api";
 import { isValidLightboxIndex, lightboxHasNext, lightboxHasPrev, resolveLightboxItem } from "../rules";
 
 /**

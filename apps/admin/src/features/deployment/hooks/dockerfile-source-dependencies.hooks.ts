@@ -1,4 +1,4 @@
-import { api, type AdminDockerfileSource } from "../../../lib/api";
+import { api, type AdminDockerfileSource } from "@/lib/api";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

@@ -1,4 +1,4 @@
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
 
 /**

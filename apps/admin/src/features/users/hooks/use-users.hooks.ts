@@ -1,10 +1,10 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
-import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { useAsyncAction } from "../../../hooks/use-async-action.hooks";
+import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useAsyncAction } from "@/hooks/use-async-action.hooks";
 import { describeApiError, KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { passwordResetNotice, t } from "../users-i18n";
 import { defaultUsersPort } from "./users-dependencies.hooks";
 import type { UsersPort } from "./users-port.hooks";

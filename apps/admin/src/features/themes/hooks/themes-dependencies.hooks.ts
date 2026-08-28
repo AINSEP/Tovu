@@ -1,4 +1,4 @@
-import { api, type PresentationSettings, type ThemeTier } from "../../../lib/api";
+import { api, type PresentationSettings, type ThemeTier } from "@/lib/api";
 import type { ThemesPort } from "./themes-port.hooks";
 
 /**

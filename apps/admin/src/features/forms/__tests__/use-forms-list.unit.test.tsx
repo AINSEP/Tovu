@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useFormsList } from "../hooks/use-forms-list.hooks";
 import { createFakeFormsPort } from "../hooks/forms-dependencies.hooks";
-import type { AdminFormDefinition } from "../../../lib/api";
+import type { AdminFormDefinition } from "@/lib/api";
 
 /**
  * @file `useFormsList` — the Forms LIST screen's load/status-toggle state.

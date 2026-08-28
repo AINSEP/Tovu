@@ -5,7 +5,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { Posts } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file Regression test for this batch's RowMenu wiring on `Posts.tsx` — representative test for

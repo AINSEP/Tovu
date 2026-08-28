@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminPost } from "../../../lib/api";
+import { describeApiError, type AdminPost } from "@/lib/api";
 import { mergeRecent } from "../rules";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
 import type { DashboardPort } from "./dashboard-port.hooks";
 

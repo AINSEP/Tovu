@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { resolveComposerDiscoveryOutcome } from "../AssistantDock";
-import { projectComposerCapabilities } from "../../../features/plugins/composer-capabilities";
-import type { ComposerHostBinding, TovuComposerCapability } from "../../../features/plugins/composer-capabilities";
+import { projectComposerCapabilities } from "@/features/plugins/composer-capabilities";
+import type { ComposerHostBinding, TovuComposerCapability } from "@/features/plugins/composer-capabilities";
 import type { ComposerDiscoverySelection } from "@jini-ai/chat/react";
 
 /**

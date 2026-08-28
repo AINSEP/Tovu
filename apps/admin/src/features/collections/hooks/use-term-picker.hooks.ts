@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { describeApiError } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { assignedTermsMessage, t } from "../collections-i18n";
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
 import type { TermPickerPort } from "./term-picker-port.hooks";

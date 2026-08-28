@@ -1,12 +1,12 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
-import type { AdminMember } from "../../../lib/api";
+import type { AdminMember } from "@/lib/api";
 import { describeApiError, emptyRowState, type RowActionState } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../members-i18n";
 import { defaultMembersPort } from "./members-dependencies.hooks";
 import type { MembersPort } from "./members-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Members screen does, so `Members.tsx` is only markup.

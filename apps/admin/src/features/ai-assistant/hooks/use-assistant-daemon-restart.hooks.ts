@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 // override's `FORBIDDEN` copy names "the AI assistant's settings" specifically, which would be a
 // wrong claim here: this hook's `system.write` denial is about restarting the daemon process, not
 // about a settings write. `rules.ts`'s own doc invites exactly this per-screen judgment call.
-import { describeApiError } from "../../../lib/api";
+import { describeApiError } from "@/lib/api";
 import { defaultAssistantDaemonRestartPort } from "./assistant-daemon-restart-dependencies.hooks";
 import type { AssistantDaemonRestartPort } from "./assistant-daemon-restart-port.hooks";
 

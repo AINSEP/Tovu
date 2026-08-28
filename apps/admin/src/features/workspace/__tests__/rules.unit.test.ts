@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError, type AdminWorkspace } from "../../../lib/api";
+import { ApiError, type AdminWorkspace } from "@/lib/api";
 import { describeApiError, isWorkspaceDirty } from "../rules";
 
 /**

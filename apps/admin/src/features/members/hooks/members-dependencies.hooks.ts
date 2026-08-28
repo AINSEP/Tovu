@@ -1,4 +1,4 @@
-import { api, type AdminMember } from "../../../lib/api";
+import { api, type AdminMember } from "@/lib/api";
 import type { MembersPort } from "./members-port.hooks";
 
 /**

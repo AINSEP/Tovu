@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminMember } from "../../../lib/api";
+import type { AdminMember } from "@/lib/api";
 
 /**
  * @file Coverage for `members-dependencies.hooks.ts` (3/12 funcs, 0% branch) —

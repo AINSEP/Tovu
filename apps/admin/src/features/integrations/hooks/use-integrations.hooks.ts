@@ -1,8 +1,8 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminWebhookSubscription } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminWebhookSubscription } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../integrations-i18n";
 import { KEYS, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";

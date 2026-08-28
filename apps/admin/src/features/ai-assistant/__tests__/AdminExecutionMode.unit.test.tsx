@@ -4,9 +4,9 @@ import type { ExecutionConfig } from "@jini-ai/ui";
 
 import { AdminExecutionMode } from "../AiAssistant";
 import type { AdminExecutionModeController } from "../hooks/use-admin-execution-mode.hooks";
-import type { AdminExecutionCredentialController } from "../../../hooks/use-admin-execution-credential.hooks";
-import type { SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
-import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "../../../lib/execution-settings";
+import type { AdminExecutionCredentialController } from "@/hooks/use-admin-execution-credential.hooks";
+import type { SettingsSlice } from "@/hooks/use-settings-slice.hooks";
+import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 
 /**
  * @file First direct test for `AdminExecutionMode` (previously unexported, no test file of its own —

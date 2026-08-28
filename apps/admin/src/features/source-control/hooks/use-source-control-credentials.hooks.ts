@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import {
   SOURCE_CONTROL_CREDENTIAL_ROW_LABEL,
   SOURCE_CONTROL_PROVIDERS,

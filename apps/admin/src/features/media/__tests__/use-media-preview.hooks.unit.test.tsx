@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMedia } from "../../../lib/api";
+import { api, type AdminMedia } from "@/lib/api";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMediaPreview } from "../hooks/use-media-preview.hooks";
 

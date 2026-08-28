@@ -1,11 +1,11 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminRedirectImportResponse, type RedirectImportRule } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
+import { describeApiError, type AdminRedirectImportResponse, type RedirectImportRule } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
 import { KEYS, parseImportPayload } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file The bulk-import affordance (SPEC-037 REQ-04), so `ImportRedirectsForm` in `Redirects.tsx`

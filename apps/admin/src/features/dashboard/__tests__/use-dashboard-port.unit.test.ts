@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { useDashboard } from "../hooks/use-dashboard.hooks";
 import { createFakeDashboardPort } from "../hooks/dashboard-dependencies.hooks";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file `useDashboard`'s injected-port seam (2026-08-14, closes the port-conversion gap

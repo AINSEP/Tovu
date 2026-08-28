@@ -7,8 +7,8 @@ import type { TimelineSectionController } from "../hooks/use-timeline-section.ho
 import type { RestorePointsSectionController } from "../hooks/use-restore-points-section.hooks";
 import type { MigrateForwardSectionController } from "../hooks/use-migrate-forward-section.hooks";
 import type { SchemaStateSectionController } from "../hooks/use-schema-state-section.hooks";
-import { navigate } from "../../../lib/router";
-import type { AdminLedgerRow, AdminRestorePoint } from "../../../lib/api";
+import { navigate } from "@/lib/router";
+import type { AdminLedgerRow, AdminRestorePoint } from "@/lib/api";
 
 /**
  * @file `Database` — the `/admin/database` screen (design-spec.md §3, ADR-041). Markup only for

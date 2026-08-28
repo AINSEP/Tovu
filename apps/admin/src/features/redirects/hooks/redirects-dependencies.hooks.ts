@@ -4,7 +4,7 @@ import {
   type AdminRedirectHitStats,
   type AdminRedirectImportResponse,
   type RedirectImportRule,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { RedirectsPort } from "./redirects-port.hooks";
 
 /**

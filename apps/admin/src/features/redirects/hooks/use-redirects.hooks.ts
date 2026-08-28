@@ -1,13 +1,13 @@
 import { useState } from "react";
 
-import type { AdminRedirect } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery, type QueryStatus } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { AdminRedirect } from "@/lib/api";
+import { useFetchMutation, useFetchQuery, type QueryStatus } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../redirects-i18n";
 import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, nextRedirectStatus, visibleRedirectsError } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Redirects LIST screen does, so `Redirects.tsx` is only markup.

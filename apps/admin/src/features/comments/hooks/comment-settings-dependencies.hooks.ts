@@ -1,4 +1,4 @@
-import { api, type CommentsSettings } from "../../../lib/api";
+import { api, type CommentsSettings } from "@/lib/api";
 import type { CommentSettingsPort } from "./comment-settings-port.hooks";
 
 /**

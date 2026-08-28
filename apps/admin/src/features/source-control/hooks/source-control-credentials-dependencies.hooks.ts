@@ -1,4 +1,4 @@
-import { api, type AdminSourceControlConnectionInput, type AdminSourceControlCredentialsSnapshot } from "../../../lib/api";
+import { api, type AdminSourceControlConnectionInput, type AdminSourceControlCredentialsSnapshot } from "@/lib/api";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
 /**

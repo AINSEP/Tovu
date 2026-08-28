@@ -1,4 +1,4 @@
-import { api, type AdminWidgetArea, type AdminWidgetPlacement, type AdminWidgetRegionBinding } from "../../../lib/api";
+import { api, type AdminWidgetArea, type AdminWidgetPlacement, type AdminWidgetRegionBinding } from "@/lib/api";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 
 /**

@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WidgetInstanceEditor, widgetInstanceGuard } from "../WidgetInstanceEditor";
-import type { AdminWidget } from "../../../lib/api";
+import type { AdminWidget } from "@/lib/api";
 
 /**
  * @file `WidgetInstanceEditor` — pins the fix for the audit's Major finding on

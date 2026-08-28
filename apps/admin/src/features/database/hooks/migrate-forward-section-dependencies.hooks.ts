@@ -1,4 +1,4 @@
-import { api, type GatedConfirmResult, type GatedPlanResult, type MigrateForwardExecuteResult } from "../../../lib/api";
+import { api, type GatedConfirmResult, type GatedPlanResult, type MigrateForwardExecuteResult } from "@/lib/api";
 import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
 
 /**

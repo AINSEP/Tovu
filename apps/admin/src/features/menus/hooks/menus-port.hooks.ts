@@ -1,4 +1,4 @@
-import type { AdminMenu, AdminMenuItem } from "../../../lib/api";
+import type { AdminMenu, AdminMenuItem } from "@/lib/api";
 
 /**
  * @file What `use-menu-editor.hooks.ts` and `use-menus.hooks.ts` need from the outside world, as

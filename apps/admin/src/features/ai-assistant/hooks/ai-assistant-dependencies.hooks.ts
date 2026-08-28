@@ -1,4 +1,4 @@
-import { api, type PublicAssistantSettings } from "../../../lib/api";
+import { api, type PublicAssistantSettings } from "@/lib/api";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";
 
 /**

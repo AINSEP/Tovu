@@ -1,4 +1,4 @@
-import { navigate } from "../../../lib/router";
+import { navigate } from "@/lib/router";
 
 export type MediaTabId = "all" | "images" | "videos" | "media-providers";
 

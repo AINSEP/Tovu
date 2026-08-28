@@ -35,7 +35,7 @@ import { RoutedA2uiSurfaceCard } from "../RoutedA2uiSurfaceCard";
 import {
   resetPlaygroundRenderTargetBus,
   setPlaygroundRenderTarget,
-} from "../../../lib/playground-render-target-bus";
+} from "@/lib/playground-render-target-bus";
 
 const baseProps = {
   name: "a2ui",

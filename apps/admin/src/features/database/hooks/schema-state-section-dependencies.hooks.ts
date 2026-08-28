@@ -1,4 +1,4 @@
-import { api, type AdminSchemaState } from "../../../lib/api";
+import { api, type AdminSchemaState } from "@/lib/api";
 import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
 
 /**

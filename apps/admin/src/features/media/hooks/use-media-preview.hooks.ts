@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "@/lib/api";
 import { mediaAltText } from "../rules";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";

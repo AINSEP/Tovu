@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery, useInvalidate } from "../../../lib/fetch-query";
-import { contentRefreshApplies, subscribeToContentRefresh } from "../../../lib/content-refresh-bus";
+import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { contentRefreshApplies, subscribeToContentRefresh } from "@/lib/content-refresh-bus";
 import {
   describeDeleteBlocked,
   findSelectedTerm,
@@ -10,7 +10,7 @@ import {
   visibleTaxonomyError,
   type DeleteBlockedState,
 } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";

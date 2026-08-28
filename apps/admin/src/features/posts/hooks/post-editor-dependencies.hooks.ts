@@ -1,4 +1,4 @@
-import { api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "../../../lib/api";
+import { api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "@/lib/api";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**

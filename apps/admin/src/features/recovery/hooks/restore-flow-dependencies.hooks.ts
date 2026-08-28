@@ -4,7 +4,7 @@ import {
   type GatedConfirmResult,
   type GatedPlanResult,
   type RestoreExecuteResult,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
 /**

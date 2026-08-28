@@ -6,12 +6,12 @@ import {
   type AdminContentType,
   type AdminEntry,
   type AdminTaxonomyWithTerms,
-} from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+} from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, visibleEntryEditorError } from "../rules";
-import { WidgetEmbed } from "../../../lib/widget-embed-extension";
-import { navigate as defaultNavigate } from "../../../lib/router";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { WidgetEmbed } from "@/lib/widget-embed-extension";
+import { navigate as defaultNavigate } from "@/lib/router";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT, entryLifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionEntryEditorPort } from "./collection-entry-editor-dependencies.hooks";
 import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.hooks";

@@ -1,4 +1,4 @@
-import type { AdminExportRunSnapshot } from "../../../lib/api";
+import type { AdminExportRunSnapshot } from "@/lib/api";
 
 /**
  * @file What `useStaticExport` needs from the outside world, as an interface rather than a direct

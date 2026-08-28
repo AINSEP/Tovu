@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SettingsSection } from "../Comments";
 import type { CommentSettingsController } from "../hooks/use-comment-settings.hooks";
-import type { CommentsSettings } from "../../../lib/api";
+import type { CommentsSettings } from "@/lib/api";
 
 /**
  * @file First direct test for `SettingsSection` (previously module-private, only reachable through

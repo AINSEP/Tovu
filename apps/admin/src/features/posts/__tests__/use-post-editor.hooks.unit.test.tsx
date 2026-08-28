@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminMedia, AdminPost } from "../../../lib/api";
+import type { AdminMedia, AdminPost } from "@/lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { describeApiError } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
+import { describeApiError } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
 import {
   addDraftField,
   emptyField,
@@ -13,7 +13,7 @@ import {
   type DraftField,
 } from "../rules";
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../collections-i18n";
 import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
 import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";

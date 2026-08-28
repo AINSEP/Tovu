@@ -1,9 +1,9 @@
 import { useRef, useState } from "react";
 
-import type { AdminMedia } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
+import type { AdminMedia } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
 import { KEYS, describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";

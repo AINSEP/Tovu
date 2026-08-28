@@ -1,4 +1,4 @@
-import type { PresentationSettings, ThemeTier } from "../../../lib/api";
+import type { PresentationSettings, ThemeTier } from "@/lib/api";
 
 /**
  * @file What `use-themes.hooks.ts` needs from the outside world, as an interface rather than a

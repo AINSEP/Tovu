@@ -1,4 +1,4 @@
-import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify } from "../../../lib/api";
+import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify } from "@/lib/api";
 import type { FormsPort } from "./forms-port.hooks";
 
 /**

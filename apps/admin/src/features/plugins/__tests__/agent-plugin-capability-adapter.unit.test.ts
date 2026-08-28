@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { toTovuComposerCapability, type AgentPluginCapabilityDescriptor } from "../agent-plugin-capability-adapter";
 import { projectComposerCapabilities, type ComposerCapabilitySource } from "../composer-capabilities";
-import { resolveComposerDiscoveryOutcome } from "../../../components/AssistantDock/AssistantDock";
+import { resolveComposerDiscoveryOutcome } from "@/components/AssistantDock/AssistantDock";
 
 /**
  * @file Reconciliation coverage for the Agent Plugins adapter's candidate descriptor shape

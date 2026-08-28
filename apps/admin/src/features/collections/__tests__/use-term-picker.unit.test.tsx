@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
 import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
 

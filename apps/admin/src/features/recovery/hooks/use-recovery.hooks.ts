@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "../../../lib/api";
+import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "@/lib/api";
 import { parseDeepLinkEnvelope } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
 import type { RecoveryPort } from "./recovery-port.hooks";
 

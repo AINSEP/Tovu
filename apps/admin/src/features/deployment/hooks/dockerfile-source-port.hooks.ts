@@ -1,4 +1,4 @@
-import type { AdminDockerfileSource } from "../../../lib/api";
+import type { AdminDockerfileSource } from "@/lib/api";
 
 /**
  * @file What `useDockerfileSource` needs from the outside world, as an interface rather than a

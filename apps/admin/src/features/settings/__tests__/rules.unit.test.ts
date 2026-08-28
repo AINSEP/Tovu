@@ -11,7 +11,7 @@ import {
   validateExternalMcpOAuthIdentity,
   type SliceLoadState,
 } from "../rules";
-import type { SaveState } from "../../../hooks/use-settings-slice.hooks";
+import type { SaveState } from "@/hooks/use-settings-slice.hooks";
 import { firstLoadError } from "../rules";
 
 /**

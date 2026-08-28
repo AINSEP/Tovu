@@ -1,4 +1,4 @@
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import type { NewTermFormPort } from "./new-term-form-port.hooks";
 
 /**

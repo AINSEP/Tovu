@@ -1,4 +1,4 @@
-import type { AdminTaxonomyWithTerms, AdminTerm } from "../../../lib/api";
+import type { AdminTaxonomyWithTerms, AdminTerm } from "@/lib/api";
 
 /**
  * @file What `useTaxonomy` and `useTermDetailPanel` need from the outside world, as an interface
