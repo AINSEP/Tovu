@@ -1,5 +1,6 @@
 import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/inbound/admin-http/http/members";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
@@ -34,21 +35,14 @@ export const registerAdminMemberDisableRoute: RouteRegistrar = (app, routeDeps) 
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
 
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "member.manage",
         workspaceId: deps.workspaceId,
         entityType: "member",
         entityId: memberId,
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'member.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "member.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const result = await disableMember({
         deps: toMembersWriteServiceDeps(deps),

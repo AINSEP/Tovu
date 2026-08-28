@@ -8,6 +8,7 @@ import {
   validateStaticPublishConfig,
   type StaticPublishConfig,
 } from "#src/features/deployments/static-publish/index";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -206,20 +207,13 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
         entityType: "site-publish",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.publish", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
       // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
@@ -286,20 +280,13 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "system.publish",
         workspaceId: deps.workspaceId,
         entityType: "site-publish",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.publish", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       res.status(200).json(getPublishRunSnapshot());
     } catch (err) {
@@ -316,20 +303,13 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "system.read",
         workspaceId: deps.workspaceId,
         entityType: "site-publish",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "system.read", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const parsed = parsePreviewQuery(req.query as Record<string, unknown>);
       if (!parsed.ok) {

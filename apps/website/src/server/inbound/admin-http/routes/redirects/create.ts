@@ -1,5 +1,6 @@
 import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "#src/features/redirects/index";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/inbound/admin-http/http/redirects";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError } from "./shared.js";
 
@@ -63,20 +64,13 @@ export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, de
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.redirects.manage",
         workspaceId: deps.workspaceId,
         entityType: "redirect",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.redirects.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.redirects.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const { record } = await createRedirect({
         deps: deps.redirectsWriteDeps,

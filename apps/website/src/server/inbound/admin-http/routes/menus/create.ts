@@ -1,6 +1,7 @@
 import { createMenu, MenuConflictError, MenuValidationError } from "#src/features/navigation/index";
 import type { NavItemNode } from "#src/features/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/inbound/admin-http/http/menus";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /** This route's three body fields, read off an untyped body in one place, or `null` if a present
@@ -49,20 +50,13 @@ export const registerAdminMenuCreateRoute: MenuRouteRegistrar = (app, deps) => {
       // route runs, but Express 4 doesn't catch a synchronous throw from an async handler
       // outside try/catch (the request would otherwise hang instead of 500ing).
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.menus.create",
         workspaceId: deps.workspaceId,
         entityType: "menu",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.menus.create' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.menus.create", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const { menu } = await createMenu({
         deps: { repo: deps.menuRepo, clock: deps.clock, idGen: deps.idGen, outbox: deps.outbox },
