@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { InMemorySettingsRepo } from "../../settings/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 
 /**

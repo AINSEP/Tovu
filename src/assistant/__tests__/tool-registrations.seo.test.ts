@@ -25,9 +25,9 @@ import {
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
 } from "../../features/media/index.js";
-import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools.js";
-import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings.js";
-import { contributeSeoTools } from "../../seo/tool-registrations.js";
+import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../features/seo/agent-tools.js";
+import { ensureSeoSettingDefinitions, getSeoSettings } from "../../features/seo/settings.js";
+import { contributeSeoTools } from "../../features/seo/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {

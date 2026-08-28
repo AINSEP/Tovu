@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SqlitePostRepo } from "../../features/post/index.js";
-import { openContentDb } from "../../platform/db/sqlite/content-db.js";
+import { SqlitePostRepo } from "../../post/index.js";
+import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { SeoEntryNotFoundError } from "../errors.js";
 import { setEntrySeoOverrides } from "../write-service.js";
 

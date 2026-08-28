@@ -22,8 +22,8 @@
  *    their declarations below for why.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { PostRecord } from "../features/post/index.js";
-import type { ThemeTier } from "../features/theme/index.js";
+import type { PostRecord } from "../post/index.js";
+import type { ThemeTier } from "../theme/index.js";
 
 /**
  * Structural duplicate of `server/http/site/page-head.ts`'s `HeadElement`/`HeadElementKey`/

@@ -1,4 +1,4 @@
-import { getSeoSettings } from "#src/seo/index";
+import { getSeoSettings } from "#src/features/seo/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 

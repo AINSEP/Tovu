@@ -36,7 +36,7 @@ import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
 import { getRedirectsAgentToolCatalog } from "../../features/redirects/agent-tools.js";
-import { getSeoAgentToolCatalog } from "../../seo/agent-tools.js";
+import { getSeoAgentToolCatalog } from "../../features/seo/agent-tools.js";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { createRouteDeps } from "../../server/app.js";

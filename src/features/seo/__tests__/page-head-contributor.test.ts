@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
-import { InMemorySettingsRepo } from "../../features/settings/index.js";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../features/media/index.js";
+import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
+import { InMemorySettingsRepo } from "../../settings/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
 import type { HeadElement, PageHeadContext } from "../types.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { createSeoPageHeadHook } from "../page-head-contributor.js";

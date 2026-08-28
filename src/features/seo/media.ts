@@ -6,7 +6,7 @@ import type {
   TransformDefinitionRecord,
   TransformDefinitionRepoPort,
   TransformFormat,
-} from "../features/media/index.js";
+} from "../media/index.js";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07) —

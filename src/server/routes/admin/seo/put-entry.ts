@@ -4,8 +4,8 @@ import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
-} from "#src/seo/index";
-import { invalidateSitemapCache } from "#src/seo/index";
+} from "#src/features/seo/index";
+import { invalidateSitemapCache } from "#src/features/seo/index";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";

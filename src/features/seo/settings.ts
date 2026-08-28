@@ -9,7 +9,7 @@ import {
   registerDefinitions,
   set,
   type AuthorizeFn,
-} from "../features/settings/index.js";
+} from "../settings/index.js";
 import { SeoSettingsValidationError } from "./errors.js";
 import type { RobotsDirective, RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
 

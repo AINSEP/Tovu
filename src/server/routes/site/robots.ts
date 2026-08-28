@@ -1,4 +1,4 @@
-import { buildRobots } from "#src/seo/index";
+import { buildRobots } from "#src/features/seo/index";
 import type { SeoRouteRegistrar } from "../admin/seo/deps.js";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
