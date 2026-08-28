@@ -123,7 +123,7 @@ test("resolveForPublish returns null for a non-existent id — not an error", as
  * (`server/routes/admin/system/publish-credentials.ts`'s `sendStoreError`) only recognizes FOUR
  * specific typed errors and rethrows anything else, so the raw error escaped uncaught all the way to
  * an unhandled rejection — which, with Express 4 catching nothing and no process-level guard
- * installed either, took down the whole server (see `server/boot/process-error-guards.ts`'s header
+ * installed either, took down the whole server (see `server/runtime/boot/process-error-guards.ts`'s header
  * for that half of the fix). This test proves the TYPE, not just that it throws — `resolveForPublish`
  * already had a passing "throws on a bad AAD" test above; a raw `Error` would satisfy that just as
  * well as this typed one does, which is exactly how this gap went unnoticed.

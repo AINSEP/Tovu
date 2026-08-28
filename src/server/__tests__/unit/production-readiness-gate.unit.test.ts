@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runProductionReadinessGate, capabilityRouteGuard } from "../../production-readiness-gate.js";
+import { runProductionReadinessGate, capabilityRouteGuard } from "../../runtime/boot/production-readiness-gate.js";
 import type { CapabilityInventoryEntry } from "../../runtime/configuration/capability-inventory.js";
 
 /**

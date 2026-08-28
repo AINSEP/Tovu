@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { CAPABILITY_INVENTORY } from "../../runtime/configuration/capability-inventory.js";
-import { runProductionReadinessGate } from "../../production-readiness-gate.js";
+import { runProductionReadinessGate } from "../../runtime/boot/production-readiness-gate.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 
 /**
@@ -21,9 +21,9 @@ import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
  * the gate closes the actual gap ADR-046 exists to fix, not a synthetic stand-in for it.
  */
 
-const SERVER_DIR = path.join(import.meta.dirname, "..", "..");
-const DEPS_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "deps.ts"), "utf8");
-const APP_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "app.ts"), "utf8");
+const COMPOSITION_DIR = path.join(import.meta.dirname, "..", "..", "runtime", "composition");
+const DEPS_SOURCE = fs.readFileSync(path.join(COMPOSITION_DIR, "deps.ts"), "utf8");
+const APP_SOURCE = fs.readFileSync(path.join(COMPOSITION_DIR, "app.ts"), "utf8");
 
 test("AC-23/24/REQ-12: every capability named in the inventory corresponds to something real in deps.ts or app.ts", () => {
   for (const cap of CAPABILITY_INVENTORY) {

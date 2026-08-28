@@ -176,16 +176,16 @@ const HAND_WRITTEN_RULES = [
       name: "plugin-loading-internals-confined-to-plugin-runtime",
       severity: "warn",
       comment:
-        "SPEC-005 (ADR-005-ARCH Enforcement) — Node's module-customization/loader internals ('node:module' for module.register(), 'node:vm', and the SDK-resolution boot hook) are plugin-loading internals. Only src/features/plugin-runtime/** and the one boot module that registers the resolver (src/server/boot/plugin-sdk-resolver.ts, CIC U-002) may reach them; everything else consumes plugins through plugin-runtime's own exports. Keeps the in-process ESM loader a single auditable surface — ADR-024 Tier-3 (first-party/explicitly-sideloaded code), NOT an isolated sandbox.",
+        "SPEC-005 (ADR-005-ARCH Enforcement) — Node's module-customization/loader internals ('node:module' for module.register(), 'node:vm', and the SDK-resolution boot hook) are plugin-loading internals. Only src/features/plugin-runtime/** and the one boot module that registers the resolver (src/server/runtime/boot/plugin-sdk-resolver.ts, CIC U-002) may reach them; everything else consumes plugins through plugin-runtime's own exports. Keeps the in-process ESM loader a single auditable surface — ADR-024 Tier-3 (first-party/explicitly-sideloaded code), NOT an isolated sandbox.",
       from: {
         path: "^src",
         // Exempt: plugin-runtime itself; the resolver module and its own certified suite; and
         // src/index.ts, which CIC U-002-B1 REQUIRES to call registerPluginSdkResolver() during
         // boot before any route is reachable — that call site is the constraint, not a breach.
         pathNot:
-          "^(src/features/plugin-runtime|src/server/boot/plugin-sdk-resolver\\.ts|src/server/boot/__tests__|src/index\\.ts$)",
+          "^(src/features/plugin-runtime|src/server/runtime/boot/plugin-sdk-resolver\\.ts|src/server/runtime/boot/__tests__|src/index\\.ts$)",
       },
-      to: { path: "^(node:module|node:vm|src/server/boot/plugin-sdk-resolver\\.ts)$" },
+      to: { path: "^(node:module|node:vm|src/server/runtime/boot/plugin-sdk-resolver\\.ts)$" },
     },
     {
       // Phase 0 restructure (2026-08-27, ADS-memory consensus report

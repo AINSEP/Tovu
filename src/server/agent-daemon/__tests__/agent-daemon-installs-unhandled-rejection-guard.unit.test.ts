@@ -8,7 +8,7 @@ import test from "node:test";
  * with NO restart supervisor (`index.ts`'s own `spawnAgentDaemon()`: "there is no retry path today
  * (this function is called exactly once per process boot)") — installs the same process-wide
  * `unhandledRejection` guard `index.ts`'s `main()` installs for the main process
- * (`server/boot/process-error-guards.ts`, 2026-08-16).
+ * (`server/runtime/boot/process-error-guards.ts`, 2026-08-16).
  *
  * Closing `commit-site.ts`'s unguarded `resolveDefaultForSourceControl` call fixes today's one known
  * crash path reachable from this process (`source_control_execute_commit`, wired in
