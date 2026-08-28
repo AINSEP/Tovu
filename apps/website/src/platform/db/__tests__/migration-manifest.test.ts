@@ -313,10 +313,22 @@ test("REVIEWED_JSON_COLUMNS: every entry actually classifies json-text via class
   }
 });
 
-test("REVIEWED_JSON_COLUMNS matches exactly the five columns the 2026-08-12 round-3 audit's schema.ts scan found — not more, not fewer", () => {
+// `external_mcp_servers.write_allowed_tool_names` postdates the round-3 audit: it shipped in the
+// halted phase-3 refactor snapshot (03cc7144) as a sibling of the already-reviewed
+// `allowed_tool_names`, but its own REVIEWED_JSON_COLUMNS entry was never added at the time — the
+// same naming-convention gap the round-3 audit exists to catch, just on a column the round-3 scan
+// predates rather than missed.
+test("REVIEWED_JSON_COLUMNS matches exactly the six columns known-reviewed today (the 2026-08-12 round-3 audit's five, plus write_allowed_tool_names) — not more, not fewer", () => {
   assert.deepEqual(
     new Set(Object.keys(REVIEWED_JSON_COLUMNS)),
-    new Set(["posts.ext", "composio_config.auth_config_ids", "external_mcp_servers.args", "external_mcp_servers.allowed_tool_names", "external_mcp_servers.env_names"])
+    new Set([
+      "posts.ext",
+      "composio_config.auth_config_ids",
+      "external_mcp_servers.args",
+      "external_mcp_servers.allowed_tool_names",
+      "external_mcp_servers.env_names",
+      "external_mcp_servers.write_allowed_tool_names",
+    ])
   );
 });
 

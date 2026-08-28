@@ -408,6 +408,12 @@ export const REVIEWED_JSON_COLUMNS: Readonly<Record<string, { readonly rationale
   "external_mcp_servers.env_names": {
     rationale: "a JSON array of environment-variable NAMES (plaintext; the values themselves are sealed separately), per schema.ts's own doc comment",
   },
+  "external_mcp_servers.write_allowed_tool_names": {
+    rationale:
+      "a JSON array of remote tool names separately authorized to write — trust.ts R3's override, a SECOND " +
+      "security column with the identical never-backfilled-from-the-server status as allowed_tool_names, per " +
+      "schema.ts's own doc comment",
+  },
 };
 
 // ---------------------------------------------------------------------------
