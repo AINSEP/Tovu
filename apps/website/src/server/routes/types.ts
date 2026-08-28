@@ -2,6 +2,7 @@ import type { Express } from "express";
 import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/platform/export/index";
+import type { ObservabilityPort } from "#src/platform/observability/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -875,6 +876,20 @@ export interface EventBusDeps {
 }
 
 /**
+ * This task's own addition (2026-08-28) — the Constitution Article VIII observability seam. One
+ * field, mirroring `EventBusDeps`'s own one-concern shape immediately above: every route/module
+ * reads `RouteDeps.observability` through the `ObservabilityPort` interface only, never a concrete
+ * adapter type (`platform/observability/ports.ts`'s file header explains why that boundary is the
+ * whole point of the port). `server/runtime/composition/app.ts`'s hermetic `createRouteDeps()`
+ * builds this with `createNoopObservabilityPort()`; `server/runtime/composition/deps.ts`'s
+ * `createSqliteRouteDeps()` builds it with the env-driven `createObservabilityPort()` — the same
+ * rule-of-two split every other adapter pair in this file already follows.
+ */
+export interface ObservabilityDeps {
+  observability: ObservabilityPort;
+}
+
+/**
  * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the public analytics ingest
  * buffer, its beacon config seam, and the matching boot-registration promise, extracted verbatim
  * (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
@@ -1123,7 +1138,7 @@ export interface PluginRuntimeDeps {
   pluginBeforeSaveHook: BeforeSaveHookPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & ObservabilityDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
