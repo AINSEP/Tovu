@@ -1,5 +1,18 @@
 /**
- * Emit `dist/package.json` so the compiled output can resolve `#src/*` specifiers.
+ * Emit `dist/package.json` (so the compiled output can resolve `#src/*` specifiers) and
+ * `dist/runtime-manifest.json` (so an external host — today, only Tovu-Runner — can locate
+ * the CLI entry point and check compatibility without hardcoding a path into its own source).
+ *
+ * WHY THE MANIFEST HAS TO EXIST (Phase 0 restructure, 2026-08-27, ADS-memory consensus report
+ * 2026-08-27-tovu-apps-website-restructure-consensus-report.md): Tovu-Runner's `tovu-cli.ts`
+ * used to hardcode the literal path `dist/src/cli/main.js` in two places (dev and packaged mode),
+ * which breaks the moment `src/` is renamed in a later phase. `runtime-manifest.json`'s `cliEntry`
+ * is read from THIS package's own `bin.tovu` field, so a rename that updates `bin.tovu` updates
+ * every consumer automatically — no second place to remember. `cliEntry` is relative to the Tovu
+ * repo root (the same convention `bin.tovu` itself uses), which resolves correctly whether joined
+ * onto a dev-mode sibling checkout's root or onto a packaged app's staged `Resources/tovu/` root,
+ * since `development/scripts/stage-tovu-runtime.mjs` stages `dist/` (and therefore this manifest,
+ * which lives inside it) as a unit.
  *
  * WHY THIS FILE HAS TO EXIST:
  * Node resolves a `#`-prefixed specifier against the closest package.json above the *importing
@@ -21,6 +34,7 @@
  * Run by `npm run build` after `tsc`.
  */
 
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import * as path from "node:path";
 
@@ -69,3 +83,29 @@ mkdirSync(distDir, { recursive: true });
 writeFileSync(path.join(distDir, "package.json"), `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
 
 console.log(`Wrote dist/package.json (imports: ${Object.keys(distPkg.imports).join(", ")})`);
+
+if (rootPkg.bin?.tovu === undefined) {
+  throw new Error(`No "bin.tovu" field in ${rootPkgPath}. runtime-manifest.json's cliEntry has nowhere to read from.`);
+}
+
+const minNodeMajor = /^>=\s*(\d+)\./.exec(rootPkg.engines?.node ?? "")?.[1];
+if (minNodeMajor === undefined) {
+  throw new Error(`Could not parse a ">=<major>." minimum from ${rootPkgPath}'s engines.node (${rootPkg.engines?.node}).`);
+}
+
+const tovuSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+/** Bumped only when the manifest's own shape changes in a way a consumer must branch on. */
+const RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
+
+const runtimeManifest = {
+  schemaVersion: RUNTIME_MANIFEST_SCHEMA_VERSION,
+  cliEntry: rootPkg.bin.tovu,
+  tovuVersion: rootPkg.version,
+  tovuSha,
+  minNodeMajor: Number(minNodeMajor),
+};
+
+writeFileSync(path.join(distDir, "runtime-manifest.json"), `${JSON.stringify(runtimeManifest, null, 2)}\n`, "utf8");
+
+console.log(`Wrote dist/runtime-manifest.json (cliEntry: ${runtimeManifest.cliEntry}, tovuVersion: ${runtimeManifest.tovuVersion})`);
