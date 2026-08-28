@@ -6,7 +6,7 @@ import express from "express";
 import { ExternalMcpValidationError, type ExternalMcpOAuthService } from "#src/assistant/index";
 import { OAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter, RateLimitResult } from "#src/contracts/core/rate-limit/rate-limit";
-import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
+import { startTestServer } from "../../../../../__tests__/helpers/http-test-server.js";
 import { registerExternalMcpOAuthCallbackRoute, type ExternalMcpOAuthCallbackRouteDeps } from "../oauth-callback.js";
 
 /**

@@ -18,7 +18,7 @@ import { registerAdminConnectorsGetConfigRoute } from "../../../inbound/admin-ht
 import { registerAdminConnectorsListRoute } from "../../../inbound/admin-http/routes/connectors/list.js";
 import { registerAdminConnectorsPutConfigRoute } from "../../../inbound/admin-http/routes/connectors/put-config.js";
 import { registerAdminConnectorsStatusesRoute } from "../../../inbound/admin-http/routes/connectors/statuses.js";
-import { registerComposioCallbackRoute } from "../../../routes/connectors/composio-callback.js";
+import { registerComposioCallbackRoute } from "../../../inbound/public-http/routes/connectors/composio-callback.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

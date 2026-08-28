@@ -1,6 +1,6 @@
 import { getPublishedPostBySlug, PostNotFoundError } from "#src/features/post/index";
 import { getPresentationSettings, PresentationSettingsNotFoundError } from "#src/features/presentation/index";
-import { toContentPostResponse } from "#src/server/http/content/posts";
+import { toContentPostResponse } from "#src/server/inbound/public-http/http/content/posts";
 import type { RouteRegistrar } from "#src/server/routes/types";
 
 export const registerContentPostGetRoute: RouteRegistrar = (app, deps) => {

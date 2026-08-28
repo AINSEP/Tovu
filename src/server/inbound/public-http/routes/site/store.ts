@@ -9,7 +9,7 @@
  */
 import type { Express } from "express";
 
-import type { RouteDeps } from "../types.js";
+import type { RouteDeps } from "../../../../routes/types.js";
 
 const money = (cents: number): string => `$${(cents / 100).toFixed(2)}`;
 

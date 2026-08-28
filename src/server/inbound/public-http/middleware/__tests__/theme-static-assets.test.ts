@@ -7,7 +7,7 @@ import test from "node:test";
 import express from "express";
 
 import { registerThemeStaticAssets } from "../theme-static-assets.js";
-import { createApp } from "../../runtime/composition/app.js";
+import { createApp } from "../../../../runtime/composition/app.js";
 
 /**
  * @file Regression coverage for `registerThemeStaticAssets`'s 2026-08-12 extension from a single
@@ -232,7 +232,7 @@ test("createApp(): the real 'basic' static theme's real css/theme.css still serv
   if (address === null || typeof address === "string") throw new Error("expected a real listening address");
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../../content/themes/static/basic/css/theme.css"), "utf8");
+  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../../../../content/themes/static/basic/css/theme.css"), "utf8");
   const res = await fetch(`${baseUrl}/theme-assets/basic/css/theme.css`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), onDisk);
@@ -248,7 +248,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
   const stylesOnDisk = readFileSync(
-    path.resolve(import.meta.dirname, "../../../../content/themes/templated/fashion-modern/css/theme.css"),
+    path.resolve(import.meta.dirname, "../../../../../../content/themes/templated/fashion-modern/css/theme.css"),
     "utf8"
   );
   const stylesRes = await fetch(`${baseUrl}/theme-assets/fashion-modern/css/theme.css`);
@@ -282,7 +282,7 @@ test("createApp(): all 7 static themes' real screenshot files still serve byte-f
   ];
 
   for (const { id, file } of staticThemeScreenshots) {
-    const onDiskPath = path.resolve(import.meta.dirname, `../../../../content/themes/static/${id}/screenshots/${file}`);
+    const onDiskPath = path.resolve(import.meta.dirname, `../../../../../../content/themes/static/${id}/screenshots/${file}`);
     const onDisk = readFileSync(onDiskPath);
     const res = await fetch(`${baseUrl}/theme-assets/${id}/screenshots/${file}`);
     assert.equal(res.status, 200, `${id}/screenshots/${file} should still 200`);

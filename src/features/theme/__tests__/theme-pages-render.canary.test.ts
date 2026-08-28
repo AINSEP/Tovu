@@ -4,7 +4,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "#src/contracts/core/embeds/marker";
-import { renderHtmlPageBody } from "#src/server/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 

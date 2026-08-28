@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { renderViaTemplate, type TemplateRenderDeps } from "../../routes/site/pages.js";
+import { renderViaTemplate, type TemplateRenderDeps } from "../../inbound/public-http/routes/site/pages.js";
 
 /**
  * @file 2026-08-19 architecture audit finding 4: the "Template not configured" diagnostic page

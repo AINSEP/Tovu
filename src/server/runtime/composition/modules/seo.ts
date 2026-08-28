@@ -4,8 +4,8 @@ import { registerAdminSeoGetEntryAnalyzeRoute } from "../../../inbound/admin-htt
 import { registerAdminSeoGetSettingsRoute } from "../../../inbound/admin-http/routes/seo/get-settings.js";
 import { registerAdminSeoPutSettingsRoute } from "../../../inbound/admin-http/routes/seo/put-settings.js";
 import { registerAdminSeoPostSitemapRegenerateRoute } from "../../../inbound/admin-http/routes/seo/post-sitemap-regenerate.js";
-import { registerSeoSitemapRoute } from "../../../routes/site/sitemap.js";
-import { registerSeoRobotsRoute } from "../../../routes/site/robots.js";
+import { registerSeoSitemapRoute } from "../../../inbound/public-http/routes/site/sitemap.js";
+import { registerSeoRobotsRoute } from "../../../inbound/public-http/routes/site/robots.js";
 import type { SeoRouteDeps } from "../../../inbound/admin-http/routes/seo/deps.js";
 import type { ServerModuleHandle } from "./types.js";
 

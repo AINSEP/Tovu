@@ -10,7 +10,7 @@ import type {
   CommercePriceRecord,
   CommerceProductRecord,
 } from "#src/features/commerce/index";
-import { createApp, createRouteDeps } from "../../../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../../../../../runtime/composition/app.js";
 
 /**
  * @file Route-level coverage for `registerProductRoutes`'s 2026-08-12 commerce wiring — real HTTP

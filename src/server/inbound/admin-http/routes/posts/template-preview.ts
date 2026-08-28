@@ -3,7 +3,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
-import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "../../../../routes/site/pages.js";
+import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "../../../../inbound/public-http/routes/site/pages.js";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 

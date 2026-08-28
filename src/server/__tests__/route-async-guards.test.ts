@@ -8,7 +8,7 @@ import type { RouteDeps } from "../routes/types.js";
 import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
 import type { CommentIngressPolicy, CommentWriteService } from "#src/features/comments/index";
-import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook.js";
+import { registerPaymentsWebhookRoute } from "../inbound/public-http/routes/site/payments-webhook.js";
 import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 
 /**

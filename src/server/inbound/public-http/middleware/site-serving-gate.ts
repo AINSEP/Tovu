@@ -1,6 +1,6 @@
 import type { Express, NextFunction, Request, Response } from "express";
 
-import type { SiteStatusPort } from "../../features/database/boot/reconcile-interrupted-migration.js";
+import type { SiteStatusPort } from "../../../../features/database/boot/reconcile-interrupted-migration.js";
 
 /**
  * @file ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2
