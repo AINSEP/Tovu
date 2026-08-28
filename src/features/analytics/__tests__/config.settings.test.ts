@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { InMemorySettingsRepo } from "../../features/settings/index.js";
-import type { SettingValueRecord } from "../../features/settings/index.js";
+import { InMemorySettingsRepo } from "../../settings/index.js";
+import type { SettingValueRecord } from "../../settings/index.js";
 import { ANALYTICS_NAMESPACE, createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../config.settings.js";
 
 /**

@@ -2,8 +2,8 @@ import { desc, eq } from "drizzle-orm";
 
 import { analyticsEvents } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
-import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "../../../analytics/ports.js";
-import type { DeviceClass, HitKind, NormalizedHit } from "../../../analytics/types.js";
+import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "../../../features/analytics/ports.js";
+import type { DeviceClass, HitKind, NormalizedHit } from "../../../features/analytics/types.js";
 
 /**
  * @file ADR-046 Phase 1 (final capability slice) — real SQLite adapter for `AnalyticsSinkPort`

@@ -46,7 +46,7 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "./seed.js";
-import { LocalBufferSink } from "../analytics/repo.memory.js";
+import { LocalBufferSink } from "../features/analytics/repo.memory.js";
 import {
   ConsoleMailerAdapter,
   InMemoryMagicLinkTokenRepo,
@@ -117,7 +117,7 @@ import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "../widgets/resolvers/index.js";
 import { createNavMenuReadModel } from "../navigation/index.js";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../features/analytics/config.settings.js";
 import { InMemoryCommentRepo } from "../features/comments/repo.memory.js";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit.js";
 import {

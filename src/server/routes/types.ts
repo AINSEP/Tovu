@@ -25,7 +25,7 @@ import type { PresentationSettingsRepoPort } from "../../features/presentation/i
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
 import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/index.js";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../features/analytics/index.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
