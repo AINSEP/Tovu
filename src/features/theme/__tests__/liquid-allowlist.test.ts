@@ -12,10 +12,10 @@ import { ALLOWED_LIQUID_FILTERS, ALLOWED_LIQUID_TAGS, lintLiquidTemplate } from 
  */
 
 function dispatchTemplate(name: "home" | "entry"): string {
-  // `dispatch` was archived to `src/theme-archive/` (commit 4f6ce56, 2026-08-09) when the templated
+  // `dispatch` was archived to `development/fixtures/theme-archive/` (commit 4f6ce56, 2026-08-09) when the templated
   // tier's active theme became `storefront` — same fixture, same "a real theme's real template
   // lints clean" intent, matching the re-point `theme.test.ts` already made for this exact theme.
-  return readFileSync(join(process.cwd(), "src", "theme-archive", "dispatch", "templates", `${name}.liquid`), "utf8");
+  return readFileSync(join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch", "templates", `${name}.liquid`), "utf8");
 }
 
 test("a clean template with no tags/filters at all reports no violations", () => {
