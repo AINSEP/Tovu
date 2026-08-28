@@ -17,7 +17,8 @@ import type { CommitFile } from "../commit-site.js";
 type MockStep =
   | { match: RegExp; method?: string; status: number; json?: unknown; text?: string }
   | { match: RegExp; method?: string; networkError: string }
-  | { match: RegExp; method?: string; throw: unknown };
+  | { match: RegExp; method?: string; throw: unknown }
+  | { match: RegExp; method?: string; hang: true };
 
 /** Installs a sequential, order-verifying fake for `global.fetch` — each call must match the NEXT
  *  queued step's URL pattern (and method, when given) or the mock fails loudly rather than silently
@@ -40,6 +41,22 @@ function installMockFetch(steps: MockStep[]): { restore: () => void; callLog: { 
 
     if ("networkError" in step) throw new TypeError(step.networkError);
     if ("throw" in step) throw step.throw;
+    if ("hang" in step) {
+      // Never resolves on its own — the ONLY way this settles is `githubFetch`'s own
+      // `AbortSignal.timeout` firing, exactly reproducing what a real hung connection to
+      // `api.github.com` looks like from `fetch`'s perspective. If `githubFetch` ever stops
+      // passing a `signal`, this promise (and the test using it) hangs forever rather than
+      // failing fast — an honest reflection of the pre-fix bug, not a test-suite defect.
+      return new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) return;
+        if (signal.aborted) {
+          reject(signal.reason);
+          return;
+        }
+        signal.addEventListener("abort", () => reject(signal.reason));
+      });
+    }
     if (step.text !== undefined) return new Response(step.text, { status: step.status });
     return new Response(JSON.stringify(step.json ?? {}), { status: step.status, headers: { "content-type": "application/json" } });
   }) as typeof fetch;
@@ -264,6 +281,33 @@ test("NETWORK_UNREACHABLE: a thrown fetch error on the FIRST call maps distinctl
       assert.match(result.message, /ENOTFOUND/);
     }
   } finally {
+    mock.restore();
+  }
+});
+
+test("NETWORK_UNREACHABLE: a request that never gets a response times out (rather than hanging forever) and is reported with a distinguishable message", async () => {
+  // Speeds up ONLY `AbortSignal.timeout`'s own firing (5ms instead of the real production
+  // duration) so this test does not have to wait out a real 30-second deadline — the abort
+  // mechanism it triggers is the exact one `githubFetch` wires up in production. `capturedMs`
+  // proves that production duration is real and was not itself shortened by this stub.
+  const originalAbortTimeout = AbortSignal.timeout;
+  let capturedMs: number | undefined;
+  AbortSignal.timeout = ((ms: number) => {
+    capturedMs = ms;
+    return originalAbortTimeout(5);
+  }) as typeof AbortSignal.timeout;
+
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", hang: true }]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "network-unreachable");
+      assert.match(result.message, /timed out after 30000ms/, "a timeout must name itself distinctly, not read like a random connection failure");
+    }
+    assert.equal(capturedMs, 30_000, "githubFetch must wire the real, generous production timeout — only its own firing was sped up for this test");
+  } finally {
+    AbortSignal.timeout = originalAbortTimeout;
     mock.restore();
   }
 });

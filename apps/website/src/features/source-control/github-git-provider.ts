@@ -204,15 +204,26 @@ type GithubFetchResult =
   | { kind: "provider-rejected"; message: string }
   | { kind: "response"; response: Response };
 
-/** The one place every outbound call in this file goes through — adds the redirect guard
- *  (`redirectGuardInit`/`assertNotRedirected`) and separates a thrown network failure from a thrown
- *  redirect refusal from a normally-received `Response`.
+/** Bounds one `githubFetch()` round trip against the real `api.github.com`. Generous on purpose —
+ *  tree/commit/blob creation can carry a real payload and GitHub itself has occasional latency
+ *  spikes, and this file's own multi-step commit flow had NO deadline at all before this constant
+ *  existed, so a value that fires on a slow-but-working call would be a worse regression than the
+ *  unbounded wait it replaces. Mirrors the `AbortSignal.timeout` pattern already used for outbound
+ *  fetches elsewhere in this codebase (`site-inspection/published-page.ts`,
+ *  `external-mcp/admissions.ts`) rather than inventing a new one. Not overridable per call — no
+ *  caller threads options through `githubFetch` today, and none of its ten call sites need a
+ *  different value. */
+const GITHUB_FETCH_TIMEOUT_MS = 30_000;
+
+/** The one place every outbound call in this file goes through — adds the timeout and redirect
+ *  guard (`redirectGuardInit`/`assertNotRedirected`) and separates a thrown network failure (which
+ *  now includes a timeout) from a thrown redirect refusal from a normally-received `Response`.
  *
  * @complexity O(1) — one `fetch()` call.
  */
 async function githubFetch(url: string, init: RequestInit): Promise<GithubFetchResult> {
   try {
-    const response = await fetch(url, redirectGuardInit(init));
+    const response = await fetch(url, redirectGuardInit({ ...init, signal: AbortSignal.timeout(GITHUB_FETCH_TIMEOUT_MS) }));
     assertNotRedirected(response, "GitHub");
     return { kind: "response", response };
   } catch (err) {
@@ -222,9 +233,15 @@ async function githubFetch(url: string, init: RequestInit): Promise<GithubFetchR
       // failure.
       return { kind: "provider-rejected", message: err.message };
     }
+    if (err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError")) {
+      // A timeout never produced a `Response` either, so it belongs in the same bucket as any
+      // other network failure below — but with a message that names the actual cause instead of
+      // `fetch`'s own generic abort text, matching `published-page.ts`'s identical choice to give
+      // a timeout its own distinguishable wording rather than let it read like a random failure.
+      return { kind: "network-unreachable", message: `GitHub request to ${url} timed out after ${GITHUB_FETCH_TIMEOUT_MS}ms` };
+    }
     // `fetch` itself threw — no `Response` was ever produced (DNS failure, connection refused, TLS
-    // failure, timeout). Never conflated with a received HTTP error response — see this file's
-    // header.
+    // failure). Never conflated with a received HTTP error response — see this file's header.
     return { kind: "network-unreachable", message: err instanceof Error ? err.message : String(err) };
   }
 }
