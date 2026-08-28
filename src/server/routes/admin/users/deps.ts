@@ -10,7 +10,7 @@ import type { RouteDeps } from "../../types.js";
  *
  * Purpose:
  * `RouteDeps` (unlike `members`) already declares the identity repo ports as
- * flat fields (`principalRepo`, `userRepo`, ... — see `middleware/dev-auth.ts`'s
+ * flat fields (`principalRepo`, `userRepo`, ... — see `inbound/admin-http/dev-auth.ts`'s
  * `identityReposFrom`, the same shape this mirrors). The `grant-service.ts`
  * transitions (`createUser`/`createRole`/`createPolicy`/`assignRole`/
  * `attachPolicy`) want the nested `AuthServiceDeps` bag
@@ -21,7 +21,7 @@ import type { RouteDeps } from "../../types.js";
  *
  * Architectural role:
  * Composition-boundary glue only — no business logic. `identityReposFrom` in
- * `middleware/dev-auth.ts` is not exported, so this is a small, deliberate
+ * `inbound/admin-http/dev-auth.ts` is not exported, so this is a small, deliberate
  * duplicate rather than a shared import (mirrors why `members/deps.ts` has
  * its own bundle assembler instead of reaching into another route module).
  *

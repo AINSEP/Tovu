@@ -7,7 +7,7 @@ import express from "express";
 
 import type { MemberRecord } from "#src/features/members/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
 import type { MembersRouteDeps } from "../../routes/admin/members/deps.js";
 import { registerAdminMemberDisableRoute } from "../../routes/admin/members/disable.js";

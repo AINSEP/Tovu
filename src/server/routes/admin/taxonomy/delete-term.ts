@@ -9,7 +9,7 @@ import {
   TermHasAssignedContentError,
   TermHasChildTermsError,
 } from "#src/features/taxonomy/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps.js";
 
 /**

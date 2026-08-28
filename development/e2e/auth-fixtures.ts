@@ -8,7 +8,7 @@ import type { Page } from "@playwright/test";
  *
  * ## Mandate 1 finding: `dev-auth.ts` is not dev-only
  *
- * Despite its filename, `src/server/middleware/dev-auth.ts` is the ONLY auth implementation this
+ * Despite its filename, `src/server/inbound/admin-http/dev-auth.ts` is the ONLY auth implementation this
  * codebase has, in every boot shape (`node --import tsx src/index.ts`, `TOVU_DB=memory`, a built
  * production boot — `src/server/modules/core.ts` registers `registerAuthRoutes` /
  * `requireAdminSession` unconditionally, with no `NODE_ENV` branch anywhere in that path). Its own

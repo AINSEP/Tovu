@@ -9,7 +9,7 @@ import {
 } from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
 import { createEntry } from "#src/features/entries/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 
 function statusFor(error: Error): { status: number; code: string } {

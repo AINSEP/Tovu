@@ -1,5 +1,5 @@
 import { toAdminWorkspaceResponse } from "#src/server/http/admin/workspace";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**

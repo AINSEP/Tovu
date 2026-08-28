@@ -5,7 +5,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";

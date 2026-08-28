@@ -5,7 +5,7 @@ import express from "express";
 
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createAssistantExecutionModule } from "../runtime/composition/modules/assistant-execution.js";
 import { setSiteAssistantCredential } from "../../assistant/index.js";
 import type { RouteDeps } from "../routes/types.js";

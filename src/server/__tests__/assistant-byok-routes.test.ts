@@ -5,7 +5,7 @@ import express from "express";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { createAssistantByokModule } from "../runtime/composition/modules/assistant-byok.js";
-import { registerAuthRoutes } from "../middleware/dev-auth.js";
+import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/index.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";

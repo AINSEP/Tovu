@@ -6,7 +6,7 @@ import {
 } from "#src/features/navigation/index";
 import type { NavItemNode } from "#src/features/navigation/index";
 import { toAdminMenuResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { Response } from "express";
 
 /** The PUT body's four fields, read off an untyped body, or `null` if `items` is not an array.

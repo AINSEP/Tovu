@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { listEntries } from "#src/features/entries/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 
 /**

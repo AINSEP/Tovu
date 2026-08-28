@@ -5,7 +5,7 @@ import {
   IdentityValidationError,
 } from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**

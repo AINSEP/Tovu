@@ -7,7 +7,7 @@ import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import type { ContentTypeRevisionInput } from "../../features/content-types/index.js";
 import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createContentTypesModule } from "../runtime/composition/modules/content-types.js";
 import type { RouteDeps } from "../routes/types.js";
 import { startTestServer } from "./helpers/http-test-server.js";

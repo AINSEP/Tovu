@@ -1,5 +1,5 @@
 import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**

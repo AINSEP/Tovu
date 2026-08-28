@@ -7,7 +7,7 @@ import {
   saveComposioApiKey,
   type ComposioConfigWriteDeps,
 } from "#src/platform/connectors/composio-config-store";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import type { ConnectorsConfigRouteDeps } from "./deps.js";

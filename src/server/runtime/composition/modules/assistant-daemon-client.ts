@@ -18,7 +18,7 @@ import type { Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../../../assistant/index.js";
 import { ensureAssistantDaemonStarted } from "../../lifecycle/daemon-supervisor.js";
-import { getAuthedPrincipal } from "../../../middleware/dev-auth.js";
+import { getAuthedPrincipal } from "../../../inbound/admin-http/dev-auth.js";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 
 export const AGENT_DAEMON_URL =

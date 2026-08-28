@@ -2,7 +2,7 @@ import type { Request } from "express";
 
 import type { MemberRecord } from "#src/features/members/index";
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { MembersRouteDeps } from "./deps.js";
 

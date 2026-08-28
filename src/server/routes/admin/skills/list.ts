@@ -1,5 +1,5 @@
 import { toInstalledSkillsResponse } from "#src/server/http/admin/skills";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
 

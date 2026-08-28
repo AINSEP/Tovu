@@ -7,7 +7,7 @@ import {
   updatePolicy,
 } from "@jini-ai/cms/identity";
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /** This route's two writable PATCH fields — `undefined` means "leave unchanged" — read off an

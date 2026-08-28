@@ -45,7 +45,7 @@ export default defineConfig({
   testMatch: /byok-.*\.spec\.ts/,
   timeout: 30_000,
   // NOT `fullyParallel`, and pinned to a single worker: every spec in this suite logs in
-  // through the REAL `LOGIN_STRICT` rate limiter (`src/server/middleware/dev-auth.ts`) —
+  // through the REAL `LOGIN_STRICT` rate limiter (`src/server/inbound/admin-http/dev-auth.ts`) —
   // measured live, concurrent logins across parallel workers return 429 instead of 200, which
   // has nothing to do with the behavior under test. This is not "shortening a duration to make
   // a test convenient" (that would mean weakening an assertion) — the rate limiter itself is

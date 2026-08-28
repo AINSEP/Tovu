@@ -1,7 +1,7 @@
 import { PluginNotFoundError } from "#src/features/plugin-runtime/activation";
 import { PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "#src/features/plugin-runtime/uninstall";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps.js";
 
 /**

@@ -1,6 +1,6 @@
 import { processOutbox } from "#src/contracts/core/events/index";
 import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**

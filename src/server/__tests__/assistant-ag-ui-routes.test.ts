@@ -226,7 +226,7 @@ function harness() {
 
     const { createRouteDeps } = await import("../runtime/composition/app.js");
     const { createAssistantAgUiModule } = await import("../runtime/composition/modules/assistant-ag-ui.js");
-    const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
+    const { registerAuthRoutes } = await import("../inbound/admin-http/dev-auth.js");
 
     return {
       daemon: server,

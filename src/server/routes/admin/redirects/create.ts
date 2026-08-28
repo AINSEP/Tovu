@@ -1,6 +1,6 @@
 import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "#src/features/redirects/index";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError } from "./shared.js";
 
 const VALID_MATCH_TYPES = new Set(["exact", "prefix", "wildcard", "regex"]);

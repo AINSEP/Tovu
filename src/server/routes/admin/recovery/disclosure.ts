@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { computeDisclosure } from "#src/features/recovery/disclosure";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /** ADR-045 §3 Step 2 / `disclosure.ts`'s own file header — the versioned, single, auditable list

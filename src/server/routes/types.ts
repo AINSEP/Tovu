@@ -117,7 +117,7 @@ export interface ClockDeps {
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the identity/auth-repo fields
- * `requireAdminSession`/`registerAuthRoutes` (`middleware/dev-auth.ts`) actually consume, extracted
+ * `requireAdminSession`/`registerAuthRoutes` (`inbound/admin-http/dev-auth.ts`) actually consume, extracted
  * verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
  *
  * `identity` library repo ports (ADR-021 / SPEC-006) — principal-centric
@@ -568,7 +568,7 @@ export interface DatabaseRecoveryDeps {
  * `CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps` (Slice 8) above are an incremental
  * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
  * intersection so this type stays 100% identical to every existing consumer. Narrowed call sites so
- * far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
+ * far: `inbound/admin-http/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
  * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
  * `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files
  * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s

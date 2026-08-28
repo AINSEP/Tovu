@@ -11,7 +11,7 @@ import {
   updateSourceControlCredential,
   type SourceControlCredentialSummary,
 } from "#src/features/source-control/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

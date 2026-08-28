@@ -10,7 +10,7 @@ import { InMemoryConnectorCredentialRepo } from "../../platform/connectors/conne
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createConnectorsModule } from "../runtime/composition/modules/connectors.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated } from "./helpers/http-test-server.js";

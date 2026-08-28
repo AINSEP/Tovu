@@ -3,7 +3,7 @@ import type { Request } from "express";
 import { createSubscription, WebhookSubscriptionValidationError } from "#src/features/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /** Pulls the create-subscription fields out of the request body, applying the same

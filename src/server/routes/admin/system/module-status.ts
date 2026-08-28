@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { getReadinessSnapshot } from "#src/server/runtime/lifecycle/readiness-state";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
 /**

@@ -7,7 +7,7 @@ import express from "express";
 import type { PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSeoGetEntryRoute } from "../../routes/admin/seo/get-entry.js";
 import { registerAdminSeoPutEntryRoute } from "../../routes/admin/seo/put-entry.js";
 import { SITE_TITLE } from "../../routes/site/pages.js";

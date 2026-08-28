@@ -6,7 +6,7 @@ import {
   IdentityValidationError,
   removePolicyPermission,
 } from "@jini-ai/cms/identity";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /** Maps this route's thrown error types onto the admin error envelope — the same mapping

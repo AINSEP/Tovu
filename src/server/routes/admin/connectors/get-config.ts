@@ -1,5 +1,5 @@
 import { getComposioConfigView } from "#src/platform/connectors/composio-config-store";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ConnectorsConfigRouteRegistrar } from "./deps.js";
 
 /**

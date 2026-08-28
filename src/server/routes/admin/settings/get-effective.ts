@@ -1,5 +1,5 @@
 import { getEffective } from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteDeps, SettingsRouteRegistrar } from "./deps.js";
 import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared.js";
 

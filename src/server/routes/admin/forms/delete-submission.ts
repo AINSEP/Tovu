@@ -1,4 +1,4 @@
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 /** DELETE permanently removes one submission (`FORMS_DELETE_SUBMISSION`, REQ-14). */

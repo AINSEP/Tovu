@@ -1,7 +1,7 @@
 import type { Express, Response } from "express";
 
 import { getTimeline } from "#src/features/database/timeline";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /** A query field, read as a string if present, or `undefined`.

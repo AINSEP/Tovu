@@ -10,7 +10,7 @@ import {
 } from "#src/features/database/migrate-forward/execute";
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "../../types.js";
 
 /**

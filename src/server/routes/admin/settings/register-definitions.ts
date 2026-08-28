@@ -15,7 +15,7 @@ import {
   type SettingValueSchema,
   registerDefinitions,
 } from "#src/features/settings/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
 import { respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
 

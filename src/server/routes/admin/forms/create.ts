@@ -2,7 +2,7 @@ import { DuplicateCommandError } from "@jini-ai/cms/core";
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
 import { createFormDefinition } from "#src/features/forms/write-service";
 import type { FieldDescriptor, NotifyConfig } from "#src/features/forms/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
 /** This route's four writable POST fields, read off an untyped body in one place.

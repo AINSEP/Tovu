@@ -5,7 +5,7 @@ import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy.js";
 import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term.js";
 import { registerAdminTaxonomyMergeTermRoutes } from "../../routes/admin/taxonomy/merge-term.js";

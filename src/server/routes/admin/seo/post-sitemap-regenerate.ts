@@ -1,5 +1,5 @@
 import { regenerateSitemapCache } from "#src/features/seo/index";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 
 /** POST force-rebuild the cached sitemap (SPEC-008 api.spec.md `SEO_POST_SITEMAP_REGENERATE`, tasks.md T047). */

@@ -857,7 +857,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // login/logout/me (ungated), then the `/api/admin` session gate, all
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
-  // middleware/dev-auth.ts.
+  // inbound/admin-http/dev-auth.ts.
   mountRoutes(app, createCoreModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/

@@ -2,7 +2,7 @@ import { DuplicateCommandError, ForbiddenError, executeCommand } from "@jini-ai/
 import { processOutbox } from "#src/contracts/core/events/index";
 import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**

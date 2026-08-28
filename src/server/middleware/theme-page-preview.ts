@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme } from "#src/features/theme/index";
 import { listPublishedPosts } from "#src/features/post/index";
 import { authorizeThemeSetPermission } from "../routes/admin/themes/explore.js";
-import { requireAdminSession } from "./dev-auth.js";
+import { requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
 import { renderSite, type SiteProduct } from "../http/site/render.js";
 import {

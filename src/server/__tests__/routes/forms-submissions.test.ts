@@ -6,7 +6,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create.js";
 import { registerAdminFormsDeleteSubmissionRoute } from "../../routes/admin/forms/delete-submission.js";
 import { registerAdminFormsGetSubmissionRoute } from "../../routes/admin/forms/get-submission.js";

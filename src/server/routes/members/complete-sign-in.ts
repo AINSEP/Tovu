@@ -7,7 +7,7 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
 
 /**
  * ADR-030 §3: a DISTINCT cookie name from the admin `tovu_session` (which
- * lives in `middleware/dev-auth.ts` and is never read/written here — see
+ * lives in `inbound/admin-http/dev-auth.ts` and is never read/written here — see
  * ADR-PIPE-013 INV-NEW-01 / Enforcement, "no route in either family may read
  * the other's cookie"). `SameSite=Lax`, not `Strict`: the member arrives via
  * a top-level navigation from an email client, exactly the case

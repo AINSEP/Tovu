@@ -1,4 +1,4 @@
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ConnectorsRouteRegistrar } from "./deps.js";
 import { sendConnectorError } from "./errors.js";
 

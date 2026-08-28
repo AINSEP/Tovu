@@ -57,7 +57,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "../../../../assistant/index.js";
-import { getAuthedPrincipal, requireAdminSession } from "../../../middleware/dev-auth.js";
+import { getAuthedPrincipal, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";

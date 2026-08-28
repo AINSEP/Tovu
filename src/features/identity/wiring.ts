@@ -49,7 +49,7 @@ import { seedIdentity } from "@jini-ai/cms/identity";
  * password (async, argon2id), so seeding is kicked off here immediately and
  * its promise (`identityReady`) is handed back on `RouteDeps` rather than
  * awaited inline. Auth-adjacent middleware/routes await it before touching
- * identity repos — see `middleware/dev-auth.ts`.
+ * identity repos — see `inbound/admin-http/dev-auth.ts`.
  */
 
 /**

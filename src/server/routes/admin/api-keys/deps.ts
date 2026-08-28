@@ -8,7 +8,7 @@ import {
   type IdentityRepos,
 } from "@jini-ai/cms/identity";
 import type { ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
-import { getAuthedCredentialKind } from "#src/server/middleware/dev-auth";
+import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "../../types.js";
 
 /**

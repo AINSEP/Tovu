@@ -16,7 +16,7 @@ import {
   CONTENT_ENTRY_MAX_BODY_BYTES,
   rejectOversizedJsonBody,
 } from "#src/server/middleware/body-size-limit";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /** This route's six writable PUT fields, read off an untyped body in one place.

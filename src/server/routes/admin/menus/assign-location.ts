@@ -1,6 +1,6 @@
 import { assignLocation, MenuNotFoundError } from "#src/features/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
-import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 
 /** Reads+trims `locationKey` off the body in one place; `null` means missing or blank.
  *  @complexity O(1). */

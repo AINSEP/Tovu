@@ -24,7 +24,7 @@ import type { Express, Request, Response } from "express";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
-import { getAuthedPrincipal, requireAdminSession } from "../../../middleware/dev-auth.js";
+import { getAuthedPrincipal, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { ServerModuleHandle } from "./types.js";
 
