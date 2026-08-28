@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { registerPageHeadContributor } from "../../inbound/public-http/http/site/page-head.js";
@@ -136,6 +137,7 @@ import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-h
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
 import { applyDevCors } from "../../inbound/shared/dev-cors.js";
+import { applyRequestTracking } from "../../inbound/shared/observability-middleware.js";
 import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
 import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
@@ -542,6 +544,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     themesDir: builtInThemesDir(),
     outbox,
     bus,
+    // Always the no-op adapter here, never the env-driven `createObservabilityPort()` — this root
+    // is documented "hermetic, no filesystem" (file header above), and a stray
+    // `OTEL_EXPORTER_OTLP_ENDPOINT` left in a developer's shell must never make a test try to reach
+    // a real collector. See `routes/types.ts`'s `ObservabilityDeps` doc for the full rule-of-two.
+    observability: createNoopObservabilityPort(),
     clock,
     idGen,
     analyticsSink: new LocalBufferSink(),
@@ -810,6 +817,13 @@ function startModule(mod: ServerModuleHandle): void {
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const app = express();
   applyDevCors(app);
+  // Registered as early as possible — ahead of the serving gate below and every route module — so
+  // a request the gate rejects, or a 404 that matches no route at all, is still measured. See
+  // `observability-middleware.ts`'s own file header for the full reasoning and for why this is the
+  // single chokepoint that sees both `tovu serve` and `index.ts`'s boot paths (both call this exact
+  // `createApp()` function; see `ADS-memory/.local-artifacts/metrics/
+  // 2026-08-28-observability-groundwork.md` §1-2 for why that distinction matters here).
+  applyRequestTracking(app, { observability: routeDeps.observability });
   // ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, round-2, codex
   // finding R2-F2-BLOCK-NOT-ENFORCED) — must run before every other route/middleware so a
   // BLOCKED_PENDING_RECOVERY site refuses normal traffic regardless of which route would have

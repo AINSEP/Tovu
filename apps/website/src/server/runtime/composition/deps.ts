@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
+import { createObservabilityPort } from "#src/platform/observability/index";
 import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
@@ -877,6 +878,13 @@ export function createSqliteRouteDeps(
     themesDir: resolvedThemesDir,
     outbox,
     bus,
+    // Env-driven — off (the real no-op port) unless the operator has set
+    // `OTEL_EXPORTER_OTLP_ENDPOINT`. This is the composition root BOTH real-process boot paths
+    // build `RouteDeps` from (`index.ts`'s non-memory branch AND `cli/commands/serve.ts`'s `tovu
+    // serve`), so this is the one call site where the real (non-hermetic) adapter choice belongs —
+    // see `platform/observability/index.ts`'s `createObservabilityPort` doc and `routes/types.ts`'s
+    // `ObservabilityDeps` doc for the rule-of-two this mirrors.
+    observability: createObservabilityPort(),
     clock,
     idGen,
     // ADR-046 Phase 1 (final capability slice): analytics ingest buffer is durable — survives a

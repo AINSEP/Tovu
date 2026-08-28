@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
+import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
@@ -437,6 +438,69 @@ test("AC-08 (CLI-specific slice): a real HTTP request against a spawned tovu ser
     assert.match(body, /Welcome to Tovu|welcome/i);
   } finally {
     await stopGracefully(child);
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+/**
+ * A minimal fake OTLP/HTTP collector: records every POST body it receives and answers 200. Real
+ * OTLP collectors expect a protobuf-encoded `ExportTraceServiceRequest`; this deliberately does not
+ * decode one — `platform/observability/__tests__/unit/otel.unit.test.ts` already proves the
+ * adapter's span shape in isolation. What THIS test needs is proof a real span byte stream left a
+ * REAL spawned `tovu serve` process and reached the network — the one thing no in-process test can
+ * show, since `createApp()`'s own instrumentation is already proven at the composition-root tier
+ * (`server/__tests__/integration/observability-wiring.integration.test.ts`).
+ */
+async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: () => number; close: () => Promise<void> }> {
+  let receivedCount = 0;
+  const server = createHttpServer((req: IncomingMessage, res: ServerResponse) => {
+    const chunks: Buffer[] = [];
+    req.on("data", (chunk: Buffer) => chunks.push(chunk));
+    req.on("end", () => {
+      if (Buffer.concat(chunks).length > 0) receivedCount += 1;
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end("{}");
+    });
+  });
+  const port = await getFreePort();
+  await new Promise<void>((resolve) => server.listen(port, "127.0.0.1", resolve));
+
+  return {
+    url: `http://127.0.0.1:${port}`,
+    receivedCount: () => receivedCount,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector", async () => {
+  const { parent, dir } = initFixture();
+  const port = await getFreePort();
+  const collector = await startFakeOtlpCollector();
+  const child = spawnServe([dir, "--port", String(port)], {
+    OTEL_EXPORTER_OTLP_ENDPOINT: collector.url,
+    OTEL_SERVICE_NAME: "tovu-serve-cli-test",
+    // Forces the batch span processor to flush every 200ms instead of the 5s default, so this test
+    // does not need to wait out a real production-sized batching window.
+    OTEL_BSP_SCHEDULE_DELAY: "200",
+  });
+  try {
+    await waitForHttpReady(port, child);
+    const res = await fetch(`http://127.0.0.1:${port}/welcome`);
+    assert.equal(res.status, 200);
+
+    const factor = loadFactor();
+    const deadline = Date.now() + 10_000 * factor;
+    while (collector.receivedCount() === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    assert.ok(
+      collector.receivedCount() > 0,
+      `the spawned tovu serve process must export at least one span to the OTLP collector configured via OTEL_EXPORTER_OTLP_ENDPOINT within ${Math.round((10_000 * factor) / 1000)}s`
+    );
+  } finally {
+    await stopGracefully(child);
+    await collector.close();
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
