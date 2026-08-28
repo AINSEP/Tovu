@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useFormSubmissions } from "../hooks/use-form-submissions.hooks";
 import { createFakeFormSubmissionsPort } from "../hooks/form-submissions-dependencies.hooks";
-import type { AdminFormSubmission } from "../../../lib/api";
+import type { AdminFormSubmission } from "@/lib/api";
 
 /**
  * @file `useFormSubmissions` — the submissions list's cursor-append load.

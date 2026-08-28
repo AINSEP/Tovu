@@ -1,4 +1,4 @@
-import type { AdminWebhookDelivery } from "../../../lib/api";
+import type { AdminWebhookDelivery } from "@/lib/api";
 
 /**
  * @file What `useIntegrationDeliveries` needs from the outside world, as an interface rather than

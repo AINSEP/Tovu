@@ -3,7 +3,7 @@ import {
   type AdminCustomCredentialsSnapshot,
   type AdminPublishCredentialsSnapshot,
   type AdminSourceControlCredentialsSnapshot,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

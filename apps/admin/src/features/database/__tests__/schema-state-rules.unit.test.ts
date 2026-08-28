@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { resolveSchemaStateWarning } from "../rules";
-import type { AdminSchemaState } from "../../../lib/api";
+import type { AdminSchemaState } from "@/lib/api";
 
 /**
  * @file `resolveSchemaStateWarning` — the pure decision behind the Database screen's drift warning.

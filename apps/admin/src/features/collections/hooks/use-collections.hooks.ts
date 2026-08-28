@@ -1,9 +1,9 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminContentType } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminContentType } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, type LifecycleConfirmOp } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT, lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
 import type { CollectionsPort } from "./collections-port.hooks";

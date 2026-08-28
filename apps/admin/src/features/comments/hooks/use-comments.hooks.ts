@@ -1,7 +1,7 @@
-import { describeApiError } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { defaultCommentsPort } from "./comments-dependencies.hooks";
 import type { CommentsPort } from "./comments-port.hooks";
 

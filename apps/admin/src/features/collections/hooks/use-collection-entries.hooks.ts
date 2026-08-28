@@ -1,7 +1,7 @@
-import { describeApiError, type AdminContentType, type AdminEntry } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminContentType, type AdminEntry } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT, t as translate } from "../collections-i18n";
 import { defaultCollectionEntriesPort } from "./collection-entries-dependencies.hooks";
 import type { CollectionEntriesPort } from "./collection-entries-port.hooks";

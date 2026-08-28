@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRestorePoint } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminRestorePoint } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useRestorePointsSection, useWiredRestorePointsSection } from "../hooks/use-restore-points-section.hooks";
 import { createFakeRestorePointsSectionPort } from "../hooks/restore-points-section-dependencies.hooks";
 

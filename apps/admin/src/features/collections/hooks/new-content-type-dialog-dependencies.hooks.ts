@@ -1,4 +1,4 @@
-import { api, type AdminContentType, type ContentTypeFieldDef } from "../../../lib/api";
+import { api, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
 import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
 
 /**

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { type AdminPost } from "../../../lib/api";
-import { navigate as defaultNavigate } from "../../../lib/router";
+import { type AdminPost } from "@/lib/api";
+import { navigate as defaultNavigate } from "@/lib/router";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
 

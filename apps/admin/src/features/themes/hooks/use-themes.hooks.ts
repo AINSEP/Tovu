@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { type PresentationSettings, type ThemeTier } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { type PresentationSettings, type ThemeTier } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.

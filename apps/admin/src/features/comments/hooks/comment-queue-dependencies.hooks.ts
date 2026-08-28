@@ -4,7 +4,7 @@ import {
   type AdminCommentsQueuePage,
   type CommentModerationAction,
   type CommentStatus,
-} from "../../../lib/api";
+} from "@/lib/api";
 import type { CommentQueuePort } from "./comment-queue-port.hooks";
 
 /**

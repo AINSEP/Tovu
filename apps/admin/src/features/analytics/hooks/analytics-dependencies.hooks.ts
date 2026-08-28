@@ -1,4 +1,4 @@
-import { api, type AdminAnalyticsHit } from "../../../lib/api";
+import { api, type AdminAnalyticsHit } from "@/lib/api";
 import type { AnalyticsPort } from "./analytics-port.hooks";
 
 /**

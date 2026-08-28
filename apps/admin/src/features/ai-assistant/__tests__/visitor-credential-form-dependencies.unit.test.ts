@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { SiteAssistantCredential } from "../../../lib/api";
+import type { SiteAssistantCredential } from "@/lib/api";
 
 /**
  * @file Coverage for `visitor-credential-form-dependencies.hooks.ts` (2/6 funcs) —

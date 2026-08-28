@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
-import { navigate as realNavigate } from "../../../lib/router";
-import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
+import { describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "@/lib/api";
+import { navigate as realNavigate } from "@/lib/router";
+import { defaultWidgetConfig } from "@/components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, resolveWidgetSaveError } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
 

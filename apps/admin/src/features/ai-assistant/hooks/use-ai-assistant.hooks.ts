@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { PublicAssistantSettings } from "../../../lib/api";
+import type { PublicAssistantSettings } from "@/lib/api";
 import { describeApiError } from "../rules";
 import { defaultAiAssistantPort } from "./ai-assistant-dependencies.hooks";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";

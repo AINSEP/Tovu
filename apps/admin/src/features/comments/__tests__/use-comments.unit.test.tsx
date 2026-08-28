@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeCommentsPort } from "../hooks/comments-dependencies.hooks";
 import { useComments, useWiredComments } from "../hooks/use-comments.hooks";
 

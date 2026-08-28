@@ -3,7 +3,7 @@ import type {
   AdminPublishCredentialSummary,
   AdminPublishCredentialsSnapshot,
   AdminPublishCredentialVerification,
-} from "../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file What `usePublishCredentials` needs from the outside world, as an interface rather than a

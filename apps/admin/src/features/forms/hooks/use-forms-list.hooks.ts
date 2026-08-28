@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { AdminFormDefinition } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import type { AdminFormDefinition } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { KEYS, formsListError } from "../rules";
 import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";

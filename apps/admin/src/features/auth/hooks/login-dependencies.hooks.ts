@@ -1,4 +1,4 @@
-import { api, type AdminUser } from "../../../lib/api";
+import { api, type AdminUser } from "@/lib/api";
 import type { LoginPort } from "./login-port.hooks";
 
 /**

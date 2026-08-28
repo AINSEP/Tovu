@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
 import { useRedirects, useWiredRedirects } from "../hooks/use-redirects.hooks";
 

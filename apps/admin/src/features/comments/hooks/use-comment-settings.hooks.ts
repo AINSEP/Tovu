@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { CommentsSettings } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import type { CommentsSettings } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS, buildSettingsPatch, validateSettingsPatch, visibleCommentSettingsError } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../comments-i18n";
 import { defaultCommentSettingsPort } from "./comment-settings-dependencies.hooks";
 import type { CommentSettingsPort } from "./comment-settings-port.hooks";

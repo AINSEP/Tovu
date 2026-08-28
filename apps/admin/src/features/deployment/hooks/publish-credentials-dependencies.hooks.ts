@@ -1,4 +1,4 @@
-import { api, type AdminPublishCredentialsSnapshot } from "../../../lib/api";
+import { api, type AdminPublishCredentialsSnapshot } from "@/lib/api";
 import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

@@ -16,7 +16,7 @@ import {
   loadExecutionConfig,
   reconcileExecutionConfigRefresh,
   saveExecutionConfig,
-} from "../../../lib/execution-settings";
+} from "@/lib/execution-settings";
 import {
   APPEARANCE_NAMESPACE,
   DEFAULT_APPEARANCE,
@@ -39,8 +39,8 @@ import {
   saveNotifications,
   savePrivacy,
   type AppearanceConfig,
-} from "../../../lib/settings-tabs";
-import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
+} from "@/lib/settings-tabs";
+import { mergeSaveStates, useSettingsSlice, type SaveState, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 import { useWiredComposioConfig, type ComposioConfigController } from "./use-composio-config.hooks";
 import { useExternalMcp, type ExternalMcpController } from "./use-external-mcp.hooks";
 import { areAnySlicesLoading, firstLoadError } from "../rules";

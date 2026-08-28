@@ -1,4 +1,4 @@
-import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../../lib/api";
+import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "@/lib/api";
 
 /**
  * @file What `useFormEditor` and `useFormsList` need from the outside world, as an interface

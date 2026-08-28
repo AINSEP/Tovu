@@ -1,4 +1,4 @@
-import { api, type AdminComposioConfig, type AdminConnector, type AdminMediaProviderMap } from "../../../lib/api";
+import { api, type AdminComposioConfig, type AdminConnector, type AdminMediaProviderMap } from "@/lib/api";
 import type { OtherCredentialsPort } from "./other-credentials-port.hooks";
 
 /** The live implementation, as a module-level singleton — matches

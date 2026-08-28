@@ -1,7 +1,7 @@
-import { describeApiError, type AdminWebhookDelivery } from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminWebhookDelivery } from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../integrations-i18n";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";

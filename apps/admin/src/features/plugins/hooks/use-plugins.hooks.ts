@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 
-import type { AdminPlugin } from "../../../lib/api";
+import type { AdminPlugin } from "@/lib/api";
 import { describeApiError } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translate } from "../plugins-i18n";
 import { defaultPluginsPort } from "./plugins-dependencies.hooks";
 import type { PluginsPort } from "./plugins-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file Everything the Plugins list does, so `Plugins.tsx` is only markup.

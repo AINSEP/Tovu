@@ -1,4 +1,4 @@
-import { api, type AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "@/lib/api";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 
 /**

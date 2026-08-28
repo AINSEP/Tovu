@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
-import type { AdminWebhookSubscription } from "../../../lib/api";
+import type { AdminWebhookSubscription } from "@/lib/api";
 
 /**
  * @file `useIntegrations` — the Integrations LIST screen's load/create/pause/delete state.

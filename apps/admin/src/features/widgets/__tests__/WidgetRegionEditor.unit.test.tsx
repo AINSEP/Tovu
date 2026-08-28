@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { WidgetRegionEditor, WidgetRegionEditorHeaderActions } from "../WidgetRegionEditor";
 import type { WidgetRegionEditorController } from "../hooks/use-widget-region-editor.hooks";
-import type { AdminWidgetArea, AdminWidgetPlacement } from "../../../lib/api";
+import type { AdminWidgetArea, AdminWidgetPlacement } from "@/lib/api";
 
 /**
  * @file `WidgetRegionEditor` — `/admin/widgets/regions/{regionKey}`, driven through the

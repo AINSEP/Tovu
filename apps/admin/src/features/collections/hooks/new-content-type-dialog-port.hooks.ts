@@ -1,4 +1,4 @@
-import type { AdminContentType, ContentTypeFieldDef } from "../../../lib/api";
+import type { AdminContentType, ContentTypeFieldDef } from "@/lib/api";
 
 /**
  * @file What `use-new-content-type-dialog.hooks.ts` needs from the outside world, as an interface

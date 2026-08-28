@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { describeApiError } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultMigrateForwardSectionPort } from "./migrate-forward-section-dependencies.hooks";
 import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";

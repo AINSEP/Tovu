@@ -1,4 +1,4 @@
-import { api, type AdminPlugin } from "../../../lib/api";
+import { api, type AdminPlugin } from "@/lib/api";
 import type { PluginsPort } from "./plugins-port.hooks";
 
 /**

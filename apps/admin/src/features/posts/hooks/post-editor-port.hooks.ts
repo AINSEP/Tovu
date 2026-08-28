@@ -1,4 +1,4 @@
-import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "../../../lib/api";
+import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "@/lib/api";
 
 /**
  * @file What `use-post-editor.hooks.ts` needs from the outside world, as an interface rather than a

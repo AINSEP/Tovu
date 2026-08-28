@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useSeoEntryPanel } from "../hooks/use-seo-entry-panel.hooks";
 import { createFakeSeoPort } from "../hooks/seo-dependencies.hooks";
-import type { SeoEntryAnalysis, SeoEntryMeta } from "../../../lib/api";
+import type { SeoEntryAnalysis, SeoEntryMeta } from "@/lib/api";
 
 /**
  * @file `useSeoEntryPanel` — the per-entry overrides form + analyze view.

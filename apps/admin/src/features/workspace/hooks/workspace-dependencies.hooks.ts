@@ -1,4 +1,4 @@
-import { api, type AdminWorkspace } from "../../../lib/api";
+import { api, type AdminWorkspace } from "@/lib/api";
 import type { WorkspacePort } from "./workspace-port.hooks";
 
 /**

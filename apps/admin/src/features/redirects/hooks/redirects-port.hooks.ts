@@ -3,7 +3,7 @@ import type {
   AdminRedirectHitStats,
   AdminRedirectImportResponse,
   RedirectImportRule,
-} from "../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file What this feature's three hooks (`use-redirects`, `use-hit-count-cell`,

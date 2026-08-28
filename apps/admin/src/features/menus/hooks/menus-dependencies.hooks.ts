@@ -1,4 +1,4 @@
-import { api, type AdminMenu } from "../../../lib/api";
+import { api, type AdminMenu } from "@/lib/api";
 import type { MenusPort } from "./menus-port.hooks";
 
 /**

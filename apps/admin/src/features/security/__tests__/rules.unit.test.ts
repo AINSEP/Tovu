@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../../../lib/api";
+import { ApiError } from "@/lib/api";
 import {
   ACCESS_TOKEN_CATEGORIES,
   ACCESS_TOKEN_PROVIDERS,

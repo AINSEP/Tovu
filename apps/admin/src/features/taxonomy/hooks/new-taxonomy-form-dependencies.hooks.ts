@@ -1,4 +1,4 @@
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
 
 /**

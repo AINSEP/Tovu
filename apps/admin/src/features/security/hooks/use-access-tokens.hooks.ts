@@ -8,10 +8,10 @@ import {
   type AdminPublishCredentialSummary,
   type AdminSourceControlConnectionInput,
   type AdminSourceControlCredentialSummary,
-} from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+} from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import type { Translate } from "@/lib/dictionary-translator";
 import {
   t as defaultT,
   accessTokenDuplicateNameMessage,

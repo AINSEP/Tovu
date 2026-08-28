@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { describeApiError, type AdminTerm } from "../../../lib/api";
-import { useFetchMutation } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminTerm } from "@/lib/api";
+import { useFetchMutation } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
 import { KEYS } from "../rules";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";

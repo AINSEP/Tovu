@@ -1,4 +1,4 @@
-import { api, type AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "@/lib/api";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
 /**

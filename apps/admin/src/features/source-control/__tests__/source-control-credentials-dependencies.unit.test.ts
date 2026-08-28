@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminSourceControlCredentialSummary } from "../../../lib/api";
+import type { AdminSourceControlCredentialSummary } from "@/lib/api";
 
 /**
  * @file Coverage for `source-control-credentials-dependencies.hooks.ts` (1/11 funcs) —

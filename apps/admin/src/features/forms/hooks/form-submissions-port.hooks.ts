@@ -1,4 +1,4 @@
-import type { AdminFormSubmission } from "../../../lib/api";
+import type { AdminFormSubmission } from "@/lib/api";
 
 /**
  * @file What `useFormSubmissions` and `useFormSubmissionDetail` need from the outside world, as an

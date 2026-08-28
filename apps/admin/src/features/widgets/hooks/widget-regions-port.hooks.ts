@@ -1,4 +1,4 @@
-import type { AdminWidgetArea, AdminWidgetPlacement, AdminWidgetRegionBinding } from "../../../lib/api";
+import type { AdminWidgetArea, AdminWidgetPlacement, AdminWidgetRegionBinding } from "@/lib/api";
 
 /**
  * @file What `use-widget-region-editor.hooks.ts` and `use-widget-regions.hooks.ts` need from the

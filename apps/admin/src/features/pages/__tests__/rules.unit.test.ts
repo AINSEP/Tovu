@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 import { pageRowMenuItems } from "../rules";
 
 /**

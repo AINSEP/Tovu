@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPolicy, AdminRole } from "../../../lib/api";
+import type { AdminPolicy, AdminRole } from "@/lib/api";
 import {
   PolicyRow,
   Roles,

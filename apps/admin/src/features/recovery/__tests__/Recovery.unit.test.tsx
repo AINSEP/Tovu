@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Recovery } from "../Recovery";
 import type { RecoveryController } from "../hooks/use-recovery.hooks";
-import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "../../../lib/api";
+import type { AdminDegradedBanner, AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
 
 /**
  * @file `Recovery` — the `/admin/recovery` screen (design-spec.md §4, ADR-045). Markup only;

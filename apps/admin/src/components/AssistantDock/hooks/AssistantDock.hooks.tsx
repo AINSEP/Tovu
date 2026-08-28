@@ -12,13 +12,13 @@ import {
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
 
-import { navigate } from "../../../lib/router";
-import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../../../lib/settings-refresh-bus";
-import { publishContentRefresh } from "../../../lib/content-refresh-bus";
-import { createTovuAssistantTransport } from "../../../lib/assistant-transport";
-import { isAgUiTransportEnabled } from "../../../lib/assistant-transport-ag-ui";
-import { useWiredAssistantChats, type UseAssistantChats } from "../../../hooks/use-assistant-chats.hooks";
-import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { navigate } from "@/lib/router";
+import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
+import { publishContentRefresh } from "@/lib/content-refresh-bus";
+import { createTovuAssistantTransport } from "@/lib/assistant-transport";
+import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
+import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
+import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
   DEFAULT_EXECUTION_CONFIG,
   EXECUTION_NAMESPACE,
@@ -27,14 +27,14 @@ import {
   loadExecutionConfig,
   saveExecutionConfig,
   selectedLocalCliModel,
-} from "../../../lib/execution-settings";
+} from "@/lib/execution-settings";
 import {
   createBundledComposerCapabilitySource,
   emptyComposerCapabilityProjection,
   projectComposerCapabilities,
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
-} from "../../../features/plugins/composer-capabilities";
+} from "@/features/plugins/composer-capabilities";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
 
 /**

@@ -5,7 +5,7 @@ import { Playground } from "../Playground";
 import {
   getPlaygroundRenderTarget,
   resetPlaygroundRenderTargetBus,
-} from "../../../lib/playground-render-target-bus";
+} from "@/lib/playground-render-target-bus";
 
 /**
  * @file `Playground` is the Studio "whiteboard" — a static instructional page (no manual component

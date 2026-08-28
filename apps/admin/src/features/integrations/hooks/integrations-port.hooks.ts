@@ -1,4 +1,4 @@
-import type { AdminWebhookSubscription } from "../../../lib/api";
+import type { AdminWebhookSubscription } from "@/lib/api";
 
 /**
  * @file What `useIntegrations` needs from the outside world, as an interface rather than a direct

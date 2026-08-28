@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import { createFakeThemesPort } from "../hooks/themes-dependencies.hooks";
 import { useThemes } from "../hooks/use-themes.hooks";
 

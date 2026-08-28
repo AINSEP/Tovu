@@ -1,4 +1,4 @@
-import type { AdminCommentsQueuePage, CommentModerationAction, CommentStatus } from "../../../lib/api";
+import type { AdminCommentsQueuePage, CommentModerationAction, CommentStatus } from "@/lib/api";
 
 /**
  * @file What `use-comment-queue.hooks.ts` needs from the outside world, as an interface rather than

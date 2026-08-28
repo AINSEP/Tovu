@@ -9,7 +9,7 @@ import type {
   AdminSourceControlConnectionInput,
   AdminSourceControlCredentialSummary,
   AdminSourceControlCredentialsSnapshot,
-} from "../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file What `useAccessTokens` needs from the outside world, as an interface rather than a direct

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from "react";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
-import { ApiError } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { ApiError } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeFileGroup } from "./theme-explore-port.hooks";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as

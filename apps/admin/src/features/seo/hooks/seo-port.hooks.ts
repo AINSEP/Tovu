@@ -4,7 +4,7 @@ import type {
   SeoEntryMeta,
   SeoEntryOverridesPatch,
   SeoSettings,
-} from "../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file What `useSeo`, `useSeoEntryPanel`, and `useEntryPicker` need from the outside world, as an

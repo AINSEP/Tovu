@@ -1,4 +1,4 @@
-import type { AdminMember } from "../../../lib/api";
+import type { AdminMember } from "@/lib/api";
 
 /**
  * @file What `use-members.hooks.ts` needs from the outside world, as an interface rather than a

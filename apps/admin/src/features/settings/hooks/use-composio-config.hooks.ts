@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { AdminComposioConfig } from "../../../lib/api";
+import type { AdminComposioConfig } from "@/lib/api";
 import { defaultComposioConfigPort } from "./composio-config-dependencies.hooks";
 import type { ComposioConfigPort } from "./composio-config-port.hooks";
 

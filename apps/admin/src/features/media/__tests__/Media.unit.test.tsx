@@ -3,8 +3,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
-import { api } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { api } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 
 /**
  * @file `Media` — MSG-05's preview-grid rewrite. Pins the two behaviors the dispatch called out as

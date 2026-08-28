@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, describeApiError, type AdminDockerfileSource } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
+import { ApiError, describeApiError, type AdminDockerfileSource } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useDirtyGuard } from "@/hooks/use-dirty-guard.hooks";
 import { t as defaultT, dockerfileLoadErrorMessage, dockerfileSaveErrorMessage } from "../deployment-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultDockerfileSourcePort } from "./dockerfile-source-dependencies.hooks";
 import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
 

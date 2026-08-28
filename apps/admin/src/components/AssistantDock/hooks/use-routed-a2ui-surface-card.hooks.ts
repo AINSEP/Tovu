@@ -4,7 +4,7 @@ import type { A2uiSurfaceCardProps } from "@jini-ai/chat/react";
 import {
   getPlaygroundRenderTarget,
   subscribeToPlaygroundRenderTarget,
-} from "../../../lib/playground-render-target-bus";
+} from "@/lib/playground-render-target-bus";
 
 /**
  * @file `RoutedA2uiSurfaceCard`'s routing target, dismiss flag, and per-surfaceId error tracking,

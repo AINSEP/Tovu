@@ -1,4 +1,4 @@
-import type { GatedConfirmResult, GatedPlanResult, MergeTermPlanDetails } from "../../../lib/api";
+import type { GatedConfirmResult, GatedPlanResult, MergeTermPlanDetails } from "@/lib/api";
 
 /**
  * @file What `useMergeTermSection` needs from the outside world, as an interface rather than a

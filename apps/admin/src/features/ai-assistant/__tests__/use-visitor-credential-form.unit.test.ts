@@ -6,7 +6,7 @@ import {
   ApiError,
   type SiteAssistantCredential,
   type SiteAssistantCredentialPatch,
-} from "../../../lib/api";
+} from "@/lib/api";
 import {
   saveVisitorCredential,
   useWiredVisitorCredentialForm,

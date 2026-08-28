@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "../../../../lib/api";
+import type { AdminPublishCredentialSummary, AdminPublishCredentialVerification } from "@/lib/api";
 
 /**
  * @file Coverage for `publish-credentials-dependencies.hooks.ts` (3/14 funcs) —

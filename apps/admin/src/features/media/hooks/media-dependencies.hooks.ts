@@ -1,4 +1,4 @@
-import { api, type AdminMedia } from "../../../lib/api";
+import { api, type AdminMedia } from "@/lib/api";
 import type { MediaPort } from "./media-port.hooks";
 
 /**

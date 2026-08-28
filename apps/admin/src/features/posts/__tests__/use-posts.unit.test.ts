@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, useWiredPosts } from "../hooks/use-posts.hooks";
 

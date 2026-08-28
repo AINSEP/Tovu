@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
-import type { AdminExportRunSnapshot } from "../../../../lib/api";
+import type { AdminExportRunSnapshot } from "@/lib/api";
 
 /**
  * @file `useStaticExport` — the Static Site tab's build action: an initial status read, a trigger,

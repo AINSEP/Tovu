@@ -1,4 +1,4 @@
-import type { AdminWidget, AdminWidgetType, AdminWidgetWhereUsed } from "../../../lib/api";
+import type { AdminWidget, AdminWidgetType, AdminWidgetWhereUsed } from "@/lib/api";
 
 /**
  * @file What `use-widgets-library.hooks.ts` and `use-widget-instance-editor.hooks.ts` need from

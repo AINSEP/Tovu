@@ -1,4 +1,4 @@
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import type { ThemeExploreFileEntry, ThemeExplorePort } from "./theme-explore-port.hooks";
 
 /**

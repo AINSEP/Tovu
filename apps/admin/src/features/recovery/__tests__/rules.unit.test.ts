@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { categoryLabel, isAssertiveRecoveryBanner, parseDeepLinkEnvelope } from "../rules";
-import type { AdminDegradedBanner } from "../../../lib/api";
+import type { AdminDegradedBanner } from "@/lib/api";
 
 /**
  * @file Pure logic for `features/recovery` — `categoryLabel`, `isAssertiveRecoveryBanner`,

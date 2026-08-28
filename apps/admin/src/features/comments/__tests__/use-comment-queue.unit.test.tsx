@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AdminComment } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import type { AdminComment } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeCommentQueuePort } from "../hooks/comment-queue-dependencies.hooks";
 import { useCommentQueue } from "../hooks/use-comment-queue.hooks";
 

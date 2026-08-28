@@ -70,6 +70,7 @@ export default defineConfig({
     // picks one instance rather than reconciling different Reacts.
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     alias: {
+      "@": path.resolve(__dirname, "src"),
       "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
       // Same cross-runtime precedent as `@tovu/headless` just above, extended to a pure resolver
       // FUNCTION rather than wire-contract types: `theme-layout.ts` has zero `node:fs`/`node:path`

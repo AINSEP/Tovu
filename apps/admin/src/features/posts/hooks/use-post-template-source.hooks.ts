@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
-import type { ThemeTier } from "../../../lib/api";
+import type { ThemeTier } from "@/lib/api";
 import { defaultPostTemplatePort } from "./post-template-dependencies.hooks";
 import type { PostTemplatePort } from "./post-template-port.hooks";
 

@@ -1,8 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { api } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
 

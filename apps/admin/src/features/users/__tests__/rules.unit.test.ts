@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminIdentityUser } from "../../../lib/api";
+import { ApiError, type AdminIdentityUser } from "@/lib/api";
 import { describeApiError, formatGrantLabel, userRowMenuItems } from "../rules";
 
 /**

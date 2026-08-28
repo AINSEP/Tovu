@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { describeApiError, type AdminFormSubmission } from "../../../lib/api";
-import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, type AdminFormSubmission } from "@/lib/api";
+import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
 import { KEYS } from "../rules";
 import { defaultFormSubmissionsPort } from "./form-submissions-dependencies.hooks";
 import type { FormSubmissionsPort } from "./form-submissions-port.hooks";

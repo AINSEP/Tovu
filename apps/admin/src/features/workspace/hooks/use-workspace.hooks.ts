@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 
-import type { AdminWorkspace } from "../../../lib/api";
+import type { AdminWorkspace } from "@/lib/api";
 import { describeApiError } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
 import type { WorkspacePort } from "./workspace-port.hooks";
 

@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminRestorePoint } from "../../../lib/api";
+import type { AdminRestorePoint } from "@/lib/api";
 import { useRestoreFlow, useWiredRestoreFlow } from "../hooks/use-restore-flow.hooks";
 import { createFakeRestoreFlowPort } from "../hooks/restore-flow-dependencies.hooks";
 

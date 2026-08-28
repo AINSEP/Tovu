@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ADMIN_PANELS } from "../../../panels";
+import { ADMIN_PANELS } from "@/panels";
 import { Authentication } from "../index";
 
 /**

@@ -1,4 +1,4 @@
-import { api, ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
+import { api, ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "@/lib/api";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
 /**

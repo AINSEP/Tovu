@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Workspace } from "../Workspace";
 import type { WorkspaceController } from "../hooks/use-workspace.hooks";
-import type { AdminWorkspace } from "../../../lib/api";
+import type { AdminWorkspace } from "@/lib/api";
 
 /**
  * @file `Workspace` — the `/admin/workspace` screen, driven through the `useWorkspaceHook`

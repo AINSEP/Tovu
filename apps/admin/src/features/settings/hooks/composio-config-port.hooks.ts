@@ -1,4 +1,4 @@
-import type { AdminComposioConfig } from "../../../lib/api";
+import type { AdminComposioConfig } from "@/lib/api";
 
 /**
  * @file What `use-composio-config.hooks.ts` needs from the outside world, as an interface rather

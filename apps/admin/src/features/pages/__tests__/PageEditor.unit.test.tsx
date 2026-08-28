@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
-import { api, type AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "@/lib/api";
 
 /**
  * @file `PageEditor` had no test of any kind before this pass (see the note this corrects in

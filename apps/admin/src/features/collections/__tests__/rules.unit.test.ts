@@ -19,7 +19,7 @@ import {
   validateNewContentTypeDraft,
   type DraftField,
 } from "../rules";
-import { ApiError, type AdminContentType, type ContentTypeFieldDef } from "../../../lib/api";
+import { ApiError, type AdminContentType, type ContentTypeFieldDef } from "@/lib/api";
 
 /**
  * @file Pure logic for the top-level `Collections` screen — validation, draft-field-list

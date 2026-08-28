@@ -1,4 +1,4 @@
-import type { AdminUser } from "../../../lib/api";
+import type { AdminUser } from "@/lib/api";
 
 /**
  * @file What `use-login.hooks.ts` needs from the outside world, as an interface rather than a

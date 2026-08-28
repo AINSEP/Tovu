@@ -1,4 +1,4 @@
-import { api, type AdminWidget } from "../../../lib/api";
+import { api, type AdminWidget } from "@/lib/api";
 import type { WidgetsPort } from "./widgets-port.hooks";
 
 /**

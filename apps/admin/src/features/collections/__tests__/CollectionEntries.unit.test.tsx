@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { CollectionEntries } from "../CollectionEntries";
 import type { CollectionEntriesController } from "../hooks/use-collection-entries.hooks";
 

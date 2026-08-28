@@ -1,4 +1,4 @@
-import type { PublicAssistantSettings } from "../../../lib/api";
+import type { PublicAssistantSettings } from "@/lib/api";
 
 /**
  * @file What `use-ai-assistant.hooks.ts` needs from the outside world, as an interface rather than

@@ -1,4 +1,4 @@
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file What `use-posts.hooks.ts` (the LIST hook — `posts-list-*`, distinct from `use-post-editor

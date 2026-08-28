@@ -1,4 +1,4 @@
-import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
 import type { UsersPort } from "./users-port.hooks";
 
 /**

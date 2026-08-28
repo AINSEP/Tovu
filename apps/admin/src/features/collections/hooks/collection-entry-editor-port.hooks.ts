@@ -1,4 +1,4 @@
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "../../../lib/api";
+import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "@/lib/api";
 
 /**
  * @file What `use-collection-entry-editor.hooks.ts` needs from the outside world, as an interface

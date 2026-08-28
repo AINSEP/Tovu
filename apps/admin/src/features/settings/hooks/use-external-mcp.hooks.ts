@@ -25,7 +25,7 @@ import {
   type AdminExternalMcpOAuthInput,
   type AdminExternalMcpServer,
   type AdminExternalMcpServerInput,
-} from "../../../lib/api";
+} from "@/lib/api";
 import { mergeSourceUpdate, resolveExternalMcpEffectiveAuthMode, validateExternalMcpOAuthIdentity } from "../rules";
 
 /**

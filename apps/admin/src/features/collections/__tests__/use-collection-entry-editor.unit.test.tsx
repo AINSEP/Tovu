@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "../../../lib/api";
-import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { navigate } from "../../../lib/router";
+import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "@/lib/api";
+import { FetchQueryProvider } from "@/lib/fetch-query";
+import { navigate } from "@/lib/router";
 import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
 import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
 

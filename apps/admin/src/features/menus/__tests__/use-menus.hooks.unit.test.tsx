@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminMenu } from "../../../lib/api";
+import { api, type AdminMenu } from "@/lib/api";
 import { createFakeMenusPort } from "../hooks/menus-dependencies.hooks";
 import { useMenus } from "../hooks/use-menus.hooks";
 

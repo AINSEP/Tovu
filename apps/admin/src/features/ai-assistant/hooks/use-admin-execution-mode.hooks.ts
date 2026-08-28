@@ -8,8 +8,8 @@ import {
   loadExecutionConfig,
   reconcileExecutionConfigRefresh,
   saveExecutionConfig,
-} from "../../../lib/execution-settings";
-import { useSettingsSlice, type SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
+} from "@/lib/execution-settings";
+import { useSettingsSlice, type SettingsSlice } from "@/hooks/use-settings-slice.hooks";
 
 /**
  * @file State for `AdminExecutionMode` — the admin's own Local CLI / BYOK execution settings.

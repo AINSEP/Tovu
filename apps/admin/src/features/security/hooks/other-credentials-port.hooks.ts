@@ -7,7 +7,7 @@ import type {
   AdminMediaProviderMap,
   SiteAssistantCredential,
   SiteAssistantCredentialPatch,
-} from "../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file What `useOtherCredentials` needs from the outside world, as an interface rather than a

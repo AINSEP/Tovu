@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useSchemaStateSection } from "../hooks/use-schema-state-section.hooks";
 import { createFakeSchemaStateSectionPort } from "../hooks/schema-state-section-dependencies.hooks";
 

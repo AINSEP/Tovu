@@ -1,4 +1,4 @@
-import { api } from "../../../lib/api";
+import { api } from "@/lib/api";
 import type { TermPickerPort } from "./term-picker-port.hooks";
 
 /**

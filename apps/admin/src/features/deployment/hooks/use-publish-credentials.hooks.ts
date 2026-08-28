@@ -6,16 +6,16 @@ import {
   type AdminPublishCredentialSummary,
   type AdminPublishCredentialVerification,
   type AdminPublishExecutionMode,
-} from "../../../lib/api";
-import { useFetchQuery } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+} from "@/lib/api";
+import { useFetchQuery } from "@/lib/fetch-query";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
   t as defaultT,
   publishCredentialSaveErrorMessage,
   publishCredentialsLoadErrorMessage,
   publishCredentialVerifyErrorMessage,
 } from "../deployment-i18n";
-import type { Translate } from "../../../lib/dictionary-translator";
+import type { Translate } from "@/lib/dictionary-translator";
 import {
   PUBLISH_CREDENTIAL_PROVIDERS,
   PUBLISH_CREDENTIAL_ROW_LABEL,

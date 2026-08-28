@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { PublicAssistantSettings } from "../../../lib/api";
+import type { PublicAssistantSettings } from "@/lib/api";
 
 /**
  * @file Coverage for `ai-assistant-dependencies.hooks.ts` (2/6 funcs) —

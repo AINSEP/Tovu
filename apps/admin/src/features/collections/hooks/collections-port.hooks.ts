@@ -1,4 +1,4 @@
-import type { AdminContentType } from "../../../lib/api";
+import type { AdminContentType } from "@/lib/api";
 
 /**
  * @file What `use-collections.hooks.ts` needs from the outside world, as an interface rather than a

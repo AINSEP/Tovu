@@ -1,4 +1,4 @@
-import type { AdminRestorePoint, AdminRestorePointSummary } from "../../../lib/api";
+import type { AdminRestorePoint, AdminRestorePointSummary } from "@/lib/api";
 
 /**
  * @file What `use-restore-points-section.hooks.ts` needs from the outside world, as an interface

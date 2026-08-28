@@ -12,7 +12,7 @@ import {
   updatedSortButtonLabel,
   withTitleNode,
 } from "../rules";
-import type { AdminPost } from "../../../lib/api";
+import type { AdminPost } from "@/lib/api";
 
 /**
  * @file Pure(ish) logic for `features/posts` — `postRowMenuItems` (the row-action menu, driven

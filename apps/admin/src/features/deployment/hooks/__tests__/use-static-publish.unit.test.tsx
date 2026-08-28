@@ -1,10 +1,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { useStaticPublish } from "../use-static-publish.hooks";
 import { createFakeStaticPublishPort } from "../static-publish-dependencies.hooks";
-import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "../../../../lib/api";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "@/lib/api";
 
 /**
  * @file `useStaticPublish` — the Static Site tab's provider form, preview, and publish

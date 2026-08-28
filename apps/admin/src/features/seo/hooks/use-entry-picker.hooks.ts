@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { describeApiError, type AdminPost } from "../../../lib/api";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { describeApiError, type AdminPost } from "@/lib/api";
+import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t } from "../seo-i18n";
 import { defaultSeoPort } from "./seo-dependencies.hooks";
 import type { SeoPort } from "./seo-port.hooks";

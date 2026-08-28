@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api, type AdminWidget } from "../../../lib/api";
+import { api, type AdminWidget } from "@/lib/api";
 import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
 import { useWidgetsLibrary } from "../hooks/use-widgets-library.hooks";
 

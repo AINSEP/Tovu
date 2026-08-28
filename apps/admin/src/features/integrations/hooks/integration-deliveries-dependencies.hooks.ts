@@ -1,4 +1,4 @@
-import { api, type AdminWebhookDelivery } from "../../../lib/api";
+import { api, type AdminWebhookDelivery } from "@/lib/api";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
 
 /**

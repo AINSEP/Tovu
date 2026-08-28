@@ -2,7 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { FetchQueryProvider } from "../../../lib/fetch-query";
+import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
 import { useHitCountCell, useWiredHitCountCell } from "../hooks/use-hit-count-cell.hooks";
 

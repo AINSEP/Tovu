@@ -7,7 +7,7 @@ import type {
   AdminExternalMcpServer,
   AdminMediaProviderMap,
   SiteAssistantCredential,
-} from "../../../../lib/api";
+} from "@/lib/api";
 
 /**
  * @file Coverage for `other-credentials-dependencies.hooks.ts` — two independent surfaces:
