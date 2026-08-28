@@ -25,13 +25,12 @@ repo became its own root. **None of those three paths has existed for some time.
 here was being told to read files that are not there, and at least one external peer model had to
 caveat its entire first answer because of it. The content itself was never missing, only misfiled.
 There is no repo-wide module-layout document; module layout lives in each domain's own
-`src/<domain>/INFO.md` (25 of them) and is not an Always-Consult item.
+`apps/website/src/<domain>/INFO.md` (25 of them) and is not an Always-Consult item.
 
 ## Audit Scope
 
 Unless the user explicitly expands the scope, code audits, security reviews, bug hunts, and refactor reviews in this repository must inspect only the final source state under:
 
-- `src/**`
 - `apps/**`
 
 Treat all other top-level paths as out of scope for those audits, including history, overwritten intermediate versions, generated output, documentation, development material, and `AI-Dev-Shop/**`.

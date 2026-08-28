@@ -8,18 +8,17 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "apps/website",
     "types": [
       "node"
     ]
   },
   "include": [
-    "src/**/*.ts"
+    "apps/website/src/**/*.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "apps",
     "**/__tests__/**",
     "**/*.test.ts"
   ]

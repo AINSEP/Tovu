@@ -170,7 +170,7 @@ COPY --from=build /workspace /workspace
 
 WORKDIR /workspace/Tovu
 
-# `src/server/app.ts` resolves these two from `__dirname` when unset, and the
+# `apps/website/src/server/app.ts` resolves these two from `__dirname` when unset, and the
 # compiled layout puts `__dirname` at `dist/src/server`, which makes the
 # relative fallback land at `dist/apps/admin/dist` — not where the admin build
 # actually is. Setting them explicitly sidesteps that entirely rather than
@@ -205,7 +205,7 @@ USER node
 # the process is PID 1's direct child and receives signals unmodified.
 #
 # The agent daemon is spawned as a DETACHED child in its own process group
-# (`src/index.ts`, `spawnAgentDaemon`), which is what stops it being orphaned
+# (`apps/website/src/index.ts`, `spawnAgentDaemon`), which is what stops it being orphaned
 # when a dev supervisor dies — but it also means the daemon does not receive a
 # signal sent to this process's group. Tovu's own `reap()` handles that on a
 # catchable SIGTERM. Run the container with an init process (`--init`, or

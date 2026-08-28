@@ -70,13 +70,13 @@ export default defineConfig({
     // picks one instance rather than reconciling different Reacts.
     dedupe: ["react", "react-dom", "react/jsx-runtime", "react/jsx-dev-runtime"],
     alias: {
-      "@tovu/headless": path.resolve(__dirname, "../../src/contracts/headless"),
+      "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
       // Same cross-runtime precedent as `@tovu/headless` just above, extended to a pure resolver
       // FUNCTION rather than wire-contract types: `theme-layout.ts` has zero `node:fs`/`node:path`
       // imports (see its own file header), so this browser bundle can import the exact same
       // apiVersion-aware path facts the server route uses — 2026-08-19 architecture audit findings
       // 1 & 2, "one shared resolver, not six independent copies that can drift."
-      "@tovu/theme-layout": path.resolve(__dirname, "../../src/features/theme/theme-layout.ts"),
+      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
     },
   },
   server: {

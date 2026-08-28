@@ -34,7 +34,7 @@ paths:
         the policies snapshotted at issuance and never to grants the principal accumulated first.
         The workspace is the caller's own, resolved from the credential; there is no request field
         for it and therefore no cross-workspace mint. Requires apikey.manage. Handler:
-        src/server/routes/admin/api-keys/create-principal.ts.
+        apps/website/src/server/routes/admin/api-keys/create-principal.ts.
       security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
@@ -58,7 +58,7 @@ paths:
         grow an already-issued key. Every permission the snapshot would confer must be held
         UNCONSTRAINED by the caller (INV-07) or issuance is refused with no rows written at all,
         including no orphan snapshot policy. Requires apikey.manage. Handler:
-        src/server/routes/admin/api-keys/issue.ts.
+        apps/website/src/server/routes/admin/api-keys/issue.ts.
       security: [{ adminSessionCookie: [] }]
       requestBody:
         required: true
@@ -80,7 +80,7 @@ paths:
         revokedAt, so the next request presenting it is rejected 401. The key's issuance snapshot is
         emptied at the same time, leaving the bound principal holding nothing. Idempotent —
         re-revoking an already-revoked key is 204, not a conflict, and does not move the original
-        timestamp. Requires apikey.manage. Handler: src/server/routes/admin/api-keys/revoke.ts.
+        timestamp. Requires apikey.manage. Handler: apps/website/src/server/routes/admin/api-keys/revoke.ts.
       # Disclosed deviation from state.spec.md §3, which calls for retiring the snapshot policy
       # outright (its principal_policies row + the policies row + its policy_permissions).
       # PrincipalPolicyRepoPort (@jini-ai/cms/identity) exposes no delete, and deleting the policies
@@ -415,7 +415,7 @@ components:
     RoleAssignmentResponse: { type: object, required: [assignment], properties: { assignment: { $ref: '#/components/schemas/RoleAssignment' } } }
     PolicyAttachmentResponse: { type: object, required: [attachment], properties: { attachment: { $ref: '#/components/schemas/PolicyAttachment' } } }
     PolicyPermissionResponse: { type: object, required: [policyPermission], properties: { policyPermission: { $ref: '#/components/schemas/PolicyPermission' } } }
-    # SPEC-006 §1/§4 (api-keys) — live as of 2026-08-24; serializers in src/server/http/admin/api-keys.ts.
+    # SPEC-006 §1/§4 (api-keys) — live as of 2026-08-24; serializers in apps/website/src/server/http/admin/api-keys.ts.
     # `format: uuid` was dropped from the id-bearing request fields below: these handlers pass ids
     # straight to the identity service with no route-level format validation, exactly as the
     # WorkspaceId/PrincipalId path parameters above already document for the rest of this fragment.
