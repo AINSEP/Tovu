@@ -9,6 +9,7 @@ import {
 } from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
 import { createEntry } from "#src/features/entries/index";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 
@@ -46,20 +47,13 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
   app.post("/api/admin/v1/entries", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.collections.manage",
         workspaceId: deps.workspaceId,
         entityType: "entry",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.collections.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.collections.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const parsedBody = parseCreateEntryBody(req.body);
       if (!parsedBody) {
