@@ -29,7 +29,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import type { ToolContributor } from "#src/assistant/index";
-import type { OriginRegistryPort } from "../../origin/index.js";
+import type { OriginRegistryPort } from "../../features/origin/index.js";
 import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
 import {

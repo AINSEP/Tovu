@@ -91,7 +91,7 @@ import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/ra
 import type { Express } from "express";
 import type { RouteDeps } from "./routes/types.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
-import { createVerifiedOrigin, OriginRegistry } from "../origin/index.js";
+import { createVerifiedOrigin, OriginRegistry } from "../features/origin/index.js";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../platform/db/sqlite/origin-repo.sqlite.js";
 import {
   SqliteAssetBlobRepo,

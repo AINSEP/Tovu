@@ -15,7 +15,7 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { InMemoryOutbox } from "../../contracts/core/events/index.js";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../features/origin/index.js";
 import { getRedirectsAgentToolCatalog, type AgentToolDefinition } from "../../features/redirects/agent-tools.js";
 import { redirectMatcher } from "../../features/redirects/matcher.js";
 import type { RedirectDbHandle } from "../../features/redirects/ports.internal.js";

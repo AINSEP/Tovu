@@ -10,7 +10,7 @@ import type {
   OutboundEmail,
 } from "../../../platform/mail/index.js";
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../../origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../../features/origin/index.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,

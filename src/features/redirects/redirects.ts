@@ -18,7 +18,7 @@
  * errors.spec.md.
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
-import type { OriginRegistryPort, RedirectTargetContext } from "../../origin/index.js";
+import type { OriginRegistryPort, RedirectTargetContext } from "../../features/origin/index.js";
 
 import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports.js";
