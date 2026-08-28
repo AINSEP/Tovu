@@ -38,7 +38,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { seededPosts, seededPresentation, seededWorkspace } from "../../src/server/seed.js";
+import { seededPosts, seededPresentation, seededWorkspace } from "../../src/server/runtime/configuration/seed.js";
 import type { TemplateSeedContent } from "../../src/platform/site-dir/types.js";
 
 const OUT_PATH = path.resolve(import.meta.dirname, "../../content/templates/starter/seed-content.json");

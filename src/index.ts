@@ -1,6 +1,6 @@
 import { createApp, createRouteDeps } from "./server/app.js";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps.js";
-import { CAPABILITY_INVENTORY } from "./server/capability-inventory.js";
+import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "./server/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";

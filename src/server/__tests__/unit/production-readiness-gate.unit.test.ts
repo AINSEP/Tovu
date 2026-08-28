@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { runProductionReadinessGate, capabilityRouteGuard } from "../../production-readiness-gate.js";
-import type { CapabilityInventoryEntry } from "../../capability-inventory.js";
+import type { CapabilityInventoryEntry } from "../../runtime/configuration/capability-inventory.js";
 
 /**
  * @file SPEC-022 C-003/C-004 — the boot-time containment gate (REQ-03/04/05/06/07/08,

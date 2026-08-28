@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { CAPABILITY_INVENTORY } from "../../capability-inventory.js";
+import { CAPABILITY_INVENTORY } from "../../runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "../../production-readiness-gate.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 

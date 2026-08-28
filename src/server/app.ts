@@ -45,7 +45,7 @@ import {
   seededWorkspace,
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-} from "./seed.js";
+} from "./runtime/configuration/seed.js";
 import { LocalBufferSink } from "../features/analytics/repo.memory.js";
 import {
   ConsoleMailerAdapter,
