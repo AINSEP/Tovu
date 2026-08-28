@@ -5,7 +5,7 @@ import { attachGlueContentLifecycle } from "../../attachment-points/content-life
 import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports.js";
 import { attachLoadedPlugin } from "../../../plugin-runtime/loader.js";
 import { createHookRegistry } from "../../../plugin-runtime/hook-registry.js";
-import type { ContentEntryDraft } from "../../../../../packages/sdk/src/index.js";
+import type { ContentEntryDraft } from "@tovu/sdk";
 
 /**
  * @file Content-lifecycle attachment point, exercised end to end against a REAL `hook-registry.ts`

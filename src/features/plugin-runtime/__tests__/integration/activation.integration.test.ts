@@ -13,7 +13,7 @@ import { buildAc11FixtureInstallDir } from "../fixtures/ac11-fixture.js";
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/plugin-runtime";
-import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { PluginHookFailedError } from "../../hook-registry.js";
 import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
 

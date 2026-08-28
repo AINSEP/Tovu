@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 import { buildCapabilityScopedSdk, CapabilityDeniedError, type CapabilityScopedSdkCoreDeps } from "../../capability-sdk.js";
 import type { PluginCapability } from "../../manifest.js";
 

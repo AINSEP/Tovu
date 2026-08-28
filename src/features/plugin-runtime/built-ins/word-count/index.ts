@@ -19,7 +19,7 @@
  */
 import type { BuiltInPluginSource } from "../../discovery.js";
 import type { PluginManifest } from "../../manifest.js";
-import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "@tovu/sdk";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
 export const WORD_COUNT_MANIFEST: PluginManifest = {
