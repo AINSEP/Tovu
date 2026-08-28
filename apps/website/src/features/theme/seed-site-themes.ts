@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 /**
@@ -29,9 +29,7 @@ import { dirname, join } from "node:path";
  * marketplace at `join(themesRoot, MARKETPLACE_CATALOG_DIR)`, both off the SITE's themes root —
  * omit either and the corresponding admin screen silently goes empty.
  *
- * Cost is paid once per site, and only on a boot where `<site>/themes/` is absent or empty (a
- * fresh `tovu init` always pre-creates it empty — see `seedSiteThemes()`'s own doc for why the
- * "already seeded" check has to look at contents, not just presence).
+ * Cost is paid once per site, and only on a boot where `<site>/themes/` is absent.
  *
  * Architectural role:
  * Pure filesystem effect, no domain logic and no port. Called from the real composition root
@@ -42,9 +40,9 @@ import { dirname, join } from "node:path";
 
 /** What a seed attempt did. Every outcome is a normal, non-exceptional boot state. */
 export type SeedSiteThemesStatus =
-  /** `<site>/themes/` was absent or empty, and now holds a full copy of the stock tree. */
+  /** `<site>/themes/` was absent and now holds a full copy of the stock tree. */
   | "seeded"
-  /** `<site>/themes/` already had at least one entry and was left exactly as it was. */
+  /** `<site>/themes/` already existed and was left exactly as it was. */
   | "already-present"
   /** No stock tree to copy from; nothing was written. */
   | "no-stock-source";
@@ -71,21 +69,16 @@ const STAGING_DIR_NAME = ".themes-seed-staging";
 
 /**
  * Copies the stock themes tree into a site's own themes directory, once, if that directory does
- * not already hold any content.
+ * not exist yet.
  *
- * A non-empty `<site>/themes/` is the "already seeded" signal — an operator's edited themes (or a
- * deliberately mounted, populated path) are left exactly as they are. An existing but EMPTY
- * directory is treated as NOT yet seeded and gets filled in: `tovu init` unconditionally
- * pre-creates `<site>/themes/` empty (BR-01 step 4, `init-site.ts`'s `SUBDIRS`), so on every fresh
- * site that directory exists before this function ever runs. A presence-only check can therefore
- * never fire for a CLI-created site — this function would report `already-present` on a site that
- * was never seeded at all, exactly the bug this contents-aware check exists to prevent.
+ * Presence of `<site>/themes/` — not its contents — is the "already seeded" signal. An existing but
+ * empty directory is therefore left empty: an operator who deliberately cleared or mounted that
+ * path gets what they asked for, and there is no state to distinguish "cleared on purpose" from
+ * "never seeded" other than the directory itself.
  *
  * The copy is written to a sibling staging directory and then renamed into place, so an interrupted
  * boot can never leave a HALF-copied `themes/` that the next boot reads as already seeded — the
- * failure mode that would silently ship a site with three of its seven themes. A rename onto an
- * existing EMPTY directory replaces it atomically (POSIX `rename(2)`; only a non-empty target
- * rejects the rename), so this holds whether `siteThemesDir` was absent or empty beforehand.
+ * failure mode that would silently ship a site with three of its seven themes.
  *
  * @param required.stockDir - The package's read-only stock themes tree.
  * @param required.siteThemesDir - The site's themes root.
@@ -93,14 +86,12 @@ const STAGING_DIR_NAME = ".themes-seed-staging";
  * @throws Whatever `node:fs` throws on an unwritable site directory or a failed copy — a site whose
  *   themes cannot be written has no working Theme Studio, so this is a real boot failure, not
  *   something to swallow. An absent stock tree is NOT such a case and returns `no-stock-source`.
- * @complexity O(bytes in the stock tree) on a seeding boot; O(1) (one `readdirSync`) on every boot
- *   after.
+ * @complexity O(bytes in the stock tree) on a seeding boot; O(1) on every boot after.
  */
 export function seedSiteThemes(required: SeedSiteThemesRequired): SeedSiteThemesResult {
   const { stockDir, siteThemesDir } = required;
 
-  const alreadySeeded = existsSync(siteThemesDir) && readdirSync(siteThemesDir).length > 0;
-  if (alreadySeeded) return { status: "already-present", siteThemesDir };
+  if (existsSync(siteThemesDir)) return { status: "already-present", siteThemesDir };
   if (!existsSync(stockDir)) return { status: "no-stock-source", siteThemesDir };
 
   const siteRoot = dirname(siteThemesDir);
