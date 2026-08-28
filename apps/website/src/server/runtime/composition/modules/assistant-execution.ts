@@ -1,8 +1,8 @@
-import { registerAdminAssistantDetectAgentsRoute } from "../../../inbound/admin-http/routes/assistant/detect-agents.js";
-import { registerAdminAssistantTestConnectionRoute } from "../../../inbound/admin-http/routes/assistant/test-connection.js";
-import { registerAdminAssistantListModelsRoute } from "../../../inbound/admin-http/routes/assistant/list-models.js";
-import { registerAdminAssistantTestAgentRoute } from "../../../inbound/admin-http/routes/assistant/test-agent.js";
-import type { AssistantExecutionRouteDeps } from "../../../inbound/admin-http/routes/assistant/execution-deps.js";
+import { registerAdminAssistantDetectAgentsRoute } from "#src/server/inbound/admin-http/routes/assistant/detect-agents";
+import { registerAdminAssistantTestConnectionRoute } from "#src/server/inbound/admin-http/routes/assistant/test-connection";
+import { registerAdminAssistantListModelsRoute } from "#src/server/inbound/admin-http/routes/assistant/list-models";
+import { registerAdminAssistantTestAgentRoute } from "#src/server/inbound/admin-http/routes/assistant/test-agent";
+import type { AssistantExecutionRouteDeps } from "#src/server/inbound/admin-http/routes/assistant/execution-deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

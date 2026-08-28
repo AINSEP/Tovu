@@ -4,8 +4,8 @@ import test from "node:test";
 import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import type { DatabaseIntrospectionPort, SchemaStateSummary } from "../../../features/database/adapter.sqlite.js";
-import { InMemoryDatabaseIntrospectionAdapter } from "../../../features/database/repo.memory.js";
+import type { DatabaseIntrospectionPort, SchemaStateSummary } from "#src/features/database/adapter.sqlite";
+import { InMemoryDatabaseIntrospectionAdapter } from "#src/features/database/repo.memory";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseSchemaStateRoute } from "../../inbound/admin-http/routes/database/schema-state.js";

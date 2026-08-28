@@ -5,7 +5,7 @@ import type { ExternalMcpOAuthService } from "#src/assistant/index";
 import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
-import { externalMcpOAuthCallbackUrl } from "../../../../inbound/public-http/routes/external-mcp/oauth-callback-url.js";
+import { externalMcpOAuthCallbackUrl } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback-url";
 import type { ExternalMcpRouteDeps } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 

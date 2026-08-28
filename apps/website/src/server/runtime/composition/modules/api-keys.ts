@@ -1,7 +1,7 @@
-import { registerAdminApiKeyPrincipalCreateRoute } from "../../../inbound/admin-http/routes/api-keys/create-principal.js";
-import { registerAdminApiKeyIssueRoute } from "../../../inbound/admin-http/routes/api-keys/issue.js";
-import { registerAdminApiKeyRevokeRoute } from "../../../inbound/admin-http/routes/api-keys/revoke.js";
-import type { ApiKeysRouteDeps } from "../../../inbound/admin-http/routes/api-keys/deps.js";
+import { registerAdminApiKeyPrincipalCreateRoute } from "#src/server/inbound/admin-http/routes/api-keys/create-principal";
+import { registerAdminApiKeyIssueRoute } from "#src/server/inbound/admin-http/routes/api-keys/issue";
+import { registerAdminApiKeyRevokeRoute } from "#src/server/inbound/admin-http/routes/api-keys/revoke";
+import type { ApiKeysRouteDeps } from "#src/server/inbound/admin-http/routes/api-keys/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

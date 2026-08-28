@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb } from "../content-db.js";
 import { SqliteAdminExecutionCredentialRepo } from "../execution-credential-repo.sqlite.js";
 import { principals, workspaces } from "../../schema.js";
-import type { AdminExecutionCredentialRecord } from "../../../../assistant/execution-credential-store.js";
+import type { AdminExecutionCredentialRecord } from "#src/assistant/execution-credential-store";
 
 /**
  * @file `SqliteAdminExecutionCredentialRepo` against a real, migrated `content.db` (`:memory:`) —

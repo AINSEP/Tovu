@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { OpenTransactionHandle } from "../../../contracts/core/gated-mutations/watermark.js";
-import { stampWatermark } from "../../../contracts/core/gated-mutations/watermark.js";
-import type { MirrorStorePort } from "../../../contracts/core/gated-mutations/ports.js";
+import type { OpenTransactionHandle } from "#src/contracts/core/gated-mutations/watermark";
+import { stampWatermark } from "#src/contracts/core/gated-mutations/watermark";
+import type { MirrorStorePort } from "#src/contracts/core/gated-mutations/ports";
 import type { ContentDb } from "./content-db.js";
 import * as schema from "../schema.js";
 

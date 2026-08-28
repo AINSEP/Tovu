@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteSiteAssistantCredentialRepo } from "../site-credential-repo.sqlite.js";
-import type { SiteAssistantCredentialRecord } from "../../../../assistant/site-credential-store.js";
+import type { SiteAssistantCredentialRecord } from "#src/assistant/site-credential-store";
 
 /**
  * @file `SqliteSiteAssistantCredentialRepo` against a real, migrated `content.db` (`:memory:`) — the

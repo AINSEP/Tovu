@@ -6,7 +6,7 @@ import { confirmRestore, executeRestore, planRestore } from "#src/features/recov
 import { buildConfirmOnlyHooks } from "#src/contracts/core/gated-mutations/composition";
 import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "#src/features/recovery/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteDeps } from "../../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file SPEC-019 C-301/C-302/C-303 — `POST /api/admin/v1/recovery/restore/{plan,confirm,execute}`

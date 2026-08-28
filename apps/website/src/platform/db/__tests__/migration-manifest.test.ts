@@ -17,7 +17,7 @@ import ts from "typescript";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import type { ColumnDecl } from "../../../features/plugins/data-module.js";
+import type { ColumnDecl } from "#src/features/plugins/data-module";
 import {
   assertIdentifierFits,
   classifyAllCoreColumns,

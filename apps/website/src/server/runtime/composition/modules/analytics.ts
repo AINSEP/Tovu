@@ -1,5 +1,5 @@
-import type { AdminAnalyticsRecentHitsDeps } from "../../../inbound/admin-http/routes/analytics/recent-hits.js";
-import { registerAdminAnalyticsRecentHitsRoute } from "../../../inbound/admin-http/routes/analytics/recent-hits.js";
+import type { AdminAnalyticsRecentHitsDeps } from "#src/server/inbound/admin-http/routes/analytics/recent-hits";
+import { registerAdminAnalyticsRecentHitsRoute } from "#src/server/inbound/admin-http/routes/analytics/recent-hits";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

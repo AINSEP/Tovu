@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
-import { SITE_PROFILE_SECTION_NAMES } from "../../../features/site-inspection/index.js";
+import { SITE_PROFILE_SECTION_NAMES } from "#src/features/site-inspection/index";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

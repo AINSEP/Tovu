@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { generateStaticPortabilityIndex, type GenerateStaticPortabilityIndexResult } from "../../../features/theme/index.js";
+import { generateStaticPortabilityIndex, type GenerateStaticPortabilityIndexResult } from "#src/features/theme/index";
 
 /**
  * @file `tovu theme generate-index <dir> [--json]` — `static-portability-index.ts`'s CLI surface.

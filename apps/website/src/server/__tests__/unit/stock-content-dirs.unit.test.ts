@@ -14,14 +14,15 @@ import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composit
  * silently when that tree moves, and neither is caught by `tsc` (none of these directories holds a
  * single `.ts` file, so nothing imports them):
  *
- *  1. **Layout portability.** Every one of these paths is resolved package-relative via
- *     `import.meta.dirname`, deliberately NOT `process.cwd()` (CR-R04 — see `deps.ts`'s
- *     `builtInThemesDir` header). The same expression has to land on `content/` in the SOURCE tree
- *     (`src/server/` -> `<repo>/content`) and on `dist/content/` in the COMPILED tree
- *     (`dist/src/server/` -> `dist/content`). Both are two levels below their own root, so the
- *     invariant that makes them agree is the RELATIVE OFFSET, not the absolute path — asserting the
- *     absolute path alone would pass while the compiled layout was broken. That is the exact failure
- *     mode this file exists to catch, so the offset is what it asserts.
+ *  1. **Layout portability.** Every one of these paths is resolved via `resolveProductRoot()`
+ *     (`product-root.ts`), a walk-up that finds the nearest ancestor with both a `package.json` and a
+ *     `content/` dir — deliberately NOT a fixed `../` count off `import.meta.dirname` (CR-R04 — see
+ *     `deps.ts`'s `builtInThemesDir` header). Since the 2026-08-27 `apps/website/` rename, the SOURCE
+ *     tree (`apps/website/src/server/` -> `<repo-root>/content`) and the COMPILED tree
+ *     (`dist/src/server/` -> `dist/content`) sit at DIFFERENT depths below their own root, so a fixed
+ *     relative offset can never be correct in both at once (`product-root.ts`'s own header). This file
+ *     asserts the resolved ABSOLUTE destination against the real filesystem instead — the one thing
+ *     both trees actually have to agree on.
  *
  *  2. **Build staleness.** `dist/` is never cleaned wholesale, so an asset copy that only ever adds
  *     files leaves deleted themes behind forever. Before this change `dist/src/themes/` carried four
@@ -34,14 +35,14 @@ import { builtInThemesDir, bundledAgentPluginsDir } from "../../runtime/composit
  * `deps.ts` exports rather than a fixture, because a fixture could not observe either regression.
  */
 
-/** `src/server/__tests__/unit/` -> repo root. */
-const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..");
+/** `apps/website/src/server/__tests__/unit/` -> repo root. */
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
 
 /** The directory `deps.ts` itself resolves from, i.e. what `import.meta.dirname` sees there. */
-const DEPS_DIR = path.join(REPO_ROOT, "src", "server");
+const DEPS_DIR = path.join(REPO_ROOT, "apps", "website", "src", "server");
 
 /** The directory `site-dir/read-template.ts` resolves `TEMPLATES_ROOT` from. */
-const SITE_DIR_DIR = path.join(REPO_ROOT, "src", "platform", "site-dir");
+const SITE_DIR_DIR = path.join(REPO_ROOT, "apps", "website", "src", "platform", "site-dir");
 
 /**
  * Both env overrides must be unset for these assertions to describe the package-relative default
@@ -61,31 +62,36 @@ function assertNoStockDirOverride(): void {
   );
 }
 
-test("stock themes resolve to content/themes at the same relative offset in the source and compiled layouts", () => {
+test("stock themes resolve to content/themes via the product-root walk-up, landing on the real repo root's content/", () => {
   assertNoStockDirOverride();
 
+  // Not a fixed `../` count: `builtInThemesDir()` walks up via `resolveProductRoot()` precisely
+  // because a fixed offset from `DEPS_DIR` cannot be correct in both the source tree
+  // (`apps/website/src/server`, four levels above `content/`) and the compiled tree (`dist/src/server`,
+  // two levels above `dist/content/`) at once -- see `product-root.ts`'s own header. What both trees
+  // DO share is the absolute destination, so that -- not the relative offset -- is what this asserts.
   assert.equal(
     path.relative(DEPS_DIR, builtInThemesDir()),
-    path.join("..", "..", "content", "themes"),
-    "builtInThemesDir() must be two levels up from src/server plus content/themes, so dist/src/server lands on dist/content/themes",
+    path.join("..", "..", "..", "..", "content", "themes"),
+    "builtInThemesDir() must land on <repo-root>/content/themes from this source tree's DEPS_DIR",
   );
   assert.equal(builtInThemesDir(), path.join(REPO_ROOT, "content", "themes"));
   assert.ok(existsSync(builtInThemesDir()), `${builtInThemesDir()} does not exist`);
   assert.ok(existsSync(path.join(builtInThemesDir(), "static", "basic", "theme.json")));
 });
 
-test("bundled agent plugins resolve to content/agent-plugins at the same relative offset", () => {
+test("bundled agent plugins resolve to content/agent-plugins via the product-root walk-up", () => {
   assertNoStockDirOverride();
 
   assert.equal(
     path.relative(DEPS_DIR, bundledAgentPluginsDir()),
-    path.join("..", "..", "content", "agent-plugins"),
+    path.join("..", "..", "..", "..", "content", "agent-plugins"),
   );
   assert.equal(bundledAgentPluginsDir(), path.join(REPO_ROOT, "content", "agent-plugins"));
   assert.ok(existsSync(path.join(bundledAgentPluginsDir(), "site-compliance")));
 });
 
-test("site templates resolve to content/templates at the same relative offset", () => {
+test("site templates resolve to content/templates via the product-root walk-up", () => {
   // `read-template.ts` holds `TEMPLATES_ROOT` in a module-private const with no accessor, so the
   // offset is asserted against the source text. Weaker than calling an export, but it is the only
   // way to observe the constant, and the alternative -- asserting only that `readTemplate("starter")`
@@ -93,8 +99,8 @@ test("site templates resolve to content/templates at the same relative offset", 
   const source = readFileSync(path.join(SITE_DIR_DIR, "read-template.ts"), "utf8");
   assert.match(
     source,
-    /path\.resolve\(import\.meta\.dirname,\s*"\.\.\/\.\.\/content\/templates"\)/,
-    "read-template.ts must resolve ../../content/templates so dist/src/platform/site-dir lands on dist/content/templates",
+    /path\.join\(\s*resolveProductRoot\(\),\s*"content",\s*"templates"\s*\)/,
+    "read-template.ts must resolve TEMPLATES_ROOT via resolveProductRoot(), not a fixed ../ count, so it lands correctly in both the source and compiled trees",
   );
   assert.ok(existsSync(path.join(REPO_ROOT, "content", "templates", "starter", "template.json")));
 });

@@ -1,7 +1,7 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../../../features/source-control/types.js";
+import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "#src/features/source-control/types";
 import { sourceControlCredentialSets } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 

@@ -5,7 +5,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import type { ObservePageRequest, ObservePageResult, PageObservation, SiteEvidenceBrowserFactory } from "../../browser-port.js";
 import { collectPageEvidence, SITE_EVIDENCE_LIMITS, type CollectPageEvidenceDeps } from "../../collect-page-evidence.js";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../../../features/origin/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "#src/features/origin/index";
 
 /**
  * @file `collectPageEvidence()` — the bounds and the no-verdict contract, exercised against a fake

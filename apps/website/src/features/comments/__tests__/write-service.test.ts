@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "../../../contracts/core/events/index.js";
+import { InMemoryOutbox } from "#src/contracts/core/events/index";
 import { createCommentHookRegistry } from "../hooks.js";
 import { InMemoryCommentRepo } from "../repo.memory.js";
 import { createCommentWriteService } from "../write-service.js";

@@ -4,7 +4,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryPostRepo } from "../../../features/post/index.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 import { renderDocNode } from "../../inbound/public-http/http/site/render.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";

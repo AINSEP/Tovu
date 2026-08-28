@@ -11,11 +11,11 @@ import { forceRemove } from "../fixtures/force-remove.js";
 import { resolveAgentPluginLayout } from "../../layout.js";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
 import { registerInstalledAgentPluginTools } from "../../tool-registrations.js";
-import { createRouteDeps } from "../../../../server/runtime/composition/app.js";
-import { buildAssistantToolRegistrations } from "../../../../assistant/tool-registrations.js";
-import { buildToolCatalogQuery } from "../../../../assistant/tool-catalog-query.js";
-import { resetToolContributorsForTests } from "../../../../assistant/tool-contribution-registry.js";
-import { installFirstPartyToolContributors } from "../../../../server/runtime/composition/tool-catalog-manifest.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
+import { buildAssistantToolRegistrations } from "#src/assistant/tool-registrations";
+import { buildToolCatalogQuery } from "#src/assistant/tool-catalog-query";
+import { resetToolContributorsForTests } from "#src/assistant/tool-contribution-registry";
+import { installFirstPartyToolContributors } from "#src/server/runtime/composition/tool-catalog-manifest";
 
 /**
  * @file THE crux test for the one-tool-per-plugin design (2026-08-24, superseding the 2026-08-23

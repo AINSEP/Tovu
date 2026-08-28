@@ -3,19 +3,19 @@ import {
   EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
   EXTERNAL_MCP_OAUTH_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminExternalMcpAdmissionsRoute } from "../../../inbound/admin-http/routes/external-mcp/admissions.js";
-import { registerAdminExternalMcpDeleteRoute } from "../../../inbound/admin-http/routes/external-mcp/delete.js";
-import type { ExternalMcpRouteDeps } from "../../../inbound/admin-http/routes/external-mcp/deps.js";
-import { registerAdminExternalMcpListRoute } from "../../../inbound/admin-http/routes/external-mcp/list.js";
+import { registerAdminExternalMcpAdmissionsRoute } from "#src/server/inbound/admin-http/routes/external-mcp/admissions";
+import { registerAdminExternalMcpDeleteRoute } from "#src/server/inbound/admin-http/routes/external-mcp/delete";
+import type { ExternalMcpRouteDeps } from "#src/server/inbound/admin-http/routes/external-mcp/deps";
+import { registerAdminExternalMcpListRoute } from "#src/server/inbound/admin-http/routes/external-mcp/list";
 import {
   registerAdminExternalMcpOAuthConnectRoute,
   registerAdminExternalMcpOAuthDevicePollRoute,
   registerAdminExternalMcpOAuthDisconnectRoute,
   type ExternalMcpOAuthRouteDeps,
-} from "../../../inbound/admin-http/routes/external-mcp/oauth.js";
-import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "../../../inbound/admin-http/routes/external-mcp/probe.js";
-import { registerAdminExternalMcpPutRoute } from "../../../inbound/admin-http/routes/external-mcp/put.js";
-import { registerExternalMcpOAuthCallbackRoute } from "../../../inbound/public-http/routes/external-mcp/oauth-callback.js";
+} from "#src/server/inbound/admin-http/routes/external-mcp/oauth";
+import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "#src/server/inbound/admin-http/routes/external-mcp/probe";
+import { registerAdminExternalMcpPutRoute } from "#src/server/inbound/admin-http/routes/external-mcp/put";
+import { registerExternalMcpOAuthCallbackRoute } from "#src/server/inbound/public-http/routes/external-mcp/oauth-callback";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

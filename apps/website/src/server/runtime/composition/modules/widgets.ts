@@ -1,18 +1,18 @@
-import { registerAdminWidgetAgentToolsRoutes } from "../../../inbound/admin-http/routes/widgets/agent-tools.js";
-import { registerAdminWidgetCreateRoute } from "../../../inbound/admin-http/routes/widgets/create.js";
-import { registerAdminWidgetEmbedInsertRoute } from "../../../inbound/admin-http/routes/widgets/embed-insert.js";
-import { registerAdminWidgetEmbedRemoveRoute } from "../../../inbound/admin-http/routes/widgets/embed-remove.js";
-import { registerAdminWidgetEmbedReorderRoute } from "../../../inbound/admin-http/routes/widgets/embed-reorder.js";
-import { registerAdminWidgetGetRoute } from "../../../inbound/admin-http/routes/widgets/get-by-id.js";
-import { registerAdminWidgetListRoute } from "../../../inbound/admin-http/routes/widgets/list.js";
-import { registerAdminWidgetPurgeRoute } from "../../../inbound/admin-http/routes/widgets/purge.js";
-import { registerAdminWidgetRegionBindRoute } from "../../../inbound/admin-http/routes/widgets/region-bind.js";
-import { registerAdminWidgetRegionGetRoute } from "../../../inbound/admin-http/routes/widgets/region-get.js";
-import { registerAdminWidgetRegionMutatePlacementsRoute } from "../../../inbound/admin-http/routes/widgets/region-mutate-placements.js";
-import { registerAdminWidgetRegionsListRoute } from "../../../inbound/admin-http/routes/widgets/regions-list.js";
-import { registerAdminWidgetTrashRoute } from "../../../inbound/admin-http/routes/widgets/trash.js";
-import { registerAdminWidgetUpdateRoute } from "../../../inbound/admin-http/routes/widgets/update.js";
-import type { RouteDeps } from "../../../routes/types.js";
+import { registerAdminWidgetAgentToolsRoutes } from "#src/server/inbound/admin-http/routes/widgets/agent-tools";
+import { registerAdminWidgetCreateRoute } from "#src/server/inbound/admin-http/routes/widgets/create";
+import { registerAdminWidgetEmbedInsertRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-insert";
+import { registerAdminWidgetEmbedRemoveRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-remove";
+import { registerAdminWidgetEmbedReorderRoute } from "#src/server/inbound/admin-http/routes/widgets/embed-reorder";
+import { registerAdminWidgetGetRoute } from "#src/server/inbound/admin-http/routes/widgets/get-by-id";
+import { registerAdminWidgetListRoute } from "#src/server/inbound/admin-http/routes/widgets/list";
+import { registerAdminWidgetPurgeRoute } from "#src/server/inbound/admin-http/routes/widgets/purge";
+import { registerAdminWidgetRegionBindRoute } from "#src/server/inbound/admin-http/routes/widgets/region-bind";
+import { registerAdminWidgetRegionGetRoute } from "#src/server/inbound/admin-http/routes/widgets/region-get";
+import { registerAdminWidgetRegionMutatePlacementsRoute } from "#src/server/inbound/admin-http/routes/widgets/region-mutate-placements";
+import { registerAdminWidgetRegionsListRoute } from "#src/server/inbound/admin-http/routes/widgets/regions-list";
+import { registerAdminWidgetTrashRoute } from "#src/server/inbound/admin-http/routes/widgets/trash";
+import { registerAdminWidgetUpdateRoute } from "#src/server/inbound/admin-http/routes/widgets/update";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

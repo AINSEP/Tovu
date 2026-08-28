@@ -28,10 +28,10 @@ import {
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
 } from "../errors.js";
-import { InMemoryEventBus, InMemoryOutbox } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import type { HookRegistry } from "../hooks.js";
 import type { LaunchGateDeps } from "../launch-gate.js";
-import type { MailerPort } from "../../../platform/mail/index.js";
+import type { MailerPort } from "#src/platform/mail/index";
 import type { SendBatchJob, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

@@ -3,9 +3,9 @@ import test from "node:test";
 
 import type { ConnectorCredentialRecord } from "@jini-ai/integrations/composio";
 
-import { InMemoryKeyring } from "../../../features/webhooks/keyring.memory.js";
-import type { KeyringPort } from "../../../features/webhooks/index.js";
-import { AesGcmSecretSealer } from "../../../features/webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import type { KeyringPort } from "#src/features/webhooks/index";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
 import { InMemoryConnectorCredentialRepo } from "../connector-credential-store.memory.js";
 import {
   createSnapshotConnectorCredentialStore,

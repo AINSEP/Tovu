@@ -2,7 +2,7 @@ import { buildWidgetsDeps } from "#src/features/widgets/deps";
 import { purgeWidgetInstance } from "#src/features/widgets/write-service";
 import { mapWidgetErrorToResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /**
  * POST purge a (trashed) widget instance (ADR-047 §7 deletion ladder, step 2) — `?force=true`

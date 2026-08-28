@@ -3,7 +3,7 @@ import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-se
 import type { WidgetPlacementNode } from "#src/features/widgets/types";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 function isPlacementShape(value: unknown): value is { placementId: string; widgetEntryId: string; enabled: boolean } {
   if (typeof value !== "object" || value === null) return false;

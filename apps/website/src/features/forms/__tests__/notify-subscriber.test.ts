@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import type { DomainEvent } from "@jini-ai/cms/core";
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../../platform/mail/index.js";
+import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "#src/platform/mail/index";
 import { registerFormNotifySubscriber } from "../notify-subscriber.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";

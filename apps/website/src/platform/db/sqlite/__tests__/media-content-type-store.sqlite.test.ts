@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "../content-db.js";
 import { SqliteAssetBlobRepo, SqliteMediaContentTypeStore } from "../media-repo.sqlite.js";
-import { InMemoryMediaContentTypeStore, type MediaContentTypeStorePort } from "../../../../features/media/content-type-store.js";
+import { InMemoryMediaContentTypeStore, type MediaContentTypeStorePort } from "#src/features/media/content-type-store";
 import type { AssetBlobRecord } from "@jini-ai/cms/media";
 
 /**

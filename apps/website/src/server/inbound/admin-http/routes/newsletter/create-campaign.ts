@@ -1,7 +1,7 @@
 import { saveCampaign } from "#src/features/newsletter/campaign-write-service";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/inbound/admin-http/http/newsletter";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /** This route's five required string fields, in the one order used for validation. */

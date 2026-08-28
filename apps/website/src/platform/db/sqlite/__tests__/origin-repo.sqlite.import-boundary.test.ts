@@ -51,7 +51,7 @@ test("origin-repo.sqlite.ts imports the createVerifiedOrigin VALUE through origi
   );
   assert.match(
     specifier!,
-    /^\.\.\/\.\.\/\.\.\/features\/origin(\/index(\.js)?)?$/,
-    `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", or \"../../../features/origin/index.js\"), got \"${specifier}\"`
+    /^(\.\.\/\.\.\/\.\.\/features\/origin|#src\/features\/origin)(\/index(\.js)?)?$/,
+    `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", \"../../../features/origin/index.js\", or the \"#src/features/origin\" alias form), got \"${specifier}\"`
   );
 });

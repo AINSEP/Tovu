@@ -1,7 +1,7 @@
 import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry } from "#src/features/widgets/entry-payload";
 import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/inbound/admin-http/http/widgets";
-import type { RouteRegistrar } from "../../../../routes/types.js";
+import type { RouteRegistrar } from "#src/server/routes/types";
 
 /**
  * GET one region's area entry, with each placement's `widgetTitle`/`widgetType` resolved —

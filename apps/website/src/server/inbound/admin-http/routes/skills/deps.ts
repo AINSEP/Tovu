@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file C-003a `SkillsRouteDeps` — narrow `RouteDeps` slice for the `skills` admin HTTP surface

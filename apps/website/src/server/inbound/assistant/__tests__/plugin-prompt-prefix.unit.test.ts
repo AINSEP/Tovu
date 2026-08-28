@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
@@ -34,9 +34,10 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
  */
 
 // `resolveAgentPluginLayout()` (called with no args, deep inside `resolveAgentPluginPromptPrefix`,
-// exactly as `onStarted` itself calls it) resolves `infra/agent-plugins` relative to
-// `process.cwd()` — this file relies on being invoked from the repo root, the standard
-// `node --import tsx --test <path>` invocation this repo's own test scripts use.
+// exactly as `onStarted` itself calls it) resolves `sites/<name>/agent-plugins` (default site name
+// `tovu-com`, per `resolveSiteRoot()` — the `infra/agent-plugins` root it used before 2026-08-27 is
+// gone) relative to `process.cwd()` — this file relies on being invoked from the repo root, the
+// standard `node --import tsx --test <path>` invocation this repo's own test scripts use.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../../../../..");
 const WORKSPACE_ID = "workspace-local";
 const PLUGIN_ID = "ui-ux-design";
@@ -79,10 +80,9 @@ test("resolveAgentPluginPromptPrefix resolves the REAL installed ui-ux-design SK
   // Read the real, already-installed SKILL.md independently off disk, exactly as
   // `resolve-agent-plugin-refs.real-install.unit.test.ts` does, so the assertion below compares
   // against bytes this test read itself rather than a value the code under test merely produced.
-  const layoutRoot = path.join(REPO_ROOT, "infra", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256");
+  const layoutRoot = path.join(REPO_ROOT, "sites", "tovu-com", "agent-plugins", "ws", WORKSPACE_ID, "packages", "sha256");
   let digestDirs: string[];
   try {
-    const { readdir } = await import("node:fs/promises");
     digestDirs = await readdir(layoutRoot);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -94,7 +94,25 @@ test("resolveAgentPluginPromptPrefix resolves the REAL installed ui-ux-design SK
     );
     return;
   }
-  const skillPath = path.join(layoutRoot, digestDirs[0] as string, "skills", PLUGIN_ID, "SKILL.md");
+  // This workspace can have more than one plugin installed (e.g. `site-compliance` alongside this
+  // one), so `digestDirs[0]` is not necessarily `ui-ux-design` -- `readdir` order is not guaranteed
+  // to match install order. Find the digest whose own `plugin.json` names this plugin, the same way
+  // the real resolver identifies a package.
+  let digestDir: string | undefined;
+  for (const candidate of digestDirs) {
+    const manifest = JSON.parse(
+      await readFile(path.join(layoutRoot, candidate, "plugin.json"), "utf8"),
+    ) as { name?: string };
+    if (manifest.name === PLUGIN_ID) {
+      digestDir = candidate;
+      break;
+    }
+  }
+  assert.ok(
+    digestDir,
+    `none of the installed packages under ${layoutRoot} (${digestDirs.join(", ")}) has plugin.json name '${PLUGIN_ID}'`,
+  );
+  const skillPath = path.join(layoutRoot, digestDir as string, "skills", PLUGIN_ID, "SKILL.md");
   const realSkillMarkdown = await readFile(skillPath, "utf8");
   assert.ok(realSkillMarkdown.length > 0, `real SKILL.md at ${skillPath} was unexpectedly empty`);
 

@@ -9,7 +9,7 @@ import {
 } from "@jini-ai/cms/identity";
 import type { ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { getAuthedCredentialKind } from "#src/server/inbound/admin-http/dev-auth";
-import type { RouteDeps } from "../../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file `RouteDeps` -> `identity`/api-key service-deps mapping for the three api-keys admin routes,

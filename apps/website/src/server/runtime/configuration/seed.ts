@@ -1,12 +1,12 @@
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { PostRecord } from "../../../features/post/index.js";
-import type { PresentationSettingsRecord } from "../../../features/presentation/index.js";
+import type { PostRecord } from "#src/features/post/index";
+import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import {
   migrateLegacyPresentationSettings,
   type MigrateLegacyPresentationSettingsDeps,
   type MigrateLegacyPresentationSettingsResult,
-} from "../../../features/settings/migration.js";
-import type { WorkspaceRecord } from "../../../features/workspace/index.js";
+} from "#src/features/settings/migration";
+import type { WorkspaceRecord } from "#src/features/workspace/index";
 
 /**
  * @file First-run seed content.

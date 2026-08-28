@@ -61,9 +61,9 @@ import {
   createByokToolSurface,
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
-} from "../../../../assistant/index.js";
-import { getAuthedPrincipal, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
-import type { RouteDeps } from "../../../routes/types.js";
+} from "#src/assistant/index";
+import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
 

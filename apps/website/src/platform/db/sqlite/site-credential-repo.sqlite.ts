@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "../../../assistant/index.js";
+import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "#src/assistant/index";
 import type { UUID, ISODateTime } from "@jini-ai/cms/core";
 import { siteAssistantCredentials } from "../schema.js";
 import type { ContentDb } from "./content-db.js";

@@ -4,7 +4,7 @@ import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme 
 import { listPublishedPosts } from "#src/features/post/index";
 import { authorizeThemeSetPermission } from "../../admin-http/routes/themes/explore.js";
 import { requireAdminSession } from "../../admin-http/dev-auth.js";
-import type { RouteDeps } from "../../../routes/types.js";
+import type { RouteDeps } from "#src/server/routes/types";
 import { renderSite, type SiteProduct } from "../http/site/render.js";
 import {
   resolveWidgetsForRender,

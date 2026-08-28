@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SlugChangeCaptureInput } from "../../../platform/routing/index.js";
+import type { SlugChangeCaptureInput } from "#src/platform/routing/index";
 import { RedirectSlugChangeCapture } from "../capture.js";
 import type { RedirectDbHandle } from "../ports.internal.js";
 import type { RedirectRecord, RedirectRevision } from "../types.js";

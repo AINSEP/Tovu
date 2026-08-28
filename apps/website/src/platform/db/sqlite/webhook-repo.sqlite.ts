@@ -4,8 +4,8 @@ import { webhookDeliveries, webhookSubscriptions } from "../schema.js";
 import type { ContentDb } from "./content-db.js";
 import { findOneBy } from "./repo-helpers.js";
 
-import type { DeliveryEnvelopeStore } from "../../../features/webhooks/repo.memory.js";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../../features/webhooks/ports.js";
+import type { DeliveryEnvelopeStore } from "#src/features/webhooks/repo.memory";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "#src/features/webhooks/ports";
 import type {
   IntegrationId,
   WebhookDeliveryRecord,
@@ -14,7 +14,7 @@ import type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "../../../features/webhooks/types.js";
+} from "#src/features/webhooks/types";
 
 /**
  * @file Drizzle/SQLite adapters for the `integrations` repo ports (ADR-036 §2,

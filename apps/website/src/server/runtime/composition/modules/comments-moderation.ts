@@ -1,8 +1,8 @@
-import { registerAdminCommentsGetSettingsRoute } from "../../../inbound/admin-http/routes/comments/get-settings.js";
-import { registerAdminCommentsModerateRoutes } from "../../../inbound/admin-http/routes/comments/moderate.js";
-import { registerAdminCommentsModerationQueueRoute } from "../../../inbound/admin-http/routes/comments/moderation-queue.js";
-import { registerAdminCommentsPutSettingsRoute } from "../../../inbound/admin-http/routes/comments/put-settings.js";
-import type { CommentsModerationRouteDeps } from "../../../inbound/admin-http/routes/comments/deps.js";
+import { registerAdminCommentsGetSettingsRoute } from "#src/server/inbound/admin-http/routes/comments/get-settings";
+import { registerAdminCommentsModerateRoutes } from "#src/server/inbound/admin-http/routes/comments/moderate";
+import { registerAdminCommentsModerationQueueRoute } from "#src/server/inbound/admin-http/routes/comments/moderation-queue";
+import { registerAdminCommentsPutSettingsRoute } from "#src/server/inbound/admin-http/routes/comments/put-settings";
+import type { CommentsModerationRouteDeps } from "#src/server/inbound/admin-http/routes/comments/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

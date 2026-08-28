@@ -1,9 +1,9 @@
-import { registerAdminWorkspaceCreateRoute } from "../../../inbound/admin-http/routes/workspace/create.js";
-import { registerAdminWorkspaceDeleteRoute } from "../../../inbound/admin-http/routes/workspace/delete.js";
-import type { WorkspaceRouteDeps } from "../../../inbound/admin-http/routes/workspace/deps.js";
-import { registerAdminWorkspaceGetRoute } from "../../../inbound/admin-http/routes/workspace/get.js";
-import { registerAdminWorkspaceListRoute } from "../../../inbound/admin-http/routes/workspace/list.js";
-import { registerAdminWorkspaceUpdateRoute } from "../../../inbound/admin-http/routes/workspace/update.js";
+import { registerAdminWorkspaceCreateRoute } from "#src/server/inbound/admin-http/routes/workspace/create";
+import { registerAdminWorkspaceDeleteRoute } from "#src/server/inbound/admin-http/routes/workspace/delete";
+import type { WorkspaceRouteDeps } from "#src/server/inbound/admin-http/routes/workspace/deps";
+import { registerAdminWorkspaceGetRoute } from "#src/server/inbound/admin-http/routes/workspace/get";
+import { registerAdminWorkspaceListRoute } from "#src/server/inbound/admin-http/routes/workspace/list";
+import { registerAdminWorkspaceUpdateRoute } from "#src/server/inbound/admin-http/routes/workspace/update";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

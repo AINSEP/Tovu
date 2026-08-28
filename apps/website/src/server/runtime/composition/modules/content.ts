@@ -1,22 +1,22 @@
-import { registerAdminPostListRoute } from "../../../inbound/admin-http/routes/posts/list.js";
-import { registerAdminPostCreateRoute } from "../../../inbound/admin-http/routes/posts/create.js";
-import { registerAdminPostGetRoute } from "../../../inbound/admin-http/routes/posts/get-by-id.js";
-import { registerAdminPostTemplatePreviewRoute } from "../../../inbound/admin-http/routes/posts/template-preview.js";
-import { registerAdminPostUpdateRoute } from "../../../inbound/admin-http/routes/posts/update.js";
-import { registerAdminPostDeleteRoute } from "../../../inbound/admin-http/routes/posts/delete.js";
-import { registerAdminPageListRoute } from "../../../inbound/admin-http/routes/pages/list.js";
-import { registerAdminPageCreateRoute } from "../../../inbound/admin-http/routes/pages/create.js";
-import { registerAdminPageGetRoute } from "../../../inbound/admin-http/routes/pages/get-by-id.js";
-import { registerAdminPageUpdateRoute } from "../../../inbound/admin-http/routes/pages/update.js";
-import { registerAdminPageUpdateHtmlRoute } from "../../../inbound/admin-http/routes/pages/update-html.js";
-import { registerAdminPageDeleteRoute } from "../../../inbound/admin-http/routes/pages/delete.js";
-import { registerAdminChangeSetListRoute } from "../../../inbound/admin-http/routes/change-sets/list.js";
-import { registerAdminChangeSetGetRoute } from "../../../inbound/admin-http/routes/change-sets/get.js";
-import { registerAdminChangeSetRevertRoute } from "../../../inbound/admin-http/routes/change-sets/revert.js";
-import { registerAdminPresentationGetRoute } from "../../../inbound/admin-http/routes/presentation/get.js";
-import { registerAdminPresentationPatchRoute } from "../../../inbound/admin-http/routes/presentation/patch-active-theme.js";
-import { registerAdminThemeRescanRoute } from "../../../inbound/admin-http/routes/presentation/rescan-themes.js";
-import { registerAdminThemesListRoute } from "../../../inbound/admin-http/routes/themes/list.js";
+import { registerAdminPostListRoute } from "#src/server/inbound/admin-http/routes/posts/list";
+import { registerAdminPostCreateRoute } from "#src/server/inbound/admin-http/routes/posts/create";
+import { registerAdminPostGetRoute } from "#src/server/inbound/admin-http/routes/posts/get-by-id";
+import { registerAdminPostTemplatePreviewRoute } from "#src/server/inbound/admin-http/routes/posts/template-preview";
+import { registerAdminPostUpdateRoute } from "#src/server/inbound/admin-http/routes/posts/update";
+import { registerAdminPostDeleteRoute } from "#src/server/inbound/admin-http/routes/posts/delete";
+import { registerAdminPageListRoute } from "#src/server/inbound/admin-http/routes/pages/list";
+import { registerAdminPageCreateRoute } from "#src/server/inbound/admin-http/routes/pages/create";
+import { registerAdminPageGetRoute } from "#src/server/inbound/admin-http/routes/pages/get-by-id";
+import { registerAdminPageUpdateRoute } from "#src/server/inbound/admin-http/routes/pages/update";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
+import { registerAdminPageDeleteRoute } from "#src/server/inbound/admin-http/routes/pages/delete";
+import { registerAdminChangeSetListRoute } from "#src/server/inbound/admin-http/routes/change-sets/list";
+import { registerAdminChangeSetGetRoute } from "#src/server/inbound/admin-http/routes/change-sets/get";
+import { registerAdminChangeSetRevertRoute } from "#src/server/inbound/admin-http/routes/change-sets/revert";
+import { registerAdminPresentationGetRoute } from "#src/server/inbound/admin-http/routes/presentation/get";
+import { registerAdminPresentationPatchRoute } from "#src/server/inbound/admin-http/routes/presentation/patch-active-theme";
+import { registerAdminThemeRescanRoute } from "#src/server/inbound/admin-http/routes/presentation/rescan-themes";
+import { registerAdminThemesListRoute } from "#src/server/inbound/admin-http/routes/themes/list";
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
@@ -24,10 +24,10 @@ import {
   registerAdminThemeFilePutRoute,
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
-} from "../../../inbound/admin-http/routes/themes/explore.js";
-import { registerAdminMarketplaceThemesListRoute } from "../../../inbound/admin-http/routes/marketplace/list.js";
-import { registerAdminMarketplaceThemeDownloadRoute } from "../../../inbound/admin-http/routes/marketplace/download.js";
-import type { ContentRouteDeps } from "../../../inbound/admin-http/routes/content/deps.js";
+} from "#src/server/inbound/admin-http/routes/themes/explore";
+import { registerAdminMarketplaceThemesListRoute } from "#src/server/inbound/admin-http/routes/marketplace/list";
+import { registerAdminMarketplaceThemeDownloadRoute } from "#src/server/inbound/admin-http/routes/marketplace/download";
+import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

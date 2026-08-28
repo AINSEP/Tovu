@@ -1,10 +1,10 @@
-import { registerAdminMenuAssignLocationRoute } from "../../../inbound/admin-http/routes/menus/assign-location.js";
-import { registerAdminMenuCreateRoute } from "../../../inbound/admin-http/routes/menus/create.js";
-import { registerAdminMenuDeleteRoute } from "../../../inbound/admin-http/routes/menus/delete.js";
-import { registerAdminMenuGetRoute } from "../../../inbound/admin-http/routes/menus/get-by-id.js";
-import { registerAdminMenuListRoute } from "../../../inbound/admin-http/routes/menus/list.js";
-import { registerAdminMenuUpdateTreeRoute } from "../../../inbound/admin-http/routes/menus/update-tree.js";
-import type { MenuRouteDeps } from "../../../inbound/admin-http/http/menus.js";
+import { registerAdminMenuAssignLocationRoute } from "#src/server/inbound/admin-http/routes/menus/assign-location";
+import { registerAdminMenuCreateRoute } from "#src/server/inbound/admin-http/routes/menus/create";
+import { registerAdminMenuDeleteRoute } from "#src/server/inbound/admin-http/routes/menus/delete";
+import { registerAdminMenuGetRoute } from "#src/server/inbound/admin-http/routes/menus/get-by-id";
+import { registerAdminMenuListRoute } from "#src/server/inbound/admin-http/routes/menus/list";
+import { registerAdminMenuUpdateTreeRoute } from "#src/server/inbound/admin-http/routes/menus/update-tree";
+import type { MenuRouteDeps } from "#src/server/inbound/admin-http/http/menus";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

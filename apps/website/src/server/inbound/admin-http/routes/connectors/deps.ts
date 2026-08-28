@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { ComposioDeps, RouteDeps } from "../../../../routes/types.js";
+import type { ComposioDeps, RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file Narrow `RouteDeps` slice for the `connectors` server module — a genuine narrowing in the

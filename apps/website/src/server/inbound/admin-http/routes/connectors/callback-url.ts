@@ -1,6 +1,6 @@
 import type { Request } from "express";
 
-import { resolvePublicOrigin } from "../../../../inbound/public-http/routes/oauth/public-origin.js";
+import { resolvePublicOrigin } from "#src/server/inbound/public-http/routes/oauth/public-origin";
 
 /**
  * @file Builds the OAuth callback URL Composio redirects back to.

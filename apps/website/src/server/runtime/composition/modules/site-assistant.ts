@@ -10,7 +10,7 @@ import {
   isPublicAssistantEnabled,
   resolveSiteAssistantApiKey,
   type SiteAssistantModeResolution,
-} from "../../../../assistant/index.js";
+} from "#src/assistant/index";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
 // own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
@@ -19,8 +19,8 @@ import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 // import, which is what let `post` convert to the tool-contribution registry without closing a
 // `[assistant, features/post]` module cycle. See
 // `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`.
-import { listPublishedPosts } from "../../../../features/post/index.js";
-import type { RouteDeps } from "../../../routes/types.js";
+import { listPublishedPosts } from "#src/features/post/index";
+import type { RouteDeps } from "#src/server/routes/types";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

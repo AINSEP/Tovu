@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { openContentDb } from "../content-db.js";
 import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
 import { workspaces } from "../../schema.js";
-import type { PublishCredentialSetRecord } from "../../../../features/deployments/publish-credentials/types.js";
+import type { PublishCredentialSetRecord } from "#src/features/deployments/publish-credentials/types";
 
 /**
  * @file `SqlitePublishCredentialSetRepo` against a real, migrated `content.db` (`:memory:`) — the

@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { migrateThemeToV2, type MigrateThemeResult } from "../../../features/theme/index.js";
+import { migrateThemeToV2, type MigrateThemeResult } from "#src/features/theme/index";
 
 /**
  * @file `tovu theme migrate <dir> [--dry-run] [--json]` — `migrate-theme.ts`'s CLI surface. Mirrors

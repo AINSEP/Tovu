@@ -37,8 +37,8 @@ import path from "node:path";
 import test from "node:test";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../..");
-const FEATURES_ROOT = path.join(REPO_ROOT, "src", "features");
-const SERVER_ROOT = path.join(REPO_ROOT, "src", "server");
+const FEATURES_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "features");
+const SERVER_ROOT = path.join(REPO_ROOT, "apps", "website", "src", "server");
 
 const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", "__tests__"]);
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { createRouteDeps } from "../../../../../runtime/composition/app.js";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "../pages.js";
 
 /**

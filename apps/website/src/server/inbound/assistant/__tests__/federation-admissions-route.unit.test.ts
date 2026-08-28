@@ -3,9 +3,9 @@ import test from "node:test";
 
 import express from "express";
 
-import { startTestServer } from "../../../__tests__/helpers/http-test-server.js";
-import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "../../../../assistant/daemon-auth.js";
-import type { FederatedAdmissionReport } from "../../../../assistant/mcp-federation/trust.js";
+import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, requireAgentDaemonToken } from "#src/assistant/daemon-auth";
+import type { FederatedAdmissionReport } from "#src/assistant/mcp-federation/trust";
 import { FEDERATION_ADMISSIONS_PATH, registerFederationAdmissionsRoute } from "../federation-admissions-route.js";
 
 /**

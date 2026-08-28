@@ -2,19 +2,19 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../../contracts/core/events/index.js";
-import { InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
-import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../../../features/seo/index.js";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
+import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
+import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { registerPageHeadContributor } from "../../inbound/public-http/http/site/page-head.js";
-import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../../../features/post/index.js";
-import { InMemoryDeploymentsReadRepo } from "../../../features/deployments/index.js";
-import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../../../features/deployments/publish-credentials/index.js";
-import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../../../features/deployments/static-publish/index.js";
-import { InMemoryCustomCredentialSetRepo } from "../../../features/custom-credentials/index.js";
-import { InMemorySourceControlCredentialSetRepo } from "../../../features/source-control/index.js";
-import { InMemoryVendorCredentialSetRepo } from "../../../features/vendor-credentials/index.js";
+import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
+import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
+import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
+import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
+import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
+import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
-import { InMemoryPagesHtmlDocumentStore } from "../../../features/pages/index.js";
+import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createInMemoryChatStoreFactory,
   InMemorySiteAssistantCredentialRepo,
@@ -22,8 +22,8 @@ import {
   InMemoryExternalMcpServerRepo,
   ensurePublicAssistantSettingDefinitions,
   ensureExecutionSettingDefinitions,
-} from "../../../assistant/index.js";
-import { InMemoryPresentationSettingsRepo } from "../../../features/presentation/index.js";
+} from "#src/assistant/index";
+import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import {
   InMemorySettingsRepo,
   ensureSettingsUiTabDefinitions,
@@ -34,9 +34,9 @@ import {
   ensureSettingDefinitions,
   SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
-} from "../../../features/settings/index.js";
-import { discoverAllBuiltInThemes } from "../../../features/theme/index.js";
-import { InMemoryWorkspaceRepo } from "../../../features/workspace/index.js";
+} from "#src/features/settings/index";
+import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { InMemoryWorkspaceRepo } from "#src/features/workspace/index";
 import path from "node:path";
 import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import {
@@ -46,7 +46,7 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "../configuration/seed.js";
-import { LocalBufferSink } from "../../../features/analytics/repo.memory.js";
+import { LocalBufferSink } from "#src/features/analytics/repo.memory";
 import {
   ConsoleMailerAdapter,
   InMemoryMagicLinkTokenRepo,
@@ -54,16 +54,16 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../../../features/members/index.js";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../../features/navigation/index.js";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../../features/webhooks/index.js";
-import { InMemoryKeyring } from "../../../features/webhooks/keyring.memory.js";
-import { createKeyringBackedSigner } from "../../../features/webhooks/signing.keyring.js";
-import { AesGcmSecretSealer } from "../../../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryComposioConfigRepo } from "../../../platform/connectors/composio-config-store.memory.js";
-import { createComposioConnectors } from "../../../platform/connectors/composio-service.js";
-import { InMemoryConnectorCredentialRepo } from "../../../platform/connectors/connector-credential-store.memory.js";
-import { InMemoryMediaProviderCredentialRepo } from "../../../features/media/provider-credential-store.memory.js";
+} from "#src/features/members/index";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "#src/features/navigation/index";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/features/webhooks/index";
+import { InMemoryKeyring } from "#src/features/webhooks/keyring.memory";
+import { createKeyringBackedSigner } from "#src/features/webhooks/signing.keyring";
+import { AesGcmSecretSealer } from "#src/features/webhooks/secret-sealer.aesgcm";
+import { InMemoryComposioConfigRepo } from "#src/platform/connectors/composio-config-store.memory";
+import { createComposioConnectors } from "#src/platform/connectors/composio-service";
+import { InMemoryConnectorCredentialRepo } from "#src/platform/connectors/connector-credential-store.memory";
+import { InMemoryMediaProviderCredentialRepo } from "#src/features/media/provider-credential-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -72,8 +72,8 @@ import {
   InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
-} from "../../../features/media/index.js";
-import { createInMemoryIdentityRouteDeps } from "../../../features/identity/wiring.js";
+} from "#src/features/media/index";
+import { createInMemoryIdentityRouteDeps } from "#src/features/identity/wiring";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -81,18 +81,18 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../../../features/newsletter/repo.memory.js";
-import { ensureDefaultList } from "../../../features/newsletter/lists.js";
-import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../../../features/newsletter/send-pipeline.js";
-import type { SendBatchJob } from "../../../features/newsletter/index.js";
-import { MembersSubscriberDirectory } from "../../../features/members/index.js";
+} from "#src/features/newsletter/repo.memory";
+import { ensureDefaultList } from "#src/features/newsletter/lists";
+import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "#src/features/newsletter/send-pipeline";
+import type { SendBatchJob } from "#src/features/newsletter/index";
+import { MembersSubscriberDirectory } from "#src/features/members/index";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../../features/forms/repo.memory.js";
-import { FORMS_SUBMIT_PROFILE } from "../../../features/forms/rate-limit-profile.js";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../../features/origin/index.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
+import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "#src/features/origin/index";
 import {
   InMemoryRedirectRepo,
   RedirectHitSinkImpl,
@@ -102,23 +102,23 @@ import {
   registerRedirectHitOutboxHandler,
   registerRedirectsPhaseHandlers,
   type RedirectsWriteDeps,
-} from "../../../features/redirects/index.js";
-import { registerSlugChangeCapture } from "../../../platform/routing/index.js";
-import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../../../features/database/repo.memory.js";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../../features/content-types/index.js";
-import { InMemoryEntryRepo } from "../../../features/entries/index.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../../features/widgets/repo.memory.js";
-import { InMemoryEntryRefsRepo } from "../../../contracts/core/entry-refs/repo.memory.js";
-import { InMemoryPluginActivationRepo } from "../../../features/plugin-runtime/repo.memory.js";
-import { WORD_COUNT_RUNTIME_SOURCE } from "../../../features/plugin-runtime/built-ins/word-count/index.js";
+} from "#src/features/redirects/index";
+import { registerSlugChangeCapture } from "#src/platform/routing/index";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "#src/features/database/repo.memory";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/index";
+import { InMemoryEntryRepo } from "#src/features/entries/index";
+import { InMemoryWidgetRegionBindingRepo } from "#src/features/widgets/repo.memory";
+import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
+import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
+import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { createPluginsModule } from "./modules/plugins.js";
 import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
-import { wireCoreResolvers } from "../../../features/widgets/resolvers/index.js";
-import { createNavMenuReadModel } from "../../../features/navigation/index.js";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "../../../features/comments/index.js";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../../../features/analytics/config.settings.js";
-import { InMemoryCommentRepo } from "../../../features/comments/repo.memory.js";
+import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
+import { createNavMenuReadModel } from "#src/features/navigation/index";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
+import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import {
   InMemoryEntryTermRepo,
@@ -126,11 +126,11 @@ import {
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../../../features/taxonomy/index.js";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../../../features/recovery/repo.memory.js";
-import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../../../contracts/core/gated-mutations/composition.js";
+} from "#src/features/taxonomy/index";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "#src/features/recovery/repo.memory";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "#src/contracts/core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { wrapMailerWithPurposeGate } from "../../../platform/mail/purpose-scoped-mailer.js";
+import { wrapMailerWithPurposeGate } from "#src/platform/mail/purpose-scoped-mailer";
 import { registerAdminTaxonomyMergeTermRoutes } from "../../inbound/admin-http/routes/taxonomy/merge-term.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
@@ -206,7 +206,7 @@ import { createAssistantAgUiModule } from "./modules/assistant-ag-ui.js";
 import type { RouteDeps } from "../../routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — the whole point of the lazy resolution
 // in {@link runExportSiteLazily} below.
-import type { ExportEngine } from "../../../features/deployments/export-run.js";
+import type { ExportEngine } from "#src/features/deployments/export-run";
 import type { Express } from "express";
 import type { ServerModuleHandle } from "./modules/types.js";
 
@@ -756,7 +756,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  *
  * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/platform/export/site-exporter.ts` imports `createApp` from THIS
  * file — deliberately, because exporting drives the real app rather than re-implementing rendering.
- * A static `import { exportSite } from "../../../platform/export/index.js"` here therefore closes a cycle:
+ * A static `import { exportSite } from "#src/platform/export/index"` here therefore closes a cycle:
  *
  *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
