@@ -1,12 +1,12 @@
-import { registerAdminContentTypeListRoute } from "../../../routes/admin/content-types/list.js";
-import { registerAdminContentTypeRegisterRoute } from "../../../routes/admin/content-types/register.js";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../../../routes/admin/content-types/update-fields.js";
-import { registerAdminContentTypeLifecycleRoute } from "../../../routes/admin/content-types/lifecycle.js";
-import type { ContentTypesRouteDeps } from "../../../routes/admin/content-types/deps.js";
-import { registerAdminEntryListRoute } from "../../../routes/admin/entries/list.js";
-import { registerAdminEntryCreateRoute } from "../../../routes/admin/entries/create.js";
-import { registerAdminEntryUpdateRoute } from "../../../routes/admin/entries/update.js";
-import { registerAdminEntryLifecycleRoute } from "../../../routes/admin/entries/lifecycle.js";
+import { registerAdminContentTypeListRoute } from "../../../inbound/admin-http/routes/content-types/list.js";
+import { registerAdminContentTypeRegisterRoute } from "../../../inbound/admin-http/routes/content-types/register.js";
+import { registerAdminContentTypeUpdateFieldsRoute } from "../../../inbound/admin-http/routes/content-types/update-fields.js";
+import { registerAdminContentTypeLifecycleRoute } from "../../../inbound/admin-http/routes/content-types/lifecycle.js";
+import type { ContentTypesRouteDeps } from "../../../inbound/admin-http/routes/content-types/deps.js";
+import { registerAdminEntryListRoute } from "../../../inbound/admin-http/routes/entries/list.js";
+import { registerAdminEntryCreateRoute } from "../../../inbound/admin-http/routes/entries/create.js";
+import { registerAdminEntryUpdateRoute } from "../../../inbound/admin-http/routes/entries/update.js";
+import { registerAdminEntryLifecycleRoute } from "../../../inbound/admin-http/routes/entries/lifecycle.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

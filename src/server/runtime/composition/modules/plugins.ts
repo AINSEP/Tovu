@@ -1,6 +1,6 @@
-import { registerPluginsListRoute } from "../../../routes/admin/plugins/list.js";
-import { registerPluginSetEnabledRoute } from "../../../routes/admin/plugins/set-enabled.js";
-import { registerPluginUninstallRoute } from "../../../routes/admin/plugins/uninstall.js";
+import { registerPluginsListRoute } from "../../../inbound/admin-http/routes/plugins/list.js";
+import { registerPluginSetEnabledRoute } from "../../../inbound/admin-http/routes/plugins/set-enabled.js";
+import { registerPluginUninstallRoute } from "../../../inbound/admin-http/routes/plugins/uninstall.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { ServerModuleHandle } from "./types.js";
 

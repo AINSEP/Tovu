@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create.js";
+import { registerAdminRedirectCreateRoute } from "../../inbound/admin-http/routes/redirects/create.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";

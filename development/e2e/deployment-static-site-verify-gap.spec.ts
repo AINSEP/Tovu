@@ -15,7 +15,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * Static Site -> Publish and hit verify on the GitHub token" — but grepping
  * `apps/admin/src/features/deployment/StaticSiteTab.tsx` for "verify" (any case) returns zero
  * matches. The backend route that would do this (`POST .../publish/credentials/:id/verify`,
- * `src/server/routes/admin/system/publish-credentials.ts:171`) exists and works — confirmed live via
+ * `src/server/inbound/admin-http/routes/system/publish-credentials.ts:171`) exists and works — confirmed live via
  * a direct authenticated fetch, which returned a real `accountLabel` — but nothing in the admin
  * frontend ever calls it. A human following the assistant's own instructions has no button to find.
  *

@@ -7,7 +7,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseMigrateForwardRoutes } from "../../routes/admin/database/migrate-forward.js";
+import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-http/routes/database/migrate-forward.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

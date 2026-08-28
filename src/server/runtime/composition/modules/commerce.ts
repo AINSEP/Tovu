@@ -1,5 +1,5 @@
-import type { AdminCommerceStatusDeps } from "../../../routes/admin/commerce/status.js";
-import { registerAdminCommerceStatusRoute } from "../../../routes/admin/commerce/status.js";
+import type { AdminCommerceStatusDeps } from "../../../inbound/admin-http/routes/commerce/status.js";
+import { registerAdminCommerceStatusRoute } from "../../../inbound/admin-http/routes/commerce/status.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

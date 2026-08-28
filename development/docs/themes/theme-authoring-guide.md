@@ -29,7 +29,7 @@ Each candidate folder is loaded independently by `loadTheme()` (`src/features/th
 
 ### 1.2 Selection (per request, cheap)
 
-Which theme is "active" is a per-workspace setting, `activeThemeId`, stored in the `presentation_settings` table and read fresh on every request (`src/features/presentation/repo.sqlite.ts:23`, `src/server/routes/site/pages.ts` calls `getPresentationSettings` inside every route handler). It is changed via `PATCH` to the admin presentation endpoint (`src/server/routes/admin/presentation/patch-active-theme.ts`), which an admin-UI theme picker calls.
+Which theme is "active" is a per-workspace setting, `activeThemeId`, stored in the `presentation_settings` table and read fresh on every request (`src/features/presentation/repo.sqlite.ts:23`, `src/server/routes/site/pages.ts` calls `getPresentationSettings` inside every route handler). It is changed via `PATCH` to the admin presentation endpoint (`src/server/inbound/admin-http/routes/presentation/patch-active-theme.ts`), which an admin-UI theme picker calls.
 
 Resolution never trusts the stored id blindly: `resolveActiveTheme()` (duplicated per route file — `src/server/routes/site/pages.ts:104-108`, `src/server/routes/site/products.ts:12-16`) looks the id up in the already-discovered `deps.themes`, and if it's missing or `status: "invalid"`, falls back to the first `valid` theme in the (alphabetically sorted) list, and failing that, the first theme of any status. This fallback is not a rare edge case in practice — see §8.2.
 

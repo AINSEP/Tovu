@@ -111,7 +111,7 @@ test.describe("post editor — inserted image sizing", () => {
     const editorBody = page.locator(".editor-body");
     const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
 
-    // `PUT /posts/:id` (`src/server/routes/admin/posts/update.ts`) has no partial-update path — it
+    // `PUT /posts/:id` (`src/server/inbound/admin-http/routes/posts/update.ts`) has no partial-update path — it
     // reads `title`/`slug`/`status` off the request body with `?? ""`/`undefined` fallbacks and
     // `updatePost` then rejects an empty title/invalid status outright, so the full current record
     // (not just the one field this test cares about) has to travel in every PUT.

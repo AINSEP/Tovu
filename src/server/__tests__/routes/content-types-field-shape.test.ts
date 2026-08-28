@@ -6,9 +6,9 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminContentTypeListRoute } from "../../routes/admin/content-types/list.js";
-import { registerAdminContentTypeRegisterRoute } from "../../routes/admin/content-types/register.js";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../../routes/admin/content-types/update-fields.js";
+import { registerAdminContentTypeListRoute } from "../../inbound/admin-http/routes/content-types/list.js";
+import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
+import { registerAdminContentTypeUpdateFieldsRoute } from "../../inbound/admin-http/routes/content-types/update-fields.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

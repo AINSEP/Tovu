@@ -1,12 +1,12 @@
-import { registerAdminSettingsClearRoute } from "../../../routes/admin/settings/clear.js";
-import { registerAdminSettingsEventsRoute } from "../../../routes/admin/settings/events.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../../../routes/admin/settings/get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../../../routes/admin/settings/get-raw.js";
-import { registerAdminSettingsListDefinitionsRoute } from "../../../routes/admin/settings/list-definitions.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../../routes/admin/settings/register-definitions.js";
-import { registerAdminSettingsResetRoute } from "../../../routes/admin/settings/reset.js";
-import { registerAdminSettingsSetRoute } from "../../../routes/admin/settings/set.js";
-import type { SettingsRouteDeps } from "../../../routes/admin/settings/deps.js";
+import { registerAdminSettingsClearRoute } from "../../../inbound/admin-http/routes/settings/clear.js";
+import { registerAdminSettingsEventsRoute } from "../../../inbound/admin-http/routes/settings/events.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../../inbound/admin-http/routes/settings/get-effective.js";
+import { registerAdminSettingsGetRawRoute } from "../../../inbound/admin-http/routes/settings/get-raw.js";
+import { registerAdminSettingsListDefinitionsRoute } from "../../../inbound/admin-http/routes/settings/list-definitions.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../../inbound/admin-http/routes/settings/register-definitions.js";
+import { registerAdminSettingsResetRoute } from "../../../inbound/admin-http/routes/settings/reset.js";
+import { registerAdminSettingsSetRoute } from "../../../inbound/admin-http/routes/settings/set.js";
+import type { SettingsRouteDeps } from "../../../inbound/admin-http/routes/settings/deps.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

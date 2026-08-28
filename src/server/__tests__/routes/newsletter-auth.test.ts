@@ -8,7 +8,7 @@ import express from "express";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
-import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
+import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
 
 /**

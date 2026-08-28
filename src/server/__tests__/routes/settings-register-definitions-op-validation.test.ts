@@ -7,7 +7,7 @@ import express from "express";
 
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

@@ -7,13 +7,13 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear.js";
-import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective.js";
-import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw.js";
-import { registerAdminSettingsListDefinitionsRoute } from "../../routes/admin/settings/list-definitions.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
-import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset.js";
-import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set.js";
+import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../inbound/admin-http/routes/settings/get-effective.js";
+import { registerAdminSettingsGetRawRoute } from "../../inbound/admin-http/routes/settings/get-raw.js";
+import { registerAdminSettingsListDefinitionsRoute } from "../../inbound/admin-http/routes/settings/list-definitions.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
+import { registerAdminSettingsResetRoute } from "../../inbound/admin-http/routes/settings/reset.js";
+import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

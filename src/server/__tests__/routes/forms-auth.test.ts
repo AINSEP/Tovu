@@ -7,13 +7,13 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create.js";
-import { registerAdminFormsDeleteSubmissionRoute } from "../../routes/admin/forms/delete-submission.js";
-import { registerAdminFormsGetRoute } from "../../routes/admin/forms/get-by-id.js";
-import { registerAdminFormsGetSubmissionRoute } from "../../routes/admin/forms/get-submission.js";
-import { registerAdminFormsListRoute } from "../../routes/admin/forms/list.js";
-import { registerAdminFormsListSubmissionsRoute } from "../../routes/admin/forms/list-submissions.js";
-import { registerAdminFormsUpdateRoute } from "../../routes/admin/forms/update.js";
+import { registerAdminFormsCreateRoute } from "../../inbound/admin-http/routes/forms/create.js";
+import { registerAdminFormsDeleteSubmissionRoute } from "../../inbound/admin-http/routes/forms/delete-submission.js";
+import { registerAdminFormsGetRoute } from "../../inbound/admin-http/routes/forms/get-by-id.js";
+import { registerAdminFormsGetSubmissionRoute } from "../../inbound/admin-http/routes/forms/get-submission.js";
+import { registerAdminFormsListRoute } from "../../inbound/admin-http/routes/forms/list.js";
+import { registerAdminFormsListSubmissionsRoute } from "../../inbound/admin-http/routes/forms/list-submissions.js";
+import { registerAdminFormsUpdateRoute } from "../../inbound/admin-http/routes/forms/update.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

@@ -1,11 +1,11 @@
-import { registerAdminDatabaseTimelineRoute } from "../../../routes/admin/database/timeline.js";
-import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../../routes/admin/database/restore-points.js";
-import { registerAdminDatabaseSchemaStateRoute } from "../../../routes/admin/database/schema-state.js";
-import { registerAdminRecoveryRestorePointsListRoute } from "../../../routes/admin/recovery/restore-points.js";
-import { registerAdminRecoveryDisclosureRoute } from "../../../routes/admin/recovery/disclosure.js";
-import { registerAdminRecoveryDeepLinkRoute } from "../../../routes/admin/recovery/deep-link.js";
-import { registerAdminRecoveryStatusRoute } from "../../../routes/admin/recovery/status.js";
-import type { DatabaseRecoveryRouteDeps } from "../../../routes/admin/database-recovery/deps.js";
+import { registerAdminDatabaseTimelineRoute } from "../../../inbound/admin-http/routes/database/timeline.js";
+import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../../inbound/admin-http/routes/database/restore-points.js";
+import { registerAdminDatabaseSchemaStateRoute } from "../../../inbound/admin-http/routes/database/schema-state.js";
+import { registerAdminRecoveryRestorePointsListRoute } from "../../../inbound/admin-http/routes/recovery/restore-points.js";
+import { registerAdminRecoveryDisclosureRoute } from "../../../inbound/admin-http/routes/recovery/disclosure.js";
+import { registerAdminRecoveryDeepLinkRoute } from "../../../inbound/admin-http/routes/recovery/deep-link.js";
+import { registerAdminRecoveryStatusRoute } from "../../../inbound/admin-http/routes/recovery/status.js";
+import type { DatabaseRecoveryRouteDeps } from "../../../inbound/admin-http/routes/database-recovery/deps.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

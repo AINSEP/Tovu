@@ -6,13 +6,13 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminTaxonomyListRoute } from "../../routes/admin/taxonomy/list.js";
-import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy.js";
-import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term.js";
-import { registerAdminTaxonomyDeleteRoute } from "../../routes/admin/taxonomy/delete-taxonomy.js";
-import { registerAdminTaxonomyDeleteTermRoute } from "../../routes/admin/taxonomy/delete-term.js";
-import { registerAdminTaxonomyRenameTermRoute } from "../../routes/admin/taxonomy/rename-term.js";
-import { registerAdminTaxonomyAssignTermsRoute } from "../../routes/admin/taxonomy/assign-terms.js";
+import { registerAdminTaxonomyListRoute } from "../../inbound/admin-http/routes/taxonomy/list.js";
+import { registerAdminTaxonomyCreateRoute } from "../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../inbound/admin-http/routes/taxonomy/create-term.js";
+import { registerAdminTaxonomyDeleteRoute } from "../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../../inbound/admin-http/routes/taxonomy/delete-term.js";
+import { registerAdminTaxonomyRenameTermRoute } from "../../inbound/admin-http/routes/taxonomy/rename-term.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "../../inbound/admin-http/routes/taxonomy/assign-terms.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

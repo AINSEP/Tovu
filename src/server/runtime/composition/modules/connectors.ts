@@ -4,20 +4,20 @@ import {
   CONNECTOR_CONNECT_PER_IP,
   CONNECTOR_OUTBOUND_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminConnectorsConnectRoute } from "../../../routes/admin/connectors/connect.js";
+import { registerAdminConnectorsConnectRoute } from "../../../inbound/admin-http/routes/connectors/connect.js";
 import type {
   ConnectorsConfigRouteDeps,
   ConnectorsRouteDeps,
-} from "../../../routes/admin/connectors/deps.js";
+} from "../../../inbound/admin-http/routes/connectors/deps.js";
 import {
   registerAdminConnectorsCancelRoute,
   registerAdminConnectorsDisconnectRoute,
-} from "../../../routes/admin/connectors/disconnect.js";
-import { registerAdminConnectorsGetByIdRoute } from "../../../routes/admin/connectors/get-by-id.js";
-import { registerAdminConnectorsGetConfigRoute } from "../../../routes/admin/connectors/get-config.js";
-import { registerAdminConnectorsListRoute } from "../../../routes/admin/connectors/list.js";
-import { registerAdminConnectorsPutConfigRoute } from "../../../routes/admin/connectors/put-config.js";
-import { registerAdminConnectorsStatusesRoute } from "../../../routes/admin/connectors/statuses.js";
+} from "../../../inbound/admin-http/routes/connectors/disconnect.js";
+import { registerAdminConnectorsGetByIdRoute } from "../../../inbound/admin-http/routes/connectors/get-by-id.js";
+import { registerAdminConnectorsGetConfigRoute } from "../../../inbound/admin-http/routes/connectors/get-config.js";
+import { registerAdminConnectorsListRoute } from "../../../inbound/admin-http/routes/connectors/list.js";
+import { registerAdminConnectorsPutConfigRoute } from "../../../inbound/admin-http/routes/connectors/put-config.js";
+import { registerAdminConnectorsStatusesRoute } from "../../../inbound/admin-http/routes/connectors/statuses.js";
 import { registerComposioCallbackRoute } from "../../../routes/connectors/composio-callback.js";
 import type { ServerModuleHandle } from "./types.js";
 

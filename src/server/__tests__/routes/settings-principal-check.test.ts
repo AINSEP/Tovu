@@ -7,9 +7,9 @@ import express from "express";
 
 import { createSqliteRouteDeps } from "../../runtime/composition/deps.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear.js";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
-import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set.js";
+import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../inbound/admin-http/routes/settings/register-definitions.js";
+import { registerAdminSettingsSetRoute } from "../../inbound/admin-http/routes/settings/set.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

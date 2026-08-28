@@ -8,7 +8,7 @@ import type { DatabaseIntrospectionPort, SchemaStateSummary } from "../../../fea
 import { InMemoryDatabaseIntrospectionAdapter } from "../../../features/database/repo.memory.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseSchemaStateRoute } from "../../routes/admin/database/schema-state.js";
+import { registerAdminDatabaseSchemaStateRoute } from "../../inbound/admin-http/routes/database/schema-state.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

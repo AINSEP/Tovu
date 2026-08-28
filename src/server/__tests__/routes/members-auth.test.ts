@@ -9,11 +9,11 @@ import type { MemberRecord } from "#src/features/members/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/contracts/core/rate-limit/rate-limit";
-import type { MembersRouteDeps } from "../../routes/admin/members/deps.js";
-import { registerAdminMemberDisableRoute } from "../../routes/admin/members/disable.js";
-import { registerAdminMemberGetRoute } from "../../routes/admin/members/get-by-id.js";
-import { registerAdminMemberListRoute } from "../../routes/admin/members/list.js";
-import { registerAdminMemberRequestMagicLinkRoute } from "../../routes/admin/members/request-magic-link.js";
+import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
+import { registerAdminMemberDisableRoute } from "../../inbound/admin-http/routes/members/disable.js";
+import { registerAdminMemberGetRoute } from "../../inbound/admin-http/routes/members/get-by-id.js";
+import { registerAdminMemberListRoute } from "../../inbound/admin-http/routes/members/list.js";
+import { registerAdminMemberRequestMagicLinkRoute } from "../../inbound/admin-http/routes/members/request-magic-link.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

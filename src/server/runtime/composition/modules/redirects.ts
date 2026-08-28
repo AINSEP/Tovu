@@ -1,11 +1,11 @@
-import { registerAdminRedirectCreateRoute } from "../../../routes/admin/redirects/create.js";
-import { registerAdminRedirectGetRoute } from "../../../routes/admin/redirects/get-by-id.js";
-import { registerAdminRedirectHitsRoute } from "../../../routes/admin/redirects/hits.js";
-import { registerAdminRedirectImportRoute } from "../../../routes/admin/redirects/import.js";
-import { registerAdminRedirectListRoute } from "../../../routes/admin/redirects/list.js";
-import { registerAdminRedirectTombstoneRoute } from "../../../routes/admin/redirects/tombstone.js";
-import { registerAdminRedirectUpdateRoute } from "../../../routes/admin/redirects/update.js";
-import type { RedirectRouteDeps } from "../../../http/admin/redirects.js";
+import { registerAdminRedirectCreateRoute } from "../../../inbound/admin-http/routes/redirects/create.js";
+import { registerAdminRedirectGetRoute } from "../../../inbound/admin-http/routes/redirects/get-by-id.js";
+import { registerAdminRedirectHitsRoute } from "../../../inbound/admin-http/routes/redirects/hits.js";
+import { registerAdminRedirectImportRoute } from "../../../inbound/admin-http/routes/redirects/import.js";
+import { registerAdminRedirectListRoute } from "../../../inbound/admin-http/routes/redirects/list.js";
+import { registerAdminRedirectTombstoneRoute } from "../../../inbound/admin-http/routes/redirects/tombstone.js";
+import { registerAdminRedirectUpdateRoute } from "../../../inbound/admin-http/routes/redirects/update.js";
+import type { RedirectRouteDeps } from "../../../inbound/admin-http/http/redirects.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

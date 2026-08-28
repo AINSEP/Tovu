@@ -7,7 +7,7 @@ import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline.js";
+import { registerAdminDatabaseTimelineRoute } from "../inbound/admin-http/routes/database/timeline.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
