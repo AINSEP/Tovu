@@ -13,9 +13,9 @@ import {
   WidgetReferencedError,
   WidgetTypeUnregisteredError,
   WidgetVersionConflictError,
-} from "#src/widgets/errors";
-import { WidgetEmbedReorderCountMismatchError } from "#src/widgets/embed-service";
-import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetRegionBindingRow } from "#src/widgets/types";
+} from "#src/features/widgets/errors";
+import { WidgetEmbedReorderCountMismatchError } from "#src/features/widgets/embed-service";
+import type { WidgetAreaEntry, WidgetInstanceEntry, WidgetRegionBindingRow } from "#src/features/widgets/types";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `widgets` HTTP surface
@@ -77,7 +77,7 @@ export function toAdminWidgetRegionResponse(binding: WidgetRegionBindingRow & { 
  * composition root. Re-exported so every existing consumer of this module's surface keeps its
  * import site; new callers should prefer the domain module directly.
  */
-export { toWhereUsedResponse, type WhereUsedReference, type WhereUsedResponse } from "#src/widgets/where-used";
+export { toWhereUsedResponse, type WhereUsedReference, type WhereUsedResponse } from "#src/features/widgets/where-used";
 
 export interface WidgetErrorResponse {
   status: number;

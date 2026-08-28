@@ -9,7 +9,7 @@ import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createWidgetsModule } from "../modules/widgets.js";
 import type { RouteDeps } from "../routes/types.js";
-import { WIDGET_CONTENT_TYPE } from "../../widgets/types.js";
+import { WIDGET_CONTENT_TYPE } from "../../features/widgets/types.js";
 
 /**
  * @file Route-level tests for the admin `widgets` HTTP surface (SPEC-043, ADR-047) — instance
@@ -268,7 +268,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
   const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
   const { createEntry } = await import("../../features/entries/index.js");
-  const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
 
   await deps.identityReady;
   await registerContentType({

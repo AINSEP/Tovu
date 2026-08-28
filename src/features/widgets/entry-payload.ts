@@ -3,9 +3,9 @@ import {
   NoopContentTypeIndexProvisioner,
   toContentTypeOutbox,
   type ContentTypeRepoPort,
-} from "../features/content-types/index.js";
+} from "../content-types/index.js";
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
-import type { EntryRecord } from "../features/entries/index.js";
+import type { EntryRecord } from "../entries/index.js";
 import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper.js";
 import {
   WIDGET_AREA_CONTENT_TYPE,

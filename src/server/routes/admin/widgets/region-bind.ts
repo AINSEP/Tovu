@@ -1,5 +1,5 @@
-import { buildWidgetsRegionDeps } from "#src/widgets/deps";
-import { bindWidgetArea } from "#src/widgets/region-area-service";
+import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
+import { bindWidgetArea } from "#src/features/widgets/region-area-service";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types.js";
 

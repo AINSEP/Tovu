@@ -118,12 +118,12 @@ import { InMemorySiteStatusRepo } from "../features/database/repo.memory.js";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite.js";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite.js";
-import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite.js";
+import { SqliteWidgetRegionBindingRepo } from "../features/widgets/repo.sqlite.js";
 import { SqliteEntryRefsRepo } from "../platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite.js";
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
-import { wireCoreResolvers } from "../widgets/resolvers/index.js";
+import { wireCoreResolvers } from "../features/widgets/resolvers/index.js";
 import { createNavMenuReadModel } from "../features/navigation/index.js";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../features/comments/index.js";
 import {

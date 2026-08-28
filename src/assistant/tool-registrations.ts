@@ -189,7 +189,7 @@ import type { NewsletterToolDeps } from "../features/newsletter/tool-registratio
 import type { RedirectsToolDeps } from "../features/redirects/tool-registrations.js";
 import type { SeoToolDeps } from "../features/seo/tool-registrations.js";
 import type { SiteEvidenceToolDeps } from "../features/site-evidence/tool-registrations.js";
-import type { WidgetsToolDeps } from "../widgets/tool-registrations.js";
+import type { WidgetsToolDeps } from "../features/widgets/tool-registrations.js";
 import {
   assertToolIsWirable,
   mergeDerivedRiskMaps,

@@ -7,9 +7,9 @@ import {
   resolveHandlebarsTemplateId,
   renderStaticPage,
 } from "#src/features/theme/index";
-import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
-import type { WidgetRenderIR } from "#src/widgets/types";
-import { substituteHtmlEmbeds } from "#src/widgets/html-embeds";
+import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import type { WidgetRenderIR } from "#src/features/widgets/types";
+import { substituteHtmlEmbeds } from "#src/features/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";

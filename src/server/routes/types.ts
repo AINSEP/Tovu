@@ -98,7 +98,7 @@ import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/dee
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
-import type { WidgetRegionBindingRepoPort } from "../../widgets/ports.js";
+import type { WidgetRegionBindingRepoPort } from "../../features/widgets/ports.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";

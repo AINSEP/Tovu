@@ -1,8 +1,8 @@
-import { buildWidgetsDeps } from "#src/widgets/deps";
-import { createWidgetInstance } from "#src/widgets/write-service";
+import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { createWidgetInstance } from "#src/features/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { WidgetTypeKey } from "#src/widgets/types";
+import type { WidgetTypeKey } from "#src/features/widgets/types";
 import type { RouteRegistrar } from "../../types.js";
 
 /** This route's validated POST body shape, or `null` when `widgetType`/`title` failed validation.

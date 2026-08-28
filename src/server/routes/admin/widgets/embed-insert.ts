@@ -1,5 +1,5 @@
-import { buildWidgetsDeps } from "#src/widgets/deps";
-import { insertWidgetEmbed } from "#src/widgets/embed-service";
+import { buildWidgetsDeps } from "#src/features/widgets/deps";
+import { insertWidgetEmbed } from "#src/features/widgets/embed-service";
 import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";

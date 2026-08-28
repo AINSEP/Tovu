@@ -1,4 +1,4 @@
-import { parseWidgetAreaPayload } from "#src/widgets/entry-payload";
+import { parseWidgetAreaPayload } from "#src/features/widgets/entry-payload";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types.js";
 

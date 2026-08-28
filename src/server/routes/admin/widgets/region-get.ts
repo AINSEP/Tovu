@@ -1,5 +1,5 @@
-import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry } from "#src/widgets/entry-payload";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "#src/widgets/types";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload, toWidgetAreaEntry } from "#src/features/widgets/entry-payload";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
 import type { RouteRegistrar } from "../../types.js";
 

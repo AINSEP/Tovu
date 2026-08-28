@@ -1,6 +1,6 @@
-import { buildWidgetsRegionDeps } from "#src/widgets/deps";
-import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
-import type { WidgetPlacementNode } from "#src/widgets/types";
+import { buildWidgetsRegionDeps } from "#src/features/widgets/deps";
+import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
+import type { WidgetPlacementNode } from "#src/features/widgets/types";
 import { mapWidgetErrorToResponse, toAdminWidgetAreaResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";

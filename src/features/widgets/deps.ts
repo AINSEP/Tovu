@@ -31,10 +31,10 @@
  * field this shape needs, so every existing caller passes its own deps object straight through
  * unchanged.
  */
-import type { EntryRefsRepoPort } from "../contracts/core/entry-refs/ports.js";
+import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { AuthorizeFn, OutboxPort } from "@jini-ai/cms/core";
-import type { ContentTypeRepoPort } from "../features/content-types/index.js";
-import type { EntryListPort, EntryRepoPort } from "../features/entries/index.js";
+import type { ContentTypeRepoPort } from "../content-types/index.js";
+import type { EntryListPort, EntryRepoPort } from "../entries/index.js";
 import type { WidgetRegionBindingRepoPort } from "./ports.js";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */

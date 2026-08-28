@@ -212,12 +212,21 @@ const HAND_WRITTEN_RULES = [
       // Map()});` back into `src/features/taxonomy/tool-registrations.ts`, ran `npm run
       // check:boundaries`, confirmed exactly one new `error` naming this rule and that file, then
       // reverted the probe and re-ran to confirm a clean return to the pre-probe violation count.
+      //
+      // `from` narrowed to just `^src/features` (2026-08-27, Phase 1 domain-layer consolidation):
+      // the seven other top-level alternatives it originally listed (analytics, identity, media,
+      // navigation, origin, seo, widgets) each moved to `src/features/<name>` one at a time this
+      // same session, so `^src/features` alone already covers every one of them — the old literal
+      // names had gone stale (matching nothing) but stayed harmless only because `features` was
+      // already in the alternation. Left as dead alternatives they'd have been exactly the kind of
+      // silently-stale path string this file's own header warns a rename can produce; removed once
+      // confirmed redundant, not left as a landmine for the next person to trust literally.
       name: "domain-no-direct-assistant-tool-registration",
       severity: "error",
       comment:
         "Domain/feature modules may not call assistant's tool-contribution registry (registerToolContributor and friends) directly — only server/tool-catalog-manifest.ts's composition root may. A type-only import of ToolContributor to type a contribute<Domain>Tools() return value is fine and exempted.",
       from: {
-        path: "^src/(analytics|features|identity|media|navigation|origin|seo|widgets)",
+        path: "^src/features",
         pathNot: [
           ".*/__tests__/.*",
           "^src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
@@ -284,7 +293,7 @@ const GUARDED_MODULES = [
   // identical per rule — which is the evidence that the rename carried the rules rather than
   // dropping them.
   "features/webhooks",
-  "widgets/resolvers",
+  "features/widgets/resolvers",
 ];
 
 // Composition roots select concrete implementations directly by design — the same set
@@ -487,7 +496,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   //    architecturally identical to serve.ts (same bootSiteDir/resolveInstallDirTarget reach). Its
   //    no-deep-value-imports-from-db-sqlite:site-dir companion warning (1, schema-guard.ts) is
   //    untouched by this promotion — companion rules stay warn until their own triage.
-  "widgets/resolvers",
+  "features/widgets/resolvers",
   "features/media",
   "features/comments",
   "platform/site-dir",

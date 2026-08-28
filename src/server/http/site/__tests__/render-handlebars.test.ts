@@ -4,7 +4,7 @@ import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
-import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
+import type { ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import { renderSite } from "../render.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
