@@ -35,6 +35,16 @@ Unless the user explicitly expands the scope, code audits, security reviews, bug
 
 Treat all other top-level paths as out of scope for those audits, including history, overwritten intermediate versions, generated output, documentation, development material, and `AI-Dev-Shop/**`.
 
+## Code Quality Metrics
+
+Before spawning subagents to measure complexity, duplication, dead code, coupling, cycles, blast
+radius, churn/hotspots, or change coupling, run `development/scripts/code-metrics.py` first — one
+script covers all of it in a single pass (defaults to `apps/website/src`; `--target`/`--skip`/`--since`
+flags exist, see its own docstring). Report lands in `ADS-memory/.local-artifacts/metrics/`.
+Every number it prints is a raw tool output, not a finding — this codebase's generated files
+(migration snapshots), dynamic-registration patterns, and same-file-only usages have inflated raw
+duplication/dead-code numbers 5-7x before; verify before acting on any of them.
+
 ## Execution Rules
 
 - Treat sections 13 and 14 as governing constraints for architecture decisions.
