@@ -10,7 +10,7 @@ import { registerAdminMediaListRoute } from "../../routes/admin/media/list.js";
 import { registerAdminMediaUpdateRoute } from "../../routes/admin/media/update.js";
 import { registerAdminMediaUploadRoute } from "../../routes/admin/media/upload.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { uploadMedia } from "#src/media/index";
+import { uploadMedia } from "#src/features/media/index";
 
 /**
  * @file The admin media LIST response's `contentType` field — the data half of the Media screen's

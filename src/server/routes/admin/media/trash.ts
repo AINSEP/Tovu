@@ -1,4 +1,4 @@
-import { MediaNotFoundError, trashMedia } from "#src/media/index";
+import { MediaNotFoundError, trashMedia } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import { readRecordedContentType } from "./content-type.js";

@@ -23,14 +23,14 @@ import {
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryBlobStore,
-} from "../../media/index.js";
+} from "../../features/media/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeMediaTools } from "../../media/tool-registrations.js";
+import { contributeMediaTools } from "../../features/media/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the

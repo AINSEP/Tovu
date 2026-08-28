@@ -47,7 +47,7 @@ import type { SourceControlCredentialSetRepoPort } from "../../features/source-c
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { ComposioConfigRepoPort } from "../../platform/connectors/composio-config-store.js";
 import type { ComposioConnectors } from "../../platform/connectors/composio-service.js";
-import type { MediaProviderCredentialRepoPort } from "../../media/index.js";
+import type { MediaProviderCredentialRepoPort } from "../../features/media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
 import type {
@@ -58,7 +58,7 @@ import type {
   MediaContentTypeStorePort,
   MediaRepoPort,
   TransformDefinitionRepoPort,
-} from "../../media/index.js";
+} from "../../features/media/index.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";

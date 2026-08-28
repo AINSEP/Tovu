@@ -10,7 +10,7 @@ import { registerAdminMediaOriginalRoute } from "../../routes/admin/media/origin
 import { registerAdminMediaTrashRoute } from "../../routes/admin/media/trash.js";
 import { registerAdminMediaUploadRoute } from "../../routes/admin/media/upload.js";
 import type { RouteDeps } from "../../routes/types.js";
-import { uploadMedia } from "#src/media/index";
+import { uploadMedia } from "#src/features/media/index";
 
 /**
  * @file Route-level tests for `GET /api/admin/v1/workspaces/:workspaceId/media/:mediaId/original`

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
 import { InMemorySettingsRepo } from "../../features/settings/index.js";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../features/media/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache } from "../sitemap.js";
 

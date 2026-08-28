@@ -265,7 +265,7 @@ const GUARDED_MODULES = [
   "contracts/headless",
   "platform/http",
   "platform/mail",
-  "media",
+  "features/media",
   "features/members",
   "navigation",
   "features/newsletter",
@@ -488,7 +488,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   //    no-deep-value-imports-from-db-sqlite:site-dir companion warning (1, schema-guard.ts) is
   //    untouched by this promotion — companion rules stay warn until their own triage.
   "widgets/resolvers",
-  "media",
+  "features/media",
   "features/comments",
   "platform/site-dir",
 ]);

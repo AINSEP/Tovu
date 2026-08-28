@@ -1,4 +1,4 @@
-import { ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/media/index";
+import { ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import { parseRangeHeader } from "#src/server/http/range";
 import type { MediaRouteRegistrar } from "../admin/media/deps.js";
 import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "../admin/media/original.js";

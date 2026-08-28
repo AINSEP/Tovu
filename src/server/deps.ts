@@ -82,8 +82,8 @@ import { createComposioConnectors } from "../platform/connectors/composio-servic
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
-} from "../media/index.js";
-import { ensureCoreMediaTransform } from "../media/bootstrap.js";
+} from "../features/media/index.js";
+import { ensureCoreMediaTransform } from "../features/media/bootstrap.js";
 import { createSqliteIdentityRouteDeps } from "../features/identity/wiring.js";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../features/forms/repo.sqlite.js";
 import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";

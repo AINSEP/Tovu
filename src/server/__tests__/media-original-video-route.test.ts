@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../app.js";
-import { trashMedia, uploadMedia } from "../../media/index.js";
+import { trashMedia, uploadMedia } from "../../features/media/index.js";
 
 /**
  * @file Route-level tests for the new public, unauthenticated `GET /m/{assetId}/original` route

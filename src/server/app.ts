@@ -63,7 +63,7 @@ import { AesGcmSecretSealer } from "../features/webhooks/secret-sealer.aesgcm.js
 import { InMemoryComposioConfigRepo } from "../platform/connectors/composio-config-store.memory.js";
 import { createComposioConnectors } from "../platform/connectors/composio-service.js";
 import { InMemoryConnectorCredentialRepo } from "../platform/connectors/connector-credential-store.memory.js";
-import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory.js";
+import { InMemoryMediaProviderCredentialRepo } from "../features/media/provider-credential-store.memory.js";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -72,7 +72,7 @@ import {
   InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
-} from "../media/index.js";
+} from "../features/media/index.js";
 import { createInMemoryIdentityRouteDeps } from "../features/identity/wiring.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,

@@ -1,6 +1,6 @@
 import type { Response } from "express";
 
-import { sniffContentType, type MediaRecord } from "#src/media/index";
+import { sniffContentType, type MediaRecord } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { parseRangeHeader, type ParsedRange } from "#src/server/http/range";
 import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";

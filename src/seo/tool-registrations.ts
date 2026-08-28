@@ -39,7 +39,7 @@ import type { ToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../features/post/index.js";
 import type { SettingsRepoPort } from "../features/settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../features/media/index.js";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
   SeoFieldValidationError,

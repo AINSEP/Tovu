@@ -31,7 +31,7 @@ import { formsAgentToolCatalog } from "../../features/forms/agent-tools.js";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
-import { mediaAgentToolCatalog } from "../../media/index.js";
+import { mediaAgentToolCatalog } from "../../features/media/index.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
