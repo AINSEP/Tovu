@@ -19,7 +19,7 @@ import {
   HOOK_CONTENT_ENTRY_BEFORE_SAVE,
   type BeforeSaveFilter,
   type ContentEntryDraft,
-} from "../../packages/sdk/src/index.js";
+} from "@tovu/sdk";
 
 /** Executable metadata for one compiled-in plugin. Discovery consumes only `manifest`; the enable
  * callback consumes the import seam after integrity/sdkRange checks. Site-artifact sources can use

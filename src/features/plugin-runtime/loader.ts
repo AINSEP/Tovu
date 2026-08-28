@@ -49,7 +49,7 @@ import { buildCapabilityScopedSdk, type CapabilityScopedSdkCoreDeps } from "./ca
 import type { PluginDiscoveryRecord } from "./discovery.js";
 import type { AttachmentSource, HookRegistry, HookRegistryFieldDecl } from "./hook-registry.js";
 import type { PluginManifest } from "./manifest.js";
-import type { BeforeSaveFilter, Plugin } from "../../../packages/sdk/src/index.js";
+import type { BeforeSaveFilter, Plugin } from "@tovu/sdk";
 
 /**
  * The runtime's own installed `@tovu/sdk` version, used for the sdkRange check (step 2) when a
