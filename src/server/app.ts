@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../contracts/core/events/index.js";
 import { InMemoryChangeSetRepo } from "../contracts/core/commands/index.js";
-import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo/index.js";
+import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../features/seo/index.js";
 import { registerPageHeadContributor } from "./http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post/index.js";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments/index.js";

@@ -36,7 +36,7 @@ import { SqliteChangeSetRepo } from "../platform/db/sqlite/change-set-repo.sqlit
 import { SqliteOutboxAdapter } from "../platform/db/sqlite/outbox-repo.sqlite.js";
 import { openDatabaseJournalDb } from "../platform/db/sqlite/database-journal-db.js";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../platform/db/sqlite/database-journal-repo.js";
-import { ensureSeoSettingDefinitions } from "../seo/index.js";
+import { ensureSeoSettingDefinitions } from "../features/seo/index.js";
 import { installNewsletterDataModule } from "../features/newsletter/data-module-manifest.js";
 import { ensureDefaultList } from "../features/newsletter/lists.js";
 import { createHookRegistry } from "../features/newsletter/hooks.js";

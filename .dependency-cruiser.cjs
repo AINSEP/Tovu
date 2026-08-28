@@ -272,7 +272,7 @@ const GUARDED_MODULES = [
   "features/origin",
   "features/redirects",
   "platform/routing",
-  "seo",
+  "features/seo",
   "platform/site-dir",
   // Renamed from "integrations" (2026-08-17), then re-pathed from `webhooks` when the six
   // misplaced feature slices moved under `src/features/` (2026-08-27) — the folder is
@@ -469,7 +469,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "features/origin",
   "features/theme",
   "features/commerce",
-  "seo",
+  "features/seo",
   "platform/routing",
   "features/members",
   // 2026-08-18 cheap-tail sweep (session 16 handoff's "Next Steps" item 1) — each driven to 0 and

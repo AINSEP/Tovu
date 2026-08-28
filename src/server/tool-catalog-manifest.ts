@@ -19,7 +19,7 @@ import { contributeMembersTools } from "../features/members/tool-registrations.j
 import { contributeMenusTools } from "../features/navigation/tool-registrations.js";
 import { contributeNewsletterTools } from "../features/newsletter/tool-registrations.js";
 import { contributeRedirectsTools } from "../features/redirects/tool-registrations.js";
-import { contributeSeoTools } from "../seo/tool-registrations.js";
+import { contributeSeoTools } from "../features/seo/tool-registrations.js";
 import { contributeSettingsTools } from "../features/settings/tool-registrations.js";
 import { contributeSiteEvidenceTools } from "../features/site-evidence/tool-registrations.js";
 import { contributeSiteInspectionTools } from "../features/site-inspection/index.js";

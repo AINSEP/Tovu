@@ -1,4 +1,4 @@
-import { regenerateSitemapCache } from "#src/seo/index";
+import { regenerateSitemapCache } from "#src/features/seo/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps.js";
 

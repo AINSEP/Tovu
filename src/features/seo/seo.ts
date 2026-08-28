@@ -1,8 +1,8 @@
 import type { JsonValue } from "@jini-ai/cms/core";
-import type { PostKind, PostRecord, PostRepoPort } from "../features/post/index.js";
-import { getEffective, type SettingsRepoPort } from "../features/settings/index.js";
-import { urlFor } from "../platform/routing/index.js";
-import type { RouteResolverDeps } from "../platform/routing/index.js";
+import type { PostKind, PostRecord, PostRepoPort } from "../post/index.js";
+import { getEffective, type SettingsRepoPort } from "../settings/index.js";
+import { urlFor } from "../../platform/routing/index.js";
+import type { RouteResolverDeps } from "../../platform/routing/index.js";
 import { SeoEntryNotFoundError } from "./errors.js";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
 import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media.js";
