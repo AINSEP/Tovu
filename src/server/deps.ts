@@ -55,7 +55,7 @@ import {
   seededWorkspace,
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-} from "./seed.js";
+} from "./runtime/configuration/seed.js";
 import { SqliteBufferSink } from "../platform/db/sqlite/analytics-sink.sqlite.js";
 import {
   ConsoleMailerAdapter,

@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { CAPABILITY_INVENTORY } from "../../src/server/capability-inventory.js";
+import { CAPABILITY_INVENTORY } from "../../src/server/runtime/configuration/capability-inventory.js";
 
 const SERVER_DIR = path.resolve(import.meta.dirname, "..", "..", "src", "server");
 const DEPS_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "deps.ts"), "utf8");
