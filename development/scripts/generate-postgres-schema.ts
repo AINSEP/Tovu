@@ -50,9 +50,9 @@ import path from "node:path";
 import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import * as schema from "../../src/platform/db/schema.js";
+import * as schema from "../../apps/website/src/platform/db/schema.js";
 
-const OUT_PATH = path.resolve(import.meta.dirname, "../../src/platform/db/schema.postgres.ts");
+const OUT_PATH = path.resolve(import.meta.dirname, "../../apps/website/src/platform/db/schema.postgres.ts");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
 /** Every exported Drizzle table in `schema.ts`, paired with the export name it must keep. */
