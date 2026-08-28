@@ -32,7 +32,7 @@ import type {
   SubscriptionRow,
 } from "./types.js";
 
-export type { MailerPort } from "../../mail/index.js";
+export type { MailerPort } from "../../platform/mail/index.js";
 
 /* ------------------------------------------------------------------------------------------------
  * SubscriberDirectoryPort — the Members seam (READ-only; Members owns the write side)

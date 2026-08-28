@@ -23,7 +23,7 @@ import {
   type OAuthProviderDescriptor,
   type OAuthTokenSet,
   type PendingAuthorizationStore,
-} from "../oauth/index.js";
+} from "../platform/oauth/index.js";
 import {
   ExternalMcpValidationError,
   openExternalMcpOAuthPayload,
@@ -37,9 +37,9 @@ import {
 } from "./external-mcp-store.js";
 
 /**
- * @file Connects `src/oauth/`'s generic client to one external-MCP connection row.
+ * @file Connects `src/platform/oauth/`'s generic client to one external-MCP connection row.
  *
- * This is the ONLY module that knows both halves. `src/oauth/` knows nothing about MCP;
+ * This is the ONLY module that knows both halves. `src/platform/oauth/` knows nothing about MCP;
  * `external-mcp-store.ts` knows nothing about token endpoints; this file owns the join and nothing
  * else — no HTTP routing (that is `server/routes/`), no federation (that is `mcp-federation/`).
  *
@@ -55,7 +55,7 @@ import {
  * Composio is the OAuth client there, and Tovu asks it for a redirect URL and later for a
  * *connected account*. There is no authorization-code grant, no PKCE, no token endpoint, no refresh
  * token and no expiry column anywhere in that path. There was nothing to port; a direct integration
- * inherits every one of those duties, and they are implemented fresh in `src/oauth/` behind a
+ * inherits every one of those duties, and they are implemented fresh in `src/platform/oauth/` behind a
  * provider-agnostic descriptor so no vendor's quirks reach this file either.
  *
  * ## Connect-time failures are loud, fast and never retried
@@ -198,7 +198,7 @@ export interface ExternalMcpOAuthDeps {
   /** Injected so tests never touch the network. Defaults to global `fetch`. */
   readonly fetchFn?: OAuthFetch;
   /** Resolves a REGISTERED provider descriptor. Injected so a test can register its own without
-   *  mutating the process-wide registry. Defaults to `src/oauth/`'s. */
+   *  mutating the process-wide registry. Defaults to `src/platform/oauth/`'s. */
   readonly lookupProvider?: (providerId: string) => OAuthProviderDescriptor;
 }
 
@@ -334,7 +334,7 @@ function readStoredScopes(record: ExternalMcpServerRecord): string[] {
  * Resolves the provider descriptor for a row: a registered id, or the operator's own endpoints.
  *
  * Both paths end at the same validated {@link OAuthProviderDescriptor}, which is what keeps every
- * flow in `src/oauth/` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
+ * flow in `src/platform/oauth/` provider-agnostic. `buildOperatorOAuthProvider` derives the supported grants
  * from which endpoints are present, so a row cannot claim a grant it has no endpoint for.
  *
  * @throws {OAuthError} `OAUTH_INVALID_REQUEST` when the row names neither, or

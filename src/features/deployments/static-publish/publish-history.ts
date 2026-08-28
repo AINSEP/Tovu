@@ -23,8 +23,8 @@ import { resolvePublishHistoryListLimit } from "../../../contracts/core/publish-
  * stated reason for staying file-backed — "adding a DB table needs a migration, and migrations
  * belong to whichever dispatch owns `drizzle/` for this session" — was a scheduling convenience
  * across two concurrently-dispatched agents, not an architectural argument, and does not survive
- * being named explicitly. This file, `publish-run.ts`, `src/db/schema.ts`'s `publishHistory` table,
- * and `src/db/sqlite/publish-history-repo.sqlite.ts` are that rework.
+ * being named explicitly. This file, `publish-run.ts`, `src/platform/db/schema.ts`'s `publishHistory` table,
+ * and `src/platform/db/sqlite/publish-history-repo.sqlite.ts` are that rework.
  *
  * Purpose:
  * {@link PublishHistoryStore} is the port — `getLast` (the single most recent row for a
@@ -33,8 +33,8 @@ import { resolvePublishHistoryListLimit } from "../../../contracts/core/publish-
  * history UI would page through). {@link InMemoryPublishHistoryStore} is the test double, append-only
  * like the real table (a test asserting "the second publish did not erase the first" needs an
  * in-memory double that can actually fail that assertion). `SqlitePublishHistoryStore`
- * (`src/db/sqlite/publish-history-repo.sqlite.ts`, this feature's real ADR-006 rule-of-two second
- * adapter) is the production implementation — it lives under `src/db/sqlite/`, not here, matching
+ * (`src/platform/db/sqlite/publish-history-repo.sqlite.ts`, this feature's real ADR-006 rule-of-two second
+ * adapter) is the production implementation — it lives under `src/platform/db/sqlite/`, not here, matching
  * every other DB-backed port/adapter split in this codebase (`PublishCredentialSetRepoPort` here in
  * `features/deployments/`, `SqlitePublishCredentialSetRepo` there in `db/sqlite/`).
  *

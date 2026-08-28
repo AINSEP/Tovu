@@ -2,10 +2,10 @@ import path from "node:path";
 
 import { createApp } from "../../server/app.js";
 import { createSqliteRouteDeps } from "../../server/deps.js";
-import { ValidationError, type ConfigJson } from "../../site-dir/index.js";
-import { bootSiteDir } from "../../site-dir/boot-site-dir.js";
-import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target.js";
-import { runtimeSchemaVersion } from "../../site-dir/schema-guard.js";
+import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
+import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
+import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
 
 /**

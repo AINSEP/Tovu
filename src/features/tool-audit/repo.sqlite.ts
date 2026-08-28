@@ -17,12 +17,12 @@
  *
  * Architectural role:
  * Infrastructure adapter. `repo.(sqlite|memory).ts` is the one path under `src/features/**`
- * dependency-cruiser permits to import `src/db/**` directly.
+ * dependency-cruiser permits to import `src/platform/db/**` directly.
  */
 import { and, eq, lt, sql } from "drizzle-orm";
 
-import { agentToolAttempts } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { agentToolAttempts } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
 
 /**

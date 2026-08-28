@@ -9,7 +9,7 @@
  * asserts EXACTLY ONE invariant and is green, so it can go red for exactly one reason. The cruiser
  * rule remains the machine-readable statement of the boundary and catches edges this scanner's source
  * roots do not cover; this test is what makes the boundary fail closed. Same division of labour, and
- * the same reasoning, as `src/db/__tests__/pg-fixture-import-boundary.test.ts`.
+ * the same reasoning, as `src/platform/db/__tests__/pg-fixture-import-boundary.test.ts`.
  *
  * Why the boundary is worth enforcing at all: a feature that names `src/server/**`, Express, or the
  * admin app cannot be lifted, tested, or reasoned about without booting the HTTP process around it.

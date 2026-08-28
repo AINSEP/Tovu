@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { ValidationError } from "../../../site-dir/index.js";
+import { ValidationError } from "../../../platform/site-dir/index.js";
 import { normalizeBuildOutputDirectory, type NormalizeBuildOutputResult } from "../../../features/theme/index.js";
 
 /**

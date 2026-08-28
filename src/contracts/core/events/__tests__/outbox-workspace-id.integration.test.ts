@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteOutboxAdapter } from "#src/db/sqlite/outbox-repo.sqlite";
-import { outboxEvents } from "#src/db/schema";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
+import { outboxEvents } from "#src/platform/db/schema";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { createWidgetInstance, type WidgetWriteServiceDeps } from "#src/widgets/write-service";
 

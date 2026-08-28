@@ -7,7 +7,7 @@ import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
 
 /**
  * @file `menu` widget resolver href resolution (SPEC-043 REQ-09) — real hrefs for `url`-kind nav
- * targets, honest `available: false` for targets `src/routing` (ADR-039) can't resolve yet.
+ * targets, honest `available: false` for targets `src/platform/routing` (ADR-039) can't resolve yet.
  */
 
 const WORKSPACE_ID = "ws-1";
@@ -65,7 +65,7 @@ test("REQ-09: a url-kind nav target resolves to a real href/available, not a raw
   assert.equal(items[0].available, true);
 });
 
-test("REQ-09: an entryRef target resolves to available:false honestly (src/routing not built yet), never throws", async () => {
+test("REQ-09: an entryRef target resolves to available:false honestly (src/platform/routing not built yet), never throws", async () => {
   const menu: NavMenuEntry = {
     id: "menu-2",
     workspaceId: WORKSPACE_ID,

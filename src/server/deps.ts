@@ -11,11 +11,11 @@ import { InMemoryEventBus } from "../contracts/core/events/index.js";
 import { resolveStorefrontProducts } from "./routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post/index.js";
 import { SqliteDeploymentsReadRepo } from "../features/deployments/index.js";
-import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite.js";
-import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite.js";
-import { SqliteCustomCredentialSetRepo } from "../db/sqlite/custom-credential-repo.sqlite.js";
-import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite.js";
-import { SqliteVendorCredentialSetRepo } from "../db/sqlite/vendor-credential-repo.sqlite.js";
+import { SqlitePublishCredentialSetRepo } from "../platform/db/sqlite/publish-credential-repo.sqlite.js";
+import { SqlitePublishHistoryStore } from "../platform/db/sqlite/publish-history-repo.sqlite.js";
+import { SqliteCustomCredentialSetRepo } from "../platform/db/sqlite/custom-credential-repo.sqlite.js";
+import { SqliteSourceControlCredentialSetRepo } from "../platform/db/sqlite/source-control-credential-repo.sqlite.js";
+import { SqliteVendorCredentialSetRepo } from "../platform/db/sqlite/vendor-credential-repo.sqlite.js";
 import { executionModeFromEnv } from "../features/deployments/publish-credentials/index.js";
 import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish/index.js";
 // NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
@@ -28,14 +28,14 @@ import { SqlitePresentationSettingsRepo } from "../features/presentation/index.j
 import { SqliteSettingsRepo } from "../features/settings/repo.sqlite.js";
 import { discoverAllBuiltInThemes, seedSiteThemes } from "../features/theme/index.js";
 import { SqliteWorkspaceRepo } from "../features/workspace/index.js";
-import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
-import { resolveWorkspace } from "../site-dir/resolve-workspace.js";
-import { resolveSiteRoot } from "../site-dir/index.js";
+import { openContentDb, type ContentDb } from "../platform/db/sqlite/content-db.js";
+import { resolveWorkspace } from "../platform/site-dir/resolve-workspace.js";
+import { resolveSiteRoot } from "../platform/site-dir/index.js";
 import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery.js";
-import { SqliteChangeSetRepo } from "../db/sqlite/change-set-repo.sqlite.js";
-import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite.js";
-import { openDatabaseJournalDb } from "../db/sqlite/database-journal-db.js";
-import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../db/sqlite/database-journal-repo.js";
+import { SqliteChangeSetRepo } from "../platform/db/sqlite/change-set-repo.sqlite.js";
+import { SqliteOutboxAdapter } from "../platform/db/sqlite/outbox-repo.sqlite.js";
+import { openDatabaseJournalDb } from "../platform/db/sqlite/database-journal-db.js";
+import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../platform/db/sqlite/database-journal-repo.js";
 import { ensureSeoSettingDefinitions } from "../seo/index.js";
 import { installNewsletterDataModule } from "../features/newsletter/data-module-manifest.js";
 import { ensureDefaultList } from "../features/newsletter/lists.js";
@@ -56,7 +56,7 @@ import {
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
 } from "./seed.js";
-import { SqliteBufferSink } from "../db/sqlite/analytics-sink.sqlite.js";
+import { SqliteBufferSink } from "../platform/db/sqlite/analytics-sink.sqlite.js";
 import {
   ConsoleMailerAdapter,
   SqliteMagicLinkTokenRepo,
@@ -68,17 +68,17 @@ import {
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite.js";
 import { rebuildNavLocationBindings } from "../navigation/index.js";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite.js";
-import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite.js";
+import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../platform/db/sqlite/webhook-repo.sqlite.js";
 import { EnvOrFileKeyring } from "../features/webhooks/keyring.env.js";
 import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
 import { AesGcmSecretSealer } from "../features/webhooks/secret-sealer.aesgcm.js";
-import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite.js";
-import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite.js";
-import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite.js";
-import { SqliteConnectorCredentialRepo } from "../db/sqlite/composio-connector-credential-repo.sqlite.js";
-import { SqliteMediaProviderCredentialRepo } from "../db/sqlite/media-provider-credential-repo.sqlite.js";
-import { SqliteExternalMcpServerRepo } from "../db/sqlite/external-mcp-repo.sqlite.js";
-import { createComposioConnectors } from "../connectors/composio-service.js";
+import { SqliteSiteAssistantCredentialRepo } from "../platform/db/sqlite/site-credential-repo.sqlite.js";
+import { SqliteAdminExecutionCredentialRepo } from "../platform/db/sqlite/execution-credential-repo.sqlite.js";
+import { SqliteComposioConfigRepo } from "../platform/db/sqlite/composio-config-repo.sqlite.js";
+import { SqliteConnectorCredentialRepo } from "../platform/db/sqlite/composio-connector-credential-repo.sqlite.js";
+import { SqliteMediaProviderCredentialRepo } from "../platform/db/sqlite/media-provider-credential-repo.sqlite.js";
+import { SqliteExternalMcpServerRepo } from "../platform/db/sqlite/external-mcp-repo.sqlite.js";
+import { createComposioConnectors } from "../platform/connectors/composio-service.js";
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
@@ -92,14 +92,14 @@ import type { Express } from "express";
 import type { RouteDeps } from "./routes/types.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "../origin/index.js";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../db/sqlite/origin-repo.sqlite.js";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../platform/db/sqlite/origin-repo.sqlite.js";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
   SqliteMediaContentTypeStore,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
-} from "../db/sqlite/media-repo.sqlite.js";
+} from "../platform/db/sqlite/media-repo.sqlite.js";
 import {
   RedirectHitSinkImpl,
   RedirectPhaseHandlerResolver,
@@ -110,16 +110,16 @@ import {
   SqliteRedirectRepo,
   type RedirectsWriteDeps,
 } from "../features/redirects/index.js";
-import { registerSlugChangeCapture } from "../routing/index.js";
-import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops.js";
-import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo.js";
-import { SqliteDatabaseIntrospectionAdapter } from "../db/sqlite/database-introspection-adapter.sqlite.js";
+import { registerSlugChangeCapture } from "../platform/routing/index.js";
+import { SqliteDbOpsAdapter } from "../platform/db/sqlite/db-ops.js";
+import { SqliteRestorePointsRepo } from "../platform/db/sqlite/database-journal-repo.js";
+import { SqliteDatabaseIntrospectionAdapter } from "../platform/db/sqlite/database-introspection-adapter.sqlite.js";
 import { InMemorySiteStatusRepo } from "../features/database/repo.memory.js";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite.js";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite.js";
 import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite.js";
-import { SqliteEntryRefsRepo } from "../db/sqlite/entry-refs-repo.sqlite.js";
+import { SqliteEntryRefsRepo } from "../platform/db/sqlite/entry-refs-repo.sqlite.js";
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite.js";
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
@@ -149,9 +149,9 @@ import {
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../contracts/core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
+import { wrapMailerWithPurposeGate } from "../platform/mail/purpose-scoped-mailer.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
-import { createPendingAuthorizationStore } from "#src/oauth/index";
+import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 
 /**
  * The one site folder this process serves — the root every other runtime path below derives from.
@@ -1086,7 +1086,7 @@ export function createSqliteRouteDeps(
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).
     exportSiteBound: (opts) =>
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
-      (require("../export/index.js") as typeof import("../export/index.js")).exportSite({ ...opts, routeDeps }),
+      (require("../platform/export/index.js") as typeof import("../platform/export/index.js")).exportSite({ ...opts, routeDeps }),
   };
   return routeDeps;
 }
@@ -1149,7 +1149,7 @@ const require = createRequire(import.meta.url);
  */
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../export/index.js") as typeof import("../export/index.js")).exportSite(options);
+  (require("../platform/export/index.js") as typeof import("../platform/export/index.js")).exportSite(options);
 
 /**
  * `createApp`, resolved at CALL time rather than at import time — see `routes/types.ts`'s

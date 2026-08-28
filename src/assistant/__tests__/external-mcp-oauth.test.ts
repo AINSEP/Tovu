@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../oauth/index.js";
+import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import {
   createDeviceAuthorizationStore,
   createExternalMcpConnectionGate,

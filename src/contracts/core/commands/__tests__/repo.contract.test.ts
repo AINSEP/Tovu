@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteChangeSetRepo } from "#src/db/sqlite/change-set-repo.sqlite";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { InMemoryChangeSetRepo } from "../repo.memory.js";
 import type { ChangeSetItemRecord, ChangeSetRecord, ChangeSetRepoPort } from "@jini-ai/cms/core";
 

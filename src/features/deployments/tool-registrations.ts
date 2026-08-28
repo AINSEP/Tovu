@@ -77,7 +77,7 @@ export interface DeploymentsToolDeps {
    * `RouteDeps.runExportSite`. Returns `ExportRunReportLike` (`export-run.ts`'s own structural
    * mirror of the real `ExportReport`) rather than the real type, deliberately: this domain already
    * imports `ExportRunReportLike` from its sibling `export-run.ts`, so reusing it here avoids a
-   * fresh `#src/export/index` type import — the real `RouteDeps.exportSiteBound` (which returns the
+   * fresh `#src/platform/export/index` type import — the real `RouteDeps.exportSiteBound` (which returns the
    * real `ExportReport`) already satisfies this structurally (same reasoning `ExportEngine`'s own
    * doc gives for its return type).
    */

@@ -37,8 +37,8 @@
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
 import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../origin/index.js";
-import { registerResolvePhase } from "../../routing/index.js";
-import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../routing/index.js";
+import { registerResolvePhase } from "../../platform/routing/index.js";
+import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
 
 import type {
   RedirectHitEvent,

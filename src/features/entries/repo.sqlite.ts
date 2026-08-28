@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { and, asc, desc, eq } from "drizzle-orm";
 
-import { entries, entryRevisions } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import { entries, entryRevisions } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
   EntryListPort,
   EntryRecord,

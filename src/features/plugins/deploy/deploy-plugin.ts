@@ -23,7 +23,7 @@
  */
 import Database from "better-sqlite3";
 
-import type { HttpClientPort } from "#src/http/index";
+import type { HttpClientPort } from "#src/platform/http/index";
 import { declareDataModule, type DataModuleDecl } from "../data-module.js";
 
 export type DeployTarget = "vercel" | "netlify" | "github-pages" | "aws";

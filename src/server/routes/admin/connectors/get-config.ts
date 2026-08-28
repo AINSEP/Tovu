@@ -1,4 +1,4 @@
-import { getComposioConfigView } from "#src/connectors/composio-config-store";
+import { getComposioConfigView } from "#src/platform/connectors/composio-config-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ConnectorsConfigRouteRegistrar } from "./deps.js";
 

@@ -35,7 +35,7 @@ import { assertValidConnectionId } from "./mcp-federation/trust.js";
  * adjudicated trust would be two mechanisms with one owner.
  *
  * It does not run the OAuth flow either. That is `assistant/external-mcp-oauth.ts` over the generic
- * client in `src/oauth/`; this store owns only the ROW — which auth mode a server uses, its
+ * client in `src/platform/oauth/`; this store owns only the ROW — which auth mode a server uses, its
  * plaintext OAuth metadata, and the sealed blob. Same split as `allowedToolNames`, same reason.
  *
  * ## Transport and auth mode are ORTHOGONAL
@@ -83,7 +83,7 @@ export type ExternalMcpAuthMode = (typeof EXTERNAL_MCP_AUTH_MODES)[number];
 export const EXTERNAL_MCP_OAUTH_STATUSES = ["disconnected", "pending", "connected", "needs_reauth"] as const;
 export type ExternalMcpOAuthStatus = (typeof EXTERNAL_MCP_OAUTH_STATUSES)[number];
 
-/** Which OAuth grant an operator chose. Mirrors `src/oauth/`'s `OAuthGrantKind`; restated rather
+/** Which OAuth grant an operator chose. Mirrors `src/platform/oauth/`'s `OAuthGrantKind`; restated rather
  *  than imported so the stored row shape does not depend on the flow module. */
 export const EXTERNAL_MCP_OAUTH_GRANTS = ["authorization_code", "device_code"] as const;
 export type ExternalMcpOAuthGrant = (typeof EXTERNAL_MCP_OAUTH_GRANTS)[number];
@@ -316,7 +316,7 @@ const MAX_OAUTH_SCOPES = 64;
 /** Bounds the single-line OAuth identity fields (client id, secret). A real one is far shorter; the
  *  cap exists so a pasted file cannot become a database row. */
 const MAX_OAUTH_FIELD_LENGTH = 1024;
-/** Matches `src/oauth/providers.ts`'s own rule. Restated rather than imported for the reason this
+/** Matches `src/platform/oauth/providers.ts`'s own rule. Restated rather than imported for the reason this
  *  file's header gives: the row shape must not depend on the flow module. */
 const OAUTH_PROVIDER_ID_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 
@@ -619,7 +619,7 @@ async function openExternalMcpEnv(
  * Resolves an `oauth` row's contribution to the child environment.
  *
  * Kept behind a port rather than inlined, so this store never imports a token endpoint, a refresher,
- * or `src/oauth/` at all: the boot path asks for a token, and whoever wired the daemon decides where
+ * or `src/platform/oauth/` at all: the boot path asks for a token, and whoever wired the daemon decides where
  * it comes from. That is also what keeps this module testable without a network.
  */
 export interface ExternalMcpOAuthTokenResolverPort {
@@ -1360,7 +1360,7 @@ function carryOAuthRuntimeState(
  * unseal, change one member, reseal — because a writer that seals `{ tokens }` alone silently
  * deletes the operator's client secret.
  *
- * Structurally compatible with `src/oauth/`'s `OAuthTokenSet`, but declared here rather than
+ * Structurally compatible with `src/platform/oauth/`'s `OAuthTokenSet`, but declared here rather than
  * imported: this is the STORED shape, and it must be able to stay still while the flow module's
  * in-memory type moves.
  */

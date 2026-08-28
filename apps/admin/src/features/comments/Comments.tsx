@@ -1,6 +1,7 @@
 import type { AdminComment, CommentModerationAction, CommentStatus } from "../../lib/api";
 import { hasPermission } from "../../lib/permissions";
 import { DataTable, RowMenu, ConfirmDialog, type DataTableColumn } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 
 import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";

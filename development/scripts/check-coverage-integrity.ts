@@ -360,7 +360,7 @@ export function isFirstPartySourcePath(relPath: string): boolean {
  * candidate for this same escalation -- "few distinct DA values across many lines," with no
  * comparison to the wrapper's own counts -- was tried and rejected: measured against the same 6 real
  * runs, it flagged 53-54 first-party files as severe in EVERY run, clean or not (e.g.
- * `src/db/schema.ts`, 2589 lines, only 3 distinct hit-count values -- it is just declarative schema
+ * `src/platform/db/schema.ts`, 2589 lines, only 3 distinct hit-count values -- it is just declarative schema
  * code with almost no branching, nothing to do with the wrapper mechanism). Anchoring the comparison
  * to the wrapper's OWN hit-counts, not a bare threshold, is what makes SEVERE precise: validated
  * against all 172 first-party blocks across the same 6 runs, it fires on exactly the one confirmed-

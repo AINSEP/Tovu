@@ -1,9 +1,9 @@
 import { and, desc, eq, lt, or } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import { formDefinitions, formSubmissions } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import { formDefinitions, formSubmissions } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import { FormSlugConflictError } from "./errors.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {

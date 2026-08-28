@@ -9,14 +9,26 @@ import type { AdminPost } from "../../../lib/api";
  * declares, `page-editor-dependencies.hooks.ts` binds the real `api` client, and nothing else under
  * `features/pages/hooks` imports `lib/api` for these six routes.
  *
- * `getPresentation`'s return type is narrowed to `activeThemeTemplates` only — the only field this
- * hook actually reads off it (see `usePageEditor`'s load effect). `features/posts`' `usePostEditor`
- * reads more fields off the same route through its own `PostEditorPort` (`post-editor-port.hooks.ts`)
- * — narrowing here is not a shared contract, it is this hook's own consumption.
+ * `getPresentation`'s return type is narrowed to the three fields this hook actually reads off it
+ * (see `usePageEditor`'s load effect). `features/posts`' `usePostEditor` reads more fields off the
+ * same route through its own `PostEditorPort` (`post-editor-port.hooks.ts`) — narrowing here is not a
+ * shared contract, it is this hook's own consumption. The narrowing also moves one derivation off
+ * the hook: the active theme's `apiVersion` lives on `availableThemes`, keyed by id, and
+ * `page-editor-dependencies.hooks.ts` resolves it rather than handing the whole array through.
  */
 export interface PageEditorPort {
   getPage(routeSlug: string): Promise<{ post: AdminPost }>;
-  getPresentation(): Promise<{ activeThemeTemplates: string[] }>;
+  getPresentation(): Promise<{
+    activeThemeTemplates: string[];
+    /** `PresentationSettings.activeThemeId` — feeds the Interactive tab's canvas stylesheet and
+     *  token fetches (`use-theme-canvas-styling.hooks.ts`). */
+    activeThemeId: string;
+    /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1), looked up on
+     *  `availableThemes` by `activeThemeId`. `undefined` also covers "the active theme is absent
+     *  from `availableThemes`", which `resolveThemeLayout` treats as v1 — the same conflation
+     *  `usePostEditor`'s own `activeThemeApiVersion` documents. */
+    activeThemeApiVersion: 2 | undefined;
+  }>;
   updatePageHtml(id: string, html: string): Promise<{ post: AdminPost }>;
   updatePost(
     target: { id: string },

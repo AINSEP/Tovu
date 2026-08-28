@@ -22,7 +22,7 @@
  * unmet ones are collected — this never short-circuits/returns on the first failure found.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../mail/index.js";
+import type { MailerPort } from "../../platform/mail/index.js";
 import type { MembersConsentCapability } from "./ports.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
 

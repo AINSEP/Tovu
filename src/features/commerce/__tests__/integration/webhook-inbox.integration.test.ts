@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
-import { commerceOrders, commerceWebhookEvents, members, workspaces } from "#src/db/schema";
+import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import { commerceOrders, commerceWebhookEvents, members, workspaces } from "#src/platform/db/schema";
 import { SqliteCommerceWebhookEventRepo } from "../../repo.sqlite.js";
 import { ingestProviderEvent } from "../../webhook-inbox.js";
 

@@ -15,7 +15,7 @@ export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
 /**
  * @file Admin Deployment panel → Static Site tab backend.
  *
- * Registers TWO routes wrapping `src/export/site-exporter.ts`'s `exportSite` — the same engine
+ * Registers TWO routes wrapping `src/platform/export/site-exporter.ts`'s `exportSite` — the same engine
  * `tovu export` already drives, in-process, never shelled out to (a route running inside this same
  * process can call it directly; `exportSite` boots its OWN short-lived HTTP listener on port 0 to
  * fetch every route, so there is no self-request deadlock).

@@ -25,7 +25,7 @@
  * production second half of each rule-of-two.
  */
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
-import type { EgressPolicy, HttpClientPort } from "../../http/index.js";
+import type { EgressPolicy, HttpClientPort } from "../../platform/http/index.js";
 import type {
   IntegrationId,
   IntegrationSecretRecord,
@@ -37,7 +37,7 @@ import type {
   WebhookTopic,
 } from "./types.js";
 
-export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../../http/index.js";
+export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../../platform/http/index.js";
 
 /* -------------------------------------------------------------------------- */
 /* Secret material — kept OUT of the portable content.db                       */

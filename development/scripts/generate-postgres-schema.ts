@@ -1,5 +1,5 @@
 /**
- * @file Generates `src/db/schema.postgres.ts` from `src/db/schema.ts`.
+ * @file Generates `src/platform/db/schema.postgres.ts` from `src/platform/db/schema.ts`.
  *
  * Why generate rather than hand-maintain a second schema:
  * Tovu must run on SQLite (bundled, local, zero-config) and PostgreSQL (hosted, Supabase). The
@@ -20,7 +20,7 @@
  *
  * Those tallies are a point-in-time census and go stale whenever a column lands — they document why
  * the approach is tractable, they are not a contract. The enforced invariants live in
- * `src/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.ts` at
+ * `src/platform/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.ts` at
  * run time; re-measure with `getTableConfig()` rather than trusting a number in this paragraph.
  *
  * Every one of those 65 indexes is a plain ascending column list today — no partial-index `WHERE`,
@@ -28,7 +28,7 @@
  * (`renderIndexColumnExpr`/`renderSqlText`) rather than refusing them outright: SQLite's Drizzle
  * represents ordering and expressions as the exact same `SQL`-chunk shape CHECK bodies already use
  * (`asc(col)`/`desc(col)` literally expand to `` sql`${col} asc` ``), so the hardened renderer that
- * shape needs already exists. `src/db/__tests__/schema-postgres-generator-fixtures.test.ts` proves
+ * shape needs already exists. `src/platform/db/__tests__/schema-postgres-generator-fixtures.test.ts` proves
  * the translation against hand-built fixture tables, since `schema.ts` has no live case to prove it
  * against — read that file's own doc before assuming this paragraph is aspirational.
  *
@@ -50,9 +50,9 @@ import path from "node:path";
 import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import * as schema from "../../src/db/schema.js";
+import * as schema from "../../src/platform/db/schema.js";
 
-const OUT_PATH = path.resolve(import.meta.dirname, "../../src/db/schema.postgres.ts");
+const OUT_PATH = path.resolve(import.meta.dirname, "../../src/platform/db/schema.postgres.ts");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
 /** Every exported Drizzle table in `schema.ts`, paired with the export name it must keep. */
@@ -603,7 +603,7 @@ function generate(): string {
   return `/**
  * GENERATED FILE — DO NOT EDIT BY HAND.
  *
- * Produced from \`src/db/schema.ts\` by \`development/scripts/generate-postgres-schema.ts\`.
+ * Produced from \`src/platform/db/schema.ts\` by \`development/scripts/generate-postgres-schema.ts\`.
  * Edit the SQLite schema and regenerate; editing this file directly will be overwritten and will
  * fail the drift check in CI.
  *
@@ -635,7 +635,7 @@ function main(): void {
     return;
   }
   process.stderr.write(
-    "DRIFT: src/db/schema.postgres.ts does not match what schema.ts generates.\n" +
+    "DRIFT: src/platform/db/schema.postgres.ts does not match what schema.ts generates.\n" +
       "Run `npx tsx development/scripts/generate-postgres-schema.ts` and commit the result.\n"
   );
   process.exit(1);
@@ -644,11 +644,11 @@ function main(): void {
 // Only run when invoked directly (`npx tsx generate-postgres-schema.ts[, --check]`), never as a side
 // effect of import. The negative-fixture tests below import renderTable()/renderSqlText() etc. against
 // hand-built tables that are NOT part of schema.ts, specifically so a fixture proving the generator
-// rejects a bad shape can never itself write or drift-check the real src/db/schema.postgres.ts.
+// rejects a bad shape can never itself write or drift-check the real src/platform/db/schema.postgres.ts.
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 
-// Exported strictly for `src/db/__tests__/schema-postgres-*.test.ts`: this file's own module doc
+// Exported strictly for `src/platform/db/__tests__/schema-postgres-*.test.ts`: this file's own module doc
 // promises a generator, not a library, so nothing here is meant to be imported by production code.
 export { assertKnownShape, columnRef, renderIndexColumnExpr, renderSqlText, renderTable, tsPropertyNames };

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { DuplicateCommandError, executeCommand, type CommandMutation } from "@jini-ai/cms/core";
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteChangeSetRepo } from "#src/db/sqlite/change-set-repo.sqlite";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 
 /**
  * @file Idempotency-key TOCTOU race.

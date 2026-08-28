@@ -24,7 +24,7 @@ import type { FullConfig } from "@playwright/test";
 
 const LOGIN_PATH = "/api/admin/v1/auth/login";
 const WORKSPACES_PATH = "/api/admin/v1/workspaces";
-/** `src/db/../seed.ts`'s `seededWorkspace.id` for the in-memory store — but resolved from the live
+/** `src/platform/db/../seed.ts`'s `seededWorkspace.id` for the in-memory store — but resolved from the live
  *  API below rather than hardcoded, so a seed change cannot leave this suite silently enabling the
  *  setting on a workspace nothing renders from. */
 const EXPECTED_SEEDED_WORKSPACE_SLUG = "local-tovu";

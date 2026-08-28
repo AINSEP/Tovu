@@ -1,7 +1,7 @@
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { PostKind, PostStatus } from "./post.js";
 import {
   toPostSearchDocument,

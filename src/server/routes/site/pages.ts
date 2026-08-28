@@ -25,8 +25,8 @@ import {
   type ResolveHtmlPageEmbedsResult,
   type ResolvePageWidgetsResult,
 } from "#src/widgets/resolver-service";
-import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/routing/index";
-import type { RouteTarget } from "#src/routing/index";
+import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
+import type { RouteTarget } from "#src/platform/routing/index";
 import { resolveMenuDoc } from "#src/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/navigation/index";
 import { getLatestTransformDefinition } from "#src/media/index";

@@ -7,8 +7,8 @@ import {
   SiteDirInvalidError,
   SiteNewerThanRuntimeError,
   ValidationError,
-} from "../site-dir/index.js";
-import { ExportOutputNotEmptyError } from "../export/index.js";
+} from "../platform/site-dir/index.js";
+import { ExportOutputNotEmptyError } from "../platform/export/index.js";
 
 /**
  * @file SPEC-003 — CLI-layer error-to-exit-code mapping (errors.spec.md).

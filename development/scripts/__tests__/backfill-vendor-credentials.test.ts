@@ -6,8 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../src/db/sqlite/content-db.js";
-import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../src/db/schema.js";
+import { openContentDb } from "../../../src/platform/db/sqlite/content-db.js";
+import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../../src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../src/features/webhooks/keyring.env.js";
 import { buildPublishCredentialAad } from "../../../src/features/deployments/publish-credentials/aad.js";

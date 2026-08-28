@@ -17,7 +17,7 @@ import type { WidgetResolveResult, WidgetResolver } from "../types.js";
  * need either an export-widening of those internals or a location-shaped call it doesn't have.
  *
  * DISCLOSED REMAINING LIMITATION: real href resolution for non-`url` targets (`entryRef`/`termRef`/
- * `route`) needs `src/routing` (ADR-039), which is being built in parallel and is not running code
+ * `route`) needs `src/platform/routing` (ADR-039), which is being built in parallel and is not running code
  * yet anywhere in this codebase — not even `navigation`'s own production callers have a real
  * `ResolveTargetHrefFn` today (`resolveForLocation` takes it as an injected dependency precisely so
  * a fake can stand in until routing lands, per `navigation/resolver.ts`'s own header). This resolver
@@ -27,15 +27,15 @@ import type { WidgetResolveResult, WidgetResolver } from "../types.js";
  * `available: false, href: null` via the placeholder `resolveTargetHref` below, exactly the outcome
  * `navigation/resolver.ts`'s own doc describes for "cannot resolve" — swap the placeholder for the
  * real routing-backed implementation in one place (`DEFAULT_RESOLVE_TARGET_HREF` below) once
- * `src/routing` ships; no other change needed here.
+ * `src/platform/routing` ships; no other change needed here.
  */
 export interface MenuResolverDeps {
   navMenuReadModel: NavMenuReadModel;
-  /** Overridable for tests / once `src/routing` (ADR-039) lands; defaults to the honest placeholder documented above. */
+  /** Overridable for tests / once `src/platform/routing` (ADR-039) lands; defaults to the honest placeholder documented above. */
   resolveTargetHref?: ResolveTargetHrefFn;
 }
 
-/** `src/routing` (ADR-039) is not running code yet — every non-`url` target is "cannot resolve" today, system-wide. */
+/** `src/platform/routing` (ADR-039) is not running code yet — every non-`url` target is "cannot resolve" today, system-wide. */
 const DEFAULT_RESOLVE_TARGET_HREF: ResolveTargetHrefFn = async () => null;
 
 function toMenuItemProps(items: readonly ResolvedNavItem[]): JsonObject {

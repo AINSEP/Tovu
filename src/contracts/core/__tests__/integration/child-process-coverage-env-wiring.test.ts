@@ -36,10 +36,10 @@ const NODE_CHILD_SPAWNING_FILES = [
   "src/cli/__tests__/integration/init-command.integration.test.ts",
   "src/cli/__tests__/integration/help-and-unknown-command.integration.test.ts",
   "src/features/theme/__tests__/astro-real-bundler-conformance.test.ts",
-  "src/db/__tests__/schema-postgres-drift.test.ts",
+  "src/platform/db/__tests__/schema-postgres-drift.test.ts",
   "src/cli/__tests__/integration/serve-command.integration.test.ts",
   "src/server/agent-daemon/__tests__/integration/daemon-boots.integration.test.ts",
-  "src/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts",
+  "src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts",
   "src/__tests__/integration/port-in-use.integration.test.ts",
 ];
 

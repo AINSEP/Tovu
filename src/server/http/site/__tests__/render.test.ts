@@ -7,7 +7,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
-import { renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render.js";
+import { injectExtraHeadIntoStaticPage, renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -1499,4 +1499,48 @@ test("renderSite (product route, no theme template): the fallback body shows the
     product: sampleSiteProduct(),
   });
   assert.match(html, /Classic Boxy Tee/);
+});
+
+// `page-shell.html`'s head opens with an explanatory comment whose prose mentions `<title>` — the
+// SEO splice used to strip the theme's own title with an unanchored `/<title>[\s\S]*?<\/title>/`,
+// which matched THAT mention and deleted everything through the real title, taking the comment's
+// own `-->` with it. Every downstream head element then parsed as comment text, so `/contact`,
+// `/team`, `/faq` and `/terms-of-service` shipped with no stylesheet at all.
+const HEAD_COMMENT_MENTIONING_TITLE = [
+  "<!doctype html>",
+  '<html lang="en"><head>',
+  "<meta charset=\"utf-8\" />",
+  "<!-- the tag directly below carries a <title> placeholder the renderer substitutes -->",
+  "<title>Theme Title</title>",
+  '<link rel="stylesheet" href="/theme-assets/basic/css/theme.css" />',
+  "</head><body><h1>Get in touch</h1></body></html>",
+].join("\n");
+
+const SEO_HEAD = '<title>Contact</title><link rel="canonical" href="/contact"/>';
+
+test("injectExtraHeadIntoStaticPage: a <title> mentioned inside a head comment does not swallow the rest of the head (regression)", () => {
+  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD);
+
+  assert.equal((out.match(/-->/g) ?? []).length, 1, "the head comment must still be terminated");
+  assert.ok(
+    out.indexOf("-->") < out.indexOf('rel="stylesheet"'),
+    "the theme stylesheet must sit outside the comment, not be commented out by it"
+  );
+});
+
+test("injectExtraHeadIntoStaticPage: the theme's own title is still the one removed, not the comment's mention", () => {
+  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, SEO_HEAD);
+
+  const afterComment = out.slice(out.indexOf("-->") + "-->".length);
+  assert.equal((afterComment.match(/<title>/g) ?? []).length, 1, "exactly one real <title> element ships");
+  assert.ok(out.includes("<title>Contact</title>"), "the SEO fold's title wins");
+  assert.ok(!out.includes("<title>Theme Title</title>"), "the theme's own title is suppressed");
+  assert.ok(out.includes("a <title> placeholder"), "the comment's prose is left alone");
+});
+
+test("injectExtraHeadIntoStaticPage: extraHead without a title leaves the theme's own title in place", () => {
+  const out = injectExtraHeadIntoStaticPage(HEAD_COMMENT_MENTIONING_TITLE, '<link rel="canonical" href="/contact"/>');
+
+  assert.ok(out.includes("<title>Theme Title</title>"), "nothing to suppress it, so it stays");
+  assert.equal((out.match(/-->/g) ?? []).length, 1, "and the comment is untouched");
 });

@@ -66,7 +66,7 @@ function modelIdsFor(providerId: string): string[] {
  * Computed once at module load: `MEDIA_PROVIDERS` is a frozen `as const` literal, so there is
  * nothing to recompute and a stable array identity keeps the tab from re-rendering on it.
  */
-/** Owner-directed (2026-08-24): "Custom Image API" — the local/self-hosted-friendly, no-vendor-
+/** Owner-directed (2026-08-24): "Custom Media API" — the local/self-hosted-friendly, no-vendor-
  *  lock-in option — should always be the first card on this tab, not wherever the configured-
  *  first/alphabetical sort (`sortProvidersByConfigured`) happens to place it. Passed straight
  *  through to `MediaProvidersTab`'s `pinnedProviderIds` prop. */

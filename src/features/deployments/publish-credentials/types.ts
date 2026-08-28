@@ -5,7 +5,7 @@ import type { SealedSecret } from "../../webhooks/index.js";
 /**
  * @file Domain types for named, workspace-scoped provider connections used to publish a static
  * export to GitHub Pages / Vercel / Netlify / Cloudflare Pages (`publish_credential_sets`,
- * `src/db/schema.ts`). Design: `ADS-memory/reports/external-audit/runs/
+ * `src/platform/db/schema.ts`). Design: `ADS-memory/reports/external-audit/runs/
  * 2026-08-15-terra-xhigh-publish-credentials-design.md`.
  *
  * Purpose:
@@ -117,7 +117,7 @@ export interface S3CompatibleConnectionInput {
 
 /** Closed discriminated union — see this file's header. This whole object is what gets serialized to
  *  JSON and sealed as ONE ciphertext blob per credential set (never per-field columns — see
- *  `src/db/schema.ts`'s `publishCredentialSets` header for why). */
+ *  `src/platform/db/schema.ts`'s `publishCredentialSets` header for why). */
 export type PublishConnectionInput =
   | GitHubPagesConnectionInput
   | VercelConnectionInput

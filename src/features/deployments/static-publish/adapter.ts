@@ -13,7 +13,7 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import type { ExportFailureSummary, ExportReport } from "#src/export/index";
+import type { ExportFailureSummary, ExportReport } from "#src/platform/export/index";
 
 const require = createRequire(import.meta.url);
 
@@ -36,7 +36,7 @@ import type {
  *
  * Purpose:
  * "Wrap it, do not reimplement" — this module does no GitHub/Vercel HTTP itself. It (a) runs
- * Tovu's real static exporter (`src/export`'s `exportSite`, the same engine
+ * Tovu's real static exporter (`src/platform/export`'s `exportSite`, the same engine
  * `routes/admin/system/export-site.ts` already drives) with a base path computed FOR the publish
  * target, (b) maps the resulting `ExportReport` into `DeployFile[]` using the `data`/`outputFile`
  * fields `site-exporter.ts` added specifically for this ("reachable as DATA for a future
@@ -356,7 +356,7 @@ export interface StaticPublishInput {
 /**
  * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
  * `commit-site.ts`'s identical helper. A static `import { firstExportFailure } from
- * "#src/export/index"` at the top of THIS file would close a cycle the moment anything reachable
+ * "#src/platform/export/index"` at the top of THIS file would close a cycle the moment anything reachable
  * from `src/assistant` imports this module:
  *
  *     assistant/tool-registrations.ts -> features/deployments/publish-agent-tools.ts ->
@@ -369,12 +369,12 @@ export interface StaticPublishInput {
  * directly anymore — {@link StaticPublishInput.exportSiteBound} is already the composition root's own
  * lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so threading a second lazy `require` for
  * the same function here would be redundant, not merely stylistic. `firstExportFailure` still needs
- * its own lazy resolution, since it is a SEPARATE named export of the same `#src/export/index` module
+ * its own lazy resolution, since it is a SEPARATE named export of the same `#src/platform/export/index` module
  * and importing it eagerly would reopen the identical cycle regardless of `exportSite`'s own fix.
  */
 function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
+  return (require("#src/platform/export/index") as typeof import("#src/platform/export/index")).firstExportFailure(report);
 }
 
 /** The `{ok:true, ...}` member of `PublishCredentialSource["resolve"]`'s return union — the shape
@@ -432,7 +432,7 @@ async function resolvePublishCredentialForSite(
  * Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
  * architecture audit) — this used to check only `routes.failed`, so a page could export fine while
  * its own stylesheet or hero image 404s and publishing would still report success. See
- * `firstExportFailure`'s own doc (`#src/export/index`) for the shared check both this function and
+ * `firstExportFailure`'s own doc (`#src/platform/export/index`) for the shared check both this function and
  * `commit-site.ts`'s `commitSiteToSourceControl` now use.
  */
 async function runExportForPublish(

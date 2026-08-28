@@ -444,7 +444,7 @@ function Toolbar({
             allowlist that rejects `javascript:`/`data:`/`blob:`/`file:` and the app's own authenticated
             admin media URLs, degrading anything else to the same visible placeholder as before.
             NOTE the rejected alternative and why it is NOT the cheap option it sounds like: fetching
-            the URL server-side to mint a real `{assetId, transformName}` ref would need `src/http`
+            the URL server-side to mint a real `{assetId, transformName}` ref would need `src/platform/http`
             (ADR-038), which buffers responses as UTF-8 TEXT (`transport.fetch.ts`'s `bodyText`) and
             would corrupt binary image bytes. It would also introduce SSRF surface that scheme
             validation does not — because with validation the SERVER never fetches anything; the

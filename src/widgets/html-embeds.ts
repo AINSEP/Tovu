@@ -29,12 +29,22 @@
  * **Inner content is now allowed, and that is a widening.** The old empty-div requirement meant any
  * content inside a placeholder kept it from matching at all — it rendered verbatim and inert. The
  * shared parser captures inner content instead, because a theme marker's authored content is a real
- * fallback that must survive when nothing resolves. For this path the consequence is that
+ * fallback that must survive when nothing resolves. For most types the consequence is that
  * {@link substituteHtmlEmbeds} replaces the WHOLE element, fallback content included, exactly as it
  * already replaced the whole empty div: an html Page's embed placeholder is scaffolding for the
  * resolved widget, not a nav that must survive a failed lookup. Unresolved still degrades to the
  * REQ-28 placeholder via the caller's own `resolve`, never to a crash and never to raw marker markup
  * reaching a visitor.
+ *
+ * **`"media"`, `"post"`, and `"content"` are wrapper-preserving; `"widget"` stays whole-element
+ * replace (media landed 2026-08-24, generalized the same day per a direct owner ask).** An author
+ * who wraps one of these markers in their own element — `<div style="max-width:600px"
+ * data-embed-config='{"type":"media","id":"..."}'></div>`, or `<main class="page-body"
+ * data-embed-config='{"type":"content","id":"..."}'></main>` — expects that element and its own
+ * attributes (style, class, id, aria-*) to survive; only the marker's CONTENT should become the
+ * resolved markup. See {@link WRAPPER_PRESERVING_EMBED_TYPES}'s own doc for the per-type reasoning,
+ * including why `"widget"` is deliberately excluded, and {@link substituteHtmlEmbeds}'s own doc for
+ * the one tag-nesting exception `"media"` alone needs.
  *
  * **Why attribute VALUES are not re-validated here for injection safety.** A Page's `body_html` is
  * already unescaped, trusted-ish markup by the time it reaches this module (see
@@ -46,7 +56,7 @@
  * `extractor.ts`'s html-ref collector, both of which only ever use the id that way.
  */
 
-import { scanEmbedMarkers, substituteMarkers, type EmbedMarker } from "#src/core/embeds/marker";
+import { scanEmbedMarkers, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/contracts/core/embeds/marker";
 
 /**
  * One embed reference found in a Page's `body_html`. `type` is deliberately a free string (see this
@@ -148,6 +158,86 @@ export function scanHtmlEmbeds(html: string): PageHtmlEmbedRef[] {
 }
 
 /**
+ * Tag names the `"media"` resolver's own rendered output can itself be (`render.ts`'s
+ * `renderImageTag`/`renderVideoTag` emit a bare `<img>`/`<video>` tag; audio is listed for the same
+ * reason ahead of an eventual player). If a `"media"` marker's OWN authored tag is one of these,
+ * splicing the resolved tag INSIDE it would nest a rendered `<video>`/`<img>` inside another
+ * same-named element — not meaningful, playable markup. Falling back to whole-element replace here is
+ * the pre-existing behavior, unchanged for this case.
+ *
+ * Nothing in this codebase authors a `"media"` marker directly on one of these tags today — every
+ * real example (the theme-authoring guide, the shipped `basic` theme, this bug's own report) wraps
+ * the marker in a container (`div`, `nav`, …) — but {@link MARKER_PATTERN} in `core/embeds/marker.ts`
+ * matches any `[a-z]+` tag name, so the grammar does not forbid it. This check is defensive, not a
+ * response to an observed case.
+ *
+ * **`"media"`-only.** `"post"`/`"content"` need no equivalent set: both resolve exclusively through
+ * `render.ts`'s `renderWidgetPostContent` (or the `widget-placeholder` div on a miss), and every
+ * shape either can produce is `<div>`-rooted — nesting a `<div>` inside a same-named `<div>` marker
+ * is ordinary, meaningful markup (unlike a `<video>` inside a `<video>`), so there is no collision to
+ * guard against for those two types.
+ */
+const SELF_RENDERING_MEDIA_TAGS: ReadonlySet<string> = new Set(["img", "video", "audio"]);
+
+/**
+ * Embed types whose resolved replacement is spliced INSIDE the marker's own tag/attrs
+ * ({@link withInnerContentFinal}) rather than replacing the whole element — the generalization
+ * (2026-08-24, same day as the `"media"`-only fix) of the reasoning that fix established, applied
+ * per type rather than blanket:
+ *
+ * - **`media`** (2026-08-24): resolves to a single bare `<img>`/`<video>` tag with no wrapper of its
+ *   own — exactly the shape an author's own styled container (`<div style="max-width:600px">`,
+ *   `<figure class="hero">`) is written to hold. See {@link SELF_RENDERING_MEDIA_TAGS} for the one
+ *   tag-nesting case this type alone needs to fall back on whole-element replace for.
+ * - **`content`** (generalized 2026-08-24): `development/docs/architecture/embed-type-inventory.md`
+ *   names the realistic authored shape directly — `<main class="page-body"
+ *   data-embed-config='{"type":"content"}'></main>` — and already documents that the SAME marker's
+ *   `"html"`-format half (`pages.ts`'s `resolveHtmlFormatContentMarkers`, a separate pre-splice pass
+ *   outside this function) uses `withInnerContentFinal` for exactly this reason. Before this change
+ *   the `"doc"`-format half reaching THIS function (via the registry resolver,
+ *   `resolveContentTypeEmbeds`) disagreed with its own sibling path and discarded the wrapper —
+ *   generalizing here removes that inconsistency rather than introducing a new behavior.
+ * - **`post`** (generalized 2026-08-24): resolves through the identical `"post-content"` IR/render
+ *   function `content` does (`renderWidgetPostContent` — two sibling `<div>`s, header and body, or
+ *   the placeholder `<div>` on a miss). Since the resolved shape is byte-for-byte the same producer,
+ *   the same "an author plausibly wraps this in their own spotlight/teaser container" reasoning
+ *   applies without a separate justification.
+ * - **`widget` is deliberately excluded.** Unlike the three above, a widget's resolved root tag is
+ *   NOT a small, closed set this function can reason about: `WIDGET_IR_RENDERERS`
+ *   (`server/http/site/render.ts`) alone spans `<div>`, `<ul>`, `<li>`, `<nav>`, and `<form>` across
+ *   its registered component ids, and `resolver-service.ts`'s own doc states adding a new widget
+ *   type is meant to be cheap — a future one can introduce any root tag. Several of today's shapes
+ *   are also written to BE the final element at the marker's position rather than content for a
+ *   further wrapper: `entry-summary`'s bare `<li>` is meant as a direct child of a `<ul>`, and
+ *   `contact-form`'s `<form>` nested inside an author's own `<form>` marker tag would be invalid
+ *   HTML — the same kind of self-nesting hazard {@link SELF_RENDERING_MEDIA_TAGS} guards for media,
+ *   but spanning a tag set this function cannot enumerate (it only ever sees the resolved STRING
+ *   `resolve()` returns, never the `componentId` that produced it). Keeping `widget` on the
+ *   pre-existing whole-element replace avoids guessing at that mapping; an author wanting a custom
+ *   wrapper around a widget can style the widget instance itself (most component props accept a
+ *   `cssClass`) rather than relying on this pipeline to preserve marker attrs onto content whose
+ *   shape it does not control.
+ */
+const WRAPPER_PRESERVING_EMBED_TYPES: ReadonlySet<string> = new Set(["media", "post", "content"]);
+
+/**
+ * A wrapper-preserving-type marker's own resolved replacement: the resolved markup alone when the
+ * marker's own tag would collide with it ({@link SELF_RENDERING_MEDIA_TAGS}, `"media"` only),
+ * otherwise the resolved markup spliced inside the marker's own tag/attrs via
+ * {@link withInnerContentFinal} so an authored wrapper (style, class, id, aria-*) survives in the
+ * rendered output — `withInnerContentFinal`, not the plainer {@link withInnerContent}, because this
+ * output is the final HTML a visitor receives: leaving `data-embed-config` on the rebuilt tag would
+ * ship a dead JSON attribute into that markup (an existing invariant `render.test.ts` already pins —
+ * the rendered page must never carry `data-embed-config`). `withInnerContent` stays correct for
+ * `static-render.ts`'s menu markers, which are theme-authored scaffolding, not this function's final
+ * render output.
+ */
+function spliceWrapperPreservingReplacement(marker: EmbedMarker, refType: string, resolved: string): string {
+  if (refType === "media" && SELF_RENDERING_MEDIA_TAGS.has(marker.tag.toLowerCase())) return resolved;
+  return withInnerContentFinal(marker, resolved);
+}
+
+/**
  * Replaces every embed placeholder in `html` with `resolve(ref)`'s return value.
  * `resolve` is synchronous and pure from this function's own perspective — the caller is expected
  * to have already batch-resolved every ref it cares about (mirroring how `render.ts`'s
@@ -165,6 +255,13 @@ export function scanHtmlEmbeds(html: string): PageHtmlEmbedRef[] {
  * placeholder — silently deletes a nav. Which types this stage owns is `resolver-service.ts`'s
  * `isPageEmbedType` to answer; this function only carries the answer through.
  *
+ * A ref of a {@link WRAPPER_PRESERVING_EMBED_TYPES} type is spliced via
+ * {@link spliceWrapperPreservingReplacement} instead of a whole-element replace, so an authored
+ * wrapper element survives with only its content swapped — see this file's header and that constant's
+ * own doc for the per-type reasoning and the one tag-nesting exception `"media"` alone needs. Every
+ * other type (`"widget"`, and any type this stage does not itself own) keeps the original
+ * whole-element replace unchanged.
+ *
  * @complexity O(n) over `html`'s length for the shared scan, plus O(1) per marker for `resolve`.
  * @overallScore 100
  */
@@ -172,5 +269,12 @@ export function substituteHtmlEmbeds(
   html: string,
   resolve: (ref: PageHtmlEmbedRef) => string | undefined
 ): string {
-  return substituteMarkers(html, (marker) => resolve(toEmbedRef(marker)));
+  return substituteMarkers(html, (marker) => {
+    const ref = toEmbedRef(marker);
+    const replacement = resolve(ref);
+    if (replacement === undefined) return undefined;
+    return WRAPPER_PRESERVING_EMBED_TYPES.has(ref.type)
+      ? spliceWrapperPreservingReplacement(marker, ref.type, replacement)
+      : replacement;
+  });
 }

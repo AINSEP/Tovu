@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { ExternalMcpReauthRequiredError, ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
-import { isOAuthError } from "#src/oauth/index";
+import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { externalMcpOAuthCallbackUrl } from "../../external-mcp/oauth-callback-url.js";
@@ -31,7 +31,7 @@ import { guardExternalMcpRequest } from "./guard.js";
  * A connect attempt is a foreground action with a human watching. Failures are reported with a
  * specific code and left in a re-clickable state; the operator retries with one click. The machine
  * does not, because an authorization code is single-use and the first response may have been lost
- * after the provider already redeemed it. `errors.ts` in `src/oauth/` carries the full argument.
+ * after the provider already redeemed it. `errors.ts` in `src/platform/oauth/` carries the full argument.
  */
 
 /** OAuth-specific route dependencies, on top of the roster slice the other three routes use.

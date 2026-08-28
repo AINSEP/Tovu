@@ -20,7 +20,7 @@ import type {
   MailerSendOptions,
   MailerSendResult,
   OutboundEmail,
-} from "../../mail/index.js";
+} from "../../platform/mail/index.js";
 
 /** Body preview length before truncation in the console log line. */
 const BODY_PREVIEW_LENGTH = 200;

@@ -66,8 +66,8 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     # BLOCKER 1 fix (see ADS-memory/reports/external-audit/runs/2026-08-12-five-auditor-postgres-manifest-audit.md):
-    # src/db/__tests__/migration-manifest-postgres.test.ts proves Postgres semantics against a real
-    # server via src/db/migration/pg-fixture.ts (`psql` shell-out — see that file's header for why).
+    # src/platform/db/__tests__/migration-manifest-postgres.test.ts proves Postgres semantics against a real
+    # server via src/platform/db/migration/pg-fixture.ts (`psql` shell-out — see that file's header for why).
     # It is deliberately fail-closed, not skip-if-absent: an auditor stripped `psql` from PATH and
     # confirmed 5/5 tests fail, 0 skip. That means a Postgres server MUST exist wherever `npm test`
     # runs, or CI fails for the right reason but every PR is red. This service container is that
@@ -214,7 +214,7 @@ jobs:
         run: npm run typecheck
 
       - name: Test
-        # PGHOST/PGPORT/PGUSER/PGPASSWORD are libpq's standard env var names; src/db/migration/pg-fixture.ts
+        # PGHOST/PGPORT/PGUSER/PGPASSWORD are libpq's standard env var names; src/platform/db/migration/pg-fixture.ts
         # reads the first three (PGPASSWORD flows to `psql` automatically via inherited process env) and
         # falls back to the `/tmp` socket + role `la` used by local development when they're unset. Setting
         # them only on this step, pointed at the `postgres` service container above, is what turns BLOCKER 1

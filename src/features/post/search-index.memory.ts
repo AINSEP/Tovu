@@ -1,4 +1,4 @@
-import { openContentDb, type ContentDb } from "../../db/sqlite/content-db.js";
+import { openContentDb, type ContentDb } from "../../platform/db/sqlite/content-db.js";
 import type { PostRecord, PostRepoPort } from "./post.js";
 import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
 import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite.js";

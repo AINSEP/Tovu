@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClockPort } from "@jini-ai/cms/core";
-import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
+import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryEntryRefsRepo } from "#src/contracts/core/entry-refs/repo.memory";
 import { PageConcurrentEditError, PageNotFoundError, PagesHtmlDocumentStore } from "../html-document-store.sqlite.js";
 

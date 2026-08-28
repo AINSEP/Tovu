@@ -175,11 +175,12 @@
   display: block;
 }
 
-/* Shown under the frame only when `PagePreview` cannot iframe the real published URL (draft, or
+/* Shown above the frame only when `PagePreview` cannot iframe the real published URL (draft, or
    unsaved changes) — see that component's own doc for why the raw-body fallback needs this
-   explanation instead of silently looking unstyled. */
+   explanation instead of silently looking unstyled, and for why it renders BEFORE the (up to 900px
+   tall) frame rather than after it. */
 .page-preview-notice {
-  margin: 0.5rem 0 0;
+  margin: 0 0 0.5rem;
   font-size: 0.85rem;
   color: var(--text-muted, #5f5b55);
 }

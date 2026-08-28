@@ -19,7 +19,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { InMemoryPaymentCredentials } from "#src/features/plugins/lipay/credentials";
 import { activateLipay, type LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 import { createLipayGateway, signLipayWebhook } from "#src/features/plugins/lipay/providers/lipay-gateway";

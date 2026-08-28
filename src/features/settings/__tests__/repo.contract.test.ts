@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { workspaces } from "#src/db/schema";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { workspaces } from "#src/platform/db/schema";
 import { InMemorySettingsRepo } from "@jini-ai/cms/settings";
 import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/cms/settings";

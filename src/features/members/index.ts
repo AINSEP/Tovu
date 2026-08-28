@@ -57,7 +57,7 @@ export type {
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
 // `members` consumers don't need to know the type moved.
-export type { MailerPort, OutboundEmail } from "../../mail/index.js";
+export type { MailerPort, OutboundEmail } from "../../platform/mail/index.js";
 
 export {
   InMemoryMagicLinkTokenRepo,

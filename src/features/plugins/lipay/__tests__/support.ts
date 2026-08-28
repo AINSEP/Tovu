@@ -8,7 +8,7 @@ import path from "node:path";
 
 import Database from "better-sqlite3";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { activateLipay, type LipayApi } from "../lipay-plugin.js";
 import { createLipayGateway } from "../providers/lipay-gateway.js";
 import { InMemoryPaymentCredentials } from "../credentials.js";

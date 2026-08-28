@@ -1,4 +1,4 @@
-import type { HttpClientPort } from "#src/http/index";
+import type { HttpClientPort } from "#src/platform/http/index";
 
 import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord, ReleaseRecord } from "./types.js";
 
@@ -15,8 +15,8 @@ import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord,
  * network.
  *
  * How it relates to the project:
- * `EgressPolicy` (`#src/http/ports.ts`) is bound once, at `HttpClientPort` construction
- * (`createHttpClient({ transport, policy })` — `src/http/client.ts`), not per request; there is no
+ * `EgressPolicy` (`#src/platform/http/ports.ts`) is bound once, at `HttpClientPort` construction
+ * (`createHttpClient({ transport, policy })` — `src/platform/http/client.ts`), not per request; there is no
  * per-request policy field on `HttpRequest`. It also has no field that can restrict which HOST a
  * request reaches (`devHostAllowlist` only exempts a host from the private-address check). So
  * origin pinning for a specific provider's API is the ADAPTER's responsibility, asserted through a

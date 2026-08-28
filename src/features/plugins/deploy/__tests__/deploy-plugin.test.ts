@@ -18,7 +18,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { activateDeploy, InMemoryDeployTokenKeyring } from "../deploy-plugin.js";
 
 type ScriptedResponse = HttpResponse | (() => HttpResponse);

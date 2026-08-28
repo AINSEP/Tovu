@@ -22,7 +22,7 @@
  * Interfaces and types only — no feature logic.
  */
 import type { ClockPort, IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../mail/index.js";
+import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
 import type {
   ConsentPurpose,

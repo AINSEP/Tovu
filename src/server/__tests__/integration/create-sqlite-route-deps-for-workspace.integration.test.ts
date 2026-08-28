@@ -5,8 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { createSqliteRouteDepsForWorkspace } from "../../deps.js";
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { workspaces } from "#src/db/schema";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { workspaces } from "#src/platform/db/schema";
 
 /**
  * @file D10 fix — `createSqliteRouteDepsForWorkspace`, the helper `assistant/agent-daemon-server.ts`

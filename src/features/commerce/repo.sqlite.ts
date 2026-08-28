@@ -7,9 +7,9 @@ import {
   commerceProductImages,
   commerceProducts,
   commerceWebhookEvents,
-} from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+} from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
   ApplyProviderEventResult,
   CommerceOrderRepoPort,
@@ -37,7 +37,7 @@ import type {
  * debate, section 5). Mirrors `src/members/repo.sqlite.ts`'s exact shape: typed row -> domain-
  * record mapping, `findOneBy` for workspace-scoped single-row lookups, and — for
  * `applyProviderEvent` — the same synchronous `db.transaction((tx) => ...)` pattern
- * `src/db/sqlite/outbox-repo.sqlite.ts`'s `claimPending` uses (better-sqlite3 has no real async
+ * `src/platform/db/sqlite/outbox-repo.sqlite.ts`'s `claimPending` uses (better-sqlite3 has no real async
  * I/O, so a synchronous callback is both required by Drizzle and safe: no other statement can
  * interleave on this connection between two `.run()`/`.all()` calls inside it).
  *

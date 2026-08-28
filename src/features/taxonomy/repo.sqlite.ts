@@ -1,10 +1,10 @@
 import type Database from "better-sqlite3";
 import { and, eq } from "drizzle-orm";
 
-import { stampWatermarkTx, type ContentDbTransaction } from "../../db/sqlite/watermark.js";
-import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import { stampWatermarkTx, type ContentDbTransaction } from "../../platform/db/sqlite/watermark.js";
+import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 import type {
   EntryTermRepoPort,
   Taxonomy,

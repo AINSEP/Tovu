@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../../db/sqlite/content-db.js";
+import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 import { FormSlugConflictError } from "../errors.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../repo.sqlite.js";

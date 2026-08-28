@@ -6,7 +6,7 @@ import type { UUID } from "@jini-ai/cms/core";
  * Purpose:
  * Dependency-inversion seam for the plan→confirm→execute gateway (`gateway.ts`), the
  * transaction-scoped watermark (`watermark.ts`), and the dialect-neutral restore-point
- * capability surface (`db-ops.ts` adapters under `src/db/*`).
+ * capability surface (`db-ops.ts` adapters under `src/platform/db/*`).
  *
  * Interfaces and types only — no feature logic.
  */

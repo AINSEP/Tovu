@@ -33,7 +33,7 @@ const FAKE_COMPOSIO_URL = `http://127.0.0.1:${FAKE_COMPOSIO_PORT}`;
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
-/** Must match `composioUserIdFor("workspace-local")` in `src/connectors/composio-service.ts`. */
+/** Must match `composioUserIdFor("workspace-local")` in `src/platform/connectors/composio-service.ts`. */
 const FAKE_COMPOSIO_USER_ID = "tovu-workspace-workspace-local";
 
 /** Throwaway sealing key — 32 bytes of `a` as hex. Hermetic run only; never a real secret. */

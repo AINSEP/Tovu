@@ -4,9 +4,9 @@ import test from "node:test";
 import express from "express";
 
 import { startFakeComposio, type FakeComposioServer } from "../../../development/e2e/fake-composio-server.js";
-import { InMemoryComposioConfigRepo } from "../../connectors/composio-config-store.memory.js";
-import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service.js";
-import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory.js";
+import { InMemoryComposioConfigRepo } from "../../platform/connectors/composio-config-store.memory.js";
+import { composioUserIdFor, createComposioConnectors } from "../../platform/connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../../platform/connectors/connector-credential-store.memory.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createRouteDeps } from "../app.js";

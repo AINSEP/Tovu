@@ -12,8 +12,13 @@ import type { PageEditorPort } from "./page-editor-port.hooks";
 export const defaultPageEditorPort: PageEditorPort = {
   getPage: (routeSlug) => api.getPage(routeSlug),
   getPresentation: async () => {
-    const { activeThemeTemplates } = await api.getPresentation();
-    return { activeThemeTemplates };
+    const { activeThemeTemplates, settings, availableThemes } = await api.getPresentation();
+    const activeTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
+    return {
+      activeThemeTemplates,
+      activeThemeId: settings.activeThemeId,
+      activeThemeApiVersion: activeTheme?.apiVersion,
+    };
   },
   updatePageHtml: (id, html) => api.updatePageHtml(id, html),
   updatePost: (target, patch) => api.updatePost(target, patch),
@@ -25,6 +30,8 @@ export const defaultPageEditorPort: PageEditorPort = {
 export interface FakePageEditorPortOptions {
   page: AdminPost;
   activeThemeTemplates?: string[];
+  activeThemeId?: string;
+  activeThemeApiVersion?: 2;
 }
 
 /**
@@ -69,7 +76,13 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
     },
 
     async getPresentation() {
-      return { activeThemeTemplates: options.activeThemeTemplates ?? [] };
+      return {
+        activeThemeTemplates: options.activeThemeTemplates ?? [],
+        // A distinct default, not `"basic"` — a test asserting a canvas URL built from THIS fake
+        // fails if the editor ever goes back to reading the real active theme directly.
+        activeThemeId: options.activeThemeId ?? "fake-theme",
+        activeThemeApiVersion: options.activeThemeApiVersion,
+      };
     },
 
     async updatePageHtml(id, html) {

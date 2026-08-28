@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryEntryRefsRepo } from "../repo.memory.js";
-import { SqliteEntryRefsRepo } from "#src/db/sqlite/entry-refs-repo.sqlite";
+import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sqlite";
 import type { EntryRefsRepoPort } from "../ports.js";
 import type { EntryRefRow } from "../types.js";
 

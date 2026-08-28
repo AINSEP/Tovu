@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
-import { members, workspaces } from "#src/db/schema";
+import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import { members, workspaces } from "#src/platform/db/schema";
 import { checkout, MAX_CHECKOUT_QUANTITY } from "../../checkout.js";
 import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "../../errors.js";
 import { SqliteCommerceOrderRepo, SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../../repo.sqlite.js";

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createHookRegistry } from "../hooks.js";
-import type { OutboundEmail } from "../../../mail/index.js";
+import type { OutboundEmail } from "../../../platform/mail/index.js";
 
 const baseMessage: OutboundEmail = {
   workspaceId: "ws-1",

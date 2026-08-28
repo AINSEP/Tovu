@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AdminPost } from "../../../lib/api";
 import { navigate as defaultNavigate } from "../../../lib/router";
@@ -8,6 +8,9 @@ import { prettifyHtml } from "../lib/prettify-html";
 import { buildPageSavePlan, pageSaveSuccessMessage } from "../rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
+import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
+import type { ThemeCanvasPort } from "./theme-canvas-port.hooks";
+import { useThemeCanvasStyling, type ThemeCanvasStylingState } from "./use-theme-canvas-styling.hooks";
 
 /**
  * @file Everything the Pages EDITOR does, so `PageEditor.tsx` is only markup.
@@ -87,9 +90,11 @@ export interface PageEditorController {
    * 2026-08-11 complexity-ceiling pass — see the measuring effect below for the full "why ResizeObserver
    * instead of a guessed constant" reasoning this used to carry in that component). `PageEditor.tsx`
    * passes both straight through as props; `PagePreview` attaches `frameRef` to the element it wants
-   * measured and reads `paneWidth` back to compute its scale.
+   * measured (`<div ref={frameRef}>` — React accepts a callback ref directly, same call site a
+   * `RefObject` would use) and reads `paneWidth` back to compute its scale. A CALLBACK ref, not a
+   * `RefObject` — see the measuring effect below for why that distinction is load-bearing here.
    */
-  frameRef: RefObject<HTMLDivElement | null>;
+  frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
   saving: boolean;
   /**
@@ -118,6 +123,15 @@ export interface PageEditorController {
    * string building, not worth a `useMemo`.
    */
   templatePreviewUrl: string;
+  /**
+   * What the Interactive tab's GrapesJS canvas renders the page against — the active theme's own
+   * stylesheet plus its design tokens, so a page is edited looking roughly the way it publishes
+   * rather than as browser-default text on white. `pending` until the theme's token files settle;
+   * `PageEditor.tsx` must not mount the editor before then, because `InteractiveHtmlEditor` reads
+   * its canvas styling once at mount and never reacts to a later value. See
+   * `use-theme-canvas-styling.hooks.ts`.
+   */
+  canvasStyling: ThemeCanvasStylingState;
   save: (nextStatus?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
   confirmingDelete: boolean;
@@ -127,6 +141,9 @@ export interface PageEditorController {
 
 export interface PageEditorDependencies {
   port: PageEditorPort;
+  /** Separate from `port` because it reaches a different surface entirely — a theme's static asset
+   *  files, not the JSON admin API. See `theme-canvas-port.hooks.ts`. */
+  themeCanvasPort: ThemeCanvasPort;
   navigate: (path: string) => void;
   t: (locale: string, key: string) => string;
   locale: string;
@@ -147,7 +164,7 @@ export interface PageEditorDependencies {
  * `redirects-dependencies.hooks.ts`'s "confirmed safe to leave port unmemoized" precedent.
  */
 export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
-  const { port, navigate, t, locale } = deps;
+  const { port, themeCanvasPort, navigate, t, locale } = deps;
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -160,6 +177,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [templateChoice, setTemplateChoice] = useState<string | null>(null);
   const [savedTemplateChoice, setSavedTemplateChoice] = useState<string | null>(null);
   const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
+  // The active theme, captured off the same presentation-settings load the picker already does — the
+  // Interactive tab's canvas needs both to find that theme's stylesheet and token files. `null`
+  // until then, which `useThemeCanvasStyling` reads as "keep waiting", never as "no theme".
+  const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
+  const [activeThemeApiVersion, setActiveThemeApiVersion] = useState<2 | undefined>(undefined);
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
   const [view, setView] = useState<PageEditorView>("preview");
@@ -181,9 +203,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
     Promise.all([port.getPage(routeSlug), port.getPresentation()])
-      .then(([{ post }, { activeThemeTemplates }]) => {
+      .then(([{ post }, { activeThemeTemplates, activeThemeId: themeId, activeThemeApiVersion: themeApiVersion }]) => {
         if (cancelled) return;
         setAvailableTemplates(activeThemeTemplates);
+        setActiveThemeId(themeId);
+        setActiveThemeApiVersion(themeApiVersion);
         setPage(post);
         setTitle(post.title);
         setSlug(post.slug);
@@ -237,31 +261,44 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // see that file's `fd26d93`). `880` survives only as the pre-measurement default so the first paint
   // still has a sane scale instead of `Infinity`/`NaN` from a zero-width ref.
   //
-  // The effect depends on `[view]`, NOT `[]`: `PagePreview` (and the frame div `frameRef` attaches to)
-  // only renders while `view === "preview"` — `PageEditor.tsx` unmounts it entirely for the other two
-  // tabs — so `frameRef.current` goes back to `null` every time the operator tabs away, and a fresh DOM
-  // node is created every time they tab back. An empty dependency array would attach exactly one
-  // `ResizeObserver`, to whichever node existed at the FIRST mount, and silently stop re-measuring on
-  // every preview tab thereafter. Keying off `view` reruns the effect (disconnecting the stale observer,
-  // if any, then re-observing the current node) on every transition, reproducing the same "fresh
-  // observer per mount" lifecycle this had when the ref/state lived inside `PagePreview` itself.
+  // `frameNode`/`setFrameNode` is a CALLBACK ref (a piece of state plus its setter, handed to JSX as
+  // `ref={setFrameNode}`), NOT a plain `useRef` — and the effect below is keyed off the NODE itself,
+  // NOT `[view]`. That `useRef`-plus-`[view]` shape was this effect's ORIGINAL form, and it hid a real
+  // bug: on an ordinary page load, `page` starts `null` and `PageEditor.tsx` renders only a loading
+  // notice, so `PagePreview` — and the frame div `frameRef` attaches to — does not exist yet on this
+  // hook's FIRST render. A `[view]`-keyed effect runs once at that first render, finds `frameRef.current`
+  // still `null`, and bails out; since `view` never changes across the loading-to-loaded transition, the
+  // effect never runs again for the rest of the session. The observer was simply never attached, and
+  // `paneWidth` stayed frozen at the `880` fallback forever — measured live on a real page: a 1131px-wide
+  // pane rendering at the `880/1280` scale factor instead of the correct `1131/1280`. A `useRef` has no
+  // way to notify anything when React actually attaches a DOM node to it; a callback ref does — React
+  // calls it exactly when the node mounts, however late that turns out to be — so keying the effect off
+  // the node it receives (rather than some unrelated piece of state) fires it right then instead of
+  // waiting for `view`, or anything else, to change first.
+  //
+  // This still reproduces the exact "fresh observer per mount" lifecycle the old `[view]` dependency was
+  // written to preserve: `PagePreview` only renders while `view === "preview"`, so `frameNode` reverts to
+  // `null` (React calls a callback ref with `null` on unmount) every time the operator tabs away, and a
+  // fresh node — a fresh call to `setFrameNode`, a fresh effect run — arrives every time they tab back.
+  // Keying off the node is a strict superset of keying off `view`: it reruns on every mount/unmount
+  // `view` would have caught, PLUS the one case `view` could never catch — the frame's very first,
+  // possibly-late, mount.
   //
   // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately left
   // unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly like
   // `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this still renders (at
-  // the `880` default) in every existing/new unit test.
-  const frameRef = useRef<HTMLDivElement>(null);
+  // the `880` default) in every existing/new unit test that doesn't stub one in.
+  const [frameNode, setFrameNode] = useState<HTMLDivElement | null>(null);
   const [paneWidth, setPaneWidth] = useState(880);
   useEffect(() => {
-    const el = frameRef.current;
-    if (!el || typeof ResizeObserver !== "function") return;
+    if (!frameNode || typeof ResizeObserver !== "function") return;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (entry) setPaneWidth(entry.contentRect.width);
     });
-    observer.observe(el);
+    observer.observe(frameNode);
     return () => observer.disconnect();
-  }, [view]);
+  }, [frameNode]);
 
   const save = useCallback(
     async (nextStatus?: "draft" | "published") => {
@@ -341,6 +378,15 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // expression rather than state or a `useMemo`.
   const templatePreviewUrl = page ? port.templatePreviewUrl(page.id, templateChoice) : "";
 
+  // `templateChoice` (not `savedTemplateChoice`): the Interactive canvas must mirror the template the
+  // operator is CURRENTLY looking at in the picker, the same one `templatePreviewUrl` above resolves —
+  // switching templates should restyle the canvas immediately, without a save round-trip. The 4th
+  // argument is what supplies the canvas its content wrapper: the theme template's own ancestor chain
+  // around the `{"type":"content"}` marker (`<main><article class="post-detail wrap">` in `basic`'s
+  // `blog-post.html`). Without it the canvas renders the page body naked at full bleed while the
+  // published page centres it in a 720px column — same CSS, same tokens, no container.
+  const canvasStyling = useThemeCanvasStyling(activeThemeId, activeThemeApiVersion, themeCanvasPort, templateChoice);
+
   return {
     page,
     error,
@@ -362,7 +408,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setView,
     device,
     setDevice,
-    frameRef,
+    frameRef: setFrameNode,
     paneWidth,
     saving,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
@@ -376,6 +422,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     contentDirty,
     dirty: contentDirty || templateChoice !== savedTemplateChoice,
     templatePreviewUrl,
+    canvasStyling,
     save,
     remove,
     confirmingDelete,
@@ -396,5 +443,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
  */
 export function useWiredPageEditor(routeSlug: string): PageEditorController {
   const locale = useAdminLocale();
-  return usePageEditor(routeSlug, { port: defaultPageEditorPort, navigate: defaultNavigate, t: defaultT, locale });
+  return usePageEditor(routeSlug, {
+    port: defaultPageEditorPort,
+    themeCanvasPort: defaultThemeCanvasPort,
+    navigate: defaultNavigate,
+    t: defaultT,
+    locale,
+  });
 }

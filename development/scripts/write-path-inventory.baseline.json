@@ -1585,7 +1585,7 @@
     "source": "table",
     "contractMethod": "workspaces via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/db/sqlite/content-db.ts",
+    "file": "src/platform/db/sqlite/content-db.ts",
     "line": 75,
     "coverageClass": "none"
   },
@@ -1593,7 +1593,7 @@
     "source": "table",
     "contractMethod": "posts via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/db/sqlite/content-db.ts",
+    "file": "src/platform/db/sqlite/content-db.ts",
     "line": 77,
     "coverageClass": "none"
   },
@@ -1601,7 +1601,7 @@
     "source": "table",
     "contractMethod": "presentationSettings via tx.insert",
     "caller": "(anonymous)",
-    "file": "src/db/sqlite/content-db.ts",
+    "file": "src/platform/db/sqlite/content-db.ts",
     "line": 81,
     "coverageClass": "none"
   },
@@ -1904,7 +1904,7 @@
     "source": "port",
     "contractMethod": "MailSuppressionRepoPort.isSuppressed",
     "caller": "(no implementation found in project)",
-    "file": "src/mail/ports.ts",
+    "file": "src/platform/mail/ports.ts",
     "line": 52,
     "coverageClass": "unknown"
   },
@@ -1912,7 +1912,7 @@
     "source": "port",
     "contractMethod": "MailSuppressionRepoPort.suppress",
     "caller": "(no implementation found in project)",
-    "file": "src/mail/ports.ts",
+    "file": "src/platform/mail/ports.ts",
     "line": 57,
     "coverageClass": "unknown"
   },
@@ -1920,7 +1920,7 @@
     "source": "port",
     "contractMethod": "MailSendDedupRepoPort.wasSent",
     "caller": "(no implementation found in project)",
-    "file": "src/mail/ports.ts",
+    "file": "src/platform/mail/ports.ts",
     "line": 71,
     "coverageClass": "unknown"
   },
@@ -1928,7 +1928,7 @@
     "source": "port",
     "contractMethod": "MailSendDedupRepoPort.markSent",
     "caller": "(no implementation found in project)",
-    "file": "src/mail/ports.ts",
+    "file": "src/platform/mail/ports.ts",
     "line": 72,
     "coverageClass": "unknown"
   },

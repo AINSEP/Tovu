@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type { DeploymentProviderContext } from "../../ports.js";
 import type { DeploymentTargetRecord, ReleaseRecord } from "../../types.js";

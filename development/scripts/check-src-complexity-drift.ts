@@ -23,7 +23,7 @@
  * `src/server` subsumes `src/server/routes`, so pre-existing route baseline entries keep matching
  * unchanged — widening the scan cannot orphan them.
  *
- * Still NOT covered by this gate: `src/features/**`, `src/export/**`, `src/seo/**`,
+ * Still NOT covered by this gate: `src/features/**`, `src/platform/export/**`, `src/seo/**`,
  * `src/widgets/**`, `packages/**`, `apps/site-chat/**`. `apps/admin/src` has its own equivalent
  * gate (`check-admin-complexity-drift.ts`). Each remaining area needs its own fresh measurement
  * before it is added to `SCOPES`.
@@ -85,7 +85,7 @@ const SCOPES = [
   "src/features",
   "src/widgets",
   "src/seo",
-  "src/export",
+  "src/platform/export",
   "src/analytics",
   "src/media",
   "apps/site-chat/src",
