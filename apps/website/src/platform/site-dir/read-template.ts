@@ -3,6 +3,7 @@ import path from "node:path";
 
 import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
 import { InternalError } from "./errors.js";
+import { resolveProductRoot } from "./product-root.js";
 import type { TemplateJson, TemplateSeedContent } from "./types.js";
 
 /**
@@ -30,12 +31,12 @@ import type { TemplateJson, TemplateSeedContent } from "./types.js";
 /**
  * `content/templates/` dir, resolved from this file's own location, never `process.cwd()`.
  *
- * Two levels up, not one: templates are stock DATA and moved out of `src/` on 2026-08-27. The same
- * offset holds in both layouts -- `src/platform/site-dir/` -> `<repo>/content/templates` in the source tree,
- * `dist/src/platform/site-dir/` -> `dist/content/templates` in the compiled one -- because each is exactly
- * two levels below its own root. `npm run build` copies the tree to that second location.
+ * Templates are stock DATA and moved out of `src/` on 2026-08-27. Walks up to find the product
+ * root rather than counting `../` segments — see `product-root.ts`'s header for why a fixed count
+ * can't be correct in both the source and compiled trees after the 2026-08-28 `apps/website/`
+ * rename. `npm run build` copies this tree into the compiled root's own `content/templates`.
  */
-const TEMPLATES_ROOT = path.resolve(import.meta.dirname, "../../content/templates");
+const TEMPLATES_ROOT = path.join(resolveProductRoot(), "content", "templates");
 
 export interface ReadTemplateRequired {
   templateId: string;

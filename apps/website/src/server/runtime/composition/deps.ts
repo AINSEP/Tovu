@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
+import { resolveProductRoot } from "../../../platform/site-dir/product-root.js";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
@@ -199,13 +200,10 @@ export function mediaUploadsDir(): string {
  * to read `process.cwd()/themes`, which is wrong whenever the CLI is invoked from outside the repo
  * checkout).
  *
- * FOUR levels up (2026-08-28: this file moved to `src/server/runtime/composition/`, two levels
- * deeper than `src/server/` — the offset grew with it). The offset is what makes the expression
- * layout-portable, not the absolute result: `src/server/runtime/composition/` and
- * `dist/src/server/runtime/composition/` are each exactly four levels below their own root, so
- * `../../../../content/themes` lands on `<repo>/content/themes` under `tsx` and on
- * `dist/content/themes` under `node dist/src/index.js`. A path that resolves correctly in only one
- * of those two trees is the specific bug this shape avoids.
+ * Walks up to find the product root rather than counting `../` segments — see `product-root.ts`'s
+ * header for why a fixed count can't be correct in both the source and compiled trees after the
+ * 2026-08-28 `apps/website/` rename (this file's own source and compiled locations are no longer
+ * the same number of levels from `content/`, only the compiled one used to be assumed here).
  *
  * SEED SOURCE ONLY as of 2026-08-27. Nothing serves or writes this tree at runtime any more —
  * `RouteDeps.themesDir` is {@link siteThemesDir}, and `seedSiteThemes()` copies this into a site
@@ -218,7 +216,7 @@ export function mediaUploadsDir(): string {
  * means.
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_STOCK_THEMES_DIR ?? resolve(import.meta.dirname, "../../../../../../content/themes");
+  return process.env.TOVU_STOCK_THEMES_DIR ?? join(resolveProductRoot(), "content", "themes");
 }
 
 /**
@@ -237,7 +235,7 @@ export function siteThemesDir(): string {
 /**
  * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
  * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
- * same shape as {@link builtInThemesDir} immediately above, including the four-levels-up offset that
+ * same shape as {@link builtInThemesDir} immediately above, including the product-root walk-up that
  * makes it land correctly in both the source and compiled layouts, and for the same reason (CR-R04:
  * a `process.cwd()`-relative path is wrong the moment the CLI is invoked from outside the checkout).
  *
@@ -248,7 +246,7 @@ export function siteThemesDir(): string {
  * is an INPUT to installation (`features/agent-plugins/seed-bundled.ts`), not a location within it.
  */
 export function bundledAgentPluginsDir(): string {
-  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? resolve(import.meta.dirname, "../../../../../../content/agent-plugins");
+  return process.env.TOVU_BUNDLED_AGENT_PLUGINS_DIR ?? join(resolveProductRoot(), "content", "agent-plugins");
 }
 
 /**
