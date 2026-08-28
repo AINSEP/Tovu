@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
@@ -46,20 +47,13 @@ export function registerAdminConnectorsDisconnectRoute(
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "integration",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.integrations.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       const connector = await deps.composioConnectors.service.disconnect(String(req.params.connectorId ?? ""));
       await deps.composioConnectors.flushCredentials();
