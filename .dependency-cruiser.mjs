@@ -18,6 +18,88 @@
  */
 const HAND_WRITTEN_RULES = [
     {
+      // Added 2026-08-28 — this repo had NO circular-dependency rule at all until now (confirmed by
+      // direct read of this file's prior contents plus a grep for "circular"/"no-circular": neither
+      // disabled nor set to `info`, simply never written). A same-session verification pass found 5
+      // strongly-connected components, cross-checked three ways (a DFS-equivalent count landed on 32,
+      // dependency-cruiser's own `no-circular` on 35, madge on 7 — different units counted, same 5
+      // SCCs underneath): `assistant/index.ts` <-> 26 features' own `tool-registrations.ts` (closed by
+      // a byte-identical `import type { ToolContributor } from "#src/assistant/index"` per feature); a
+      // 4-file render/sandbox cluster closing on `import type { SiteRenderContext }`; a barrel loop
+      // between `features/media/index.ts` <-> `bootstrap.ts`; `features/theme/theme.ts` <->
+      // `theme-files.ts`; and `server/runtime/composition/deps.ts` / `app.ts` /
+      // `deployment-overview.ts` — the last one includes the DELIBERATE `require("./app.js")`
+      // workaround documented at length in `deps.ts` around line 1170 (a static import there would
+      // make the already-real `app.ts` -> `deps.ts` edge mutual, and `app.ts`'s module body ends with
+      // an eager `export const app = createApp()` that a static circular import would run as a
+      // load-time side effect — "a real circular-load crash, not a style preference," in that
+      // comment's own words). This rule WILL flag that edge — correctly. Do not "fix" it by reverting
+      // the `require()` workaround; that comment is the fix.
+      //
+      // Type-only handling — INVESTIGATED AND REJECTED, not left untried: the first framing of the
+      // above 5 SCCs (from this session's own earlier discussion) was "2 are type-only, zero runtime
+      // cost, exclude them via `to.dependencyTypesNot: ["type-only"]`" — the same idiom
+      // `only-composition-constructs-concrete-adapters` and `domain-no-direct-assistant-tool-
+      // registration` (both below) already use to exempt `import type` edges from THEIR rules. Tried
+      // it here (`to: { circular: true, dependencyTypesNot: ["type-only"] }`) and it does not do what
+      // that framing assumed. Verified two ways:
+      //   1. Source read (`node_modules/dependency-cruiser/src/analyze/derive/circular.mjs`):
+      //      `circular: true` is computed by `IndexedModuleGraph.getCycle()` over the COMPLETE,
+      //      type-inclusive dependency graph, before any rule's `to` filter ever runs. A rule's
+      //      `dependencyTypesNot` only filters which of the graph's already-computed circular EDGES
+      //      get reported — it cannot remove a type-only edge from cycle detection itself, unlike the
+      //      other two rules' use of the same option, which police a single edge's own nature
+      //      (construction/registration), not graph reachability.
+      //   2. Empirical trace: with the filter applied, reported rows dropped from 35 to 10 — but
+      //      tracing each of those 10 by hand (reading the actual import statements on every hop)
+      //      found only 4 are cycles that survive TypeScript's erasure of `import type`: the
+      //      deps.ts/app.ts/deployment-overview.ts family and theme.ts/theme-files.ts and
+      //      media/index.ts/bootstrap.ts (all-value-edge loops). The other 6 — the sandbox cluster and
+      //      every assistant/tool-registrations-family row — are NOT real runtime cycles at all (each
+      //      one's loop closes only through a type-only edge sitting elsewhere in the same chain,
+      //      e.g. `tool-contribution-registry.ts` imports nothing but types and so cannot be part of
+      //      any runtime cycle) — they were still reported only because the SPECIFIC edge printed on
+      //      that row happened itself to be a value import, which `dependencyTypesNot` cannot
+      //      distinguish from "this edge's cycle survives erasure." A filter that both misses real
+      //      noise and doesn't reliably suppress the cycles it was meant to exempt is worse than no
+      //      filter — it would misrepresent the data, the same reason `feature-no-server-or-framework-
+      //      imports` above already rejected a similar `dependencyTypesNot`-on-a-reachability-style-
+      //      rule idea as "hiding the problem, not fixing it."
+      // Decision: ship the CANONICAL, unmodified `no-circular` shape — identical to dependency-
+      // cruiser's own bundled preset at `node_modules/dependency-cruiser/configs/rules/no-circular.cjs`
+      // (`from: {}, to: { circular: true }`, no type filtering) — so every reported violation is an
+      // accurate graph fact, and a future reader can do the same per-edge erasure trace above rather
+      // than trust a filter that silently drops some real signal and keeps some false signal.
+      //
+      // Severity is `warn`, not `error`, deliberately not following the promoted hand-written rules
+      // elsewhere in this file (e.g. `contracts-no-server-or-app-imports`, `feature-no-server-or-
+      // framework-imports`, `domain-no-direct-assistant-tool-registration`) that sit at `error`. Every
+      // one of those earned `error` the way `PROMOTED_NO_DEEP_IMPORTS` documents for the generated
+      // rules: violations were triaged file-by-file and driven to 0 BEFORE promotion, so `error` there
+      // means "known-clean, any new hit is a real regression." This rule starts life with 35 known,
+      // un-triaged violations across the 5 SCCs above, and this task is explicitly scoped NOT to fix
+      // any of them — `deps.ts`/`app.ts` is load-bearing, the rest are out of scope. Shipping this at
+      // `error` would misrepresent it as already-triaged-clean and would make `deps.ts`'s documented,
+      // intentional workaround look like a build-breaking regression on every run. `warn` matches this
+      // file's own REQ-11 Phase 0 rationale at its top (no CI gate exists yet to make any of this
+      // blocking) and the 82 other `warn`-level violations already accepted here; promote to `error`
+      // only after each SCC gets the same per-cycle triage `no-deep-imports` modules get before their
+      // own promotion (see `PROMOTED_NO_DEEP_IMPORTS` above for that pattern).
+      //
+      // New baseline after this rule (verified via `npm run check:boundaries`): 125 total (8 errors,
+      // 117 warnings) — was 90 (8 errors, 82 warnings). All 35 new violations are this rule, all at
+      // `warn`; the error count is unchanged.
+      name: "no-circular",
+      severity: "warn",
+      comment:
+        "This dependency is part of a circular relationship. Revise with dependency inversion or a " +
+        "narrower shared module. See this rule's own header comment above for the verified 5-SCC " +
+        "baseline, why a type-only exemption was tried and rejected, and why " +
+        "apps/website/src/server/runtime/composition/deps.ts's require() workaround is an intentional exception, not a violation to \"fix\".",
+      from: {},
+      to: { circular: true },
+    },
+    {
       // Promoted to `error` (2026-08-13 features-post-deep-import-trace.md Job 2): the last 2 real
       // violations (`core/commands/appliers.ts` -> `features/post/index.ts`/`features/settings/
       // index.ts`) were the two concrete post reverters, moved to `features/post/reverters.ts` —
