@@ -1,5 +1,6 @@
 import { listAdminPages } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
@@ -19,19 +20,14 @@ export const registerAdminPageListRoute: ContentRouteRegistrar = (app, deps) => 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "content.read",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'content.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "content.read", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "content.read",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       const result = await listAdminPages({
         deps: { repo: deps.postRepo },

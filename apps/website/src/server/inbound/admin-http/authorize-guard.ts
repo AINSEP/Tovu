@@ -13,12 +13,20 @@ import type { RouteDeps } from "#src/server/routes/types";
  * code, and field values are copied verbatim from the call sites this replaces.
  */
 
-/** The subset of `authorize()`'s params every admin route already passes through unchanged. */
+/**
+ * The subset of `authorize()`'s params every admin route already passes through unchanged.
+ *
+ * `entityType`/`entityId` are optional, matching `AuthorizeFn`'s own real contract
+ * (`contracts/core/gated-mutations/ports.ts`) — a collection-level route (`list`, or a
+ * workspace-scoped action with no single entity to name) legitimately has neither, and forcing
+ * them here would just push those call sites back to hand-rolling the 403 block this exists to
+ * remove.
+ */
 export interface AuthorizeGuardParams {
   principalId: string;
   permission: string;
   workspaceId: string;
-  entityType: string;
+  entityType?: string;
   entityId?: string;
 }
 

@@ -1,4 +1,5 @@
 import { toAdminPolicyResponse } from "#src/server/inbound/admin-http/http/users";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { UsersRouteRegistrar } from "./deps.js";
 
@@ -17,19 +18,14 @@ export const registerAdminPolicyListRoute: UsersRouteRegistrar = (app, deps) => 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "role.manage",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'role.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "role.manage", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "role.manage",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       const policies = await deps.policyRepo.list({ workspaceId: deps.workspaceId });
       res.json({ policies: policies.map(toAdminPolicyResponse) });

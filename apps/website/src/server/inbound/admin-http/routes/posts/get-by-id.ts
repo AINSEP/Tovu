@@ -1,5 +1,6 @@
 import { getAdminPostByIdOrSlug, PostNotFoundError } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/inbound/admin-http/http/posts";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
 
@@ -13,19 +14,14 @@ export const registerAdminPostGetRoute: ContentRouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "content.read",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'content.read' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "content.read", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "content.read",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       // Admin URLs use the slug when one resolves (cleaner than the raw stored id, 2026-08-10) — this
       // route accepts either so an old id-based bookmark/link keeps working (getAdminPostByIdOrSlug

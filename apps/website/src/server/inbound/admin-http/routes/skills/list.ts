@@ -1,4 +1,5 @@
 import { toInstalledSkillsResponse } from "#src/server/inbound/admin-http/http/skills";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { loadInstalledSkillToolSources } from "#src/features/skills/tool-registrations";
 import type { SkillsRouteRegistrar } from "./deps.js";
@@ -30,19 +31,14 @@ export const registerSkillsListRoute: SkillsRouteRegistrar = (app, deps) => {
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.assistant.use",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.assistant.use' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.assistant.use", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "admin.assistant.use",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       const sources = await loadInstalledSkillToolSources({ workspaceId: deps.workspaceId });
       res.json({ skills: toInstalledSkillsResponse(sources) });
