@@ -28,8 +28,8 @@ const HAND_WRITTEN_RULES = [
       // `features/post/index.ts`) to exercise a real implementation against its port contract,
       // which the plan doc's own reasoning treats as orthogonal to this rule's production-layering
       // concern (§1.3: "you cannot write a contract test without a concrete implementation").
-      // Renamed from `core-no-server-or-app-imports` and widened from `^src/core` to all of
-      // `^src/contracts` (2026-08-27, src/ phase 3): `core` moved to `contracts/core` and
+      // Renamed from `core-no-server-or-app-imports` and widened from `^apps/website/src/core` to all of
+      // `^apps/website/src/contracts` (2026-08-27, src/ phase 3): `core` moved to `contracts/core` and
       // `headless` joined it as `contracts/headless`, so the rule now names the bucket rather than
       // one member of it. Widening was safe in one step for the same reason
       // `feature-no-server-or-framework-imports`'s 2026-08-27 widening was: the production edge
@@ -38,23 +38,23 @@ const HAND_WRITTEN_RULES = [
       // or test). This closes a gap; it does not ratchet a live violation into existence.
       name: "contracts-no-server-or-app-imports",
       severity: "error",
-      comment: "src/contracts/** may not import src/server/**, apps/**, feature slices, or concrete infrastructure adapters.",
-      from: { path: "^src/contracts", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(src/server|apps|src/features|src/platform/db)" },
+      comment: "apps/website/src/contracts/** may not import apps/website/src/server/**, apps/**, feature slices, or concrete infrastructure adapters.",
+      from: { path: "^apps/website/src/contracts", pathNot: ".*/__tests__/.*" },
+      to: { path: "^(apps/website/src/server|apps/(?!website/)|apps/website/src/features|apps/website/src/platform/db)" },
     },
     {
       // Investigated widening `from` to also cover `assistant`/`widgets`/`export` (2026-08-19,
-      // architecture step 2) — REJECTED after review. `src/assistant/a2ui-actions-route.ts` and
+      // architecture step 2) — REJECTED after review. `apps/website/src/assistant/a2ui-actions-route.ts` and
       // `mcp-ui-tool-calls-route.ts` are genuine Express ROUTE files (assistant owns its own
       // daemon-server HTTP surface); widening this rule there would flag legitimate route-layer
-      // code as a feature/domain violation, not close a real one. Left scoped to `^src/features`;
+      // code as a feature/domain violation, not close a real one. Left scoped to `^apps/website/src/features`;
       // do not retry the widening without a design for carving assistant's own route files out
       // first. See `ADS-memory/reports/2026-08-19-architecture-step2-boundary-closure.md` for the
       // full 50-violation count this widening surfaced when tried, for context if revisited.
       //
       // Also investigated and REJECTED (2026-08-19, same pass): `dependencyTypesNot: ["type-only"]`
       // on `to`, to exempt `import type { RouteDeps }` edges the way `only-composition-constructs-
-      // concrete-adapters` exempts type-only `src/platform/db` edges below. That precedent does not transfer:
+      // concrete-adapters` exempts type-only `apps/website/src/platform/db` edges below. That precedent does not transfer:
       // the adapters rule polices RUNTIME CONSTRUCTION (a type-only edge cannot construct anything),
       // but this rule is a "knows-about" boundary — `features/source-control`/`features/deployments`
       // cannot be lifted, tested, or reasoned about independently while they NAME `RouteDeps` by
@@ -78,22 +78,22 @@ const HAND_WRITTEN_RULES = [
       // was already generic and never named `RouteDeps` — it was already the target shape this whole
       // fix aims every other call site at. Production violations verified at 0 under the reverted,
       // un-widened `from`/`to` below — promoted to `error` on that basis, not by exempting a category.
-      // Widened 2026-08-27, from `src/server/routes` to ALL of `src/server`, and renamed to match
+      // Widened 2026-08-27, from `apps/website/src/server/routes` to ALL of `apps/website/src/server`, and renamed to match
       // (`feature-no-express-or-admin-imports` -> `feature-no-server-or-framework-imports`) — the
-      // old name described the old `to`. `src/features/INFO.md` has always said "Features should not
+      // old name described the old `to`. `apps/website/src/features/INFO.md` has always said "Features should not
       // import server/framework code", full stop; the rule only ever policed the `routes/` third of
       // that, so an edge into `server/app.ts`, `server/deps.ts`, `server/http/**` or
       // `server/modules/**` was unpoliced. Widening was safe to do in one step rather than
       // incrementally because the production edge count into the newly-covered area was already
       // ZERO — measured from dependency-cruiser's own module graph across all 33 slices, including
-      // the six moved under `src/features/` earlier the same day, before the change and re-verified
+      // the six moved under `apps/website/src/features/` earlier the same day, before the change and re-verified
       // at 0 after it. This closes a gap; it does not ratchet a live violation into existence.
       //
       // Note what this is NOT: an earlier session (2026-08-19) measured "61 features -> server
       // calls" from a code-knowledge-graph and that number drove a planned remediation. It is an
       // indexer artifact — 60 of the 61 bind an ordinary `readFileSync`/`existsSync`/`dirname` call
-      // anywhere under `src/features/` to the same-named properties of the stub fs object in
-      // `src/server/http/site/liquid-worker.ts` (lines 46-54), and the 61st points the wrong way
+      // anywhere under `apps/website/src/features/` to the same-named properties of the stub fs object in
+      // `apps/website/src/server/http/site/liquid-worker.ts` (lines 46-54), and the 61st points the wrong way
       // (`features/database/migrate-forward/execute.ts` DECLARES an injected `gatewayExecute`
       // parameter that `server/inbound/admin-http/routes/taxonomy/merge-term.ts` SUPPLIES — the server passing
       // the feature what it needs, i.e. the fix, not the violation). Import-level ground truth was
@@ -104,14 +104,14 @@ const HAND_WRITTEN_RULES = [
       // port as Node's `RequestListener` — which is all `fetchPublishedPage` ever did with it.
       name: "feature-no-server-or-framework-imports",
       severity: "error",
-      comment: "Feature/domain code may not import Express, anything under src/server/**, or admin-app code — including a type-only `RouteDeps`/route-handler-type edge, which is still a real \"knows-about\" coupling for this rule's purpose (contrast only-composition-constructs-concrete-adapters below, which polices runtime construction and so DOES exempt type-only edges). __tests__/ integration tests that construct a real Express app/RouteDeps fixture to exercise route or tool wiring end-to-end are exempted.",
-      from: { path: "^src/features", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(node_modules/express|src/server|apps/admin)" },
+      comment: "Feature/domain code may not import Express, anything under apps/website/src/server/**, or admin-app code — including a type-only `RouteDeps`/route-handler-type edge, which is still a real \"knows-about\" coupling for this rule's purpose (contrast only-composition-constructs-concrete-adapters below, which polices runtime construction and so DOES exempt type-only edges). __tests__/ integration tests that construct a real Express app/RouteDeps fixture to exercise route or tool wiring end-to-end are exempted.",
+      from: { path: "^apps/website/src/features", pathNot: ".*/__tests__/.*" },
+      to: { path: "^(node_modules/express|apps/website/src/server|apps/admin)" },
     },
     {
       name: "only-composition-constructs-concrete-adapters",
       severity: "warn",
-      // This rule polices RUNTIME construction of a concrete `src/platform/db` adapter from feature code, not
+      // This rule polices RUNTIME construction of a concrete `apps/website/src/platform/db` adapter from feature code, not
       // type contracts — `dependencyTypesNot: ["type-only"]` below (same mechanism the
       // `no-deep-value-imports-from-db-sqlite` rule family uses, for the identical reason) excludes
       // `import type` edges, e.g. a feature importing `db/drift`'s `DriftStatus`/`SchemaSnapshot`
@@ -124,7 +124,7 @@ const HAND_WRITTEN_RULES = [
       // index (`features/post/search-index.{sqlite,memory}.ts`) is the same category of file — a
       // concrete storage adapter behind a port — under a different name, because it backs
       // `PostSearchPort` rather than `PostRepoPort`. Exempted by name for the same reason `repo.*`
-      // is, not as a loosening: everything else under `src/features` still may not reach `src/platform/db`.
+      // is, not as a loosening: everything else under `apps/website/src/features` still may not reach `apps/website/src/platform/db`.
       // `html-document-store.{sqlite,memory}.ts` (Pages' `HtmlDocumentStore` port, 2026-08-17) is the
       // same category again — a real adapter (`html-document-store.sqlite.ts` value-imports the
       // `posts` drizzle table) renamed to carry the `.sqlite.ts` marker rather than special-cased by
@@ -142,8 +142,8 @@ const HAND_WRITTEN_RULES = [
       // still fenced. This is a legitimacy fix, not a loosening: it stops this rule from double-
       // counting known-legitimate integration tests so its remaining signal is real, which is also a
       // precondition for ever promoting it past `warn`.
-      from: { path: "^src/features", pathNot: ["^src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
-      to: { path: "^src/platform/db", dependencyTypesNot: ["type-only"] },
+      from: { path: "^apps/website/src/features", pathNot: ["^apps/website/src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
+      to: { path: "^apps/website/src/platform/db", dependencyTypesNot: ["type-only"] },
     },
     {
       // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the one
@@ -155,37 +155,37 @@ const HAND_WRITTEN_RULES = [
       // That is a genuine cross-boundary anti-drift check, not a production dependency — INV-06
       // (site-dir stays CLI/Express-agnostic so a future non-CLI host, ADR-011, can reuse it) is
       // about PRODUCTION code; grep confirms this is the ONLY server/cli/express import anywhere
-      // under src/platform/site-dir/, and it is confined to __tests__/. Same "contract/integration test
+      // under apps/website/src/platform/site-dir/, and it is confined to __tests__/. Same "contract/integration test
       // needs the real concrete internals" reasoning `core-no-server-or-app-imports` and
       // `only-composition-constructs-concrete-adapters` (both above) already accept via the
       // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape.
       name: "site-dir-no-server-express-or-cli-imports",
       severity: "warn",
-      comment: "SPEC-003 (ADR-PIPE-003) — src/platform/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
-      from: { path: "^src/platform/site-dir", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(src/server|src/cli|node_modules/express)" },
+      comment: "SPEC-003 (ADR-PIPE-003) — apps/website/src/platform/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
+      from: { path: "^apps/website/src/platform/site-dir", pathNot: ".*/__tests__/.*" },
+      to: { path: "^(apps/website/src/server|apps/website/src/cli|node_modules/express)" },
     },
     {
       name: "cli-no-direct-drizzle-imports",
       severity: "warn",
-      comment: "SPEC-003 (ADR-PIPE-003) — src/cli/** dispatches to site-dir/server only; it never touches Drizzle or the schema module directly.",
-      from: { path: "^src/cli" },
-      to: { path: "^(drizzle-orm|src/platform/db/schema\\.ts)" },
+      comment: "SPEC-003 (ADR-PIPE-003) — apps/website/src/cli/** dispatches to site-dir/server only; it never touches Drizzle or the schema module directly.",
+      from: { path: "^apps/website/src/cli" },
+      to: { path: "^(drizzle-orm|apps/website/src/platform/db/schema\\.ts)" },
     },
     {
       name: "plugin-loading-internals-confined-to-plugin-runtime",
       severity: "warn",
       comment:
-        "SPEC-005 (ADR-005-ARCH Enforcement) — Node's module-customization/loader internals ('node:module' for module.register(), 'node:vm', and the SDK-resolution boot hook) are plugin-loading internals. Only src/features/plugin-runtime/** and the one boot module that registers the resolver (src/server/runtime/boot/plugin-sdk-resolver.ts, CIC U-002) may reach them; everything else consumes plugins through plugin-runtime's own exports. Keeps the in-process ESM loader a single auditable surface — ADR-024 Tier-3 (first-party/explicitly-sideloaded code), NOT an isolated sandbox.",
+        "SPEC-005 (ADR-005-ARCH Enforcement) — Node's module-customization/loader internals ('node:module' for module.register(), 'node:vm', and the SDK-resolution boot hook) are plugin-loading internals. Only apps/website/src/features/plugin-runtime/** and the one boot module that registers the resolver (apps/website/src/server/runtime/boot/plugin-sdk-resolver.ts, CIC U-002) may reach them; everything else consumes plugins through plugin-runtime's own exports. Keeps the in-process ESM loader a single auditable surface — ADR-024 Tier-3 (first-party/explicitly-sideloaded code), NOT an isolated sandbox.",
       from: {
-        path: "^src",
+        path: "^apps/website/src",
         // Exempt: plugin-runtime itself; the resolver module and its own certified suite; and
-        // src/index.ts, which CIC U-002-B1 REQUIRES to call registerPluginSdkResolver() during
+        // apps/website/src/index.ts, which CIC U-002-B1 REQUIRES to call registerPluginSdkResolver() during
         // boot before any route is reachable — that call site is the constraint, not a breach.
         pathNot:
-          "^(src/features/plugin-runtime|src/server/runtime/boot/plugin-sdk-resolver\\.ts|src/server/runtime/boot/__tests__|src/index\\.ts$)",
+          "^(apps/website/src/features/plugin-runtime|apps/website/src/server/runtime/boot/plugin-sdk-resolver\\.ts|apps/website/src/server/runtime/boot/__tests__|apps/website/src/index\\.ts$)",
       },
-      to: { path: "^(node:module|node:vm|src/server/runtime/boot/plugin-sdk-resolver\\.ts)$" },
+      to: { path: "^(node:module|node:vm|apps/website/src/server/runtime/boot/plugin-sdk-resolver\\.ts)$" },
     },
     {
       // Phase 0 restructure (2026-08-27, ADS-memory consensus report
@@ -199,7 +199,7 @@ const HAND_WRITTEN_RULES = [
       // the `import type { ToolContributor }` every converted contributor still needs to type its own
       // return value — a type-only edge cannot call anything, same reasoning
       // `only-composition-constructs-concrete-adapters` above already uses for the identical
-      // exemption shape. `src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` is exempted by
+      // exemption shape. `apps/website/src/features/plugins/supabase-mcp/supabase-mcp-plugin.ts` is exempted by
       // name: it value-imports `FEDERATED_CONNECTION_DEFAULTS`/`isFederationEnabled`/
       // `parseAllowedToolNames` from the SAME barrel, but that is the deliberate MCP-federation-preset
       // seam `assistant/index.ts`'s own "E — External MCP Federation" section documents as "the
@@ -209,14 +209,14 @@ const HAND_WRITTEN_RULES = [
       //
       // Verified to fire, not assumed: planted `import { registerToolContributor } from
       // "#src/assistant/index"; registerToolContributor({domain: "probe", build: () => [], risk: new
-      // Map()});` back into `src/features/taxonomy/tool-registrations.ts`, ran `npm run
+      // Map()});` back into `apps/website/src/features/taxonomy/tool-registrations.ts`, ran `npm run
       // check:boundaries`, confirmed exactly one new `error` naming this rule and that file, then
       // reverted the probe and re-ran to confirm a clean return to the pre-probe violation count.
       //
-      // `from` narrowed to just `^src/features` (2026-08-27, Phase 1 domain-layer consolidation):
+      // `from` narrowed to just `^apps/website/src/features` (2026-08-27, Phase 1 domain-layer consolidation):
       // the seven other top-level alternatives it originally listed (analytics, identity, media,
-      // navigation, origin, seo, widgets) each moved to `src/features/<name>` one at a time this
-      // same session, so `^src/features` alone already covers every one of them — the old literal
+      // navigation, origin, seo, widgets) each moved to `apps/website/src/features/<name>` one at a time this
+      // same session, so `^apps/website/src/features` alone already covers every one of them — the old literal
       // names had gone stale (matching nothing) but stayed harmless only because `features` was
       // already in the alternation. Left as dead alternatives they'd have been exactly the kind of
       // silently-stale path string this file's own header warns a rename can produce; removed once
@@ -226,13 +226,13 @@ const HAND_WRITTEN_RULES = [
       comment:
         "Domain/feature modules may not call assistant's tool-contribution registry (registerToolContributor and friends) directly — only server/tool-catalog-manifest.ts's composition root may. A type-only import of ToolContributor to type a contribute<Domain>Tools() return value is fine and exempted.",
       from: {
-        path: "^src/features",
+        path: "^apps/website/src/features",
         pathNot: [
           ".*/__tests__/.*",
-          "^src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
+          "^apps/website/src/features/plugins/supabase-mcp/supabase-mcp-plugin\\.ts$",
         ],
       },
-      to: { path: "^src/assistant", dependencyTypesNot: ["type-only"] },
+      to: { path: "^apps/website/src/assistant", dependencyTypesNot: ["type-only"] },
     },
 ];
 
@@ -244,7 +244,7 @@ const HAND_WRITTEN_RULES = [
 // ---------------------------------------------------------------------------------------------
 
 // Only modules with a committed `index.ts` are guarded — a module without a door has no door to
-// bypass. `src/index.ts`, `src/contracts/core/index.ts`, `src/features/index.ts` are excluded on purpose:
+// bypass. `apps/website/src/index.ts`, `apps/website/src/contracts/core/index.ts`, `apps/website/src/features/index.ts` are excluded on purpose:
 // they're pure re-export aggregators (verified by reading them), not domain modules with private
 // internals of their own — guarding them would make a legitimate deep-but-nested door (e.g.
 // `features/post/index.ts`, reached via `from "../../features/post"`) look like a violation of
@@ -284,8 +284,8 @@ const GUARDED_MODULES = [
   "features/seo",
   "platform/site-dir",
   // Renamed from "integrations" (2026-08-17), then re-pathed from `webhooks` when the six
-  // misplaced feature slices moved under `src/features/` (2026-08-27) — the folder is
-  // `src/features/webhooks/` now. The rule name is derived from this string, so leaving a stale
+  // misplaced feature slices moved under `apps/website/src/features/` (2026-08-27) — the folder is
+  // `apps/website/src/features/webhooks/` now. The rule name is derived from this string, so leaving a stale
   // value here would silently retire the module's ~48 no-deep-imports warnings without a single
   // one being fixed. Same hazard applies to the five sibling slices moved in that pass
   // (`features/{comments,forms,members,newsletter,redirects}` above): the post-move violation
@@ -308,14 +308,14 @@ const GUARDED_MODULES = [
 // `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).
 // `deps.ts`/`app.ts` re-pathed 2026-08-27 (apps/website restructure Phase 1 step 6): both moved to
-// `src/server/runtime/composition/` — leaving the old literal here would have silently dropped
+// `apps/website/src/server/runtime/composition/` — leaving the old literal here would have silently dropped
 // their composition-root privileges (every module they legitimately reach directly would newly
 // flag as a `no-deep-imports` violation) rather than tracking the move.
 const COMPOSITION_ROOTS = [
-  "^src/index\\.ts$",
-  "^src/server/runtime/composition/deps\\.ts$",
-  "^src/server/runtime/composition/app\\.ts$",
-  "^src/cli/commands/(serve|init|introspect|export)\\.ts$",
+  "^apps/website/src/index\\.ts$",
+  "^apps/website/src/server/runtime/composition/deps\\.ts$",
+  "^apps/website/src/server/runtime/composition/app\\.ts$",
+  "^apps/website/src/cli/commands/(serve|init|introspect|export)\\.ts$",
 ];
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
@@ -324,7 +324,7 @@ const COMPOSITION_ROOTS = [
 // would be reaching for behavior instead of a contract. Confirmed both independently and by
 // `2026-08-13-api-surface-trace-assistant.md` §3.2: "the textbook-correct hexagonal direction:
 // the consumer of a port defines its shape; the adapter imports that shape to implement it."
-const DB_SQLITE = "^src/platform/db/sqlite";
+const DB_SQLITE = "^apps/website/src/platform/db/sqlite";
 
 // CODEBASE-WIDE SEAM: every domain module's own tool-registrations.ts/agent-tools.ts is a second,
 // deliberate public surface. `assistant/tool-registrations.ts` imports ALL 22 domains this way
@@ -350,10 +350,10 @@ const DB_SQLITE = "^src/platform/db/sqlite";
 // seam files. Same reasoning as `TOOL_REGISTRATION_TEST_FROM_EXTRA`'s name list: bless what was
 // reviewed, not a broader shape that would quietly bless more.
 // `server/tool-catalog-manifest` re-pathed 2026-08-27 (apps/website restructure Phase 1 step 6):
-// the file moved to `src/server/runtime/composition/tool-catalog-manifest.ts` — leaving the old
+// the file moved to `apps/website/src/server/runtime/composition/tool-catalog-manifest.ts` — leaving the old
 // literal here would have silently un-registered the seam caller rather than tracking the move.
 const TOOL_REGISTRATION_SEAM_FROM =
-  "^src/(assistant/tool-registrations|server/runtime/composition/tool-catalog-manifest)\\.ts$";
+  "^apps/website/src/(assistant/tool-registrations|server/runtime/composition/tool-catalog-manifest)\\.ts$";
 // `publish-agent-tools.ts` is `static-publish`'s tool-registration seam under a non-conforming
 // name — the `-` before `agent-tools` defeats the `(^|/)` anchor, so it needs naming explicitly.
 // Exempted by name for the same reason `search-index.*` is in
@@ -361,7 +361,7 @@ const TOOL_REGISTRATION_SEAM_FROM =
 // filename convention. Not a loosening — everything else in the module stays fenced.
 const TOOL_REGISTRATION_SEAM_TO =
   "(^|/)(tool-registrations|agent-tools|publish-agent-tools)\\.ts$";
-const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations\\..+\\.test\\.ts$";
+const TOOL_REGISTRATION_TEST_FROM = "^apps/website/src/assistant/__tests__/tool-registrations\\..+\\.test\\.ts$";
 
 // Three more assistant test files do the identical job as the naming-convention match above (build
 // fixtures against a domain's real tool-registrations.ts/agent-tools.ts seam rather than a synthetic
@@ -381,10 +381,10 @@ const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations
 // real registration output end-to-end (the rest of the file drives all 25 domains generically via
 // `installFirstPartyToolContributors()`, which is not itself a deep import of any one module).
 const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
-  "^src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
-  "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
-  "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
-  "^src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
+  "^apps/website/src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
 ];
 
 // Per-module extra exceptions beyond the generic carve-outs above, each sourced directly from the
@@ -399,20 +399,20 @@ const EXTRA_TO_EXEMPT = {
   // the plugin's own test (not counted in the trace's edge metric, which excludes test files).
   // adapter.stdio.ts, adapter.memory.ts, registrations.ts, bootstrap.ts stay guarded — nothing
   // outside assistant reaches them today.
-  assistant: ["^src/assistant/mcp-federation/(config|presets|ports|trust)\\.ts$"],
+  assistant: ["^apps/website/src/assistant/mcp-federation/(config|presets|ports|trust)\\.ts$"],
   // trace-B §2: features/taxonomy/index.ts's own header names gated-hooks.ts as deliberately
   // excluded ("composes core/gated-mutations, a kernel that has not been extracted, so it is
   // composition over a host-owned module") — reached by a non-composition-root route handler.
-  "features/taxonomy": ["^src/features/taxonomy/gated-hooks\\.ts$"],
+  "features/taxonomy": ["^apps/website/src/features/taxonomy/gated-hooks\\.ts$"],
   // trace-A's forms section (F-1): exposes only ports.ts/errors.ts/types.ts through the new
   // index.ts, deliberately leaving these Category-3 single-purpose files reached directly by
   // their one dedicated caller — barreling them would be "inventing a dispatcher nobody asked
   // for" (the trace's own words).
   "features/forms": [
-    "^src/features/forms/forms\\.ts$",
-    "^src/features/forms/notify-subscriber\\.ts$",
-    "^src/features/forms/submit-service\\.ts$",
-    "^src/features/forms/write-service\\.ts$",
+    "^apps/website/src/features/forms/forms\\.ts$",
+    "^apps/website/src/features/forms/notify-subscriber\\.ts$",
+    "^apps/website/src/features/forms/submit-service\\.ts$",
+    "^apps/website/src/features/forms/write-service\\.ts$",
   ],
   // trace-A's newsletter section (N-1): exposes only errors.ts/ports.ts through the new index.ts,
   // deliberately leaving these 7 Category-3 files — each already funneled through a scoped local
@@ -420,19 +420,19 @@ const EXTRA_TO_EXEMPT = {
   // dedicated route handler per function, the same "fragmented HTTP route handler" shape as
   // forms' write-service.ts above.
   "features/newsletter": [
-    "^src/features/newsletter/campaign-write-service\\.ts$",
-    "^src/features/newsletter/confirmation\\.ts$",
-    "^src/features/newsletter/hooks\\.ts$",
-    "^src/features/newsletter/lists\\.ts$",
-    "^src/features/newsletter/send-pipeline\\.ts$",
-    "^src/features/newsletter/subscriptions\\.ts$",
-    "^src/features/newsletter/unsubscribe\\.ts$",
+    "^apps/website/src/features/newsletter/campaign-write-service\\.ts$",
+    "^apps/website/src/features/newsletter/confirmation\\.ts$",
+    "^apps/website/src/features/newsletter/hooks\\.ts$",
+    "^apps/website/src/features/newsletter/lists\\.ts$",
+    "^apps/website/src/features/newsletter/send-pipeline\\.ts$",
+    "^apps/website/src/features/newsletter/subscriptions\\.ts$",
+    "^apps/website/src/features/newsletter/unsubscribe\\.ts$",
   ],
   // 2026-08-17 no-deep-imports:features/deployments triage: `static-publish/` and
   // `publish-credentials/` are genuine nested modules — each has its own directory, its own
   // `index.ts`, and its own ADR-009 §1 "Public surface for the X sub-feature" header, one level
   // below `features/deployments/index.ts`. The `noDeepImportRules` generator only special-cases
-  // the TOP-level `src/${mod}/index.ts` (no first-class concept of a nested guarded sub-module),
+  // the TOP-level `apps/website/src/${mod}/index.ts` (no first-class concept of a nested guarded sub-module),
   // so every external reach into either sub-barrel's `index.ts` was flagged as a deep import even
   // though it is already going through that sub-feature's own curated door. Re-exporting both
   // sub-barrels' content through the parent `index.ts` instead was tried and reverted — it moved
@@ -452,8 +452,8 @@ const EXTRA_TO_EXEMPT = {
   // registrations directly to verify route wiring end-to-end, the same shape every other domain's
   // tool-registrations/agent-tools seam already gets reached by its own contract tests.
   "features/deployments": [
-    "^src/features/deployments/(static-publish|publish-credentials)/index\\.ts$",
-    "^src/features/deployments/publish-agent-tools\\.ts$",
+    "^apps/website/src/features/deployments/(static-publish|publish-credentials)/index\\.ts$",
+    "^apps/website/src/features/deployments/publish-agent-tools\\.ts$",
   ],
 };
 
@@ -510,8 +510,8 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
 ]);
 
 function noDeepImportRules(mod) {
-  const modPath = `^src/${mod}`;
-  const internals = `^src/${mod}/(?!index\\.ts$).+`;
+  const modPath = `^apps/website/src/${mod}`;
+  const internals = `^apps/website/src/${mod}/(?!index\\.ts$).+`;
   const extraToExempt = EXTRA_TO_EXEMPT[mod] ?? [];
 
   return [
@@ -520,7 +520,7 @@ function noDeepImportRules(mod) {
       severity: PROMOTED_NO_DEEP_IMPORTS.has(mod) ? "error" : "warn", // see plan doc §5 for the promotion criteria
       comment: `ADR-009 Decision §1 — ${mod}'s public surface is its index.ts; nothing outside the module (or db/sqlite reaching for a value rather than a type, or the tool-registration seam reaching anything other than tool-registrations.ts/agent-tools.ts) may import its internals directly.`,
       from: {
-        path: "^src",
+        path: "^apps/website/src",
         pathNot: [
           modPath,
           DB_SQLITE,
@@ -572,7 +572,7 @@ function noDeepImportRules(mod) {
       // this one just missed it because its `from` is a fixed pattern instead of derived from
       // `mod`. Verified: `assistant`'s `EXTRA_TO_EXEMPT` entry (mcp-federation) and every other
       // guarded module are unaffected — `modPath` for any mod other than "assistant" cannot match
-      // `src/assistant/tool-registrations.ts` or `src/server/tool-catalog-manifest.ts`.
+      // `apps/website/src/assistant/tool-registrations.ts` or `apps/website/src/server/tool-catalog-manifest.ts`.
       name: `no-non-seam-deep-imports-from-tool-registration-caller:${mod}`,
       severity: "warn",
       comment: `assistant/tool-registrations.ts (and its own tests) may reach ${mod}'s tool-registrations.ts/agent-tools.ts seam, but nothing else in ${mod}.`,

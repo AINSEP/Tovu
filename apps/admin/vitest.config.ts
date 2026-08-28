@@ -45,9 +45,9 @@ export default defineConfig({
      */
     dedupe: ["react", "react-dom"],
     alias: {
-      "@tovu/headless": path.resolve(__dirname, "../../src/contracts/headless"),
+      "@tovu/headless": path.resolve(__dirname, "../website/src/contracts/headless"),
       // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
-      "@tovu/theme-layout": path.resolve(__dirname, "../../src/features/theme/theme-layout.ts"),
+      "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
     },
   },
   server: {

@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["src/**/*.ts", "apps/admin/src/**/*.ts", "apps/admin/src/**/*.tsx", "scripts/**/*.ts"]
+		"includes": ["apps/website/src/**/*.ts", "apps/admin/src/**/*.ts", "apps/admin/src/**/*.tsx", "scripts/**/*.ts"]
 	},
 	"formatter": {
 		"enabled": false

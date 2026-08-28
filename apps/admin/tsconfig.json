@@ -11,9 +11,9 @@
     "isolatedModules": true,
     "types": ["vite/client"],
     "paths": {
-      "@tovu/headless": ["../../src/contracts/headless/index.ts"],
-      "@tovu/theme-layout": ["../../src/features/theme/theme-layout.ts"]
+      "@tovu/headless": ["../website/src/contracts/headless/index.ts"],
+      "@tovu/theme-layout": ["../website/src/features/theme/theme-layout.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../../src/contracts/headless/**/*.ts", "../../src/features/theme/theme-layout.ts"]
+  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts"]
 }
