@@ -12,7 +12,7 @@ import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations
 import { contributeThemesTools } from "../features/theme/tool-registrations.js";
 import { contributeWorkspaceTools } from "../features/workspace/tool-registrations.js";
 import { contributeFormsTools } from "../features/forms/tool-registrations.js";
-import { contributeIdentityTools } from "../identity/tool-registrations.js";
+import { contributeIdentityTools } from "../features/identity/tool-registrations.js";
 import { contributeWebhooksTools } from "../features/webhooks/tool-registrations.js";
 import { contributeMediaTools } from "../media/tool-registrations.js";
 import { contributeMembersTools } from "../features/members/tool-registrations.js";

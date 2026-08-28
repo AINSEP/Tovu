@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../platform/db/sqlite/content-db.js";
+import { openContentDb } from "../../../platform/db/sqlite/content-db.js";
 // Side-effect import: registers the real BASE_CATALOG + the real permission-migration pairs
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the

@@ -27,7 +27,7 @@ import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeIdentityTools } from "../../identity/tool-registrations.js";
+import { contributeIdentityTools } from "../../features/identity/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the

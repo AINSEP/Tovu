@@ -10,7 +10,7 @@ import {
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
 import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types.js";
-import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/identity/api-key-service";
+import { authenticateApiKey, type ApiKeyServiceDeps } from "#src/features/identity/api-key-service";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**

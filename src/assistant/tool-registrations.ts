@@ -180,7 +180,7 @@ import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations.j
 import type { ThemeToolDeps } from "../features/theme/tool-registrations.js";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations.js";
 import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
-import type { IdentityToolDeps } from "../identity/tool-registrations.js";
+import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps } from "../media/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";

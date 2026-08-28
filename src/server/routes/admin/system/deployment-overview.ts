@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { Express } from "express";
 
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { DEFAULT_OWNER_PASSWORD } from "#src/identity/wiring";
+import { DEFAULT_OWNER_PASSWORD } from "#src/features/identity/wiring";
 import { defaultContentDbPath, mediaUploadsDir } from "#src/server/deps";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { isAssistantDaemonKnownFailed } from "#src/server/readiness-state";
