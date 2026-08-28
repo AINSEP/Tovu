@@ -5,12 +5,12 @@ import express from "express";
 
 import { InMemoryPostRepo } from "../../../features/post/index.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
-import { registerSiteRoutes } from "../../routes/site/pages.js";
+import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file Worklist #5 regression (TM-TOVU-2026-08-12-A request-cost audit) — end-to-end half.
- * `src/server/http/site/__tests__/render.test.ts` pins the isolated `renderDocNode` behavior; this
+ * `src/server/inbound/public-http/http/site/__tests__/render.test.ts` pins the isolated `renderDocNode` behavior; this
  * file pins the thing that actually changed for a real visitor: BEFORE this fix, a real GET request
  * for a too-deep post 500'd (the `RangeError` escaping `renderSite`, caught by `pages.ts`'s own
  * try/catch). AFTER, the SAME request must serve 200 with the bounded content plus a placeholder —

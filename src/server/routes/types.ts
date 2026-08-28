@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import type { SiteProduct } from "../http/site/render.js";
+import type { SiteProduct } from "../inbound/public-http/http/site/render.js";
 
 import type { ExportReport } from "#src/platform/export/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";

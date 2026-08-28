@@ -18,9 +18,9 @@ import { registerAdminNewsletterScheduleCampaignRoute } from "../../../inbound/a
 import { registerAdminNewsletterSendCampaignRoute } from "../../../inbound/admin-http/routes/newsletter/send-campaign.js";
 import { registerAdminNewsletterSendTestCampaignRoute } from "../../../inbound/admin-http/routes/newsletter/send-test-campaign.js";
 import { registerAdminNewsletterUpdateCampaignRoute } from "../../../inbound/admin-http/routes/newsletter/update-campaign.js";
-import { registerPublicNewsletterConfirmRoute } from "../../../routes/site/newsletter-confirm.js";
-import type { NewsletterPublicRouteDeps } from "../../../routes/site/newsletter-deps.js";
-import { registerPublicNewsletterUnsubscribeRoute } from "../../../routes/site/newsletter-unsubscribe.js";
+import { registerPublicNewsletterConfirmRoute } from "../../../inbound/public-http/routes/site/newsletter-confirm.js";
+import type { NewsletterPublicRouteDeps } from "../../../inbound/public-http/routes/site/newsletter-deps.js";
+import { registerPublicNewsletterUnsubscribeRoute } from "../../../inbound/public-http/routes/site/newsletter-unsubscribe.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

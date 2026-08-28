@@ -11,7 +11,7 @@ import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
 import { toAdminPostResponse } from "../../inbound/admin-http/http/posts.js";
 import { toAdminPresentationResponse } from "../../inbound/admin-http/http/presentation.js";
-import { toContentPostResponse } from "../content/posts.js";
+import { toContentPostResponse } from "../../inbound/public-http/http/content/posts.js";
 
 const seedPost: PostRecord = {
   id: "post-1",

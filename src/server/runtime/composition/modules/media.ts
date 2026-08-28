@@ -7,7 +7,7 @@ import { registerAdminMediaTrashRoute } from "../../../inbound/admin-http/routes
 import { registerAdminMediaUpdateRoute } from "../../../inbound/admin-http/routes/media/update.js";
 import { registerAdminMediaUploadRoute } from "../../../inbound/admin-http/routes/media/upload.js";
 import type { MediaProviderRouteDeps, MediaRouteDeps } from "../../../inbound/admin-http/routes/media/deps.js";
-import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "../../../routes/site/media-rendition.js";
+import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "../../../inbound/public-http/routes/site/media-rendition.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

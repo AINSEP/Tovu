@@ -15,7 +15,7 @@ import {
 } from "../../../inbound/admin-http/routes/external-mcp/oauth.js";
 import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "../../../inbound/admin-http/routes/external-mcp/probe.js";
 import { registerAdminExternalMcpPutRoute } from "../../../inbound/admin-http/routes/external-mcp/put.js";
-import { registerExternalMcpOAuthCallbackRoute } from "../../../routes/external-mcp/oauth-callback.js";
+import { registerExternalMcpOAuthCallbackRoute } from "../../../inbound/public-http/routes/external-mcp/oauth-callback.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

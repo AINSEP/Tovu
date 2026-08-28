@@ -5,7 +5,7 @@ import { createRequire } from "node:module";
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../../contracts/core/events/index.js";
 import { InMemoryChangeSetRepo } from "../../../contracts/core/commands/index.js";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../../../features/seo/index.js";
-import { registerPageHeadContributor } from "../../http/site/page-head.js";
+import { registerPageHeadContributor } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../../../features/post/index.js";
 import { InMemoryDeploymentsReadRepo } from "../../../features/deployments/index.js";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../../../features/deployments/publish-credentials/index.js";
@@ -89,7 +89,7 @@ import { MembersSubscriberDirectory } from "../../../features/members/index.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { toSendPipelineDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createNewsletterModule } from "./modules/newsletter.js";
-import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
+import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../../features/forms/repo.memory.js";
 import { FORMS_SUBMIT_PROFILE } from "../../../features/forms/rate-limit-profile.js";
 import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../../features/origin/index.js";
@@ -119,7 +119,7 @@ import { createNavMenuReadModel } from "../../../features/navigation/index.js";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../../../features/comments/index.js";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../../../features/analytics/config.settings.js";
 import { InMemoryCommentRepo } from "../../../features/comments/repo.memory.js";
-import { registerCommentsSubmitRoute } from "../../routes/site/comments-submit.js";
+import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,
@@ -136,18 +136,18 @@ import { registerAdminDatabaseMigrateForwardRoutes } from "../../inbound/admin-h
 import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 
 import { applyDevCors } from "../../inbound/shared/dev-cors.js";
-import { applySiteServingGate } from "../../middleware/site-serving-gate.js";
+import { applySiteServingGate } from "../../inbound/public-http/middleware/site-serving-gate.js";
 import { registerAdminStatic } from "../../inbound/admin-http/admin-static.js";
-import { registerSiteChatStatic } from "../../middleware/site-chat-static.js";
-import { registerThemePreviewStatic } from "../../middleware/theme-preview-static.js";
-import { registerThemeStaticAssets } from "../../middleware/theme-static-assets.js";
-import { registerThemePagePreview } from "../../middleware/theme-page-preview.js";
-import { registerSiteRoutes } from "../../routes/site/pages.js";
-import { registerStoreRoutes } from "../../routes/site/store.js";
-import { registerPaymentsWebhookRoute } from "../../routes/site/payments-webhook.js";
-import { registerProductRoutes, resolveStorefrontProducts } from "../../routes/site/products.js";
-import { registerAnalyticsIngestRoute } from "../../routes/site/analytics-ingest.js";
-import { registerContentPostGetRoute } from "../../routes/content/posts/get-by-slug.js";
+import { registerSiteChatStatic } from "../../inbound/public-http/middleware/site-chat-static.js";
+import { registerThemePreviewStatic } from "../../inbound/public-http/middleware/theme-preview-static.js";
+import { registerThemeStaticAssets } from "../../inbound/public-http/middleware/theme-static-assets.js";
+import { registerThemePagePreview } from "../../inbound/public-http/middleware/theme-page-preview.js";
+import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
+import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
+import { registerPaymentsWebhookRoute } from "../../inbound/public-http/routes/site/payments-webhook.js";
+import { registerProductRoutes, resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
+import { registerAnalyticsIngestRoute } from "../../inbound/public-http/routes/site/analytics-ingest.js";
+import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import { createCommentsModerationModule } from "./modules/comments-moderation.js";
 import { createCoreModule } from "./modules/core.js";
 import { createFormsModule } from "./modules/forms.js";
@@ -168,7 +168,7 @@ import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
 import { createMembersModule } from "./modules/members.js";
 import type { MembersRouteDeps } from "../../inbound/admin-http/routes/members/deps.js";
-import type { MemberPublicRouteDeps } from "../../routes/members/deps.js";
+import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
 import {
   createRateLimiter,
   MAGIC_LINK_COMPLETE_ATTEMPT,
@@ -191,7 +191,7 @@ import { registerAdminVendorCredentialsRoutes } from "../../inbound/admin-http/r
 import { registerAdminPublishSiteRoutes } from "../../inbound/admin-http/routes/system/publish-site.js";
 import { registerAdminDeploymentsListRoute } from "../../inbound/admin-http/routes/deployments/list.js";
 import { createFormsAdminModule } from "./modules/forms-admin.js";
-import { registerFormsSubmitRoute } from "../../routes/site/forms-submit.js";
+import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { createRedirectsModule } from "./modules/redirects.js";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
 import { createContentTypesModule } from "./modules/content-types.js";

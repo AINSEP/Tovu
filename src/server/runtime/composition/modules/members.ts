@@ -3,9 +3,9 @@ import { registerAdminMemberGetRoute } from "../../../inbound/admin-http/routes/
 import { registerAdminMemberDisableRoute } from "../../../inbound/admin-http/routes/members/disable.js";
 import { registerAdminMemberRequestMagicLinkRoute } from "../../../inbound/admin-http/routes/members/request-magic-link.js";
 import type { MembersRouteDeps } from "../../../inbound/admin-http/routes/members/deps.js";
-import { registerPublicMemberSignInRequestRoute } from "../../../routes/members/sign-in.js";
-import { registerPublicMemberCompleteSignInRoute } from "../../../routes/members/complete-sign-in.js";
-import type { MemberPublicRouteDeps } from "../../../routes/members/deps.js";
+import { registerPublicMemberSignInRequestRoute } from "../../../inbound/public-http/routes/members/sign-in.js";
+import { registerPublicMemberCompleteSignInRoute } from "../../../inbound/public-http/routes/members/complete-sign-in.js";
+import type { MemberPublicRouteDeps } from "../../../inbound/public-http/routes/members/deps.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

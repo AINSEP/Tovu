@@ -10,7 +10,7 @@ import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSeoGetEntryRoute } from "../../inbound/admin-http/routes/seo/get-entry.js";
 import { registerAdminSeoPutEntryRoute } from "../../inbound/admin-http/routes/seo/put-entry.js";
-import { SITE_TITLE } from "../../routes/site/pages.js";
+import { SITE_TITLE } from "../../inbound/public-http/routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
 

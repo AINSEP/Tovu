@@ -7,8 +7,8 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
-import type { MemberPublicRouteDeps } from "../../routes/members/deps.js";
-import { registerPublicMemberSignInRequestRoute } from "../../routes/members/sign-in.js";
+import type { MemberPublicRouteDeps } from "../../inbound/public-http/routes/members/deps.js";
+import { registerPublicMemberSignInRequestRoute } from "../../inbound/public-http/routes/members/sign-in.js";
 
 /**
  * @file FEAT-013 Phase 2 (ADR-PIPE-013 Decision §2-3, ADR-030 OQ-8) —

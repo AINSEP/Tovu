@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { renderHtmlPageBody } from "#src/server/http/site/render";
+import { renderHtmlPageBody } from "#src/server/inbound/public-http/http/site/render";
 import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
 import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 

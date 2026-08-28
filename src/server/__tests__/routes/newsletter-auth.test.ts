@@ -9,7 +9,7 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
-import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
+import type { NewsletterPublicRouteDeps } from "../../inbound/public-http/routes/site/newsletter-deps.js";
 
 /**
  * @file SPEC-011 (Newsletter) Stage 5, AC-42 — every one of the 19 admin routes, called by a

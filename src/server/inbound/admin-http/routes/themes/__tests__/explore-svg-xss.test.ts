@@ -8,7 +8,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
-import { registerThemeStaticAssets } from "#src/server/middleware/theme-static-assets";
+import { registerThemeStaticAssets } from "#src/server/inbound/public-http/middleware/theme-static-assets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import {
   registerAdminThemeFileCopyRoute,

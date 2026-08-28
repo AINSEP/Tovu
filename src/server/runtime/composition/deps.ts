@@ -8,7 +8,7 @@ import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
-import { resolveStorefrontProducts } from "../../routes/site/products.js";
+import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../../../features/post/index.js";
 import { SqliteDeploymentsReadRepo } from "../../../features/deployments/index.js";
 import { SqlitePublishCredentialSetRepo } from "../../../platform/db/sqlite/publish-credential-repo.sqlite.js";

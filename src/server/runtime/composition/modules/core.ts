@@ -1,5 +1,5 @@
 import { registerAuthRoutes, requireAdminSession } from "../../../inbound/admin-http/dev-auth.js";
-import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "../../../routes/ops/health.js";
+import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "../../../inbound/public-http/routes/ops/health.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { ServerModuleHandle } from "./types.js";
 
