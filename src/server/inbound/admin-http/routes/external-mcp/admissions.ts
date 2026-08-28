@@ -1,11 +1,11 @@
-import { FEDERATION_ADMISSIONS_PATH } from "#src/server/agent-daemon/federation-admissions-route";
+import { FEDERATION_ADMISSIONS_PATH } from "#src/server/inbound/assistant/federation-admissions-route";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
 /**
  * @file `GET .../mcp-servers/admissions` (C-008) — proxies the agent daemon's own
- * `GET /api/federation/admissions` (`server/agent-daemon/federation-admissions-route.ts`, C-009) so
+ * `GET /api/federation/admissions` (`server/inbound/assistant/federation-admissions-route.ts`, C-009) so
  * the admin tab can state the truth an operator actually needs: "you ticked 3 tools; the assistant
  * is running with 1." Everything else about a saved-but-not-yet-restarted roster is inference.
  *

@@ -98,8 +98,8 @@ test("FLAT_WIRING does NOT fire on a file reported only for cognitive complexity
   // at all. Flagging it flat would invert the meaning: it is pure nesting, the shape most worth
   // removing.
   const rows = rankHotspots(
-    complexityMap({ "src/server/agent-daemon/agent-daemon-server.ts": { cyclomatic: 0, cognitive: 11, violations: 1 } }),
-    new Map([["src/server/agent-daemon/agent-daemon-server.ts", 28]])
+    complexityMap({ "src/server/inbound/assistant/agent-daemon-server.ts": { cyclomatic: 0, cognitive: 11, violations: 1 } }),
+    new Map([["src/server/inbound/assistant/agent-daemon-server.ts", 28]])
   );
   assert.deepEqual(rows[0].flags, []);
 });
