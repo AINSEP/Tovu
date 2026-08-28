@@ -43,7 +43,7 @@
  * Pure orchestration over two injected dependencies (an origin resolver and a browser factory).
  * No global state, no module-level singletons — `tool-registrations.ts` supplies both.
  */
-import type { OriginRegistryPort } from "../../origin/index.js";
+import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { UUID } from "@jini-ai/cms/core";
 
 import type {
@@ -156,7 +156,7 @@ export interface CollectPageEvidenceInput {
  * @param deps - Origin resolver, browser factory, and an optional clock.
  * @param input - The requested site-relative paths and optional consent selector.
  * @returns Observed evidence plus an explicit account of everything that was not observed and why.
- * @throws {import("#src/origin/types").OriginNotVerifiedError} If the workspace has no verified
+ * @throws {import("#src/features/origin/types").OriginNotVerifiedError} If the workspace has no verified
  * canonical origin. Deliberately propagated rather than converted into a per-page skip: with no
  * origin there is no same-origin boundary to enforce, and guessing one from a request host is
  * precisely what ADR-040 F2 forbids. The tool handler turns it into an actionable message.

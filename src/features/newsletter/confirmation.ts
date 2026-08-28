@@ -11,8 +11,8 @@ import { createHash, randomBytes } from "node:crypto";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { MailerPort } from "../../platform/mail/index.js";
-import type { OriginRegistryPort } from "../../origin/index.js";
-import type { VerifiedOrigin } from "../../origin/index.js";
+import type { OriginRegistryPort } from "../../features/origin/index.js";
+import type { VerifiedOrigin } from "../../features/origin/index.js";
 import { NewsletterConfirmTokenInvalidError } from "./errors.js";
 import type {
   MembersConsentCapability,

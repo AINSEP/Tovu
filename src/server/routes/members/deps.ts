@@ -24,7 +24,7 @@ import type {
   MembersWriteServiceDeps,
 } from "#src/features/members/index";
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { OriginRegistryPort } from "#src/origin/index";
+import type { OriginRegistryPort } from "#src/features/origin/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 
 /**

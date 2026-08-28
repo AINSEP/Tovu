@@ -59,7 +59,7 @@ import type {
   MediaRepoPort,
   TransformDefinitionRepoPort,
 } from "../../features/media/index.js";
-import type { OriginRegistryPort } from "../../origin/index.js";
+import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
 import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../features/comments/index.js";

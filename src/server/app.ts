@@ -92,7 +92,7 @@ import { createNewsletterModule } from "./modules/newsletter.js";
 import type { NewsletterPublicRouteDeps } from "./routes/site/newsletter-deps.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../features/forms/repo.memory.js";
 import { FORMS_SUBMIT_PROFILE } from "../features/forms/rate-limit-profile.js";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../features/origin/index.js";
 import {
   InMemoryRedirectRepo,
   RedirectHitSinkImpl,

@@ -269,7 +269,7 @@ const GUARDED_MODULES = [
   "features/members",
   "features/navigation",
   "features/newsletter",
-  "origin",
+  "features/origin",
   "features/redirects",
   "platform/routing",
   "seo",
@@ -466,7 +466,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   //  - seo: 1 wrong-door redirect (put-entry.ts's invalidateSitemapCache).
   //  - routing: 1 wrong-door redirect (seo.ts's RouteResolverDeps type).
   //  - members: 1 wrong-door redirect (server-modules.unit.test.ts's ConsoleMailerAdapter).
-  "origin",
+  "features/origin",
   "features/theme",
   "features/commerce",
   "seo",

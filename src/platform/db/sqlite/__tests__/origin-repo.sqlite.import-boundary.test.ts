@@ -8,12 +8,12 @@ import test from "node:test";
  *
  * `origin/index.ts` is the `origin` module's public door — every real VALUE consumer of
  * `createVerifiedOrigin` elsewhere in this codebase (`server/deps.ts`, `server/app.ts`) imports it
- * through that barrel (as `"../origin/index.js"` — this project's `nodenext` module resolution
- * requires the explicit `.js` extension on every relative specifier), not by reaching into the
- * internal `origin/types.ts` file it happens to be defined in. `origin-repo.sqlite.ts` previously
- * did the latter — a "wrong door" import that bypasses the module's declared public surface (the
- * same class of violation `development/scripts/check-architecture.ts`'s "API surface" metric
- * tracks repo-wide).
+ * through that barrel (as `"../features/origin/index.js"` — this project's `nodenext` module
+ * resolution requires the explicit `.js` extension on every relative specifier), not by reaching
+ * into the internal `origin/types.ts` file it happens to be defined in. `origin-repo.sqlite.ts`
+ * previously did the latter — a "wrong door" import that bypasses the module's declared public
+ * surface (the same class of violation `development/scripts/check-architecture.ts`'s "API
+ * surface" metric tracks repo-wide).
  *
  * A runtime/behavioral test cannot express this defect: `createVerifiedOrigin` is the exact same
  * function reference whichever path it's imported through (the barrel only re-exports it), so
@@ -46,12 +46,12 @@ test("origin-repo.sqlite.ts imports the createVerifiedOrigin VALUE through origi
   assert.ok(specifier, "expected to find an import of createVerifiedOrigin in origin-repo.sqlite.ts");
   assert.notEqual(
     specifier,
-    "../../origin/types",
+    "../../../features/origin/types",
     "createVerifiedOrigin must not be imported directly from the internal origin/types.ts module -- import it through origin's public door instead"
   );
   assert.match(
     specifier!,
-    /^\.\.\/\.\.\/origin(\/index(\.js)?)?$/,
-    `createVerifiedOrigin must be imported through origin's public door (\"../../origin\", \"../../origin/index\", or \"../../origin/index.js\"), got \"${specifier}\"`
+    /^\.\.\/\.\.\/\.\.\/features\/origin(\/index(\.js)?)?$/,
+    `createVerifiedOrigin must be imported through origin's public door (\"../../../features/origin\", \"../../../features/origin/index\", or \"../../../features/origin/index.js\"), got \"${specifier}\"`
   );
 });

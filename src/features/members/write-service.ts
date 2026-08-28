@@ -32,7 +32,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import type { MailerSendOptions, OutboundEmail } from "../../platform/mail/index.js";
-import { OriginNotVerifiedError } from "../../origin/index.js";
+import { OriginNotVerifiedError } from "../../features/origin/index.js";
 import {
   MemberAuthError,
   MemberConflictError,

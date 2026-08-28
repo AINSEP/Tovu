@@ -27,7 +27,7 @@
  * Pure string/URL logic. No I/O, no browser, no repo — `collect-page-evidence.ts` composes this
  * with the real origin lookup and the real browser port.
  */
-import type { VerifiedOrigin } from "../../origin/index.js";
+import type { VerifiedOrigin } from "../../features/origin/index.js";
 
 /** Longest site-relative path this tool will accept. Well past any real page URL; exists so a
  *  pathological input cannot be handed to a browser at all. */

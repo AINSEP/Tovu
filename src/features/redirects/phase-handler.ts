@@ -36,7 +36,7 @@
  * `RouteResolvePhaseHandler` shape. No Express/route code.
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
-import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../origin/index.js";
+import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../../features/origin/index.js";
 import { registerResolvePhase } from "../../platform/routing/index.js";
 import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../../platform/routing/index.js";
 

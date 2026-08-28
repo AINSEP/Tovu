@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../../origin/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../../features/origin/index.js";
 import { redirectMatcher } from "../matcher.js";
 import { RedirectPhaseHandlerResolver } from "../phase-handler.js";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
