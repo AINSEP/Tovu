@@ -41,6 +41,48 @@ async function registerRecipeType(baseUrl: string, cookie: string): Promise<void
   assert.equal(res.status, 201);
 }
 
+test("entries routes: create denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  // Denies every permission from this point on — same technique taxonomy-routes.test.ts's own
+  // equivalent 403 test uses, applied here to lock create.ts's pre-conversion 403 shape before
+  // it moves to the shared authorizeOrRespond helper.
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs" }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+});
+
+test("entries routes: create surfaces an authorize() failure as a 500 (INTERNAL_ERROR)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug: "eggs", title: "Eggs" }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "boom");
+});
+
 test("entries routes: create -> list -> update -> publish golden path (REQ-13/14/19/28)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

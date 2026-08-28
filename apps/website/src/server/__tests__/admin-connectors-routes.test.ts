@@ -163,6 +163,44 @@ test("an unknown connector id is 404 with the service's own error code", async (
   assert.equal(((await res.json()) as { code: string }).code, "CONNECTOR_NOT_FOUND");
 });
 
+test("disconnect denied 403 FORBIDDEN without admin.integrations.manage", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Denies every permission from this point on — same technique taxonomy-routes.test.ts's own
+  // equivalent 403 test uses, applied here to lock disconnect.ts's pre-conversion 403 shape before
+  // it moves to the shared authorizeOrRespond helper. The connector id is never used (auth denial
+  // returns before `composioConnectors.service.disconnect` is ever called), so a made-up id is fine.
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}${BASE}/github/disconnect`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.integrations\.manage' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.integrations.manage", reason: "test_denied" });
+});
+
+test("disconnect surfaces an authorize() failure as a 500 (INTERNAL_ERROR)", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}${BASE}/github/disconnect`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
 test("a key survives a PUT/GET round trip as markers only and never appears in a response body", async (t) => {
   const { app } = await buildTestApp(t);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
