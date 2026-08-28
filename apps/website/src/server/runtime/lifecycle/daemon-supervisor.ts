@@ -325,12 +325,23 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
  * Resolves the daemon's own script path the same way `index.ts`'s original code did — by
  * swapping this file's extension — so the same code path launches `agent-daemon-server.ts` under
  * `tsx` in dev and the compiled `agent-daemon-server.js` under plain `node` in a built `dist/`.
- * Now co-located in `src/assistant/` with its target (this file's original home was `src/index.ts`,
- * one directory up), the join no longer needs an `"assistant"` path segment.
+ *
+ * NOT co-located any more: this file lives in `server/runtime/lifecycle/` (runtime-infrastructure
+ * concern), while `agent-daemon-server.ts` moved to `server/inbound/assistant/` (inbound-HTTP-surface
+ * concern) in the same `src/server/` split that separated them — a same-directory `path.join` here
+ * silently resolved to a nonexistent file the moment that split landed (masked until something
+ * actually spawned the daemon and hit `ERR_MODULE_NOT_FOUND`, since nothing type-checks a runtime
+ * string path). The `../../inbound/assistant/` offset is symmetric in both trees: `tsc`'s `rootDir`
+ * mirrors this whole `server/` subtree unchanged, so `runtime/lifecycle/` -> `inbound/assistant/` is
+ * the same two-up-two-down hop under `tsx` and under compiled `dist/`.
  */
-function resolveDaemonScriptPath(): string {
+export function resolveDaemonScriptPath(): string {
   const isCompiled = import.meta.filename.endsWith(".js");
-  return path.join(import.meta.dirname, isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
+  return path.join(
+    import.meta.dirname,
+    "../../inbound/assistant",
+    isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts",
+  );
 }
 
 /**
