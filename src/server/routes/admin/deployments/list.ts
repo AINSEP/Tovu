@@ -9,7 +9,7 @@ import type { RouteDeps } from "#src/server/routes/types";
  *
  * Registers `GET /api/admin/v1/workspaces/:workspaceId/deployments` — a read-only snapshot of the
  * `deployment_environments`/`deployment_targets`/`releases`/`deployment_runs` tables migration
- * `0037` created (2026-08-12) with, until now, zero callers (`src/db/schema.ts`'s own comment: "No
+ * `0037` created (2026-08-12) with, until now, zero callers (`src/platform/db/schema.ts`'s own comment: "No
  * repository or route wiring reads/writes them yet"). This is that wiring's read half only —
  * creating/connecting a target needs credential storage that does not exist yet, explicitly out of
  * scope for this route (see `features/deployments/index.ts`'s header for the full remaining list).

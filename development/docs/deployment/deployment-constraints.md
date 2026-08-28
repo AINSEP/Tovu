@@ -55,7 +55,7 @@ Render, for example, limits a persistent disk to **one service instance**
 
 | Thing | Reality |
 |---|---|
-| Postgres runtime | **No driver anywhere in `src/db/`.** No `drizzle-orm/node-postgres`, no `Pool`. `schema.postgres.ts` is generated DDL only; `src/server/deps.ts` wires exclusively `Sqlite*` repos. The SQLite→Postgres data mover is explicitly "deliberately not built." |
+| Postgres runtime | **No driver anywhere in `src/platform/db/`.** No `drizzle-orm/node-postgres`, no `Pool`. `schema.postgres.ts` is generated DDL only; `src/server/deps.ts` wires exclusively `Sqlite*` repos. The SQLite→Postgres data mover is explicitly "deliberately not built." |
 | Object storage | **`LocalFsBlobStore` is the only blob store implementation** (`src/server/deps.ts:125-133,698`). No S3/R2 class exists. |
 | Static exporter | Does not exist. `grep` for `StaticExporter`/`exportSite` returns nothing. |
 | Route manifest | **The sitemap cannot drive an export.** `src/seo/sitemap.ts:50-66` enumerates only published, indexable posts plus empty extension hooks — omitting home, products, theme-owned static pages, redirects, 404 and assets. A dedicated `RouteManifestPort` is required. |
@@ -65,7 +65,7 @@ Render, for example, limits a persistent disk to **one service instance**
 ## 4. Blockers found while checking the above (not deployment features — prerequisites)
 
 **4.1 — Multi-workspace hosting does not work.** One running app selects exactly ONE workspace at
-boot (`src/site-dir/resolve-workspace.ts:15-21,50-76`; `src/server/deps.ts:233-264`). Serving many
+boot (`src/platform/site-dir/resolve-workspace.ts:15-21,50-76`; `src/server/deps.ts:233-264`). Serving many
 customers from one instance needs request-time hostname→workspace resolution, replacing the
 process-wide `RouteDeps.workspaceId`. **This is the gating feature for any hosted-SaaS product**, and
 it is larger than any provider adapter.

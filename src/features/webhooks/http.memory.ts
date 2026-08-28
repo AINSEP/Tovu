@@ -6,7 +6,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
  * Purpose:
  * `processDueDeliveries` (./delivery.ts) depends on `HttpClientPort` (imported from `../http`,
  * ADR-038) to POST signed deliveries. This is NOT the real guarded transport — building that is
- * `src/http`'s job (out of scope here). This is a recording double: every `send()` call is
+ * `src/platform/http`'s job (out of scope here). This is a recording double: every `send()` call is
  * captured for assertions, and responses (or thrown transport errors) are scripted per-call so
  * tests can exercise success, non-2xx failure, and repeated-failure-to-exhaustion paths without
  * a network.

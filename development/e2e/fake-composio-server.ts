@@ -24,7 +24,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
  */
 
 export interface FakeComposioOptions {
-  /** Must match `composioUserIdFor(workspaceId)` in `src/connectors/composio-service.ts`, or the
+  /** Must match `composioUserIdFor(workspaceId)` in `src/platform/connectors/composio-service.ts`, or the
    *  provider rejects every account as belonging to a different user. */
   expectedUserId: string;
   /** Set to fail the account lookup, exercising the callback's own failure path. */

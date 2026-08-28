@@ -557,7 +557,7 @@ export interface DeploymentCapability {
  * Every row restates something this panel already asserted in prose, so the list adds legibility
  * and no new claims: the three `false` rows are the three items in the tab's own existing warning
  * ("No checkout, no admin online, no assistant, no dynamic anything"), and the one `true` row is
- * what `src/export/route-manifest.ts` actually resolves — home, products and theme pages plus every
+ * what `src/platform/export/route-manifest.ts` actually resolves — home, products and theme pages plus every
  * published post, which is also exactly what the Static Site tab's own build copy says the exporter
  * writes.
  *

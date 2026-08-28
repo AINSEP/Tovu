@@ -1,6 +1,6 @@
 import { createSign } from "node:crypto";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 
 import type {
   DeploymentError,

@@ -10,7 +10,7 @@ import type { PublishProviderId } from "../publish-credentials/types.js";
  * Deliberately separate from this directory's sibling `../types.ts`/`../ports.ts`
  * (`DeploymentProviderPort`/`DeploymentTargetRecord`) — that machinery promotes an EXISTING git
  * commit through a GitHub App (`../providers/github.ts`), continuous-deployment-shaped. This
- * feature does the opposite: it takes Tovu's own static export (`src/export`'s `exportSite`, bytes
+ * feature does the opposite: it takes Tovu's own static export (`src/platform/export`'s `exportSite`, bytes
  * this process just rendered, never a pre-existing commit) and hands the file set to
  * `@jini-ai/devops/deploy`'s per-target `DeployTarget` — a one-shot "publish this exact file set"
  * operation with no polling-run/webhook lifecycle of its own (the Jini target itself blocks until the

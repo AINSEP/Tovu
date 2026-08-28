@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { ComposioConnectors } from "#src/connectors/composio-service";
+import type { ComposioConnectors } from "#src/platform/connectors/composio-service";
 import { COMPOSIO_CALLBACK_PATH } from "../admin/connectors/callback-url.js";
 import { CONNECTOR_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage } from "../oauth/callback-page.js";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

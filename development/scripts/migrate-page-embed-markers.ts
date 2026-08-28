@@ -46,7 +46,7 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/db/sqlite/content-db.js";
+import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
 import { scanEmbedMarkers, describeRejection } from "../../src/contracts/core/embeds/marker.js";
 import { extractHtmlEntryRefs } from "../../src/contracts/core/entry-refs/extractor.js";
 import { SqliteEntryRefsRepo } from "../../src/contracts/core/entry-refs/repo.sqlite.js";

@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { desc, eq } from "drizzle-orm";
 
-import { redirectRevisions, redirects as redirectsTable } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
-import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import { redirectRevisions, redirects as redirectsTable } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../../platform/db/sqlite/repo-helpers.js";
 
 import type { RedirectDbHandle } from "./ports.internal.js";
 import type { RedirectRepoPort } from "./ports.js";

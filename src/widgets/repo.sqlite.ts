@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { widgetRegionBindings } from "../db/schema.js";
-import type { ContentDb } from "../db/sqlite/content-db.js";
-import { findOneBy } from "../db/sqlite/repo-helpers.js";
+import { widgetRegionBindings } from "../platform/db/schema.js";
+import type { ContentDb } from "../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../platform/db/sqlite/repo-helpers.js";
 import type { UUID } from "@jini-ai/cms/core";
 import type { WidgetRegionBindingRepoPort } from "./ports.js";
 import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types.js";

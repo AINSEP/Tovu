@@ -6,7 +6,7 @@ import { startFakeComposio } from "./fake-composio-server.js";
  *
  * `FAKE_COMPOSIO_PORT` and `FAKE_COMPOSIO_USER_ID` come from
  * `development/playwright.connectors.config.ts`. The user id must match
- * `composioUserIdFor(workspaceId)` in `src/connectors/composio-service.ts`, or the provider rejects
+ * `composioUserIdFor(workspaceId)` in `src/platform/connectors/composio-service.ts`, or the provider rejects
  * every account as belonging to someone else.
  */
 const port = Number(process.env.FAKE_COMPOSIO_PORT ?? 6484);

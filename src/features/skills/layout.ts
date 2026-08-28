@@ -40,7 +40,7 @@
  */
 import path from "node:path";
 
-import { resolveSiteRoot } from "../../site-dir/index.js";
+import { resolveSiteRoot } from "../../platform/site-dir/index.js";
 
 /**
  * One safe, indivisible path segment: lowercase alphanumerics in `-`/`.`-separated runs, with no

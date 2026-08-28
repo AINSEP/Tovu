@@ -25,7 +25,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../mail/index.js";
+import type { MailerPort } from "../../platform/mail/index.js";
 import type { OriginRegistryPort } from "../../origin/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 import { newsletterAgentToolCatalog } from "./agent-tools.js";

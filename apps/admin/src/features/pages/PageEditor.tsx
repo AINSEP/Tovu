@@ -1,4 +1,3 @@
-import type { RefObject } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
@@ -251,6 +250,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     dirty,
     contentDirty,
     templatePreviewUrl,
+    canvasStyling,
     save,
     remove,
     confirmingDelete,
@@ -353,7 +353,15 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       ) : view === "interactive" ? (
         // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
         // header for why it reads `html` once at mount rather than reacting to later prop changes.
-        <InteractiveHtmlEditor html={html} onChange={setHtml} />
+        // `canvasStyling` is read once at mount for that same reason, which is why this waits for it
+        // to settle instead of mounting an unstyled canvas that could never pick the theme up
+        // afterwards. The wait is normally invisible: `preview` is this screen's default tab, so the
+        // theme's token files have already loaded by the time anyone clicks Interactive.
+        canvasStyling.status === "pending" ? (
+          <div className="notice">Loading the theme's styles…</div>
+        ) : (
+          <InteractiveHtmlEditor html={html} onChange={setHtml} canvasStyling={canvasStyling.styling} />
+        )
       ) : (
         <textarea
           className="page-html-source"
@@ -477,9 +485,10 @@ function PagePreview({
   templatePreviewUrl: string;
   /** Frame element to measure and its live-measured width — both owned by `usePageEditor`
    *  (`hooks/use-page-editor.hooks.ts`), not local state, so they survive this component's own
-   *  mount/unmount as the operator switches tabs. See that hook's own comment on why the measuring
-   *  effect there is keyed on `view` rather than an empty dependency array. */
-  frameRef: RefObject<HTMLDivElement | null>;
+   *  mount/unmount as the operator switches tabs. `frameRef` is a CALLBACK ref, not a `RefObject` —
+   *  see that hook's own comment on why the measuring effect there is keyed on the frame node itself
+   *  rather than `view` or an empty dependency array. */
+  frameRef: (node: HTMLDivElement | null) => void;
   paneWidth: number;
 }) {
   const scale = Math.min(1, paneWidth / width);
@@ -497,6 +506,11 @@ function PagePreview({
 
   return (
     <>
+      {canShowLiveSite ? null : (
+        <p className="page-preview-notice">
+          {pagePreviewNotice({ canShowTemplatePreview, status })}
+        </p>
+      )}
       <div ref={frameRef} className="page-preview-frame" style={{ height: `${900 * scale}px` }}>
         <div
           className="page-preview-scaler"
@@ -511,11 +525,6 @@ function PagePreview({
           />
         </div>
       </div>
-      {canShowLiveSite ? null : (
-        <p className="page-preview-notice">
-          {pagePreviewNotice({ canShowTemplatePreview, status })}
-        </p>
-      )}
     </>
   );
 }
@@ -557,8 +566,17 @@ function PagePreviewFrame({
   return <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />;
 }
 
-/** The notice text under a preview that isn't the live site — one branch per `PagePreviewFrame` case
- *  minus the live-site one (which shows no notice at all; `PagePreview` skips calling this then). */
+/**
+ * The notice text above a preview that isn't the live site — one branch per `PagePreviewFrame` case
+ * minus the live-site one (which shows no notice at all; `PagePreview` skips calling this then).
+ *
+ * Rendered BEFORE `.page-preview-frame` in `PagePreview`, not after (visibility fix — the frame is up
+ * to 900px tall before scaling, `pages.css`'s `.page-preview-frame`; a notice placed below it needed a
+ * scroll past that height to ever be seen, which is exactly the gap `ADS-memory/reports/implementation/
+ * 2026-08-11-template-preview-render-bug.md` flagged and explicitly left unfixed — "not a missing
+ * feature, a visibility gap"). Placing it first means the raw-body fallback reads as an explained
+ * state as soon as the tab switches, instead of looking like the theme failed to load.
+ */
 function pagePreviewNotice({
   canShowTemplatePreview,
   status,

@@ -49,5 +49,5 @@ answer — re-hydrate from the core event outbox by `event_id`, add a payload co
   (`previousSecretVersion`) — `verifySignature` already accepts a header carrying multiple `v1=`
   values, but nothing in this task's scope constructs one yet.
 - SQLite adapters for `WebhookSubscriptionRepoPort` / `WebhookDeliveryRepoPort` (the other half
-  of each ADR-006 rule-of-two); the real guarded `HttpClientPort` transport is `src/http`'s job.
+  of each ADR-006 rule-of-two); the real guarded `HttpClientPort` transport is `src/platform/http`'s job.
 - The deferred `integration_secrets` / `SecretSealerPort` outbound-connector half (ADR-036 §8).

@@ -5,7 +5,7 @@ import type { ISODateTime, UUID } from "@jini-ai/cms/core";
  *
  * Purpose:
  * The five workspace-scoped records this feature's SQLite schema materializes 1:1
- * (`src/db/schema.ts`'s `deploymentEnvironments`/`deploymentTargets`/`releases`/`deploymentRuns`/
+ * (`src/platform/db/schema.ts`'s `deploymentEnvironments`/`deploymentTargets`/`releases`/`deploymentRuns`/
  * `deploymentRunEvents`). This is the FIRST vertical slice of a larger feature — see
  * `ADS-memory/reports/swarm-consensus/runs/2026-08-12-tovu-six-debates-FINAL.md` §6 for the full
  * design this slice implements a subset of. No repository or route wiring exists yet; this file and
@@ -97,7 +97,7 @@ export interface DeploymentRunRecord {
   readonly providerId: DeploymentProviderId;
   /**
    * `targetId`/`environmentId`/`releaseId` are nullable, backed by an `ON DELETE SET NULL` FK
-   * (`src/db/schema.ts`) rather than either a hard restrict or no FK at all: creation is still
+   * (`src/platform/db/schema.ts`) rather than either a hard restrict or no FK at all: creation is still
    * validated (a run cannot be inserted pointing at a target/environment/release that never
    * existed), deletion of any of the three is still permitted, and the run row survives with its
    * `providerId` + `providerRunRef` intact — exactly what the callback/poll resolution path needs,

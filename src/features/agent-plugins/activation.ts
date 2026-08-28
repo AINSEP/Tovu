@@ -6,7 +6,7 @@
  * Why this exists at all
  * ---------------------------------------------------------------------------
  * Until now there was no such record anywhere: `resolve-agent-plugin-refs.ts`'s own header says so
- * ("There is no record anywhere — confirmed 2026-08-21, zero hits in `src/db/` and `src/server/` —
+ * ("There is no record anywhere — confirmed 2026-08-21, zero hits in `src/platform/db/` and `src/server/` —
  * of which installed digest is 'the' current install"), and a package's mere presence under
  * `packages/sha256/*` was the whole of its authorization to be discovered, registered as a tool,
  * and injected into a run's prompt.

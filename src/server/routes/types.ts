@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { SiteProduct } from "../http/site/render.js";
 
-import type { ExportReport } from "#src/export/index";
+import type { ExportReport } from "#src/platform/export/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../contracts/core/commands/index.js";
 import type {
@@ -34,7 +34,7 @@ import type {
   MemberTierRepoPort,
 } from "../../features/members/index.js";
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
-import type { MailerPort } from "../../mail/index.js";
+import type { MailerPort } from "../../platform/mail/index.js";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation/index.js";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../features/webhooks/index.js";
 import type { WebhookSigner } from "../../features/webhooks/signing.js";
@@ -45,8 +45,8 @@ import type { PublishCredentialVerificationCache, PublishHistoryStore } from "..
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
-import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store.js";
-import type { ComposioConnectors } from "../../connectors/composio-service.js";
+import type { ComposioConfigRepoPort } from "../../platform/connectors/composio-config-store.js";
+import type { ComposioConnectors } from "../../platform/connectors/composio-service.js";
 import type { MediaProviderCredentialRepoPort } from "../../media/index.js";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type { ExternalMcpOAuthService } from "#src/assistant/external-mcp-oauth";
@@ -319,7 +319,7 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
    * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
    * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
-   * `PublishProviderId` union — see `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
+   * `PublishProviderId` union — see `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
@@ -350,7 +350,7 @@ export interface CredentialsDeps {
    * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
    * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
    * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
-   * those and from `vendorCredentialSetRepo` — see `src/db/schema.ts`'s `customCredentialSets` doc
+   * those and from `vendorCredentialSetRepo` — see `src/platform/db/schema.ts`'s `customCredentialSets` doc
    * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
    * vendor-keyed model).
    */
@@ -1172,7 +1172,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   deploymentsReadRepo: DeploymentsReadRepoPort;
   /**
-   * The static-site export engine (`src/export/site-exporter.ts`'s `exportSite`), injected here
+   * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
    * (shared by that route AND the `deployment_trigger_export` agent tool). This indirection is
    * REQUIRED, not stylistic: `site-exporter.ts` imports `createApp` from THIS file's own
@@ -1184,7 +1184,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * 'DOMAIN_SLICES' before initialization` (see `export-run.ts`'s file header for the full trace).
    * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
    * `server/deps.ts`'s `createSqliteRouteDeps()` — the two places safe to import
-   * `#src/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
+   * `#src/platform/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
    * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
    * field costs this file nothing even though `export-run.ts` sits under `features/`.
    */
@@ -1202,7 +1202,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   exportOutputRootDir: string;
   /**
    * Boots a real `Express` app — the SAME factory `server/app.ts` exports as `createApp`, injected
-   * here rather than imported directly by `src/export/site-exporter.ts` (`exportSite` needs to boot
+   * here rather than imported directly by `src/platform/export/site-exporter.ts` (`exportSite` needs to boot
    * an in-process copy of the app to crawl it over real HTTP — see that file's own header). A direct
    * `require("../server/app")` there was the one runtime edge closing `export -> server` (2026-08-16
    * architecture audit: dependency-cruiser flagged module cycle, propagation cost measured at 29.05%

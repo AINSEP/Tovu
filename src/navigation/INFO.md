@@ -18,7 +18,7 @@ index, and the resolved render model themes consume.
 - Keep navigation business rules inside this library, not in Express routes,
   shells, or theme code (ADR-020 §6 — themes receive resolved data only).
 - `entryRef`/`termRef`/`route` targets are resolved through the injected
-  `ResolveTargetHrefFn` seam (`resolver.ts`), never by importing `src/routing`
+  `ResolveTargetHrefFn` seam (`resolver.ts`), never by importing `src/platform/routing`
   directly — that library is owned and built separately (ADR-039). Wiring the
   real implementation in later is a DI swap, not a rewrite.
 - Repositories stay behind their ports (`MenuRepoPort` in `repo.memory.ts`,
@@ -64,7 +64,7 @@ index, and the resolved render model themes consume.
 
 - Swap `InMemoryMenuRepo` for an entries-backed adapter once the ADR-022
   generic entries system exists as reusable code.
-- Wire `resolver.ts`'s `ResolveTargetHrefFn` to `src/routing`'s real
+- Wire `resolver.ts`'s `ResolveTargetHrefFn` to `src/platform/routing`'s real
   `urlFor`/`isActive` once that library's shape is stable (ADR-039).
 - Add the `term_refs` (or extended `entry_refs`) schema once content-lib
   signs off, then promote `termRef` from "resolves to unavailable" to real

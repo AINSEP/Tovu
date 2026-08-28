@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useWiredPageEditor, usePageEditor } from "../hooks/use-page-editor.hooks";
 import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
+import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 
 /**
  * @file `usePageEditor` — regression coverage for a real data-loss bug found by external audit
@@ -85,9 +86,16 @@ function callsTo(pathFragment: string): unknown[] {
 
 /** Mounts `usePageEditor` and waits for `page` to load, absorbing the locale-hook's racing fetch. */
 async function mountLoaded(routeSlug: string, page: unknown) {
-  fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
-  fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
-  fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
+  // One merged body per queued response rather than three page-only ones: the three calls racing
+  // here are the page load, the presentation load, and the locale hook's own, in no fixed order, and
+  // the presentation reader now dereferences `settings.activeThemeId` (for the Interactive tab's
+  // canvas styling) rather than only picking one optional field off the top level. A body that
+  // satisfies every shape keeps this helper order-independent, which is the property it was written
+  // for.
+  const body = { post: page, activeThemeTemplates: [], settings: { activeThemeId: "basic" }, availableThemes: [] };
+  fetchMock.mockResolvedValueOnce(jsonResponse(body));
+  fetchMock.mockResolvedValueOnce(jsonResponse(body));
+  fetchMock.mockResolvedValueOnce(jsonResponse(body));
   const view = renderHook(() => useWiredPageEditor(routeSlug));
   await waitFor(() => expect(view.result.current.page).not.toBeNull());
   return view;
@@ -302,7 +310,11 @@ describe("injected port — usePageEditor with no fetch stub", () => {
     });
     const navigate = vi.fn();
     const t = (locale: string, key: string) => `${locale}:${key}`;
-    return { port, navigate, t, locale: "en" };
+    // Seeded empty, so every token fetch rejects and `canvasStyling` settles on "no styling" —
+    // the point of this block is that NOTHING here touches `fetch`, and an unseeded fake port is
+    // still a port.
+    const themeCanvasPort = createFakeThemeCanvasPort();
+    return { port, themeCanvasPort, navigate, t, locale: "en" };
   }
 
   it("loads the seeded page with zero fetch calls", async () => {
@@ -367,5 +379,116 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 
     expect(result.current.error).toBe("boom");
     expect(deps.navigate).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * `frameRef`/`paneWidth` — regression coverage for a real bug found by live measurement in Chrome
+ * (`http://localhost:5173/admin/pages/contact`, Preview tab): the preview scale was frozen at the
+ * `880` pre-measurement default (`.page-preview-scaler`'s `transform: scale(0.6875)` === `880/1280`)
+ * instead of the pane's real `1131px` width (`1131/1280` ≈ `0.8836`), leaving a large dead gutter next
+ * to every preview.
+ *
+ * Root cause: the measuring effect used to be `useRef` + a `[view]` dependency array. On an ordinary
+ * page load, `page` starts `null` and `PageEditor.tsx` renders only a loading notice — so
+ * `PagePreview` (and the frame div `frameRef` attaches to) does not exist on this hook's FIRST render.
+ * The `[view]`-keyed effect ran once at that render, found `frameRef.current` still `null`, and
+ * bailed — and since `view` never changes across the loading-to-loaded transition, it never got a
+ * second chance to attach. Fixed by converting `frameRef` to a callback ref and keying the effect off
+ * the node itself, so it fires exactly when React attaches the frame div, however late that is. See
+ * `use-page-editor.hooks.ts`'s measuring-effect comment for the full reasoning.
+ */
+describe("frameRef / paneWidth (preview-scale regression — frame mounts after the first render)", () => {
+  /**
+   * Minimal `ResizeObserver` stand-in. jsdom implements none at all (`__tests__/setup.ts`'s own
+   * comment says so, deliberately unstubbed everywhere else in this app so a test can't pass without
+   * the real measurement running) — this is the one test under `features/pages` that actually needs
+   * to drive a resize callback, so it stubs `ResizeObserver` locally rather than touching the shared
+   * setup file every other suite relies on staying unstubbed.
+   */
+  class FakeResizeObserver {
+    static instances: FakeResizeObserver[] = [];
+    readonly observed: Element[] = [];
+    constructor(readonly callback: ResizeObserverCallback) {
+      FakeResizeObserver.instances.push(this);
+    }
+    observe(el: Element) {
+      this.observed.push(el);
+    }
+    unobserve() {
+      /* not exercised by this test */
+    }
+    disconnect() {
+      /* not exercised by this test */
+    }
+  }
+
+  beforeEach(() => {
+    FakeResizeObserver.instances = [];
+    vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+  });
+
+  it("measures the frame once it mounts, even though it did not exist yet on the hook's first render", async () => {
+    // Models the real ordering that hid the bug: `getPage` is deliberately held open so `page` stays
+    // `null` past the hook's first render, the same window during which a real page load has nothing
+    // for `PagePreview` to render — the frame div `frameRef` would attach to simply doesn't exist yet.
+    let resolveGetPage!: () => void;
+    const pageLoaded = new Promise<void>((resolve) => {
+      resolveGetPage = resolve;
+    });
+    const port = createFakePageEditorPort({ page: HTML_PAGE });
+    const realGetPage = port.getPage;
+    port.getPage = async (routeSlug: string) => {
+      await pageLoaded;
+      return realGetPage(routeSlug);
+    };
+    const deps = {
+      port,
+      themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(),
+      t: (locale: string, key: string) => `${locale}:${key}`,
+      locale: "en",
+    };
+
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+
+    // First render: `page` hasn't loaded, so nothing has rendered a frame node for React to attach —
+    // `paneWidth` is still the pre-measurement default, and no observer exists yet.
+    expect(result.current.page).toBeNull();
+    expect(result.current.paneWidth).toBe(880);
+    expect(FakeResizeObserver.instances).toHaveLength(0);
+
+    // The load settles. This is exactly the moment the OLD `[view]`-keyed effect would have needed to
+    // re-run to have any chance of observing a frame that didn't exist a moment ago — but nothing
+    // here changes `view`, so under the old code it never got that chance.
+    await act(async () => {
+      resolveGetPage();
+      await pageLoaded;
+    });
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    // NOW the frame mounts for the first time. In the real app `PagePreview` renders once `page` is
+    // loaded and React calls the ref callback with the live DOM node; simulated directly here (this
+    // is a hook-level test with no `PagePreview` rendered around it) by invoking `frameRef` the same
+    // way React's own commit phase would.
+    const frameEl = document.createElement("div");
+    act(() => {
+      result.current.frameRef(frameEl);
+    });
+
+    expect(FakeResizeObserver.instances).toHaveLength(1);
+    expect(FakeResizeObserver.instances[0].observed).toContain(frameEl);
+
+    // The observer reports the frame's real measured width — 1131 is the live-measured value from
+    // the original bug report (`.page-preview-frame`'s real width on `/admin/pages/contact`), not a
+    // round number chosen to look right.
+    act(() => {
+      FakeResizeObserver.instances[0].callback(
+        [{ contentRect: { width: 1131 } } as ResizeObserverEntry],
+        FakeResizeObserver.instances[0] as unknown as ResizeObserver
+      );
+    });
+
+    expect(result.current.paneWidth).toBe(1131);
   });
 });

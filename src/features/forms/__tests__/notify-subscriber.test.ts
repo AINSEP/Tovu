@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryEventBus } from "../../../contracts/core/events/index.js";
 import type { DomainEvent } from "@jini-ai/cms/core";
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../../mail/index.js";
+import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../../platform/mail/index.js";
 import { registerFormNotifySubscriber } from "../notify-subscriber.js";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";

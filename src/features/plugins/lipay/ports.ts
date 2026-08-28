@@ -25,7 +25,7 @@
  * persistence and all idempotency), and all outbound HTTP goes through `ctx.httpClient` — the one
  * guarded ADR-038 seam — never a raw `fetch`.
  */
-import type { HttpClientPort } from "#src/http/index";
+import type { HttpClientPort } from "#src/platform/http/index";
 
 export interface Money {
   /** Integer amount in the currency's minor unit. Never a float, never assumed to be /100. */

@@ -12,7 +12,7 @@
  */
 import type { UUID } from "@jini-ai/cms/core";
 import type { KeyringPort } from "#src/features/webhooks/index";
-import type { MailerPort } from "#src/mail/index";
+import type { MailerPort } from "#src/platform/mail/index";
 import type { OriginRegistryPort } from "#src/origin/index";
 import type { ConfirmationDeps } from "#src/features/newsletter/confirmation";
 import type {

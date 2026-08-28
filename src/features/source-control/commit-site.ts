@@ -5,7 +5,7 @@ import path from "node:path";
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import type { ExportFailureSummary, ExportReport } from "#src/export/index";
+import type { ExportFailureSummary, ExportReport } from "#src/platform/export/index";
 
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
@@ -22,7 +22,7 @@ const require = createRequire(import.meta.url);
  *
  * Purpose:
  * "Wrap it, do not reimplement," same discipline `adapter.ts`'s own header states — this module runs
- * Tovu's real static exporter (`#src/export`'s `exportSite`, the SAME engine every publish target and
+ * Tovu's real static exporter (`#src/platform/export`'s `exportSite`, the SAME engine every publish target and
  * the admin's manual export route already drive), maps the resulting `ExportReport` into the flat
  * `{path, data}` shape {@link GitHubCommitAdapter.commit} takes, and hands that off. It does no GitHub
  * HTTP itself — that lives in `github-git-provider.ts`, injected here as {@link CommitSiteDeps.gitAdapter}.
@@ -278,9 +278,9 @@ function cleanupCommitRunDir(outputDir: string): void {
 /**
  * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
  * `static-publish/adapter.ts`'s identical helper. A static `import { firstExportFailure } from
- * "#src/export/index"` at this file's top would close a circular import the moment anything
+ * "#src/platform/export/index"` at this file's top would close a circular import the moment anything
  * reachable from `src/assistant` imports THIS module (`assistant/tool-registrations.ts ->
- * features/source-control/tool-registrations.ts -> commit-site.ts -> #src/export/index -> ... ->
+ * features/source-control/tool-registrations.ts -> commit-site.ts -> #src/platform/export/index -> ... ->
  * server/app.ts -> ... assistant`), the same class of `ReferenceError: Cannot access '...' before
  * initialization` `adapter.ts`'s own header documents having actually observed for the sibling
  * domain. `exportSite` itself no longer needs this treatment here (2026-08-20 RouteDeps-narrowing
@@ -288,12 +288,12 @@ function cleanupCommitRunDir(outputDir: string): void {
  * already the composition root's own lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so
  * threading a second lazy `require` for the same function here would be redundant, not merely
  * stylistic. `firstExportFailure` still needs its own lazy resolution, since it is a SEPARATE named
- * export of the same `#src/export/index` module and importing it eagerly would reopen the identical
+ * export of the same `#src/platform/export/index` module and importing it eagerly would reopen the identical
  * cycle regardless of `exportSite`'s own fix.
  */
 function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
-  return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
+  return (require("#src/platform/export/index") as typeof import("#src/platform/export/index")).firstExportFailure(report);
 }
 
 type CommitCredentialResult =
@@ -368,7 +368,7 @@ async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResu
   // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
   // architecture audit) — this used to check only `routes.failed`, so a page could export fine
   // while its own stylesheet or hero image 404s and the commit would still go through. See
-  // `firstExportFailure`'s own doc (`#src/export/index`) for the shared check both this function
+  // `firstExportFailure`'s own doc (`#src/platform/export/index`) for the shared check both this function
   // and `static-publish/adapter.ts`'s `publishStaticSite` now use.
   const failure = firstExportFailureLazily(report);
   if (failure) {

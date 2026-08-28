@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../src/db/sqlite/content-db.js";
+import { openContentDb } from "../../../src/platform/db/sqlite/content-db.js";
 
 /**
  * @file Adversarial coverage for `backfill-slug-collision-defaults.ts` — the cross-record
@@ -23,7 +23,7 @@ import { openContentDb } from "../../../src/db/sqlite/content-db.js";
  * to force all three.
  *
  * Runs the real script as a child process (`execFileSync`, same pattern
- * `src/db/__tests__/schema-postgres-drift.test.ts` already uses for a sibling `development/scripts/`
+ * `src/platform/db/__tests__/schema-postgres-drift.test.ts` already uses for a sibling `development/scripts/`
  * tool) against a throwaway `content.db` and a throwaway `TOVU_THEMES_DIR`, rather than importing the
  * script's module — the script's `main()` runs unconditionally at import time (matching both existing
  * `development/scripts/*.ts` precedents), so a child process is the only way to invoke it without

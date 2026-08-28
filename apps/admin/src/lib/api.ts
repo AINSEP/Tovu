@@ -519,7 +519,7 @@ export interface AdminPublishCredentialsSnapshot {
  * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
  * design (aliased to {@link AdminStaticPublishTargetId} so the two can never drift), and none of
  * GitLab, Bitbucket, or a *source* GitHub account is a static-publish target. See
- * `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
+ * `src/platform/db/schema.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
  * second table/type, not a wider union" reasoning this type mirrors on the client.
  */
 export type AdminSourceControlProviderId = "github" | "gitlab" | "bitbucket";
@@ -577,7 +577,7 @@ export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "me
  * custom-credentials.ts`) — never carries the token or username. Unlike
  * {@link AdminSourceControlCredentialSummary}, `baseUrl`/`category` ARE part of this summary: both
  * are stored in the clear server-side specifically so the Access Tokens list can group/filter a
- * custom row without decrypting it (see `src/db/schema.ts`'s `customCredentialSets` doc).
+ * custom row without decrypting it (see `src/platform/db/schema.ts`'s `customCredentialSets` doc).
  */
 export interface AdminCustomCredentialSummary {
   readonly id: string;
@@ -668,7 +668,7 @@ export interface AdminDeploymentsSnapshot {
 }
 
 /**
- * Whether this workspace has a Composio API key. Mirrors `src/connectors/composio-config-store.ts`'s
+ * Whether this workspace has a Composio API key. Mirrors `src/platform/connectors/composio-config-store.ts`'s
  * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
  *
  * Markers only, in both directions of the two-kinds-of-present distinction: `configured` says a key
@@ -1362,13 +1362,13 @@ export interface AdminRestorePointSummary {
   kind: string;
 }
 
-/** Database — schema drift (ADR-041 §3). Mirrors `src/db/drift.ts`'s `DriftStatus`, plus the
+/** Database — schema drift (ADR-041 §3). Mirrors `src/platform/db/drift.ts`'s `DriftStatus`, plus the
  *  `"unknown"` the server adds whenever either side of the comparison is unavailable. Kept as the
  *  full five-value union rather than a boolean precisely so `"unknown"` cannot be silently folded
  *  into either "fine" or "broken" — see `features/database/rules.ts`'s `resolveSchemaStateWarning`. */
 export type AdminSchemaDriftStatus = "in-sync" | "ahead" | "behind" | "diverged" | "unknown";
 
-/** One side of the drift comparison. Mirrors `src/db/drift.ts`'s `SchemaSnapshot`. */
+/** One side of the drift comparison. Mirrors `src/platform/db/drift.ts`'s `SchemaSnapshot`. */
 export interface AdminSchemaSnapshot {
   version: number;
   tag: string;

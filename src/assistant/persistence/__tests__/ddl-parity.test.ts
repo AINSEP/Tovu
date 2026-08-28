@@ -21,7 +21,7 @@ import { CHAT_HISTORY_DDL, createChatHistoryStore } from "@jini-ai/sqlite";
  * actual schema change fails.
  */
 
-const MIGRATION_PATH = join(process.cwd(), "src/db/drizzle/0023_ai_chat_history.sql");
+const MIGRATION_PATH = join(process.cwd(), "src/platform/db/drizzle/0023_ai_chat_history.sql");
 
 /**
  * Reduces DDL to its comparable shape: comments stripped, drizzle's statement markers removed,

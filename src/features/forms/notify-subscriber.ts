@@ -1,5 +1,5 @@
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import type { MailerPort } from "../../mail/index.js";
+import type { MailerPort } from "../../platform/mail/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 
 /**

@@ -1175,7 +1175,7 @@ commits `3cd312d`, `57d5d65`, `697d97e`, `f763bb9`, `3fead5a`, `169b74a`. These 
 deliberately deferred.
 
 **1. The JSON-mention regex fires on phrasing that means "not JSON."**
-`/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in `src/db/__tests__/migration-manifest.test.ts`
+`/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in `src/platform/db/__tests__/migration-manifest.test.ts`
 matches `"non-JSON"`, `"JSON Web Token (JWT)"`, `"JSON:API"`, `"GeoJSON-style … NOT parsed JSON"`.
 No such phrasing exists in `schema.ts` today (grep-confirmed). It fails **loud** — the suite breaks
 and someone rewords a comment or adds a `REVIEWED_JSON_COLUMNS` entry — so it cannot pass bad data
@@ -1230,7 +1230,7 @@ all.
 
 Related open blocker: onboarding a *customer* (as opposed to a developer) is gated on multi-workspace
 hosting, which does not exist yet — one running app resolves exactly one workspace at boot
-(`src/site-dir/resolve-workspace.ts:15-21`). See constraints doc §4.1.
+(`src/platform/site-dir/resolve-workspace.ts:15-21`). See constraints doc §4.1.
 
 ## ✅ RESOLVED (2026-08-24) — template shells were their own reachable URL (found 2026-08-15)
 
@@ -1251,7 +1251,7 @@ once — excluding `index` (served at `/`), `404` (the error document), and ever
 **Verified:** 2 regression tests in `src/server/routes/site/__tests__/pages.route.test.ts`, both
 confirmed RED first (200 where 404 was required) — one covering the template shells with a passing
 `/about` control proving the fixture was genuinely reachable, one covering `/404`. Scoped runs green
-afterwards: `src/features/theme/**` 464 pass, `src/export/**` + `src/server/routes/site/__tests__/**`
+afterwards: `src/features/theme/**` 464 pass, `src/platform/export/**` + `src/server/routes/site/__tests__/**`
 102 pass, `npx tsc -p tsconfig.json --noEmit` clean.
 
 **Real-world blast radius closed:** 6 themes on disk declare `templates` — `basic`, `portfolite`,
@@ -1266,7 +1266,7 @@ export output simply disagreed with the running site.
 **Original entry, kept for context below.**
 
 **Not being fixed now — recorded so it is not lost, per the deployment-work session's own tracking
-convention.** Found while building `src/export/route-manifest.ts` (the static-site exporter's route
+convention.** Found while building `src/platform/export/route-manifest.ts` (the static-site exporter's route
 enumeration).
 
 A static theme's `pages/*.html` folder (`DiscoveredTheme.pages`, `src/features/theme/theme.ts:290-297`)
@@ -1311,13 +1311,13 @@ built now.
 
 | Store | Repo file |
 |---|---|
-| Site / BYOK credentials | `src/db/sqlite/site-credential-repo.sqlite.ts` |
-| Publish targets | `src/db/sqlite/publish-credential-repo.sqlite.ts` |
-| Composio connector credentials | `src/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
-| Composio config | `src/db/sqlite/composio-config-repo.sqlite.ts` |
-| Admin execution credentials | `src/db/sqlite/execution-credential-repo.sqlite.ts` |
-| External MCP servers | `src/db/sqlite/external-mcp-repo.sqlite.ts` |
-| Media provider credentials | `src/db/sqlite/media-provider-credential-repo.sqlite.ts` |
+| Site / BYOK credentials | `src/platform/db/sqlite/site-credential-repo.sqlite.ts` |
+| Publish targets | `src/platform/db/sqlite/publish-credential-repo.sqlite.ts` |
+| Composio connector credentials | `src/platform/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
+| Composio config | `src/platform/db/sqlite/composio-config-repo.sqlite.ts` |
+| Admin execution credentials | `src/platform/db/sqlite/execution-credential-repo.sqlite.ts` |
+| External MCP servers | `src/platform/db/sqlite/external-mcp-repo.sqlite.ts` |
+| Media provider credentials | `src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts` |
 | Source control (in flight this session) | `source_control_credential_sets` |
 
 And five admin screens already accept a token: `features/settings/SettingsUi.tsx`,

@@ -22,7 +22,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  *
  * Lives in `static-publish/`, not this domain's sibling `features/deployments/export-run.ts` — a
  * DIFFERENT sub-feature (this file's own imports are `static-publish/adapter.ts`'s `publishStaticSite`
- * only, never `#src/export/index`), but the SAME reasoning `export-run.ts`'s header gives for its own
+ * only, never `#src/platform/export/index`), but the SAME reasoning `export-run.ts`'s header gives for its own
  * placement applies here too: `server/routes/admin/system/publish-site.ts` (a `src/server/**` file)
  * is free to import FROM this domain, but `publish-agent-tools.ts`'s own `tool-registrations.ts`-style
  * rule (see `deployments/tool-registrations.ts`'s file header) forbids the reverse — a domain's
@@ -51,7 +51,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
  * history is a separate, additional side effect performed alongside them, not folded into them, so a
  * reader auditing "what does settling a run do to the shared snapshot" is not also reading unrelated
  * persistence code. See `./publish-history.ts`'s own header for the storage design (an append-only
- * `publish_history` table, `src/db/schema.ts`; migration `0043`).
+ * `publish_history` table, `src/platform/db/schema.ts`; migration `0043`).
  *
  * `historyStore` is a REQUIRED parameter on both {@link startPublishRun} and
  * {@link runPublishAndAwait} — deliberately no module-level default the way this file's original

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { SqliteContentTypeRepo } from "../../repo.sqlite.js";
 import { deprecateContentType, registerContentType, updateContentTypeFields } from "../../index.js";
 

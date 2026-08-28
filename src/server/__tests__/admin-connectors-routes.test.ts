@@ -5,8 +5,8 @@ import express from "express";
 
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import { startFakeComposio } from "../../../development/e2e/fake-composio-server.js";
-import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service.js";
-import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory.js";
+import { composioUserIdFor, createComposioConnectors } from "../../platform/connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../../platform/connectors/connector-credential-store.memory.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createConnectorsModule } from "../modules/connectors.js";

@@ -151,3 +151,57 @@ test("substituteHtmlEmbeds: an unknown embed type is still substituted via resol
   const out = substituteHtmlEmbeds(html, (ref) => `[unknown-type:${ref.type}]`);
   assert.equal(out, "[unknown-type:some-future-type]");
 });
+
+test('substituteHtmlEmbeds: a "media" marker\'s own wrapper element (tag AND authored attributes, e.g. style) survives — only the marker\'s content becomes the resolved tag, unlike every other type\'s whole-element replace — and the now-dead data-embed-config attribute is stripped rather than shipped to the rendered output', () => {
+  const html = `<div style="max-width: 600px;" data-embed-config='{"type":"media","id":"asset-1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => `<video src="/m/asset-1/original" controls></video>`);
+  assert.equal(out, `<div style="max-width: 600px;"><video src="/m/asset-1/original" controls></video></div>`);
+});
+
+test('substituteHtmlEmbeds: a "media" marker\'s own tag/attrs survive even when it is a non-div container (nav, span, figure, …) — the wrapper-preserving behavior is not div-specific', () => {
+  const html = `<figure class="hero" data-embed-config='{"type":"media","id":"asset-1"}'></figure>`;
+  const out = substituteHtmlEmbeds(html, () => `<img src="/m/asset-1/x.jpg" alt="">`);
+  assert.equal(out, `<figure class="hero"><img src="/m/asset-1/x.jpg" alt=""></figure>`);
+});
+
+test('substituteHtmlEmbeds: a "media" marker authored DIRECTLY on a self-rendering tag (video/img/audio) falls back to whole-element replace — nesting the resolved tag inside an identical marker tag would not be meaningful, playable markup', () => {
+  const html = `<video data-embed-config='{"type":"media","id":"asset-1"}'></video>`;
+  const out = substituteHtmlEmbeds(html, () => `<video src="/m/asset-1/original" controls></video>`);
+  assert.equal(out, `<video src="/m/asset-1/original" controls></video>`);
+});
+
+test('substituteHtmlEmbeds: a "media" marker\'s own resolve() returning undefined still leaves it exactly as authored, same invariant as every other type', () => {
+  const html = `<div style="max-width: 600px;" data-embed-config='{"type":"media","id":"asset-1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => undefined);
+  assert.equal(out, html);
+});
+
+test('substituteHtmlEmbeds: a "widget" marker wrapped in its own div still gets the OLD whole-element replace — "widget" is deliberately excluded from wrapper-preservation because its resolved root tag is not a small, closed set (see WRAPPER_PRESERVING_EMBED_TYPES\'s own doc)', () => {
+  const html = `<div style="max-width: 600px;" data-embed-config='{"type":"widget","id":"w1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => "<section>widget output</section>");
+  assert.equal(out, "<section>widget output</section>");
+});
+
+test('substituteHtmlEmbeds: a "post" marker\'s own wrapper element (tag AND authored attributes) survives — "post" joined the wrapper-preserving group alongside "media" (both resolve through the same post-content IR)', () => {
+  const html = `<div class="spotlight" data-embed-config='{"type":"post","id":"post-1"}'></div>`;
+  const out = substituteHtmlEmbeds(
+    html,
+    () => `<div class="post-detail-header"><h1>Title</h1></div><div class="post-detail-body"><p>Body</p></div>`
+  );
+  assert.equal(
+    out,
+    `<div class="spotlight"><div class="post-detail-header"><h1>Title</h1></div><div class="post-detail-body"><p>Body</p></div></div>`
+  );
+});
+
+test('substituteHtmlEmbeds: a "content" marker\'s own wrapper element survives too — matches the realistic authored shape documented in embed-type-inventory.md (`<main class="page-body" data-embed-config=\'{"type":"content"}\'></main>`)', () => {
+  const html = `<main class="page-body" data-embed-config='{"type":"content"}'></main>`;
+  const out = substituteHtmlEmbeds(html, () => `<div class="post-detail-header"><h1>Title</h1></div><div class="post-detail-body"></div>`);
+  assert.equal(out, `<main class="page-body"><div class="post-detail-header"><h1>Title</h1></div><div class="post-detail-body"></div></main>`);
+});
+
+test('substituteHtmlEmbeds: "post"/"content" have no self-rendering-tag exception like "media" — a div-rooted resolution splices fine inside a same-named div marker, since (unlike video-in-video) div-in-div is ordinary markup', () => {
+  const html = `<div data-embed-config='{"type":"post","id":"post-1"}'></div>`;
+  const out = substituteHtmlEmbeds(html, () => `<div class="post-detail-header"><h1>Title</h1></div>`);
+  assert.equal(out, `<div><div class="post-detail-header"><h1>Title</h1></div></div>`);
+});

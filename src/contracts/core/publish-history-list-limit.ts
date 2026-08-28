@@ -9,15 +9,15 @@
  * to `db/sqlite/` "solved" that cycle but only by trading it for a different rule's warning
  * (`only-composition-constructs-concrete-adapters`, `.dependency-cruiser.cjs`): a `list` bound is a
  * policy constant, not a storage concern, and `publish-history.ts`'s own value-import of it from
- * `src/db/**` read as a feature reaching into a concrete adapter's home even though this file itself
- * has never held a Drizzle import.  Neither implementation's own file, nor `src/db/sqlite/`, nor
+ * `src/platform/db/**` read as a feature reaching into a concrete adapter's home even though this file itself
+ * has never held a Drizzle import.  Neither implementation's own file, nor `src/platform/db/sqlite/`, nor
  * `features/deployments/` is a valid neutral home — the first two ask the pure in-memory test double
  * to depend on the SQLite adapter's directory, and the third recreates the original `db <->
  * features/deployments` cycle this file was moved out of feature code to avoid. `src/contracts/core/` is the
- * one layer both `src/db/**` (precedent: `db/sqlite/watermark.ts`, `db/sqlite/db-ops.ts`,
+ * one layer both `src/platform/db/**` (precedent: `db/sqlite/watermark.ts`, `db/sqlite/db-ops.ts`,
  * `db/sqlite/entry-refs-repo.sqlite.ts` already import from `src/contracts/core/**`) and `src/features/**` may
  * depend on without creating an edge either rule polices — `core-no-server-or-app-imports` keeps the
- * dependency one-directional (`src/contracts/core` itself may never import `src/db`/`src/features` back). This
+ * dependency one-directional (`src/contracts/core` itself may never import `src/platform/db`/`src/features` back). This
  * file is dialect-agnostic (no Drizzle import) and dependency-free, so both implementations can depend
  * on it without depending on each other or on any particular storage layer.
  */

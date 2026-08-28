@@ -6,10 +6,10 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteDbOpsAdapter } from "#src/db/sqlite/db-ops";
-import { evaluatePostgresRestoreCapability } from "#src/db/postgres/db-ops";
-import { stampWatermarkTx } from "#src/db/sqlite/watermark";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteDbOpsAdapter } from "#src/platform/db/sqlite/db-ops";
+import { evaluatePostgresRestoreCapability } from "#src/platform/db/postgres/db-ops";
+import { stampWatermarkTx } from "#src/platform/db/sqlite/watermark";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the dialect-neutral `db-ops` restore-point capability
@@ -31,12 +31,12 @@ import { stampWatermarkTx } from "#src/db/sqlite/watermark";
  *   captureRestorePoint(required: { scopeId: string }): Promise<{ artifactRef: string; watermarkAtCapture: number }>;
  * }
  *
- * // src/db/sqlite/db-ops.ts
+ * // src/platform/db/sqlite/db-ops.ts
  * export class SqliteDbOpsAdapter implements DbOpsPort {
  *   constructor(deps: { db: ContentDb; filePath: string });
  * }
  *
- * // src/db/postgres/db-ops.ts (pure evaluation logic only — no live pg client here yet)
+ * // src/platform/db/postgres/db-ops.ts (pure evaluation logic only — no live pg client here yet)
  * export interface PostgresRestoreToolingConfig {
  *   pgDumpBinaryPath: string | null;
  *   credentialsPresent: boolean;

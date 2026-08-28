@@ -41,7 +41,7 @@ const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..");
 const DEPS_DIR = path.join(REPO_ROOT, "src", "server");
 
 /** The directory `site-dir/read-template.ts` resolves `TEMPLATES_ROOT` from. */
-const SITE_DIR_DIR = path.join(REPO_ROOT, "src", "site-dir");
+const SITE_DIR_DIR = path.join(REPO_ROOT, "src", "platform", "site-dir");
 
 /**
  * Both env overrides must be unset for these assertions to describe the package-relative default
@@ -94,7 +94,7 @@ test("site templates resolve to content/templates at the same relative offset", 
   assert.match(
     source,
     /path\.resolve\(import\.meta\.dirname,\s*"\.\.\/\.\.\/content\/templates"\)/,
-    "read-template.ts must resolve ../../content/templates so dist/src/site-dir lands on dist/content/templates",
+    "read-template.ts must resolve ../../content/templates so dist/src/platform/site-dir lands on dist/content/templates",
   );
   assert.ok(existsSync(path.join(REPO_ROOT, "content", "templates", "starter", "template.json")));
 });

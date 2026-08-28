@@ -57,7 +57,7 @@ const COULD_NOT_CHECK_TITLE = "We could not check your database";
 /**
  * Decides whether the Database screen shows a drift warning, and which one.
  *
- * WHY A DEFAULT-TO-LOUD SHAPE: this function is the human-facing end of `src/db/drift.ts`'s
+ * WHY A DEFAULT-TO-LOUD SHAPE: this function is the human-facing end of `src/platform/db/drift.ts`'s
  * classification, which until now had no UI at all. Its governing rule is therefore negative — the
  * ONLY inputs that return `null` are a confirmed `"in-sync"` read and the pre-first-read state
  * (`state: null` with no error), where nothing has been claimed yet. Everything else returns a

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db.js";
+import { openContentDb } from "../../platform/db/sqlite/content-db.js";
 import { InMemoryWidgetRegionBindingRepo } from "../repo.memory.js";
 import { SqliteWidgetRegionBindingRepo } from "../repo.sqlite.js";
 import type { WidgetRegionBindingRepoPort } from "../ports.js";

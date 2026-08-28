@@ -404,7 +404,7 @@ describe("MigrateForwardSection — idle/planned/confirmed/done", () => {
 
 describe("drift warning", () => {
   /**
-   * The gap this section closes: `src/db/drift.ts` could classify a database as diverged, and
+   * The gap this section closes: `src/platform/db/drift.ts` could classify a database as diverged, and
    * nothing anywhere ever showed that to a person. These assertions are about VISIBILITY — that
    * the banner reaches the accessibility tree with an alert role, ahead of the screen's content,
    * and that silence is reserved for a confirmed-clean read.

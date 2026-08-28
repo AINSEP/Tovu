@@ -6,7 +6,7 @@ import type { SealedSecret } from "../webhooks/index.js";
  * @file Domain types for `custom_credential_sets` — the admin Access Tokens page's "Add custom
  * provider" capability (2026-08-17). Structurally the simplest of this codebase's three credential
  * tables: no `providerId` union (an operator-typed `label` IS the provider identity — see
- * `src/db/schema.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
+ * `src/platform/db/schema.ts`'s `customCredentialSets` doc), no `isDefault` group invariant, no
  * `accountLabel` probe. Every row is already its own independent, standalone credential.
  *
  * Architectural role: domain types only — no I/O, no sealer/keyring dependency. `store.ts` is the

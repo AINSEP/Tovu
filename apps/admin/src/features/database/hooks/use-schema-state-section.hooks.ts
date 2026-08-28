@@ -10,7 +10,7 @@ import type { SchemaStateSectionPort } from "./schema-state-section-port.hooks";
  * @file Everything the Database screen's drift warning does, so `Database.tsx` stays markup only.
  * Same `useX(dependencies)` / `useWiredX()` shape as this feature's three older sections.
  *
- * This is the client half of the gap closed on 2026-08-24: `src/db/drift.ts`'s `getDriftStatus` was
+ * This is the client half of the gap closed on 2026-08-24: `src/platform/db/drift.ts`'s `getDriftStatus` was
  * built, correct, and reachable only from an agent tool, so a site owner on a diverged database was
  * never told. `Database.tsx`'s own header used to record the drift banner as having "no route yet".
  *

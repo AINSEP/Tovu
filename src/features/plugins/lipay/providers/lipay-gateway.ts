@@ -24,7 +24,7 @@
  */
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { HttpResponse } from "#src/http/index";
+import type { HttpResponse } from "#src/platform/http/index";
 import type {
   ChargeNextAction,
   PaymentError,

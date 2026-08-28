@@ -60,9 +60,9 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "..
 import { InMemoryKeyring } from "../features/webhooks/keyring.memory.js";
 import { createKeyringBackedSigner } from "../features/webhooks/signing.keyring.js";
 import { AesGcmSecretSealer } from "../features/webhooks/secret-sealer.aesgcm.js";
-import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory.js";
-import { createComposioConnectors } from "../connectors/composio-service.js";
-import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory.js";
+import { InMemoryComposioConfigRepo } from "../platform/connectors/composio-config-store.memory.js";
+import { createComposioConnectors } from "../platform/connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../platform/connectors/connector-credential-store.memory.js";
 import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory.js";
 import {
   InMemoryAssetBlobRepo,
@@ -103,7 +103,7 @@ import {
   registerRedirectsPhaseHandlers,
   type RedirectsWriteDeps,
 } from "../features/redirects/index.js";
-import { registerSlugChangeCapture } from "../routing/index.js";
+import { registerSlugChangeCapture } from "../platform/routing/index.js";
 import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory.js";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../features/entries/index.js";
@@ -130,7 +130,7 @@ import {
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../contracts/core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
+import { wrapMailerWithPurposeGate } from "../platform/mail/purpose-scoped-mailer.js";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term.js";
 import { registerAdminDatabaseMigrateForwardRoutes } from "./routes/admin/database/migrate-forward.js";
 import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore.js";
@@ -162,7 +162,7 @@ import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
 import { createConnectorsModule } from "./modules/connectors.js";
 import { createExternalMcpModule } from "./modules/external-mcp.js";
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService } from "#src/assistant/index";
-import { createPendingAuthorizationStore } from "#src/oauth/index";
+import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import { createMediaModule } from "./modules/media.js";
 import { createTaxonomyModule } from "./modules/taxonomy.js";
 import { createContentModule } from "./modules/content.js";
@@ -746,7 +746,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // for the exact bug this ordering closes).
     exportSiteBound: (opts) =>
       // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
-      (require("../export/index.js") as typeof import("../export/index.js")).exportSite({ ...opts, routeDeps }),
+      (require("../platform/export/index.js") as typeof import("../platform/export/index.js")).exportSite({ ...opts, routeDeps }),
   };
   return routeDeps;
 }
@@ -754,14 +754,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
 /**
  * `exportSite`, resolved at CALL time instead of at import time.
  *
- * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/export/site-exporter.ts` imports `createApp` from THIS
+ * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/platform/export/site-exporter.ts` imports `createApp` from THIS
  * file — deliberately, because exporting drives the real app rather than re-implementing rendering.
- * A static `import { exportSite } from "../export/index.js"` here therefore closes a cycle:
+ * A static `import { exportSite } from "../platform/export/index.js"` here therefore closes a cycle:
  *
  *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
  * `routes/types.ts`'s `runExportSite` doc previously called this file one of "the two places safe
- * to import `#src/export/index` directly, since neither is reachable from
+ * to import `#src/platform/export/index` directly, since neither is reachable from
  * `assistant/tool-registrations.ts`." That was true when written and became false on 2026-08-15:
  * the agent daemon's entry point is `src/assistant/agent-daemon-server.ts`, which imports this
  * file, so the cycle is entered from inside `src/assistant` and the barrel is only half-initialised
@@ -786,7 +786,7 @@ const require = createRequire(import.meta.url);
 
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../export/index.js") as typeof import("../export/index.js")).exportSite(options);
+  (require("../platform/export/index.js") as typeof import("../platform/export/index.js")).exportSite(options);
 
 /**
  * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
@@ -963,7 +963,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that
   // section's own domain permission. See that route file's header for why that difference matters.
   registerAdminSiteProfileRoute(app, routeDeps);
-  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/export/`).
+  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/platform/export/`).
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
   registerAdminExportSiteRoutes(app, routeDeps);

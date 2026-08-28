@@ -82,7 +82,11 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setView: vi.fn(),
     device: "desktop",
     setDevice: vi.fn(),
-    frameRef: { current: null },
+    // Callback ref — `usePageEditor`'s real `frameRef` is `setFrameNode`, not a `RefObject` (see
+    // `use-page-editor.hooks.ts`'s measuring-effect comment). A `vi.fn()` is a fine stand-in here:
+    // `PagePreview`'s `<div ref={frameRef}>` just needs something callable to attach, and none of
+    // these characterisation tests assert on calls into it.
+    frameRef: vi.fn(),
     paneWidth: 880,
     saving: false,
     dirty: false,
@@ -93,6 +97,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // restating that logic. A test proving the seam itself overrides this with a value the real `api`
     // could never produce (see "the preview iframe's src comes from the injected controller" below).
     templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
+    // Settled-with-no-styling by default: the Interactive tab then mounts a real GrapesJS editor
+    // exactly as it did before canvas styling existed, so no test here has to wait on a theme fetch.
+    canvasStyling: { status: "ready", styling: {} },
     save: vi.fn(),
     remove: vi.fn(),
     confirmingDelete: false,
@@ -380,6 +387,22 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
   });
 
+  // Visibility-gap fix — `.page-preview-frame` renders up to 900px tall (`pages.css`), so a notice
+  // placed AFTER it needed a scroll past that height to ever be seen. That gap was already diagnosed
+  // and explicitly left unfixed by `ADS-memory/reports/implementation/
+  // 2026-08-11-template-preview-render-bug.md` ("not a missing feature, a visibility gap") — an
+  // operator who edits a page's HTML and switches to Preview without scrolling saw only an unstyled
+  // wall of text with no visible explanation, indistinguishable from the theme CSS failing to load.
+  // Asserts DOM order (notice before the iframe) rather than just presence, since presence alone
+  // already passed before this fix — the bug was never that the notice was missing, only unreachable
+  // without scrolling.
+  it("places the raw-body-fallback notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
+    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
+    const notice = screen.getByText(/save your changes to preview them with the theme/i);
+    const preview = screen.getByTitle("Page preview");
+    expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("renders an editable HTML textarea (not the preview) in html view", () => {
     renderEditor({ view: "html", html: "<p>hi</p>" });
     expect(screen.getByLabelText("Page HTML")).toHaveValue("<p>hi</p>");
@@ -396,6 +419,16 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   it("hides the device width toggle in html view", () => {
     renderEditor({ view: "html" });
     expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
+  });
+
+  // The one interactive-view assertion that does NOT mount GrapesJS, and the regression this
+  // pins: the tab used to mount the editor unconditionally, which meant it could mount before the
+  // active theme's CSS had resolved — and `InteractiveHtmlEditor` reads its canvas styling once, at
+  // mount, so that canvas stayed unstyled (browser-default Times on white) for the rest of its life
+  // no matter what arrived afterwards. See `use-theme-canvas-styling.hooks.ts`.
+  it("waits for the theme's canvas styling instead of mounting the editor unstyled", () => {
+    renderEditor({ view: "interactive", canvasStyling: { status: "pending" } });
+    expect(screen.getByText(/loading the theme/i)).toBeInTheDocument();
   });
 
   // No "renders in interactive view" test: `InteractiveHtmlEditor` mounts a real GrapesJS editor,

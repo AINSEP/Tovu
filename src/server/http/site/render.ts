@@ -245,7 +245,7 @@ function safeHref(value: JsonValue | undefined): string {
  *
  * Note there is deliberately no server-side fetch anywhere in this path: the emitted URL is loaded
  * by the READER's browser, so this introduces no SSRF surface. Ingesting the URL server-side to
- * mint a real ref would — and would also have to solve `src/http`'s (ADR-038) UTF-8 text buffering,
+ * mint a real ref would — and would also have to solve `src/platform/http`'s (ADR-038) UTF-8 text buffering,
  * which corrupts binary bytes. See `PostEditor.tsx`'s toolbar comment for that full trade-off.
  */
 
@@ -2109,8 +2109,64 @@ function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
  */
 export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
   if (!extraHead) return html;
-  const withoutOwnTitle = extraHead.includes("<title>") ? html.replace(/<title>[\s\S]*?<\/title>/i, "") : html;
+  const withoutOwnTitle = extraHead.includes("<title>") ? removeThemeOwnTitleElement(html) : html;
   return /<\/head>/i.test(withoutOwnTitle) ? withoutOwnTitle.replace(/<\/head>/i, `${extraHead}</head>`) : withoutOwnTitle;
+}
+
+/**
+ * True when `index` falls inside an HTML comment. Walks `<!--`/`-->` pairs from the start rather
+ * than pattern-matching around `index`, because only a left-to-right scan can tell an opener that is
+ * still open at `index` from one that already closed before it. An unterminated `<!--` is treated as
+ * swallowing everything after it, which is exactly what a browser's parser does.
+ *
+ * @complexity O(n) over `html`'s length.
+ */
+function isInsideHtmlComment(html: string, index: number): boolean {
+  const CLOSE = "-->";
+  let cursor = 0;
+  for (;;) {
+    const open = html.indexOf("<!--", cursor);
+    if (open === -1 || open > index) return false;
+    const close = html.indexOf(CLOSE, open + "<!--".length);
+    if (close === -1 || index < close + CLOSE.length) return true;
+    cursor = close + CLOSE.length;
+  }
+}
+
+/**
+ * Remove the document's own `<title>` element — the FIRST one that is real markup rather than an
+ * incidental mention inside an HTML comment.
+ *
+ * The naive `html.replace(/<title>[\s\S]*?<\/title>/i, "")` this replaces was a live bug, not a
+ * hypothetical one: `themes/static/basic/render/pages/page-shell.html`'s head opens with a comment
+ * explaining its title placeholder, and that prose says `<title>` literally. The unanchored pattern
+ * matched the mention inside the comment and ran its lazy tail to the real `</title>` further down,
+ * deleting the comment's own `-->` along the way. Every head element after it — the theme-token
+ * `<style>`, the `theme.css` link, the theme-toggle script — then parsed as comment text, so
+ * `/contact`, `/team`, `/faq` and `/terms-of-service` served completely unstyled pages that looked
+ * blank above the fold. Scanning for the first *uncommented* occurrence is the same lesson
+ * {@link injectPageTitle} (`features/theme/static-render.ts`) already learned on this very template;
+ * that one anchors on the placeholder's exact element text, which is unavailable here because this
+ * runs after the placeholder has been substituted with a real title.
+ *
+ * Skipping only the OPEN tag (not a whole candidate element) matters: a lazy whole-element match
+ * starting inside the comment consumes the real title as its tail, so a scan that rejected whole
+ * matches would find no second candidate and leave two competing `<title>` tags on the page.
+ *
+ * @complexity O(n·k) worst case over `html`'s length and the number of `<title>` occurrences — k is
+ * 1 or 2 for any real template.
+ */
+function removeThemeOwnTitleElement(html: string): string {
+  const openTag = /<title>/gi;
+  for (let open = openTag.exec(html); open !== null; open = openTag.exec(html)) {
+    if (isInsideHtmlComment(html, open.index)) continue;
+    const closeTag = /<\/title>/gi;
+    closeTag.lastIndex = open.index + open[0].length;
+    const close = closeTag.exec(html);
+    if (close === null) return html;
+    return html.slice(0, open.index) + html.slice(close.index + close[0].length);
+  }
+  return html;
 }
 
 /**

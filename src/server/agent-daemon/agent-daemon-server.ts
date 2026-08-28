@@ -90,7 +90,7 @@ import { registerEnabledPluginCapabilityTools } from "../../features/plugin-runt
 import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
-import { openContentDb } from "../../db/sqlite/content-db.js";
+import { openContentDb } from "../../platform/db/sqlite/content-db.js";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
@@ -100,7 +100,7 @@ import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { createPendingAuthorizationStore } from "#src/oauth/index";
+import { createPendingAuthorizationStore } from "#src/platform/oauth/index";
 import {
   listAssistantAgents,
   rescanAssistantAgents,

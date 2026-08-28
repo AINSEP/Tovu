@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
-import { isOAuthError } from "#src/oauth/index";
+import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/contracts/core/rate-limit/rate-limit";
 import { EXTERNAL_MCP_CALLBACK_MESSAGE_TYPE, renderOAuthCallbackPage, type OAuthCallbackFailureReason } from "../oauth/callback-page.js";
@@ -65,7 +65,7 @@ function parseCallbackQuery(query: Record<string, unknown>): { state: string; co
  * This is the whole security boundary for this route: it reads only `error.code` — a closed union,
  * `OAuthErrorCode` — or the error's class identity, and NEVER `error.message` or
  * `OAuthError.providerErrorCode`, either of which can carry a provider's own response text verbatim
- * (see `src/oauth/errors.ts`'s header). Whatever this function returns is
+ * (see `src/platform/oauth/errors.ts`'s header). Whatever this function returns is
  * safe to render and safe to put in the `postMessage` payload, because it can only ever be one of
  * the six fixed strings in {@link OAuthCallbackFailureReason} — nothing it reads from `error` can
  * reach the return value directly.

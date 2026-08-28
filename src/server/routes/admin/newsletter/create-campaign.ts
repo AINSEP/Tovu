@@ -44,7 +44,7 @@ function parseCreateCampaignBody(rawBody: unknown): {
  * DISCLOSED GAP (found while wiring, not fixed — out of this dispatch's scope, which is routes
  * only): api.spec.md's request contract names a required `bodyJson` field (the campaign's TipTap
  * document), but `campaign-write-service.ts`'s `saveCampaign` (Stage 2, already implemented) has no
- * such field on its input, and `src/db/schema.ts`'s `newsletterCampaigns` table has no
+ * such field on its input, and `src/platform/db/schema.ts`'s `newsletterCampaigns` table has no
  * body/content column at all — ADR-PIPE-011 Decision §2 superseded the original ADR-034 draft's
  * "campaign is an `entries` content-type row" design with a bespoke Drizzle pair that only carries
  * the envelope fields (subject/preheader/from/replyTo/listId), and api.spec.md's request contract

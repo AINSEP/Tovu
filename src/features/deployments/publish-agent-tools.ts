@@ -93,12 +93,12 @@ import {
 import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 // TYPE-ONLY — fully erased at compile time, so this creates no runtime require() and cannot recreate
-// the circular-load crash a VALUE import of `#src/export/index` caused inside `export-run.ts` and
+// the circular-load crash a VALUE import of `#src/platform/export/index` caused inside `export-run.ts` and
 // (via `static-publish/adapter.ts`'s own former `exportSiteLazily`) inside this feature's own preview
 // tool wiring — see `adapter.ts`'s header for that trace. `ExportReport` is needed here only to type
 // {@link ExportSiteBoundFn}'s return value — see that type's own doc for why this file declares its
 // own copy rather than naming `RouteDeps` (2026-08-20 RouteDeps-narrowing fix).
-import type { ExportReport } from "#src/export/index";
+import type { ExportReport } from "#src/platform/export/index";
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "./publish-credentials/index.js";

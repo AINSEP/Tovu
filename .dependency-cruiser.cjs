@@ -40,7 +40,7 @@ const HAND_WRITTEN_RULES = [
       severity: "error",
       comment: "src/contracts/** may not import src/server/**, apps/**, feature slices, or concrete infrastructure adapters.",
       from: { path: "^src/contracts", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(src/server|apps|src/features|src/db)" },
+      to: { path: "^(src/server|apps|src/features|src/platform/db)" },
     },
     {
       // Investigated widening `from` to also cover `assistant`/`widgets`/`export` (2026-08-19,
@@ -54,7 +54,7 @@ const HAND_WRITTEN_RULES = [
       //
       // Also investigated and REJECTED (2026-08-19, same pass): `dependencyTypesNot: ["type-only"]`
       // on `to`, to exempt `import type { RouteDeps }` edges the way `only-composition-constructs-
-      // concrete-adapters` exempts type-only `src/db` edges below. That precedent does not transfer:
+      // concrete-adapters` exempts type-only `src/platform/db` edges below. That precedent does not transfer:
       // the adapters rule polices RUNTIME CONSTRUCTION (a type-only edge cannot construct anything),
       // but this rule is a "knows-about" boundary — `features/source-control`/`features/deployments`
       // cannot be lifted, tested, or reasoned about independently while they NAME `RouteDeps` by
@@ -111,7 +111,7 @@ const HAND_WRITTEN_RULES = [
     {
       name: "only-composition-constructs-concrete-adapters",
       severity: "warn",
-      // This rule polices RUNTIME construction of a concrete `src/db` adapter from feature code, not
+      // This rule polices RUNTIME construction of a concrete `src/platform/db` adapter from feature code, not
       // type contracts — `dependencyTypesNot: ["type-only"]` below (same mechanism the
       // `no-deep-value-imports-from-db-sqlite` rule family uses, for the identical reason) excludes
       // `import type` edges, e.g. a feature importing `db/drift`'s `DriftStatus`/`SchemaSnapshot`
@@ -124,7 +124,7 @@ const HAND_WRITTEN_RULES = [
       // index (`features/post/search-index.{sqlite,memory}.ts`) is the same category of file — a
       // concrete storage adapter behind a port — under a different name, because it backs
       // `PostSearchPort` rather than `PostRepoPort`. Exempted by name for the same reason `repo.*`
-      // is, not as a loosening: everything else under `src/features` still may not reach `src/db`.
+      // is, not as a loosening: everything else under `src/features` still may not reach `src/platform/db`.
       // `html-document-store.{sqlite,memory}.ts` (Pages' `HtmlDocumentStore` port, 2026-08-17) is the
       // same category again — a real adapter (`html-document-store.sqlite.ts` value-imports the
       // `posts` drizzle table) renamed to carry the `.sqlite.ts` marker rather than special-cased by
@@ -143,7 +143,7 @@ const HAND_WRITTEN_RULES = [
       // counting known-legitimate integration tests so its remaining signal is real, which is also a
       // precondition for ever promoting it past `warn`.
       from: { path: "^src/features", pathNot: ["^src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
-      to: { path: "^src/db", dependencyTypesNot: ["type-only"] },
+      to: { path: "^src/platform/db", dependencyTypesNot: ["type-only"] },
     },
     {
       // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the one
@@ -155,14 +155,14 @@ const HAND_WRITTEN_RULES = [
       // That is a genuine cross-boundary anti-drift check, not a production dependency — INV-06
       // (site-dir stays CLI/Express-agnostic so a future non-CLI host, ADR-011, can reuse it) is
       // about PRODUCTION code; grep confirms this is the ONLY server/cli/express import anywhere
-      // under src/site-dir/, and it is confined to __tests__/. Same "contract/integration test
+      // under src/platform/site-dir/, and it is confined to __tests__/. Same "contract/integration test
       // needs the real concrete internals" reasoning `core-no-server-or-app-imports` and
       // `only-composition-constructs-concrete-adapters` (both above) already accept via the
       // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape.
       name: "site-dir-no-server-express-or-cli-imports",
       severity: "warn",
-      comment: "SPEC-003 (ADR-PIPE-003) — src/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
-      from: { path: "^src/site-dir", pathNot: ".*/__tests__/.*" },
+      comment: "SPEC-003 (ADR-PIPE-003) — src/platform/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
+      from: { path: "^src/platform/site-dir", pathNot: ".*/__tests__/.*" },
       to: { path: "^(src/server|src/cli|node_modules/express)" },
     },
     {
@@ -170,7 +170,7 @@ const HAND_WRITTEN_RULES = [
       severity: "warn",
       comment: "SPEC-003 (ADR-PIPE-003) — src/cli/** dispatches to site-dir/server only; it never touches Drizzle or the schema module directly.",
       from: { path: "^src/cli" },
-      to: { path: "^(drizzle-orm|src/db/schema\\.ts)" },
+      to: { path: "^(drizzle-orm|src/platform/db/schema\\.ts)" },
     },
     {
       name: "plugin-loading-internals-confined-to-plugin-runtime",
@@ -225,17 +225,17 @@ const GUARDED_MODULES = [
   "features/workspace",
   "features/forms",
   "contracts/headless",
-  "http",
-  "mail",
+  "platform/http",
+  "platform/mail",
   "media",
   "features/members",
   "navigation",
   "features/newsletter",
   "origin",
   "features/redirects",
-  "routing",
+  "platform/routing",
   "seo",
-  "site-dir",
+  "platform/site-dir",
   // Renamed from "integrations" (2026-08-17), then re-pathed from `webhooks` when the six
   // misplaced feature slices moved under `src/features/` (2026-08-27) — the folder is
   // `src/features/webhooks/` now. The rule name is derived from this string, so leaving a stale
@@ -273,7 +273,7 @@ const COMPOSITION_ROOTS = [
 // would be reaching for behavior instead of a contract. Confirmed both independently and by
 // `2026-08-13-api-surface-trace-assistant.md` §3.2: "the textbook-correct hexagonal direction:
 // the consumer of a port defines its shape; the adapter imports that shape to implement it."
-const DB_SQLITE = "^src/db/sqlite";
+const DB_SQLITE = "^src/platform/db/sqlite";
 
 // CODEBASE-WIDE SEAM: every domain module's own tool-registrations.ts/agent-tools.ts is a second,
 // deliberate public surface. `assistant/tool-registrations.ts` imports ALL 22 domains this way
@@ -432,7 +432,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "features/theme",
   "features/commerce",
   "seo",
-  "routing",
+  "platform/routing",
   "features/members",
   // 2026-08-18 cheap-tail sweep (session 16 handoff's "Next Steps" item 1) — each driven to 0 and
   // re-verified:
@@ -452,7 +452,7 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "widgets/resolvers",
   "media",
   "features/comments",
-  "site-dir",
+  "platform/site-dir",
 ]);
 
 function noDeepImportRules(mod) {

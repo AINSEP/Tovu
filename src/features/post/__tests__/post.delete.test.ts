@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import { openContentDb } from "#src/db/sqlite/content-db";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import {
   createPost,
   deletePost,

@@ -67,8 +67,8 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../src/db/sqlite/db-ops.js";
+import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
+import { SqliteDbOpsAdapter } from "../../src/platform/db/sqlite/db-ops.js";
 import { builtInThemesDir } from "../../src/server/deps.js";
 import { discoverAllBuiltInThemes } from "../../src/features/theme/index.js";
 

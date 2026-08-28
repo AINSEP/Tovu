@@ -11,9 +11,9 @@ import {
   rolePolicies,
   roles,
   sessions,
-} from "../db/schema.js";
-import type { ContentDb } from "../db/sqlite/content-db.js";
-import { findOneBy } from "../db/sqlite/repo-helpers.js";
+} from "../platform/db/schema.js";
+import type { ContentDb } from "../platform/db/sqlite/content-db.js";
+import { findOneBy } from "../platform/db/sqlite/repo-helpers.js";
 
 import type { ApiKeyRecord, ApiKeyRepoPort } from "./api-key-types.js";
 import type {

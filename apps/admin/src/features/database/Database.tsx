@@ -23,7 +23,7 @@ import { t, planReadyMessage } from "./database-i18n";
  *
  * The DRIFT BANNER now exists (2026-08-24, `SchemaStateWarningBanner` below), backed by the new
  * `GET /api/admin/v1/database/schema-state` route. It was previously listed here as having "no
- * route yet": `src/db/drift.ts`'s `getDriftStatus` had been built and correct for some time, but
+ * route yet": `src/platform/db/drift.ts`'s `getDriftStatus` had been built and correct for some time, but
  * its only caller was the `database_get_schema_state` AGENT tool, so a site owner whose database
  * had diverged had no surface that would ever tell them. Read-only — it reports, and offers no
  * repair action of its own; migrate-forward below remains the only write path.

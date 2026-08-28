@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createDeviceAuthorizationStore, createExternalMcpOAuthService, saveExternalMcpServer } from "../../assistant/index.js";
-import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../oauth/index.js";
+import { createPendingAuthorizationStore, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createExternalMcpModule } from "../modules/external-mcp.js";

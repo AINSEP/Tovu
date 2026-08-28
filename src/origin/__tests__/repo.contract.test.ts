@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db.js";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../db/sqlite/origin-repo.sqlite.js";
+import { openContentDb } from "../../platform/db/sqlite/content-db.js";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../platform/db/sqlite/origin-repo.sqlite.js";
 import { InMemoryOriginSettingRepo } from "../repo.memory.js";
 import { createVerifiedOrigin } from "../types.js";
 import type { OriginSettingRepoPort } from "../ports.js";

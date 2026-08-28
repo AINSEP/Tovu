@@ -365,7 +365,7 @@ Two genuinely different mechanisms live on a `Post` row. Conflating them caused 
 
 ### 7.1 `templateChoice` — which static-theme page template a Post renders through
 
-`templateChoice: string | null` (`src/features/post/post.ts:97`, DB column `template_choice`, `src/db/schema.ts:107`) is a **tri-state**, and the difference between two of its values is the entire point:
+`templateChoice: string | null` (`src/features/post/post.ts:97`, DB column `template_choice`, `src/platform/db/schema.ts:107`) is a **tri-state**, and the difference between two of its values is the entire point:
 
 | Value | Meaning | Render result |
 |---|---|---|
@@ -379,7 +379,7 @@ This whole path only runs when the active theme is `static` **and** declares a n
 
 ### 7.2 `overridesThemePage` — slug-collision tiebreak between a Post and a theme's own marketing page
 
-`overridesThemePage: boolean` (default `false`, `src/db/schema.ts:117`) only matters when a real Post's slug happens to collide with one of the active static theme's own `pages/*.html` filenames (e.g. a post at slug `about` colliding with `pages/about.html`). By default, **the theme's page wins** — it's a reserved, reliable namespace. Setting `overridesThemePage: true` on the specific post (an explicit author action, made after the admin UI warns about the collision) flips that one post to win instead (`pages.ts:497-521`, schema comment `db/schema.ts:108-116`).
+`overridesThemePage: boolean` (default `false`, `src/platform/db/schema.ts:117`) only matters when a real Post's slug happens to collide with one of the active static theme's own `pages/*.html` filenames (e.g. a post at slug `about` colliding with `pages/about.html`). By default, **the theme's page wins** — it's a reserved, reliable namespace. Setting `overridesThemePage: true` on the specific post (an explicit author action, made after the admin UI warns about the collision) flips that one post to win instead (`pages.ts:497-521`, schema comment `db/schema.ts:108-116`).
 
 This has nothing to do with which template a post renders through (that's §7.1) — it only decides *whether the post gets to render at all* at a slug the theme also claims.
 

@@ -1,4 +1,4 @@
-import { ValidationError } from "../../site-dir/index.js";
+import { ValidationError } from "../../platform/site-dir/index.js";
 import type { CliManifest } from "../introspect.js";
 import { toMcpTools } from "../introspect.js";
 

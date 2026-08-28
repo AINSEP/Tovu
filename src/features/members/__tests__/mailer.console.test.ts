@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ConsoleMailerAdapter } from "../mailer.console.js";
-import type { MailerSendOptions, OutboundEmail } from "../../../mail/index.js";
+import type { MailerSendOptions, OutboundEmail } from "../../../platform/mail/index.js";
 
 const SEND_OPTIONS: MailerSendOptions = {
   idempotencyKey: "idem-1",

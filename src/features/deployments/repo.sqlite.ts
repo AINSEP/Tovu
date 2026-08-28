@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 
-import { deploymentEnvironments, deploymentRuns, deploymentTargets, releases } from "../../db/schema.js";
-import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { deploymentEnvironments, deploymentRuns, deploymentTargets, releases } from "../../platform/db/schema.js";
+import type { ContentDb } from "../../platform/db/sqlite/content-db.js";
 import { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo.js";
 import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord, ReleaseSource } from "./types.js";
 

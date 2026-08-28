@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteOutboxAdapter } from "#src/db/sqlite/outbox-repo.sqlite";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
+import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
 import { InMemoryOutbox } from "../memory-bus.js";
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
 
