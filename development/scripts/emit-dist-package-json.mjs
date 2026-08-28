@@ -16,12 +16,12 @@
  *
  * WHY THIS FILE HAS TO EXIST:
  * Node resolves a `#`-prefixed specifier against the closest package.json above the *importing
- * file*. Source files under `src/` therefore resolve against the repo-root package.json, whose
- * mapping points at TypeScript (`"#src/*": "./src/*.ts"`) — correct for `tsx` in dev and for
- * `tsc`'s own resolution. The compiled files under `dist/src/` would resolve against that same
- * root mapping and try to `require()` a `.ts` file, which fails at boot. Dropping a second
- * package.json into `dist/` re-scopes them: `dist/src/**` now resolves against `dist/package.json`
- * and its `"#src/*": "./src/*.js"` mapping (relative to `dist/`, i.e. `dist/src/*.js`).
+ * file*. Source files under `apps/website/src/` therefore resolve against the repo-root
+ * package.json, whose mapping points at TypeScript (`"#src/*": "./apps/website/src/*.ts"`) —
+ * correct for `tsx` in dev and for `tsc`'s own resolution. The compiled files under `dist/src/`
+ * would resolve against that same root mapping and try to `require()` a `.ts` file, which fails
+ * at boot. Dropping a second package.json into `dist/` re-scopes them: `dist/src/**` now resolves
+ * against `dist/package.json` and its own `"#src/*"` mapping (relative to `dist/`).
  *
  * The result is one specifier that is correct in both trees with no conditions, no `--conditions`
  * flag, and no per-script opt-in that someone can forget.
@@ -31,29 +31,43 @@
  * a nested package.json establishes a new package scope, and if it disagreed with the root about
  * CommonJS vs ESM the built output would load under the wrong module system.
  *
+ * `tsconfig.json`'s `rootDir` also has to be read, not assumed: `tsc` mirrors compiled output
+ * relative to `rootDir`, not relative to the repo root, so a source target one directory level
+ * "deeper" than `rootDir` (e.g. `./apps/website/src/*.ts` with `rootDir: "apps/website"`) compiles
+ * to `dist/src/*.js`, not `dist/apps/website/src/*.js`. A naive `.ts` -> `.js` swap on the raw
+ * import target string produces the latter, wrong path — this bit a rename once already (Phase 2
+ * of the restructure above moved the source target from `./src/*.ts` to `./apps/website/src/*.ts`
+ * without `rootDir` changing shape at the same time, at which point the two stopped coincidentally
+ * matching). Deriving from `rootDir` instead of hardcoding a prefix-strip keeps this correct
+ * through the *next* rename too, not just this one.
+ *
  * Run by `npm run build` after `tsc`.
  */
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import * as path from "node:path";
+import { pathToFileURL } from "node:url";
 
-const repoRoot = path.resolve(import.meta.dirname, "..", "..");
-const rootPkgPath = path.join(repoRoot, "package.json");
-const distDir = path.join(repoRoot, "dist");
-
-const rootPkg = JSON.parse(readFileSync(rootPkgPath, "utf8"));
-
-if (rootPkg.imports === undefined) {
-  throw new Error(
-    `No "imports" field in ${rootPkgPath}. The #src/* subpath mapping is required for the ` +
-      `compiled output to resolve; refusing to emit a dist/package.json that would silently ` +
-      `resolve nothing.`,
-  );
+/**
+ * Strips a `./<rootDir>/` prefix from a compiled (`.js`) import target, mirroring how `tsc`
+ * emits output relative to `rootDir` rather than relative to the repo root. No-op if the target
+ * doesn't start with that prefix (nothing to strip, or `rootDir` is the repo root itself).
+ */
+export function stripRootDirPrefix(compiledTarget, rootDir) {
+  const normalizedRootDir = rootDir.replace(/^\.?\/+/, "").replace(/\/+$/, "");
+  if (normalizedRootDir === "") {
+    return compiledTarget;
+  }
+  const prefix = `./${normalizedRootDir}/`;
+  return compiledTarget.startsWith(prefix) ? `./${compiledTarget.slice(prefix.length)}` : compiledTarget;
 }
 
-/** Retarget every mapping from the TypeScript sources to their compiled JavaScript siblings. */
-function toCompiled(target) {
+/**
+ * Retargets one `imports` mapping entry from its TypeScript source to the path its compiled
+ * `.js` sibling actually lands at under `dist/`, given `tsconfig.json`'s `rootDir`.
+ */
+export function toCompiled(target, rootDir) {
   if (typeof target === "string") {
     if (!target.endsWith(".ts")) {
       throw new Error(
@@ -61,51 +75,87 @@ function toCompiled(target) {
           `point at a .ts source file so it could be retargeted to .js for dist/.`,
       );
     }
-    return `${target.slice(0, -".ts".length)}.js`;
+    const compiled = `${target.slice(0, -".ts".length)}.js`;
+    return stripRootDirPrefix(compiled, rootDir);
   }
   if (target !== null && typeof target === "object") {
-    return Object.fromEntries(Object.entries(target).map(([cond, v]) => [cond, toCompiled(v)]));
+    return Object.fromEntries(Object.entries(target).map(([cond, v]) => [cond, toCompiled(v, rootDir)]));
   }
   throw new Error(`Unsupported imports target: ${JSON.stringify(target)}`);
 }
 
-const distPkg = {
-  name: `${rootPkg.name}-dist`,
-  version: rootPkg.version,
-  private: true,
-  type: rootPkg.type ?? "commonjs",
-  imports: Object.fromEntries(
-    Object.entries(rootPkg.imports).map(([key, target]) => [key, toCompiled(target)]),
-  ),
-};
-
-mkdirSync(distDir, { recursive: true });
-writeFileSync(path.join(distDir, "package.json"), `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
-
-console.log(`Wrote dist/package.json (imports: ${Object.keys(distPkg.imports).join(", ")})`);
-
-if (rootPkg.bin?.tovu === undefined) {
-  throw new Error(`No "bin.tovu" field in ${rootPkgPath}. runtime-manifest.json's cliEntry has nowhere to read from.`);
+/** Retargets every entry in a root package.json's `imports` field for dist/'s package.json. */
+export function deriveDistImports(rootPkgImports, rootDir) {
+  return Object.fromEntries(
+    Object.entries(rootPkgImports).map(([key, target]) => [key, toCompiled(target, rootDir)]),
+  );
 }
 
-const minNodeMajor = /^>=\s*(\d+)\./.exec(rootPkg.engines?.node ?? "")?.[1];
-if (minNodeMajor === undefined) {
-  throw new Error(`Could not parse a ">=<major>." minimum from ${rootPkgPath}'s engines.node (${rootPkg.engines?.node}).`);
+function main() {
+  const repoRoot = path.resolve(import.meta.dirname, "..", "..");
+  const rootPkgPath = path.join(repoRoot, "package.json");
+  const tsconfigPath = path.join(repoRoot, "tsconfig.json");
+  const distDir = path.join(repoRoot, "dist");
+
+  const rootPkg = JSON.parse(readFileSync(rootPkgPath, "utf8"));
+
+  if (rootPkg.imports === undefined) {
+    throw new Error(
+      `No "imports" field in ${rootPkgPath}. The #src/* subpath mapping is required for the ` +
+        `compiled output to resolve; refusing to emit a dist/package.json that would silently ` +
+        `resolve nothing.`,
+    );
+  }
+
+  const tsconfig = JSON.parse(readFileSync(tsconfigPath, "utf8"));
+  const rootDir = tsconfig.compilerOptions?.rootDir;
+  if (rootDir === undefined) {
+    throw new Error(
+      `No compilerOptions.rootDir in ${tsconfigPath}. dist/package.json's imports mapping needs ` +
+        `it to know where tsc's compiled output actually lands relative to dist/.`,
+    );
+  }
+
+  const distPkg = {
+    name: `${rootPkg.name}-dist`,
+    version: rootPkg.version,
+    private: true,
+    type: rootPkg.type ?? "commonjs",
+    imports: deriveDistImports(rootPkg.imports, rootDir),
+  };
+
+  mkdirSync(distDir, { recursive: true });
+  writeFileSync(path.join(distDir, "package.json"), `${JSON.stringify(distPkg, null, 2)}\n`, "utf8");
+
+  console.log(`Wrote dist/package.json (imports: ${Object.keys(distPkg.imports).join(", ")})`);
+
+  if (rootPkg.bin?.tovu === undefined) {
+    throw new Error(`No "bin.tovu" field in ${rootPkgPath}. runtime-manifest.json's cliEntry has nowhere to read from.`);
+  }
+
+  const minNodeMajor = /^>=\s*(\d+)\./.exec(rootPkg.engines?.node ?? "")?.[1];
+  if (minNodeMajor === undefined) {
+    throw new Error(`Could not parse a ">=<major>." minimum from ${rootPkgPath}'s engines.node (${rootPkg.engines?.node}).`);
+  }
+
+  const tovuSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+
+  /** Bumped only when the manifest's own shape changes in a way a consumer must branch on. */
+  const RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
+
+  const runtimeManifest = {
+    schemaVersion: RUNTIME_MANIFEST_SCHEMA_VERSION,
+    cliEntry: rootPkg.bin.tovu,
+    tovuVersion: rootPkg.version,
+    tovuSha,
+    minNodeMajor: Number(minNodeMajor),
+  };
+
+  writeFileSync(path.join(distDir, "runtime-manifest.json"), `${JSON.stringify(runtimeManifest, null, 2)}\n`, "utf8");
+
+  console.log(`Wrote dist/runtime-manifest.json (cliEntry: ${runtimeManifest.cliEntry}, tovuVersion: ${runtimeManifest.tovuVersion})`);
 }
 
-const tovuSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
-
-/** Bumped only when the manifest's own shape changes in a way a consumer must branch on. */
-const RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
-
-const runtimeManifest = {
-  schemaVersion: RUNTIME_MANIFEST_SCHEMA_VERSION,
-  cliEntry: rootPkg.bin.tovu,
-  tovuVersion: rootPkg.version,
-  tovuSha,
-  minNodeMajor: Number(minNodeMajor),
-};
-
-writeFileSync(path.join(distDir, "runtime-manifest.json"), `${JSON.stringify(runtimeManifest, null, 2)}\n`, "utf8");
-
-console.log(`Wrote dist/runtime-manifest.json (cliEntry: ${runtimeManifest.cliEntry}, tovuVersion: ${runtimeManifest.tovuVersion})`);
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
