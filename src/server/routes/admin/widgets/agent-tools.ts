@@ -1,13 +1,13 @@
 import type { Response } from "express";
 
-import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/widgets/deps";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/widgets/entry-payload";
-import { insertWidgetEmbed, removeWidgetEmbed } from "#src/widgets/embed-service";
-import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
-import { createWidgetInstance } from "#src/widgets/write-service";
-import { WidgetAreaNotFoundError } from "#src/widgets/errors";
-import { WIDGET_CONTENT_TYPE } from "#src/widgets/types";
-import type { WidgetPlacementNode, WidgetTypeKey } from "#src/widgets/types";
+import { buildWidgetsDeps, buildWidgetsRegionDeps } from "#src/features/widgets/deps";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "#src/features/widgets/entry-payload";
+import { insertWidgetEmbed, removeWidgetEmbed } from "#src/features/widgets/embed-service";
+import { mutateWidgetAreaPlacements } from "#src/features/widgets/region-area-service";
+import { createWidgetInstance } from "#src/features/widgets/write-service";
+import { WidgetAreaNotFoundError } from "#src/features/widgets/errors";
+import { WIDGET_CONTENT_TYPE } from "#src/features/widgets/types";
+import type { WidgetPlacementNode, WidgetTypeKey } from "#src/features/widgets/types";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,

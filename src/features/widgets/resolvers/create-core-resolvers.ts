@@ -1,6 +1,6 @@
-import type { EntryListPort } from "../../features/entries/index.js";
-import type { FormDefinitionRepoPort } from "../../features/forms/index.js";
-import type { NavMenuReadModel } from "../../features/navigation/index.js";
+import type { EntryListPort } from "../../entries/index.js";
+import type { FormDefinitionRepoPort } from "../../forms/index.js";
+import type { NavMenuReadModel } from "../../navigation/index.js";
 import type { WidgetResolver, WidgetTypeKey } from "../types.js";
 import { createContactFormResolver } from "./contact-form.js";
 import { createMenuResolver } from "./menu.js";

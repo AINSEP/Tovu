@@ -23,13 +23,13 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { InMemoryEntryRefsRepo } from "../../contracts/core/entry-refs/repo.memory.js";
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
-import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools.js";
-import { WidgetForbiddenError } from "../../widgets/errors.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory.js";
+import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
+import { WidgetForbiddenError } from "../../features/widgets/errors.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
+import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
@@ -114,7 +114,7 @@ async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string;
   const { registerContentType } = await import("../../features/content-types/write-service.js");
   const { createEntry } = await import("../../features/entries/index.js");
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory.js");
-  const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper.js");
+  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
   await registerContentType({
     deps: { repo: contentTypeRepo, clock: { nowIso: () => NOW }, ids: { newId: () => "ct-seed" }, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: { enqueue: async () => undefined } },
     input: { actorId: PRINCIPAL_ID, workspaceId: WORKSPACE_ID, key: "article", label: "Article", fields: [] },

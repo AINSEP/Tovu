@@ -25,7 +25,7 @@ import { contributeSiteEvidenceTools } from "../features/site-evidence/tool-regi
 import { contributeSiteInspectionTools } from "../features/site-inspection/index.js";
 import { contributeSourceControlTools } from "../features/source-control/tool-registrations.js";
 import { contributeStaticPublishTools } from "../features/deployments/publish-agent-tools.js";
-import { contributeWidgetsTools } from "../widgets/tool-registrations.js";
+import { contributeWidgetsTools } from "../features/widgets/tool-registrations.js";
 
 /**
  * @file The server composition manifest for `assistant/tool-contribution-registry.ts`: the one file

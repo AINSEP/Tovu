@@ -24,7 +24,7 @@ import {
   resolvePageWidgets,
   type ResolveHtmlPageEmbedsResult,
   type ResolvePageWidgetsResult,
-} from "#src/widgets/resolver-service";
+} from "#src/features/widgets/resolver-service";
 import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "#src/platform/routing/index";
 import { resolveMenuDoc } from "#src/features/navigation/index";

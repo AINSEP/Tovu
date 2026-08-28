@@ -1,6 +1,6 @@
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../features/navigation/index.js";
-import { resolveMenuDoc } from "../../features/navigation/index.js";
+import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../navigation/index.js";
+import { resolveMenuDoc } from "../../navigation/index.js";
 import type { WidgetResolveResult, WidgetResolver } from "../types.js";
 
 /**

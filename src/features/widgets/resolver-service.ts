@@ -20,11 +20,11 @@
  * `widgets` domain logic (implementation outline C-004).
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
-import type { EntryListPort, EntryRecord, EntryRepoPort } from "../features/entries/index.js";
-import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../features/media/index.js";
-import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../features/media/index.js";
-import type { PostRepoPort } from "../features/post/index.js";
-import { findPublishedPostById } from "../features/post/index.js";
+import type { EntryListPort, EntryRecord, EntryRepoPort } from "../entries/index.js";
+import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index.js";
+import type { MediaContentTypeStorePort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { PostRepoPort } from "../post/index.js";
+import { findPublishedPostById } from "../post/index.js";
 import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import { scanHtmlEmbeds } from "./html-embeds.js";
 import type { PageHtmlEmbedRef } from "./html-embeds.js";

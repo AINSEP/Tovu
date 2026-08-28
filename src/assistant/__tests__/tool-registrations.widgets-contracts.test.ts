@@ -24,13 +24,13 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../
 import { registerContentType } from "../../features/content-types/index.js";
 import { InMemoryEntryRepo } from "../../features/entries/index.js";
 import { createEntry } from "../../features/entries/index.js";
-import { PRE_AUTHORIZED } from "../../widgets/authorize-helper.js";
-import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools.js";
-import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory.js";
+import { PRE_AUTHORIZED } from "../../features/widgets/authorize-helper.js";
+import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../features/widgets/agent-tools.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../features/widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
-import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
+import { contributeWidgetsTools } from "../../features/widgets/tool-registrations.js";
 import { registerToolContributor } from "../tool-contribution-registry.js";
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the

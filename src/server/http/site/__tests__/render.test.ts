@@ -5,8 +5,8 @@ import test from "node:test";
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
-import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
-import type { WidgetRenderIR } from "#src/widgets/types";
+import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { injectExtraHeadIntoStaticPage, renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run

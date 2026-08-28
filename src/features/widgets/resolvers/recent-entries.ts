@@ -1,4 +1,4 @@
-import type { EntryListPort } from "../../features/entries/index.js";
+import type { EntryListPort } from "../../entries/index.js";
 import { getWidgetTypeRegistration } from "../registry.js";
 import type { WidgetResolveResult, WidgetResolver } from "../types.js";
 

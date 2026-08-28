@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { WidgetRenderIR } from "#src/widgets/types";
+import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { renderDocNode, renderWidgetIr } from "../render.js";
 
 /**

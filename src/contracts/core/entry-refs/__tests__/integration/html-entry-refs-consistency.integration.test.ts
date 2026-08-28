@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { scanHtmlEmbeds } from "#src/widgets/html-embeds";
+import { scanHtmlEmbeds } from "#src/features/widgets/html-embeds";
 import { extractHtmlEntryRefs } from "../../extractor.js";
 
 /**
