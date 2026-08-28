@@ -19,6 +19,7 @@ import { runtimeSchemaVersion } from "../../schema-guard.js";
  */
 
 const TEMPLATE_JSON_PATH = path.resolve(import.meta.dirname, "../../../../../../../content/templates/starter/template.json");
+const STOCK_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../../../../content/themes");
 
 function mkTempParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-init-site-"));
@@ -48,12 +49,20 @@ test("AC-01/AC-14/REQ-01: a clean init produces exactly the required layout with
     assert.equal(meta.schemaTag, runtime.tag, "AC-01: .site-meta.json records the runtime's latest bundled migration tag");
     assert.match(meta.createdAt, /^\d{4}-\d{2}-\d{2}T/, "createdAt is a date-time string");
 
-    // AC-14: the four contract-placeholder dirs exist and are empty.
-    for (const dirName of ["uploads", "themes", "plugins", "overrides"]) {
+    // AC-14: the three contract-placeholder dirs exist and are empty.
+    for (const dirName of ["uploads", "plugins", "overrides"]) {
       const p = path.join(target, dirName);
       assert.ok(fs.statSync(p).isDirectory(), `${dirName} must be a directory`);
       assert.deepEqual(fs.readdirSync(p), [], `${dirName} must be empty at init`);
     }
+
+    // themes/ is the one exception: it is SEEDED at init (seedSiteThemes()), not left an empty
+    // placeholder — an empty themes/ dir immediately after init would be indistinguishable from
+    // "already seeded" to seedSiteThemes()'s own (deliberately presence-only, contents-blind)
+    // check on the next boot, silently bricking every fresh site (the bug this behavior fixes).
+    const themesDir = path.join(target, "themes");
+    assert.ok(fs.statSync(themesDir).isDirectory(), "themes must be a directory");
+    assert.deepEqual(fs.readdirSync(themesDir).sort(), fs.readdirSync(STOCK_THEMES_DIR).sort(), "themes/ must hold a full copy of the real stock tree right after init, not be left empty");
 
     // AC-14: nothing was created outside the target dir.
     assert.deepEqual(fs.readdirSync(parent), ["demo"], "no sibling file/dir may appear outside the target");
@@ -178,4 +187,19 @@ test("INV-03: init never mutates templates/starter/ (read-only at runtime) — c
   const afterMtime = fs.statSync(TEMPLATE_JSON_PATH).mtimeMs;
   assert.equal(after, before, "INV-03: template.json content must be byte-identical after init runs");
   assert.equal(afterMtime, beforeMtime, "INV-03: template.json must not have been written to (mtime unchanged)");
+});
+
+test("regression: a fresh tovu init site can immediately serve its themes — themes/ is never left an empty placeholder that a later boot's seed step reads as already-seeded", () => {
+  const parent = mkTempParent();
+  const target = path.join(parent, "themes-regression");
+  try {
+    initSite({ dir: target, name: "Themes Regression" });
+
+    const themesDir = path.join(target, "themes");
+    const entries = fs.readdirSync(themesDir);
+    assert.notDeepEqual(entries, [], "themes/ must not be empty right after init — an empty dir here is indistinguishable from 'already seeded' on the next boot, which is exactly the bug that shipped 'No themes installed' on every fresh site");
+    assert.ok(entries.includes("static") || entries.includes("templated") || entries.includes("declarative"), "themes/ must hold real stock theme tiers, not placeholder content");
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
 });
