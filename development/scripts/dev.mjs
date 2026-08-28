@@ -10,7 +10,7 @@
  *    loads, every `/api` call is ECONNREFUSED, and the symptom reads as "login is broken" rather
  *    than "the backend is not running." Here, either child exiting tears down the other.
  *
- * 2. **Orphaned daemons.** `src/index.ts` spawns the agent daemon, which under `tsx` is an
+ * 2. **Orphaned daemons.** `apps/website/src/index.ts` spawns the agent daemon, which under `tsx` is an
  *    `npx -> tsx -> node` chain. Killing the direct child killed `npx`, leaving the real `node`
  *    daemon reparented to PID 1, still holding port 4319 and an open handle on `infra/content.db`.
  *    The next `npm run dev` then collided with it. Every child here is spawned `detached` into its
@@ -41,7 +41,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * Assistant screen's save, which reads as a broken feature rather than as unset config.
  *
  * `process.loadEnvFile` is Node's own (v20.12+, no dependency). It runs HERE rather than in
- * `src/index.ts` on purpose: this is the developer-machine entry point, and a `.env` that silently
+ * `apps/website/src/index.ts` on purpose: this is the developer-machine entry point, and a `.env` that silently
  * overrode real environment variables on a production boot is a different and much worse thing.
  * Deployments set real env vars; `npm start` is untouched.
  *
@@ -57,7 +57,7 @@ if (existsSync(ENV_FILE)) {
 
 const API_PORT = Number(process.env.PORT ?? 3000);
 const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
-// Mirrors src/index.ts's own default. Checked here so a squatter is reported by name at startup
+// Mirrors apps/website/src/index.ts's own default. Checked here so a squatter is reported by name at startup
 // rather than surfacing later as "the assistant is unavailable".
 const DAEMON_PORT = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 
@@ -198,12 +198,12 @@ console.log(
     `tovu dev: Ctrl-C stops everything.\n`
 );
 
-start("api server", "npx", ["tsx", "watch", "src/index.ts"], {
+start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], {
   // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
   // and :5173/admin/ agree in dev.
   TOVU_ADMIN_DEV_PROXY_URL: `http://localhost:${VITE_PORT}`,
   PORT: String(API_PORT),
-  // Backs `src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
+  // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
   // full rationale). Deliberately this process's own pid, not left for the child to infer via its
   // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
   // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
@@ -228,7 +228,7 @@ start("api server", "npx", ["tsx", "watch", "src/index.ts"], {
  * live for the first few seconds — which is honest, because until the API is up the admin cannot do
  * anything anyway.
  *
- * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `src/index.ts`
+ * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
  * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
  * seconds before the daemon binds :4319. That one is handled where it belongs, in
  * `server/modules/assistant.ts`'s proxy — see its retry note.
