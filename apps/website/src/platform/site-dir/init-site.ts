@@ -2,9 +2,11 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
+import { seedSiteThemes } from "#src/features/theme/index";
 import { openContentDb } from "../db/sqlite/content-db.js";
 import { writeJsonFileAtomic } from "./atomic-write.js";
 import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
+import { resolveProductRoot } from "./product-root.js";
 import { readTemplate } from "./read-template.js";
 import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "./schema-guard.js";
@@ -36,8 +38,26 @@ import type { ConfigJson, SiteMetaJson } from "./types.js";
  * from the raw `dir` argument (INV-01, CIC U-004-B1).
  */
 
-const SUBDIRS = ["uploads", "themes", "plugins", "overrides"] as const;
+/**
+ * Plain, empty-on-init placeholder dirs. `themes` is deliberately NOT here: it is SEEDED (real
+ * stock content copied in via `seedSiteThemes()`), not just `mkdirSync`'d empty — an empty
+ * `themes/` immediately after init would be indistinguishable from "already seeded" to
+ * `seedSiteThemes()`'s own (deliberately presence-only, contents-blind) check on the site's first
+ * `tovu serve`, permanently bricking every fresh site's theme list. See step 4b below.
+ */
+const SUBDIRS = ["uploads", "plugins", "overrides"] as const;
 const MAX_NAME_LENGTH = 200;
+
+/**
+ * Mirrors `server/runtime/composition/deps.ts`'s `builtInThemesDir()` formula exactly — same env
+ * var, same `resolveProductRoot()` primitive — without importing that module. `deps.ts` lives
+ * behind this domain's own CLI/Express-agnostic boundary (INV-06, the `site-dir-no-server-express-
+ * or-cli-imports` dependency-cruiser rule); importing it here would both break that boundary and
+ * drag the entire server composition graph into `tovu init`.
+ */
+function stockThemesDir(): string {
+  return process.env.TOVU_STOCK_THEMES_DIR ?? path.join(resolveProductRoot(), "content", "themes");
+}
 
 export interface InitSiteRequired {
   dir: string;
@@ -106,8 +126,10 @@ function validateInitTarget(target: string): void {
  *   or its parent is missing — nothing created.
  * @throws {InternalError} a corrupt template (BR-01 step 3, nothing created yet), or any fs/db
  *   failure during steps 4-7 (after best-effort cleanup per CIC U-003).
- * @complexity Bounded — a fixed number of fs/db operations per call (4 subdirs, 2 JSON writes,
- *   one db open+migrate+seed), never a function of caller-controlled input size.
+ * @complexity Bounded per fs/db operation count (3 plain subdirs, 2 JSON writes, one db
+ *   open+migrate+seed) — never a function of caller-controlled input size — PLUS one
+ *   `seedSiteThemes()` call whose own cost is O(bytes in the stock themes tree), a fixed,
+ *   caller-independent size (see that function's own `@complexity`).
  * @overallScore 100
  */
 export function initSite(required: InitSiteRequired): InitSiteResult {
@@ -132,6 +154,12 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
       fs.mkdirSync(path.join(target, sub));
       wroteAnything = true;
     }
+
+    // Step 4b: themes/ is SEEDED, not plain-`mkdir`'d — see `SUBDIRS`'s own doc for why an empty
+    // placeholder here would brick the site's first `tovu serve`. A seed failure is a real init
+    // failure, same as any other step-4 sub-step (CIC U-003) — nothing here swallows it.
+    seedSiteThemes({ stockDir: stockThemesDir(), siteThemesDir: path.join(target, "themes") });
+    wroteAnything = true;
 
     // Step 5: config.json write.
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
