@@ -33,6 +33,80 @@ export type CampaignActorTier = "pipeline" | "send" | "schedule" | "compose";
 export type TransitionResult = { allowed: true } | { allowed: false; reason: string };
 
 /**
+ * Who may perform each edge, one named grant per rule below. Named rather than inlined into a
+ * boolean chain so that widening a grant is a one-line, greppable change to a list, and so the
+ * grant sits next to the denial text that explains it — the two drifting apart is how a fail-open
+ * authorization bug reads to a reviewer.
+ */
+const PIPELINE_ONLY: readonly CampaignActorTier[] = ["pipeline"];
+const SEND_OR_PIPELINE: readonly CampaignActorTier[] = ["send", "pipeline"];
+const SCHEDULE_ONLY: readonly CampaignActorTier[] = ["schedule"];
+const COMPOSE_ONLY: readonly CampaignActorTier[] = ["compose"];
+
+/**
+ * Allows an already-matched edge when the actor holds a permitted tier, else denies it with the
+ * rule's own explanatory text.
+ *
+ * @complexity O(t) in the (fixed, ≤4) size of `permitted`.
+ */
+function requireTier(actorTier: CampaignActorTier, permitted: readonly CampaignActorTier[], reason: string): TransitionResult {
+  if (!permitted.includes(actorTier)) return { allowed: false, reason };
+  return { allowed: true };
+}
+
+/**
+ * The initial send start. NOTE: `paused -> sending` (resume) is a DIFFERENT edge, matched by
+ * {@link isPauseOrResume} below — it must not be folded into this one by relaxing the `from` check
+ * to a blanket `to === "sending"`, which would hand the resume path to the pipeline tier alone.
+ */
+function isSendStart(from: CampaignStatus, to: CampaignStatus): boolean {
+  return from === "scheduled" && to === "sending";
+}
+
+/**
+ * Admin-triggered pause/resume via `PAUSE_CAMPAIGN`/`RESUME_CAMPAIGN`. Resume CONTINUES a send the
+ * pipeline already started, which is why it is grouped with the send tier rather than treated as a
+ * second way to reach `sending`.
+ */
+function isPauseOrResume(from: CampaignStatus, to: CampaignStatus): boolean {
+  return (from === "sending" && to === "paused") || (from === "paused" && to === "sending");
+}
+
+/** `SCHEDULE_CAMPAIGN`'s only edge. */
+function isScheduling(from: CampaignStatus, to: CampaignStatus): boolean {
+  return from === "draft" && to === "scheduled";
+}
+
+/** `CANCEL_CAMPAIGN`'s edges — a campaign is cancellable only before the send pipeline touches it. */
+function isCancellation(from: CampaignStatus, to: CampaignStatus): boolean {
+  return to === "canceled" && (from === "draft" || from === "scheduled");
+}
+
+/**
+ * Drain completion. The only rule with two distinct denials, because `sent` is guarded on both the
+ * actor (pipeline-only) and the origin state (`sending` only), and a caller needs to know which of
+ * the two it tripped.
+ *
+ * @complexity O(1).
+ */
+function authorizeSendCompletion(from: CampaignStatus, actorTier: CampaignActorTier): TransitionResult {
+  if (actorTier !== "pipeline") {
+    return { allowed: false, reason: "only the send pipeline may set status to 'sent'" };
+  }
+  if (from !== "sending") {
+    return { allowed: false, reason: "'sent' may only be entered from 'sending'" };
+  }
+  return { allowed: true };
+}
+
+/**
+ * Decides whether `actorTier` may move a campaign from `from` to `to`.
+ *
+ * Deny-by-default: an edge no rule below matches falls through to the closing rejection, so adding
+ * a status to `CampaignStatus` cannot silently open a transition. The rules are ordered, not
+ * independent — `to === "sent"` deliberately sits between the send-start and pause/resume rules
+ * (see this file's header for the full precedence table).
+ *
  * @complexity O(1), pure, total function (every input produces a result, never throws).
  * @overallScore 100
  */
@@ -46,49 +120,20 @@ export function transitionCampaignStatus(input: {
   if (from === to) {
     return { allowed: false, reason: `'${from}' -> '${to}' is not a transition (no-op)` };
   }
-
-  // Pipeline-only: scheduled -> sending (initial send start), sending -> sent (drain completion).
-  // NOTE: paused -> sending (resume) is a DIFFERENT transition, handled by the send-tier branch
-  // below — it must not be caught by this branch's blanket `to === "sending"` check.
-  if (from === "scheduled" && to === "sending") {
-    if (actorTier !== "pipeline") {
-      return { allowed: false, reason: "only the send pipeline may set status to 'sending'" };
-    }
-    return { allowed: true };
+  if (isSendStart(from, to)) {
+    return requireTier(actorTier, PIPELINE_ONLY, "only the send pipeline may set status to 'sending'");
   }
   if (to === "sent") {
-    if (actorTier !== "pipeline") {
-      return { allowed: false, reason: "only the send pipeline may set status to 'sent'" };
-    }
-    if (from !== "sending") {
-      return { allowed: false, reason: "'sent' may only be entered from 'sending'" };
-    }
-    return { allowed: true };
+    return authorizeSendCompletion(from, actorTier);
   }
-
-  // send tier: sending <-> paused only (pause/resume). Resume (paused -> sending) is admin-
-  // triggered via RESUME_CAMPAIGN, distinct from the pipeline-only initial scheduled -> sending.
-  if ((from === "sending" && to === "paused") || (from === "paused" && to === "sending")) {
-    if (actorTier !== "send" && actorTier !== "pipeline") {
-      return { allowed: false, reason: `only 'admin.newsletter.campaign.send' may transition '${from}' -> '${to}'` };
-    }
-    return { allowed: true };
+  if (isPauseOrResume(from, to)) {
+    return requireTier(actorTier, SEND_OR_PIPELINE, `only 'admin.newsletter.campaign.send' may transition '${from}' -> '${to}'`);
   }
-
-  // schedule tier: draft -> scheduled only.
-  if (from === "draft" && to === "scheduled") {
-    if (actorTier !== "schedule") {
-      return { allowed: false, reason: "only 'admin.newsletter.campaign.schedule' may set draft -> scheduled" };
-    }
-    return { allowed: true };
+  if (isScheduling(from, to)) {
+    return requireTier(actorTier, SCHEDULE_ONLY, "only 'admin.newsletter.campaign.schedule' may set draft -> scheduled");
   }
-
-  // compose tier: draft -> canceled, scheduled -> canceled only.
-  if (to === "canceled" && (from === "draft" || from === "scheduled")) {
-    if (actorTier !== "compose") {
-      return { allowed: false, reason: "only 'admin.newsletter.campaign.compose' may cancel a campaign" };
-    }
-    return { allowed: true };
+  if (isCancellation(from, to)) {
+    return requireTier(actorTier, COMPOSE_ONLY, "only 'admin.newsletter.campaign.compose' may cancel a campaign");
   }
 
   return { allowed: false, reason: `'${from}' -> '${to}' is not a permitted transition for any actor tier` };

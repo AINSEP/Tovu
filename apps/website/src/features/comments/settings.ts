@@ -194,38 +194,98 @@ export interface SetCommentsSettingsInput {
 export const MAX_DEPTH_CEILING = 20;
 export const MAX_PER_IP_PER_HOUR_CEILING = 1000;
 
-function validateCommentsSettingsPatch(patch: Partial<CommentsSettings>): void {
-  if (patch.enabled !== undefined && typeof patch.enabled !== "boolean") {
-    throw new CommentsSettingsValidationError("enabled must be a boolean");
+/**
+ * The three assertion shapes the six `comments.*` fields reduce to. Each takes `unknown` rather
+ * than its declared type on purpose: `Partial<CommentsSettings>` describes what a well-behaved
+ * caller sends, but the real caller is `put-settings.ts` handing over a parsed request body, so
+ * the `typeof` checks are load-bearing runtime gates rather than redundant restatements of the
+ * type. Each throws `CommentsSettingsValidationError`, which the route maps 1:1 onto a 400.
+ */
+
+/** @complexity O(1). */
+function assertBoolean(value: unknown, field: string): void {
+  if (typeof value !== "boolean") {
+    throw new CommentsSettingsValidationError(`${field} must be a boolean`);
   }
-  if (patch.requireModeration !== undefined && typeof patch.requireModeration !== "boolean") {
-    throw new CommentsSettingsValidationError("requireModeration must be a boolean");
+}
+
+/**
+ * A whole-number field with an inclusive lower bound and an optional inclusive ceiling.
+ *
+ * `shapeMessage` is supplied rather than derived because the three callers describe the same
+ * check in field-specific words the admin UI shows verbatim ("non-negative integer", "positive
+ * integer", "non-negative integer or null"). The shape is checked BEFORE the ceiling so a value
+ * that is both malformed and oversized is told it is malformed — the actionable problem.
+ *
+ * @complexity O(1).
+ */
+function assertBoundedInteger(
+  value: unknown,
+  spec: { field: string; minimum: number; maximum?: number; shapeMessage: string }
+): void {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < spec.minimum) {
+    throw new CommentsSettingsValidationError(spec.shapeMessage);
+  }
+  if (spec.maximum !== undefined && value > spec.maximum) {
+    throw new CommentsSettingsValidationError(`${spec.field} must be at most ${spec.maximum}`);
+  }
+}
+
+/** A fractional field constrained to an inclusive range, reported as one message. @complexity O(1). */
+function assertNumberInRange(value: unknown, spec: { minimum: number; maximum: number; message: string }): void {
+  if (typeof value !== "number" || value < spec.minimum || value > spec.maximum) {
+    throw new CommentsSettingsValidationError(spec.message);
+  }
+}
+
+/**
+ * All-or-nothing gate for a settings patch: throws on the FIRST invalid field in the declaration
+ * order below, before `setCommentsSettings` issues any ledger write, so a patch mixing valid and
+ * invalid fields persists none of them.
+ *
+ * Field order is therefore observable — it decides which message a multi-error patch reports —
+ * and is pinned by `settings.validation.characterization.test.ts`.
+ *
+ * @complexity O(1) — a fixed six-field check, independent of workspace size.
+ */
+function validateCommentsSettingsPatch(patch: Partial<CommentsSettings>): void {
+  if (patch.enabled !== undefined) {
+    assertBoolean(patch.enabled, "enabled");
+  }
+  if (patch.requireModeration !== undefined) {
+    assertBoolean(patch.requireModeration, "requireModeration");
   }
   if (patch.maxDepth !== undefined) {
-    if (typeof patch.maxDepth !== "number" || !Number.isInteger(patch.maxDepth) || patch.maxDepth < 0) {
-      throw new CommentsSettingsValidationError("maxDepth must be a non-negative integer");
-    }
-    if (patch.maxDepth > MAX_DEPTH_CEILING) {
-      throw new CommentsSettingsValidationError(`maxDepth must be at most ${MAX_DEPTH_CEILING}`);
-    }
+    assertBoundedInteger(patch.maxDepth, {
+      field: "maxDepth",
+      minimum: 0,
+      maximum: MAX_DEPTH_CEILING,
+      shapeMessage: "maxDepth must be a non-negative integer",
+    });
   }
+  // `null` is a legal value here ("never closes"), so it skips the number rules entirely rather
+  // than being validated against them — see `CLOSE_AFTER_DAYS_NEVER_SENTINEL` for how it is stored.
   if (patch.closeAfterDays !== undefined && patch.closeAfterDays !== null) {
-    if (typeof patch.closeAfterDays !== "number" || !Number.isInteger(patch.closeAfterDays) || patch.closeAfterDays < 0) {
-      throw new CommentsSettingsValidationError("closeAfterDays must be a non-negative integer or null");
-    }
+    assertBoundedInteger(patch.closeAfterDays, {
+      field: "closeAfterDays",
+      minimum: 0,
+      shapeMessage: "closeAfterDays must be a non-negative integer or null",
+    });
   }
   if (patch.spamAutoRejectScore !== undefined) {
-    if (typeof patch.spamAutoRejectScore !== "number" || patch.spamAutoRejectScore < 0 || patch.spamAutoRejectScore > 1) {
-      throw new CommentsSettingsValidationError("spamAutoRejectScore must be a number in [0,1]");
-    }
+    assertNumberInRange(patch.spamAutoRejectScore, {
+      minimum: 0,
+      maximum: 1,
+      message: "spamAutoRejectScore must be a number in [0,1]",
+    });
   }
   if (patch.maxPerIpPerHour !== undefined) {
-    if (typeof patch.maxPerIpPerHour !== "number" || !Number.isInteger(patch.maxPerIpPerHour) || patch.maxPerIpPerHour < 1) {
-      throw new CommentsSettingsValidationError("maxPerIpPerHour must be a positive integer");
-    }
-    if (patch.maxPerIpPerHour > MAX_PER_IP_PER_HOUR_CEILING) {
-      throw new CommentsSettingsValidationError(`maxPerIpPerHour must be at most ${MAX_PER_IP_PER_HOUR_CEILING}`);
-    }
+    assertBoundedInteger(patch.maxPerIpPerHour, {
+      field: "maxPerIpPerHour",
+      minimum: 1,
+      maximum: MAX_PER_IP_PER_HOUR_CEILING,
+      shapeMessage: "maxPerIpPerHour must be a positive integer",
+    });
   }
 }
 
