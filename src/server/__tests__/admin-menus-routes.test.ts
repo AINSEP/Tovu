@@ -6,15 +6,15 @@ import { bootAuthenticated } from "./helpers/http-test-server.js";
 import express from "express";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
-import type { MenuRouteDeps } from "../http/admin/menus.js";
+import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
-import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location.js";
-import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create.js";
-import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete.js";
-import { registerAdminMenuGetRoute } from "../routes/admin/menus/get-by-id.js";
-import { registerAdminMenuListRoute } from "../routes/admin/menus/list.js";
-import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-tree.js";
+import { registerAdminMenuAssignLocationRoute } from "../inbound/admin-http/routes/menus/assign-location.js";
+import { registerAdminMenuCreateRoute } from "../inbound/admin-http/routes/menus/create.js";
+import { registerAdminMenuDeleteRoute } from "../inbound/admin-http/routes/menus/delete.js";
+import { registerAdminMenuGetRoute } from "../inbound/admin-http/routes/menus/get-by-id.js";
+import { registerAdminMenuListRoute } from "../inbound/admin-http/routes/menus/list.js";
+import { registerAdminMenuUpdateTreeRoute } from "../inbound/admin-http/routes/menus/update-tree.js";
 
 /**
  * @file Route-level tests for the admin `menus` HTTP surface (ADR-029).
@@ -553,10 +553,10 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + bl
   assert.equal(forcedBody.purged, true);
 });
 
-test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/routes/admin/menus/*.ts after cutover", async () => {
+test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
   const { readFileSync, readdirSync } = await import("node:fs");
   const { join } = await import("node:path");
-  const dir = join(import.meta.dirname, "../routes/admin/menus");
+  const dir = join(import.meta.dirname, "../inbound/admin-http/routes/menus");
   for (const file of readdirSync(dir)) {
     if (!file.endsWith(".ts")) continue;
     const contents = readFileSync(join(dir, file), "utf8");

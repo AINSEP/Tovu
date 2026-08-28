@@ -39,7 +39,7 @@ export const LCOV_UNIT_PATH = path.join(REPO_ROOT, "development/coverage/lcov.un
 export const LCOV_INTEGRATION_PATH = path.join(REPO_ROOT, "development/coverage/lcov.integration.info");
 
 export interface FileCoverage {
-  /** repo-relative, forward-slash path, e.g. "src/server/routes/admin/assistant/test-agent.ts" */
+  /** repo-relative, forward-slash path, e.g. "src/server/inbound/admin-http/routes/assistant/test-agent.ts" */
   file: string;
   lf: number;
   lh: number;
@@ -75,9 +75,15 @@ export function isIntegrationTestFile(relPath: string): boolean {
   return normalized.includes("/__tests__/integration/");
 }
 
+/** Phase 1 step 6 (src/server/ inbound/runtime split, 2026-08-28): admin routes moved from
+ *  `src/server/routes/admin/**` to `src/server/inbound/admin-http/routes/**`. Both prefixes are
+ *  recognized during the transition — `src/server/routes/**` still holds the site/members/oauth/etc.
+ *  routes not yet moved. Once the whole tree finishes moving into `src/server/inbound/`, the first
+ *  prefix becomes dead (matches nothing) and can be dropped. */
 export function isMeasurableRouteFile(relPath: string): boolean {
   const normalized = relPath.split(path.sep).join("/");
-  if (!normalized.startsWith("src/server/routes/")) return false;
+  const isRoutePath = normalized.startsWith("src/server/routes/") || normalized.startsWith("src/server/inbound/admin-http/routes/");
+  if (!isRoutePath) return false;
   if (normalized.includes("/__tests__/")) return false;
   if (/\.(test|spec)\.ts$/.test(normalized)) return false;
   const base = path.basename(normalized);

@@ -1,12 +1,12 @@
-import { registerAdminMediaDeleteRoute } from "../../../routes/admin/media/delete.js";
-import { registerAdminMediaGetProvidersRoute } from "../../../routes/admin/media/get-providers.js";
-import { registerAdminMediaListRoute } from "../../../routes/admin/media/list.js";
-import { registerAdminMediaOriginalRoute } from "../../../routes/admin/media/original.js";
-import { registerAdminMediaPutProvidersRoute } from "../../../routes/admin/media/put-providers.js";
-import { registerAdminMediaTrashRoute } from "../../../routes/admin/media/trash.js";
-import { registerAdminMediaUpdateRoute } from "../../../routes/admin/media/update.js";
-import { registerAdminMediaUploadRoute } from "../../../routes/admin/media/upload.js";
-import type { MediaProviderRouteDeps, MediaRouteDeps } from "../../../routes/admin/media/deps.js";
+import { registerAdminMediaDeleteRoute } from "../../../inbound/admin-http/routes/media/delete.js";
+import { registerAdminMediaGetProvidersRoute } from "../../../inbound/admin-http/routes/media/get-providers.js";
+import { registerAdminMediaListRoute } from "../../../inbound/admin-http/routes/media/list.js";
+import { registerAdminMediaOriginalRoute } from "../../../inbound/admin-http/routes/media/original.js";
+import { registerAdminMediaPutProvidersRoute } from "../../../inbound/admin-http/routes/media/put-providers.js";
+import { registerAdminMediaTrashRoute } from "../../../inbound/admin-http/routes/media/trash.js";
+import { registerAdminMediaUpdateRoute } from "../../../inbound/admin-http/routes/media/update.js";
+import { registerAdminMediaUploadRoute } from "../../../inbound/admin-http/routes/media/upload.js";
+import type { MediaProviderRouteDeps, MediaRouteDeps } from "../../../inbound/admin-http/routes/media/deps.js";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "../../../routes/site/media-rendition.js";
 import type { ServerModuleHandle } from "./types.js";
 

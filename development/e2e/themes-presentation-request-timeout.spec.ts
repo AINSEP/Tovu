@@ -8,7 +8,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  *
  * ## Root cause (not a backend bug)
  *
- * The hang is not in `src/server/routes/admin/presentation/get.ts`, `dev-auth.ts`, or any repo
+ * The hang is not in `src/server/inbound/admin-http/routes/presentation/get.ts`, `dev-auth.ts`, or any repo
  * (all confirmed synchronous-under-`better-sqlite3`, single shared connection, no lock/pool to
  * exhaust — see the investigation note this fix's handoff links). It is a browser-level resource
  * exhaustion: `apps/admin/src/lib/settings-events.ts`'s `subscribeToSettingsChanges`, mounted once

@@ -7,7 +7,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminRecoveryRestoreRoutes } from "../../routes/admin/recovery/restore.js";
+import { registerAdminRecoveryRestoreRoutes } from "../../inbound/admin-http/routes/recovery/restore.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

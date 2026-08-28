@@ -10,7 +10,7 @@ import { loginAsAdmin } from "./auth-fixtures.js";
  * Root cause: `ThemeExplore.tsx`'s Explore screen already has a proper file-preview pipeline (fetch
  * the source through the admin API, render it in a viewer) for every OTHER file kind, but a
  * `.liquid` template arrived from the theme-detail listing route
- * (`src/server/routes/admin/themes/explore.ts`) with `readable: false` — its `TEXT_READABLE_EXTENSIONS`
+ * (`src/server/inbound/admin-http/routes/themes/explore.ts`) with `readable: false` — its `TEXT_READABLE_EXTENSIONS`
  * allowlist predates `.liquid` templates being explorable at all. `readable: false` sent
  * `previewSrcFor` (`ThemeExplore.tsx`) down its "not readable" branch, which points an `<iframe>`
  * straight at the raw `/theme-assets/{theme}/{path}` URL instead of fetching text through the API.

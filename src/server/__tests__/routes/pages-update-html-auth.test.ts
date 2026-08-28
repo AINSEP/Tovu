@@ -7,8 +7,8 @@ import test from "node:test";
 import express from "express";
 
 import type { PagesHtmlDocumentStorePort } from "#src/features/pages/index";
-import { registerAdminPageUpdateHtmlRoute } from "#src/server/routes/admin/pages/update-html";
-import type { ContentRouteDeps } from "#src/server/routes/admin/content/deps";
+import { registerAdminPageUpdateHtmlRoute } from "#src/server/inbound/admin-http/routes/pages/update-html";
+import type { ContentRouteDeps } from "#src/server/inbound/admin-http/routes/content/deps";
 
 /**
  * @file The permission gate on `PUT /pages/:pageId/html` (2026-08-10).

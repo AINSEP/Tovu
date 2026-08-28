@@ -9,7 +9,7 @@ import type { McpHttpLaunchSpec, McpSessionPort, RemoteToolDescriptor } from "..
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createExternalMcpModule } from "../runtime/composition/modules/external-mcp.js";
-import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../routes/admin/external-mcp/probe.js";
+import type { ExternalMcpProbeRouteDeps, ExternalMcpProbeSessionFactory } from "../inbound/admin-http/routes/external-mcp/probe.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 

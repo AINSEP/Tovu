@@ -18,12 +18,12 @@
     },
     {
       "rule": "sonarjs/cognitive-complexity",
-      "file": "src/server/routes/admin/plugins/uninstall.ts",
+      "file": "src/server/inbound/admin-http/routes/plugins/uninstall.ts",
       "reason": "Refactor this function to reduce its Cognitive Complexity from 11 to the 9 allowed."
     },
     {
       "rule": "complexity",
-      "file": "src/server/routes/admin/plugins/uninstall.ts",
+      "file": "src/server/inbound/admin-http/routes/plugins/uninstall.ts",
       "reason": "Async arrow function has a complexity of 10. Maximum allowed is 9."
     }
   ]

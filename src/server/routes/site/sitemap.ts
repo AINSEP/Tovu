@@ -1,5 +1,5 @@
 import { buildSitemap } from "#src/features/seo/index";
-import type { SeoRouteRegistrar } from "../admin/seo/deps.js";
+import type { SeoRouteRegistrar } from "../../inbound/admin-http/routes/seo/deps.js";
 
 /** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
  *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route

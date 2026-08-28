@@ -6,11 +6,11 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminContentTypeRegisterRoute } from "../../routes/admin/content-types/register.js";
-import { registerAdminEntryListRoute } from "../../routes/admin/entries/list.js";
-import { registerAdminEntryCreateRoute } from "../../routes/admin/entries/create.js";
-import { registerAdminEntryUpdateRoute } from "../../routes/admin/entries/update.js";
-import { registerAdminEntryLifecycleRoute } from "../../routes/admin/entries/lifecycle.js";
+import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
+import { registerAdminEntryListRoute } from "../../inbound/admin-http/routes/entries/list.js";
+import { registerAdminEntryCreateRoute } from "../../inbound/admin-http/routes/entries/create.js";
+import { registerAdminEntryUpdateRoute } from "../../inbound/admin-http/routes/entries/update.js";
+import { registerAdminEntryLifecycleRoute } from "../../inbound/admin-http/routes/entries/lifecycle.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

@@ -17,7 +17,7 @@ import { defineConfig, devices } from "@playwright/test";
  * process and re-seeds its own random admin-principal UUID against a process-local in-memory DB,
  * breaking `content.read`/`content.write`-gated tool calls). This suite never calls an agent-tool
  * route — login, user creation, and password reset are identity/administration routes
- * (`src/server/routes/admin/users/*`, `src/server/inbound/admin-http/dev-auth.ts`), not content-gated
+ * (`src/server/inbound/admin-http/routes/users/*`, `src/server/inbound/admin-http/dev-auth.ts`), not content-gated
  * ones — so the simpler `TOVU_DB=memory` (the same choice `playwright.admin.config.ts` makes) is
  * sufficient.
  *

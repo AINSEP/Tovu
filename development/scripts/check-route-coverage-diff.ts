@@ -108,7 +108,7 @@ function changedRouteFiles(baseRef: string): string[] {
   }
   const raw = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMR", mergeBase, "HEAD", "--", "src/server/routes"],
+    ["diff", "--name-only", "--diff-filter=ACMR", mergeBase, "HEAD", "--", "src/server/routes", "src/server/inbound/admin-http/routes"],
     { cwd: REPO_ROOT, encoding: "utf8" }
   );
   return raw

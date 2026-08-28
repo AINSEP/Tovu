@@ -8,7 +8,7 @@ import express from "express";
 import type { NormalizedHit } from "#src/features/analytics/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminAnalyticsRecentHitsRoute } from "../../routes/admin/analytics/recent-hits.js";
+import { registerAdminAnalyticsRecentHitsRoute } from "../../inbound/admin-http/routes/analytics/recent-hits.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**

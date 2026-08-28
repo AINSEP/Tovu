@@ -1,4 +1,4 @@
-import { registerSkillsListRoute } from "../../../routes/admin/skills/list.js";
+import { registerSkillsListRoute } from "../../../inbound/admin-http/routes/skills/list.js";
 import type { RouteDeps } from "../../../routes/types.js";
 import type { ServerModuleHandle } from "./types.js";
 

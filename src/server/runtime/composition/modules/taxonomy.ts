@@ -1,11 +1,11 @@
-import { registerAdminTaxonomyAssignTermsRoute } from "../../../routes/admin/taxonomy/assign-terms.js";
-import { registerAdminTaxonomyCreateRoute } from "../../../routes/admin/taxonomy/create-taxonomy.js";
-import { registerAdminTaxonomyCreateTermRoute } from "../../../routes/admin/taxonomy/create-term.js";
-import { registerAdminTaxonomyDeleteRoute } from "../../../routes/admin/taxonomy/delete-taxonomy.js";
-import { registerAdminTaxonomyDeleteTermRoute } from "../../../routes/admin/taxonomy/delete-term.js";
-import type { TaxonomyRouteDeps } from "../../../routes/admin/taxonomy/deps.js";
-import { registerAdminTaxonomyListRoute } from "../../../routes/admin/taxonomy/list.js";
-import { registerAdminTaxonomyRenameTermRoute } from "../../../routes/admin/taxonomy/rename-term.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "../../../inbound/admin-http/routes/taxonomy/assign-terms.js";
+import { registerAdminTaxonomyCreateRoute } from "../../../inbound/admin-http/routes/taxonomy/create-taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../../inbound/admin-http/routes/taxonomy/create-term.js";
+import { registerAdminTaxonomyDeleteRoute } from "../../../inbound/admin-http/routes/taxonomy/delete-taxonomy.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../../../inbound/admin-http/routes/taxonomy/delete-term.js";
+import type { TaxonomyRouteDeps } from "../../../inbound/admin-http/routes/taxonomy/deps.js";
+import { registerAdminTaxonomyListRoute } from "../../../inbound/admin-http/routes/taxonomy/list.js";
+import { registerAdminTaxonomyRenameTermRoute } from "../../../inbound/admin-http/routes/taxonomy/rename-term.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

@@ -4,7 +4,7 @@ import { resolveAgentPluginLayout } from "../../../features/agent-plugins/layout
 import { seedBundledAgentPlugins } from "../../../features/agent-plugins/seed-bundled.js";
 import type { BootModule } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
-import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
+import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through

@@ -6,9 +6,9 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminMediaOriginalRoute } from "../../routes/admin/media/original.js";
-import { registerAdminMediaTrashRoute } from "../../routes/admin/media/trash.js";
-import { registerAdminMediaUploadRoute } from "../../routes/admin/media/upload.js";
+import { registerAdminMediaOriginalRoute } from "../../inbound/admin-http/routes/media/original.js";
+import { registerAdminMediaTrashRoute } from "../../inbound/admin-http/routes/media/trash.js";
+import { registerAdminMediaUploadRoute } from "../../inbound/admin-http/routes/media/upload.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { uploadMedia } from "#src/features/media/index";
 

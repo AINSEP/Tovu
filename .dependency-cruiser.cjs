@@ -95,7 +95,7 @@ const HAND_WRITTEN_RULES = [
       // anywhere under `src/features/` to the same-named properties of the stub fs object in
       // `src/server/http/site/liquid-worker.ts` (lines 46-54), and the 61st points the wrong way
       // (`features/database/migrate-forward/execute.ts` DECLARES an injected `gatewayExecute`
-      // parameter that `server/routes/admin/taxonomy/merge-term.ts` SUPPLIES — the server passing
+      // parameter that `server/inbound/admin-http/routes/taxonomy/merge-term.ts` SUPPLIES — the server passing
       // the feature what it needs, i.e. the fix, not the violation). Import-level ground truth was
       // 0 the whole time. Do not re-derive a remediation backlog from that number.
       //
@@ -416,7 +416,7 @@ const EXTRA_TO_EXEMPT = {
   ],
   // trace-A's newsletter section (N-1): exposes only errors.ts/ports.ts through the new index.ts,
   // deliberately leaving these 7 Category-3 files — each already funneled through a scoped local
-  // composition file (server/routes/admin/newsletter/deps.ts, type-only) or reached by one
+  // composition file (server/inbound/admin-http/routes/newsletter/deps.ts, type-only) or reached by one
   // dedicated route handler per function, the same "fragmented HTTP route handler" shape as
   // forms' write-service.ts above.
   "features/newsletter": [

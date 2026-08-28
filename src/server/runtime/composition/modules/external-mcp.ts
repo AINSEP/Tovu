@@ -3,18 +3,18 @@ import {
   EXTERNAL_MCP_OAUTH_CALLBACK_PER_IP,
   EXTERNAL_MCP_OAUTH_PER_IP,
 } from "#src/contracts/core/rate-limit/rate-limit";
-import { registerAdminExternalMcpAdmissionsRoute } from "../../../routes/admin/external-mcp/admissions.js";
-import { registerAdminExternalMcpDeleteRoute } from "../../../routes/admin/external-mcp/delete.js";
-import type { ExternalMcpRouteDeps } from "../../../routes/admin/external-mcp/deps.js";
-import { registerAdminExternalMcpListRoute } from "../../../routes/admin/external-mcp/list.js";
+import { registerAdminExternalMcpAdmissionsRoute } from "../../../inbound/admin-http/routes/external-mcp/admissions.js";
+import { registerAdminExternalMcpDeleteRoute } from "../../../inbound/admin-http/routes/external-mcp/delete.js";
+import type { ExternalMcpRouteDeps } from "../../../inbound/admin-http/routes/external-mcp/deps.js";
+import { registerAdminExternalMcpListRoute } from "../../../inbound/admin-http/routes/external-mcp/list.js";
 import {
   registerAdminExternalMcpOAuthConnectRoute,
   registerAdminExternalMcpOAuthDevicePollRoute,
   registerAdminExternalMcpOAuthDisconnectRoute,
   type ExternalMcpOAuthRouteDeps,
-} from "../../../routes/admin/external-mcp/oauth.js";
-import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "../../../routes/admin/external-mcp/probe.js";
-import { registerAdminExternalMcpPutRoute } from "../../../routes/admin/external-mcp/put.js";
+} from "../../../inbound/admin-http/routes/external-mcp/oauth.js";
+import { createExternalMcpProbeLimiter, registerAdminExternalMcpProbeRoute } from "../../../inbound/admin-http/routes/external-mcp/probe.js";
+import { registerAdminExternalMcpPutRoute } from "../../../inbound/admin-http/routes/external-mcp/put.js";
 import { registerExternalMcpOAuthCallbackRoute } from "../../../routes/external-mcp/oauth-callback.js";
 import type { ServerModuleHandle } from "./types.js";
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseRangeHeader } from "../range.js";
+import { parseRangeHeader } from "../../inbound/admin-http/range.js";
 
 /**
  * @file Unit tests for `range.ts`'s pure `Range: bytes=...` parser — every branch directly, without

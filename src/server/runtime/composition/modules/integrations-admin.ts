@@ -1,9 +1,9 @@
-import { registerAdminIntegrationsCreateRoute } from "../../../routes/admin/integrations/create.js";
-import { registerAdminIntegrationsDeleteRoute } from "../../../routes/admin/integrations/delete.js";
-import { registerAdminIntegrationsDeliveriesRoute } from "../../../routes/admin/integrations/deliveries.js";
-import type { IntegrationsRouteDeps } from "../../../routes/admin/integrations/deps.js";
-import { registerAdminIntegrationsListRoute } from "../../../routes/admin/integrations/list.js";
-import { registerAdminIntegrationsPauseRoute } from "../../../routes/admin/integrations/pause.js";
+import { registerAdminIntegrationsCreateRoute } from "../../../inbound/admin-http/routes/integrations/create.js";
+import { registerAdminIntegrationsDeleteRoute } from "../../../inbound/admin-http/routes/integrations/delete.js";
+import { registerAdminIntegrationsDeliveriesRoute } from "../../../inbound/admin-http/routes/integrations/deliveries.js";
+import type { IntegrationsRouteDeps } from "../../../inbound/admin-http/routes/integrations/deps.js";
+import { registerAdminIntegrationsListRoute } from "../../../inbound/admin-http/routes/integrations/list.js";
+import { registerAdminIntegrationsPauseRoute } from "../../../inbound/admin-http/routes/integrations/pause.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /**

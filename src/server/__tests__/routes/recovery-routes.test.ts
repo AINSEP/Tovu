@@ -6,11 +6,11 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
-import { registerAdminDatabaseRestorePointsCreateRoute } from "../../routes/admin/database/restore-points.js";
-import { registerAdminRecoveryRestorePointsListRoute } from "../../routes/admin/recovery/restore-points.js";
-import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recovery/disclosure.js";
-import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link.js";
-import { registerAdminRecoveryStatusRoute } from "../../routes/admin/recovery/status.js";
+import { registerAdminDatabaseRestorePointsCreateRoute } from "../../inbound/admin-http/routes/database/restore-points.js";
+import { registerAdminRecoveryRestorePointsListRoute } from "../../inbound/admin-http/routes/recovery/restore-points.js";
+import { registerAdminRecoveryDisclosureRoute } from "../../inbound/admin-http/routes/recovery/disclosure.js";
+import { registerAdminRecoveryDeepLinkRoute } from "../../inbound/admin-http/routes/recovery/deep-link.js";
+import { registerAdminRecoveryStatusRoute } from "../../inbound/admin-http/routes/recovery/status.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/contracts/core/operation-lock";
 
