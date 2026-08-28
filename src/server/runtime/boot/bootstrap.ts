@@ -2,7 +2,7 @@ import { bootstrapStore } from "../../../features/plugins/store/store-plugin.js"
 import { reconcileInterruptedMigrationOnBoot } from "../../../features/database/boot/reconcile-interrupted-migration.js";
 import { resolveAgentPluginLayout } from "../../../features/agent-plugins/layout.js";
 import { seedBundledAgentPlugins } from "../../../features/agent-plugins/seed-bundled.js";
-import type { BootModule } from "../../boot-lifecycle.js";
+import type { BootModule } from "../lifecycle/boot-lifecycle.js";
 import { bundledAgentPluginsDir } from "../composition/deps.js";
 import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
 

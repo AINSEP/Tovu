@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { setReadinessSnapshot } from "../../readiness-state.js";
+import { setReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import type { RouteDeps } from "../../routes/types.js";
-import type { BootResult } from "../../boot-lifecycle.js";
+import type { BootResult } from "../../runtime/lifecycle/boot-lifecycle.js";
 
 /**
  * @file SPEC-030 (ADR-046 Phase 2 REQ-10) — `GET /api/admin/v1/workspaces/:workspaceId/system/module-status`.

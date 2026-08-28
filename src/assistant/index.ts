@@ -154,7 +154,7 @@ export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route.js";
 export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // `startAssistantDaemon`/`restartAssistantDaemon`/`ensureAssistantDaemonStarted` moved to
-// `server/agent-daemon/daemon-supervisor.ts` (2026-08-17) — that file is now part of the `server`
+// `server/runtime/lifecycle/daemon-supervisor.ts` (2026-08-17) — that file is now part of the `server`
 // module itself, so its three real callers (`index.ts`, `server/modules/assistant.ts`,
 // `server/routes/admin/system/assistant-daemon.ts`) import it directly rather than through this
 // barrel; re-exporting it here would create an `assistant -> server` edge this barrel exists to
@@ -163,7 +163,7 @@ export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // `createRespawnPolicy`/`RespawnDecision`/`RespawnPolicy`, unlike the daemon-supervisor functions
 // above, stay re-exported: `daemon-respawn-policy.ts` is a pure decision module (no `assistant ->
 // server` edge risk the same way daemon-supervisor.ts's own process-spawning code carries), and it
-// has a real external consumer of its own — `server/agent-daemon/daemon-supervisor.ts` (the file
+// has a real external consumer of its own — `server/runtime/lifecycle/daemon-supervisor.ts` (the file
 // described above) plus that file's own test — needing the SAME crash-loop/backoff decision logic
 // the daemon-supervisor code was split out to keep pure and unit-testable in isolation (2026-08-13
 // no-deep-imports:assistant triage).

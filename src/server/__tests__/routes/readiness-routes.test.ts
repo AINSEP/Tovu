@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "../../readiness-state.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "../../runtime/lifecycle/readiness-state.js";
 import { startTestServer } from "../helpers/http-test-server.js";
-import type { BootResult } from "../../boot-lifecycle.js";
+import type { BootResult } from "../../runtime/lifecycle/boot-lifecycle.js";
 
 /**
  * @file SPEC-030 (ADR-046 Phase 2) — `/healthz` and `/readyz` route coverage.

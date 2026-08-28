@@ -17,9 +17,9 @@ import { Readable } from "node:stream";
 import type { Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../../../assistant/index.js";
-import { ensureAssistantDaemonStarted } from "../../../agent-daemon/daemon-supervisor.js";
+import { ensureAssistantDaemonStarted } from "../../lifecycle/daemon-supervisor.js";
 import { getAuthedPrincipal } from "../../../middleware/dev-auth.js";
-import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../../readiness-state.js";
+import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
 
 export const AGENT_DAEMON_URL =
   process.env.JINI_AGENT_DAEMON_URL ?? `http://127.0.0.1:${Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319)}`;

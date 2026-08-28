@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { runBootLifecycle } from "../../boot-lifecycle.js";
-import type { BootModule } from "../../boot-lifecycle.js";
+import { runBootLifecycle } from "../../runtime/lifecycle/boot-lifecycle.js";
+import type { BootModule } from "../../runtime/lifecycle/boot-lifecycle.js";
 
 /**
  * @file SPEC-030 — unit tests for the boot/readiness lifecycle orchestrator, including the two

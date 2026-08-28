@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { restartAssistantDaemon as restartAssistantDaemonReal, type RestartAssistantDaemonResult } from "#src/server/agent-daemon/daemon-supervisor";
+import { restartAssistantDaemon as restartAssistantDaemonReal, type RestartAssistantDaemonResult } from "#src/server/runtime/lifecycle/daemon-supervisor";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
