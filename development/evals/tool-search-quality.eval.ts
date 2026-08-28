@@ -29,7 +29,7 @@
 import { createToolRegistry } from "@jini-ai/core";
 import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
 import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations.js";
-import { installFirstPartyToolContributors } from "../../src/server/tool-catalog-manifest.js";
+import { installFirstPartyToolContributors } from "../../src/server/runtime/composition/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../src/server/routes/types.js";
 
 interface EvalCase {

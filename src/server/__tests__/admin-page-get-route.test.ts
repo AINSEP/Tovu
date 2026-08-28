@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../app.js";
+import { createApp } from "../runtime/composition/app.js";
 
 /**
  * @file `GET /pages/:pageId` (`src/server/routes/admin/pages/get-by-id.ts`) — certifies the

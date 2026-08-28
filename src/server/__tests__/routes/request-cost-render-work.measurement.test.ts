@@ -4,10 +4,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerSiteRoutes } from "../../routes/site/pages.js";
 import { registerProductRoutes } from "../../routes/site/products.js";
-import { createSeoModule } from "../../modules/seo.js";
+import { createSeoModule } from "../../runtime/composition/modules/seo.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer } from "../helpers/http-test-server.js";
 

@@ -7,9 +7,9 @@ import type { KeyringPort } from "../../features/webhooks/index.js";
 import { startFakeComposio } from "../../../development/e2e/fake-composio-server.js";
 import { composioUserIdFor, createComposioConnectors } from "../../platform/connectors/composio-service.js";
 import { InMemoryConnectorCredentialRepo } from "../../platform/connectors/connector-credential-store.memory.js";
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
-import { createConnectorsModule } from "../modules/connectors.js";
+import { createConnectorsModule } from "../runtime/composition/modules/connectors.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 

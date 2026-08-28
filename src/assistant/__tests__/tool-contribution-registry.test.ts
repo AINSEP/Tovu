@@ -19,8 +19,8 @@ import test from "node:test";
 import type { AgentToolSideEffect, DerivedRiskByToolId } from "@jini-ai/cms/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { createRouteDeps } from "../../server/app.js";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
+import { createRouteDeps } from "../../server/runtime/composition/app.js";
+import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 import {
   listToolContributors,
   registerToolContributor,

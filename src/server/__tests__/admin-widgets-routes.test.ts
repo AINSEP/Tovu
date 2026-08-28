@@ -5,9 +5,9 @@ import { bootAuthenticated } from "./helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
-import { createWidgetsModule } from "../modules/widgets.js";
+import { createWidgetsModule } from "../runtime/composition/modules/widgets.js";
 import type { RouteDeps } from "../routes/types.js";
 import { WIDGET_CONTENT_TYPE } from "../../features/widgets/types.js";
 

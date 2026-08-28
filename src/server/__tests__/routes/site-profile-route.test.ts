@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app.js";
+import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
 import { bootAuthenticated, loginAsBarePrincipal, startTestServer } from "../helpers/http-test-server.js";
 import { SITE_PROFILE_SECTION_NAMES } from "../../../features/site-inspection/index.js";
 import type { RouteDeps } from "../../routes/types.js";

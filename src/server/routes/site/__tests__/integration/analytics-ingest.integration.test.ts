@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import http from "node:http";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { LocalBufferSink } from "#src/features/analytics/repo.memory";
 import type { RouteDeps } from "#src/server/routes/types";

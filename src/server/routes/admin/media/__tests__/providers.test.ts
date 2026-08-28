@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminMediaGetProvidersRoute } from "../get-providers.js";
 import { registerAdminMediaPutProvidersRoute } from "../put-providers.js";

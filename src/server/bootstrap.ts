@@ -3,7 +3,7 @@ import { reconcileInterruptedMigrationOnBoot } from "../features/database/boot/r
 import { resolveAgentPluginLayout } from "../features/agent-plugins/layout.js";
 import { seedBundledAgentPlugins } from "../features/agent-plugins/seed-bundled.js";
 import type { BootModule } from "./boot-lifecycle.js";
-import { bundledAgentPluginsDir } from "./deps.js";
+import { bundledAgentPluginsDir } from "./runtime/composition/deps.js";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
 
 /**

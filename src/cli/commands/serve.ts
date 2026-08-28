@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import { createApp } from "../../server/app.js";
-import { createSqliteRouteDeps } from "../../server/deps.js";
+import { createApp } from "../../server/runtime/composition/app.js";
+import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js";
 import { ValidationError, type ConfigJson } from "../../platform/site-dir/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";

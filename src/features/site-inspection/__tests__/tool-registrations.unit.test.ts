@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { createRouteDeps } from "../../../server/app.js";
+import { createRouteDeps } from "../../../server/runtime/composition/app.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { listToolContributors, registerToolContributor, resetToolContributorsForTests } from "../../../assistant/tool-contribution-registry.js";
 import { siteInspectionAgentToolCatalog } from "../agent-tools.js";

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminSettingsEventsRoute } from "../../routes/admin/settings/events.js";
 import type { RouteDeps } from "../../routes/types.js";

@@ -6,7 +6,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { resolveHtmlEmbedsForRender, resolveMediaAssetMetadataForRender } from "#src/server/routes/site/pages";
 import type { RouteDeps } from "#src/server/routes/types";

@@ -6,7 +6,7 @@ import express from "express";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { DatabaseIntrospectionPort, SchemaStateSummary } from "../../../features/database/adapter.sqlite.js";
 import { InMemoryDatabaseIntrospectionAdapter } from "../../../features/database/repo.memory.js";
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminDatabaseSchemaStateRoute } from "../../routes/admin/database/schema-state.js";
 import type { RouteDeps } from "../../routes/types.js";

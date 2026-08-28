@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../app.js";
-import { createAssistantChatsModule } from "../modules/assistant-chats.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
+import { createAssistantChatsModule } from "../runtime/composition/modules/assistant-chats.js";
 import { registerAuthRoutes } from "../middleware/dev-auth.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";

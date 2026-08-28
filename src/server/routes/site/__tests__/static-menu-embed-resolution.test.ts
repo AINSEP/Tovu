@@ -9,7 +9,7 @@ import { InMemoryPostRepo } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { InMemoryMenuRepo, NAV_DOC_TYPE } from "#src/features/navigation/index";
 import type { NavMenuEntry } from "#src/features/navigation/index";
-import { createApp, createRouteDeps } from "../../../app.js";
+import { createApp, createRouteDeps } from "../../../runtime/composition/app.js";
 
 /**
  * @file Coverage for `resolveStaticMenusForRender`'s real menu-resolution branch (`pages.ts`) — the

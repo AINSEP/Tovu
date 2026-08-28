@@ -5,9 +5,9 @@ import express from "express";
 
 import type { KeyringPort } from "../../features/webhooks/index.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
-import { createMediaModule } from "../modules/media.js";
+import { createMediaModule } from "../runtime/composition/modules/media.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 

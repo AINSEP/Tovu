@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 /**
  * @file Route-level proof of SPEC-044 (Workspace Administration) — AC-01..AC-08.

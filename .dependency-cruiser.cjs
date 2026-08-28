@@ -307,10 +307,14 @@ const GUARDED_MODULES = [
 // `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
 // `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
 // `app.listen` half (the exporter crawls the app instead of serving it).
+// `deps.ts`/`app.ts` re-pathed 2026-08-27 (apps/website restructure Phase 1 step 6): both moved to
+// `src/server/runtime/composition/` — leaving the old literal here would have silently dropped
+// their composition-root privileges (every module they legitimately reach directly would newly
+// flag as a `no-deep-imports` violation) rather than tracking the move.
 const COMPOSITION_ROOTS = [
   "^src/index\\.ts$",
-  "^src/server/deps\\.ts$",
-  "^src/server/app\\.ts$",
+  "^src/server/runtime/composition/deps\\.ts$",
+  "^src/server/runtime/composition/app\\.ts$",
   "^src/cli/commands/(serve|init|introspect|export)\\.ts$",
 ];
 
@@ -345,8 +349,11 @@ const DB_SQLITE = "^src/platform/db/sqlite";
 // `no-non-seam-deep-imports-from-tool-registration-caller` below and so still allows ONLY the
 // seam files. Same reasoning as `TOOL_REGISTRATION_TEST_FROM_EXTRA`'s name list: bless what was
 // reviewed, not a broader shape that would quietly bless more.
+// `server/tool-catalog-manifest` re-pathed 2026-08-27 (apps/website restructure Phase 1 step 6):
+// the file moved to `src/server/runtime/composition/tool-catalog-manifest.ts` — leaving the old
+// literal here would have silently un-registered the seam caller rather than tracking the move.
 const TOOL_REGISTRATION_SEAM_FROM =
-  "^src/(assistant/tool-registrations|server/tool-catalog-manifest)\\.ts$";
+  "^src/(assistant/tool-registrations|server/runtime/composition/tool-catalog-manifest)\\.ts$";
 // `publish-agent-tools.ts` is `static-publish`'s tool-registration seam under a non-conforming
 // name — the `-` before `agent-tools` defeats the `(^|/)` anchor, so it needs naming explicitly.
 // Exempted by name for the same reason `search-index.*` is in

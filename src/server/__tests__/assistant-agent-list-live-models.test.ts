@@ -100,8 +100,8 @@ function harness() {
     process.env.JINI_AGENT_DAEMON_URL = origin;
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = "f".repeat(64);
 
-    const { createRouteDeps } = await import("../app.js");
-    const { createAssistantModule } = await import("../modules/assistant.js");
+    const { createRouteDeps } = await import("../runtime/composition/app.js");
+    const { createAssistantModule } = await import("../runtime/composition/modules/assistant.js");
     const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
     const { createSurfaceExchangeStore } = await import("../../contracts/core/tool-surface-exchanges.js");
 

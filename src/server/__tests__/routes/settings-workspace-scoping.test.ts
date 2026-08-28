@@ -5,7 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear.js";
 import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";

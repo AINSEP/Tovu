@@ -6,7 +6,7 @@ import test from "node:test";
 
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 
-import { createRouteDeps } from "#src/server/app";
+import { createRouteDeps } from "#src/server/runtime/composition/app";
 
 import type { StaticPublishDeps, StaticPublishInput } from "../adapter.js";
 import { InMemoryPublishHistoryStore } from "../publish-history.js";

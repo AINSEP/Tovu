@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import express from "express";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import type { RouteDeps } from "../routes/types.js";
 import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index.js";

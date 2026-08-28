@@ -6,8 +6,8 @@ import { startTestServer } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app.js";
-import { createNewsletterModule } from "../../modules/newsletter.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
+import { createNewsletterModule } from "../../runtime/composition/modules/newsletter.js";
 import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
 import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
 import { buildUnsubscribeLink } from "#src/features/newsletter/unsubscribe";

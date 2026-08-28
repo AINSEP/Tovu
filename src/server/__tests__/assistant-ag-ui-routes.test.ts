@@ -224,8 +224,8 @@ function harness() {
     process.env.JINI_AGENT_DAEMON_URL = origin;
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
 
-    const { createRouteDeps } = await import("../app.js");
-    const { createAssistantAgUiModule } = await import("../modules/assistant-ag-ui.js");
+    const { createRouteDeps } = await import("../runtime/composition/app.js");
+    const { createAssistantAgUiModule } = await import("../runtime/composition/modules/assistant-ag-ui.js");
     const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
 
     return {

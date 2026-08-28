@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../app.js";
+import { createApp } from "../runtime/composition/app.js";
 
 /**
  * @file SPEC-047 — `PUT /pages/:pageId/html`, the write path a bespoke-HTML Page is authored

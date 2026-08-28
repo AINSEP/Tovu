@@ -7,7 +7,7 @@ import test from "node:test";
 import type { Response } from "express";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore.js";

@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { bootAuthenticated } from "../helpers/http-test-server.js";
-import { createRouteDeps } from "../../app.js";
+import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { registerAdminDatabaseRestorePointsCreateRoute } from "../../routes/admin/database/restore-points.js";
 import { registerAdminRecoveryRestorePointsListRoute } from "../../routes/admin/recovery/restore-points.js";

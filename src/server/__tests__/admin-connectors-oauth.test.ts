@@ -9,9 +9,9 @@ import { composioUserIdFor, createComposioConnectors } from "../../platform/conn
 import { InMemoryConnectorCredentialRepo } from "../../platform/connectors/connector-credential-store.memory.js";
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
-import { createConnectorsModule } from "../modules/connectors.js";
+import { createConnectorsModule } from "../runtime/composition/modules/connectors.js";
 import type { RouteDeps } from "../routes/types.js";
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 

@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createApp, createRouteDeps } from "#src/server/app";
+import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
 

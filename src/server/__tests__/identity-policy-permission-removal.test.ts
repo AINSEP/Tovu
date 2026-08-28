@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 
 /**
  * @file Route-level proof that a permission can be taken back OFF a policy — the gap

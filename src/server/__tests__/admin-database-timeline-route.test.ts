@@ -5,7 +5,7 @@ import express from "express";
 
 import { bootAuthenticated } from "./helpers/http-test-server.js";
 import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
-import { createRouteDeps } from "../app.js";
+import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline.js";
 import type { RouteDeps } from "../routes/types.js";
