@@ -7,8 +7,8 @@
  * `production` mode.
  */
 
-import type { CapabilityInventoryEntry } from "./runtime/configuration/capability-inventory.js";
-import { findCapabilityEntry } from "./runtime/configuration/capability-inventory.js";
+import type { CapabilityInventoryEntry } from "../configuration/capability-inventory.js";
+import { findCapabilityEntry } from "../configuration/capability-inventory.js";
 import type { RuntimeMode } from "#src/contracts/core/runtime-mode";
 
 export interface EnvSnapshot {

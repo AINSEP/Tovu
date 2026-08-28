@@ -17,7 +17,7 @@ import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
  *  - `pendingMigration`/`migrationInterrupted`: real read of `deps.siteStatusRepo`. ADR-041/043/
  *    044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix):
  *    `features/database/boot/*`'s reconciliation functions are now invoked by
- *    `server/bootstrap.ts`'s `database-migration-reconciliation` boot module before the site opens
+ *    `server/runtime/boot/bootstrap.ts`'s `database-migration-reconciliation` boot module before the site opens
  *    to traffic, so this now reflects a REAL crash-interrupted-migration determination, not an
  *    always-`false` stub.
  *  - `operationInFlight`: real, from `core/operation-lock`'s `isOperationInFlight` read-only peek.

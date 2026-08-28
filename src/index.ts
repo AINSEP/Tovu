@@ -1,14 +1,14 @@
 import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/runtime/composition/deps.js";
 import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
-import { runProductionReadinessGate } from "./server/production-readiness-gate.js";
+import { runProductionReadinessGate } from "./server/runtime/boot/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle.js";
-import { buildBootModules } from "./server/bootstrap.js";
+import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
 import { setReadinessSnapshot } from "./server/readiness-state.js";
-import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver.js";
-import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards.js";
+import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
+import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
 import { startAssistantDaemon } from "./server/agent-daemon/index.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 
@@ -273,7 +273,7 @@ async function main(): Promise<void> {
   const deps = useMemory ? createRouteDeps() : createSqliteRouteDeps();
 
   // ADR-046 Phase 3 (SPEC-031): the boot-module composition itself now lives in
-  // `server/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
+  // `server/runtime/boot/bootstrap.ts` (unit-testable, unlike this file — see the note above on why
   // boot-only enforcement stays here while the composable logic does not).
   const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
   setReadinessSnapshot(bootResult);

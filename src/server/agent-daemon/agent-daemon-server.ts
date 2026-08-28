@@ -95,7 +95,7 @@ import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
-import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
+import { installUnhandledRejectionGuard } from "../runtime/boot/process-error-guards.js";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../runtime/composition/deps.js";
 import { installFirstPartyToolContributors } from "../runtime/composition/tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";

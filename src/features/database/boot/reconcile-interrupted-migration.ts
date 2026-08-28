@@ -16,7 +16,7 @@
  * precondition check lives in `evaluate-boot-migration-policy.ts` instead.
  *
  * ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 — hard
- * blocker fix): this function is now actually invoked, by `server/bootstrap.ts`'s
+ * blocker fix): this function is now actually invoked, by `server/runtime/boot/bootstrap.ts`'s
  * `database-migration-reconciliation` boot module (a CRITICAL ADR-046 Phase 2 boot module, runs
  * first), before the real server accepts any traffic. It was previously fully built and
  * unit-tested but never called by any composition root — a real, live gap (not just a "seams
