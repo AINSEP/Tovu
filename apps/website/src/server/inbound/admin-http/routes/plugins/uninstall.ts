@@ -1,6 +1,7 @@
 import { PluginNotFoundError } from "#src/features/plugin-runtime/activation";
 import { PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from "#src/features/plugin-runtime/uninstall";
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps.js";
 
@@ -37,19 +38,14 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) =
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "admin.plugins.enable",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.plugins.enable' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.plugins.enable", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "admin.plugins.enable",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       const discovery = await deps.discoverPlugins();
       const result = await uninstallPlugin({

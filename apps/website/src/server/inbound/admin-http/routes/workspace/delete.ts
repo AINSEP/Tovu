@@ -1,4 +1,5 @@
 import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "#src/features/workspace/index";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
@@ -18,19 +19,14 @@ export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "workspace.manage",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'workspace.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "workspace.manage", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "workspace.manage",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       await deleteWorkspace({ deps: { repo: deps.workspaceRepo }, input: { id: deps.workspaceId } });
 

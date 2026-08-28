@@ -75,6 +75,34 @@ test("authorizeOrRespond: entityId, when present, is forwarded to authorize() un
   assert.deepEqual(receivedParams, { ...PARAMS_BASE, entityId: "widget-42" });
 });
 
+test("authorizeOrRespond: entityType is optional — a collection-level call with neither entityType nor entityId still authorizes and denies correctly", async () => {
+  const { res, capture } = createCapturingResponse();
+  const collectionParams = {
+    principalId: "principal-1",
+    permission: "content.read",
+    workspaceId: "workspace-1",
+  };
+  let receivedParams: unknown;
+  const denyingAuthorize: RouteDeps["authorize"] = async (params) => {
+    receivedParams = params;
+    return { allowed: false, reason: "no_grant" };
+  };
+
+  const result = await authorizeOrRespond(res, denyingAuthorize, collectionParams);
+
+  assert.equal(result, false);
+  assert.deepEqual(receivedParams, collectionParams);
+  assert.deepEqual(capture.jsonBody, {
+    error: "principal 'principal-1' is not authorized for 'content.read' (no_grant)",
+    code: "FORBIDDEN",
+    details: { permission: "content.read", reason: "no_grant" },
+  });
+
+  const allowingAuthorize: RouteDeps["authorize"] = async () => ({ allowed: true, reason: "matched" });
+  const { res: res2 } = createCapturingResponse();
+  assert.equal(await authorizeOrRespond(res2, allowingAuthorize, collectionParams), true);
+});
+
 test("authorizeOrRespond: the denial reason is interpolated into the error message even when empty", async () => {
   const { res, capture } = createCapturingResponse();
   const authorize: RouteDeps["authorize"] = async () => ({ allowed: false, reason: "" });

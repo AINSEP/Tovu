@@ -1,4 +1,5 @@
 import { toAdminWorkspaceResponse } from "#src/server/inbound/admin-http/http/workspace";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { WorkspaceRouteRegistrar } from "./deps.js";
 
@@ -12,19 +13,14 @@ export const registerAdminWorkspaceListRoute: WorkspaceRouteRegistrar = (app, de
   app.get("/api/admin/v1/workspaces", async (req, res) => {
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "workspace.manage",
-        workspaceId: deps.workspaceId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'workspace.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "workspace.manage", reason: authResult.reason },
-        });
+      if (
+        !(await authorizeOrRespond(res, deps.authorize, {
+          principalId: principal.id,
+          permission: "workspace.manage",
+          workspaceId: deps.workspaceId,
+        }))
+      )
         return;
-      }
 
       const own = await deps.workspaceRepo.findById(deps.workspaceId);
       // Defensive: the boot-wired workspaceId always resolves to a real row by construction (the

@@ -11,6 +11,7 @@ import {
   CONTENT_ENTRY_MAX_BODY_BYTES,
   rejectOversizedJsonBody,
 } from "#src/server/inbound/shared/body-size-limit";
+import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 
@@ -39,19 +40,11 @@ const REQUIRED_PERMISSION = "content.write";
  */
 async function allowedToWrite(deps: ContentRouteDeps, res: Response): Promise<boolean> {
   const principal = getAuthedPrincipal(res);
-  const authResult = await deps.authorize({
+  return authorizeOrRespond(res, deps.authorize, {
     principalId: principal.id,
     permission: REQUIRED_PERMISSION,
     workspaceId: deps.workspaceId,
   });
-  if (authResult.allowed) return true;
-
-  res.status(403).json({
-    error: `principal '${principal.id}' is not authorized for '${REQUIRED_PERMISSION}' (${authResult.reason})`,
-    code: "FORBIDDEN",
-    details: { permission: REQUIRED_PERMISSION, reason: authResult.reason },
-  });
-  return false;
 }
 
 /** Map a store-layer failure onto its HTTP shape. Extracted from the handler's `catch` for the same
