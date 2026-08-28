@@ -420,6 +420,59 @@ test("exportSite: a route that fails to render is reported as a failure, not sil
   assert.ok(report.routes.succeeded.some((r) => r.path === "/about"), "an unrelated theme page must still succeed");
 });
 
+test("exportSite: a route whose render hangs past the fetch timeout is recorded as a timed-out failure, not a crashed export", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  // Speeds up ONLY `AbortSignal.timeout`'s own firing (20ms instead of the real production
+  // duration) so this test does not have to wait out a real 30-second deadline — `capturedMs`
+  // below proves the real production duration was not itself shortened.
+  const originalAbortTimeout = AbortSignal.timeout;
+  let capturedMs: number | undefined;
+  AbortSignal.timeout = ((ms: number) => {
+    capturedMs = ms;
+    return originalAbortTimeout(20);
+  }) as typeof AbortSignal.timeout;
+
+  // Only the `/welcome` request is ever intercepted — every other fetch (including the crawl's own
+  // asset requests) goes through the REAL exporter over REAL HTTP, exactly like every other test in
+  // this file, so this proves ONE hung route degrades in isolation rather than the whole export.
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/welcome")) {
+      return new Promise<Response>((_resolve, reject) => {
+        const signal = init?.signal;
+        if (!signal) return; // no signal means pre-fix code: hang forever, matching the real bug.
+        if (signal.aborted) {
+          reject(signal.reason);
+          return;
+        }
+        signal.addEventListener("abort", () => reject(signal.reason));
+      });
+    }
+    return originalFetch(input, init);
+  }) as typeof fetch;
+
+  try {
+    const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+    const welcomeFailure = report.routes.failed.find((r) => r.path === "/welcome");
+    if (!welcomeFailure) throw new Error("the hung route must be reported in routes.failed, not silently dropped or left to crash the whole export");
+    assert.match(welcomeFailure.reason, /timed out/);
+    assert.equal(existsSync(path.join(outputDir, "welcome", "index.html")), false, "a timed-out route must not leave a file behind");
+
+    // The hang is scoped to exactly one route — every other route must still export normally.
+    assert.ok(report.routes.succeeded.some((r) => r.path === "/"), "home must still succeed");
+    assert.ok(report.routes.succeeded.some((r) => r.path === "/about"), "an unrelated theme page must still succeed");
+
+    assert.equal(capturedMs, 30_000, "the export fetch timeout must be a real, generous production duration — only its own firing was sped up for this test");
+  } finally {
+    globalThis.fetch = originalFetch;
+    AbortSignal.timeout = originalAbortTimeout;
+  }
+});
+
 test("exportSite: an exact-match active redirect rule is exported as a static meta-refresh stub", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
