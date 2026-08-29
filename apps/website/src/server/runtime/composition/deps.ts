@@ -127,7 +127,7 @@ import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-in
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
 import {
   ensureSettingsUiTabDefinitions,
   getEffective,
@@ -752,6 +752,7 @@ export function createSqliteRouteDeps(
     outbox,
     clock,
     idGen,
+    spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
   });
 

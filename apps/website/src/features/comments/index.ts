@@ -25,9 +25,8 @@ import type { RateLimitProfile } from "#src/contracts/core/rate-limit/rate-limit
 import { createCommentHookRegistry } from "./hooks.js";
 import { createCommentIngressPolicy } from "./ingress.js";
 import type { EntryLookupResult } from "./ingress.js";
-import type { CommentIngressPolicy, CommentRepoPort } from "./ports.js";
+import type { CommentIngressPolicy, CommentRepoPort, SpamCheckPort } from "./ports.js";
 import { getCommentsSettings } from "./settings.js";
-import { HeuristicSpamCheck } from "./spam.heuristic.js";
 import type { CommentsSettings } from "./types.js";
 import { createCommentWriteService } from "./write-service.js";
 import type { CommentWriteService } from "./write-service.js";
@@ -50,6 +49,10 @@ export interface CommentsModuleDeps {
   outbox: OutboxPort;
   clock: ClockPort;
   idGen: IdGeneratorPort;
+  /** The spam-check adapter the caller has chosen (`HeuristicSpamCheck` by default in both real
+   * composition roots, `AkismetSpamCheck` when an operator configures it) — this module never picks
+   * one on its own, so the choice is a real DI seam, not a hardcoded default. */
+  spamCheck: SpamCheckPort;
   /** Fixed fallback settings, used only when `settingsRepo` is omitted. */
   settings?: CommentsSettings;
   /** SPEC-035 — when supplied, settings are read LIVE from the ADR-028 ledger instead of the
@@ -76,7 +79,7 @@ function computeCommentsClosed(publishedAt: string | null, closeAfterDays: numbe
 
 export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
   const hooks = createCommentHookRegistry();
-  const spamCheck = new HeuristicSpamCheck();
+  const spamCheck = deps.spamCheck;
   // Disclosed gap (SPEC-035): `maxPerIpPerHour` is readable/writable through the ledger like every
   // other `CommentsSettings` field, but the actual rate-LIMITER below is still constructed ONCE,
   // fixed at `COMMENTS_SUBMIT_PROFILE.max` (= the same value as `DEFAULT_COMMENTS_SETTINGS.
@@ -129,6 +132,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
 }
 
 export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./ports.js";
+export { HeuristicSpamCheck } from "./spam.heuristic.js";
 export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types.js";
 export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types.js";
 export type { CommentWriteService } from "./write-service.js";

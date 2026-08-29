@@ -117,7 +117,7 @@ import { createSkillsModule } from "./modules/skills.js";
 import { composePluginRuntime } from "./plugin-runtime.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "#src/features/comments/index";
+import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "#src/features/analytics/config.settings";
 import { InMemoryCommentRepo } from "#src/features/comments/repo.memory";
 import { registerCommentsSubmitRoute } from "../../inbound/public-http/routes/site/comments-submit.js";
@@ -433,6 +433,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     outbox,
     clock,
     idGen,
+    spamCheck: new HeuristicSpamCheck(),
     settingsRepo,
   });
 
