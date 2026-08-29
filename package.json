@@ -96,7 +96,7 @@
     "@opentelemetry/semantic-conventions": "^1.43.0",
     "argon2": "^0.44.0",
     "aws4fetch": "^1.0.20",
-    "better-sqlite3": "^11.8.1",
+    "better-sqlite3": "^13.0.0",
     "commander": "^15.0.0",
     "drizzle-orm": "^0.44.7",
     "express": "^4.21.2",
