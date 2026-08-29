@@ -15,9 +15,22 @@ Verified empirically, not argued from docs.**
 
 ### What was tested
 
-Tovu opens SQLite with `journal_mode = WAL` and `synchronous = 1` (NORMAL) —
-`apps/website/src/platform/db/sqlite/content-db.ts:77-82`, and confirmed live against
-`sites/tovu-com/content.db` (`journal_mode = wal`, `synchronous = 1`).
+Tovu opens SQLite with `journal_mode = WAL` —
+`apps/website/src/platform/db/sqlite/content-db.ts:77`, confirmed live against
+`sites/tovu-com/content.db` (`journal_mode = wal`).
+
+> **CORRECTED 2026-08-29 (thanks to the Runner session — this was my error).** This paragraph
+> originally also claimed `synchronous = 1` (NORMAL) at `content-db.ts:77-82`. **That is wrong and
+> the correction is accepted.** There is no `synchronous` pragma anywhere in `apps/website/src` —
+> lines 77-82 are `journal_mode`, `foreign_keys`, and `busy_timeout`, nothing else. Re-verified
+> directly.
+>
+> **Root cause of the mistake, worth naming so it isn't repeated:** I read `synchronous` back from
+> *my own throwaway read-only probe connection* and reported it as if it were Tovu's configured
+> value. `synchronous` is a **per-connection** setting, not a property stored in the database file —
+> so opening a second connection and querying the pragma tells you about *that* connection's
+> default, never about what the application set on its own handle. A pragma read is only evidence
+> about the connection that reads it.
 
 Reproduced those exact pragmas on a scratch DB, wrote 500 committed rows, then `kill -9` with the
 handle **deliberately never closed** — strictly worse than any Windows hard kill, since SIGKILL is
@@ -37,9 +50,13 @@ not survive testing.** In WAL mode a hard kill costs:
 - in-flight HTTP requests, dropped mid-flight
 - an un-checkpointed WAL file (larger on disk until the next open recovers it)
 
-It does **not** cost integrity, and it does not cost committed transactions. `synchronous = NORMAL`
-in WAL mode can lose recent commits on **power loss / OS crash** — a process kill is neither; the OS
-still flushes the writes.
+It does **not** cost integrity, and it does not cost committed transactions.
+
+~~`synchronous = NORMAL` in WAL mode can lose recent commits on power loss / OS crash.~~ **Struck —
+see the correction above.** Tovu never sets `synchronous`, so it runs at SQLite's default `FULL (2)`,
+where the WAL is synced on every commit. The power-loss caveat therefore does **not** apply to Tovu
+as written; committed transactions survive power loss too. This makes the conclusion *stronger*, not
+weaker. (A process kill was never the risky case regardless — the OS still flushes written data.)
 
 So the honest framing: a shutdown channel is **UX polish** (don't drop a request someone is mid-save
 on), not a **correctness requirement**. That doesn't make it worthless — it makes it lower priority
@@ -155,3 +172,63 @@ graph is `node:assert`/`node:test`/`liquid-sandbox.js`, and `worker-sandbox.ts` 
 boots via a tsx `register()` + `require()` hop, which is the plausible source of a 5s timeout.
 Both files are clean in git. **Assumed pre-existing, not yet proven** — proving it means
 reinstalling v11 and re-running, which has not been done.
+
+---
+
+## 2026-08-29 · Tovu-Runner session · CORRECTION: my route inventory method was unsound
+
+**Retracting the five-row table in my previous section.** It was produced by grepping the built
+admin bundle for `"/api/..."` string literals. That method can only see paths written as a single
+complete quoted literal, so **every workspace-scoped route was systematically invisible** — and
+`/api/admin/v1/workspaces/${id}/...` is the shape of most admin routes. The table was not merely
+incomplete; the method could not have found them.
+
+Caught by tracing a **real chat turn** at runtime (read-only prompt, live site, content verified
+unchanged before and after). Ordered requests observed:
+
+```
+POST /api/runs
+POST /api/assistant/chats
+PUT  /api/assistant/chats/{chatId}/messages/{msgId}
+GET  /api/runs/{runId}/events                                    (SSE)
+GET  /api/assistant/chats
+GET  /api/agents                                                 (background poll, every 5s)
+PUT  /api/assistant/chats/{chatId}/messages/{msgId2}
+GET  /api/admin/v1/workspaces/{id}/settings/effective?namespace=core.language   (x3)
+GET  /api/admin/v1/workspaces/{id}/assistant/execution-credential
+GET  /api/assistant/chats
+```
+
+`ag-ui-run` and `byok-turn` did **not** fire — Local CLI mode was active, so those are
+mode-dependent, not dead.
+
+### Correct inventory, enumerated from source (not from the bundle)
+
+Eight modules match `assistant*` in `server/runtime/composition/modules/`:
+
+| Module | Unmount under the flag? |
+|---|---|
+| `assistant.ts` | yes |
+| `assistant-ag-ui.ts` | yes |
+| `assistant-byok.ts` | yes |
+| `assistant-chats.ts` | yes |
+| `assistant-daemon-client.ts` | yes |
+| `assistant-execution.ts` | yes — **was missing from every prior list** |
+| `assistant-settings.ts` | yes — **was missing; serves `assistant/execution-credential`** |
+| `site-assistant.ts` | **NO — this is the public visitor assistant (ADR-054)** |
+
+**The trap:** anyone implementing this by unmounting "everything matching `assistant*`" takes down
+`site-assistant.ts` — the visitor-facing widget the flag is explicitly required never to touch. The
+name similarity is the hazard; the exclusion needs to be explicit and commented, not incidental.
+
+One open question for Tovu: `settings/effective?namespace=core.language` fired 3x immediately after
+the reply saved. Probably a general i18n read the chat UI happens to trigger rather than an
+assistant-owned route — but it should be confirmed before being excluded, not assumed.
+
+### Unrelated live finding: the CLI-detection banner is stale-prone
+
+After restarting the site, the composer was blocked by "No usable CLI is selected" again, despite
+the Claude Code CLI being installed and previously detected. Clicking **Rescan PATH** in the runtime
+picker fixed it — detection only, no install or config change. So the daemon fix earlier tonight was
+necessary but not sufficient for that banner: agent detection is cached somewhere that survives
+across a site restart in a stale state. Not chased further.
