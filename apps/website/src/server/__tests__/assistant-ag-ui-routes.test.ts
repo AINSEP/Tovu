@@ -38,8 +38,9 @@ interface RecordedRequest {
 
 let recorded: RecordedRequest[] = [];
 
-/** `AGENT_DAEMON_URL` is resolved ONCE at `assistant-daemon-client.ts` module scope (its own doc),
- *  so every test in this file talks to the SAME long-lived stand-in daemon server — there is no way
+/** `getAgentDaemonUrl()` (`runtime/lifecycle/agent-daemon-port.ts`) re-checks `JINI_AGENT_DAEMON_URL`
+ *  live on every call, but this file's harness only ever sets it once, so every test still talks to
+ *  the SAME long-lived stand-in daemon server for the whole process — there is no way
  *  to point a later test at a differently-configured daemon instance. These two flags are how tests
  *  steer that one daemon's behavior instead: each test sets what it needs right after `bootAgUi`
  *  (which resets both to their defaults), the daemon handler below reads them per-request. */

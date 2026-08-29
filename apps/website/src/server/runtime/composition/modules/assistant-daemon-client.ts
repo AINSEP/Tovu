@@ -6,10 +6,14 @@
  * itself is the only other caller and its behavior is unchanged by this extraction — every
  * exported name here has the exact body it had inline in that file before this split.
  *
- * `AGENT_DAEMON_URL` is resolved ONCE at module scope, same as it always was — see
- * `assistant-proxy-routes.test.ts`'s own header for why that matters for tests (the stand-in
- * daemon must be listening, and `JINI_AGENT_DAEMON_URL`/`JINI_AGENT_DAEMON_PORT` must be set,
- * BEFORE this module is first imported).
+ * `getAgentDaemonUrl()` (2026-08-28 dispatch — daemon startup + port-scoping fix) is resolved PER
+ * CALL, not once at module scope: `index.ts`/`cli/commands/serve.ts` now self-allocate a free port
+ * when neither `JINI_AGENT_DAEMON_URL` nor `JINI_AGENT_DAEMON_PORT` is set, and that allocation
+ * happens asynchronously before `createApp()` — a module-scope `const` evaluated at import time
+ * could never observe it. `assistant-proxy-routes.test.ts` still sets `JINI_AGENT_DAEMON_URL`
+ * before first importing this module, and still works unchanged: `getAgentDaemonUrl()`'s explicit-
+ * env-var check re-reads live on every call, so it needs no pre-resolution step at all for that
+ * path. See `runtime/lifecycle/agent-daemon-port.ts`'s own header for the full resolution contract.
  */
 import http from "node:http";
 import { Readable } from "node:stream";
@@ -20,9 +24,9 @@ import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "#src/assistant
 import { ensureAssistantDaemonStarted } from "../../lifecycle/daemon-supervisor.js";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../../lifecycle/readiness-state.js";
+import { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 
-export const AGENT_DAEMON_URL =
-  process.env.JINI_AGENT_DAEMON_URL ?? `http://127.0.0.1:${Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319)}`;
+export { getAgentDaemonUrl } from "../../lifecycle/agent-daemon-port.js";
 
 /**
  * Builds the outbound header set for one proxied request. Every entry is resolved per-request, not
@@ -136,7 +140,7 @@ export function respondIfDaemonKnownFailed(res: Response): boolean {
  *  doc for which callers need which). Split out of `fetchAgentDaemon` so its two `??` fallbacks are
  *  scored in this small function's own complexity budget instead of the loop-and-retry function's. */
 function resolveDaemonRequest(req: Request, options: { path?: string; method?: string }): { target: string; method: string } {
-  return { target: `${AGENT_DAEMON_URL}${options.path ?? req.originalUrl}`, method: options.method ?? req.method };
+  return { target: `${getAgentDaemonUrl()}${options.path ?? req.originalUrl}`, method: options.method ?? req.method };
 }
 
 /** Builds one `fetch()` call's `RequestInit`, JSON-encoding `body` only when the caller supplied
@@ -162,7 +166,7 @@ function noteDaemonUnreachableWaiting(): void {
   daemonUnreachableSince = Date.now();
   // ONE concise line, not a stack. During boot this is expected, and a 10-line
   // `TypeError: fetch failed` per poll buried the real startup output.
-  console.log(`[assistant] waiting for the agent daemon at ${AGENT_DAEMON_URL}…`);
+  console.log(`[assistant] waiting for the agent daemon at ${getAgentDaemonUrl()}…`);
 }
 
 /** True only for the "nothing is listening yet, and we're still inside the retry window" shape.
@@ -175,7 +179,7 @@ function shouldRetryConnection(error: unknown, deadline: number): boolean {
 /** Writes the terminal 502 for a genuinely unreachable daemon. The full error is kept here — this
  *  one IS a fault worth a stack, unlike the boot-window retries above. */
 function respondDaemonUnreachable(res: Response, error: unknown): null {
-  console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
+  console.error(`[assistant] agent daemon unreachable at ${getAgentDaemonUrl()}`, error);
   daemonUnreachableSince = null;
   res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
   return null;
@@ -242,7 +246,7 @@ export async function forwardToAgentDaemon(req: Request, res: Response, body?: u
  * @complexity O(1) — one fire-and-forget HTTP request, not awaited by the caller.
  */
 export function cancelDaemonRunBestEffort(req: Request, res: Response, daemonRunId: string): void {
-  fetch(`${AGENT_DAEMON_URL}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
+  fetch(`${getAgentDaemonUrl()}/api/runs/${encodeURIComponent(daemonRunId)}/cancel`, {
     method: "POST",
     headers: outboundHeaders(req, res),
   }).catch(() => undefined);
@@ -297,7 +301,7 @@ export async function fetchAgentDaemonEventStream(
   path: string,
 ): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | null> {
   if (respondIfDaemonKnownFailed(res)) return null;
-  const target = `${AGENT_DAEMON_URL}${path}`;
+  const target = `${getAgentDaemonUrl()}${path}`;
   const headers = outboundHeaders(req, res);
   const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
 

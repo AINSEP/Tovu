@@ -20,9 +20,10 @@
  * Outbound, `forwardToAgentDaemon` attaches `Authorization: Bearer <TOVU_AGENT_DAEMON_TOKEN>` —
  * the daemon rejects any request without it (`src/assistant/daemon-auth.ts`), so this proxy is the
  * only thing on the machine that can reach it. That env var is read INSIDE the request path, never
- * at module scope like `AGENT_DAEMON_URL` below: ES module imports are all evaluated before
- * `src/index.ts`'s own top-level `main()` call runs, and `main()` is what mints the token — a
- * module-scope read would capture `undefined` forever.
+ * at module scope: ES module imports are all evaluated before `src/index.ts`'s own top-level
+ * `main()` call runs, and `main()` is what mints the token — a module-scope read would capture
+ * `undefined` forever. `getAgentDaemonUrl()` below (2026-08-28 dispatch) is now resolved the same
+ * way, for a related but distinct reason: see `runtime/lifecycle/agent-daemon-port.ts`'s header.
  *
  * Header forwarding: `Last-Event-ID` is forwarded on every proxied request. The daemon's SSE route
  * (`@jini-ai/http-kit`'s `requestedAfterCursor`) reads exactly that header to resume a stream after
@@ -39,7 +40,7 @@
  * exchange WAS found here, just not for this caller, and forwarding an id the daemon has never seen
  * would only spend a wasted round trip discovering the same 409 the local store already knows.
  *
- * The daemon-talking plumbing below (`AGENT_DAEMON_URL`, `outboundHeaders`, the retry/known-failed
+ * The daemon-talking plumbing below (`getAgentDaemonUrl`, `outboundHeaders`, the retry/known-failed
  * `fetch` wrapper) moved to `assistant-daemon-client.ts` (2026-08-18, ADR-059) so
  * `assistant-ag-ui.ts` can reach the same daemon process without duplicating it. Pure extraction —
  * every function this file still calls has the exact body it had inline here before the split.
@@ -59,7 +60,7 @@ import {
 } from "#src/assistant/index";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
-import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
+import { getAgentDaemonUrl, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
@@ -344,7 +345,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
  */
 async function forwardAttachmentUpload(req: Request, res: Response): Promise<void> {
   if (respondIfDaemonKnownFailed(res)) return;
-  const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
+  const target = `${getAgentDaemonUrl()}${req.originalUrl}`;
   const headers: Record<string, string> = {
     "content-type": req.get("content-type") ?? "application/octet-stream",
   };
@@ -363,7 +364,7 @@ async function forwardAttachmentUpload(req: Request, res: Response): Promise<voi
       duplex: "half",
     } as RequestInit);
   } catch (error) {
-    console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
+    console.error(`[assistant] agent daemon unreachable at ${getAgentDaemonUrl()}`, error);
     res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
     return;
   }
