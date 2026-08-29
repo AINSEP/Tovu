@@ -7,6 +7,10 @@ import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
 import { runtimeSchemaVersion } from "../../platform/site-dir/schema-guard.js";
 import { PortInUseError } from "../errors.js";
+import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbound/assistant/index.js";
+import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
+import { isAdminAssistantEnabled } from "../../server/runtime/composition/admin-assistant-enabled.js";
+import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to
@@ -21,6 +25,20 @@ import { PortInUseError } from "../errors.js";
  * Architectural role:
  * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `site-dir`
  * errors and `PortInUseError` propagate uncaught to `cli/main.ts`.
+ *
+ * Agent daemon (2026-08-28 dispatch): this command previously never started the agent daemon at
+ * all — `src/index.ts` was the only boot path that did (`startAssistantDaemon`, at the bottom of
+ * this file's `app.listen()` callback), so a Tovu instance launched via `tovu serve` (the packaged
+ * CLI path, and what the Tovu-Runner desktop app spawns per project) served an admin UI whose
+ * assistant could never respond. Fixed by mirroring `index.ts`'s own readiness-await-then-spawn
+ * ordering exactly (see that file's own comment on why spawning too early shipped a real
+ * duplicate-settings-row defect), plus resolving this instance's own daemon port BEFORE `createApp()`
+ * (`ensureAgentDaemonPortResolved()` — see `runtime/lifecycle/agent-daemon-port.ts`'s header for why
+ * an unconfigured instance now self-allocates a free port instead of every unconfigured Tovu on the
+ * box converging on the same fixed 4319). Shutdown calls `shutdownAssistantDaemon()` directly rather
+ * than letting `daemon-supervisor.ts` register its own signal handlers here — see
+ * `startAssistantDaemon`'s `registerProcessSignalHandlers` option doc for why a second SIGINT/SIGTERM
+ * listener calling `process.exit(0)` would race this command's own BR-07 graceful drain below.
  */
 
 export interface RunServeCommandInput {
@@ -73,7 +91,30 @@ function warnIfLegacyEnvVarsIgnored(): void {
  *   the listener is bound (the process then stays alive on the open socket, not on this promise).
  * @overallScore 100
  */
+/** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
+ *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
+async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> } }): Promise<boolean> {
+  if (isAdminAssistantEnabled()) return true;
+  const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
+  if (configured.length > 0) return true;
+  console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
+  return false;
+}
+
 export async function runServeCommand(input: RunServeCommandInput): Promise<void> {
+  // Unhandled-rejection guard (2026-08-28 dispatch): `index.ts`'s `main()` installs this same guard
+  // first, before any boot step (see `process-error-guards.ts`'s own header for the live crash that
+  // motivated it) — this command never had it, and it is the one boot path Tovu-Runner actually
+  // spawns. Verified live: `features/identity/wiring.ts`'s `ownerPrincipalId` is forked off
+  // `seedResult` with no `.catch()` of its own anywhere; when `seedIdentity()` rejects (reproduced
+  // with a real `UNIQUE constraint failed: roles.workspace_id, roles.name` from a corrupted
+  // identity table), the `Promise.all([...]).catch(...)` below catches `identityReady`'s own
+  // rejection fine, but that `ownerPrincipalId` fork is a SEPARATE promise with no handler at all —
+  // an unhandled rejection that crashed the entire process a few seconds after boot. Installed as
+  // the guard module's own header prescribes: fixed structurally, once, here, rather than chasing
+  // down every individual forked promise that lacks a `.catch()` today or might tomorrow.
+  installUnhandledRejectionGuard();
+
   warnIfLegacyEnvVarsIgnored();
 
   const target = resolveInstallDirTarget(input.dir);
@@ -90,6 +131,12 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
     // `sites/tovu-com/themes` beside the operator's shell instead of the site it was given.
     themesDir: path.join(target, "themes"),
   });
+
+  // Must resolve — and, when neither `JINI_AGENT_DAEMON_URL` nor `JINI_AGENT_DAEMON_PORT` is set,
+  // allocate — this instance's daemon origin BEFORE `createApp()` wires the assistant proxy's
+  // routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it has something to
+  // return. See this file's own header and `agent-daemon-port.ts`'s for the full contract.
+  await ensureAgentDaemonPortResolved();
   const app = createApp(deps);
 
   await new Promise<void>((resolve, reject) => {
@@ -110,6 +157,30 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
       console.log(`tovu serve: dir=${target} port=${port} schemaVersion=${runtime.index} workspaceId=${bootResult.workspaceId}`);
       resolve();
 
+      // Same readiness-await-then-spawn ordering as `index.ts`'s own `app.listen()` callback, and
+      // for the identical reason (see that file's comment on the call site this mirrors): spawning
+      // before these settle raced this process's own first-boot identity/settings seeding and
+      // shipped a real duplicate-`core.execution.mode`-row defect. `registerProcessSignalHandlers:
+      // false` because this command already owns SIGINT/SIGTERM below (BR-07) — see
+      // `startAssistantDaemon`'s own option doc for why a second listener here would race it.
+      Promise.all([
+        deps.identityReady,
+        deps.settingsReady,
+        deps.seoReady,
+        deps.commentsReady,
+        deps.commentsSettingsReady,
+        deps.executionSettingsReady,
+        deps.settingsUiTabsReady,
+        deps.analyticsSettingsReady,
+      ])
+        .then(async () => {
+          if (!(await agentDaemonWanted(deps))) return;
+          startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: target }, { registerProcessSignalHandlers: false });
+        })
+        .catch((error: unknown) => {
+          console.error("[cli/serve] a boot-readiness promise rejected — not starting the agent daemon", error);
+        });
+
       // BR-07: on SIGINT/SIGTERM, stop accepting new connections, let the current request finish,
       // then close the db handle and exit 0.
       const shutdown = (): void => {
@@ -117,6 +188,7 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
         const finish = (): void => {
           if (exited) return;
           exited = true;
+          shutdownAssistantDaemon();
           bootResult.db.$client.close();
           process.exit(0);
         };

@@ -9,6 +9,10 @@ import type { RouteDeps } from "#src/server/routes/types";
  * which await `deps.assistantSettingsReady`, read `deps.workspaceId`/`deps.settingsRepo`, call
  * `deps.getEffective` (GET), and call `deps.authorize`; the PUT additionally needs
  * `deps.clock`/`deps.idGen`/`deps.principalRepo`/`deps.set` to drive the settings write chokepoint.
+ * `deps.adminAssistantEnabled` (`routes/types.ts`'s field doc) is read only by `get-settings.ts`,
+ * folded into its response alongside the (unrelated) public-assistant switch — this module is one of
+ * exactly two admin-assistant modules mounted unconditionally, so its response is the one place the
+ * admin SPA can learn `TOVU_ADMIN_ASSISTANT=off` without the request itself 404ing.
  * `getEffective`/`set` are here because `assistant/public-assistant-settings.ts`'s deps bags now take
  * them by injection rather than static import (module-cycle avoidance, see that file's header) — this
  * Pick is how the real functions reach these 2 routes without either route importing
@@ -52,6 +56,7 @@ export type AssistantSettingsRouteDeps = Pick<
   | "siteAssistantSecretSealer"
   | "siteAssistantSecretKeyring"
   | "adminExecutionCredentialRepo"
+  | "adminAssistantEnabled"
 >;
 
 export type AssistantSettingsRouteRegistrar = (app: Express, deps: AssistantSettingsRouteDeps) => void;

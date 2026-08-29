@@ -125,6 +125,64 @@ export function useAdminSession(): UseAdminSession {
   return { user, checking, handleLogin, logout };
 }
 
+/**
+ * Whether the ADMIN assistant is enabled server-side (`TOVU_ADMIN_ASSISTANT=off`,
+ * `admin-assistant-enabled.ts`) — gates whether `App.tsx` mounts `AssistantDock`/`ChatFab` at all.
+ * Off is a real disable, not a hidden widget: every endpoint the dock calls 404s in that state, so
+ * rendering it anyway would show a permanently broken chat surface instead of nothing.
+ *
+ * Reuses the SAME `GET .../assistant/settings` endpoint and `api.getAssistantSettings()` function
+ * the "AI Assistant" panel's own `use-ai-assistant.hooks.ts` already calls, reading the sibling
+ * `adminAssistantEnabled` field that route's own doc explains piggy-backing onto that response
+ * — no new endpoint. `assistant-settings` is one of exactly two admin-assistant server modules
+ * mounted UNCONDITIONALLY (`server/app.ts`'s module-mounting comment), so this GET stays reachable
+ * and answers correctly with the flag off, unlike the four gated modules the dock itself would
+ * otherwise call.
+ *
+ * Defaults to `true` (rendered) until the fetch settles, and fails open on a rejected fetch —
+ * mirroring both the server's own "default ON, absent the var" posture
+ * (`admin-assistant-enabled.ts`'s header) and this admin's existing fail-open convention for
+ * degraded reads (`useAdminLocale` falls back to English the same way rather than blanking the
+ * sidebar). This means the (rare, operator-chosen) OFF case can briefly mount the dock before
+ * hiding it once the fetch resolves — accepted deliberately: no conversation has started in that
+ * window, so nothing is lost, and the far more common ON/default case never delays the dock's
+ * first paint waiting on a network round trip.
+ *
+ * Gated on `user`, mirroring `useAdminSession`'s own settings-change-feed effect: a pre-login
+ * request would 401, and this value plays no role before `App.tsx`'s `<Login>` gate clears.
+ *
+ * Deliberately NOT folded into `useAdminSession` above despite the obvious similarity. That hook's
+ * existing regression coverage (`app-session-unauthenticated-kickback.unit.test.tsx`) counts raw
+ * `fetch` mock invocations by call ORDER to test 401/403 handling; a second fetch fired from inside
+ * that same hook would shift every one of those counts and make the suite racy for reasons entirely
+ * unrelated to what it tests. A sibling hook, called separately from `App()`, costs nothing and
+ * leaves that suite untouched.
+ *
+ * @param user - `useAdminSession()`'s current session, or `null` before login.
+ * @returns `true` unless the server has confirmed the flag is off.
+ */
+export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
+  const [enabled, setEnabled] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api
+      .getAssistantSettings()
+      .then((response) => {
+        if (!cancelled) setEnabled(response.adminAssistantEnabled ?? true);
+      })
+      .catch(() => {
+        // Fail open — see this function's own doc comment.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  return enabled;
+}
+
 export interface UseSidebarDrawer {
   /** Off-canvas sidebar drawer, mobile only (`styles.css`'s `@media (max-width: 900px)`; inert at
    *  desktop widths since `.cms-nav` stays in-flow there regardless of this state). */

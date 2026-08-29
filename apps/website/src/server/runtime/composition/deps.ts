@@ -125,6 +125,7 @@ import { SqliteEntryRefsRepo } from "#src/platform/db/sqlite/entry-refs-repo.sql
 import { SqlitePluginActivationRepo } from "#src/features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "#src/features/plugin-runtime/built-ins/word-count/index";
 import { composePluginRuntime } from "./plugin-runtime.js";
+import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { wireCoreResolvers } from "#src/features/widgets/resolvers/index";
 import { createNavMenuReadModel } from "#src/features/navigation/index";
 import { createCommentsModule, ensureCommentsSettingDefinitions, HeuristicSpamCheck } from "#src/features/comments/index";
@@ -834,6 +835,9 @@ export function createSqliteRouteDeps(
     seoReady,
     settingsReady,
     assistantSettingsReady,
+    // See `routes/types.ts`'s `adminAssistantEnabled` field doc — read once here, mirroring
+    // `server/app.ts`'s `createRouteDeps()`.
+    adminAssistantEnabled: isAdminAssistantEnabled(),
     siteAssistantCredentialRepo: new SqliteSiteAssistantCredentialRepo(db),
     siteAssistantSecretSealer,
     siteAssistantSecretKeyring,

@@ -1216,6 +1216,23 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   exportOutputRootDir: string;
   /**
+   * `TOVU_ADMIN_ASSISTANT` off switch, read ONCE at boot (`admin-assistant-enabled.ts`'s
+   * `isAdminAssistantEnabled()`) by both composition roots — `server/app.ts`'s `createRouteDeps()`
+   * and `server/deps.ts`'s `createSqliteRouteDeps()` — same "read once at the root, thread the
+   * value down" discipline `exportOutputRootDir` above establishes for its own env var.
+   *
+   * `app.ts`'s own module-mounting code reads this SAME field (not a second `isAdminAssistantEnabled()`
+   * call) to decide whether to mount the four gated admin-assistant modules, so the value a client
+   * observes here can never disagree with which routes are actually live.
+   *
+   * The one route consumer is `routes/assistant/get-settings.ts`, which folds this into its response
+   * alongside the (unrelated) public-assistant switch it already returns — see that route's own doc
+   * for why: `modules/assistant-settings.ts` is one of exactly two admin-assistant modules mounted
+   * UNCONDITIONALLY, so it is the one place the admin SPA can learn the flag is off without the
+   * request itself 404ing.
+   */
+  adminAssistantEnabled: boolean;
+  /**
    * Boots a real `Express` app — the SAME factory `server/app.ts` exports as `createApp`, injected
    * here rather than imported directly by `src/platform/export/site-exporter.ts` (`exportSite` needs to boot
    * an in-process copy of the app to crawl it over real HTTP — see that file's own header). A direct
