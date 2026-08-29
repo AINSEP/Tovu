@@ -54,6 +54,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "./readiness-state.js";
+import { getAgentDaemonPortForSpawnEnv } from "./agent-daemon-port.js";
 import { AGENT_DAEMON_EXIT_CODE, createRespawnPolicy } from "#src/assistant/index";
 import type { RespawnDecision, RespawnPolicy } from "#src/assistant/index";
 
@@ -358,10 +359,50 @@ export function resolveDaemonScriptPath(): string {
  *   own stdout/stderr fds from ever being shared with an orphaned daemon (see git history on
  *   `index.ts` for the concrete Playwright-teardown hang this was fixed to prevent).
  */
-function spawnRealDaemonProcessFor(workspaceId: string): SpawnedDaemonProcess {
+export interface DaemonSpawnEnvInput {
+  workspaceId: string;
+  /** This process's own already-resolved site root (`deps.ts`'s `siteDir()` for `index.ts`, or the
+   *  CLI's `<dir>` argument for `cli/commands/serve.ts`) — see {@link buildDaemonSpawnEnvOverrides}. */
+  siteDir: string;
+  daemonPortOverride: string | undefined;
+}
+
+/**
+ * Builds the env overrides layered onto `process.env` for every daemon spawn. Pure — no `spawn()`
+ * call — specifically so the "does the child agree with the parent" invariant can be asserted
+ * directly against `resolveSiteRoot()` in a test, without spawning a real process.
+ *
+ * `TOVU_SITE_DIR` (2026-08-29 follow-up fix): the child previously inherited only `process.env`
+ * unchanged, so it resolved its OWN site via `resolveSiteRoot()`'s cwd-relative fallback
+ * (`<cwd>/sites/tovu-com`) — agreeing with the parent only by the accident of sharing its cwd. Two
+ * confirmed live failures: Tovu-Runner's cwd has no `sites/tovu-com` at all (crash-loop), and this
+ * repo's own root DOES have one as a fixture, so a `tovu serve <other-dir>` run from here bound its
+ * port cleanly while silently attached to the WRONG site's database — the exact wrong-site-data
+ * hazard the original port fix closed, just moved one layer down. Omitted (not overridden) whenever
+ * the parent's own env already pins `TOVU_SITE_DIR`, same "explicit always wins" discipline as the
+ * port override below; `TOVU_CONTENT_DB`/`TOVU_MEDIA_UPLOADS_DIR`/`TOVU_THEMES_DIR` are untouched by
+ * this function, so each keeps overriding its own subpath independently regardless (`deps.ts`'s own
+ * `?? join(siteDir(), ...)` precedence never even consults `siteDir()` once its own var is set).
+ *
+ * @complexity O(1).
+ */
+export function buildDaemonSpawnEnvOverrides(input: DaemonSpawnEnvInput): NodeJS.ProcessEnv {
+  return {
+    TOVU_WORKSPACE: input.workspaceId,
+    TOVU_PARENT_PID: String(process.pid),
+    // Self-allocation fix (2026-08-28): when neither `JINI_AGENT_DAEMON_URL` nor
+    // `JINI_AGENT_DAEMON_PORT` was set, `agent-daemon-port.ts` picked a free port for THIS process
+    // — the child would otherwise fall back to its own module-scope default (4319,
+    // `agent-daemon-server.ts:133`) and bind somewhere the proxy above never asked it to listen.
+    ...(input.daemonPortOverride !== undefined ? { JINI_AGENT_DAEMON_PORT: input.daemonPortOverride } : {}),
+    ...(process.env.TOVU_SITE_DIR === undefined ? { TOVU_SITE_DIR: input.siteDir } : {}),
+  };
+}
+
+function spawnRealDaemonProcessFor(input: DaemonSpawnEnvInput): SpawnedDaemonProcess {
   const daemonPath = resolveDaemonScriptPath();
   const isCompiled = daemonPath.endsWith(".js");
-  const env: NodeJS.ProcessEnv = { ...process.env, TOVU_WORKSPACE: workspaceId, TOVU_PARENT_PID: String(process.pid) };
+  const env: NodeJS.ProcessEnv = { ...process.env, ...buildDaemonSpawnEnvOverrides(input) };
 
   const child = isCompiled
     ? spawn(process.execPath, [daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
@@ -387,19 +428,97 @@ function spawnRealDaemonProcessFor(workspaceId: string): SpawnedDaemonProcess {
 let singleton: DaemonSupervisor | undefined;
 
 /**
+ * Post-shutdown spawn race fix (2026-08-28 dispatch). `shutdownAssistantDaemon()` used to be exactly
+ * `singleton?.shutdown()` — a no-op whenever `singleton` was still `undefined`. `cli/commands/
+ * serve.ts` kicks off `startAssistantDaemon()` from inside an un-awaited `Promise.all([...]).then(
+ * ...)` chain (waiting on first-boot readiness — see that file's own comment on why), so a SIGTERM
+ * arriving before that chain settles could call `shutdownAssistantDaemon()` while `singleton` was
+ * still `undefined`, then have the pending `.then()` callback call `startAssistantDaemon()` moments
+ * later with nothing left to stop it — spawning a fresh, `registerProcessSignalHandlers: false`
+ * (i.e. no signal handlers of its own) daemon child that nothing would ever reap.
+ *
+ * Lives on the module singleton wrapper, not in `serve.ts` (or any other caller), so every current
+ * and future caller of `startAssistantDaemon()`/`shutdownAssistantDaemon()` is protected by
+ * construction rather than needing to remember its own guard — the same "fix once, structurally,
+ * where the invariant actually lives" reasoning `process-error-guards.ts`'s own header uses for the
+ * unhandled-rejection guard. Set exactly once, by `shutdownAssistantDaemon()`, and never cleared for
+ * the life of the process — like `terminating` on a `DaemonSupervisor` instance (see this file's own
+ * header), there is no scenario where a process that has already been asked to shut down should ever
+ * legitimately start a daemon afterward.
+ */
+let shutdownRequested = false;
+
+/**
+ * Test-only reset of this module's singleton state (mirrors `resetToolContributorsForTests` /
+ * `resetFederatedMcpPresetsForTests` — same "process-wide module state must not leak between
+ * `node:test` cases in the same file" convention). No production caller ever needs this: a real
+ * process boots once and either starts the daemon or doesn't.
+ */
+export function resetAssistantDaemonSingletonForTests(): void {
+  singleton = undefined;
+  shutdownRequested = false;
+}
+
+export interface StartAssistantDaemonOptions {
+  /**
+   * Default `true` — `index.ts`'s original, unchanged behavior: this call registers its own
+   * `process.on(SIGINT/SIGTERM/SIGHUP/"exit", ...)` handlers, and the signal handlers call
+   * `process.exit(0)` themselves once the daemon is torn down.
+   *
+   * `cli/commands/serve.ts` (2026-08-28 dispatch) passes `false`: that command already owns its own
+   * BR-07 graceful-shutdown sequence, registered via `process.once(...)` on the SAME two signals.
+   * Node invokes every registered listener for a signal, not just the first — a second listener
+   * here calling `process.exit(0)` immediately would race `serve.ts`'s graceful drain (finish the
+   * in-flight request, close the db, then exit) and could cut it short before it completes. A
+   * caller that opts out this way must call {@link shutdownAssistantDaemon} itself from its own
+   * shutdown sequence instead, or the daemon child is leaked as an orphan.
+   */
+  registerProcessSignalHandlers?: boolean;
+  /**
+   * Test seam only. Overrides the real {@link spawnRealDaemonProcessFor} the module-singleton
+   * wrapper otherwise builds internally, so a test can assert whether a spawn attempt happened at
+   * all without ever touching `child_process` or spawning a real OS process (this repo's test
+   * scripts do not pass `--experimental-test-module-mocks`, so `node:test`'s `mock.module()` is not
+   * an available alternative here — see `resolve-test-agent-outcome.ts`'s header for the same
+   * constraint). No production caller passes this; mirrors {@link DaemonSupervisorDeps.spawnDaemonProcess}
+   * one layer up.
+   */
+  spawnDaemonProcess?: (input: DaemonSpawnEnvInput) => SpawnedDaemonProcess;
+}
+
+/**
  * Start the assistant daemon supervisor for this process boot. Safe to call only once — a second
  * call is ignored (logged, not thrown) rather than silently spawning a second supervisor that
  * would fight the first one for the same port and the same `process.on(signal, ...)` slot.
  */
-export function startAssistantDaemon(input: { workspaceId: string }): void {
+export function startAssistantDaemon(
+  input: { workspaceId: string; siteDir: string },
+  options: StartAssistantDaemonOptions = {},
+): void {
+  if (shutdownRequested) {
+    console.error("[daemon-supervisor] startAssistantDaemon called after shutdownAssistantDaemon() already ran this process boot — refusing to spawn a daemon the process is already tearing down");
+    return;
+  }
+
   if (singleton !== undefined) {
     console.error("[daemon-supervisor] startAssistantDaemon called more than once this process boot — ignoring");
     return;
   }
 
-  const supervisor = createDaemonSupervisor({ spawnDaemonProcess: () => spawnRealDaemonProcessFor(input.workspaceId) });
+  // Resolved once, here, rather than inside `spawnDaemonProcess` — `ensureAgentDaemonPortResolved()`
+  // (called by both real boot paths before `createApp()`) has already settled by the time this runs,
+  // so the same value this process's own proxy is using is what gets threaded into the child's env
+  // and into `daemonPort` (used only for this supervisor's human-readable failure text).
+  const daemonPortOverride = getAgentDaemonPortForSpawnEnv();
+  const spawnDaemonProcess = options.spawnDaemonProcess ?? spawnRealDaemonProcessFor;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => spawnDaemonProcess({ workspaceId: input.workspaceId, siteDir: input.siteDir, daemonPortOverride }),
+    daemonPort: daemonPortOverride,
+  });
   singleton = supervisor;
   supervisor.start();
+
+  if (options.registerProcessSignalHandlers === false) return;
 
   // `"exit"` alone is not enough: it does not run when this process is terminated by a signal,
   // which is how a dev server actually dies (Ctrl-C, or `tsx watch` cycling on a file change).
@@ -410,6 +529,18 @@ export function startAssistantDaemon(input: { workspaceId: string }): void {
       process.exit(0);
     });
   }
+}
+
+/**
+ * The explicit teardown seam for a caller that opted out of this module's own signal handling (see
+ * {@link StartAssistantDaemonOptions.registerProcessSignalHandlers}) — `cli/commands/serve.ts`'s
+ * BR-07 shutdown calls this instead. A no-op if the daemon was never started this process boot.
+ */
+export function shutdownAssistantDaemon(): void {
+  // Set unconditionally, BEFORE the `singleton?.shutdown()` no-op-when-absent check below — see
+  // `shutdownRequested`'s own doc for why this must latch even when no supervisor exists yet.
+  shutdownRequested = true;
+  singleton?.shutdown();
 }
 
 export type RestartAssistantDaemonResult = DaemonSupervisorActionResult;

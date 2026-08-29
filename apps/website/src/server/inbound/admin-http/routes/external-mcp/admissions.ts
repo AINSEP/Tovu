@@ -1,5 +1,6 @@
 import { FEDERATION_ADMISSIONS_PATH } from "#src/server/inbound/assistant/federation-admissions-route";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "#src/assistant/index";
+import { getAgentDaemonUrl } from "#src/server/runtime/lifecycle/agent-daemon-port";
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
@@ -31,14 +32,6 @@ import { guardExternalMcpRequest } from "./guard.js";
  * route in full control of the one status code C-008 actually specifies.
  */
 
-/** Resolved once at module scope, matching `assistant-daemon-client.ts:24-25`'s own resolution
- *  exactly (including the env var names), but NOT imported from there: that file lives under
- *  `server/modules/`, which COMPOSES route files, never the reverse — no route in this codebase
- *  imports from `server/modules/` today, and this route becoming the first would be a backwards
- *  dependency for the sake of one line. Duplicated deliberately; if the daemon's origin resolution
- *  ever changes, both call sites are one grep apart. */
-const AGENT_DAEMON_URL = process.env.JINI_AGENT_DAEMON_URL ?? `http://127.0.0.1:${Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319)}`;
-
 /** Bounds one admin click, not a boot race — unlike `assistant-daemon-client.ts`'s connect-retry
  *  window, this route never retries: an operator who lands on 503 can just click again, and a route
  *  that retried silently would make "is the daemon actually down" take longer to find out. */
@@ -53,7 +46,7 @@ interface AdmissionsUnavailable {
 }
 
 /** Fetches the daemon's admissions report over the same authenticated channel
- *  `assistant-daemon-client.ts` uses (`AGENT_DAEMON_URL` + a bearer token read from
+ *  `assistant-daemon-client.ts` uses (`getAgentDaemonUrl()` + a bearer token read from
  *  `AGENT_DAEMON_TOKEN_ENV_VAR`), collapsing every way that can fail — no token configured, refused
  *  connection, timeout, or a non-200 upstream status — into one honest "unavailable" shape. The
  *  daemon's own gate (`requireAgentDaemonToken`) is what actually enforces the token; a missing
@@ -67,7 +60,7 @@ async function fetchDaemonAdmissions(): Promise<{ readonly ok: true; readonly co
   }
 
   try {
-    const upstream = await fetch(`${AGENT_DAEMON_URL}${FEDERATION_ADMISSIONS_PATH}`, {
+    const upstream = await fetch(`${getAgentDaemonUrl()}${FEDERATION_ADMISSIONS_PATH}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(ADMISSIONS_FETCH_TIMEOUT_MS),
     });

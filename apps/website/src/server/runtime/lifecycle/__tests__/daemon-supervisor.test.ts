@@ -4,7 +4,13 @@ import { existsSync } from "node:fs";
 import test from "node:test";
 
 import { getReadinessSnapshot, clearAssistantDaemonFailure, setReadinessSnapshot } from "../readiness-state.js";
-import { createDaemonSupervisor, resolveDaemonScriptPath } from "../daemon-supervisor.js";
+import {
+  createDaemonSupervisor,
+  resolveDaemonScriptPath,
+  startAssistantDaemon,
+  shutdownAssistantDaemon,
+  resetAssistantDaemonSingletonForTests,
+} from "../daemon-supervisor.js";
 import type { SpawnedDaemonProcess } from "../daemon-supervisor.js";
 import { createRespawnPolicy, AGENT_DAEMON_EXIT_CODE } from "#src/assistant/index";
 
@@ -67,6 +73,10 @@ test.afterEach(() => {
   // failure through the real `recordAssistantDaemonFailure` must leave it as it found it.
   clearAssistantDaemonFailure();
   setReadinessSnapshot({ ok: true, modules: [] });
+  // `startAssistantDaemon`/`shutdownAssistantDaemon`'s module-singleton (see `daemon-supervisor.ts`'s
+  // own header on the wrapper section) is likewise process-wide — reset it explicitly rather than
+  // relying on test file ordering, so a later test never inherits an earlier test's singleton state.
+  resetAssistantDaemonSingletonForTests();
 });
 
 test("resolveDaemonScriptPath() points at a script that actually exists on disk", () => {
@@ -243,6 +253,32 @@ test("restart() refuses once shutdown() has run, and does not spawn a replacemen
 
   assert.deepEqual(result, { ok: false, reason: "shutting down" }, "a restart racing the process's own teardown must be refused, not silently ignored");
   assert.equal(spawnCount, 1, "no replacement may be spawned once the process is terminating");
+});
+
+test("startAssistantDaemon() refuses to spawn a child once shutdownAssistantDaemon() has already run this boot, even though no singleton existed yet at shutdown time — the post-shutdown spawn race", () => {
+  // Reproduces the real bug in `cli/commands/serve.ts`: it kicks off `startAssistantDaemon()` from
+  // an un-awaited `Promise.all([...]).then(...)` chain that can still be pending when its own
+  // SIGINT/SIGTERM handler fires `shutdownAssistantDaemon()`. `shutdownAssistantDaemon()` is
+  // `singleton?.shutdown()` — a no-op when `singleton` is still `undefined` — so nothing before this
+  // fix stopped the later `startAssistantDaemon()` call from spawning a fresh, unsupervised daemon
+  // child with `registerProcessSignalHandlers: false` (no signal handlers of its own) after the
+  // process had already decided to shut down.
+  let spawnCount = 0;
+
+  shutdownAssistantDaemon(); // shutdown arrives BEFORE the daemon was ever started this boot
+
+  startAssistantDaemon(
+    { workspaceId: "test-workspace", siteDir: "/tmp/daemon-supervisor-test-site" },
+    {
+      registerProcessSignalHandlers: false,
+      spawnDaemonProcess: () => {
+        spawnCount += 1;
+        return createFakeDaemonProcess().handle;
+      },
+    },
+  );
+
+  assert.equal(spawnCount, 0, "a startAssistantDaemon() call arriving after shutdownAssistantDaemon() must never spawn a child");
 });
 
 test("ensureStarted() also refuses once shutdown() has run", () => {

@@ -16,10 +16,11 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.j
  * session auth, and a REAL stand-in daemon process bound to the exact origin
  * `admin/external-mcp/admissions.ts` resolves at module load.
  *
- * `AGENT_DAEMON_URL`-equivalent resolution happens ONCE, at module import (`admissions.ts`'s own
- * doc explains why it is not imported from `assistant-daemon-client.ts`), so this file reserves one
- * fixed port before importing anything under test — the same ordering constraint
- * `assistant-proxy-routes.test.ts`'s own `harness()` documents for `server/modules/assistant.ts`.
+ * `admissions.ts` resolves the daemon origin via `getAgentDaemonUrl()` (`runtime/lifecycle/
+ * agent-daemon-port.ts`), re-checking `JINI_AGENT_DAEMON_URL` live on every call — so this file
+ * still reserves one fixed port and sets the env var before the route is ever exercised, the same
+ * ordering constraint `assistant-proxy-routes.test.ts`'s own `harness()` documents for
+ * `server/modules/assistant.ts`, even though a later `ensure()` is no longer required for that path.
  * Nothing listens at that port by default, which is exactly the "connection refused" baseline most
  * of these tests want; the two tests that need a live daemon answer bind a real server to that same
  * port for their own duration and tear it down afterward.

@@ -38,7 +38,9 @@ import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
  *    a wrong-but-plausible fix could still 503 while leaking the request to the (stand-in, healthy)
  *    daemon first.
  *
- * `assistant.ts` resolves the daemon origin ONCE at module scope (`AGENT_DAEMON_URL`), so the
+ * `assistant.ts` resolves the daemon origin via `getAgentDaemonUrl()` (`runtime/lifecycle/
+ * agent-daemon-port.ts`), which re-checks `JINI_AGENT_DAEMON_URL` live on every call rather than
+ * caching it at module scope — but this harness still only ever sets the env var once, so the
  * stand-in daemon is started and the module imported exactly once per test process — see
  * {@link harness}.
  */
