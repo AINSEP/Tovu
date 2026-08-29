@@ -21,6 +21,80 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## 🎯 DIRECTION, owner call 2026-08-29 — Tovu-Runner becomes an EXTERNAL MCP SERVER to Tovu
+
+**The problem this solves.** Today an operator embedded in Tovu-Runner sees **two separate assistant
+chats**: Runner's own fleet chat (owns projects — list/create/start/stop/delete) and Tovu's admin
+assistant (owns one site's content). They cannot see each other. Tonight's `TOVU_ADMIN_ASSISTANT=off`
+work addressed that by *killing* one of the two chats. **The owner's decision is to merge them
+instead**: expose Runner's fleet capabilities to Tovu's assistant over MCP, so there is ONE chat that
+reasons about both the fleet and the site.
+
+**Why this is tractable — the pieces already exist, verified 2026-08-29:**
+- **Runner already ships an MCP server.** `Tovu-Runner/src/main/runner-mcp-server.ts` is a standalone
+  **stdio** MCP process; `runner-mcp-bridge.ts` exposes `runner.*` tools (`fleet.status`,
+  `project.list`, `create_site`, `project.start/stop/restart/open/delete`, `navigate`) over a
+  loopback HTTP bridge, bearer-token scoped per run. It already has a win32 `.cmd` launcher branch
+  (`runner-mcp-bridge.ts:118`).
+- **Tovu already federates external MCP servers.** `agent-daemon-server.ts`'s `start()` calls
+  `attachFederatedMcpTools` unconditionally, with OAuth device flow
+  (`createExternalMcpOAuthService`) and admission reporting (`routes/external-mcp/admissions.ts`).
+  A stdio adapter exists: `assistant/mcp-federation/adapter.stdio.ts`.
+- So this is plausibly **configuration + trust plumbing**, not new protocol work. Confirm before
+  estimating — see the caution below.
+
+**Open questions to settle before building:**
+1. **Scoping/authority — the crux.** Runner's tools are deliberately fleet-wide under a single
+   `RUNNER_OPERATOR_PRINCIPAL` ("one operator, not N users"); its agent prompt says "You own the
+   FLEET, not the contents of any site." Tovu's assistant is **site-scoped** (`workspaceId` fixed at
+   boot). Handing fleet-wide destructive tools (`project.delete`) to a site-scoped assistant needs an
+   explicit authorization decision, not just a connection.
+2. **Direction of trust.** Runner spawns Tovu. Making Tovu a *client* of Runner inverts the usual
+   direction — work out how the child authenticates to the parent, and what stops one site's
+   assistant acting on another site.
+3. **What happens to Runner's own chat?** Removed entirely, or kept as an operator surface? If
+   removed, `runner-daemon.ts`/`runner-agent-prompt.ts` and the fleet-chat UI become deletable.
+4. **Does this obsolete `TOVU_ADMIN_ASSISTANT=off`?** That flag was built 2026-08-29 to solve the
+   two-chats problem by disabling one. If merging succeeds its original motivation is gone — though
+   it may still be wanted as a plain security/posture switch. Decide rather than keeping both by
+   default.
+5. **Per-site vs per-fleet daemon.** Each site's daemon would separately federate Runner's MCP
+   server — N daemons, N connections to one Runner. Check the bridge tolerates that.
+
+**Caution carried from tonight:** size this from the **call sites**, not from file sizes — an
+inflated estimate on this repo already manufactured an unnecessary redesign once.
+
+---
+
+## ❓ QUESTION, parked 2026-08-29 — how hard would SonarQube be to add here?
+
+**Owner question, deliberately parked** — logged for a later session, not scoped or estimated yet.
+Answer it as a real evaluation, not a drive-by "sure, add the scanner", because four things in this
+repo make it non-obvious:
+
+- **We already have a metrics tool.** `development/scripts/code-metrics.py` runs 13 metrics and was
+  itself repaired 2026-08-28 (its any-count, complexity, and churn-rename numbers were all wrong
+  before that). The evaluation has to answer *what SonarQube adds over it*, not assume it is purely
+  additive.
+- **It would be a THIRD disagreeing complexity number.** `apps/admin` already has two complexity
+  metrics that disagree (the CI gate is pure ESLint). SonarQube ships its own cognitive-complexity
+  implementation which will agree with neither. Whichever is authoritative needs an explicit
+  decision — note the real ceiling in this repo is **10**, even though config still says 15.
+- **CI cannot verify it end-to-end today.** CI is billing-blocked, not off: triggers fire, the runner
+  never starts, and 8 gates currently run zero tests. A SonarQube CI integration can't be proven
+  green until that is resolved.
+- **`check:architecture` is deliberately RED** (accountability over a green gate). A SonarQube
+  quality gate needs the same explicit blocks-vs-reports decision rather than inheriting a default.
+
+Also a real fork to decide: self-hosted **SonarQube Community** vs hosted **SonarCloud** — SonarCloud
+is free only for public repos, and this one is private.
+
+**Deliverable when picked up:** a short recommendation with an effort estimate covering local-run vs
+CI-gate, self-hosted vs SonarCloud, and how it reconciles with `code-metrics.py` and the
+complexity-ceiling decision.
+
+---
+
 ## 🐛 BUG, filed 2026-08-29 — `tovu serve` never starts an agent daemon; Runner instances silently share one
 
 **Found while running Tovu-Runner against a real instance**, verified directly (not just reported):
