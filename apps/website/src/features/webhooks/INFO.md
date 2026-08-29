@@ -39,6 +39,18 @@ seam so `enqueueDelivery` and `processDueDeliveries` are independently testable 
 answer — re-hydrate from the core event outbox by `event_id`, add a payload column to
 `webhook_deliveries`, or something else — is an open decision for whoever owns ADR-036 next.
 
+## Built, not "future direction"
+
+**Corrected 2026-08-29** — this section previously claimed these were unbuilt; they were not.
+SQLite adapters for both ports — `SqliteWebhookSubscriptionRepo implements WebhookSubscriptionRepoPort`
+and `SqliteWebhookDeliveryRepo implements WebhookDeliveryRepoPort` — already exist and are live-wired
+into the composition root (`server/runtime/composition/deps.ts`). **Deviation from every sibling
+feature's convention worth knowing**: they live at `platform/db/sqlite/webhook-repo.sqlite.ts`, not a
+co-located `repo.sqlite.ts` next to `repo.memory.ts` the way `features/post/repo.sqlite.ts` and others
+do — that forces a few outside callers to deep-import `repo.memory.ts`'s `DeliveryEnvelopeStore` type
+directly rather than through this feature's own surface. Not fixed here; flagged so the next person who
+touches webhook persistence doesn't have to rediscover it.
+
 ## Future direction
 
 - Wire `subscriptions.ts`'s `isAllowedTarget` to the real `core/origin` egress allowlist
@@ -48,6 +60,4 @@ answer — re-hydrate from the core event outbox by `event_id`, add a payload co
   signing secrets (ADR-036 §5), including the rotation-overlap dual-signature case
   (`previousSecretVersion`) — `verifySignature` already accepts a header carrying multiple `v1=`
   values, but nothing in this task's scope constructs one yet.
-- SQLite adapters for `WebhookSubscriptionRepoPort` / `WebhookDeliveryRepoPort` (the other half
-  of each ADR-006 rule-of-two); the real guarded `HttpClientPort` transport is `src/platform/http`'s job.
 - The deferred `integration_secrets` / `SecretSealerPort` outbound-connector half (ADR-036 §8).
