@@ -472,6 +472,66 @@ async function startFakeOtlpCollector(): Promise<{ url: string; receivedCount: (
   };
 }
 
+test("2026-08-28 dispatch: an identity re-seed failure (a real UNIQUE constraint violation, reproduced by deleting the owner user row but leaving its built-in roles behind — the same shape as an interrupted first-boot seed) must not crash the whole serve process via an unhandled rejection on the un-awaited ownerPrincipalId fork", async () => {
+  const { parent, dir } = initFixture();
+  const dbPath = path.join(dir, "content.db");
+
+  // First boot seeds identity fully (owner user + the 4 built-in roles/policies) and shuts down
+  // cleanly — this is the ONE code path allowed to seed identity, so a real boot is required before
+  // the corruption step below can mean anything.
+  const firstBootPort = await getFreePort();
+  const firstBoot = spawnServe([dir, "--port", String(firstBootPort)]);
+  try {
+    await waitForHttpReady(firstBootPort, firstBoot);
+  } finally {
+    await stopGracefully(firstBoot);
+  }
+
+  // Corrupts the identity state the same way a first-boot seed interrupted partway through would:
+  // the built-in "owner" role row survives (already committed), but the owner user row that would
+  // normally short-circuit `seedIdentity()`'s idempotency check is gone. On the next boot,
+  // `seedIdentity()` sees no owner user, tries to seed a FRESH "owner" role for the same workspace,
+  // and collides with the surviving row on `idx_roles_workspace_name` — verified directly against
+  // this exact fixture shape: `better-sqlite3` raises `SqliteError: UNIQUE constraint failed:
+  // roles.workspace_id, roles.name`.
+  const db = new Database(dbPath);
+  db.prepare("DELETE FROM identity_users WHERE username = ?").run("admin");
+  db.close();
+
+  const secondBootPort = await getFreePort();
+  const secondBoot = spawnServe([dir, "--port", String(secondBootPort)]);
+  let stderrBuf = "";
+  secondBoot.stderr.on("data", (chunk: Buffer) => {
+    stderrBuf += chunk.toString();
+  });
+  let exited = false;
+  let exitCode: number | null = null;
+  secondBoot.on("exit", (code) => {
+    exited = true;
+    exitCode = code;
+  });
+
+  try {
+    // `identityReady` (awaited via `Promise.all` in `serve.ts`) rejects and is caught there — that
+    // half of this bug was already fixed. The un-awaited `ownerPrincipalId` fork off the SAME
+    // rejected `seedResult` (`features/identity/wiring.ts`) is a SEPARATE promise with no handler of
+    // its own anywhere: verified live, pre-fix, that this alone crashes the whole process with an
+    // uncaught `SqliteError` roughly 3-4s after boot on this machine (measured directly, several
+    // runs) — 8s comfortably clears that, scaled by `loadFactor()` like every other timing assertion
+    // in this file so a busier box gets proportionally more room too.
+    await new Promise((resolve) => setTimeout(resolve, 8000 * loadFactor()));
+
+    assert.equal(
+      exited,
+      false,
+      `the process must survive an unhandled rejection on the ownerPrincipalId fork, not crash (exit code was ${String(exitCode)}); stderr:\n${stderrBuf}`
+    );
+  } finally {
+    if (!exited) await stopGracefully(secondBoot);
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu serve` process — not the in-memory or SQLite composition-root tier, the actual packaged CLI boot path this whole groundwork report was worried an instrumentation plan could silently miss — exports a real span to the operator-configured OTLP collector", async () => {
   const { parent, dir } = initFixture();
   const port = await getFreePort();

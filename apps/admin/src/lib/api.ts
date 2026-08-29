@@ -2489,7 +2489,14 @@ export const api = {
   // AI Assistant — the visitor-facing assistant's master switch. Same `{ data }` envelope and same
   // partial-PUT shape as the SEO settings pair below, because the two routes are deliberately
   // identical in contract (see `server/routes/admin/assistant/put-settings.ts`).
-  getAssistantSettings: () => request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`),
+  //
+  // GET's response also carries a sibling `adminAssistantEnabled` — the UNRELATED admin assistant's
+  // own `TOVU_ADMIN_ASSISTANT=off` switch, piggy-backed onto this response rather than a new
+  // endpoint (`server/routes/admin/assistant/get-settings.ts`'s own doc explains why: this module is
+  // one of exactly two admin-assistant server modules mounted unconditionally, so it is reachable
+  // even with that flag off). `App.hooks.tsx`'s `useAdminAssistantAvailability` is the one reader.
+  getAssistantSettings: () =>
+    request<{ data: PublicAssistantSettings; adminAssistantEnabled: boolean }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`),
   setAssistantSettings: (patch: Partial<PublicAssistantSettings>) =>
     request<{ data: PublicAssistantSettings }>(`/workspaces/${WORKSPACE_ID}/assistant/settings`, {
       method: "PUT",

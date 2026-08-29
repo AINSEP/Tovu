@@ -198,6 +198,7 @@ import { createRedirectsModule } from "./modules/redirects.js";
 import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
 import { createContentTypesModule } from "./modules/content-types.js";
 import { createSeoModule } from "./modules/seo.js";
+import { isAdminAssistantEnabled } from "./admin-assistant-enabled.js";
 import { createAssistantModule } from "./modules/assistant.js";
 import { createSiteAssistantModule } from "./modules/site-assistant.js";
 import { createAssistantChatsModule } from "./modules/assistant-chats.js";
@@ -696,6 +697,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `server/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
     // `exportOutputRootDir` doc.
     exportOutputRootDir: resolveExportOutputRootDir(),
+    // Read ONCE here — see `routes/types.ts`'s `adminAssistantEnabled` doc. This module's own
+    // mount-gating code below reads THIS field rather than calling `isAdminAssistantEnabled()` a
+    // second time, so the value never disagrees with which admin-assistant routes are actually live.
+    adminAssistantEnabled: isAdminAssistantEnabled(),
     // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
     // take (createApp is declared in this same module) closing `export -> server` for the in-memory
     // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
@@ -1089,15 +1094,28 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // See `AssistantByokModuleHandle`'s own doc for the full trace.
   const byokAssistantModule = createAssistantByokModule(routeDeps);
 
+  // `TOVU_ADMIN_ASSISTANT=off` — a real disable: the four admin-assistant route modules below are
+  // never mounted, matching ADR-054's visitor-assistant posture (no endpoint, not a hidden widget).
+  // `createAssistantSettingsModule`/`createAssistantExecutionModule` stay mounted unconditionally —
+  // the first is the PUBLIC assistant's master switch (a different product), and the second is the
+  // settings tab that would have to render the off state. See `admin-assistant-enabled.ts`.
+  //
+  // Reads `routeDeps.adminAssistantEnabled` (computed once in `createRouteDeps()`/`createSqliteRouteDeps()`)
+  // rather than calling `isAdminAssistantEnabled()` again here — see `routes/types.ts`'s
+  // `adminAssistantEnabled` field doc: the admin SPA's `GET .../assistant/settings` response threads
+  // the SAME field, so a second, separate read here could never end up disagreeing with what that
+  // response reports.
+  const adminAssistantEnabled = routeDeps.adminAssistantEnabled;
+
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
-  mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
+  if (adminAssistantEnabled) mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
 
   // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
   // module because nothing here is proxied: run execution belongs to the daemon (that is where run
   // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
   // workspace scoping already work. The daemon can restart or be replaced without touching it.
-  mountRoutes(app, createAssistantChatsModule(routeDeps));
+  if (adminAssistantEnabled) mountRoutes(app, createAssistantChatsModule(routeDeps));
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share
@@ -1115,14 +1133,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // this can be a second, independent composition rather than a daemon-process change. Routes only —
   // the module itself (and its `toolSurface`) was already built above, so
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
-  mountRoutes(app, byokAssistantModule);
+  if (adminAssistantEnabled) mountRoutes(app, byokAssistantModule);
 
   // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
   // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
   // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
   // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
   // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-  mountRoutes(app, createAssistantAgUiModule(routeDeps));
+  if (adminAssistantEnabled) mountRoutes(app, createAssistantAgUiModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/

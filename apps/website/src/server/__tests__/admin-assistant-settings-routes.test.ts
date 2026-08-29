@@ -97,7 +97,25 @@ test("GET returns the public assistant switch, OFF on a freshly booted site", as
 
   const res = await get(baseUrl, cookie);
   assert.equal(res.status, 200, await res.clone().text());
-  assert.deepEqual(await res.json(), { data: { publicEnabled: false } });
+  assert.deepEqual(await res.json(), { data: { publicEnabled: false }, adminAssistantEnabled: true });
+});
+
+test("GET's adminAssistantEnabled reflects TOVU_ADMIN_ASSISTANT, independent of the public switch", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Mirrors `commit-site.unit.test.ts`'s override technique — mutating the object `createRouteDeps()`
+  // returns, not spreading a copy, so this route's own `deps` reference (closed over at
+  // registration) sees the change.
+  deps.adminAssistantEnabled = false;
+
+  const res = await get(baseUrl, cookie);
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.deepEqual(
+    await res.json(),
+    { data: { publicEnabled: false }, adminAssistantEnabled: false },
+    "the two switches are unrelated products — flipping the admin one must not touch the public one"
+  );
 });
 
 test("PUT turns the switch on, and a follow-up GET reads it back — the write is durable, not echoed", async (t) => {
@@ -109,7 +127,7 @@ test("PUT turns the switch on, and a follow-up GET reads it back — the write i
   assert.deepEqual(await write.json(), { data: { publicEnabled: true } });
 
   const read = await get(baseUrl, cookie);
-  assert.deepEqual(await read.json(), { data: { publicEnabled: true } });
+  assert.deepEqual(await read.json(), { data: { publicEnabled: true }, adminAssistantEnabled: true });
 });
 
 test("PUT turns the switch back off — the incident path an operator actually needs", async (t) => {
@@ -120,7 +138,7 @@ test("PUT turns the switch back off — the incident path an operator actually n
   const off = await put(baseUrl, cookie, { publicEnabled: false });
   assert.equal(off.status, 200);
   assert.deepEqual(await off.json(), { data: { publicEnabled: false } });
-  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false } });
+  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false }, adminAssistantEnabled: true });
 });
 
 test("PUT with an empty body leaves the setting alone rather than resetting it", async (t) => {
@@ -143,7 +161,11 @@ test("PUT rejects a non-boolean publicEnabled with 400 and a typed code", async 
   assert.equal(body.code, "ASSISTANT_SETTINGS_VALIDATION_ERROR");
   assert.match(body.error, /publicEnabled must be a boolean/);
 
-  assert.deepEqual(await (await get(baseUrl, cookie)).json(), { data: { publicEnabled: false } }, "a rejected write must change nothing");
+  assert.deepEqual(
+    await (await get(baseUrl, cookie)).json(),
+    { data: { publicEnabled: false }, adminAssistantEnabled: true },
+    "a rejected write must change nothing"
+  );
 });
 
 test("both routes require a session — an unauthenticated caller never reaches them", async (t) => {

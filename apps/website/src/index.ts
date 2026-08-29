@@ -1,5 +1,6 @@
 import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
-import { createSqliteRouteDeps, defaultContentDbPath } from "./server/runtime/composition/deps.js";
+import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
+import { isAdminAssistantEnabled } from "./server/runtime/composition/admin-assistant-enabled.js";
 import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
 import { runProductionReadinessGate } from "./server/runtime/boot/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
@@ -10,6 +11,7 @@ import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
 import { installUnhandledRejectionGuard } from "./server/runtime/boot/process-error-guards.js";
 import { startAssistantDaemon } from "./server/inbound/assistant/index.js";
+import { ensureAgentDaemonPortResolved } from "./server/runtime/lifecycle/agent-daemon-port.js";
 import { ensureAgentDaemonToken } from "./assistant/index.js";
 
 /**
@@ -240,6 +242,16 @@ async function runBootGateOrExit(): Promise<void> {
   }
 }
 
+/** `TOVU_ADMIN_ASSISTANT=off` skips the daemon ONLY when external MCP is also unconfigured — the
+ *  daemon owns external-MCP federation too, not just chat (see `admin-assistant-enabled.ts`). */
+async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerRepo: { listByWorkspaceId: (id: string) => Promise<readonly unknown[]> } }): Promise<boolean> {
+  if (isAdminAssistantEnabled()) return true;
+  const configured = await deps.externalMcpServerRepo.listByWorkspaceId(deps.workspaceId);
+  if (configured.length > 0) return true;
+  console.log("[assistant] TOVU_ADMIN_ASSISTANT=off and no external MCP configured — not starting the agent daemon");
+  return false;
+}
+
 async function main(): Promise<void> {
   // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
   // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
@@ -287,6 +299,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // Self-allocation fix (2026-08-28): must resolve — and, when neither `JINI_AGENT_DAEMON_URL` nor
+  // `JINI_AGENT_DAEMON_PORT` is set, allocate — the daemon's origin BEFORE `createApp()` wires the
+  // assistant proxy's routes, so no inbound request can ever reach `getAgentDaemonUrl()` before it
+  // has something to return. See `agent-daemon-port.ts`'s own header for the full contract.
+  await ensureAgentDaemonPortResolved();
+
   const app = createApp(deps);
   const server = app.listen(port, () => {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
@@ -320,7 +338,10 @@ async function main(): Promise<void> {
       deps.settingsUiTabsReady,
       deps.analyticsSettingsReady,
     ])
-      .then(() => startAssistantDaemon({ workspaceId: deps.workspaceId }))
+      .then(async () => {
+        if (!(await agentDaemonWanted(deps))) return;
+        startAssistantDaemon({ workspaceId: deps.workspaceId, siteDir: siteDir() });
+      })
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
       });
