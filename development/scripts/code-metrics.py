@@ -29,8 +29,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import csv
-import io
 import json
 import os
 import re
@@ -48,9 +46,16 @@ DEFAULT_TARGET = "apps/website/src"
 # Churn computed over them is noise: a 230-file import codemod makes every file
 # look equally "hot". Hotspots are reported over substantive commits only, and
 # both numbers are shown so the correction is auditable rather than hidden.
+#
+# Deliberately NOT "restructure": a 2026-08-28 swarm debate found this word matching a
+# whole-repo folder reorganization's own commit subjects excluded exactly the commits that
+# carry the rename information churn/hotspot data needs to attribute history to current file
+# paths — on a branch literally named `restructure/apps-website-phased`, every renamed file's
+# pre-restructure identity looked "hot" and its current identity looked untouched. See
+# `ADS-memory/reports/swarm-consensus/runs/2026-08-28T2358-apps-website-architecture-debate-consensus-report.md`.
 MECHANICAL_SUBJECT_RE = re.compile(
     r"\b(rename|renamed|move|moved|relocat|codemod|reformat|formatting|lint fix|"
-    r"import (cleanup|rewrite|path)|convert .* imports|restructure|re-?export|"
+    r"import (cleanup|rewrite|path)|convert .* imports|re-?export|"
     r"barrel|whitespace|prettier|biome)\b",
     re.IGNORECASE,
 )
@@ -113,115 +118,108 @@ def pct(part: int, whole: int) -> float:
 # --------------------------------------------------------------------------
 
 
-def metric_complexity(target: str, top: int) -> MetricResult:
-    """Cyclomatic complexity, function length, and parameter counts via lizard.
+CCN_MESSAGE_RE = re.compile(r"has a complexity of (\d+)")
+CCN_NAME_RE = re.compile(r"'([^']+)'")
 
-    Lizard reports CCN per function. Cognitive complexity is a DIFFERENT metric
-    (SonarSource's) that lizard does not implement; it is reported separately and
-    is not derivable from this data, so it is never inferred here.
+
+def metric_complexity(target: str, top: int) -> MetricResult:
+    """Cyclomatic complexity via ESLint's own CORE `complexity` rule, real TypeScript parsing.
+
+    Replaces `lizard` (2026-08-29, following a 2026-08-28 swarm debate finding, independently
+    confirmed by 3 reviewers): lizard has no real TypeScript parser — it applies a JS tokenizer
+    that loses function boundaries on regex literals. A reported CCN-63, 944-line function
+    (`render.ts#safeHref`) was verified to actually be complexity 8, ~17 lines. ESLint's own
+    CORE `complexity` rule (not a plugin — needs no `@typescript-eslint` plugin load, unlike
+    `sonarjs/cognitive-complexity` below, so the same "`--rule` override hard-errors on config
+    blocks without the plugin loaded" problem that blocks a full cognitive-complexity
+    distribution does NOT apply here) gives a full, un-censored distribution directly from
+    this codebase's real TypeScript parser — verified against the same known-corrupted lizard
+    rows (`safeHref`→8, `safeImageSrc`→7, both small and believable, matching direct reading).
+
+    Function LENGTH/LOC and parameter counts are NOT reported here — ESLint's `complexity` rule
+    gives a complexity score and one line number per function, not a line span, and this script
+    does not estimate what it cannot measure. Those sub-metrics are UNAVAILABLE until a real
+    TS-aware source for them exists too (lizard's `length`/`nloc` were confirmed wrong on the
+    same functions where CCN was wrong, so they are not a fallback).
     """
     started = time.time()
-    lizard = shutil.which("lizard")
-    if not lizard:
+    cmd = [
+        "npx", "eslint", target, "--format", "json", "--no-error-on-unmatched-pattern",
+        "--rule", '{"complexity":["warn",0]}',
+    ]
+    code, out, err = run(cmd, timeout=1800)
+    if not out.strip().startswith("["):
         return MetricResult(
-            "complexity",
-            False,
-            reason="lizard not installed. Install with: pip install lizard "
-            "(use a venv outside the repo)",
+            "complexity", False, tool="eslint (core complexity rule)", command=" ".join(cmd),
+            reason=f"eslint produced no JSON ({(err or out).strip()[:300] or 'empty'})",
             duration_s=time.time() - started,
         )
-
-    # Vendored node_modules exist INSIDE test fixtures in this tree (e.g. the
-    # astro bundler probe). Without these exclusions third-party bundles land in
-    # the worst-offenders table and crowd out real findings.
-    cmd = [
-        lizard, str(REPO_ROOT / target), "--csv",
-        "-x", "*/node_modules/*",
-        "-x", "*/.vite/*",
-        "-x", "*/dist/*",
-    ]
-    code, out, err = run(cmd, timeout=900)
-    if code == -1 or not out.strip():
+    try:
+        data = json.loads(out)
+    except json.JSONDecodeError as exc:
         return MetricResult(
-            "complexity",
-            False,
-            tool="lizard",
-            command=" ".join(cmd),
-            reason=f"produced no parseable output ({err.strip() or 'empty stdout'})",
-            duration_s=time.time() - started,
+            "complexity", False, tool="eslint (core complexity rule)", command=" ".join(cmd),
+            reason=f"unparseable: {exc}", duration_s=time.time() - started,
         )
 
     rows = []
-    for row in csv.reader(io.StringIO(out)):
-        # lizard --csv: nloc,ccn,token,param,length,location,file,name,args,start,end
-        if len(row) < 11:
+    for f in data:
+        rel = os.path.relpath(f.get("filePath", ""), REPO_ROOT)
+        if "/node_modules/" in rel:
             continue
-        try:
-            rows.append(
-                {
-                    "nloc": int(row[0]),
-                    "ccn": int(row[1]),
-                    "params": int(row[3]),
-                    "length": int(row[4]),
-                    "file": os.path.relpath(row[6], REPO_ROOT),
-                    "func": row[7],
-                    "start": int(row[9]),
-                }
-            )
-        except (ValueError, IndexError):
-            continue
+        for msg in f.get("messages", []):
+            if msg.get("ruleId") != "complexity":
+                continue
+            m = CCN_MESSAGE_RE.search(msg.get("message", ""))
+            if not m:
+                continue
+            name_m = CCN_NAME_RE.search(msg.get("message", ""))
+            rows.append({
+                "file": rel,
+                "func": name_m.group(1) if name_m else "(anonymous)",
+                "ccn": int(m.group(1)),
+                "start": msg.get("line"),
+            })
 
     if not rows:
         return MetricResult(
-            "complexity",
-            False,
-            tool="lizard",
-            command=" ".join(cmd),
-            reason="lizard ran but analysed 0 functions — it may not support the "
-            "file extensions in this tree (TypeScript support varies by version)",
+            "complexity", False, tool="eslint (core complexity rule)", command=" ".join(cmd),
+            reason="eslint ran but reported no complexity scores — the message format may have "
+                   "changed in this ESLint version",
             duration_s=time.time() - started,
         )
 
     ccns = sorted(r["ccn"] for r in rows)
-    lengths = sorted(r["length"] for r in rows)
 
     def q(vals: list[int], p: float) -> int:
         return vals[min(int(len(vals) * p), len(vals) - 1)]
 
-    by_file: dict[str, int] = collections.defaultdict(int)
     max_ccn_by_file: dict[str, int] = collections.defaultdict(int)
     for r in rows:
-        by_file[r["file"]] += r["nloc"]
         max_ccn_by_file[r["file"]] = max(max_ccn_by_file[r["file"]], r["ccn"])
 
     worst = sorted(rows, key=lambda r: -r["ccn"])[:top]
-    longest = sorted(rows, key=lambda r: -r["length"])[:top]
-    biggest_files = sorted(by_file.items(), key=lambda kv: -kv[1])[:top]
 
     return MetricResult(
         "complexity",
         True,
-        tool="lizard",
+        tool="eslint (core complexity rule)",
         command=" ".join(cmd),
         summary={
             "functions_analysed": len(rows),
-            "files_analysed": len(by_file),
+            "files_analysed": len(max_ccn_by_file),
             "ccn_median": q(ccns, 0.50),
             "ccn_p90": q(ccns, 0.90),
             "ccn_p99": q(ccns, 0.99),
             "ccn_max": ccns[-1],
             "functions_over_ccn_10": sum(1 for c in ccns if c > 10),
             "functions_over_ccn_20": sum(1 for c in ccns if c > 20),
-            "func_length_median": q(lengths, 0.50),
-            "func_length_p99": q(lengths, 0.99),
-            "func_length_max": lengths[-1],
+            "NOTE_length_unavailable": "function length/nloc/params are not reported — no "
+                                       "verified-correct TS-aware source for them exists yet "
+                                       "(lizard's numbers for these were also confirmed wrong)",
         },
-        detail=[
-            {"kind": "worst_ccn", "items": worst},
-            {"kind": "longest_functions", "items": longest},
-            {"kind": "biggest_files_nloc", "items": biggest_files},
-        ],
-        raw={"max_ccn_by_file": max_ccn_by_file, "nloc_by_file": dict(by_file)},
+        detail=[{"kind": "worst_ccn", "items": worst}],
+        raw={"max_ccn_by_file": dict(max_ccn_by_file)},
         duration_s=time.time() - started,
     )
 
@@ -405,16 +403,16 @@ def metric_type_safety(target: str, top: int) -> MetricResult:
     blob = out + err
     m = re.search(r"(\d+)\s*/\s*(\d+)\s+([\d.]+)%", blob)
 
-    # Raw grep counts are a useful cross-check and work even if type-coverage fails.
+    # AST-based type-escape counts are a useful cross-check and work even if type-coverage fails.
     suppressions = grep_counts(target)
 
     if not m:
         return MetricResult(
-            "type_safety", bool(suppressions), tool="grep" if suppressions else "",
+            "type_safety", bool(suppressions), tool="ts-escape-metrics.mjs (AST)" if suppressions else "",
             command=" ".join(cmd),
             summary=suppressions,
             reason="type-coverage produced no percentage; suppression counts from "
-                   "grep only" if suppressions else
+                   "the AST-based scan only" if suppressions else
                    f"type-coverage failed: {blob.strip()[:300]}",
             duration_s=time.time() - started,
         )
@@ -436,26 +434,52 @@ def metric_type_safety(target: str, top: int) -> MetricResult:
 
 
 def grep_counts(target: str) -> dict:
-    """Count type-escape hatches textually. Cheap, exact, and tool-independent."""
-    patterns = {
-        "ts_ignore": r"@ts-ignore",
-        "ts_expect_error": r"@ts-expect-error",
-        "explicit_any": r"\bany\b",
-        "non_null_assertion": r"!\s*[.;)\]]",
-    }
-    counts = {}
-    for label, pat in patterns.items():
-        code, out, _ = run(["grep", "-rEc", pat, target, "--include=*.ts", "--include=*.tsx"])
-        if code == -1:
+    """Count type-escape hatches: `any`/non-null via a real TypeScript AST walk, `@ts-ignore`/
+    `@ts-expect-error` via plain grep.
+
+    Split by tool deliberately, not laziness (2026-08-29). `explicit_any`/`non_null_assertion`:
+    a textual `\\bany\\b` grep was found (2026-08-28 swarm debate, independently confirmed by 3
+    reviewers) to match the English word "any" in comments/strings — this codebase is ~37% comment
+    lines — and over-report `explicit_any` by ~30x (1,532 reported vs. single digits real). AST-only
+    for these two; delegates to `ts-escape-metrics.mjs`.
+
+    `ts_ignore`/`ts_expect_error`: A FIRST attempt at AST-walking these too (comment trivia, not a
+    real node) introduced 4 new bugs in review — a non-global regex under-counting a comment with
+    two directives, wrong line numbers (comment-block start, not directive position), counting
+    PROSE ABOUT a directive as a real one (`widgets/resolvers/index.ts` mentions `@ts-expect-error`
+    twice in a JSDoc explanation, zero real directives there), and missing at least one genuine
+    directive entirely. `@ts-ignore`/`@ts-expect-error` are unambiguous literal tokens that do not
+    occur in English prose the way "any" does — the plain grep was never the broken half of the
+    original metric, so it is kept, not replaced. Do not re-add a comment-trivia walker for these
+    without fixing all 4 of those failure modes first.
+    """
+    counts: dict = {}
+
+    script = REPO_ROOT / "development" / "scripts" / "ts-escape-metrics.mjs"
+    code, out, err = run(["node", str(script), str(REPO_ROOT / target)], timeout=120)
+    if code != -1 and out.strip():
+        try:
+            data = json.loads(out)
+            counts["explicit_any"] = data.get("totals", {}).get("explicit_any")
+            counts["non_null_assertion"] = data.get("totals", {}).get("non_null_assertion")
+            counts["explicit_any_production_only"] = data.get("totals_production", {}).get("explicit_any")
+            counts["non_null_assertion_production_only"] = data.get("totals_production", {}).get("non_null_assertion")
+        except json.JSONDecodeError:
+            pass
+
+    for label, pat in (("ts_ignore", r"@ts-ignore"), ("ts_expect_error", r"@ts-expect-error")):
+        gcode, gout, _ = run(["grep", "-rEc", pat, target, "--include=*.ts", "--include=*.tsx"])
+        if gcode == -1:
             continue
         total = 0
-        for line in out.splitlines():
+        for line in gout.splitlines():
             _, _, n = line.rpartition(":")
             try:
                 total += int(n)
             except ValueError:
                 continue
         counts[label] = total
+
     return counts
 
 
@@ -805,6 +829,17 @@ def parse_git_log(target: str, since: str) -> tuple[list[dict], str]:
     return commits, ""
 
 
+def path_currently_exists(path: str) -> bool:
+    """A file's git history is real even after it's gone, but a churn/hotspot RANKING of
+    "today's riskiest files" is not — a path git can no longer find on disk is either deleted
+    or was renamed in a way `-M`/`-C` couldn't bridge (verified 2026-08-28: some file moves in
+    this repo's history changed too much for git's own rename-similarity threshold to link old
+    and new identity; `git log --follow` on the old path returns nothing). Keeping such a path in
+    a ranking presented as current risk is misleading regardless of how real its OLD history is.
+    """
+    return (REPO_ROOT / path).exists()
+
+
 def metric_churn(commits: list[dict], complexity: MetricResult, top: int, since: str) -> list[MetricResult]:
     started = time.time()
     substantive = [c for c in commits if not c["mechanical"]]
@@ -820,6 +855,14 @@ def metric_churn(commits: list[dict], complexity: MetricResult, top: int, since:
     all_lines, all_times = tally(commits)
     sub_lines, sub_times = tally(substantive)
 
+    # Rank only over paths that exist today — see path_currently_exists()'s doc. Their history
+    # (churn/commit counts) is still real; a stale-path ranking would just be misleading. This
+    # necessarily undercounts files whose rename git couldn't follow: their pre-rename history is
+    # dropped rather than merged in, since merging it would risk falsely attributing an unrelated
+    # deleted file's history to a similarly-timed new one.
+    sub_times_live = collections.Counter({f: n for f, n in sub_times.items() if path_currently_exists(f)})
+    all_times_live = collections.Counter({f: n for f, n in all_times.items() if path_currently_exists(f)})
+
     churn_res = MetricResult(
         "churn", True, tool="git log --numstat -M -C (parsed in this script)",
         command=f"git log --since={since} --numstat -M -C",
@@ -829,16 +872,17 @@ def metric_churn(commits: list[dict], complexity: MetricResult, top: int, since:
             "commits_mechanical_excluded": len(commits) - len(substantive),
             "commits_substantive": len(substantive),
             "files_touched_substantive": len(sub_times),
+            "stale_paths_excluded_from_rankings": len(sub_times) - len(sub_times_live),
             "classification_rule": "subject matches rename/codemod/import-rewrite/"
                                    "format keywords, OR touches >60 files",
         },
         detail=[
             {"kind": "most_changed_substantive", "items": [
                 {"file": f, "commits": n, "lines_changed": sub_lines[f]}
-                for f, n in sub_times.most_common(top)]},
+                for f, n in sub_times_live.most_common(top)]},
             {"kind": "most_changed_raw_incl_mechanical", "items": [
                 {"file": f, "commits": n, "lines_changed": all_lines[f]}
-                for f, n in all_times.most_common(top)]},
+                for f, n in all_times_live.most_common(top)]},
         ],
         duration_s=time.time() - started,
     )
@@ -854,7 +898,7 @@ def metric_churn(commits: list[dict], complexity: MetricResult, top: int, since:
     else:
         per_file_ccn: dict[str, int] = complexity.raw.get("max_ccn_by_file", {})
         scored = []
-        for f, n in sub_times.items():
+        for f, n in sub_times_live.items():
             ccn = per_file_ccn.get(f)
             if ccn:
                 scored.append({"file": f, "commits": n, "max_ccn": ccn, "score": n * ccn})
@@ -903,10 +947,14 @@ def metric_change_coupling(commits: list[dict], deps: dict | None, top: int, min
                     linked.add(tuple(sorted((src, tgt))))
 
     rows = []
+    stale_pairs_excluded = 0
     for (a, b), n in pair_counts.items():
         if n < min_pairs:
             continue
         if (a, b) in linked:
+            continue
+        if not (path_currently_exists(a) and path_currently_exists(b)):
+            stale_pairs_excluded += 1
             continue
         denom = min(file_counts[a], file_counts[b]) or 1
         rows.append({
@@ -923,8 +971,11 @@ def metric_change_coupling(commits: list[dict], deps: dict | None, top: int, min
             "pairs_over_threshold": len(rows),
             "min_co_changes": min_pairs,
             "import_links_known": len(linked),
-            "note": "pairs WITH a direct import edge are excluded — those are "
-                    "expected. What remains is coupling invisible to static analysis.",
+            "stale_pairs_excluded": stale_pairs_excluded,
+            "note": "pairs WITH a direct import edge are excluded — those are expected. Pairs "
+                    "naming a file that no longer exists (a stale pre-rename path) are also "
+                    "excluded — see path_currently_exists()'s doc. What remains is coupling "
+                    "invisible to static analysis, between files that exist today.",
         },
         detail=[{"kind": "strongest_hidden_coupling", "items": rows[:top]}],
         duration_s=time.time() - started,
