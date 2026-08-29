@@ -21,6 +21,33 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## 🐛 BUG, filed 2026-08-29 — `tovu serve` never starts an agent daemon; Runner instances silently share one
+
+**Found while running Tovu-Runner against a real instance**, verified directly (not just reported):
+`startAssistantDaemon` only runs from `apps/website/src/index.ts`'s `main()` — the same `main()` that
+mints the daemon's auth token. `tovu serve` (the packaged CLI path, what Runner actually spawns) runs
+neither. Confirmed on a live Runner process (PID 41725): zero child processes.
+
+The website proxies `/api/agents` to `AGENT_DAEMON_URL`, which defaults to a **fixed**
+`http://127.0.0.1:4319` — there is no per-instance port. A running Runner instance was found silently
+proxying its assistant traffic to a *different*, unrelated Tovu dev instance's daemon (`npm run dev` on
+:3000, daemon on the same fixed :4319). It 401'd only because that other daemon minted its own token and
+rejected Runner's — **had the tokens happened to match, Runner's admin assistant would have silently
+executed tools against the wrong site's data**, not errored.
+
+**Why an env var alone can't fix it**: the daemon port is hardcoded to 4319 on both ends (the daemon
+that binds it, and the website that proxies to it). Runner's whole model is one-project-per-process,
+but daemons are a shared, unscoped singleton port — three concurrent Runner projects would all collide
+on the same daemon. This needs a **Tovu-side fix**: `tovu serve` must start its own daemon, on a
+per-instance port (derived from the site dir or an assigned port, not a fixed default).
+
+**Priority note from the owner (2026-08-29): logged here first, comes after the architecture-debate
+fixes already in flight** (see `ADS-memory/reports/swarm-consensus/runs/2026-08-28T2358-apps-website-architecture-debate-consensus-report.md`).
+Related memory: `reference_tovu_serve_thinner_than_npm_start` (this bug directly answers that memory's
+open question — "whether this divergence is deliberate or a gap, nobody has checked" — it is a real gap).
+
+---
+
 ## ✅ RESOLVED (2026-08-18) — Retrofit the assistant transport onto AG-UI + CopilotKit
 
 **Superseding ADR written**: `ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`.
