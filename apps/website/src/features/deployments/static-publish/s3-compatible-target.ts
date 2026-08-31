@@ -546,7 +546,7 @@ async function writeManagedManifestConditional(
  * @complexity O(items) requests, bounded to {@link MAX_CONCURRENT_UPLOADS} concurrent in-flight.
  */
 async function runBounded<T, R>(items: readonly T[], task: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = Array.from({ length: items.length });
   let nextIndex = 0;
   let firstError: unknown;
   let sawError = false;

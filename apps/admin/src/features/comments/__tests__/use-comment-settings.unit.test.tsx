@@ -96,7 +96,7 @@ describe("useCommentSettings", () => {
     });
 
     expect(result.current.error).toBe("Spam auto-reject score must be between 0 and 1.");
-    expect(port.settings.spamAutoRejectScore).toBe(0.05); // unchanged — the port was never called
+    expect(port.settings.spamAutoRejectScore).toBeCloseTo(0.05); // unchanged — the port was never called
   });
 
   it("keeps a concurrent operator's committed change after a background refetch races an in-progress edit (lost-update guard, TM-TOVU-2026-08-12-A round 2)", async () => {

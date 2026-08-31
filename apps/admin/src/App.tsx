@@ -293,7 +293,7 @@ export function App(props: AppProps) {
     chatFabRef,
   } = useChatDock();
 
-  const { contentEl, setContentEl, agentBridge } = useAgentBridge();
+  const { setContentEl, agentBridge } = useAgentBridge();
   // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
   // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
   const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();

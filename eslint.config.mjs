@@ -84,17 +84,22 @@ export default [
     plugins: { sonarjs },
     rules: {
       // True-bug shape, near-zero or zero current hits — cheapest rules to promote to `error` after
-      // a trivial fix-up (counts from the measurement pass, repo-wide).
-      'sonarjs/no-extra-arguments': 'warn', // 1 hit
-      'sonarjs/no-floating-point-equality': 'warn', // 1 hit
-      'sonarjs/no-ignored-exceptions': 'warn', // 1 hit
-      'sonarjs/no-unused-collection': 'warn', // 1 hit
-      'sonarjs/no-all-duplicated-branches': 'warn', // 1 hit
-      'sonarjs/no-collapsible-if': 'warn', // 1 hit
-      'sonarjs/array-constructor': 'warn', // 1 hit
-      'sonarjs/no-redundant-assignments': 'warn', // 2 hits
-      'sonarjs/no-redundant-jump': 'warn', // 2 hits
-      'sonarjs/no-trivial-assertions': 'warn', // 2 hits
+      // a trivial fix-up (counts from the measurement pass, repo-wide). Promoted 2026-08-31: every
+      // hit from the measurement pass was fixed (or, for the two `no-trivial-assertions` hits that
+      // turned out to be deliberate, exempted via the file-scoped override block below — this
+      // config's `noInlineConfig: true` makes a per-line disable comment inert, so a whole-rule
+      // repo-wide promotion needs a glob-scoped carve-out instead). Zero warn-level debt remains for
+      // any of these ten.
+      'sonarjs/no-extra-arguments': 'error',
+      'sonarjs/no-floating-point-equality': 'error',
+      'sonarjs/no-ignored-exceptions': 'error',
+      'sonarjs/no-unused-collection': 'error',
+      'sonarjs/no-all-duplicated-branches': 'error',
+      'sonarjs/no-collapsible-if': 'error',
+      'sonarjs/array-constructor': 'error',
+      'sonarjs/no-redundant-assignments': 'error',
+      'sonarjs/no-redundant-jump': 'error',
+      'sonarjs/no-trivial-assertions': 'error',
       // Real bug/readability shape, verified against source, moderate volume — genuinely useful but
       // not zero-debt, so `warn` for now.
       'sonarjs/no-dead-store': 'warn',
@@ -224,6 +229,33 @@ export default [
       'sonarjs/class-prototype': 'off', // flags standard DOM prototype methods (`HTMLDialogElement.showModal`, `Element.scrollIntoView`) as "undeclared" without type info
       // Single stray hit each, traced to something other than authored production source.
       'sonarjs/no-tab': 'off', // only hit is inside a bundler-generated `.astro/content.d.ts` fixture checked in for a probe test
+    },
+  },
+  {
+    // `sonarjs/no-trivial-assertions` is `error` repo-wide above. These two assertions are each
+    // deliberately always-true, not a mistake — a line-level disable can't say so here because this
+    // config sets `noInlineConfig: true` (see the block near the top of this file), which makes an
+    // `eslint-disable-next-line` comment inert, so the exception has to be scoped to these two exact
+    // files instead of the single line each actually needs.
+    //
+    // - migration-manifest.test.ts: `laterInstantOffsetForm < earlierInstantZForm` compares two
+    //   hardcoded literal strings declared two lines above it. The assertion's whole point is to
+    //   demonstrate that plain string comparison of those two specific literals ranks the
+    //   chronologically LATER instant first — the lexicographic-vs-chronological collation hazard
+    //   `TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z` documents. Sonar constant-folds the comparison
+    //   because both operands are literals and reports "always succeeds"; always succeeding against
+    //   these two specific literals is exactly what the test is proving.
+    // - purpose-scoped-mailer.unit.test.ts: `assert.ok(true, "compile-time guard — ...")` is an
+    //   explicit compile-time expectation per its own inline comment — the real check is `tsc`
+    //   rejecting a type once REQ-09 ships, not a runtime assertion.
+    files: [
+      'apps/website/src/platform/db/__tests__/migration-manifest.test.ts',
+      'apps/website/src/platform/mail/__tests__/unit/purpose-scoped-mailer.unit.test.ts',
+    ],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      'sonarjs/no-trivial-assertions': 'warn',
     },
   },
   {

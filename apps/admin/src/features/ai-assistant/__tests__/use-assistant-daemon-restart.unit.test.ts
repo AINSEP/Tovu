@@ -137,7 +137,7 @@ describe("useAssistantDaemonRestart — restart()", () => {
   });
 
   it("restarting is true only while the call is in flight", async () => {
-    let resolveRestart: (value: { ok: boolean }) => void = () => undefined;
+    let resolveRestart!: (value: { ok: boolean }) => void;
     const port: AssistantDaemonRestartPort = {
       restart: vi.fn(() => new Promise<{ ok: boolean }>((resolve) => (resolveRestart = resolve))),
       getReadyz: vi.fn(async () => ({ ready: true })),
