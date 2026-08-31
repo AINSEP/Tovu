@@ -246,6 +246,20 @@ function warnRejectedMarkers(rejected: readonly EmbedMarkerRejection[], sourceEn
  * row, since an indexable-or-not decision is exactly what this function's contract already commits
  * to for every other ref kind it extracts).
  *
+ * **Disclosed gap (2026-08-31): a `slug`-only `{"type":"widget","slug":"..."}` marker — no `id` at
+ * all — produces no `entry_refs` row either, for the same "no id" branch above, even though
+ * `resolver-service.ts`'s `resolveWidgetTypeEmbeds` now resolves it to a real widget at render time.**
+ * This function is deliberately pure (see this file's own header — no repo/resolver dependency), and
+ * turning a `slug` into the `UUID` `EntryRefRow.targetId` requires exactly the I/O this function's
+ * contract forbids itself, so the two cannot be reconciled without either widening this function's
+ * signature (a real architectural change, not attempted here) or normalizing a marker's `slug` to a
+ * real `id` at WRITE time instead (`PagesHtmlDocumentStore.write()`, not this pass's scope). Until
+ * one of those lands, a page embedding a widget ONLY by slug is invisible to safe-delete's where-used
+ * check — the exact "reference exists in the markup, index can't see it" hazard this function's own
+ * `warnRejectedMarkers` was built to be loud about for a REJECTED marker, but a valid slug-only one
+ * does not reach `rejected` (it parses fine), so no warning fires here today. Flagged prominently
+ * rather than silently shipped; see this feature's handoff for the same disclosure.
+ *
  * `fieldPath`'s occurrence number now counts EVERY marker in the document, not only the indexable
  * ones — it comes from the shared scan, so it is stable against a type being added to
  * {@link HTML_EMBED_TARGET_KINDS} later, which the old local counter was not. `fieldPath` is a

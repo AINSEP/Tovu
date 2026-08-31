@@ -54,26 +54,55 @@
  * anything other than a map/repo lookup key (never re-emitted into HTML unescaped, never
  * interpolated into a query) — see `resolver-service.ts`'s `resolveHtmlPageEmbeds` and
  * `extractor.ts`'s html-ref collector, both of which only ever use the id that way.
+ *
+ * **`slug`, an author-memorable alternative to `id` (2026-08-31).** The owner's own complaint —
+ * `{"type":"widget","id":"29721c44-a811-444f-b7b5-e61a9918a3a9"}` is not something a person can
+ * type from memory — is real, and this is the fix: `{"type":"widget","slug":"contact-form"}`.
+ * `slug` is projected here exactly like `name`/`variant` already are (a raw, unvalidated config
+ * key; deciding whether it is USABLE is a resolver-side concern), but it is a genuinely different
+ * mechanism from the dormant `name` field above, not a rename of it. `name` was scaffolded
+ * (2026-08-05/07 generic-embed-contract design, `project-tovu-generic-embed-contract` in
+ * `ADS-memory/`) for a fuzzy, POSSIBLY-AMBIGUOUS match — "exactly one match resolves; zero or >1
+ * degrades to the placeholder, never a guess" — and no resolver in this codebase has ever
+ * implemented that ambiguity guard. `slug` needs no such guard: it targets a column
+ * (`entries.slug`) carrying a real database `UNIQUE(workspace_id, type, slug)` index, so "more than
+ * one match" cannot occur by construction, not merely by convention. Reusing `name`'s never-shipped,
+ * ambiguity-hedged semantics for a value that is unique by database constraint would be modeling a
+ * problem this feature does not have.
+ *
+ * **`id` stays authoritative.** When a marker carries both, `id` wins and `slug` is not even
+ * consulted — this is a strict widening of the pre-existing "the id resolves" rule (a marker with no
+ * `slug` key behaves byte-identically to before), not a new fallback CHAIN where a present-but-broken
+ * `id` triggers a `slug` retry; nothing in this codebase's history committed to that stronger contract
+ * and building it would add a second resolution path for no requirement in hand. See
+ * `resolver-service.ts`'s `resolveWidgetTypeEmbeds` for where `slug` is actually resolved — today
+ * that is `"widget"` only (`entries.slug` is unique per `(workspaceId, type)`; `posts.slug` is
+ * equally unique and could gain the identical treatment cheaply in a follow-up, but is intentionally
+ * left untouched by this change; `media` has no `slug` column at all and cannot support this without
+ * a schema migration).
  */
 
 import { scanEmbedMarkers, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/contracts/core/embeds/marker";
 
 /**
  * One embed reference found in a Page's `body_html`. `type` is deliberately a free string (see this
- * file's header) — the scanner never validates it against a known-type list. `id`/`name`/`variant`
- * are `null` when the corresponding CONFIG KEY is absent or not a string (or, for `id`, out of
- * {@link MAX_EMBED_ID_LENGTH} bounds) — the scanner reports what is literally written in the markup;
- * deciding whether an absent/invalid key makes the reference resolvable is a resolver-side concern
- * (`resolver-service.ts`), not a scanner-side one.
+ * file's header) — the scanner never validates it against a known-type list. `id`/`slug`/`name`/
+ * `variant` are `null` when the corresponding CONFIG KEY is absent or not a string (or, for `id`/
+ * `slug`, out of {@link MAX_EMBED_ID_LENGTH} bounds) — the scanner reports what is literally written
+ * in the markup; deciding whether an absent/invalid key makes the reference resolvable is a
+ * resolver-side concern (`resolver-service.ts`), not a scanner-side one.
  *
  * Kept as a narrow projection of `EmbedMarker.config` rather than replaced by it: every resolver in
- * `HTML_EMBED_RESOLVERS` reads exactly these four fields, and `null`-for-absent is the shape their
+ * `HTML_EMBED_RESOLVERS` reads exactly these five fields, and `null`-for-absent is the shape their
  * skip branches already test. A resolver needing a new key reads it off the marker config directly
  * — this interface is the compatibility seam, not a ceiling.
  */
 export interface PageHtmlEmbedRef {
   readonly type: string;
   readonly id: string | null;
+  /** See this file's header for why this is NOT the same mechanism as `name` below, despite the
+   *  similar shape — `slug` targets a database-unique column, `name` a never-implemented fuzzy match. */
+  readonly slug: string | null;
   readonly name: string | null;
   readonly variant: string | null;
 }
@@ -114,19 +143,30 @@ function configString(config: Readonly<Record<string, unknown>>, key: string): s
 
 /** `null` when `rawId` is absent, empty, or beyond {@link MAX_EMBED_ID_LENGTH} — a bound too long to
  * safely carry into a `Map`/`Set` key or an `entry_refs` row (see {@link MAX_EMBED_ID_LENGTH}'s own
- * doc), same sanity check the old `data-widget-embed`/`data-form-embed` convention applied. */
+ * doc), same sanity check the old `data-widget-embed`/`data-form-embed` convention applied. Also used
+ * for `slug` (via {@link normalizeEmbedSlug}) — same resource-cost reasoning applies to a slug string
+ * carried into a repo lookup key, even though `id` and `slug` name two independently-validated marker
+ * keys, not one value under two spellings. */
 function normalizeEmbedId(rawId: string | null): string | null {
   if (rawId === null || rawId.length === 0 || rawId.length > MAX_EMBED_ID_LENGTH) return null;
   return rawId;
 }
 
-/** Project a parsed marker onto the four fields the resolvers read. `type` is lowercased here, as
+/** `null` when `rawSlug` is absent, empty, or beyond {@link MAX_EMBED_ID_LENGTH} — see
+ * {@link normalizeEmbedId}'s own doc for why this shares that bound via one small wrapper rather than
+ * a shared rename: `id`/`slug` are independently-validated keys, not one value under two names. */
+function normalizeEmbedSlug(rawSlug: string | null): string | null {
+  return normalizeEmbedId(rawSlug);
+}
+
+/** Project a parsed marker onto the five fields the resolvers read. `type` is lowercased here, as
  * the old attribute pattern's `i` flag did — a config is hand-authored JSON, so `"Widget"` must keep
  * reaching the same resolver `"widget"` does. */
 function toEmbedRef(marker: EmbedMarker): PageHtmlEmbedRef {
   return {
     type: marker.type.toLowerCase(),
     id: normalizeEmbedId(configString(marker.config, "id")),
+    slug: normalizeEmbedSlug(configString(marker.config, "slug")),
     name: configString(marker.config, "name"),
     variant: configString(marker.config, "variant"),
   };

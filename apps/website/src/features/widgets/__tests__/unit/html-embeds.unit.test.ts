@@ -19,6 +19,11 @@ import { MAX_HTML_EMBEDS_PER_PAGE, scanHtmlEmbeds, substituteHtmlEmbeds } from "
  * fallback survives when nothing resolves. Re-spelling those two would have re-pinned the exact
  * behavior the migration set out to remove — see `core/embeds/marker.ts`'s `MARKER_PATTERN` doc and
  * `html-entry-refs-consistency.integration.test.ts`'s own note retiring the matching fixture.
+ *
+ * **Widened 2026-08-31 for `slug`.** Every fixture below now carries `slug: null` in its expected
+ * shape — a genuinely new field on `PageHtmlEmbedRef`, not a rename of anything — plus a dedicated
+ * block of new tests pinning `slug`'s own scan/normalize behavior. See `resolveHtmlPageEmbeds`'s own
+ * integration suite for what actually RESOLVES a slug; this file only proves it is scanned correctly.
  */
 
 test("scanHtmlEmbeds: finds two embeds of different types, in document order", () => {
@@ -26,62 +31,62 @@ test("scanHtmlEmbeds: finds two embeds of different types, in document order", (
     `<p>intro</p><div data-embed-config='{"type":"widget","id":"w1"}'></div><div data-embed-config='{"type":"media","id":"asset-1"}'></div>`
   );
   assert.deepEqual(refs, [
-    { type: "widget", id: "w1", name: null, variant: null },
-    { type: "media", id: "asset-1", name: null, variant: null },
+    { type: "widget", id: "w1", slug: null, name: null, variant: null },
+    { type: "media", id: "asset-1", slug: null, name: null, variant: null },
   ]);
 });
 
 test("scanHtmlEmbeds: an unregistered/future type token scans exactly like a known one — the scanner never gates on type", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>`);
-  assert.deepEqual(refs, [{ type: "some-future-type", id: "x1", name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null }]);
 });
 
 test('scanHtmlEmbeds: the RETIRED "form" type scans like any other unregistered token — removing it from the resolver registry (2026-08-10) changed resolution, never scanning', () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"form","id":"f1"}'></div>`);
-  assert.deepEqual(refs, [{ type: "form", id: "f1", name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "form", id: "f1", slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: name and variant config keys are captured alongside id", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`);
-  assert.deepEqual(refs, [{ type: "media", id: "asset-1", name: null, variant: "thumb" }]);
+  assert.deepEqual(refs, [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb" }]);
 });
 
 test("scanHtmlEmbeds: the marker attribute may sit anywhere among the element's other attributes, which survive the scan untouched", () => {
   const refs = scanHtmlEmbeds(
     `<div class="slot" data-extra="y" data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`
   );
-  assert.deepEqual(refs, [{ type: "media", id: "asset-1", name: null, variant: "thumb" }]);
+  assert.deepEqual(refs, [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb" }]);
 });
 
 test("scanHtmlEmbeds: whitespace between the opening and closing tag is tolerated", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":"w1"}'>\n  \n</div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: "w1", name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: "w1", slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: an element with real content between the tags DOES match — that content is a fallback the parser deliberately preserves, not a reason to skip the marker (this inverts the pre-b7acc21 empty-div-only rule)", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":"w1"}'><span>authored fallback</span></div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: "w1", name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: "w1", slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: an id longer than the sanity bound normalizes to null rather than being carried into a resolver/entry_refs lookup — the reference itself is still reported (scanning never gates on id validity, see this file's own header)", () => {
   const longId = "x".repeat(500);
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":"${longId}"}'></div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: null, name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: an empty id normalizes to null", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":""}'></div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: null, name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: a missing id key reports id: null rather than dropping the reference — resolution (not scanning) decides whether a targetless reference is usable", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget"}'></div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: null, name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: a non-string id is exactly as unusable as a missing one", () => {
   const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":7}'></div>`);
-  assert.deepEqual(refs, [{ type: "widget", id: null, name: null, variant: null }]);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
 });
 
 test("scanHtmlEmbeds: a marker whose config does not parse is absent from the result entirely — render-time stays forgiving, and the unparseable markup survives untouched because substituteHtmlEmbeds cannot see it either", () => {
@@ -96,6 +101,44 @@ test("scanHtmlEmbeds: truncates at MAX_HTML_EMBEDS_PER_PAGE, never returns more"
   const refs = scanHtmlEmbeds(html);
   assert.equal(refs.length, MAX_HTML_EMBEDS_PER_PAGE);
   assert.equal(refs[0]?.id, "w0", "truncation keeps the FIRST refs in document order, not an arbitrary subset");
+});
+
+// ---------------------------------------------------------------------------
+// `slug` (2026-08-31) — the owner-requested, human-memorable alternative to `id`. See
+// `html-embeds.ts`'s file header for why this is a distinct mechanism from `name`, not a rename of
+// it. These tests only prove SCANNING/normalization; `resolve-html-page-embeds.integration.test.ts`
+// covers actual slug -> entry resolution and the id-wins-when-both-present rule.
+// ---------------------------------------------------------------------------
+
+test('scanHtmlEmbeds: a "slug" config key is captured alongside (and independently of) id/name/variant', () => {
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null }]);
+});
+
+test('scanHtmlEmbeds: both "id" and "slug" present on one marker are both reported by the scanner — deciding which wins is a resolver-side concern, not a scanner-side one', () => {
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":"w1","slug":"contact-form"}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: "w1", slug: "contact-form", name: null, variant: null }]);
+});
+
+test("scanHtmlEmbeds: a missing slug key reports slug: null, exactly like a missing id", () => {
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","id":"w1"}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: "w1", slug: null, name: null, variant: null }]);
+});
+
+test("scanHtmlEmbeds: an empty slug normalizes to null", () => {
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","slug":""}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
+});
+
+test("scanHtmlEmbeds: a non-string slug is exactly as unusable as a missing one", () => {
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","slug":7}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
+});
+
+test("scanHtmlEmbeds: a slug longer than the sanity bound normalizes to null, same guard as an oversized id", () => {
+  const longSlug = "x".repeat(500);
+  const refs = scanHtmlEmbeds(`<div data-embed-config='{"type":"widget","slug":"${longSlug}"}'></div>`);
+  assert.deepEqual(refs, [{ type: "widget", id: null, slug: null, name: null, variant: null }]);
 });
 
 test("substituteHtmlEmbeds: replaces each placeholder with resolve()'s return value, leaves surrounding markup untouched", () => {
