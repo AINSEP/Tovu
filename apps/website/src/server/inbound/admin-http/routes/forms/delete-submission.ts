@@ -1,5 +1,6 @@
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
+import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** DELETE permanently removes one submission (`FORMS_DELETE_SUBMISSION`, REQ-14). */
 export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app, deps) => {
@@ -32,8 +33,17 @@ export const registerAdminFormsDeleteSubmissionRoute: FormsRouteRegistrar = (app
           return;
         }
 
+        // Slug first, id second — same rationale as `list-submissions.ts`/`get-by-id.ts`: the
+        // Submissions tab URL is /admin/forms/:slug, and `FormEditor.tsx` passes that same route
+        // param straight through as `formId` here.
+        const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
+        if (!definition) {
+          res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
+          return;
+        }
+
         const submission = await deps.formSubmissionRepo.findById({ workspaceId: deps.workspaceId, id: submissionId });
-        if (!submission || submission.formDefinitionId !== formId) {
+        if (!submission || submission.formDefinitionId !== definition.id) {
           res
             .status(404)
             .json({ error: `submission '${submissionId}' was not found`, code: "FORMS_SUBMISSION_NOT_FOUND" });

@@ -1,6 +1,7 @@
 import { toAdminFormDefinitionResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
+import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */
 export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
@@ -32,18 +33,13 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
 
       // Admin URLs use the slug when one resolves (ui-fixes-backlog.md #8 — the raw id was
       // unreadable in the URL bar); this route accepts either so an old id-based bookmark/link
-      // keeps working. Slug first, id second — same order and rationale as posts' own
-      // `getAdminPostByIdOrSlug` (`src/features/post/post.ts`): the slug is the handle a human
-      // chose and reads, the id is an implementation detail they never did. Inlined rather than
-      // promoted to a shared helper — forms carry no trash concept (unlike posts) and this is the
-      // only caller; every WRITE below resolves through the loaded record's real `.id` instead of
-      // this route param, so the PUT route needs no matching id-or-slug support (see
-      // `use-form-editor.hooks.ts`'s own comment on its update mutation).
-      const bySlug = await deps.formDefinitionRepo.findBySlug({
-        workspaceId: deps.workspaceId,
-        slug: formId.trim().toLowerCase(),
-      });
-      const definition = bySlug ?? (await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: formId }));
+      // keeps working. See `resolve-definition.ts` for the slug-first/id-second rationale — now
+      // shared with the submissions routes below it, which need the same resolution for the same
+      // reason (`FormEditor.tsx` passes this route's `:formId` param through unchanged to them).
+      // Every WRITE below resolves through the loaded record's real `.id` instead of this route
+      // param, so the PUT route needs no matching id-or-slug support (see `use-form-editor.hooks.ts`'s
+      // own comment on its update mutation).
+      const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;

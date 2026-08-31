@@ -125,6 +125,53 @@ test("admin forms submissions: unknown submission id returns FORMS_SUBMISSION_NO
   assert.equal(body.code, "FORMS_SUBMISSION_NOT_FOUND");
 });
 
+test("admin forms submissions: list/get/delete resolve by slug — the Submissions tab URL is /admin/forms/:slug, and FormEditor.tsx passes that same route param straight through as `formId` to all three submissions calls (see use-form-submissions.hooks.ts / use-form-submission-detail.hooks.ts)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const formId = await createDefinition(baseUrl, cookie, "slug-form");
+
+  await deps.formSubmissionRepo.create({
+    id: "sub-slug",
+    workspaceId: deps.workspaceId,
+    formDefinitionId: formId,
+    data: { name: "Ada" },
+    sourceIp: "1.1.1.1",
+    submittedAt: "2026-07-13T00:00:00.000Z",
+  });
+
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/slug-form/submissions`, {
+    headers: { cookie },
+  });
+  assert.equal(listRes.status, 200);
+  const listBody = (await listRes.json()) as { data: Array<{ id: string }> };
+  assert.deepEqual(listBody.data.map((s) => s.id), ["sub-slug"]);
+
+  const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/slug-form/submissions/sub-slug`, {
+    headers: { cookie },
+  });
+  assert.equal(getRes.status, 200);
+  const getBody = (await getRes.json()) as { data: { id: string } };
+  assert.equal(getBody.data.id, "sub-slug");
+
+  const deleteRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/slug-form/submissions/sub-slug`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(deleteRes.status, 204);
+});
+
+test("admin forms submissions: unknown formId (neither a real slug nor id) returns FORMS_DEFINITION_NOT_FOUND on list", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/no-such-form/submissions`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FORMS_DEFINITION_NOT_FOUND");
+});
+
 test("admin forms submissions: AC-20 — delete permanently removes it (404s + disappears from list)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
