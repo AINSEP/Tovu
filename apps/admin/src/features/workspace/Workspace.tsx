@@ -57,7 +57,10 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
   const dirty = isWorkspaceDirty(workspace, name, slug);
 
   return (
-    <div className="page">
+    // `.workspace-page` caps measure (styles.css) — this is a single-column settings screen, not
+    // a table/dashboard, and `.page` itself carries no max-width anywhere in the app (would affect
+    // all ~39 other screens using it), so the cap lives on a scoped wrapper class instead.
+    <div className="page workspace-page">
       <div className="page-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Administration")}</p>
@@ -79,31 +82,47 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
         <button type="submit" disabled={saving || !dirty}>
           {saving ? t("Saving…") : t("Save changes")}
         </button>
+
+        {/* `.workspace-identity-grid` (styles.css) groups these with the rename form above them —
+            previously a bare `.settings-layer-grid` sitting on the page by itself below the form's
+            own card, reading as an unrelated second block rather than "more facts about this same
+            workspace." Same divider idiom `.deployment-route-note`/`.settings-scope-editor` already
+            use for a sub-section inside one container. */}
+        <div className="settings-layer-grid workspace-identity-grid">
+          <div className="settings-layer-cell">
+            <span className="settings-layer-label">{t("Workspace ID")}</span>
+            <span>{workspace.id}</span>
+          </div>
+          <div className="settings-layer-cell">
+            <span className="settings-layer-label">{t("Created")}</span>
+            {/* Raw ISO-8601 (`2026-04-06T00:00:00.000Z`) leaked to the screen unformatted — the
+                exact class of bug `format-timestamp.ts`'s own file header describes fixing at ~a
+                dozen other call sites; this one was missed. Same shared helper, same YYYY-MM-DD
+                HH:MM display, no new formatting logic. */}
+            <span>{formatTimestamp(workspace.createdAt)}</span>
+          </div>
+        </div>
       </form>
 
-      <div className="settings-layer-grid">
-        <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t("Workspace ID")}</span>
-          <span>{workspace.id}</span>
-        </div>
-        <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t("Created")}</span>
-          {/* Raw ISO-8601 (`2026-04-06T00:00:00.000Z`) leaked to the screen unformatted — the
-              exact class of bug `format-timestamp.ts`'s own file header describes fixing at ~a
-              dozen other call sites; this one was missed. Same shared helper, same YYYY-MM-DD
-              HH:MM display, no new formatting logic. */}
-          <span>{formatTimestamp(workspace.createdAt)}</span>
-        </div>
-      </div>
-
-      <h2>{t("Delete workspace")}</h2>
-      <div className="notice">
-        <p>
+      {/* `.card`/`.card-title` (styles.css ~L789/811), the same primitive Deployment's Overview tab
+          uses for its own sections — not a bare `<h2>`, which renders at the UA-default 24px against
+          `.page-title`'s 26.4px (measured live: 91% of it, different font family, a stray 19.92px
+          margin) and reads as a second page starting rather than a section of this one. `.card-danger`
+          (new, small, generically reusable) adds the same red-left-border signal `.notice.error`/
+          `.notice.warning` already use, for a section that is destructive content rather than a
+          message. */}
+      <div className="card card-danger">
+        <h2 className="card-title">{t("Delete workspace")}</h2>
+        <p className="card-lead">
           {t("Every Tovu install must always have at least one workspace, so deleting your only workspace is not available. This becomes available once this install supports more than one workspace.")}
         </p>
         {/* `.btn-danger` at rest, not just on some future enabled state — genuinely destructive by
-            nature even while `:disabled` (which already desaturates it); staying `.btn-danger`
-            means this doesn't quietly read as a neutral action if it's ever wired live. */}
+            nature even while `:disabled`; staying `.btn-danger` means this doesn't quietly read as a
+            neutral action if it's ever wired live. Its disabled state now has its own rule
+            (`.btn-danger:disabled`, styles.css) — verified live via getComputedStyle that without it,
+            `button:disabled`'s primary-tinted fill (out-specifying `.btn-danger`'s own background/
+            color) painted a peach fill behind a red border and near-white text, reading as broken
+            rather than deliberately unavailable. */}
         <button
           type="button"
           className="btn-danger"

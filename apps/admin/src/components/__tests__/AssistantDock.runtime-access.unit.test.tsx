@@ -33,6 +33,12 @@ vi.mock("@jini-ai/chat/react", () => ({
   createMcpUiToolCaller: () => vi.fn(),
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
+  // `AssistantDock.tsx` imports this at module scope and calls
+  // `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, ...)`, so a factory that omits it makes the
+  // module throw at import — which vitest reports as a FILE failure while the run's headline test
+  // count still looks healthy, silently skipping every test in here. The real
+  // `@jini-ai/chat/react` does export it; only the mock was short.
+  MCP_UI_EXT_EVENT_NAME: "mcp-ui",
 }));
 
 vi.mock("../../lib/execution-settings", async (importOriginal) => {

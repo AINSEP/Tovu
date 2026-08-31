@@ -409,6 +409,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    ============================================================ */
 
 .page { display: flex; flex-direction: column; gap: var(--space-6); }
+/* Workspace screen measure — `.page` itself carries no max-width anywhere in the app (~39 call
+   sites: tables, side-by-side card grids, and other layouts that legitimately want the full
+   column), so a cap belongs on a scoped wrapper class, not the shared shell. Workspace is a single-
+   column settings form; at a wide viewport it ran edge-to-edge with the card boxes stretching to
+   fill leftover space and no readable measure of their own. */
+.workspace-page { max-width: 42rem; }
 
 /* Kicker + title + description on the left, actions on the right — mirrors the measured
    Settings triad (11px kicker / 26px title / 13px description) instead of a bare <h1>. */
@@ -818,6 +824,11 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
    measure instead of running the full width of a 1440px card. */
 .card-lead { margin: 0; font-size: var(--text-md); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+/* Danger-zone card modifier — the same red-left-border signal `.notice.error`/`.notice.warning`
+   already use, applied to `.card` for a section that isn't itself an error/warning message but
+   genuinely destructive content (Workspace's "Delete workspace"). `.card`'s own background/border/
+   radius/shadow stay, so it still reads as the same family of container as every other `.card`. */
+.card-danger { border-left: 3px solid var(--danger); }
 /* Section eyebrow for a group of cards that needs a name but not a second page-level heading —
    same uppercase/letterspaced idiom as `.page-kicker` and `.field-label`, one tier down from
    `.card-title` so it never competes with it. */
@@ -843,6 +854,21 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
 .btn-ghost:hover { background: var(--surface-2); opacity: 1; }
 .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); opacity: 1; }
+/* Disabled destructive control, read as calm and deliberately unavailable rather than broken.
+   Without this, `button:disabled` (specificity 0,1,1) out-specifies `.btn-danger`'s own background/
+   color (0,1,0) and applies the PRIMARY-tinted disabled fill everywhere else on the page — verified
+   live via getComputedStyle on Workspace's disabled "Delete workspace" button: a peach background
+   (color-mix of the app's burnt-orange primary), near-white text, and `.btn-danger`'s own red border
+   all on one button, which reads as a mis-colored/half-rendered control rather than an intentional
+   disabled state. Muted red on every channel instead, so it stays legibly in the danger family.
+   `.btn-danger:disabled` is (0,2,0), which beats `button:disabled`'s (0,1,1) outright — no
+   `!important` or extra scoping needed. */
+.btn-danger:disabled {
+  cursor: not-allowed;
+  background: color-mix(in oklch, var(--danger) 12%, var(--surface));
+  border-color: color-mix(in oklch, var(--danger) 40%, var(--border-strong));
+  color: color-mix(in oklch, var(--danger) 55%, var(--muted));
+}
 /* Scaffold for phase 2 (MSG-14's hierarchy audit) — reversible-but-access-affecting row actions
    (Users' Disable/Reset-password) that are neither plain secondary nor fully destructive. No
    caller in this dispatch's own files; see `--warning`'s token comment for why. */
@@ -2155,6 +2181,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .settings-layer-cell { display: flex; flex-direction: column; gap: 0.2rem; background: var(--surface-2); border-radius: var(--r-md); padding: 0.5rem 0.6rem; font-size: 0.85rem; }
 .settings-layer-effective { border: 1.5px solid var(--accent-text); }
 .settings-layer-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--faint); }
+/* Groups Workspace's read-only ID/Created facts with the rename form above them (nested inside the
+   same `<form>`, after the Save button) instead of floating as a disconnected pair of grey slabs
+   below it. Same `border-top` + `padding-top` sub-section idiom `.settings-scope-editor` (below)
+   and `.deployment-route-note` already use inside one container. */
+.workspace-identity-grid { margin-top: var(--space-4); padding-top: var(--space-4); border-top: 1px solid var(--border); }
 .settings-scope-editor { border-top: 1px solid var(--border); padding-top: 0.8rem; display: flex; flex-direction: column; gap: 0.5rem; }
 .settings-scope-editor h3 { margin: 0; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .settings-value-editor { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -2447,6 +2478,64 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: 1px dashed var(--jini-border); border-radius: var(--jini-radius-sm);
 }
 .settings-ui-inert-control { opacity: 0.55; }
+
+/* ------------------------------------------------------------------------
+   Agent Plugins screen (AgentPlugins.tsx) — scoped to `.agent-plugins-section`
+   so none of these touch any other `.settings-ui-section`/`.jini-*` consumer.
+   All colors use Jini's own `--jini-*` tokens rather than Tovu's `--muted`/
+   `--fg`/`--surface`: this screen pins `data-theme="light"` on its own wrapper
+   (same pattern as Settings/AI Assistant), and Jini's tokens redefine at both
+   `[data-theme="light"]` and `[data-theme="dark"]` (`tabbed-dialog.css`),
+   while Tovu's own tokens only redefine at `:root[data-theme="dark"]` with no
+   `[data-theme="light"]` reset — so a Tovu-token color here would leak the
+   admin's root-dark value into this light-pinned island (verified live: the
+   existing `.btn-secondary` "Inspect package files" button already does this
+   pre-existing, unrelated to this pass — flagged in the design report rather
+   than fixed here, since correcting it means adding a `[data-theme="light"]`
+   reset block to Tovu's own token set, a shared/global change outside two
+   screens' scope). ------------------------------------------------------ */
+
+/* Measure — this panel has no `--page-flow` variant (`.settings-ui-section--page-flow` above), so
+   it had none of that modifier's own `max-width: 46rem` fix for the identical problem: a card
+   holding a couple of sentences and a short list, stretched to the full ~1300px+ admin column.
+   Same value, reused on this screen's own class instead of the shared modifier. */
+.agent-plugins-section .jini-tabbed-dialog-content { max-width: 46rem; }
+
+/* Meta rows (Version/Source/Availability) — label above value, value the visually dominant line.
+   Was `.jini-settings-privacy-disclosure`, the Privacy tab's own title+description pair (`dt` 13px/
+   600/near-black, `dd` 12px/muted) — built for a bold heading followed by a caption, which read
+   backwards borrowed for a label/value fact: "Source" outweighed the value it labeled. Verified
+   live via getComputedStyle before touching this. */
+.agent-plugin-meta { margin: 0; display: flex; flex-direction: column; gap: 10px; }
+.agent-plugin-meta > div { display: flex; flex-direction: column; gap: 2px; }
+.agent-plugin-meta dt {
+  margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--jini-text-muted);
+}
+.agent-plugin-meta dd { margin: 0; font-size: 13px; color: var(--jini-text); }
+
+/* Portable-components list — one label, one box. Was `.jini-mcp-capabilities-card` (its own border
+   and `--jini-bg-panel` fill) nested inside the outer `.jini-settings-section-card` (the SAME fill
+   and border) — two identical boxes stacked for one list. Dropped the inner box; kept only the
+   uppercase label. Skill names render as chips instead of a bulleted list prefixed with the word
+   "Skill" on every line — the section's own label already says what these are, once. */
+.agent-plugin-skills { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.agent-plugin-skills-label {
+  margin: 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--jini-text-muted);
+}
+.agent-plugin-skills-list { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+.agent-plugin-skills-list li {
+  font-size: 12.5px; font-family: var(--font-mono, monospace); color: var(--jini-text);
+  background: var(--jini-bg-subtle); border: 1px solid var(--jini-border); border-radius: 999px;
+  padding: 3px 10px;
+}
+.agent-plugin-skills-list code { font: inherit; color: inherit; background: none; }
+
+/* Separates the per-package "Inspect package files" action above from the section-wide standard-
+   format footnote below it — was flush against the last card's bottom edge with no rhythm of its
+   own, reading as a stray trailing line rather than a section footer. */
+.agent-plugins-format-note { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--jini-border); }
 /* Connectors tab: Tovu's own Composio API key field above `ConnectorsBrowser`, which ships no key
  * input of its own (see `ComposioKeyField.tsx`). Sized to sit as chrome above the grid rather than
  * compete with it. */
