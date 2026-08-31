@@ -18,12 +18,21 @@ import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credential
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
 import {
   createInMemoryChatStoreFactory,
+  createInMemoryAgentSessionStore,
   InMemorySiteAssistantCredentialRepo,
   InMemoryAdminExecutionCredentialRepo,
   InMemoryExternalMcpServerRepo,
   ensurePublicAssistantSettingDefinitions,
   ensureExecutionSettingDefinitions,
 } from "#src/assistant/index";
+// Deep-imported rather than routed through the barrel above: `assistant/index.ts`'s Section D
+// ("Admin Daemon Proxy / Process Composition") is documented as consumed by the DAEMON's own proxy
+// composition (`server/modules/assistant.ts`) — this route is the opposite of that, a plain static
+// page served by THIS website server for the browser's iframe to load directly (see the route's own
+// module doc). Filing it under Section D would misdescribe it. `app.ts` is a composition root
+// (`.dependency-cruiser.mjs`'s `COMPOSITION_ROOTS`), exempt from `no-deep-imports:assistant` for
+// exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
+import { registerMcpUiSandboxProxyRoute } from "#src/assistant/mcp-ui-sandbox-proxy-route";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import {
   InMemorySettingsRepo,
@@ -499,6 +508,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // adapter has. `ensureChatHistoryTables` is the package's own path for a host with no
     // migration system, which is exactly this root's situation.
     chatHistory: createInMemoryChatStoreFactory(),
+    // Same "no in-memory reimplementation needed" situation as `chatHistory` above, but this port
+    // has no `ai_chats` foreign key or isolation predicate to get right, so a plain map (no `db`
+    // at all) is the whole double — see `agent-session-store.ts`'s own doc.
+    agentSessions: createInMemoryAgentSessionStore(),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -1209,6 +1222,15 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
   app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../../../../../../content/public/agent-icons")));
+
+  // MCP-UI sandbox proxy — `@mcp-ui/client`'s `AppFrame` points an iframe's `src` at this exact
+  // root-relative path (see `mcp-ui-sandbox-proxy-route.ts`'s own module doc) and never falls back
+  // to `srcdoc`, so every MCP-UI surface (e.g. `assistant_ask_choice`'s form) fails to render at all
+  // without it. Same "root-relative, outside the admin SPA's `/admin/*` static serving" shape as
+  // `/agent-icons` immediately above — mounted here on Tovu's own web server, NOT on the agent
+  // daemon (`agent-daemon-server.ts`), because it needs nothing from that process's in-memory
+  // `ToolExecutor`/`SurfaceExchangeStore`, only a constant string.
+  registerMcpUiSandboxProxyRoute(app);
 
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
