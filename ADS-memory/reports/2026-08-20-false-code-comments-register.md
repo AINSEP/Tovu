@@ -91,6 +91,20 @@ two analytics files only. It is a 12-file mechanical header fix with no behavior
 
 ## FIXED — recorded for the pattern, do not re-fix
 
+### F10. `apps/website/src/platform/mail/ports.ts` (lines ~52-54) — "built now" / "named-next" for adapters that did not exist
+
+The two marker-type doc comments read: `export type SmtpMailerAdapter = MailerPort; // built now (nodemailer/SMTP)` and `export type HttpApiMailerAdapter = MailerPort; // named-next (Resend/Postmark/SES over HttpClientPort)`.
+
+**Why it was false:** neither adapter existed anywhere in the codebase. `grep -rln "implements MailerPort" apps/website/src` returned exactly one hit (`features/members/mailer.console.ts`'s `ConsoleMailerAdapter`) before this fix — not two, as "built now" implied for SMTP. `platform/mail/index.ts`'s own header already said the opposite, correctly: "adapters (Console/Smtp/HttpApi/InMemory) ... are the ADR-037 follow-up build" — the two files disagreed with each other, and `ports.ts`'s per-line comments were the wrong one. Practical effect: `ADR-037`'s own text records that it "cannot move to ACCEPTED until `SmtpMailerAdapter` and one production-plausible HTTP-API adapter pass the same contract tests" (rule-of-two) — a reader trusting `ports.ts`'s comment alone would have believed that gate was already half-cleared when zero of it was.
+
+**Fix:** 2026-08-31, mail-adapters build session (uncommitted at time of writing — coordinator to commit). Both marker-type comments corrected to name the real files (`./adapters/http-api.resend.ts`, `./adapters/smtp.nodemailer.ts`); `ports.ts`'s file header and `index.ts`'s own header both annotated with the same correction, cross-referencing each other so a future reader hits the true state from either entry point.
+
+**Pattern to carry forward:** a marker/placeholder type's trailing comment is exactly as capable of drifting from reality as a full doc block — do not weight a one-line `// built now` comment any less skeptically than a paragraph, especially when a SIBLING file in the same directory already states the opposite.
+
+**Found by:** the mail-adapters build dispatch itself, while reading `ports.ts` before implementing against it (per this task's own brief: "Add it to the false-comment register").
+
+---
+
 ### F9. `src/assistant/tool-registrations.ts` (lines 33-34, and the slice comment at ~475) — "three" demo domains, when there were four
 
 The file header said: "The demo domains below (2026-08-22: three — `demo-choices`, `demo-a2ui`,
