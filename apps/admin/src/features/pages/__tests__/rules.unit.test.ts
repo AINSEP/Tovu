@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/lib/api";
-import { pageRowMenuItems } from "../rules";
+import { pageRowMenuItems, themePageRowMenuItems } from "../rules";
+import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
 /**
  * @file Pure logic for `features/pages/rules.ts`.
@@ -80,5 +81,56 @@ describe("pageRowMenuItems", () => {
   it("translates labels to Spanish when locale is es", () => {
     const items = pageRowMenuItems(PUBLISHED_PAGE, { onEdit: vi.fn(), onDisable: vi.fn(), onDelete: vi.fn() }, "es");
     expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
+  });
+});
+
+const THEME_ROW: ThemePageRow = {
+  pageId: "about",
+  filePath: "render/pages/about.html",
+  published: false,
+  resettable: true,
+  collidingContent: null,
+};
+
+describe("themePageRowMenuItems", () => {
+  it("returns exactly Details then Edit — no Disable/Delete, since a theme page has no PostRecord for either", () => {
+    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails: vi.fn(), onEdit: vi.fn() }, (key) => key);
+    expect(items.map((i) => i.key)).toEqual(["details", "edit"]);
+    expect(items[0]).toMatchObject({ label: "Details" });
+    expect(items[1]).toMatchObject({ label: "Edit" });
+  });
+
+  it("wires Details' onSelect to onOpenDetails with the row's own pageId, and only onOpenDetails", () => {
+    const onOpenDetails = vi.fn();
+    const onEdit = vi.fn();
+    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails, onEdit }, (key) => key);
+    items.find((i) => i.key === "details")!.onSelect();
+    expect(onOpenDetails).toHaveBeenCalledWith("about");
+    expect(onEdit).not.toHaveBeenCalled();
+  });
+
+  /**
+   * PART 4 (2026-08-31): Edit moved out of `ThemePageDetailsModal.tsx`'s own footer into this menu,
+   * directly under Details. Takes the row's bare `pageId` — same shape as `onOpenDetails` — rather
+   * than building the Theme Studio href itself, since this module stays free of navigation (this
+   * file's own header comment, and `rules.ts`'s `ThemePageRowMenuHandlers` doc); the caller
+   * (`ThemePagesTab.tsx`) is the one place that turns it into `navigate(themeStudioHref(...))`.
+   */
+  it("wires Edit's onSelect to onEdit with the row's own pageId, and only onEdit", () => {
+    const onOpenDetails = vi.fn();
+    const onEdit = vi.fn();
+    const items = themePageRowMenuItems(THEME_ROW, { onOpenDetails, onEdit }, (key) => key);
+    items.find((i) => i.key === "edit")!.onSelect();
+    expect(onEdit).toHaveBeenCalledWith("about");
+    expect(onOpenDetails).not.toHaveBeenCalled();
+  });
+
+  it("translates both labels through the given Translate function", () => {
+    const items = themePageRowMenuItems(
+      THEME_ROW,
+      { onOpenDetails: vi.fn(), onEdit: vi.fn() },
+      (key) => (key === "Details" ? "Detalles" : key === "Edit" ? "Editar" : key)
+    );
+    expect(items.map((i) => i.label)).toEqual(["Detalles", "Editar"]);
   });
 });

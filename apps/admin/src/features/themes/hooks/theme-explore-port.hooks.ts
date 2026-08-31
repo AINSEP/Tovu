@@ -27,6 +27,16 @@
  *  meant to be injected into. */
 export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
 
+/** The live content record occupying a theme page's own slug — mirrors the server's
+ *  `ThemeFileContentCollision` (`explore.ts`'s `describeThemeFile`). See
+ *  `use-theme-explore.hooks.ts`'s `ThemeExploreFile.collidingContent` for the full contract. */
+export interface ThemeExploreSlugCollision {
+  id: string;
+  slug: string;
+  title: string;
+  kind: "post" | "page";
+}
+
 /** Mirrors `lib/api.ts`'s inline `getThemeDetail` file-entry shape, narrowed to the fields this
  *  hook's own `mapDetailFiles` reads. */
 export interface ThemeExploreFileEntry {
@@ -35,6 +45,16 @@ export interface ThemeExploreFileEntry {
   readable: boolean;
   editable: boolean;
   resettable: boolean;
+  /** `null`/absent for every file the publish question does not apply to — see
+   *  `use-theme-explore.hooks.ts`'s `ThemeExploreFile.published` for the full contract. Optional here
+   *  (not on the client-normalized `ThemeExploreFile`) so a fixture or an older cached response that
+   *  predates this field still satisfies the port's own shape. */
+  published?: boolean | null;
+  /** `null`/absent for every file this question does not apply to (same gate as `published` — see
+   *  its own doc) or when no live content record shares this page's slug. See
+   *  `use-theme-explore.hooks.ts`'s `ThemeExploreFile.collidingContent` for the full contract.
+   *  Optional here for the same "older cached response" reason `published` already documents. */
+  collidingContent?: ThemeExploreSlugCollision | null;
 }
 
 export interface ThemeExplorePort {
@@ -58,4 +78,11 @@ export interface ThemeExplorePort {
   resetThemeFile(themeId: string, path: string): Promise<{ content: string }>;
   renameThemeFile(themeId: string, path: string, name: string): Promise<{ path: string }>;
   copyThemeFile(themeId: string, path: string): Promise<{ path: string }>;
+  /** Delete one file inside a theme, permanently — see `use-theme-explore.hooks.ts`'s `confirmDelete`
+   *  for the confirmation gate this sits behind. */
+  deleteThemeFile(themeId: string, path: string): Promise<{ path: string }>;
+  /** Publish or unpublish one of this theme's own pages — see `use-theme-explore.hooks.ts`'s
+   *  `setPagePublished` for the client-side gate (refused when the selected file has no publish
+   *  state at all) and `ThemeManifest.publishedPages` (`theme.ts`) for the full contract. */
+  setPagePublished(themeId: string, page: string, published: boolean): Promise<{ page: string; published: boolean }>;
 }

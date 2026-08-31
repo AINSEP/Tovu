@@ -627,13 +627,67 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    2026-08-11: "make the pages title flush with preview and HTML tabs ... it just looks off." Scoped
    to this one context so `PageEditor`'s own spacing is untouched. */
 .theme-explore-main .page-editor-toolbar { margin-top: 0; }
-/* The view tabs sit on the left of the toolbar; the preview-width control and fullscreen trigger
-   (Preview tab only) sit on the right — `.page-editor-toolbar`'s own `justify-content: space-between`
-   then only has to place TWO children (this group and the tabs). Save/Reset used to live in here too;
-   the 2026-08-11 toolbar restructure moved them up into the outer `.page-actions` row beside
-   `← All themes`, matching `PageEditor.tsx`'s own toolbar shape — see `ThemeExplore.tsx`'s
-   `ThemeExploreToolbarButtons` for why. */
+/* The view tabs plus the publish toggle sit together on the LEFT of the toolbar; the preview-width
+   control and fullscreen trigger (Preview tab only) sit on the right — `.page-editor-toolbar`'s own
+   `justify-content: space-between` then only has to place TWO children (this wrapper and
+   `.theme-explore-toolbar-actions`). Save/Reset used to live in here too; the 2026-08-11 toolbar
+   restructure moved them up into the outer `.page-actions` row beside `← All themes`, matching
+   `PageEditor.tsx`'s own toolbar shape — see `ThemeExplore.tsx`'s `ThemeExploreToolbarButtons` for
+   why. `flex-wrap: wrap` of its own (independent of `.page-editor-toolbar`'s own wrap): a locked
+   publish toggle's reason text is the longest thing this row can carry, so it gets to drop onto its
+   own line without dragging the Preview/HTML tabs down with it. */
+.theme-explore-toolbar-start { display: flex; align-items: center; gap: var(--space-4); flex-wrap: wrap; min-width: 0; }
 .theme-explore-toolbar-actions { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+/* The publish toggle for the selected PAGE (2026-08-30 owner ask, restyled from a two-button
+   Off/Published segmented control the same day — "Can the publish just be a toggle rather than the
+   tab... it will be a toggle, a green toggle, Apple style"). Lives inside `.theme-explore-toolbar-
+   start` now, immediately right of the Preview/HTML tabs — no longer its own row below the toolbar.
+   Rendered for every file with SOME publish state, live or locked — see `ThemeExplorePublishToggle`'s
+   own doc for the two shapes that covers. `flex-wrap: wrap` so a locked toggle's reason text (the
+   longest content this group ever carries) drops to its own line rather than forcing the row wider. */
+.theme-explore-publish-toggle { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.theme-explore-publish-label { font-size: 0.85rem; color: var(--muted); }
+/* The reason a LOCKED toggle can't be changed — visible by default, not tucked behind a tooltip: the
+   whole point of this control replacing "show nothing" is that the reason is the first thing an
+   operator sees, not something they have to discover by hovering (2026-08-30 owner-reported
+   confusion this replaces — see `selectedFilePublishState`'s own doc). */
+.theme-explore-publish-reason { font-size: var(--text-xs); color: var(--muted); }
+/* The switch itself — a real `<button>`, reset back to a bare pill: the app-wide `button` rule
+   (top of this file) paints every button with the burnt-orange primary fill/padding/radius, which
+   this control replaces entirely rather than layers on top of. Sized to match `.jini-toggle-row-
+   switch`'s own iOS-style dimensions (Open Design's Settings toggle, `.settings-ui-section` block
+   further down this file) for one consistent toggle idiom app-wide, rather than a second bespoke
+   size living here. */
+.theme-explore-switch {
+  position: relative;
+  flex-shrink: 0;
+  width: 34px; height: 20px;
+  padding: 0; border: none; border-radius: var(--r-pill);
+  background: var(--border-strong);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+/* Green when on — the owner's own ask, verbatim ("a green toggle, Apple style") — reusing `--ok`
+   (the SAME green `.status-ok`/`.tab-bar-dot` use for "this is connected/active") rather than
+   inventing a second green token, and `--ok-solid` as its own fallback-preferred value: dark mode's
+   plain `--ok` is tuned to read as TEXT on a dark background and is too light to hold this track's
+   own contrast against `--surface-2` there, the identical reasoning `.deployment-step-marker-done`'s
+   own comment gives for the same `--ok-solid, var(--ok)` pair on a solid-filled shape. */
+.theme-explore-switch.is-on { background: var(--ok-solid, var(--ok)); }
+/* Written as its own compound selector, not left to rely on source order against `.is-on` above:
+   both this and that rule set `background` at equal specificity, so without this the locked-ON case
+   (index/404 — see `lockedPublishReason`) would depend on which rule happened to come last rather
+   than always winning on its own terms. */
+.theme-explore-switch.is-on:disabled { background: var(--ok-solid, var(--ok)); }
+.theme-explore-switch:disabled { cursor: not-allowed; opacity: 0.6; background: var(--border-strong); }
+.theme-explore-switch-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s;
+}
+.theme-explore-switch.is-on .theme-explore-switch-knob { transform: translateX(14px); }
 .theme-explore-fullscreen-trigger {
   display: inline-flex; align-items: center; justify-content: center;
   width: 2rem; height: 2rem; padding: 0; flex-shrink: 0;
@@ -1284,6 +1338,15 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
 }
 .list-table td button:not([class*="btn-"]):not(.link-button):hover { background: var(--surface-2); opacity: 1; }
+/* Collision on file, named per this comment block's own convention: `ThemePagesTab.tsx`'s Publish
+   switch (`.theme-explore-switch`, reused verbatim from `ThemeExplore.tsx`'s toolbar toggle) sits
+   inside a `.list-table td` same as every other row control, so this reset's `:not([class*="btn-"])`
+   matched it too — silently flattening its on/off/disabled background to this rule's flat
+   `var(--surface)` regardless of state (owner-reported bug, 2026-08-31: a locked-ON switch read as
+   indistinguishable from a genuinely-off one). Fixed the same way as every other exception on this
+   selector: `ThemePagesTab.tsx` adds `btn-toggle-switch` (a marker class with no rules of its own) to
+   that button, which is enough for `[class*="btn-"]` to exclude it — no `!important`, no reordering,
+   no `.list-table`-scoped override to win a specificity fight against this rule. */
 
 /* Row-scoped destructive/warning actions — quiet at rest, loud on intent.
    The rule above demotes UNCLASSED row buttons, which left the opposite problem for the classed
@@ -1356,6 +1419,23 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 /* Same consolidation as `.login-card label` above. */
 .integrations-form label { display: flex; flex-direction: column; gap: 0.25rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); width: 100%; max-width: 28rem; }
+/* Roles.tsx `PolicyPermissionList` — a bare `<ul>`/`<li>` with no rule of its own here, so the
+   `<code>`, optional `(resourceType)` span, and Remove button ran together in normal inline flow
+   with zero gap between them (visual QA, 2026-08-31). Same `list-style: none; margin: 0; padding:
+   0; display: flex; flex-direction: column;` idiom `.settings-row-list`/`.deployment-env-list`
+   already use elsewhere in this file, not a bespoke shape. */
+.permission-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.permission-list li { display: flex; align-items: center; gap: 0.5rem; }
+/* The "Permission"/"resource type (optional)" input pair (same `PolicyPermissionForm`) has no
+   width rule of its own either, so both fall back to the browser's default ~161px input size
+   regardless of placeholder length — long enough for "e.g. content.write" but not for "resource
+   type (optional)", which read as clipped mid-word. `flex: 1 1 12rem` lets each grow to fill the
+   row's leftover space; `min-width: 0` overrides the browser's flex-item default of `min-width:
+   auto` (which floors at content size and would otherwise defeat this), same reasoning as
+   `.editor-slug input`'s mobile rule above. Own class rather than `.integrations-form
+   .editor-actions input` — that combinator also matches Users.tsx's single-input email-edit row
+   (`UserManagePanel`), a different screen this pass didn't touch or visually verify. */
+.permission-form-fields input { flex: 1 1 12rem; min-width: 0; }
 
 /* Dashboard
    The previous version was three `.dash-card`s in an auto-fit grid, and the grid was the whole
@@ -3039,6 +3119,127 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border: 1px solid oklch(100% 0 0 / 0.35); box-shadow: var(--shadow-md);
 }
 .image-preview-modal-close:hover { background: oklch(0% 0 0 / 0.72); opacity: 1; }
+
+/* `MessageOverflowModal.tsx` — the chat pane's "Show in modal" affordance (chat-overflow fix,
+   2026-08-30). Same native-`<dialog>` foundation as `.image-preview-modal` above, but sized like
+   `.theme-explore-preview-dialog` instead: this shows arbitrary chat content (a wide code block, a
+   full-size MCP-UI surface), not a single image with an intrinsic size to shrink-wrap to, so the
+   box is sized to most of the viewport and its body scrolls independently. Close button mirrors
+   `.theme-explore-preview-dialog-close`'s reasoning, not `.image-preview-modal-close`'s: this
+   dialog's content sits on the app's own light surface (a table, a code block, an MCP-UI card), so
+   a token-based badge reads correctly there the way `.image-preview-modal-close`'s fixed dark
+   overlay (tuned for sitting on top of a photograph) would not. */
+.message-overflow-modal {
+  position: relative;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  padding: var(--space-5);
+  width: 90vw;
+  height: 85vh;
+  max-width: 90vw;
+  max-height: 85vh;
+  background: var(--surface);
+  color: var(--fg);
+  box-shadow: var(--shadow-md);
+}
+.message-overflow-modal[open] { display: flex; flex-direction: column; }
+.message-overflow-modal::backdrop { background: oklch(0% 0 0 / 0.55); }
+.message-overflow-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.message-overflow-modal-close {
+  position: absolute; top: var(--space-3); right: var(--space-3); z-index: 1;
+  width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border);
+  font-size: 1.3rem; line-height: 1; box-shadow: var(--shadow-sm); cursor: pointer;
+}
+.message-overflow-modal-close:hover { background: var(--accent-dim); color: var(--fg-1); }
+
+/* `ThemePageDetailsModal.tsx` — the Theme Pages tab's per-row "Details" info modal (2026-08-31 owner
+   review pass, replacing that row's old inline "see more" disclosure). Same native-`<dialog>`
+   foundation as `.confirm-dialog` above and the SAME `[open]`-scoped `display` split those rules'
+   own comments explain (an author `display` rule on the bare class always wins over the UA
+   stylesheet's `dialog:not([open]) { display: none }` regardless of specificity). Sized like
+   `.confirm-dialog` (a fixed, content-fit box), not `.message-overflow-modal`'s viewport-filling one
+   — this shows a short list of facts about one row, not arbitrary full-size content. */
+.theme-page-details-dialog {
+  border: 1px solid var(--border-strong); border-radius: var(--r-lg); padding: var(--space-6);
+  max-width: 28rem; width: calc(100% - var(--space-6));
+  background: var(--surface); color: var(--fg); box-shadow: var(--shadow-md);
+}
+.theme-page-details-dialog[open] { display: flex; flex-direction: column; gap: var(--space-3); }
+.theme-page-details-dialog::backdrop { background: oklch(0% 0 0 / 0.45); }
+/* Kicker + title (2026-08-31 visual pass — `ThemePageDetailsModal.tsx`'s own header, PART 3): the
+   same eyebrow/heading PAIRING `.page-header .page-kicker`/`.page-title` use for "CONTENT" →
+   "Pages", re-declared under this dialog's own class names rather than reusing those two — they are
+   deliberately scoped to `.page-header` (see that rule's own comment), which this dialog is not, and
+   `.section-eyebrow` is unscoped but sized for a card group, not a dialog's own title. The id was
+   the owner's complaint ("renders small and lowercase... reads like a stray word"): `--text-xl`
+   matches `.page-title` itself rather than the previous `--text-lg` card-heading size. */
+.theme-page-details-kicker {
+  margin: 0; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.theme-page-details-dialog h2 {
+  margin: 0; font-family: var(--font-display); font-size: var(--text-xl); font-weight: 700;
+  letter-spacing: -0.01em; color: var(--fg);
+}
+/* File/Publish as an actual label/value grid instead of two "Label: value" sentences — the two
+   facts the owner called "the most scannable... and they look like prose". `auto-fit`/`minmax` sits
+   them side by side at this dialog's own width for the common short-path case (`about.html`) and
+   folds to one column on its own when a longer file path needs the room, rather than truncating it. */
+.theme-page-details-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-3) var(--space-4); margin: 0;
+  padding: var(--space-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.theme-page-details-fact { margin: 0; min-width: 0; }
+.theme-page-details-fact dt {
+  margin: 0 0 2px; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--muted);
+}
+.theme-page-details-fact dd { margin: 0; font-size: var(--text-sm); color: var(--fg); }
+.theme-page-details-fact dd code { font-family: var(--font-mono, monospace); font-size: 0.78rem; color: var(--fg-2); word-break: break-all; }
+/* The two explanatory asides (what Publish means, no original to reset to) — supporting detail, not
+   the row's own facts above, grouped into one quiet block rather than reading as full-weight body
+   prose in the middle of the dialog (the owner's "documentation pasted into a dialog" complaint). */
+.theme-page-details-notes { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+.theme-page-details-muted { color: var(--muted); font-size: var(--text-xs); line-height: 1.5; margin: 0; }
+/* The collision warning's own body — icon beside the (unchanged) message text, action button below.
+   `align-items: flex-start` plus the icon's own small top nudge keeps it lined up with the first
+   line of text rather than the vertical center of however many lines it wraps to. */
+.theme-page-details-collision { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.theme-page-details-collision-body { display: flex; align-items: flex-start; gap: 0.5rem; }
+.theme-page-details-collision-body p { margin: 0; }
+.theme-page-details-collision-icon { flex-shrink: 0; margin-top: 2px; color: var(--warning); }
+.theme-page-details-collision .btn-warning { align-self: flex-start; }
+/* Close/Edit — the owner's other complaint was these sat flush against the content above with no
+   separation; a hairline + its own top padding (rather than relying on the dialog's own `gap` alone,
+   which reads the same whether or not this is meant as a distinct footer) makes it read as one. */
+.theme-page-details-actions {
+  display: flex; justify-content: flex-end; gap: var(--space-2);
+  margin-top: var(--space-2); padding-top: var(--space-3); border-top: 1px solid var(--border);
+}
+
+/* `OverflowAwareMcpUiSurfaceCard.tsx` — the small "Show in modal" trigger under an MCP-UI surface
+   that overflows its own box. `.mcpui-surface-overflow-wrap` gets no layout rules of its own
+   beyond the width cap (`assistant.css`'s `.mcpui-surface-card` rule already covers the card it
+   wraps); this is purely the trigger button's own look, styled like the pane's other small
+   secondary actions (`.jini-chat-pane__new-thread`) rather than a new visual language. */
+.mcpui-surface-overflow-expand {
+  margin-top: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  font-size: 12px;
+  cursor: pointer;
+}
+.mcpui-surface-overflow-expand:hover { border-color: var(--border-strong); }
 
 /* Agent Plugin package inspector — Jini's exported `PreviewModalShell` supplies the accessible
    dialog/Escape/close behaviour and `CodeWithLines` supplies the read-only line-number pane. Tovu

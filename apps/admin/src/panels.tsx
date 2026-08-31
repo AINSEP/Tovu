@@ -422,7 +422,18 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
           // the Pages screen's "Theme Pages" rows. `?? undefined` rather than `themeId`'s `?? ""`:
           // an absent `?page=` is a genuine, ordinary state (open the default page), whereas an
           // absent `?theme=` is a malformed URL that has no screen to show.
-          return <ThemeExplore themeId={ctx.query.get("theme") ?? ""} pageId={ctx.query.get("page") ?? undefined} />;
+          //
+          // `?file=` (2026-08-30, optional) is the general, full-relative-path form this screen
+          // writes back for a NON-page file (`theme-explore-url.hooks.ts`'s
+          // `writeThemeExploreSelectionToUrl` — an ordinary page gets the short `?page=<label>` form
+          // instead, 2026-08-31) and takes priority over `?page=` when both are present.
+          return (
+            <ThemeExplore
+              themeId={ctx.query.get("theme") ?? ""}
+              pageId={ctx.query.get("page") ?? undefined}
+              fileId={ctx.query.get("file") ?? undefined}
+            />
+          );
         default:
           return <Themes />;
       }

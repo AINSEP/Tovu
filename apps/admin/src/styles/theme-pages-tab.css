@@ -1,0 +1,45 @@
+/*
+ * `ThemePagesTab.tsx` — the Theme Pages list's Publish cell (switch, plus — on a locked row only —
+ * a lock glyph and an info icon carrying the lock reason). Self-imported directly by that
+ * component, the `see-more.css`/`select.css` precedent (colocated with the component, meant to move
+ * into `@jini-ai/admin` together — see either file's own header for the fuller reasoning).
+ *
+ * A real candidate row's full detail (file path, reset/collision state) used to expand inline in
+ * this same cell behind a "see more" toggle; that disclosure is gone (2026-08-31 owner review pass:
+ * *"this reorganization when you click see more... looks awful"*) in favor of a `RowMenu` item that
+ * opens `ThemePageDetailsModal.tsx` instead — see `.theme-page-details-dialog` in `styles.css` for
+ * that modal's own rules, kept in the shared stylesheet alongside `.confirm-dialog`/`.image-preview-
+ * modal` rather than here, since it is not part of this table cell's own layout.
+ */
+
+.theme-page-publish-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 0.5rem);
+  flex-wrap: wrap;
+}
+
+/*
+ * Purely decorative (`aria-hidden` — see `ThemePageLockGlyph`'s own doc in `ThemePagesTab.tsx`): the
+ * switch's own `disabled` attribute and `aria-checked` already carry the accessible "locked, and at
+ * which position" fact. This is the SIGHTED reader's third, colour-independent signal that a fixed
+ * switch position is locked rather than merely a dim copy of the interactive off state — the bug the
+ * owner reported (a locked-ON switch reading as indistinguishable from a genuinely-off one).
+ */
+.theme-page-lock-glyph {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/*
+ * PART 1 (2026-08-31 owed-work pass) — the public-site URL column's two non-link states
+ * (`ThemePagePublicUrlCell` in `ThemePagesTab.tsx`): a real candidate page that is not yet
+ * published, and a row with no address at all (`404`, a declared template shell). Both read as
+ * plain, quiet text rather than a working link — the same flat `color: var(--muted)` idiom
+ * `styles.css`'s `.theme-page-details-muted` already uses for this tab's OWN modal, just scoped to
+ * a table cell instead of a dialog section.
+ */
+.theme-page-url-not-live,
+.theme-page-no-url {
+  color: var(--muted);
+}

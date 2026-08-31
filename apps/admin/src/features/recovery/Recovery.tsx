@@ -1,8 +1,9 @@
 import { DataTable } from "@jini-ai/admin/react";
 
+import { InfoTip } from "../../components/InfoTip";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
-import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
+import { categoryLabel, costClassExplanation, costClassLabel, isAssertiveRecoveryBanner, recoveryBannerTone } from "./rules";
 import { useWiredRecovery } from "./hooks/use-recovery.hooks";
 import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
@@ -35,8 +36,8 @@ import {
  * ceremony state lives in `hooks/use-restore-flow.hooks.ts` — independent state with its own
  * lifecycle, keyed to whichever restore point is selected. `DegradedBannerView`,
  * `RestorePointsList`, and `DisclosurePanel` hold no state of their own and stay as plain,
- * props-driven presentation with no hook. Pure logic (category labels, the banner urgency check,
- * the deep-link envelope parse) lives in `rules.ts`.
+ * props-driven presentation with no hook. Pure logic (category labels, cost-class badge text/tone,
+ * the banner urgency check and severity, the deep-link envelope parse) lives in `rules.ts`.
  *
  * `src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts` reads this file's source directly
  * (`readFileSync`) to assert AC-32 against the `page-description` copy below — keep that
@@ -60,9 +61,11 @@ function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus
   // migration ceremony, never a Recovery restore action — restoring to an older snapshot does not
   // resolve schema drift against the current runtime.
   const assertive = isAssertiveRecoveryBanner(banner);
+  // Not every degraded state is equally bad — see `recoveryBannerTone`'s own doc comment.
+  const tone = recoveryBannerTone(banner);
 
   return (
-    <div className={`notice error recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
+    <div className={`notice ${tone} recovery-degraded-banner`} role={assertive ? "alert" : undefined} aria-live={assertive ? "assertive" : "polite"}>
       <span>{banner.accessibleText}</span>
       {banner.actionKind === "deep-link-to-database-migration" ? (
         <a href="/admin/database">
@@ -101,7 +104,7 @@ function RestorePointsList(props: {
         {
           key: "cost-class",
           header: t(locale, "Cost class"),
-          cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
+          cell: (p) => <span className={`status status-${p.costClass}`}>{costClassLabel(p.costClass, locale)}</span>,
         },
         {
           key: "restore",
@@ -328,7 +331,7 @@ function RestoreFlow({
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Cost class")}</span>
-          <span className={`status status-${point.costClass}`}>{point.costClass}</span>
+          <span className={`status status-${point.costClass}`}>{costClassLabel(point.costClass, locale)}</span>
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Kind")}</span>
@@ -383,7 +386,8 @@ export function Recovery({ useRecoveryHook = useWiredRecovery }: RecoveryProps =
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="notice">
-        {t("Restore capability:")} <span className={`status status-${status.costClass}`}>{status.costClass}</span>
+        {t("Restore capability:")} <span className={`status status-${status.costClass}`}>{costClassLabel(status.costClass, locale)}</span>
+        {costClassExplanation(status.costClass, locale) ? <InfoTip label={costClassExplanation(status.costClass, locale)!} /> : null}
       </div>
       <DegradedBannerView locale={locale} status={status} />
 

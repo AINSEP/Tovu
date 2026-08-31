@@ -311,11 +311,11 @@ function PolicyPermissionForm({ policyId, savingId, permission, t }: PolicyPermi
           <PolicyPermissionList policyId={policyId} permission={permission} t={t} />
           <label>
             {t("Permission")}
-            <span className="editor-actions">
+            <span className="editor-actions permission-form-fields">
               <input
                 value={permission.permission}
                 onChange={(e) => permission.setPermission(e.target.value)}
-                placeholder="e.g. content.write"
+                placeholder={t("e.g. content.write")}
               />
               <input
                 value={permission.resourceType}

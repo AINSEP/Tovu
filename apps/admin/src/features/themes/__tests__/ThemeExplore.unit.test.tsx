@@ -22,24 +22,38 @@ import type { ThemeExploreController, ThemeExploreFile } from "../hooks/use-them
  */
 
 const FILES: ThemeExploreFile[] = [
-  { path: "pages/index.html", label: "index", kind: "page", readable: true, editable: true, resettable: true },
-  { path: "pages/about.html", label: "about", kind: "page", readable: true, editable: true, resettable: true },
-  { path: "nav.html", label: "nav", kind: "partial", readable: true, editable: true, resettable: true },
-  { path: "footer.html", label: "footer", kind: "partial", readable: true, editable: true, resettable: true },
-  { path: "css/styles.css", label: "styles.css", kind: "style", readable: true, editable: true, resettable: true },
-  // Read-only-to-edit (2026-08-11 owner ask): readable so its source can be viewed, not editable so
-  // it can't be saved from this screen.
-  { path: "js/main.js", label: "main.js", kind: "script", readable: true, editable: false, resettable: true },
+  // `null`, but NOT "no control at all" — `index` is never its own reachable page
+  // (`NON_ROUTABLE_THEME_PAGE_IDS`, `theme.ts`), so it shows a LOCKED, disabled switch (always ON,
+  // with a reason) rather than nothing — see the "publish toggle" describe block below.
+  { path: "pages/index.html", label: "index", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  // Same shape as `index` above — the OTHER non-routable id, and the exact case that cost real
+  // operator confusion before this: the owner selected `404`, saw no control at all, and concluded
+  // the publish feature hadn't shipped.
+  { path: "pages/404.html", label: "404", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  // A declared Post/Page template shell (`ThemeManifest.templates`) — the THIRD non-candidate shape,
+  // and the one with no independent public route at all, so its locked switch shows OFF rather than
+  // ON (unlike `index`/`404` above) — see `lockedPublishReason`'s own doc for why.
+  { path: "pages/blog-post.html", label: "blog-post", kind: "page", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  // A real candidate page, currently PUBLISHED — see the "publish toggle" describe block below.
+  { path: "pages/about.html", label: "about", kind: "page", readable: true, editable: true, resettable: true, published: true, collidingContent: null },
+  { path: "nav.html", label: "nav", kind: "partial", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "footer.html", label: "footer", kind: "partial", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  { path: "css/styles.css", label: "styles.css", kind: "style", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
+  // Editable (2026-08-29 owner ask, reversing the 2026-08-11 one recorded in this fixture's own git
+  // history: "we need the ability to edit CSS and JS for the themes"). Still `IDENTITY_LOCKED_GROUPS`
+  // for rename/delete — see the "per-file overflow menu" describe block below.
+  { path: "js/main.js", label: "main.js", kind: "script", readable: true, editable: true, resettable: true, published: null, collidingContent: null },
   // The `other` catch-all group — also read-only-to-edit, but for a different reason (never asked to
   // be edited here at all, not "the owner doesn't want it edited").
-  { path: "NOTICE.md", label: "NOTICE.md", kind: "other", readable: true, editable: false, resettable: false },
+  { path: "NOTICE.md", label: "NOTICE.md", kind: "other", readable: true, editable: false, resettable: false, published: null, collidingContent: null },
   // Binary + author-added: the two cases that must NOT offer an editor or a Reset respectively.
-  { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true },
-  { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false },
+  { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true, published: null, collidingContent: null },
+  // A real candidate page, currently OFF — the other half of the "publish toggle" describe block below.
+  { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false, published: false, collidingContent: null },
   // A templated-tier Liquid source file — `other` group (no `templates/` case in `fileGroup`), but
   // readable (2026-08-12, `TEXT_READABLE_EXTENSIONS`) and, unlike `NOTICE.md` below, gets its own
   // real rendered preview — see the "preview src — pages, partials, and templates" describe block.
-  { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true },
+  { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true, published: null, collidingContent: null },
 ];
 
 function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExploreController {
@@ -86,6 +100,13 @@ function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExplo
     cancelPageRenameWarning: vi.fn(),
     copyingPath: null,
     copyFile: vi.fn(),
+    deleteTarget: null,
+    openDeleteConfirm: vi.fn(),
+    closeDeleteConfirm: vi.fn(),
+    deleting: false,
+    confirmDelete: vi.fn(),
+    publishing: false,
+    setPagePublished: vi.fn(),
     // Identity `t` — matches what this screen got from a real, unmocked `useAdminLocale()` call
     // before this hook's own i18n pass (defaults to "en", and THEMES_DICT has no "en" entries, so
     // every lookup already fell through to `?? key`), so every existing literal-English-string
@@ -138,7 +159,7 @@ describe("preview src — pages, partials, and templates", () => {
 
   it("points a non-readable OTHER-group file's preview at the same raw URL — the broadened case, not just assets", () => {
     renderExplore({
-      files: [...FILES, { path: "vendor.bin", label: "vendor.bin", kind: "other", readable: false, editable: false, resettable: false }],
+      files: [...FILES, { path: "vendor.bin", label: "vendor.bin", kind: "other", readable: false, editable: false, resettable: false, published: null, collidingContent: null }],
       selected: "vendor.bin",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
@@ -169,7 +190,7 @@ describe("preview src — pages, partials, and templates", () => {
 
   it("points a readable CONFIG (JSON) file's preview at the raw /theme-assets/ URL, not null", () => {
     renderExplore({
-      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true }],
+      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true, published: null, collidingContent: null }],
       selected: "theme.json",
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
@@ -388,26 +409,14 @@ describe("reset to original", () => {
 });
 
 /**
- * JS/`other` read-only (2026-08-11 owner ask: "I don't want JS edited from this screen"). `readable`
- * and `editable` used to be one flag; a script is now `readable: true, editable: false`, which must
- * render as visible-but-not-editable, not as the binary-file notice these files are NOT.
+ * `other` read-only (2026-08-11 owner ask, for the catch-all group specifically). Scripts used to
+ * share this same read-only-to-edit treatment, but 2026-08-29 (owner ask: "we need the ability to
+ * edit CSS and JS for the themes") reversed that for `script` specifically — see the "editable" test
+ * below for the new expectation, and the "per-file overflow menu" describe block further down for why
+ * script's NAME/EXISTENCE (rename/delete) is still locked even though its content is not.
  */
-describe("read-only groups (scripts, other)", () => {
-  it("shows a script's source in a read-only viewer with a visible reason, not an editable textarea", () => {
-    render(
-      <ThemeExplore
-        themeId="novice"
-        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html" })}
-      />
-    );
-    // Not the binary notice — a script IS text, and must still be readable.
-    expect(screen.queryByText(/binary file/i)).not.toBeInTheDocument();
-    expect(screen.getByText(/scripts are read-only in explore/i)).toBeInTheDocument();
-    const textarea = screen.getByLabelText("Theme file source (read-only)") as HTMLTextAreaElement;
-    expect(textarea).toHaveAttribute("readonly");
-  });
-
-  it("shows an 'other'-group file (e.g. NOTICE.md) in the same read-only viewer, with a generic reason", () => {
+describe("read-only groups (other)", () => {
+  it("shows an 'other'-group file (e.g. NOTICE.md) in a read-only viewer, with a generic reason", () => {
     render(
       <ThemeExplore
         themeId="novice"
@@ -423,7 +432,7 @@ describe("read-only groups (scripts, other)", () => {
     render(
       <ThemeExplore
         themeId="novice"
-        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html" })}
+        useThemeExploreHook={() => controller({ selected: "NOTICE.md", view: "html" })}
       />
     );
     expect(screen.queryByRole("button", { name: /^save/i })).not.toBeInTheDocument();
@@ -440,9 +449,40 @@ describe("read-only groups (scripts, other)", () => {
   });
 });
 
-/** The ⋮ menu (Copy/Rename) and double-click-to-rename — 2026-08-11 owner ask, the headline feature
- *  of this pass. */
-describe("per-file overflow menu — copy and rename", () => {
+/**
+ * Regression for the 2026-08-29 reversal: a script now renders through the SAME editable path an
+ * ordinary page does — a plain textarea with an `onChange`, no read-only notice, and a Save button.
+ * This is exactly what the OLD "shows a script's source in a read-only viewer..." test (removed here)
+ * used to assert the OPPOSITE of; that assertion would now fail against the current controller/UI.
+ */
+describe("scripts are editable (2026-08-29)", () => {
+  it("shows a script's source in an editable textarea, not the read-only viewer", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html" })}
+      />
+    );
+    expect(screen.queryByText(/binary file/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/read-only in explore/i)).not.toBeInTheDocument();
+    const textarea = screen.getByLabelText("Theme file source") as HTMLTextAreaElement;
+    expect(textarea).not.toHaveAttribute("readonly");
+  });
+
+  it("shows the Save button for a script, same as any other editable file", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ selected: "js/main.js", view: "html", dirty: true })}
+      />
+    );
+    expect(screen.getByRole("button", { name: /save main\.js/i })).toBeInTheDocument();
+  });
+});
+
+/** The ⋮ menu (Copy/Rename/Delete) and double-click-to-rename — Copy/Rename were 2026-08-11's owner
+ *  ask; Delete is 2026-08-29's. */
+describe("per-file overflow menu — copy, rename, and delete", () => {
   /**
    * The ⋮ trigger is revealed by CSS (`:hover`/`:focus-within`/`[aria-expanded]`), which jsdom does
    * not compute — not testable directly here. What IS testable, and is the one piece of that reveal
@@ -462,12 +502,22 @@ describe("per-file overflow menu — copy and rename", () => {
     expect(indexRow).not.toHaveClass("is-active");
   });
 
-  it("offers Copy and Rename for every file, including read-only-to-edit ones", async () => {
+  it("offers Copy, Rename, and Delete for every file, including identity-locked ones (script)", async () => {
     const user = userEvent.setup();
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
     await user.click(screen.getByRole("button", { name: /more actions for main\.js/i }));
     expect(screen.getByRole("menuitem", { name: "Copy" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Rename" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Delete" })).toBeInTheDocument();
+  });
+
+  it("Delete in the ⋮ menu calls openDeleteConfirm with that file's path", async () => {
+    const user = userEvent.setup();
+    const openDeleteConfirm = vi.fn();
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ openDeleteConfirm })} />);
+    await user.click(screen.getByRole("button", { name: /more actions for about/i }));
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }));
+    expect(openDeleteConfirm).toHaveBeenCalledWith("pages/about.html");
   });
 
   it("Copy in the ⋮ menu calls copyFile with that file's path", async () => {
@@ -660,6 +710,56 @@ describe("page rename URL-change warning", () => {
 });
 
 /**
+ * Delete confirmation (2026-08-29 owner ask) — same "name the exact target, unconditional pause"
+ * shape Reset's own dialog above uses, since delete is the one operation on this screen with no undo
+ * at all (this repo keeps no theme-file revision history).
+ */
+describe("delete confirmation", () => {
+  it("is not shown until openDeleteConfirm sets a target", () => {
+    render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller()} />);
+    const dialogs = Array.from(document.querySelectorAll("dialog.confirm-dialog"));
+    const dialog = dialogs.find((d) => d.textContent?.includes("Delete this file?"));
+    expect(dialog?.hasAttribute("open")).toBe(false);
+  });
+
+  it("names the exact file pending delete, and asks for confirmation", () => {
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() => controller({ deleteTarget: "pages/about.html" })}
+      />
+    );
+    expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
+    expect(screen.getByText("pages/about.html")).toBeInTheDocument();
+    // Deliberately NOT "cannot be undone" — Reset's own dialog body owns that exact phrase, and both
+    // dialogs render unconditionally (see `DeleteFileWarningBody`'s own comment for why the wording
+    // is distinct despite the same meaning).
+    expect(screen.getByText(/no way to get it back/i)).toBeInTheDocument();
+  });
+
+  it("confirming calls confirmDelete; cancelling calls closeDeleteConfirm without it", async () => {
+    const user = userEvent.setup();
+    const confirmDelete = vi.fn();
+    const closeDeleteConfirm = vi.fn();
+    render(
+      <ThemeExplore
+        themeId="novice"
+        useThemeExploreHook={() =>
+          controller({ deleteTarget: "pages/about.html", confirmDelete, closeDeleteConfirm })
+        }
+      />
+    );
+    await user.click(screen.getByRole("button", { name: "Delete file" }));
+    expect(confirmDelete).toHaveBeenCalledTimes(1);
+    expect(closeDeleteConfirm).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(closeDeleteConfirm).toHaveBeenCalledTimes(1);
+    expect(confirmDelete).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
  * 2026-08-11 toolbar restructure (owner-approved): `← All themes` becomes a button, and Save/Reset
  * move up beside it into the same row instead of docking to the Preview/HTML tab row below. The one
  * requirement that keeps a page-level toolbar honest about acting on a per-FILE screen: both buttons
@@ -747,5 +847,215 @@ describe("error toast", () => {
   it("renders nothing error-shaped when there is no error", () => {
     render(<ThemeExplore themeId="novice" useThemeExploreHook={() => controller({ error: null })} />);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * The publish toggle for the selected page (2026-08-30 owner ask, restyled the same day from a
+ * two-button Off/Published segmented control to a single iOS-style switch — "Can the publish just
+ * be a toggle rather than the tab... a green toggle, Apple style"). Replaces the invented
+ * `_unpublished/` folder convention with a real control.
+ *
+ * Three shapes, not two: absent entirely for a file the publish question never applies to at all (a
+ * partial, a stylesheet, …); a DISABLED "locked" switch with a visible reason for a page that exists
+ * but can never be independently toggled (`index`/`404`/a declared template shell) — the regression
+ * this pass specifically closes, see the "locked pages" block below; and a live, enabled switch for
+ * a real candidate page.
+ */
+describe("publish toggle — the selected page's publish state", () => {
+  it("shows nothing at all for a file the publish question does not apply to", () => {
+    for (const path of ["nav.html", "css/styles.css", "js/main.js", "NOTICE.md", "screenshots/index.png"]) {
+      renderExplore({ selected: path });
+      expect(screen.queryByRole("switch")).not.toBeInTheDocument();
+    }
+  });
+
+  /**
+   * The regression block: `index`/`404`/a declared template shell used to fall into the exact same
+   * `published === null` bucket as a stylesheet or an image, so the control vanished for all of them
+   * alike — the owner selected `404` specifically, saw nothing, and concluded the publish feature
+   * hadn't shipped at all. Each of these three now gets a PRESENT, disabled switch with a reason
+   * instead of silently disappearing.
+   */
+  describe("locked pages — present and disabled, never silently absent", () => {
+    it("shows a disabled, ON switch with a reason for the theme's home page (index)", () => {
+      renderExplore({ selected: "pages/index.html" });
+      const toggle = screen.getByRole("switch", { name: "Publish index" });
+      expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(toggle).toBeDisabled();
+      expect(screen.getByText("Always published — theme home page")).toBeInTheDocument();
+    });
+
+    it("shows a disabled, ON switch with a reason for the site's error page (404) — regression for the exact bug reported: selecting 404 showed no control at all", () => {
+      renderExplore({ selected: "pages/404.html" });
+      const toggle = screen.getByRole("switch", { name: "Publish 404" });
+      expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(toggle).toBeDisabled();
+      expect(screen.getByText("Always published — error page")).toBeInTheDocument();
+    });
+
+    it("shows a disabled, OFF switch with a reason for a declared template shell — it has no independent public route at all, unlike index/404", () => {
+      renderExplore({ selected: "pages/blog-post.html" });
+      const toggle = screen.getByRole("switch", { name: "Publish blog-post" });
+      expect(toggle).toHaveAttribute("aria-checked", "false");
+      expect(toggle).toBeDisabled();
+      expect(screen.getByText("Not a standalone page — used as a content template")).toBeInTheDocument();
+    });
+
+    it("clicking a locked switch never calls setPagePublished", async () => {
+      const user = userEvent.setup();
+      const setPagePublished = vi.fn();
+      renderExplore({ selected: "pages/404.html", setPagePublished });
+      // A disabled button does not dispatch click at all — asserts the DOM-level guarantee this
+      // control's own handler additionally guards against explicitly (see `ThemeExplorePublishToggle`).
+      await user.click(screen.getByRole("switch", { name: "Publish 404" }));
+      expect(setPagePublished).not.toHaveBeenCalled();
+    });
+  });
+
+  it("shows an enabled, ON switch for a page that is currently published", () => {
+    renderExplore({ selected: "pages/about.html" });
+    const toggle = screen.getByRole("switch", { name: "Publish about" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    expect(toggle).not.toBeDisabled();
+  });
+
+  it("shows an enabled, OFF switch for a page that is currently unpublished", () => {
+    renderExplore({ selected: "pages/mine.html" });
+    const toggle = screen.getByRole("switch", { name: "Publish mine" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    expect(toggle).not.toBeDisabled();
+  });
+
+  it("clicking the switch calls setPagePublished(false) for the currently published selected page", async () => {
+    const user = userEvent.setup();
+    const setPagePublished = vi.fn();
+    renderExplore({ selected: "pages/about.html", setPagePublished });
+    await user.click(screen.getByRole("switch", { name: "Publish about" }));
+    expect(setPagePublished).toHaveBeenCalledWith(false);
+  });
+
+  it("clicking the switch calls setPagePublished(true) for the currently unpublished selected page", async () => {
+    const user = userEvent.setup();
+    const setPagePublished = vi.fn();
+    renderExplore({ selected: "pages/mine.html", setPagePublished });
+    await user.click(screen.getByRole("switch", { name: "Publish mine" }));
+    expect(setPagePublished).toHaveBeenCalledWith(true);
+  });
+
+  it("disables the switch while a publish round trip is in flight", () => {
+    renderExplore({ selected: "pages/about.html", publishing: true });
+    expect(screen.getByRole("switch", { name: "Publish about" })).toBeDisabled();
+  });
+
+  it("renders the switch on the SAME toolbar row as the Preview/HTML tabs, immediately beside them — not the old separate row below", () => {
+    renderExplore({ selected: "pages/about.html" });
+    const tablist = screen.getByRole("tablist", { name: "Editor view" });
+    const toggle = screen.getByRole("switch", { name: "Publish about" });
+    const start = tablist.closest(".theme-explore-toolbar-start");
+    expect(start).not.toBeNull();
+    expect(toggle.closest(".theme-explore-toolbar-start")).toBe(start);
+    // The old dedicated second row is gone entirely, not just hidden.
+    expect(document.querySelector(".theme-explore-publish-row")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The "what is Publish" info icon (owner ask, 2026-08-30) — one explanation for the whole control,
+   * so it renders for BOTH shapes {@link ThemeExplorePublishToggle} can take (a live toggle and a
+   * locked switch), not just the enabled case. Reuses `InfoTip` (`components/InfoTip.tsx`), which
+   * already carries its own dedicated a11y test suite (`InfoTip.unit.test.tsx` — open/close on
+   * hover/focus/Escape, accessible name via `aria-label`); these tests cover only this CALL SITE:
+   * that the icon is actually wired in with the right copy, in the right place, for every state.
+   */
+  describe("publish info tooltip", () => {
+    const PUBLISH_INFO_LABEL =
+      "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.";
+
+    it("renders after the switch, not between the label and the switch, for a live toggle", () => {
+      renderExplore({ selected: "pages/about.html" });
+      const row = screen.getByText("Publish").closest(".theme-explore-publish-toggle") as HTMLElement;
+      expect(row).not.toBeNull();
+      const icon = within(row).getByLabelText(PUBLISH_INFO_LABEL);
+      const switchEl = within(row).getByRole("switch", { name: "Publish about" });
+      // DOM order, not just co-presence. The icon follows the switch (owner, 2026-08-30, revising
+      // an earlier "right after Publish": "i wanted you to have the info icon after the toggle").
+      expect(
+        switchEl.compareDocumentPosition(icon) & Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
+    });
+
+    it("also renders for a LOCKED page (404) — the explanation applies regardless of which of the two shapes is showing", () => {
+      renderExplore({ selected: "pages/404.html" });
+      expect(screen.getByLabelText(PUBLISH_INFO_LABEL)).toBeInTheDocument();
+    });
+
+    it("is reachable and openable by keyboard alone, not hover-only", () => {
+      renderExplore({ selected: "pages/about.html" });
+      expect(screen.queryByText(PUBLISH_INFO_LABEL)).not.toBeInTheDocument();
+      const icon = screen.getByLabelText(PUBLISH_INFO_LABEL);
+      // `fireEvent` (auto-`act()`-wrapped by RTL) rather than a raw `.focus()` call, so the resulting
+      // `useInfoTip` state update is flushed before the assertion — the same open-on-focus path
+      // `InfoTip.unit.test.tsx`'s own "opens on focus" case proves for the component in isolation;
+      // this is the call-site wiring check.
+      fireEvent.focus(icon);
+      expect(screen.getByText(PUBLISH_INFO_LABEL)).toBeInTheDocument();
+    });
+  });
+});
+
+/**
+ * Slug-collision warning (2026-08-30) — the theme-page side of the identical fact
+ * `PostEditor.tsx`'s `PostEditorSlugCollisionWarning` already surfaces from the post side: another
+ * resource claims this page's own URL.
+ *
+ * Deliberately exercised on an UNPUBLISHED page (`pages/mine.html`, `published: false` in the base
+ * `FILES` fixture) rather than a published one — see `ThemeExploreSlugCollisionWarning`'s own doc
+ * for why: `resolveMarketingPageOrOverride` never even consults an unpublished theme page's own
+ * state before letting a live post win the slug, so gating this warning on `published` would hide
+ * it for exactly the case that caused the live confusion this feature exists to prevent (a page
+ * switched OFF, expecting its URL to 404, whose URL still 200'd via a colliding post).
+ */
+describe("slug-collision warning — a content record claims this page's own URL", () => {
+  const COLLIDING_CONTENT = { id: "post-1", slug: "mine", title: "What Is Tovu?", kind: "post" as const };
+
+  function filesWithCollision(path: string, collidingContent: typeof COLLIDING_CONTENT | null) {
+    return FILES.map((f) => (f.path === path ? { ...f, collidingContent } : f));
+  }
+
+  it("renders nothing when the selected file has no colliding content", () => {
+    renderExplore({ selected: "pages/mine.html" });
+    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).not.toBeInTheDocument();
+  });
+
+  it("renders the warning, naming the colliding record, for an UNPUBLISHED page — the toggle's own state does not gate this", () => {
+    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
+    const toggle = screen.getByRole("switch", { name: "Publish mine" });
+    expect(toggle).toHaveAttribute("aria-checked", "false");
+    const warning = document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]');
+    expect(warning).toBeInTheDocument();
+    expect(within(warning as HTMLElement).getByText(/A content record shares this page's URL: What Is Tovu\?/)).toBeInTheDocument();
+  });
+
+  it("renders the warning for a PUBLISHED page too — a colliding post can still win by default even when the page is on", () => {
+    renderExplore({ selected: "pages/about.html", files: filesWithCollision("pages/about.html", COLLIDING_CONTENT) });
+    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).toBeInTheDocument();
+  });
+
+  it("does not render for a DIFFERENT selected file just because some other file has a collision", () => {
+    renderExplore({ selected: "pages/about.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
+    expect(document.querySelector('[data-agent-element="theme-explore-slug-collision-warning"]')).not.toBeInTheDocument();
+  });
+
+  it("links to the colliding POST's own editor route", () => {
+    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", COLLIDING_CONTENT) });
+    const link = screen.getByRole("link", { name: /What Is Tovu\?/ });
+    expect(link).toHaveAttribute("href", "/admin/posts/post-1");
+  });
+
+  it("links to the colliding PAGE's own editor route (keyed by slug, not id)", () => {
+    const collidingPage = { id: "page-1", slug: "mine", title: "Old Mine Page", kind: "page" as const };
+    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", collidingPage) });
+    const link = screen.getByRole("link", { name: /Old Mine Page/ });
+    expect(link).toHaveAttribute("href", "/admin/pages/mine");
   });
 });

@@ -1,61 +1,159 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";
-import type { ThemePagesPort } from "./theme-pages-port.hooks";
+import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "./theme-pages-port.hooks";
+
+export type { ThemePageSlugCollision };
 
 /**
- * @file The "Theme Pages" tab's data — the active theme's own bundled `pages/*.html` ids (`static`
- * tier only; `[]` for every other tier, see `presentation/get.ts`'s own computation). These are NOT
- * `PostRecord`s: no id, no editor, no delete — reading `activeThemeStaticPageIds` off the existing
- * `getPresentation()` response is the whole feature, so this hook is a thin fetch rather than a
- * second endpoint. Feature-local, same `use-<thing>.hooks.ts` convention as `use-pages.hooks.ts`.
+ * @file The "Theme Pages" tab's data — the active theme's own bundled `pages/*.html`, one row per
+ * page-shaped file, now carrying enough per-row detail to drive a publish toggle and a "see more"
+ * disclosure (2026-08-30) instead of the bare id list this used to be.
  *
- * As of 2026-08-27 it also reads `settings.activeThemeId` off that SAME response, so the tab can
- * link each row into the theme studio; see {@link ThemePagesController.activeThemeId}.
+ * **Why this now makes two requests, not one.** The active theme id and its page list used to ride
+ * on the same `getPresentation()` response (`activeThemeStaticPageIds`, computed server-side as a
+ * bare `Object.keys(activeTheme.pages)` — every page id, including `index`/`404`/a declared
+ * template shell, with no publish state at all). That's no longer enough: this tab needs to tell a
+ * real candidate page apart from those three non-candidate shapes, and show whether each candidate
+ * is actually live. Theme Studio's Explore screen already resolves both facts, off `getThemeDetail`
+ * (`files[].published`, straight from the server's `isStandaloneThemePage` — see `theme-pages-
+ * port.hooks.ts`'s own header) — but that route needs the theme id as an argument, which is exactly
+ * what `getPresentation()` still supplies. The two calls are therefore chained, not independent:
+ * `getPresentation()` resolves `activeThemeId`, then `getThemeDetail(activeThemeId)` resolves the
+ * page rows.
  *
  * `port` is injected — see `theme-pages-port.hooks.ts` — rather than importing `lib/api` directly,
  * so a test can describe the load against `createFakeThemePagesPort` instead of stubbing global
  * `fetch`. `useWiredThemePages` below is the zero-argument pair `Pages.tsx` actually mounts.
  */
+
+/** One row the "Theme Pages" tab renders — everything `Pages.tsx`'s `ThemePagesTab` needs to decide
+ *  publish/locked state and the "see more" detail, with none of `getThemeDetail`'s group/readable/
+ *  editable noise this tab never reads. */
+export interface ThemePageRow {
+  /** Basename minus `.html` — the same id `theme.ts`'s `isStandaloneThemePage`/
+   *  `ThemeManifest.publishedPages` key candidate pages by. */
+  pageId: string;
+  /** Full theme-relative path (e.g. `render/pages/about.html`) — the one extra fact this tab's
+   *  "see more" disclosure reveals for a real candidate page; see `ThemePagesTab.tsx`. */
+  filePath: string;
+  /** Straight from the server's `isStandaloneThemePage` — `null` for `index`/`404`/a declared
+   *  template shell, the same three-way `null` contract `ThemeExploreFile.published`
+   *  (`use-theme-explore.hooks.ts`) already established for the identical route. */
+  published: boolean | null;
+  /** False for a page the theme author added after the site's own copy was made — no original to
+   *  reset it from. Surfaced in the row's details modal. */
+  resettable: boolean;
+  /** The live content record occupying this page's own slug, or `null` when none does — straight
+   *  from `getThemeDetail`'s own `collidingContent`. See `ThemePagesFileEntry.collidingContent`
+   *  (`theme-pages-port.hooks.ts`) for the full contract and `ThemePageDetailsModal.tsx` for where
+   *  this tab shows it. */
+  collidingContent: ThemePageSlugCollision | null;
+}
+
 export interface ThemePagesController {
   /** `null` until the initial load settles — the caller renders a loading state. `[]` once loaded
    *  means the active theme is genuinely not `static`-tier or ships no pages — not an error. */
-  pageIds: string[] | null;
+  pages: ThemePageRow[] | null;
   /**
-   * The id of the theme `pageIds` came from — `null` until the same load settles.
+   * The id of the theme `pages` came from — `null` until the same load settles.
    *
-   * Needed because each row links into the theme studio (`/admin/themes/explore?theme=&page=`), and
-   * a page id alone does not say WHICH theme's copy of that page to open. Deliberately moves in
-   * lockstep with `pageIds` off one response rather than being fetched separately: the two are only
-   * meaningful together, and the caller's existing "still loading" gate then covers both at once.
+   * Needed because each row links into the theme studio (`/admin/themes/explore?theme=&page=`) and
+   * every publish call needs it, and a page id alone does not say WHICH theme's copy to act on.
    */
   activeThemeId: string | null;
   error: string | null;
+  /**
+   * The `pageId` of the row whose publish round trip is currently in flight, or `null`. Per-row
+   * rather than one screen-wide flag: unlike Theme Studio's Explore (one file selected at a time),
+   * every row here is visible and independently actionable at once, so disabling every switch while
+   * any one of them saves would freeze rows that have nothing to do with the in-flight request.
+   */
+  savingPageId: string | null;
+  /** Publish or unpublish one row. A no-op — no request, no state change — when `activeThemeId`
+   *  hasn't resolved yet, matching `use-theme-explore.hooks.ts`'s own "acts on nothing rather than
+   *  send a request that can't possibly be correct" shape for its equivalent guard. */
+  setPagePublished: (pageId: string, published: boolean) => Promise<void>;
 }
 
 /**
- * @complexity Time/space: O(1) — one settings round trip on mount.
+ * `f.path.slice(f.path.lastIndexOf("/") + 1)` minus `.html` — the same basename-minus-extension
+ * page id derivation `use-theme-explore.hooks.ts`'s `fileLabel` and `theme-explore-
+ * dependencies.hooks.ts`'s fake `setPagePublished` both already use for this exact route. Kept as
+ * its own one-line function here (rather than imported from a sibling feature) because this hook
+ * has no other reason to reach into `features/themes` for one line of string arithmetic — the two
+ * features independently agreeing on the same derivation is the port-narrowing convention this
+ * file's own header describes, not an accidental duplication.
+ *
+ * @complexity O(1).
+ */
+function pageIdFromPath(path: string): string {
+  const base = path.slice(path.lastIndexOf("/") + 1);
+  return base.replace(/\.html$/, "");
+}
+
+/**
+ * Keep only `"page"`-group entries and map each to a {@link ThemePageRow}.
+ *
+ * @complexity O(n) in `entries.length` — one filter, one map, no nesting.
+ */
+function mapThemePageRows(entries: readonly ThemePagesFileEntry[]): ThemePageRow[] {
+  return entries
+    .filter((f) => f.group === "page")
+    .map((f) => ({
+      pageId: pageIdFromPath(f.path),
+      filePath: f.path,
+      published: f.published ?? null,
+      resettable: f.resettable,
+      collidingContent: f.collidingContent ?? null,
+    }));
+}
+
+/**
+ * @complexity Time/space: O(1) plus the O(n) row mapping above — two chained round trips on mount,
+ * one on each publish toggle.
  */
 export function useThemePages(port: ThemePagesPort): ThemePagesController {
-  const [pageIds, setPageIds] = useState<string[] | null>(null);
+  const [pages, setPages] = useState<ThemePageRow[] | null>(null);
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savingPageId, setSavingPageId] = useState<string | null>(null);
 
   useEffect(() => {
     port
       .getPresentation()
       .then((r) => {
-        setActiveThemeId(r.settings.activeThemeId);
-        setPageIds(r.activeThemeStaticPageIds);
+        const themeId = r.settings.activeThemeId;
+        setActiveThemeId(themeId);
+        return port.getThemeDetail(themeId);
       })
+      .then((detail) => setPages(mapThemePageRows(detail.files)))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load theme pages"));
   }, [port]);
 
-  return { pageIds, activeThemeId, error };
+  const setPagePublished = useCallback(
+    async (pageId: string, published: boolean) => {
+      if (activeThemeId === null) return;
+      setSavingPageId(pageId);
+      setError(null);
+      try {
+        const r = await port.setPagePublished(activeThemeId, pageId, published);
+        setPages((prev) => (prev ? prev.map((p) => (p.pageId === r.page ? { ...p, published: r.published } : p)) : prev));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "failed to update publish state");
+      } finally {
+        setSavingPageId(null);
+      }
+    },
+    [activeThemeId, port]
+  );
+
+  return { pages, activeThemeId, error, savingPageId, setPagePublished };
 }
 
 /**
- * Binds the real `/api/.../presentation` client — see `theme-pages-dependencies.hooks.ts`.
+ * Binds the real `/api/.../presentation` and `/api/.../themes/:id` clients — see
+ * `theme-pages-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Pages.tsx` composes
  * this and a test composes {@link useThemePages} with `createFakeThemePagesPort`.

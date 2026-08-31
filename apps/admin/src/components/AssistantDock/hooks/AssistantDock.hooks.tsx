@@ -1062,13 +1062,23 @@ export function useMessagesChangeHandler(
  *   selection has resolved (e.g. no agents detected yet).
  * @param input.pluginRefIds - {@link UseSelectedAgentPlugins.selectedPluginRefIds} — the
  *   composer's currently-pinned Agent Plugin chips.
+ * @param input.conversationId - `chats.activeId` (`useChatsSeam`) — the same id already passed to
+ *   `<ChatPane conversationId={...}>` for message persistence. Lets `agent-daemon-server.ts`'s
+ *   `onStarted` key its per-conversation agent-CLI session lookup (`agent-session-resume.ts`,
+ *   `RunEndPayload.sessionRef`'s round trip) — see that file's own doc. `undefined` before any
+ *   conversation is active (e.g. `chats.activeId` is `null` right after "New chat").
  * @returns The context object to merge into a run's `contextRef`.
  * @example
- * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds });
+ * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds, conversationId });
  */
 export function resolveRunContext(
-  { bindToken, model, pluginRefIds }: { bindToken: string | undefined; model?: string; pluginRefIds?: readonly string[] },
-): { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[] } {
+  { bindToken, model, pluginRefIds, conversationId }: {
+    bindToken: string | undefined;
+    model?: string;
+    pluginRefIds?: readonly string[];
+    conversationId?: string | null;
+  },
+): { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[]; conversationId?: string } {
   return {
     ...(bindToken === undefined ? {} : { frontendBindToken: bindToken }),
     ...(typeof model === "string" && model.length > 0 ? { model } : {}),
@@ -1076,6 +1086,7 @@ export function resolveRunContext(
     // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
     ...(pluginRefIds && pluginRefIds.length > 0 ? { pluginRefIds } : {}),
+    ...(typeof conversationId === "string" && conversationId.length > 0 ? { conversationId } : {}),
   };
 }
 
@@ -1104,20 +1115,23 @@ export function resolveRunContext(
  *   every rebuild — same "never captured, always the live value" posture as `model`, so pinning or
  *   removing a chip mid-session takes effect on the NEXT message without forcing a new callback
  *   identity mid-render.
+ * @param input.conversationId - {@link resolveRunContext}'s own `conversationId` doc — forwarded
+ *   straight through, same "rebuild when it changes" posture as `model`/`pluginRefIds`.
  * @returns The memoized `runContext` callback.
  * @example
- * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds });
+ * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds, conversationId: chats.activeId });
  */
 export function useRunContext(
-  { agentBridge, model, pluginRefIds }: {
+  { agentBridge, model, pluginRefIds, conversationId }: {
     agentBridge: FrontendSessionBridge | null | undefined;
     model?: string;
     pluginRefIds?: readonly string[];
+    conversationId?: string | null;
   },
-): () => { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[] } {
+): () => { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[]; conversationId?: string } {
   return useMemo(
-    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model, pluginRefIds }),
-    [agentBridge, model, pluginRefIds],
+    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model, pluginRefIds, conversationId }),
+    [agentBridge, model, pluginRefIds, conversationId],
   );
 }
 

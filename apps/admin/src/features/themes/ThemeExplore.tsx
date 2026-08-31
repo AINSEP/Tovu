@@ -8,6 +8,7 @@ import {
   type SyntheticEvent,
 } from "react";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { Toast } from "@jini-ai/ui";
 
 import { InfoTip } from "../../components/InfoTip";
@@ -21,6 +22,7 @@ import {
   useWiredThemeExplore,
   type ThemeExploreDetail,
   type ThemeExploreFile,
+  type ThemeExploreSlugCollision,
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
 import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-frame.hooks";
@@ -33,8 +35,11 @@ import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-f
  * the thing you forked from is still on disk, byte-identical, to reset back to. That is what the
  * banner says, and it is why ordinary editing here needs no confirmation at all.
  *
- * Reset is the one exception, and does confirm: restoring a file to its original overwrites the
- * working copy with no backup, so it is the only action on this screen that can destroy work.
+ * Reset and Delete are the exceptions, and both confirm: restoring a file to its original overwrites
+ * the working copy with no backup, and removing a file outright is even more final — this repo keeps
+ * no theme-file revision history, so a delete cannot be recovered from at all, not even by re-copying
+ * a catalog original the way Reset does. These are the only two actions on this screen that can
+ * destroy work (2026-08-29: Delete added to Copy/Rename's ⋮ menu, owner ask).
  *
  * The preview is an `<iframe src>` pointed at the SITE server, not `srcDoc`. A rendered theme page
  * references `/theme-assets/<id>/css/...`, which only the site server serves — a `srcDoc` iframe
@@ -54,8 +59,8 @@ import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-f
  * This component's own render body is deliberately thin. Every conditional block that does not need
  * a value straight out of `useThemeExploreHook`'s controller has been pulled out to a top-level
  * function or component below (`ThemeExploreDirectionsNotice`, `ThemeExploreFileList`,
- * `ThemeExploreToolbarButtons`, `ThemeExplorePreviewControls`, `ThemeExploreMainPane`,
- * `ThemeExploreFullscreenDialog`) — `apps/admin`'s complexity-drift check (`npm run
+ * `ThemeExploreToolbarButtons`, `ThemeExplorePreviewControls`, `ThemeExplorePublishToggle`,
+ * `ThemeExploreMainPane`, `ThemeExploreFullscreenDialog`) — `apps/admin`'s complexity-drift check (`npm run
  * check:admin-complexity-drift`) scores a component's OWN cyclomatic/cognitive complexity from every
  * ternary/`&&`/`.map()`-with-branching directly inside its JSX, and this component's markup used to
  * carry roughly a dozen of those inline, landing at 27/29 against a 9/9 ceiling. Each extraction below
@@ -87,6 +92,13 @@ export interface ThemeExploreProps {
    * `use-theme-explore.hooks.ts`'s `initialSelectedPath` for the fallback.
    */
   pageId?: string;
+  /**
+   * File to open on, from `?file=` — the file's own full relative path (e.g.
+   * `render/pages/404.html`), not a bare id. Takes priority over `pageId`; see
+   * `use-theme-explore.hooks.ts`'s `ThemeExploreOptions.fileId` for the full contract, including why
+   * this screen writes it back into the address bar on every selection.
+   */
+  fileId?: string;
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
   useThemeExploreHook?: typeof useWiredThemeExplore;
 }
@@ -174,13 +186,16 @@ function previewSrcFor(
   return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
 }
 
-/** Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
- *  not editable (`kind === "script"` or `"other"`) — see `ThemeExploreFile.editable`'s doc comment
- *  for the readable/editable split this answers. */
-function readOnlyReason(file: ThemeExploreFile): string {
-  return file.kind === "script"
-    ? "Scripts are read-only in Explore."
-    : "This file type is read-only in Explore.";
+/**
+ * Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
+ * not editable — see `ThemeExploreFile.editable`'s doc comment for the readable/editable split this
+ * answers. A single generic message now: scripts had their own wording here until 2026-08-29 (owner
+ * ask — "we need the ability to edit CSS and JS for the themes"), when `script` stopped being a
+ * content-read-only group server-side (`explore.ts`'s `CONTENT_EDIT_LOCKED_GROUPS`), leaving `other`
+ * the one remaining case this branch can actually render for.
+ */
+function readOnlyReason(): string {
+  return "This file type is read-only in Explore.";
 }
 
 /**
@@ -207,6 +222,79 @@ function themeExplorePreviewNotice(t: Translate): string {
  */
 function canSaveSelectedFile(file: ThemeExploreFile | undefined): boolean {
   return file === undefined || file.editable;
+}
+
+/**
+ * One of the two states {@link ThemeExplorePublishToggle} can render — see that component's own doc
+ * for what each one looks like.
+ */
+type ThemeExplorePublishState =
+  | { kind: "toggle"; published: boolean }
+  | { kind: "locked"; on: boolean; reason: string };
+
+/**
+ * The reason — and the fixed switch position that goes with it — for a page that EXISTS but can
+ * never be independently toggled. `theme.ts`'s `isPublishableThemePageCandidate` returns false for
+ * exactly three shapes: `index`/`404` (`NON_ROUTABLE_THEME_PAGE_IDS`) or a declared Post/Page
+ * template shell (`ThemeManifest.templates`) — keyed here off the page's own `label` (its id) rather
+ * than a server-sent reason string, so this can never drift from that set without both files
+ * changing together; `index`/`404` are the only two ids that constant names, so any OTHER label
+ * reaching this function is, by construction, the remaining case.
+ *
+ * `index`/`404` show ON: both are genuinely live and rendered whenever a visitor reaches them (via
+ * `/` and the 404 document respectively) regardless of any publish decision — the switch's fixed
+ * position reflects a true fact, same as everywhere else it appears. A declared template shell shows
+ * OFF instead, for the opposite reason: it has NO independent public route of its own at all (nobody
+ * ever reaches `/blog-post` directly), so showing it "on" would claim a reachability it never has —
+ * see `theme.ts`'s own `isStandaloneThemePage` doc for the full three-way split this mirrors.
+ *
+ * @complexity O(1).
+ */
+function lockedPublishReason(pageLabel: string, t: Translate): { on: boolean; reason: string } {
+  if (pageLabel === "index") return { on: true, reason: t("Always published — theme home page") };
+  if (pageLabel === "404") return { on: true, reason: t("Always published — error page") };
+  return { on: false, reason: t("Not a standalone page — used as a content template") };
+}
+
+/**
+ * The selected file's publish-control state, or `null` when no control should render at all.
+ *
+ * 2026-08-30: this used to collapse straight to `file.published` (`boolean | null`) and treat every
+ * `null` as "no control at all" — which hid the control for `index`/`404`/a declared template shell
+ * exactly as silently as it correctly hid it for a genuinely unrelated file (a stylesheet, an image),
+ * and cost real operator confusion: the owner selected `404`, saw nothing, and concluded the publish
+ * feature hadn't shipped at all. The two `null` cases are told apart here using data this screen
+ * ALREADY has — `file.kind` — with NO backend change: `describeThemeFile` (`explore.ts`) can only
+ * produce a non-null `published` for a `"page"`-kind file (see that function's own doc), so a `null`
+ * value on a `"page"` file is, by construction, one of `theme.ts`'s three non-candidate cases
+ * ({@link lockedPublishReason}), and a `null` value on any OTHER kind is a file the publish question
+ * never applied to in the first place.
+ *
+ * @complexity O(1).
+ */
+function selectedFilePublishState(
+  file: ThemeExploreFile | undefined,
+  t: Translate
+): ThemeExplorePublishState | null {
+  if (!file) return null;
+  if (file.published !== null) return { kind: "toggle", published: file.published };
+  if (file.kind !== "page") return null;
+  return { kind: "locked", ...lockedPublishReason(file.label, t) };
+}
+
+/**
+ * The currently selected file's label, or `""` before a file is selected. Pulled out to a top-level
+ * function rather than an inline `selectedFile?.label ?? ""` in `ThemeExplore`'s own JSX — the
+ * optional-chain plus nullish-coalescing pair there scores two points against a cyclomatic-complexity
+ * budget that component is already at the ceiling for, the same complexity-drift reason this file's
+ * own header comment documents for every other extraction here. The `""` fallback only ever matters
+ * transiently in practice: {@link selectedFilePublishState} already returns `null` whenever there is
+ * no selected file, so {@link ThemeExplorePublishToggle} never actually renders with an empty label.
+ *
+ * @complexity O(1).
+ */
+function selectedFileLabel(file: ThemeExploreFile | undefined): string {
+  return file?.label ?? "";
 }
 
 /**
@@ -255,14 +343,14 @@ function ThemeExploreHtmlPane({
   }
 
   if (mode === "readonly") {
-    // Readable but not editable — a script or an `other`-group file. Shown as source (unlike the
-    // binary case above), but `readOnly` and paired with a visible reason: an editable-looking
-    // textarea next to a Save button that can never fire would be worse than either showing nothing
-    // or being honest about why. `file` is non-null here — `themeExploreHtmlMode` only returns
-    // `"readonly"` when it was given one.
+    // Readable but not editable — an `other`-group file (2026-08-29: `script` moved to the editable
+    // branch below, see `readOnlyReason`'s own doc). Shown as source (unlike the binary case above),
+    // but `readOnly` and paired with a visible reason: an editable-looking textarea next to a Save
+    // button that can never fire would be worse than either showing nothing or being honest about
+    // why.
     return (
       <>
-        <div className="notice">{t(readOnlyReason(file as ThemeExploreFile))}</div>
+        <div className="notice">{t(readOnlyReason())}</div>
         <textarea
           className="page-html-source"
           value={source}
@@ -335,6 +423,7 @@ function ThemeExploreFileRow({
   commitRename,
   copyingPath,
   copyFile,
+  openDeleteConfirm,
   agentBase,
   t,
 }: {
@@ -349,6 +438,11 @@ function ThemeExploreFileRow({
   commitRename: () => void;
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
+  /** Opens the delete confirmation for this row — see `ThemeExplore`'s own `deleteTarget`/
+   *  `ConfirmDialog` for the confirmation this defers to, and `use-theme-explore.hooks.ts`'s
+   *  `openDeleteConfirm` for the client-side pre-check (a locked file surfaces a toast instead of
+   *  opening the dialog, same shape `startRename` already uses). */
+  openDeleteConfirm: (path: string) => void;
   /** This row's own distinct handle base — computed once, across every file in every group, by
    *  `ThemeExploreFileList` (via `buildAgentListHandles`); see `Users.tsx`'s
    *  `UserRowProps.agentBase` for why a per-instance uniqueness search does not work here. Paths
@@ -384,12 +478,16 @@ function ThemeExploreFileRow({
         </button>
       )}
       {/* Copy is unconditional — see the hook's own `copyFile` doc comment for why duplicating bytes
-          carries none of the risk editing does. Rename is always offered too: a LOCKED file
-          (pages/index.html, theme.json, tokens.json, or any script/`other`-group file) still shows
-          the item, but selecting it surfaces the refusal as a toast (`ThemeExplore`'s own `error`
-          Toast below) instead of opening the inline editor — `RowMenu` has no built-in disabled-item
-          affordance to hang a reason off, and a greyed-out item would explain nothing anyway (owner,
-          2026-08-11: "I like the fact that we got the error ... it should be a toast"). */}
+          carries none of the risk editing does. Rename and Delete are always offered too: a LOCKED
+          file (pages/index.html, theme.json, tokens.json, or any script/`other`-group file — see
+          `IDENTITY_LOCKED_GROUPS`) still shows both items, but selecting one surfaces the refusal as
+          a toast (`ThemeExplore`'s own `error` Toast below) instead of opening the inline editor or
+          the delete confirmation — `RowMenu` has no built-in disabled-item affordance to hang a
+          reason off, and a greyed-out item would explain nothing anyway (owner, 2026-08-11: "I like
+          the fact that we got the error ... it should be a toast"). Delete additionally opens a
+          confirmation dialog rather than acting immediately (2026-08-29 ask) — see `ThemeExplore`'s
+          own delete `ConfirmDialog` for why that pause, unlike Rename's, is unconditional whenever
+          the file IS eligible: deleting is the one operation here with no undo at all. */}
       <RowMenu
         triggerLabel={t("More actions for {file}").replace("{file}", file.label)}
         agentHandle={`${agentBase}-menu`}
@@ -403,6 +501,12 @@ function ThemeExploreFileRow({
             key: "rename",
             label: t("Rename"),
             onSelect: () => startRename(file.path),
+          },
+          {
+            key: "delete",
+            label: t("Delete"),
+            tone: "danger",
+            onSelect: () => openDeleteConfirm(file.path),
           },
         ]}
       />
@@ -435,6 +539,7 @@ function ThemeExploreFileList({
   commitRename,
   copyingPath,
   copyFile,
+  openDeleteConfirm,
   t,
 }: {
   files: ThemeExploreFile[];
@@ -448,6 +553,7 @@ function ThemeExploreFileList({
   commitRename: () => void;
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
+  openDeleteConfirm: (path: string) => void;
   t: Translate;
 }) {
   // File paths are globally unique across every group (a theme's editable surface is a flat set of
@@ -490,6 +596,7 @@ function ThemeExploreFileList({
                     commitRename={commitRename}
                     copyingPath={copyingPath}
                     copyFile={copyFile}
+                    openDeleteConfirm={openDeleteConfirm}
                     agentBase={fileMenuHandleByPath.get(file.path)!}
                     t={t}
                   />
@@ -613,6 +720,28 @@ function PageRenameWarningBody({
       {t("Renaming")} <code>{pageRenameWarning?.path}</code> {t("to")}{" "}
       <code>{pageRenameWarning?.name}</code>{" "}
       {t("changes its public URL. Anything already linking to it directly will need updating.")}
+    </p>
+  );
+}
+
+/**
+ * The delete confirmation `ConfirmDialog`'s body — same "name the exact target" shape
+ * {@link PageRenameWarningBody} and the Reset dialog's own body use, for the same reason: a
+ * destructive prompt should never be ambiguous about what it acts on. Pulled out to a top level
+ * function for the same complexity-drift reason this file's own header comment documents.
+ *
+ * @complexity O(1).
+ */
+function DeleteFileWarningBody({ deleteTarget, t }: { deleteTarget: string | null; t: Translate }) {
+  return (
+    <p>
+      {t("Are you sure you want to delete")} <code>{deleteTarget}</code>
+      {/* Deliberately NOT the literal phrase "cannot be undone" — the Reset dialog above already
+          owns that exact wording, and both dialogs' body markup renders unconditionally regardless
+          of `open` (`ConfirmDialog`'s own behavior), so identical phrasing across two simultaneously-
+          mounted dialogs would make `getByText` ambiguous for either one. Same meaning, distinct
+          wording — see `ThemeExplore.unit.test.tsx`'s "delete confirmation" describe block. */}
+      {t("? This permanently removes the file. There is no way to get it back.")}
     </p>
   );
 }
@@ -780,6 +909,173 @@ function ThemeExplorePreviewControls({
 }
 
 /**
+ * The publish toggle for the currently SELECTED page — 2026-08-30 owner ask: a static theme's public
+ * routing used to be pure file presence (`isStandaloneThemePage`, `theme.ts`), with no way to take a
+ * page down short of moving its file out of `render/pages/` entirely (the `_unpublished/` folder hack
+ * this feature replaces). Sits on the toolbar's FIRST row, immediately right of the Preview/HTML tabs
+ * (`ThemeExplore`'s own `.theme-explore-toolbar-start` wrapper) — a same-day restyle of what first
+ * shipped as its own second row below the toolbar with a two-button Off/Published segmented control:
+ * "Can the publish just be a toggle rather than the tab. Toggle is just way smaller... it will be a
+ * toggle, a green toggle, Apple style" (owner, verbatim).
+ *
+ * Renders for every file {@link selectedFilePublishState} returns non-`null` for, in one of two
+ * shapes:
+ * - `"toggle"` — a real candidate page: an ENABLED switch; `published` both reflects and (via
+ *   `setPagePublished`) controls the live publish state.
+ * - `"locked"` — a page that exists but can never be independently toggled (`index`/`404`/a declared
+ *   template shell, see {@link lockedPublishReason}): a DISABLED switch fixed to whichever position
+ *   is actually true, plus a short visible reason. PRESENT, not absent — the previous "no publish
+ *   state, so show nothing" behavior made the control silently vanish for these pages exactly the
+ *   same way it correctly vanishes for a stylesheet, and cost real operator confusion (see
+ *   {@link selectedFilePublishState}'s own doc).
+ *
+ * `role="switch"`/`aria-checked`, not the old segmented control's `role="group"` of two
+ * `aria-pressed` buttons — one control now represents one boolean, matching the shape the WAI-ARIA
+ * switch pattern is actually for. State is never color-only: the knob's own POSITION (left/right) is
+ * an independent, shape-based signal a colour-blind reader still sees without needing to resolve the
+ * track's hue, the same "distinct shapes, not one shape recolored" reasoning
+ * `.deployment-step-marker-done`'s own CSS comment gives for pairing its green fill with a checkmark
+ * glyph rather than relying on the fill alone.
+ *
+ * An `InfoTip` (reused the same way {@link ThemeExploreCopyTip} does — see that component's own doc
+ * for why the native `title` attribute was rejected here too) sits right after the "Publish" label,
+ * one explanation for the whole control regardless of which of the two shapes above is currently
+ * rendering: what determines whether a page is reachable at its own URL, and that a page is published
+ * BY DEFAULT until the first page on a theme is toggled off (owner ask, 2026-08-30) — not the reverse.
+ * Getting that direction backwards in the tooltip copy would be worse than shipping no tooltip at all,
+ * so its wording was checked against `theme.ts`'s `ThemeManifest.publishedPages` doc and
+ * `theme-page-publish.test.ts` rather than assumed. Deliberately silent on the separate Post-vs-page
+ * slug-collision override (`resolveMarketingPageOrOverride`, `pages.ts`) — that is a different
+ * mechanism (which RECORD wins a shared slug) from this one (whether a theme page has a route at
+ * all), and folding both into one bubble would confuse the exact thing this tooltip exists to clarify.
+ *
+ * @complexity O(1) — one fixed control, no iteration.
+ */
+function ThemeExplorePublishToggle({
+  state,
+  publishing,
+  setPagePublished,
+  fileLabel,
+  t,
+}: {
+  state: ThemeExplorePublishState;
+  publishing: boolean;
+  setPagePublished: (published: boolean) => Promise<void>;
+  fileLabel: string;
+  t: Translate;
+}) {
+  const on = state.kind === "toggle" ? state.published : state.on;
+  // Locked forever; a live toggle is additionally disabled for the duration of its own round trip —
+  // same "can't act while the very action it's for is in flight" shape `save`/`reset`'s own disabled
+  // conditions use elsewhere on this screen.
+  const disabled = state.kind === "locked" || publishing;
+  const reasonId = state.kind === "locked" ? "theme-explore-publish-reason" : undefined;
+
+  // Guarded on `state.kind` rather than relying solely on the DOM's own "disabled buttons don't fire
+  // click" behavior — explicit here so a locked switch can never dispatch a publish call no matter
+  // what wraps or simulates the click.
+  function handleClick() {
+    if (state.kind === "toggle") void setPagePublished(!state.published);
+  }
+
+  return (
+    <div className="theme-explore-publish-toggle">
+      <span className="theme-explore-publish-label">{t("Publish")}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={`${t("Publish")} ${fileLabel}`}
+        aria-describedby={reasonId}
+        className={on ? "theme-explore-switch is-on" : "theme-explore-switch"}
+        disabled={disabled}
+        onClick={handleClick}
+      >
+        <span className="theme-explore-switch-knob" aria-hidden="true" />
+      </button>
+      <InfoTip
+        label={t(
+          "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own."
+        )}
+      />
+      {state.kind === "locked" ? (
+        <span id={reasonId} className="theme-explore-publish-reason">
+          {state.reason}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * This screen's mirror of `PostEditor.tsx`'s `PostEditorSlugCollisionWarning` — the identical
+ * underlying fact (another resource already claims this URL), surfaced from the theme-PAGE side
+ * instead of the post side. Deliberately a SEPARATE notice from `ThemeExplorePublishToggle`'s own
+ * `InfoTip` rather than folded into it — see that component's own doc for why combining the two
+ * would confuse the exact thing the tooltip exists to clarify (whether a page has a route AT ALL,
+ * vs. which RECORD wins a shared slug — two different mechanisms, `theme.ts`'s
+ * `ThemeManifest.publishedPages` for the first, `pages.ts`'s `resolveMarketingPageOrOverride` for
+ * the second).
+ *
+ * Gated on `collidingContent` ALONE — deliberately NOT also on this page's own `published` state.
+ * `resolveMarketingPageOrOverride` can let a live Post/Page row win a slug REGARDLESS of whether
+ * this theme page is published: an UNPUBLISHED page falls straight through to the ordinary
+ * published-post lookup, with no publish-state check of its own at all. So an operator who just
+ * switched this page OFF, expecting its URL to 404, needs this warning exactly as much as one who
+ * left it ON — gating on `published` would hide the warning for precisely the case that caused the
+ * live confusion this feature exists to prevent (a page read "off" and its URL still 200'd).
+ *
+ * The copy is deliberately non-committal about which side is CURRENTLY winning: that depends on
+ * both this page's publish state and the record's own `overridesThemePage` choice, and re-deriving
+ * that here would duplicate `resolveMarketingPageOrOverride`'s own precedence logic a second place
+ * it could drift from — out of scope for this change (see this feature's own history: surface the
+ * collision, do not relitigate precedence). It names the collision and links to the record so the
+ * operator can go verify or act.
+ *
+ * @complexity O(1) — one fixed notice, no iteration.
+ */
+function ThemeExploreSlugCollisionWarning({
+  collidingContent,
+  t,
+}: {
+  collidingContent: ThemeExploreSlugCollision | null;
+  t: Translate;
+}) {
+  if (!collidingContent) return null;
+  // A Page's admin editor route is keyed by SLUG (`/pages/:slug`, `getAdminPostByIdOrSlug` accepts
+  // either), a Post's by id (`/posts/:postId`) — see `panels.tsx`'s own route table for both.
+  const adminPath = collidingContent.kind === "post" ? `/posts/${collidingContent.id}` : `/pages/${collidingContent.slug}`;
+  return (
+    <div
+      className="notice warning theme-explore-slug-collision-warning"
+      {...agentHandle("theme-explore-slug-collision-warning", {
+        role: "region",
+        label: "This theme page's URL is also claimed by a content record — see which one actually wins",
+      })}
+    >
+      <p>
+        {t(
+          "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone."
+        ).replace("{title}", collidingContent.title)}
+      </p>
+      <a
+        href={`/admin${adminPath}`}
+        onClick={(e) => {
+          e.preventDefault();
+          navigate(adminPath);
+        }}
+        {...agentHandle("theme-explore-slug-collision-open-record", {
+          role: "link",
+          label: `Open the colliding content record, ${collidingContent.title}`,
+        })}
+      >
+        {t("Open {title}").replace("{title}", collidingContent.title)}
+      </a>
+    </div>
+  );
+}
+
+/**
  * The main pane's body: the HTML source view, or the live preview (itself either the rendered iframe
  * or a "select a file" notice, depending on whether the selected file has anything to preview).
  *
@@ -907,7 +1203,12 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredThemeExplore }: ThemeExploreProps) {
+export function ThemeExplore({
+  themeId,
+  pageId,
+  fileId,
+  useThemeExploreHook = useWiredThemeExplore,
+}: ThemeExploreProps) {
   const {
     detail,
     files,
@@ -942,8 +1243,15 @@ export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredTh
     cancelPageRenameWarning,
     copyingPath,
     copyFile,
+    deleteTarget,
+    openDeleteConfirm,
+    closeDeleteConfirm,
+    deleting,
+    confirmDelete,
+    publishing,
+    setPagePublished,
     t,
-  } = useThemeExploreHook(themeId, { pageId });
+  } = useThemeExploreHook(themeId, { pageId, fileId });
 
   // STAYS LOCAL — deliberately not moved into `useThemeExploreHook`'s controller (owner-ratified,
   // 2026-08-14 DI migration sweep). This is interactive DOM chrome, not async/API state: nothing
@@ -994,6 +1302,7 @@ export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredTh
   const selectedFile = files.find((f) => f.path === selected);
   const previewSrc = previewSrcFor(detail.id, selectedFile, previewNonce);
   const previewWidth = PAGE_PREVIEW_WIDTHS[device];
+  const publishState = selectedFilePublishState(selectedFile, t);
 
   return (
     <div className="page">
@@ -1079,24 +1388,36 @@ export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredTh
           commitRename={commitRename}
           copyingPath={copyingPath}
           copyFile={copyFile}
+          openDeleteConfirm={openDeleteConfirm}
           t={t}
         />
 
         <div className="theme-explore-main">
           <div className="page-editor-toolbar">
-            <div className="segmented" role="tablist" aria-label={t("Editor view")}>
-              {VIEWS.map((entry) => (
-                <button
-                  key={entry.key}
-                  type="button"
-                  role="tab"
-                  aria-selected={view === entry.key}
-                  className={view === entry.key ? "is-active" : undefined}
-                  onClick={() => setView(entry.key)}
-                >
-                  {t(entry.label)}
-                </button>
-              ))}
+            <div className="theme-explore-toolbar-start">
+              <div className="segmented" role="tablist" aria-label={t("Editor view")}>
+                {VIEWS.map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === entry.key}
+                    className={view === entry.key ? "is-active" : undefined}
+                    onClick={() => setView(entry.key)}
+                  >
+                    {t(entry.label)}
+                  </button>
+                ))}
+              </div>
+              {publishState !== null ? (
+                <ThemeExplorePublishToggle
+                  state={publishState}
+                  publishing={publishing}
+                  setPagePublished={setPagePublished}
+                  fileLabel={selectedFileLabel(selectedFile)}
+                  t={t}
+                />
+              ) : null}
             </div>
             <div className="theme-explore-toolbar-actions">
               {view === "preview" ? (
@@ -1112,6 +1433,10 @@ export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredTh
               ) : null}
             </div>
           </div>
+
+          {/* Slug-collision warning — see `ThemeExploreSlugCollisionWarning`'s own doc for why this
+              is gated on `collidingContent` alone, independent of `selectedFile.published`. */}
+          <ThemeExploreSlugCollisionWarning collidingContent={selectedFile?.collidingContent ?? null} t={t} />
 
           <ThemeExploreMainPane
             view={view}
@@ -1169,6 +1494,22 @@ export function ThemeExplore({ themeId, pageId, useThemeExploreHook = useWiredTh
         pending={renaming}
         onConfirm={() => void confirmPageRename()}
         onCancel={cancelPageRenameWarning}
+      />
+
+      {/* Delete (2026-08-29 owner ask). `destructive`, same as Reset above — unlike Rename or Copy,
+          a delete has no undo of any kind once it succeeds (this repo keeps no theme-file revision
+          history), so every eligible file gets this pause unconditionally, not only the ones with a
+          side effect elsewhere (compare Rename's page-URL warning, which only fires for pages). Names
+          the exact file rather than "this file", same reasoning as Reset's own dialog. */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t("Delete this file?")}
+        body={<DeleteFileWarningBody deleteTarget={deleteTarget} t={t} />}
+        confirmLabel={t("Delete file")}
+        destructive
+        pending={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={closeDeleteConfirm}
       />
     </div>
   );

@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../../lib/format-timestamp";
 import { isWorkspaceDirty } from "./rules";
 import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
 import { t } from "./workspace-i18n";
@@ -87,7 +88,11 @@ export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspacePro
         </div>
         <div className="settings-layer-cell">
           <span className="settings-layer-label">{t("Created")}</span>
-          <span>{workspace.createdAt}</span>
+          {/* Raw ISO-8601 (`2026-04-06T00:00:00.000Z`) leaked to the screen unformatted — the
+              exact class of bug `format-timestamp.ts`'s own file header describes fixing at ~a
+              dozen other call sites; this one was missed. Same shared helper, same YYYY-MM-DD
+              HH:MM display, no new formatting logic. */}
+          <span>{formatTimestamp(workspace.createdAt)}</span>
         </div>
       </div>
 

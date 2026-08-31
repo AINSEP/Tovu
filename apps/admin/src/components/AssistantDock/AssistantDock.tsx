@@ -4,13 +4,14 @@ import {
   JiniChatProvider,
   createMcpUiToolCaller,
   registerExtEventRenderer,
-  registerMcpUiSurfaceRenderer,
+  MCP_UI_EXT_EVENT_NAME,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
+import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SelectedAgentPluginTray, type SelectedAgentPluginChip } from "./SelectedAgentPluginTray";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
@@ -92,6 +93,13 @@ export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDe
  */
 const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
 /**
+ * Registered via the low-level `registerExtEventRenderer` (not Jini's own
+ * `registerMcpUiSurfaceRenderer` convenience call, which would bind `McpUiSurfaceCard` itself with
+ * no seam to wrap it) so this dock can render `OverflowAwareMcpUiSurfaceCard` instead — the "Show
+ * in modal" affordance (chat-overflow fix, 2026-08-30) around the same real `McpUiSurfaceCard`,
+ * same props, same behavior otherwise. Exactly the shape `registerExtEventRenderer("a2ui", ...)`
+ * below already uses for `RoutedA2uiSurfaceCard`.
+ *
  * Deliberately NOT passing `maxHeight` here — tried 480px first and reverted it after a live
  * measurement caught a real regression it caused. `McpUiHost` sets `iframe.style.height` to
  * `min(reported, maxHeight)`, but the surface's own document (`document.ts`'s `SURFACE_BASE_CSS`)
@@ -114,13 +122,17 @@ const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/
  * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
  * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
  */
-registerMcpUiSurfaceRenderer({
-  onToolCall: mcpUiToolCaller,
-  // Must match `src/assistant/mcp-ui-sandbox-proxy-route.ts`'s `MCP_UI_SANDBOX_PROXY_PATH` exactly
-  // — `src/server/` and `apps/admin/` are separate deployable apps, so there is no shared module
-  // either side can import this literal from (same reasoning `AG_UI_RUN_PATH` duplication uses).
-  sandboxProxyUrl: new URL("/mcp-ui/sandbox-proxy.html", globalThis.location.origin),
-});
+registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
+  <OverflowAwareMcpUiSurfaceCard
+    {...props}
+    onToolCall={mcpUiToolCaller}
+    // Must match `src/assistant/mcp-ui-sandbox-proxy-route.ts`'s `MCP_UI_SANDBOX_PROXY_PATH`
+    // exactly — `src/server/` and `apps/admin/` are separate deployable apps, so there is no
+    // shared module either side can import this literal from (same reasoning `AG_UI_RUN_PATH`
+    // duplication uses).
+    sandboxProxyUrl={new URL("/mcp-ui/sandbox-proxy.html", globalThis.location.origin)}
+  />
+));
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
@@ -291,16 +303,19 @@ function resolveAgentBridge(override: FrontendSessionBridge | null | undefined):
 }
 
 /**
- * @complexity 5 cyclomatic / 2 cognitive (measured, complexity-ceiling pass; was 11/2 before the
- * 2026-08-14 resolver-idiom pass below moved all six injectable-seam defaults out of this
- * function's own body — see the resolver group's own doc comment). Clears the ≤9/≤9 bar outright;
- * no longer needs a `admin-complexity-debt.json` entry (deleted in the same pass).
+ * @complexity 6 cyclomatic / 2 cognitive (measured; ESLint's `complexity`/`sonarjs/cognitive-complexity`
+ * rules, `npx eslint apps/admin/src/components/AssistantDock/AssistantDock.tsx` with both ceilings
+ * temporarily set to 1 to read the exact counts). Was 5/2 after the 2026-08-14 resolver-idiom pass
+ * (11/2 before it — see the resolver group's own doc comment) until the `chat.get_state`-hang fix
+ * (2026-08-30) added one more flat `?.` on `<ChatPane agentControl={{ bridgeAccess:
+ * agentBridge?.bridgeAccess }}>`. Still clears the ≤9/≤9 bar outright; no `admin-complexity-debt.json`
+ * entry needed.
  *
- * The remaining 5 is: base 1, plus 3 flat, sibling `?:`/`?.`/`??` expressions in the JSX below —
- * `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, and the
+ * The 6 is: base 1, plus 4 flat, sibling `?:`/`?.`/`??` expressions in the JSX below —
+ * `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, the
  * active-conversation-title `?.title ?? "Tovu assistant"` fallback (1 for the ternary, 1 for the
- * spread's own ternary, 1 for `?.` + 1 for `??` on the title fallback) — none of which wrap
- * another, which is why cognitive stays at 2.
+ * spread's own ternary, 1 for `?.` + 1 for `??` on the title fallback), and `agentControl`'s
+ * `agentBridge?.bridgeAccess` — none of which wrap another, which is why cognitive stays at 2.
  */
 /**
  * Destructured rather than read as `props.x` throughout the body — every seam below is passed
@@ -373,7 +388,14 @@ export function AssistantDock({
   }));
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
-  const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds });
+  const runContext = useRunContext({
+    agentBridge,
+    model: localCliSelection.model,
+    pluginRefIds: selectedPluginRefIds,
+    // Same id already passed to `<ChatPane conversationId={...}>` below — see `useRunContext`'s
+    // own doc for why the daemon needs it too (per-conversation agent-CLI session resume).
+    conversationId: chats.activeId,
+  });
 
   return (
     <JiniChatProvider transport={transport} i18n={chatI18n}>
@@ -463,6 +485,20 @@ export function AssistantDock({
         placeholder={t("Ask the assistant to do something…")}
         onMessagesChange={handleMessagesChange}
         runContext={runContext}
+        // Wires the daemon-relayed `chat.*` capability channel to THIS live pane instance — see
+        // `useChatPaneAgentControl`'s own doc in `@jini-ai/chat/react` for the handler side. Without
+        // this, `chat.*` (`chat.get_state`, `chat.send_message`, …) is still claimed at attach time
+        // (`createFrontendSessionBridge`'s `claimedCapabilities` claims all of `CHAT_CAPABILITIES`
+        // unconditionally, unlike `page.*`, which is gated on `pageDriver`), so the daemon happily
+        // delivers a `chat.*` invocation here — but with no `subscribe`r, the browser's own dispatch
+        // (`frontend-session-bridge.ts`'s `chatListeners` loop) silently drops it, and the call parks
+        // until `ToolExecutor`'s 30s `descriptor.timeoutMs` reports it `timed-out` with no real error
+        // anywhere. `enabled: true` is safe even before the tab attaches — `bridgeAccess` is only
+        // `agentBridge?.bridgeAccess`, `undefined` until `useAgentPageBridge`'s effect runs, and
+        // `useChatPaneAgentControl` is a no-op when `bridgeAccess` is absent. `webmcp` stays
+        // unset (off): this only wires the already-`ToolExecutor`-gated daemon-relayed channel, not
+        // the ungated in-page WebMCP surface — see that option's own doc for why that stays opt-in.
+        agentControl={{ enabled: true, bridgeAccess: agentBridge?.bridgeAccess }}
         uploadAttachments={uploadAttachments}
         // Host-owned, data-only inventory, now an async projection (debate 2) instead of a static
         // import. Jini renders/filter/selects it generically; these rows describe source-backed

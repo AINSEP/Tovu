@@ -1,7 +1,9 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { PAGES_DICT } from "./pages-i18n";
+import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
 
 /**
  * @file Pure logic for the `pages` feature — everything that computes a value rather than
@@ -45,6 +47,43 @@ export function pageRowMenuItems(page: AdminPost, handlers: PageRowMenuHandlers,
   }
   items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(page) });
   return items;
+}
+
+/** The callbacks a Theme Page row's menu needs. Passed in rather than imported, same reasoning as
+ *  {@link PageRowMenuHandlers} above — in particular, `onEdit` takes a bare `pageId` rather than
+ *  building the Theme Studio href itself, so this module stays free of navigation: the caller
+ *  (`ThemePagesTab.tsx`) already holds the narrowed, non-null `themeId` `themeStudioHref` needs, and
+ *  is the one place that calls it. */
+export interface ThemePageRowMenuHandlers {
+  onOpenDetails: (pageId: string) => void;
+  onEdit: (pageId: string) => void;
+}
+
+/**
+ * The row-action menu for one Theme Page row — pulled out of `ThemePagesTab.tsx`'s `DataTable`
+ * cell for the same reason {@link pageRowMenuItems} was: a claim worth a test, which it cannot have
+ * while it is a closure inside a table cell reachable only by rendering and opening a popover.
+ *
+ * A theme page has no `PostRecord` behind it (see `Pages.tsx`'s own header on this tab's history),
+ * so there is nothing here to disable or delete — just `Details` (the row's full facts, opened in
+ * `ThemePageDetailsModal.tsx`) and `Edit` (the same Theme Studio destination the table's own Theme
+ * Studio column links to, listed directly under `Details` per the 2026-08-31 owner request that
+ * moved it here from the modal's own footer — see `ThemePageDetailsModal.tsx`'s own header, PART 3,
+ * for that history). Kept as its own function (rather than a bare inline array at the call site) so
+ * a future third action lands here, not as a second ad hoc array shape.
+ *
+ * Takes an already-bound {@link Translate} rather than a raw `locale`, unlike {@link pageRowMenuItems}
+ * — `ThemePagesTab.tsx`'s own helpers (`themePagePublishState`, `lockedPublishReason`, …) all take
+ * `t: Translate` already, and this row menu is built inside that same component, so matching ITS
+ * established convention avoids threading a second, redundant `locale` value through the same tree.
+ *
+ * @complexity O(1) — exactly two entries, no iteration.
+ */
+export function themePageRowMenuItems(row: ThemePageRow, handlers: ThemePageRowMenuHandlers, t: Translate): RowMenuItem[] {
+  return [
+    { key: "details", label: t("Details"), onSelect: () => handlers.onOpenDetails(row.pageId) },
+    { key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(row.pageId) },
+  ];
 }
 
 /** What `usePageEditor`'s `save` sends to the two write routes, and whether the HTML route applies
