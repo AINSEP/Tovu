@@ -92,6 +92,17 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // redeemable. Nothing about the reasoning above changes: it is admitted because it does nothing,
   // not because it is a demo.
   "assistant_demo_choices",
+  // 2026-08-31 — `assistant_ask_choice` (`ask-choice-tool.ts`) holds up the SAME held-open-exchange
+  // shape `content_post_delete`/`deployment_execute_static_publish`/
+  // `deployment_propose_custom_provider_credential`/`source_control_execute_commit` do, NOT the
+  // "does nothing, so nothing to protect" carve-out `assistant_demo_choices` above is admitted
+  // under: its handler opens a `SurfaceExchangeStore` exchange (`surfaces.surfaceExchanges.open`)
+  // and parks on the administrator's answer via `askOnce` before this route is ever reached. It was
+  // omitted when the tool landed — a plain gap, not a deliberate exclusion — which meant the form
+  // rendered correctly but every submission was refused here with a 403, unusable in production
+  // from the day it shipped. See `mcp-ui-tool-calls-route.ask-choice.integration.test.ts` for the
+  // real round trip this entry makes possible.
+  "assistant_ask_choice",
 ]);
 
 /**

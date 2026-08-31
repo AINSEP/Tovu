@@ -188,11 +188,12 @@ declare global {
  * and calls them through the daemon's `/api/delegated-tool-calls` gate, which shows up in this
  * same transcript as ordinary `tool_use`/`tool_result` events — `ChatPane` renders those itself.
  *
- * `uploadAttachments`/`attachmentAccept` below wire the composer's existing (host-agnostic,
- * `@jini-ai/chat/react`-native) drag-and-drop and file-picker mechanism to this daemon's own
- * `/api/attachments` route — see that route's registration in `src/assistant/agent-daemon-server.ts`
- * and its proxy pass-through in `src/server/modules/assistant.ts` for the rest of the chain
- * (`onStarted` claims the upload and hands the daemon's `AgentExecutor.run()` real `imagePaths`).
+ * `uploadAttachments` below wires the composer's existing (host-agnostic, `@jini-ai/chat/react`-
+ * native) drag-and-drop and file-picker mechanism to this daemon's own `/api/attachments` route —
+ * see that route's registration in `src/assistant/agent-daemon-server.ts` and its proxy pass-
+ * through in `src/server/modules/assistant.ts` for the rest of the chain (`onStarted` claims the
+ * upload and hands the daemon's `AgentExecutor.run()` real `imagePaths`). No `attachmentAccept` is
+ * passed — see that prop's own doc, below, for why.
  *
  * `styles/assistant.css` themes the pane. Note that the package does NOT ship zero CSS, contrary to
  * what this comment used to claim: `ChatPane` injects its own complete default theme as a `<style>`
@@ -522,12 +523,24 @@ export function AssistantDock({
         // until now) avoids the gap entirely, with no change to Jini's package needed.
         // `null` when nothing is pinned (`SelectedAgentPluginTray`'s own early return).
         leadingAccessory={<SelectedAgentPluginTray chips={selectedPluginChips} onRemove={removePluginRef} />}
-        // Restricts the composer's file picker to image MIME types. Not a security boundary —
-        // `detectAttachmentKind` sniffs magic bytes server-side regardless of what a renamed file
-        // or a drag-drop bypassing this filter claims to be (see `attachments.ts`) — this only
-        // keeps the picker's own dialog from offering non-image files the daemon-side pipeline
-        // isn't built to do anything useful with yet.
-        attachmentAccept="image/*"
+        // No `attachmentAccept` on purpose: the upload path is kind-agnostic end to end, so a
+        // type filter here has no security or correctness payoff, only friction. `attachments.ts`
+        // (`@jini-ai/http-kit`) sniffs `detectAttachmentKind` from the leading bytes and stores
+        // `'image' | 'file'` — it never rejects on MIME or extension. And an `accept` filter never
+        // applies to drag-and-drop in any browser, so a picker restriction here would only ever
+        // block the cooperative "+" button while the drop zone stayed wide open; it was previously
+        // `"image/*"` and that is exactly what happened — a `.md` drag-drop already worked while
+        // the same file was greyed out in the OS dialog. `extraAllowedDirs` gives the agent
+        // filesystem read access to every claimed attachment regardless of kind, so there's no
+        // pipeline-side restriction downstream to match either. `agent-daemon-server.ts` used to
+        // drop non-image attachments from `imagePaths` before handing them to the agent, which
+        // would have made a widened picker here pointless; that filter is gone (see
+        // `resolveAttachmentRunFields`' own comment and
+        // `__tests__/agent-daemon-server.attachment-kind-filter.unit.test.ts`), so every claimed
+        // attachment is now named to the agent regardless of kind. What remains is cosmetic: the
+        // `imagePaths` option name and Jini's `image-prompt-delivery.ts` prompt copy still say
+        // "image" for what may be any file — a recorded Jini-side follow-up, not a gap a picker
+        // filter could fix anyway.
         // Purely a label — `workingDirectoryAccess` (native folder picker) is intentionally
         // omitted, and the daemon's real `cwd` (`agent-daemon-server.ts`'s
         // `process.env.TOVU_AGENT_CWD ?? process.cwd()`) isn't round-tripped back to the client

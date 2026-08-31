@@ -568,7 +568,19 @@ async function resolveAttachmentRunFields(
     const claimed = await attachmentStore.claim(refs, run.id);
     if (claimed.batchDirectory === undefined) return {};
     return {
-      imagePaths: claimed.attachments.filter((attachment) => attachment.kind === "image").map((attachment) => attachment.path),
+      // Deliberately NOT `.filter((attachment) => attachment.kind === "image")` — that used to be
+      // here, matching `attachments.ts`'s own doc-comment example usage, and it silently broke
+      // non-image attachments: `extraAllowedDirs` below already grants the agent read access to
+      // every claimed file regardless of kind, but a filtered `imagePaths` meant a `.md` (or any
+      // `kind: "file"` upload) was claimed, readable, and then never named to the agent at all —
+      // `image-prompt-delivery.ts` only narrates paths it is actually given. `imagePaths` (the
+      // field name here) and the "image" wording in that module's prompt text are now both
+      // inaccurate for a non-image path — known, deliberate, and left as-is: fixing the naming is a
+      // Jini change (`packages/daemon/src/image-prompt-delivery.ts`'s prompt copy, and the
+      // `AgentExecutor.run()` option name itself), and Jini's tree currently carries uncommitted
+      // work from other sessions that a rebuild would republish. Tovu-Runner's
+      // `fleet-chat-transport.ts#buildChatStartPayload` made the same call for the same reason.
+      imagePaths: claimed.attachments.map((attachment) => attachment.path),
       extraAllowedDirs: [claimed.batchDirectory],
       uploadRoot: claimed.batchDirectory,
     };
