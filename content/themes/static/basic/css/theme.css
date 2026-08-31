@@ -52,14 +52,20 @@ p { margin: 0; color: var(--muted); }
   font-weight: 500;
   letter-spacing: -0.01em;
 }
+/* The mark PNG itself (`assets/logo.png` / `logo@2x.png`) is the owner's gold artwork only,
+   cropped tight with a transparent background -- no tile or backdrop baked in. Previously this
+   painted a `--surface`/`--border` tile behind it so the mark had a mode-aware backing; the owner
+   looked at light mode and asked for the tile removed (2026-08-31) -- the transparent PNG sits
+   directly on the page background instead, which still satisfies "light in light mode, dark in
+   dark mode" because the page background itself is mode-aware. Sizing only now, no
+   background/border, and no border-radius either: with nothing left to paint, there is no longer a
+   square-edged box for a radius to round, and the PNG's own artwork has no square edge to clip. */
 .brand .mark {
-  width: 22px; height: 22px;
-  border-radius: 6px;
-  background: var(--fg);
+  width: 28px; height: 28px;
   display: grid;
   place-items: center;
 }
-.brand .mark svg { width: 12px; height: 12px; }
+.brand .mark img { width: 100%; height: 100%; border-radius: 7px; display: block; }
 .main-nav { display: flex; align-items: center; gap: 28px; }
 .main-nav a {
   font-size: 14px;
@@ -172,7 +178,7 @@ p { margin: 0; color: var(--muted); }
 }
 
 /* ---------- hero ---------- */
-.hero { padding: 96px 0 72px; text-align: center; }
+.hero { padding-block: 96px 72px; text-align: center; }
 .hero .eyebrow-row { display: flex; justify-content: center; margin-bottom: 28px; }
 .hero h1 {
   font-size: clamp(40px, 6vw, 72px);
@@ -208,7 +214,7 @@ p { margin: 0; color: var(--muted); }
 }
 
 /* ---------- sections ---------- */
-section.band { padding: 72px 0; border-top: 1px solid var(--border); }
+section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .section-head { max-width: 56ch; margin-bottom: 48px; }
 .section-head .kicker {
   display: block; font: 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
