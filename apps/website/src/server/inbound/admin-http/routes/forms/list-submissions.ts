@@ -3,6 +3,7 @@ import type { Request } from "express";
 import { toAdminFormSubmissionListResponse } from "#src/server/inbound/admin-http/http/forms";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
+import { resolveFormDefinitionByIdOrSlug } from "./resolve-definition.js";
 
 const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;
@@ -63,7 +64,10 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         return;
       }
 
-      const definition = await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: formId });
+      // Slug first, id second — the Submissions tab URL is /admin/forms/:slug, and
+      // `FormEditor.tsx` passes that same route param straight through as `formId` here (see
+      // `resolve-definition.ts`), same as the sibling GET-by-id route already does.
+      const definition = await resolveFormDefinitionByIdOrSlug(deps, formId);
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;
@@ -81,7 +85,7 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
 
       const page = await deps.formSubmissionRepo.listByDefinition({
         workspaceId: deps.workspaceId,
-        formDefinitionId: formId,
+        formDefinitionId: definition.id,
         limit: parsedQuery.limit,
         cursor: parsedQuery.cursor,
       });
