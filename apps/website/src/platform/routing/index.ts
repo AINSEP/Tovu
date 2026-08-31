@@ -1,4 +1,5 @@
 export {
+  entryPublicPath,
   getNamedRoute,
   getSlugChangeCapture,
   isActive,

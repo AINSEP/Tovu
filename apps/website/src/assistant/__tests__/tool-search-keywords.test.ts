@@ -55,3 +55,33 @@ test("stripSearchKeywords returns text with no marker unchanged — most tools h
   assert.equal(stripSearchKeywords("Plain description, never folded."), "Plain description, never folded.");
 });
 
+/**
+ * `admin.capture_screenshot` (`frontend-control-capabilities.ts`) is reached only through
+ * `search_tools`/`execute_delegated_tool`, same as every other tool in the catalog — see
+ * `agent-daemon-server.ts`'s system overlay. A tool an operator would ask for in plain language
+ * ("does this look right", "take a screenshot") but that ranks on its own description's vocabulary
+ * alone is, per this module's own header, "functionally, a tool that does not exist." This pins the
+ * keyword entry the same way `identity_user_create`'s "invite" case is pinned above.
+ */
+test("admin.capture_screenshot folds visual/screenshot vocabulary an operator would actually type", () => {
+  const indexed = indexedDescriptionFor("admin.capture_screenshot", "Captures a picture of the admin screen.");
+  assert.match(indexed, /\bscreenshot\b/, "the literal word an operator is most likely to type must be indexed");
+  assert.match(indexed, /\blook\b|\blooks\b/, "'does this look right' phrasing must be indexed");
+});
+
+/**
+ * `assistant_ask_choice` (`ask-choice-tool.ts`) is the tool the system overlay now names for
+ * "ask the administrator a decision/confirmation/choice" — but a model searching for it plausibly
+ * types the DECISION's vocabulary ("confirm", "approve"), not the tool's own noun phrase. Pinned
+ * the same way `admin.capture_screenshot`'s "look"/"screenshot" case is pinned above: the model was
+ * measured to reach for its own bare/guessed tool name before this file existed at all, and a tool
+ * that only ranks on its own description is, per this module's header, "functionally, a tool that
+ * does not exist."
+ */
+test("assistant_ask_choice folds decision/confirmation vocabulary an operator would actually type", () => {
+  const indexed = indexedDescriptionFor("assistant_ask_choice", "Asks the administrator a real question through an interactive form.");
+  assert.match(indexed, /\bconfirm\b/, "'confirm this action' phrasing must be indexed");
+  assert.match(indexed, /\bchoice\b|\bchoices\b/, "'give the user a choice' phrasing must be indexed");
+  assert.match(indexed, /\bapprove\b|\bapproval\b/, "'get approval first' phrasing must be indexed");
+});
+

@@ -6,6 +6,7 @@ import test from "node:test";
 
 import {
   copyThemeFile,
+  deleteThemeFile,
   isGeneratedThemePath,
   isRecognizedThemeRoot,
   isSourceDirGeneratedConflict,
@@ -195,6 +196,34 @@ test("writeThemeFile overwrites an existing file rather than appending", () => {
   assert.equal(readThemeFile({ themeDir, themesRoot: root, relativePath: "theme.json" }), '{"id":"plain"}');
 });
 
+test("writeThemeFile replaces an existing target via rename rather than truncating it in place, and leaves no temp file behind", () => {
+  // `theme.json` is the one file `loadTheme()` must parse whole, so a plain truncate-in-place
+  // write (`writeFileSync(target, …, "w")`) is a live corruption risk: a crash or a concurrent
+  // reader mid-write can observe an empty or partial file, breaking the WHOLE theme rather than
+  // one field. A write-to-temp-then-rename replaces the directory entry atomically instead — any
+  // reader that already has `target` open by descriptor keeps reading the old, complete inode,
+  // and any reader opening `target` by path afterward sees either the fully-old or fully-new
+  // content, never a partial write. That is verifiable without a flaky timing/concurrency test:
+  // renaming a new file over `target` gives `target`'s path a NEW inode; truncating in place
+  // keeps the SAME inode. So the inode identity across the write is a deterministic proxy for
+  // "was this replaced by rename" vs. "was this truncated in place".
+  const { root, themeDir } = makeThemesRoot();
+  const targetPath = path.join(themeDir, "theme.json");
+  const inoBefore = fs.statSync(targetPath).ino;
+
+  writeThemeFile({ themeDir, themesRoot: root, relativePath: "theme.json", content: '{"id":"plain"}' });
+
+  const inoAfter = fs.statSync(targetPath).ino;
+  assert.notEqual(
+    inoAfter,
+    inoBefore,
+    "expected writeThemeFile to replace the target via rename (new inode), not truncate it in place (same inode)"
+  );
+
+  const leftovers = fs.readdirSync(themeDir).filter((name) => name !== "theme.json" && name !== "templates");
+  assert.deepEqual(leftovers, [], `expected no temp file left behind in the theme folder, found: ${leftovers.join(", ")}`);
+});
+
 test("reading a missing file, or a directory, is a clear refusal rather than a crash", () => {
   const { root, themeDir } = makeThemesRoot();
   assert.throws(() => readThemeFile({ themeDir, themesRoot: root, relativePath: "nope.txt" }), /does not exist/);
@@ -326,4 +355,47 @@ test("copyThemeFile refuses to silently overwrite an existing destination", () =
   );
 
   assert.equal(fs.readFileSync(first, "utf8"), "{}", "the first copy's bytes must survive the refused second copy untouched");
+});
+
+// ---------------------------------------------------------------------------
+// deleteThemeFile — the third mutation `theme-files.ts` exposes over an existing file (alongside
+// copy/rename), added 2026-08-29 for the Explore screen's per-file ⋮ menu Delete item. Eligibility
+// (required files, generated trees, `IDENTITY_LOCKED_GROUPS`) is decided one layer up, in
+// `explore.ts`'s `validateFileIdentityChange` — this function only enforces containment, same as
+// every other write here.
+// ---------------------------------------------------------------------------
+
+test("deleteThemeFile removes an existing file from disk", () => {
+  const { root, themeDir } = makeThemesRoot();
+  const target = path.join(themeDir, "templates", "home.json");
+  assert.equal(fs.existsSync(target), true, "sanity: the fixture file exists before deleting it");
+
+  deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates/home.json" });
+
+  assert.equal(fs.existsSync(target), false);
+});
+
+test("deleting a file that does not exist is refused, not a silent no-op", () => {
+  const { root, themeDir } = makeThemesRoot();
+  assert.throws(
+    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates/nope.json" }),
+    /does not exist/
+  );
+});
+
+test("deleting a directory through this path is refused, not attempted", () => {
+  const { root, themeDir } = makeThemesRoot();
+  assert.throws(
+    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "templates" }),
+    /not a regular file/
+  );
+  assert.equal(fs.existsSync(path.join(themeDir, "templates")), true, "the refused delete must leave the directory in place");
+});
+
+test("deleteThemeFile reuses resolveThemeFilePath's containment — a traversal escape is refused the same way every other write here is", () => {
+  const { root, themeDir } = makeThemesRoot();
+  assert.throws(
+    () => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "../../../../etc/passwd" }),
+    /resolves outside the theme folder/
+  );
 });

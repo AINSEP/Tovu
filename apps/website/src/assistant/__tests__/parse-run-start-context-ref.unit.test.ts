@@ -72,3 +72,26 @@ test("a non-array pluginRefIds is not forwarded", () => {
   );
   assert.deepEqual(result.pluginRefIds, []);
 });
+
+// `conversationId` — feeds `agent-session-resume.ts`'s per-conversation session lookup, same
+// "silently degrade to none" convention already proven above for `model`.
+
+test("forwards a conversationId present in contextRef", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", conversationId: "c1" }));
+  assert.equal(result.conversationId, "c1");
+});
+
+test("omits conversationId when absent from contextRef", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1" }));
+  assert.equal(result.conversationId, undefined);
+});
+
+test("a non-string conversationId is not forwarded", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", conversationId: 42 }));
+  assert.equal(result.conversationId, undefined);
+});
+
+test("an empty-string conversationId is not forwarded", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", conversationId: "" }));
+  assert.equal(result.conversationId, undefined);
+});

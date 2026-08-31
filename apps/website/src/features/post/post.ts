@@ -842,6 +842,18 @@ async function emitStatusTransitionEvent(
   });
 }
 
+/**
+ * `content_post_list`'s own output cap (H3) — NOT consumed by `listAdminPosts`/`listAdminPages`
+ * below, which stay unbounded exactly as the admin Posts/Pages list screens they mirror already are
+ * (out of this fix's scope). Defined here, rather than in `tool-registrations.ts` (the handler) or
+ * `agent-tools.ts` (the catalog/schema), purely so both of those can import the same numbers without
+ * one importing the other — mirrors `search.ts`'s identical `DEFAULT_POST_SEARCH_LIMIT`/
+ * `MAX_POST_SEARCH_LIMIT` placement for `content_post_search`.
+ */
+export const DEFAULT_POST_LIST_LIMIT = 50;
+/** Ceiling `content_post_list`'s `limit` input clamps into — see {@link DEFAULT_POST_LIST_LIMIT}. */
+export const MAX_POST_LIST_LIMIT = 200;
+
 export interface ListPostsRequired {
   deps: { repo: PostRepoPort };
   input: { workspaceId: UUID };

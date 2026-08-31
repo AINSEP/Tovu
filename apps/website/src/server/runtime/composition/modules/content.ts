@@ -20,10 +20,12 @@ import { registerAdminThemesListRoute } from "#src/server/inbound/admin-http/rou
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
+  registerAdminThemeFileDeleteRoute,
   registerAdminThemeFileGetRoute,
   registerAdminThemeFilePutRoute,
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
+  registerAdminThemePagePublishRoute,
 } from "#src/server/inbound/admin-http/routes/themes/explore";
 import { registerAdminMarketplaceThemesListRoute } from "#src/server/inbound/admin-http/routes/marketplace/list";
 import { registerAdminMarketplaceThemeDownloadRoute } from "#src/server/inbound/admin-http/routes/marketplace/download";
@@ -102,6 +104,8 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminThemeFileResetRoute(app, deps);
       registerAdminThemeFileCopyRoute(app, deps);
       registerAdminThemeFileRenameRoute(app, deps);
+      registerAdminThemeFileDeleteRoute(app, deps);
+      registerAdminThemePagePublishRoute(app, deps);
       registerAdminThemeDetailRoute(app, deps);
     },
   };

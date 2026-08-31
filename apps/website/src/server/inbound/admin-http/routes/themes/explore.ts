@@ -9,20 +9,39 @@ import {
   THEME_CATALOG_DIR,
   type DiscoveredTheme,
   copyThemeFile,
+  deleteThemeFile,
   isGeneratedThemePath,
   isPageFilePath,
   isPartialFilePath,
+  isPublishableThemePageCandidate,
+  isStandaloneThemePage,
   listThemeFiles,
   readThemeFile,
   renameThemeFile,
   resolveThemeFileWriteScope,
-  resolveThemeLayout,
   restoreBuiltThemeGeneratedTree,
   writeThemeFile,
   ThemePathError,
   readThemeLineageFile,
   type ThemeFileWriteScope,
+  // The shared "can this file's identity/content change" gate pieces — extracted (2026-08-30) into
+  // `file-identity-lock.ts` so `features/theme/tool-registrations.ts`'s `theme_rename_file`/
+  // `theme_delete_file` can call the exact same decision this file's own rename/delete routes call.
+  // See that module's own header for why this had to move rather than be reached by a deep import.
+  fileGroup,
+  fileExtension,
+  isInsideCompiledSourceDir,
+  isSourceDirWritableExtension,
+  isTrashedThemePath,
+  validateFileIdentityChange,
+  type ThemeFileGroup,
 } from "#src/features/theme/index";
+
+// Re-exported so `explore-pure-helpers.unit.test.ts`'s existing direct import (`fileExtension` from
+// `../explore.js`) keeps working unchanged — this file no longer DEFINES `fileExtension`, it only
+// re-publishes the shared one, purely for that test's import path.
+export { fileExtension };
+import { isTrashed, type PostKind, type PostRecord } from "#src/features/post/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps } from "../content/deps.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -171,8 +190,8 @@ export function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
  * confirmed the server should be the single source of truth, so every consumer of this listing route
  * — not just `ThemeExplore.tsx` — agrees a `.liquid` file is readable. `.liquid` stays OUT of
  * {@link isThemeFileWritable}'s allowlist unchanged: it lands in the `other` group ({@link fileGroup}
- * has no `templates/` case), and `other` is one of {@link READ_ONLY_GROUPS} — this only fixes
- * READABILITY, never PUT.
+ * has no `templates/` case), and `other` is one of {@link CONTENT_EDIT_LOCKED_GROUPS} — this only
+ * fixes READABILITY, never PUT.
  */
 const TEXT_READABLE_EXTENSIONS = new Set([
   ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest", ".liquid",
@@ -184,86 +203,46 @@ function isTextReadable(relativePath: string): boolean {
 }
 
 /**
- * Media extensions that make up the `assets` group: images, video, audio, and fonts — the file
- * kinds an Explore author might replace but never hand-edits as source. (`.svg` is the one image
- * format also on {@link TEXT_READABLE_EXTENSIONS}, deliberately — see that set's comment.)
- *
- * 2026-08-11 owner ask: `assets` used to be a catch-all for anything that wasn't a page, partial,
- * style, script, or config file — which silently swept in `.md`/`.txt`/`.webmanifest` and any other
- * stray file alongside actual images. Those now fall to {@link fileGroup}'s `other` bucket instead.
+ * Every group {@link fileGroup} can return — re-exported under its original name so the response
+ * type and the client's file-list grouping keep sharing one vocabulary. The actual definition moved
+ * to `features/theme/file-identity-lock.ts` (2026-08-30, as `ThemeFileGroup`) once
+ * `tool-registrations.ts`'s `theme_rename_file`/`theme_delete_file` also needed it — see that
+ * module's own header for why.
  */
-const ASSET_EXTENSIONS = new Set([
-  // Images
-  ".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", ".svg", ".ico", ".bmp", ".tif", ".tiff",
-  // Video
-  ".mp4", ".webm", ".mov", ".avi", ".mkv", ".m4v",
-  // Audio
-  ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac",
-  // Fonts
-  ".woff", ".woff2", ".ttf", ".otf", ".eot",
-]);
-
-function isAssetExtension(relativePath: string): boolean {
-  const dot = relativePath.lastIndexOf(".");
-  return dot === -1 ? false : ASSET_EXTENSIONS.has(relativePath.slice(dot).toLowerCase());
-}
-
-/** Every group `fileGroup` can return, exported so the response type and the client's file-list
- *  grouping share one vocabulary rather than each re-deriving it. */
-export type ThemeExploreFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+export type ThemeExploreFileGroup = ThemeFileGroup;
 
 /**
- * Coarse grouping for the Explore file list, derived from path/extension (plus the theme's own
- * `apiVersion`, for the page/partial cases) alone.
+ * Groups that are never writable (PUT) or resettable-by-content — as opposed to
+ * {@link import("#src/features/theme/index").IDENTITY_LOCKED_GROUPS}, which governs whether a
+ * file's NAME or EXISTENCE can change (rename/delete) — regardless of whether their extension is
+ * otherwise text-readable.
  *
- * Presentation-only: the server does not care what a file is FOR, but a flat 60-entry list of every
- * screenshot and vendor script buries the four files an author actually edits. Kept here rather than
- * in the client so the classification has one definition, and stays available to any other consumer
- * (also used by {@link isThemeFileWritable} and the copy/rename routes below, so "what group is
- * this" is answered exactly once).
+ * `other`: the catch-all group (`.md`, `.txt`, `.webmanifest`, stray files) was never a group an
+ * author was asked to edit from this screen; it existed by omission (falling into `asset`) rather
+ * than by design, and making it explicitly read-only is more honest than accidentally writable.
  *
- * `other` is the catch-all this group set used to lack: anything that isn't a page, partial, style,
- * script, config, or recognized media extension — `.md`, `.txt`, `.webmanifest`, and any stray data
- * file an author or a downloaded theme happens to ship.
- *
- * 2026-08-19 architecture audit finding 2: the page/partial checks used to hardcode v1's flat
- * `pages/`/root-`.html` shape unconditionally, so a `render/pages/*.html`/`render/partials/*.html`
- * file (every real static theme on disk today — `apiVersion: 2`) fell all the way through to `other`
- * — unclassified, read-only, raw-content preview. `isPageFilePath`/`isPartialFilePath`
- * (`@tovu/theme-layout`'s server-side twin, `theme-layout.ts`) are the one apiVersion-aware source of
- * truth for both checks now, shared with the admin SPA's own rename-lock check.
+ * `script` is deliberately NOT here (2026-08-29 owner ask, reversing the 2026-08-11 one recorded in
+ * this constant's git history: "we need the ability to edit CSS and JS for the themes"). Re-examined
+ * rather than just reverted: the 2026-08-11 exclusion was a stated PREFERENCE ("I don't want JS
+ * edited from this screen"), not a security boundary — the `theme_write_file` AGENT tool
+ * (`tool-registrations.ts`) has always written a `.js` file in an authored theme with zero group-based
+ * restriction (only path containment and the size ceiling), and an admin who already holds `theme.set`
+ * can already inject arbitrary `<script>` content through any editable page/partial's HTML. Making
+ * script content editable here closes that human/agent capability gap rather than opening a new one.
+ * A compiled theme's generated-tree `.js` stays locked regardless — {@link resolveThemeFileWriteScope}
+ * refuses it before this set is ever consulted — and a compiled theme's `sourceDir` `.js` stays locked
+ * too, via `file-identity-lock.ts`'s own, deliberately narrower, `SOURCE_DIR_WRITABLE_EXTENSIONS`
+ * allowlist (browser-executable-content risk, unrelated to this group question). See
+ * {@link import("#src/features/theme/index").IDENTITY_LOCKED_GROUPS} for why `script`'s NAME still
+ * cannot change even though its content now can.
  */
-function fileGroup(relativePath: string, apiVersion: 2 | undefined): ThemeExploreFileGroup {
-  if (isPageFilePath(relativePath, apiVersion)) return "page";
-  if (relativePath.endsWith(".css")) return "style";
-  if (/\.(m|c)?js$/.test(relativePath)) return "script";
-  if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
-  if (isPartialFilePath(relativePath, apiVersion)) return "partial";
-  if (isAssetExtension(relativePath)) return "asset";
-  return "other";
-}
-
-/**
- * Groups that are never writable through the PUT/rename/reset routes, regardless of whether their
- * extension is otherwise text-readable.
- *
- * `script`: 2026-08-11 owner ask — "I don't want JS edited from this screen." Enforced here rather
- * than only in the client (which the previous `editable` flag already hid the Save button for) —
- * `editable` was advisory, read by the UI to decide what to render, but nothing stopped a PUT
- * constructed by hand. This is the actual enforcement point.
- *
- * `other`: the new catch-all group (`.md`, `.txt`, `.webmanifest`, stray files) was never a group an
- * author was asked to edit from this screen either; it existed by omission (falling into `asset`)
- * rather than by design, and making it explicitly read-only is more honest than accidentally
- * writable.
- */
-const READ_ONLY_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["script", "other"]);
+const CONTENT_EDIT_LOCKED_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["other"]);
 
 /**
  * Whether a file can be saved (PUT) or reset — the narrower of the two questions
  * {@link isTextReadable} used to answer alone. A file must be text-readable AND not in a
- * {@link READ_ONLY_GROUPS} group AND not inside a generated directory to be writable: `.svg` (asset
- * group, text-readable) stays writable exactly as before, `.js` (script group, text-readable) does not.
+ * {@link CONTENT_EDIT_LOCKED_GROUPS} group AND not inside a generated directory to be writable: `.svg`
+ * (asset group, text-readable) stays writable exactly as before.
  *
  * 2026-08-13 (security pass Finding 1, defense in depth): also refuses anything
  * {@link isGeneratedThemePath} claims — `preview/`, `build-preview.mjs`'s own output. That directory
@@ -274,137 +253,69 @@ const READ_ONLY_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["script", 
  * older file list). Folded in here rather than left as a second, easy-to-forget check at each of PUT's
  * three call sites, matching the "one definition, not two that can disagree" reasoning
  * {@link isGeneratedThemePath}'s own doc already gives for existing.
+ *
+ * 2026-08-30 (soft-delete): also refuses anything {@link isTrashedThemePath} claims — a file inside
+ * `.trash/` is meant to be inert until `theme_restore_trashed_file` (or a future human restore
+ * affordance) moves it back out; writing it in place through PUT would be a second, unaudited way to
+ * mutate soft-deleted content, the exact "hidden state nothing else knows about" failure mode the
+ * earlier `_unpublished/` convention was removed for.
  */
 function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
   return (
     isTextReadable(relativePath) &&
-    !READ_ONLY_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
-    !isGeneratedThemePath(relativePath)
+    !CONTENT_EDIT_LOCKED_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
+    !isGeneratedThemePath(relativePath) &&
+    !isTrashedThemePath(relativePath)
   );
 }
 
 /**
- * A framework's own source extensions, open-ended by nature — a new framework brings a new one — but
- * kept a fixed list rather than "any extension." Deliberately excludes anything a server/shell could
- * execute (`.php`, `.sh`, `.py`, `.rb`, …), anything carrying operational secrets (`.env`, `.pem`),
- * AND — the part that matters most, see {@link SOURCE_DIR_WRITABLE_EXTENSIONS}'s own doc — anything a
- * BROWSER can independently execute or render as active content, because `build.sourceDir` is
- * statically served, not merely edited here.
+ * The page id a `page`-group path names — its own filename, minus `.html` — matching
+ * {@link DiscoveredTheme.pages}' own keys (`theme.ts`: `file.slice(0, -".html".length)` off
+ * `readdirSync(pagesDir)`, which never sees a nested path). Not a general basename helper: only ever
+ * called on a path {@link fileGroup} already classified `"page"`.
  */
-const FRAMEWORK_SOURCE_EXTENSIONS = new Set([".tsx", ".ts", ".jsx", ".vue", ".svelte", ".astro", ".scss", ".less"]);
+function pageIdForPagePath(relativePath: string): string {
+  const base = relativePath.slice(relativePath.lastIndexOf("/") + 1);
+  return base.endsWith(".html") ? base.slice(0, -".html".length) : base;
+}
+
+/** The live (published, non-trashed) content record occupying a theme page's own slug — the shape
+ *  {@link ThemeExploreFile.collidingContent} (admin `use-theme-explore.hooks.ts`) mirrors on the
+ *  wire. Named separately from {@link describeThemeFile}'s own inline return type only because
+ *  {@link contentRecordsBySlug} below needs the identical shape for its `Map`'s value type, and
+ *  respelling it a second time is exactly the drift risk a shared type exists to remove. */
+type ThemeFileContentCollision = { id: string; slug: string; title: string; kind: PostKind };
 
 /**
- * The full extension allowlist {@link isSourceDirWritableExtension} accepts inside `build.sourceDir` —
- * {@link FRAMEWORK_SOURCE_EXTENSIONS} plus `.css` and the genuinely inert subset of
- * {@link TEXT_READABLE_EXTENSIONS} (`.json`, `.md`, `.txt`).
+ * One slug -> live content record lookup for an ENTIRE file listing, built from a SINGLE
+ * `postRepo.list()` call — never one `findBySlug` per theme page file. That per-file shape is the
+ * identical N+1 an `urlFor`-per-row bug was just fixed for elsewhere in this codebase
+ * (`platform/routing`); this function exists so `describeThemeFile` never has to repeat it.
  *
- * DELIBERATELY NARROWER than {@link TEXT_READABLE_EXTENSIONS} itself: `.html`, `.svg`, `.js`, `.mjs`,
- * `.cjs`, and `.webmanifest` are all text-readable elsewhere in a theme but excluded HERE, because
- * `build.sourceDir` is statically served (verified, not assumed — see
- * {@link isInsideCompiledSourceDir}'s own doc for the citation) and each of those five is a format a
- * BROWSER can independently execute or
- * render as active content the instant its URL is visited directly: `.html`/`.svg` can carry a
- * `<script>` tag, `.js`/`.mjs`/`.cjs` literally ARE script. Confirmed exploitable, not theoretical: a
- * PUT of `{ path: "src/thing.html", content: "<script>...</script>" }` against a compiled theme
- * returned 200 before this allowlist existed. `.js`/`.mjs`/`.cjs` exclusion also matches this
- * codebase's own prior, unrelated decision to keep static-theme JS read-only from this screen at all
- * (`READ_ONLY_GROUPS`'s own doc: "2026-08-11 owner ask — I don't want JS edited from this screen").
+ * Mirrors `resolveMarketingPageOrOverride`'s own collision-candidate filter (`server/inbound/
+ * public-http/routes/site/pages.ts`, via `getPublishedPostBySlug`): only a PUBLISHED, non-trashed
+ * row can ever actually win a slug collision on the live site, so a draft or trashed row at the
+ * same slug is deliberately NOT reported here either — surfacing a "collision" the live resolver
+ * would never honor would train the operator to distrust a warning that turns out to mean nothing.
  *
- * Disclosed limitation, not silently dropped: Angular pairs a `.ts` component with a `.component.html`
- * template in the SAME source directory, so this excludes that convention from being SAVED through
- * this screen (a file that exists on disk some other way stays READABLE — {@link isTextReadable} is
- * untouched — only writable-through-Explore is narrower). Whether/how Angular templates get edited
- * here is left open, the same way the debate itself left "can Angular even emit the literal asset
- * sentinel" open — not decided as a side effect of closing this gap.
+ * @complexity O(p) in the workspace's post/page count — one pass, no per-file work.
  */
-const SOURCE_DIR_WRITABLE_EXTENSIONS = new Set([...FRAMEWORK_SOURCE_EXTENSIONS, ".css", ".json", ".md", ".txt"]);
-
-/**
- * Whether `relativePath` sits inside a BUILT theme's real, hand-authored source (ADR-020 §5,
- * `build.sourceDir`) — the LOCATION half of the sourceDir carve-out; see
- * {@link isSourceDirWritableExtension} for the extension half this must be paired with, and why they
- * are not just OR'd into `resolveThemeFileWriteScope`'s own "editable" result.
- *
- * Why the bound matters, verified rather than assumed: `build.sourceDir` is NOT build-input-only.
- * `registerThemeStaticAssets` (`server/middleware/theme-static-assets.ts:29-37`) mounts
- * `express.static(themeDir)` on a static theme's ENTIRE folder at `/theme-assets/{themeId}/...` — that
- * file's own doc comment (now corrected) used to claim it serves only `css/`/`js/`, but the actual
- * `express.static` call is unscoped to any subpath, so `build.sourceDir` is served identically to
- * every other file in the theme, confirmed by reading the mount, not inferred from a comment. An
- * unbounded "anything that isn't theme.json" carve-out would therefore let a `theme.edit`-permitted
- * admin write attacker-controlled markup to a publicly fetchable, same-origin URL — a materially wider
- * surface than {@link isThemeFileWritable}'s allowlist was permitting a moment earlier, for every
- * OTHER location in a theme.
- *
- * Why a carve-out is still needed at all (not just tightening the extension set in place):
- * {@link resolveThemeFileWriteScope} already proved `relativePath` editable for this theme by the time
- * either caller below checks this, but {@link isThemeFileWritable}'s GROUP half
- * ({@link READ_ONLY_GROUPS}) classifies almost anything outside `pages/`/`css/`/root-`.html` as
- * `"other"` — read-only — which is correct for a static theme's OWN layout and simply inapplicable to
- * a framework source tree with its own, different, layout conventions.
- *
- * `theme.json` is deliberately excluded: it already passes both halves of
- * {@link isThemeFileWritable} on its own (the `config` group, and `.json` is text-readable), so it
- * never needs this carve-out — keeping the carve-out scoped to exactly `build.sourceDir`.
- *
- * This is a LOCATION predicate only — see {@link isSourceDirWritableExtension} for the extension half.
- * They are DELIBERATELY NOT combined into one boolean with the general `isThemeFileWritable` gate as an
- * OR-fallback: `.svg` (and any other extension {@link fileGroup} classifies `"asset"`, a group that has
- * never been read-only, since it is a pure extension check with no notion of location) already passes
- * `isThemeFileWritable` on its own, ANYWHERE in a theme. Falling back to that general gate for a
- * compiled theme's sourceDir would silently readmit exactly the extensions
- * {@link SOURCE_DIR_WRITABLE_EXTENSIONS} exists to exclude — confirmed by a failing test before this
- * split existed. Both call sites below use this predicate to decide whether
- * {@link isSourceDirWritableExtension} is the ONLY applicable rule (this theme's sourceDir) or whether
- * the general gate still applies unchanged (everything else).
- */
-function isInsideCompiledSourceDir(
-  theme: Pick<DiscoveredTheme, "manifest">,
-  relativePath: string,
-  writeScope: ThemeFileWriteScope
-): boolean {
-  return theme.manifest.build?.source === "compiled" && writeScope.kind === "editable" && relativePath !== "theme.json";
+function contentRecordsBySlug(posts: readonly PostRecord[]): Map<string, ThemeFileContentCollision> {
+  const bySlug = new Map<string, ThemeFileContentCollision>();
+  for (const post of posts) {
+    if (post.status !== "published" || isTrashed(post)) continue;
+    bySlug.set(post.slug, { id: post.id, slug: post.slug, title: post.title, kind: post.kind });
+  }
+  return bySlug;
 }
 
-/** The extension half of the sourceDir carve-out — see {@link isInsideCompiledSourceDir}'s own doc for
- * why this is checked SEPARATELY from, and as the SOLE gate for (never OR'd with the general
- * `isThemeFileWritable` gate), a path already inside a compiled theme's sourceDir. */
-function isSourceDirWritableExtension(relativePath: string): boolean {
-  return SOURCE_DIR_WRITABLE_EXTENSIONS.has(fileExtension(relativePath));
-}
-
-/**
- * Files `loadTheme` treats as REQUIRED — their absence pushes a load error and flips the theme's
- * `status` to `"invalid"` (`theme.ts`: `pages.index` at the `pages/index.html` check, and the
- * `theme.json`/`tokens.json` `readJson` calls each wrapped in a try/catch that pushes an error on
- * failure, ENOENT included). Renaming any of these out from under a theme reproduces that same
- * breakage, so all three are hard-blocked in {@link registerAdminThemeFileRenameRoute} — not just
- * `pages/index.html`, which was the one example named when this was scoped, but the identical
- * failure shape extends to the other two.
- *
- * `tokens.light.json` is deliberately NOT here: `theme.ts` documents it as optional (`"Optional
- * unlike tokens.json: absent is not an error, it just means the theme ships no light variant"`), so
- * renaming it degrades a theme rather than breaking it — closer to the "renaming a page changes its
- * URL" warning-not-block case than to this hard block.
- *
- * 2026-08-19 architecture audit finding 2: this used to be a fixed v1-only set (`pages/index.html`),
- * so a v2 theme's `render/pages/index.html` was never actually protected — it fell into the `other`
- * group and was refused as `READ_ONLY_FILE` (an accident of the classifier, not a real lock) rather
- * than the honest `REQUIRED_FILE_LOCKED` this route means to give it. Derived from
- * `resolveThemeLayout` (`@tovu/theme-layout`'s server-side twin) so it stays in lockstep with
- * `pagesDir`/`indexPagePath` instead of re-spelling the same path a second time.
- */
-function requiredThemeFiles(apiVersion: 2 | undefined): readonly string[] {
-  return resolveThemeLayout(apiVersion).requiredFiles;
-}
-
-/** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
- * count, matching {@link nextAvailableFileName}'s identical rule for the same reason. */
-export function fileExtension(relativePath: string): string {
-  const dot = relativePath.lastIndexOf(".");
-  const slash = relativePath.lastIndexOf("/");
-  return dot > slash ? relativePath.slice(dot).toLowerCase() : "";
-}
+/** Shared by the copy/rename routes' single-file {@link describeThemeFile} call below — neither
+ *  response's `collidingContent` is ever read by the client (`ThemeExplorePort.copyThemeFile`/
+ *  `renameThemeFile` type only `{ path }`; the hook always refetches the whole detail afterward for
+ *  everything else, see that port file's own doc), so those two routes pass this empty map rather
+ *  than paying for a `postRepo.list()` call whose result would never be observed. */
+const NO_CONTENT_COLLISIONS: ReadonlyMap<string, ThemeFileContentCollision> = new Map();
 
 /**
  * Build one file-list entry — shared by the detail route's full listing and the copy/rename routes'
@@ -415,20 +326,61 @@ export function fileExtension(relativePath: string): string {
  * the client fetches/displays the file as text at all, `editable` gates whether it renders an
  * editable textarea with a live Save button. A script is `readable: true, editable: false` — visible,
  * not saveable. A binary asset is `readable: false, editable: false` — neither.
+ *
+ * `published` (2026-08-30) is `null` for every file this question does not apply to at all — every
+ * non-page file, plus a page-group file that is `index`/`404` or a declared
+ * {@link import("#src/features/theme/index").isPublishableThemePageCandidate} shell — so the Explore
+ * screen can tell "no publish control for this file" apart from an actual off state. Only a real
+ * candidate page gets `true`/`false`, from {@link isStandaloneThemePage} itself, so this can never
+ * drift from what public routing actually does.
+ *
+ * `collidingContent` (2026-08-30) answers a DIFFERENT question that turned out to matter just as
+ * much: a page can read `published: true` here and still not be what a visitor gets — or read
+ * `published: false` and still resolve to someone ELSE's content — because `resolveMarketingPageOrOverride`
+ * (`pages.ts`) lets a live Post/Page row at the same slug win independent of this toggle (see that
+ * function's own doc for the exact precedence, which this field only OBSERVES and never changes).
+ * Gated on the SAME `isPublishableThemePageCandidate` check as `published` — deliberately NOT
+ * combined into one shared local (would need `pageId` re-narrowed past a `boolean` intermediate,
+ * trading a one-line duplicate condition for a cast) — so the two fields can never drift on which
+ * files the question applies to.
  */
 function describeThemeFile(
   relativePath: string,
-  options: { catalogDir: string; hasOriginal: boolean; apiVersion: 2 | undefined }
-): { path: string; group: ThemeExploreFileGroup; readable: boolean; editable: boolean; resettable: boolean } {
+  options: {
+    catalogDir: string;
+    hasOriginal: boolean;
+    apiVersion: 2 | undefined;
+    theme: DiscoveredTheme;
+    contentBySlug: ReadonlyMap<string, ThemeFileContentCollision>;
+  }
+): {
+  path: string;
+  group: ThemeExploreFileGroup;
+  readable: boolean;
+  editable: boolean;
+  resettable: boolean;
+  published: boolean | null;
+  collidingContent: ThemeFileContentCollision | null;
+} {
+  const group = fileGroup(relativePath, options.apiVersion);
+  const pageId = group === "page" ? pageIdForPagePath(relativePath) : null;
   return {
     path: relativePath,
-    group: fileGroup(relativePath, options.apiVersion),
+    group,
     readable: isTextReadable(relativePath),
     editable: isThemeFileWritable(relativePath, options.apiVersion),
     // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
     // has no original to go back to, and offering a Reset that would fail is worse than not
     // offering one.
     resettable: options.hasOriginal && existsSync(join(options.catalogDir, relativePath)),
+    published:
+      pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
+        ? isStandaloneThemePage(options.theme, pageId)
+        : null,
+    collidingContent:
+      pageId !== null && isPublishableThemePageCandidate(options.theme, pageId)
+        ? options.contentBySlug.get(pageId) ?? null
+        : null,
   };
 }
 
@@ -507,11 +459,17 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // JS, tokens, images. Those are the files an author most often actually needs to change to
       // make a downloaded theme theirs, and until now the screen hid all of them.
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
+      // ONE batched lookup for the WHOLE listing below, not one `findBySlug` per file — see
+      // `contentRecordsBySlug`'s own doc for why that per-file shape must never come back.
+      const contentBySlug = contentRecordsBySlug(await deps.postRepo.list({ workspaceId: deps.workspaceId }));
       // `isGeneratedThemePath` (`theme-files.ts`) — the shared definition of "this is
       // `build-preview.mjs` output, not real theme source"; see its own doc comment for why.
+      // `isTrashedThemePath` (2026-08-30, soft-delete): a file an agent moved into `.trash/` via
+      // `theme_trash_file` must not surface as a file-list entry here either — trash is trash for a
+      // human operator too, not only for the agent that put it there.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
-        .filter((path) => !isGeneratedThemePath(path))
-        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }));
+        .filter((path) => !isGeneratedThemePath(path) && !isTrashedThemePath(path))
+        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion, theme, contentBySlug }));
 
       res.json({
         id: theme.manifest.id,
@@ -849,7 +807,15 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const hasOriginal = existsSync(catalogDir);
       res.json({
-        ...describeThemeFile(destPath, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }),
+        ...describeThemeFile(destPath, {
+          catalogDir,
+          hasOriginal,
+          apiVersion: theme.manifest.apiVersion,
+          theme,
+          // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
+          // doc for why an empty map here is correct, not merely convenient.
+          contentBySlug: NO_CONTENT_COLLISIONS,
+        }),
         copiedFrom: sourcePath,
       });
     } catch (err) {
@@ -858,58 +824,13 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
   });
 };
 
-/**
- * Whether `sourcePath` can be renamed at all, given its already-resolved write scope — the same
- * disjoint-rules shape {@link isPutWritable} uses for PUT: inside a compiled theme's sourceDir,
- * ONLY `isSourceDirWritableExtension` decides; everywhere else, {@link READ_ONLY_GROUPS} does.
- *
- * 2026-08-13 (security pass Finding 1, defense in depth): the same `isGeneratedThemePath` refusal
- * `isThemeFileWritable` applies to PUT — a generated-output path (`preview/…`) has no meaningful
- * "name" to change either, so rename is refused the same way, not left as a second spot this check
- * could be forgotten.
- */
-function isRenameSourceAllowed(theme: DiscoveredTheme, sourcePath: string, writeScope: ThemeFileWriteScope): boolean {
-  return (
-    !isGeneratedThemePath(sourcePath) &&
-    (isInsideCompiledSourceDir(theme, sourcePath, writeScope)
-      ? isSourceDirWritableExtension(sourcePath)
-      : !READ_ONLY_GROUPS.has(fileGroup(sourcePath, theme.manifest.apiVersion)))
-  );
-}
-
-/**
- * The three independent reasons a rename's SOURCE file might be blocked, checked in priority
- * order and collapsed into one result so the route has a single branch to make rather than three:
- *
- * - {@link requiredThemeFiles}: renaming a theme's own index page, `theme.json`, or `tokens.json`
- *   away reproduces the exact `loadTheme` failure that flips a theme's `status` to `"invalid"`.
- * - ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores or
- *   stays exactly as shipped, atomically. Checked before {@link isRenameSourceAllowed} so a
- *   compiled theme's sourceDir file is judged by `isSourceDirWritableExtension` alone.
- * - {@link isRenameSourceAllowed} itself (the ordinary writability/`READ_ONLY_GROUPS` gate).
- *
- * `null` means the source is renamable.
- */
-function validateRenameSource(
-  theme: DiscoveredTheme,
-  sourcePath: string,
-  writeScope: ThemeFileWriteScope
-): { status: number; error: string; code: string } | null {
-  if (requiredThemeFiles(theme.manifest.apiVersion).includes(sourcePath)) {
-    return {
-      status: 409,
-      error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
-      code: "REQUIRED_FILE_LOCKED",
-    };
-  }
-  if (writeScope.kind === "generated-readonly") {
-    return { status: 409, error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" };
-  }
-  if (!isRenameSourceAllowed(theme, sourcePath, writeScope)) {
-    return { status: 409, error: `'${sourcePath}' is read-only in Explore and cannot be renamed`, code: "READ_ONLY_FILE" };
-  }
-  return null;
-}
+// `validateFileIdentityChange` (and its `isFileIdentityChangeAllowed`/`IDENTITY_LOCKED_GROUPS`
+// dependencies) moved to `features/theme/file-identity-lock.ts` (2026-08-30) and is now imported at
+// the top of this file — see that module's own header for why: `tool-registrations.ts`'s new
+// `theme_rename_file`/`theme_delete_file` agent tools need to call the exact same gate this file's
+// own rename/delete routes call below, and a `features/**` module cannot import anything under
+// `server/**` (`feature-no-server-or-framework-imports`, `.dependency-cruiser.mjs`, `error`
+// severity) — so the shared decision had to live in `features/theme`, not here.
 
 /**
  * `name` is a bare filename, not a path: it may not contain a `/` or `\`, which keeps rename from
@@ -994,26 +915,28 @@ export function renameThemeFileIfChanged(
  * real operator-authored path input here is validated exactly as strictly as a write target, per the
  * containment rule every route in this file follows.
  *
- * Hard-blocks {@link requiredThemeFiles}: renaming a theme's own index page, `theme.json`, or
- * `tokens.json` away reproduces the exact `loadTheme` failure that makes a theme's `status` flip to
- * `"invalid"` (see that function's doc comment for the three matching checks in `theme.ts`). This
- * does NOT block renaming an ordinary page — that only changes its public URL, which is a warning
- * the UI shows before confirming, not a server-side refusal; the operator may have a real reason to
- * do it.
+ * Hard-blocks {@link import("#src/features/theme/index").requiredThemeFiles}: renaming a theme's
+ * own index page, `theme.json`, or `tokens.json` away reproduces the exact `loadTheme` failure that
+ * makes a theme's `status` flip to `"invalid"` (see that function's doc comment for the three
+ * matching checks in `theme.ts`). This does NOT block renaming an ordinary page — that only changes
+ * its public URL, which is a warning the UI shows before confirming, not a server-side refusal; the
+ * operator may have a real reason to do it.
  *
- * Also hard-blocks {@link READ_ONLY_GROUPS} (`script`, `other`) — 2026-08-11 judgment call, deliberate
- * and not part of the original ask. The entire reason those two groups are read-only for CONTENT
- * (`isThemeFileWritable`) is "nobody breaks the page from this screen"; leaving their NAME renameable
- * would quietly reopen that same hole through a different door — a `<script src="main.js">` (or an
+ * Also hard-blocks {@link import("#src/features/theme/index").IDENTITY_LOCKED_GROUPS} (`script`,
+ * `other`) — 2026-08-11 judgment call,
+ * deliberate and not part of the original ask, and STILL true even after `script`'s CONTENT became
+ * editable (2026-08-29 — see {@link CONTENT_EDIT_LOCKED_GROUPS}'s own doc). Renaming a `script`/`other`
+ * file's NAME is a different risk than editing its content: a `<script src="main.js">` (or an
  * `<link rel="manifest" href="site.webmanifest">`, an `other`-group file) the operator just renamed to
- * `main-old.js` now 404s on the live page, and Explore's script viewer is read-only, so the operator
- * cannot even open the referencing HTML's OWN unaffected copy to see what still points at the old name
- * — unlike a page rename, which gets a warning naming exactly what changes because the renderer already
- * tracks page routes. No such tracking exists for arbitrary cross-file references, and following the
- * copy/rename pass's own reasoning for not warning on this ("an unreliable warning is worse than none")
- * a step further: blocking outright needs no reference-tracking accuracy claim at all, it just extends
- * the existing "can't touch this file's identity from this screen" principle from content to filename.
- * Copy is deliberately NOT blocked here — see {@link registerAdminThemeFileCopyRoute}'s own comment.
+ * `main-old.js` now 404s on the live page, and nothing tracks what still points at the old name to warn
+ * about it — unlike a page rename, which gets a warning naming exactly what changes because the
+ * renderer already tracks page routes. No such tracking exists for arbitrary cross-file references, and
+ * following the copy/rename pass's own reasoning for not warning on this ("an unreliable warning is
+ * worse than none") a step further: blocking outright needs no reference-tracking accuracy claim at
+ * all, it just extends the existing "can't touch this file's identity from this screen" principle from
+ * content to filename. Copy is deliberately NOT blocked here — see
+ * {@link registerAdminThemeFileCopyRoute}'s own comment. Delete ({@link registerAdminThemeFileDeleteRoute})
+ * hard-blocks the same groups for the same reason, only more so — see that route's own doc comment.
  */
 export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/rename", async (req, res) => {
@@ -1027,7 +950,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       const name = bodyStringField(req.body, "name");
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
-      const sourceError = validateRenameSource(theme, sourcePath, writeScope);
+      const sourceError = validateFileIdentityChange(theme, sourcePath, writeScope, "renamed");
       if (sourceError) {
         res.status(sourceError.status).json({ error: sourceError.error, code: sourceError.code });
         return;
@@ -1053,9 +976,218 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const hasOriginal = existsSync(catalogDir);
       res.json({
-        ...describeThemeFile(destPath, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }),
+        ...describeThemeFile(destPath, {
+          catalogDir,
+          hasOriginal,
+          apiVersion: theme.manifest.apiVersion,
+          theme,
+          // `collidingContent` is never read off this response — see `NO_CONTENT_COLLISIONS`'s own
+          // doc for why an empty map here is correct, not merely convenient.
+          contentBySlug: NO_CONTENT_COLLISIONS,
+        }),
         renamedFrom: sourcePath,
       });
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/**
+ * POST — delete one file inside a theme.
+ *
+ * DESTRUCTIVE, and unlike Reset or Rename, not recoverable through this screen at all: this repo
+ * keeps no theme-file revision history, so a deleted file's bytes are simply gone (a file that still
+ * has a catalog original could in principle be re-copied by hand from there, but nothing on this
+ * screen offers that as an undo). The confirmation belongs in the UI (`ThemeExplore.tsx`'s own delete
+ * `ConfirmDialog`), the same split Reset already uses — a server-side "are you sure" flag would just
+ * be a second thing to get wrong.
+ *
+ * Shares {@link validateFileIdentityChange} with rename (2026-08-29, now also with the agent-tool
+ * `theme_rename_file`/`theme_delete_file` handlers — see `file-identity-lock.ts`'s own header): the
+ * same three reasons a rename's source might be locked — a
+ * {@link import("#src/features/theme/index").requiredThemeFiles} entry, a built theme's generated
+ * tree, or an {@link import("#src/features/theme/index").IDENTITY_LOCKED_GROUPS} member — apply at
+ * least as strongly to delete, since
+ * delete has no "rename it back" undo path at all. See {@link registerAdminThemeFileRenameRoute}'s own
+ * doc comment for the fuller reasoning this reuses. Copy and PUT/reset are unaffected — this route
+ * only removes a file, it never creates or overwrites one.
+ */
+export const registerAdminThemeFileDeleteRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file/delete", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
+
+      const path = bodyStringField(req.body, "path");
+
+      const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
+      const lockError = validateFileIdentityChange(theme, path, writeScope, "deleted");
+      if (lockError) {
+        res.status(lockError.status).json({ error: lockError.error, code: lockError.code });
+        return;
+      }
+
+      const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
+      if (!existingPaths.has(path)) {
+        res.status(404).json({ error: `file '${path}' was not found in this theme`, code: "FILE_NOT_FOUND" });
+        return;
+      }
+
+      deleteThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
+
+      // Same boot-time-snapshot problem every other write in this file has — see `reloadTheme`'s doc
+      // comment. Skipping this means the file is gone from disk but the preview and the next GET of
+      // `pages`/`partials` still act as if it exists.
+      reloadTheme(deps, theme.manifest.id);
+
+      res.json({ path, deleted: true });
+    } catch (err) {
+      sendThemeFileError(res, err);
+    }
+  });
+};
+
+/** The publish-toggle body's `page`/`published` fields — `ok: false` covers only the one shape check
+ *  this route 400s on (`published` not a boolean); every other validation (tier, page eligibility)
+ *  happens once both fields exist, same split {@link parseThemeFilePutBody} uses for PUT. */
+function parseThemePagePublishBody(
+  req: { body: unknown }
+): { ok: true; page: string; published: boolean } | { ok: false } {
+  const page = bodyStringField(req.body, "page");
+  const published = bodyRecord(req.body).published;
+  if (typeof published !== "boolean") return { ok: false };
+  return { ok: true, page, published };
+}
+
+/**
+ * Compute the next `publishedPages` array for one publish/unpublish request.
+ *
+ * `currentPublishedPages` MUST come from the freshly-read `theme.json` on disk (`raw.publishedPages`),
+ * never from `theme.manifest.publishedPages` — see {@link registerAdminThemePagePublishRoute}'s own
+ * doc for why: `theme.manifest` is a boot-time (or last-`reloadTheme`) in-memory snapshot, and the
+ * agent daemon is a SEPARATE OS process that can write `theme.json` through its own `writeThemeFile`
+ * call without ever touching this process's `deps.themes`. Basing the computed array on the stale
+ * in-memory value while writing it onto freshly-read disk JSON would silently discard whatever the
+ * daemon (or any other writer) had just changed — confirmed by a failing regression test before this
+ * fix (`explore-page-publish-route.test.ts`, "a concurrent writer's fresh theme.json is never
+ * clobbered...").
+ *
+ * `currentPublishedPages === undefined` means this theme has never recorded a decision ANYWHERE — not
+ * on disk, and therefore not in `theme.manifest` either, since `theme.manifest.publishedPages` is
+ * itself only ever populated by parsing `theme.json`, and this route is the sole writer of that field.
+ * Because {@link isStandaloneThemePage} already treats an absent array as "nothing published"
+ * (2026-08-30 owner correction — see `ThemeManifest.publishedPages`'s own doc), there is nothing to
+ * backfill: the base for a never-recorded theme is simply empty, so a theme's first-ever toggle
+ * records only the one page this request names. Once a theme HAS a recorded array (on disk), this is
+ * a plain add/remove against it, same as every other toggle.
+ *
+ * Sorted for a deterministic `theme.json` diff — irrelevant to {@link isStandaloneThemePage}'s own
+ * `includes` check, which does not care about order.
+ *
+ * @complexity O(n) in the existing array's length.
+ */
+function applyPagePublishToggle(
+  currentPublishedPages: string[] | undefined,
+  page: string,
+  published: boolean
+): string[] {
+  const next = new Set(currentPublishedPages ?? []);
+  if (published) next.add(page);
+  else next.delete(page);
+  return [...next].sort();
+}
+
+/** Safely reads `raw.publishedPages` (parsed straight from freshly-read `theme.json`, so its shape is
+ *  as untrusted as any other on-disk field) as `string[] | undefined` — `undefined` for anything that
+ *  is not literally an array of strings, matching {@link applyPagePublishToggle}'s own "never recorded
+ *  a decision" meaning for `undefined` rather than letting a malformed value silently become the
+ *  backfill base. */
+function rawPublishedPages(raw: Record<string, unknown>): string[] | undefined {
+  const value = raw.publishedPages;
+  if (!Array.isArray(value) || !value.every((entry) => typeof entry === "string")) return undefined;
+  return value as string[];
+}
+
+/**
+ * POST — publish or unpublish one of a static theme's own pages.
+ *
+ * The real mechanism replacing the `_unpublished/` folder convention an agent invented ad hoc
+ * (2026-08-29) — moving a live page's file out of `render/pages/` and dropping it from `theme.json`,
+ * outside every audited read/write path, because no publish concept existed yet. See
+ * `ThemeManifest.publishedPages` (`theme.ts`) for the full absent-vs-present contract this route is
+ * the only writer of.
+ *
+ * Reads and rewrites `theme.json`'s RAW parsed JSON directly — never `JSON.stringify(theme.manifest)`
+ * — so every other field, including any this loader does not itself model, survives byte-for-byte;
+ * only `publishedPages` changes. `theme.json` needs no {@link resolveThemeFileWriteScope} gate the way
+ * PUT does for an arbitrary path: that function resolves `"editable"` for `theme.json` unconditionally,
+ * compiled theme or not (see its own doc), so there is no scope this fixed path could ever fail.
+ *
+ * `raw` is read FIRST, and {@link applyPagePublishToggle}'s base comes from `raw.publishedPages` (via
+ * {@link rawPublishedPages}) rather than `theme.manifest.publishedPages` — the in-memory manifest is a
+ * snapshot from this process's last boot/`reloadTheme`, and the agent daemon is a separate OS process
+ * that writes `theme.json` through its own tool without ever updating this process's `deps.themes`.
+ * Computing the new array from the stale in-memory value and writing it onto the freshly-read disk
+ * JSON would silently discard a concurrent daemon edit the instant an operator toggled a page here.
+ *
+ * Deliberately no `await` between `readThemeFile` and `writeThemeFile` (unchanged from before this
+ * fix) — that keeps this block atomic with respect to the event loop, which is the only reason two
+ * concurrent toggles cannot lose a page here. This property is currently accidental (a side effect of
+ * every call in the span being synchronous), not enforced by any lock — do not add an `await` in this
+ * span without re-establishing it some other way.
+ */
+export const registerAdminThemePagePublishRoute: ContentRouteRegistrar = (app, deps) => {
+  app.post("/api/admin/v1/workspaces/:workspaceId/themes/:themeId/page/publish", async (req, res) => {
+    try {
+      if (!(await authorizeThemeAccess(deps, req, res))) return;
+
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
+
+      const parsedBody = parseThemePagePublishBody(req);
+      if (!parsedBody.ok) {
+        res.status(400).json({ error: "published must be a boolean", code: "INVALID_BODY" });
+        return;
+      }
+      const { page, published } = parsedBody;
+
+      if (theme.manifest.tier !== "static") {
+        res.status(400).json({
+          error: `theme '${theme.manifest.id}' is tier '${theme.manifest.tier}' — publish state only applies to static-tier themes`,
+          code: "NOT_STATIC_TIER",
+        });
+        return;
+      }
+
+      if (!isPublishableThemePageCandidate(theme, page)) {
+        res.status(404).json({
+          error: `'${page}' is not one of this theme's own standalone pages — it does not exist, or is index/404/a declared template shell`,
+          code: "PAGE_NOT_PUBLISHABLE",
+        });
+        return;
+      }
+
+      const raw = JSON.parse(
+        readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json" })
+      ) as Record<string, unknown>;
+      const publishedPages = applyPagePublishToggle(rawPublishedPages(raw), page, published);
+      raw.publishedPages = publishedPages;
+      writeThemeFile({
+        themeDir: theme.dir,
+        themesRoot: deps.themesDir,
+        relativePath: "theme.json",
+        content: `${JSON.stringify(raw, null, 2)}\n`,
+      });
+
+      // Same boot-time-snapshot problem every other write in this file has — see `reloadTheme`'s doc
+      // comment. Skipping this means `theme.json` changed on disk but the live site keeps serving (or
+      // keeps hiding) the page against the stale in-memory manifest.
+      reloadTheme(deps, theme.manifest.id);
+
+      res.json({ page, published, publishedPages });
     } catch (err) {
       sendThemeFileError(res, err);
     }

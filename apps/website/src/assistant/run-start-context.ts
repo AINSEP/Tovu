@@ -22,9 +22,9 @@
  * optional, unlike `prompt`/`principalId`.
  *
  * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
- * @returns The five fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
- *   attachment claim step, `AgentExecutor.run()`'s `model`, and the Agent Plugin resolution step
- *   respectively.
+ * @returns The six fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
+ *   attachment claim step, `AgentExecutor.run()`'s `model`, the Agent Plugin resolution step, and
+ *   the per-conversation agent-session lookup (`agent-session-resume.ts`) respectively.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
  * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined; O(1) otherwise.
@@ -36,6 +36,7 @@ export function parseRunStartContextRef(contextRef: string): {
   attachmentIds: readonly string[];
   model?: string;
   pluginRefIds: readonly string[];
+  conversationId?: string;
 } {
   const parsed = JSON.parse(contextRef) as {
     prompt?: unknown;
@@ -43,6 +44,7 @@ export function parseRunStartContextRef(contextRef: string): {
     attachmentIds?: unknown;
     model?: unknown;
     pluginRefIds?: unknown;
+    conversationId?: unknown;
   };
   if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
     throw new Error("contextRef did not decode to a non-empty 'prompt'");
@@ -65,5 +67,11 @@ export function parseRunStartContextRef(contextRef: string): {
     attachmentIds,
     pluginRefIds,
     ...(typeof parsed.model === "string" && parsed.model.length > 0 ? { model: parsed.model } : {}),
+    // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
+    // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
+    // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
+    ...(typeof parsed.conversationId === "string" && parsed.conversationId.length > 0
+      ? { conversationId: parsed.conversationId }
+      : {}),
   };
 }

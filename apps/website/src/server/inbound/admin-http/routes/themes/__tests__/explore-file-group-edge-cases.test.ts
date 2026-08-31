@@ -11,6 +11,7 @@ import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 
 /**
  * @file Two `fileGroup`/`isTextReadable`/`isAssetExtension`/`fileExtension` shapes no other test in
@@ -47,6 +48,9 @@ function buildTestApp(themesDir: string): express.Express {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir,
+    // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
+    // empty in-memory repo, matching this fixture's lack of any posts to collide with.
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
   const app = express();
   app.use(express.json());
@@ -86,5 +90,5 @@ test("a root-level .html file OUTSIDE pages/ groups as 'partial' and is readable
   assert.ok(nav, "nav.html must appear in the listing");
   assert.equal(nav!.group, "partial", "a root-level .html file (not under pages/) is the 'partial' group's own defining example");
   assert.equal(nav!.readable, true);
-  assert.equal(nav!.editable, true, "partial is not in READ_ONLY_GROUPS");
+  assert.equal(nav!.editable, true, "partial is not in CONTENT_EDIT_LOCKED_GROUPS");
 });

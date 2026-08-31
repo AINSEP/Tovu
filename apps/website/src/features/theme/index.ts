@@ -11,6 +11,7 @@ export {
   resolveLiquidTemplateId,
   resolveHandlebarsTemplateId,
   isStandaloneThemePage,
+  isPublishableThemePageCandidate,
   ENGINE_SUBFOLDERS,
   THEME_CATALOG_DIR,
   MARKETPLACE_CATALOG_DIR,
@@ -124,6 +125,7 @@ export {
 // genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
 export {
   copyThemeFile,
+  deleteThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
   readThemeFile,
@@ -149,3 +151,22 @@ export { tokenStylesheetSentinel } from "./static-asset-contract.js";
 // of the package tree an upgrade replaces. Re-exported so `server/deps.ts`'s composition root does
 // not deep-import it, same reasoning as every export above.
 export { seedSiteThemes, type SeedSiteThemesResult, type SeedSiteThemesStatus } from "./seed-site-themes.js";
+
+// 2026-08-30 — the shared "can this file's identity (name/existence) change" gate, extracted from
+// `server/inbound/admin-http/routes/themes/explore.ts` so `tool-registrations.ts`'s
+// `theme_rename_file`/`theme_delete_file` can call the SAME decision `explore.ts`'s own rename/delete
+// routes call, rather than a second copy that could drift — see `file-identity-lock.ts`'s own header
+// for why a deep import from either side was not an option.
+export {
+  fileGroup,
+  fileExtension,
+  isInsideCompiledSourceDir,
+  isSourceDirWritableExtension,
+  isTrashedThemePath,
+  requiredThemeFiles,
+  validateFileIdentityChange,
+  IDENTITY_LOCKED_GROUPS,
+  TRASH_DIR_NAME,
+  type ThemeFileGroup,
+  type FileIdentityLockResult,
+} from "./file-identity-lock.js";

@@ -47,6 +47,28 @@ test("page.* capabilities are still present alongside the chat verbs", () => {
 });
 
 /**
+ * The admin-screenshot capability (`admin.capture_screenshot`) — the assistant's only way to see
+ * pixels rather than markup. Pinned separately from the chat/page assertions above because its
+ * requirements are unique to it: it is Tovu-owned (not part of `@jini-ai/agentic`'s `PAGE_CAPABILITIES`
+ * or `@jini-ai/chat/core`'s `CHAT_CAPABILITIES`), it must never require confirmation (no transport for
+ * that — see this module's own doc), and its description is the ONLY place the model is told about
+ * the capture's fidelity limits, so the exact wording matters and is asserted here rather than left
+ * to eyeball review.
+ */
+test("admin.capture_screenshot is registered, read-only, session-scoped, and states its fidelity limits", () => {
+  const capability = FRONTEND_CONTROL_CAPABILITIES.find((entry) => entry.id === "admin.capture_screenshot");
+  assert.ok(capability, "expected admin.capture_screenshot to be in the manifest");
+  assert.equal(capability?.risk, "read", "a screenshot reads the screen; it must never be classified as a write");
+  assert.equal(capability?.surface, "session", "a screenshot is meaningless with no live admin tab attached");
+  assert.notEqual(capability?.requiresConfirmation, true, "no confirmation transport exists — see this module's own doc");
+  assert.match(
+    capability?.description ?? "",
+    /iframe/i,
+    "the description must warn that cross-origin/MCP-UI iframes render blank, or the model will over-trust a blank one as evidence of an empty surface",
+  );
+});
+
+/**
  * Calls the REAL `createFrontendControl` — the exact function `agent-daemon-server.ts` calls at
  * module scope, from `@jini-ai/http-kit` — rather than re-deriving the assertion from the raw
  * manifest above. This is what actually confirms the six verbs *register as callable tools*, not

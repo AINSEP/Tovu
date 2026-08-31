@@ -10,11 +10,16 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 
 /**
- * @file The Explore screen's ⋮ menu (Copy/Rename), read-only-group enforcement (now covering RENAME
- * too, not just PUT — a `script`/`other` file's read-only content lock exists so nobody breaks the
- * page from this screen, and a silent rename would reopen that same hole through a different door),
- * and the file-list regrouping that added `other` and narrowed `assets` to media extensions
- * (2026-08-11).
+ * @file The Explore screen's ⋮ menu (Copy/Rename/Delete), identity-lock enforcement covering RENAME
+ * and DELETE alike (`IDENTITY_LOCKED_GROUPS`: `script`/`other` — nothing tracks cross-file references,
+ * so changing either file's NAME or EXISTENCE could silently break a page that still refers to it by
+ * the old name), and the file-list regrouping that added `other` and narrowed `assets` to media
+ * extensions (2026-08-11).
+ *
+ * 2026-08-29 update: `script`'s CONTENT is no longer locked (owner ask — "we need the ability to edit
+ * CSS and JS for the themes"); only its IDENTITY still is, via `IDENTITY_LOCKED_GROUPS`, unrelated to
+ * `CONTENT_EDIT_LOCKED_GROUPS` (which now contains only `other`). Delete is the third ⋮ menu action
+ * added this same pass, sharing rename's identity-lock gate almost entirely.
  *
  * Runs against a throwaway themes root (`fs.mkdtempSync`), never `content/themes/` — these routes write
  * real files, and a dev server may be serving off that checkout.
@@ -69,6 +74,8 @@ const copyUrl = (baseUrl: string, workspaceId: string, themeId: string): string 
   `${fileUrl(baseUrl, workspaceId, themeId)}/copy`;
 const renameUrl = (baseUrl: string, workspaceId: string, themeId: string): string =>
   `${fileUrl(baseUrl, workspaceId, themeId)}/rename`;
+const deleteUrl = (baseUrl: string, workspaceId: string, themeId: string): string =>
+  `${fileUrl(baseUrl, workspaceId, themeId)}/delete`;
 const previewUrl = (baseUrl: string, themeId: string, pageId: string): string =>
   `${baseUrl}/theme-explore/${themeId}/${pageId}`;
 
@@ -191,7 +198,7 @@ test("two concurrent copies of the same source both succeed with distinct, uncor
   }
 });
 
-test("copying a script (read-only-to-edit) is allowed — read-only blocks editing, not duplicating", async (t) => {
+test("copying a script is allowed, same as every other group", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -206,8 +213,9 @@ test("copying a script (read-only-to-edit) is allowed — read-only blocks editi
   assert.equal(body.path, "js/main-1.js");
   assert.equal(body.group, "script");
   assert.equal(body.readable, true);
-  // The copy is a script too, so it inherits the same read-only-to-edit policy as its source.
-  assert.equal(body.editable, false);
+  // 2026-08-29: the copy is editable too, same as its source — script's CONTENT lock lifted, its
+  // IDENTITY (rename/delete) lock did not, see this file's own header comment.
+  assert.equal(body.editable, true);
 });
 
 test("copy of a nonexistent source is rejected with FILE_NOT_FOUND", async (t) => {
@@ -285,7 +293,7 @@ test("rename hard-blocks theme.json and tokens.json — the same loadTheme-requi
   }
 });
 
-test("rename hard-blocks script and other read-only-group files — renaming could break a reference the read-only content lock has no way to help fix", async (t) => {
+test("rename hard-blocks script and other IDENTITY_LOCKED_GROUPS files — renaming could break a reference nothing tracks, regardless of whether the file's content is itself editable", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -373,7 +381,7 @@ test("renaming a file to its current name is a harmless no-op, not a NAME_TAKEN 
   assert.equal(body.path, "pages/about.html");
 });
 
-test("PUT rejects writing a script file with a 4xx and a machine code, and does not touch disk", async (t) => {
+test("PUT now accepts writing a script file (2026-08-29 owner ask) and it lands on disk", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -381,14 +389,12 @@ test("PUT rejects writing a script file with a 4xx and a machine code, and does 
   const res = await fetch(fileUrl(baseUrl, deps.workspaceId, "scratch"), {
     method: "PUT",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ path: "js/main.js", content: "console.log('tampered');" }),
+    body: JSON.stringify({ path: "js/main.js", content: "console.log('edited');" }),
   });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(res.status, 200);
 
   const onDisk = fs.readFileSync(path.join(themesRoot, "static", "scratch", "js", "main.js"), "utf8");
-  assert.equal(onDisk, "console.log('main');");
+  assert.equal(onDisk, "console.log('edited');");
 });
 
 test("PUT rejects writing an 'other'-group file (e.g. a markdown notice) the same way", async (t) => {
@@ -406,7 +412,7 @@ test("PUT rejects writing an 'other'-group file (e.g. a markdown notice) the sam
   assert.equal(body.code, "READ_ONLY_FILE");
 });
 
-test("a script's source is still readable via GET even though it is not writable", async (t) => {
+test("a script's source is readable via GET", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);
   const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
@@ -437,11 +443,93 @@ test("file list groups: markdown/manifest files land in 'other', not swept into 
 
   assert.equal(byPath.get("js/main.js")?.group, "script");
   assert.equal(byPath.get("js/main.js")?.readable, true);
-  assert.equal(byPath.get("js/main.js")?.editable, false);
+  // 2026-08-29: script is no longer content-read-only (see this file's own header comment).
+  assert.equal(byPath.get("js/main.js")?.editable, true);
 
   assert.equal(byPath.get("css/styles.css")?.group, "style");
   assert.equal(byPath.get("css/styles.css")?.editable, true);
 
   assert.equal(byPath.get("theme.json")?.group, "config");
   assert.equal(byPath.get("theme.json")?.editable, true);
+});
+
+/**
+ * The ⋮ menu's third action (2026-08-29 owner ask, alongside Copy/Rename) — real login, real composed
+ * app, same fixture as every test above. Branch coverage for the shared identity-lock gate lives in
+ * `explore-file-delete-route-branches.test.ts`; these pin the same real end-to-end path Copy/Rename
+ * already have here.
+ */
+test("delete removes a file from disk, and the NEXT detail GET no longer lists it", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(deleteUrl(baseUrl, deps.workspaceId, "scratch"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/styles.css" }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { path: string; deleted: boolean };
+  assert.equal(body.path, "css/styles.css");
+  assert.equal(body.deleted, true);
+
+  assert.ok(!fs.existsSync(path.join(themesRoot, "static", "scratch", "css", "styles.css")));
+
+  const detail = await getDetail(baseUrl, deps.workspaceId, "scratch", cookie);
+  assert.ok(!detail.files.some((f) => f.path === "css/styles.css"));
+});
+
+test("delete hard-blocks pages/index.html, theme.json, and tokens.json — the same REQUIRED_FILE_LOCKED shape rename uses", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  for (const locked of ["pages/index.html", "theme.json", "tokens.json"]) {
+    const res = await fetch(deleteUrl(baseUrl, deps.workspaceId, "scratch"), {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ path: locked }),
+    });
+    assert.equal(res.status, 409, `expected 409 for deleting ${locked}`);
+    const body = (await res.json()) as { code: string };
+    assert.equal(body.code, "REQUIRED_FILE_LOCKED");
+    assert.ok(fs.existsSync(path.join(themesRoot, "static", "scratch", ...locked.split("/"))), `${locked} must still exist`);
+  }
+});
+
+test("delete hard-blocks script and other IDENTITY_LOCKED_GROUPS files, same as rename", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  for (const readOnly of ["js/main.js", "NOTICE.md"]) {
+    const res = await fetch(deleteUrl(baseUrl, deps.workspaceId, "scratch"), {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ path: readOnly }),
+    });
+    assert.equal(res.status, 409, `expected 409 for deleting ${readOnly}`);
+    const body = (await res.json()) as { code: string };
+    assert.equal(body.code, "READ_ONLY_FILE");
+    assert.ok(
+      fs.existsSync(path.join(themesRoot, "static", "scratch", ...readOnly.split("/"))),
+      `${readOnly} must still exist`
+    );
+  }
+});
+
+test("delete of a nonexistent file is rejected with FILE_NOT_FOUND", async (t) => {
+  const themesRoot = makeThemesRoot();
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const res = await fetch(deleteUrl(baseUrl, deps.workspaceId, "scratch"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/nope.html" }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FILE_NOT_FOUND");
 });

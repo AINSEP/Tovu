@@ -1,4 +1,4 @@
-import { MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post.js";
+import { DEFAULT_POST_LIST_LIMIT, MAX_POST_LIST_LIMIT, MAX_SLUG_LENGTH, MAX_TITLE_LENGTH, SLUG_FORMAT_PATTERN } from "./post.js";
 import { DEFAULT_POST_SEARCH_LIMIT, MAX_POST_SEARCH_LIMIT } from "./search.js";
 
 /**
@@ -369,22 +369,37 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "content_post_list",
     description:
-      "Lists posts or pages in the workspace (id, kind, title, slug, status, bodyJson, updatedAt, version) — drafts included. " +
+      "Lists posts or pages in the workspace (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl) — drafts " +
+      "included. publicUrl is the row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page — " +
+      "or null for a draft/unpublished row, since it has no live link yet. " +
       "Mirrors the admin Posts/Pages list screens exactly: kind is required because there is no combined 'list everything' admin " +
-      "screen to mirror, and no status/date/limit filter is available because neither list route exposes one.",
+      "screen to mirror, and no status/date filter is available because neither list route exposes one. " +
+      `Capped at ${DEFAULT_POST_LIST_LIMIT} rows by default (raise with limit, up to ${MAX_POST_LIST_LIMIT}) — the response's ` +
+      "total is the full un-truncated workspace count and hasMore is true whenever posts.length < total, so truncation is " +
+      "never silent.",
     sideEffects: "none",
     authorization: { permission: "content.read" },
     inputSchema: {
       type: "object",
       additionalProperties: false,
       required: ["kind"],
-      properties: { kind: POST_KIND_SCHEMA },
+      properties: {
+        kind: POST_KIND_SCHEMA,
+        limit: {
+          type: "integer",
+          minimum: 1,
+          maximum: MAX_POST_LIST_LIMIT,
+          description: `Maximum rows to return. Defaults to ${DEFAULT_POST_LIST_LIMIT}; values above ${MAX_POST_LIST_LIMIT} are clamped to ${MAX_POST_LIST_LIMIT} rather than rejected.`,
+        },
+      },
     },
   },
   {
     name: "content_post_get",
     description:
-      "Reads one post or page by id (id, kind, title, slug, status, bodyJson, updatedAt, version). " +
+      "Reads one post or page by id (id, kind, title, slug, status, bodyJson, updatedAt, version, publicUrl). publicUrl is the " +
+      "row's resolved public path (e.g. '/about'), ready to pass straight to fetch_published_page to verify it renders — or " +
+      "null for a draft/unpublished row, since it has no live link yet. " +
       "Disclosed asymmetry inherited from the two real admin routes this mirrors: with kind:'page', a row whose actual kind is " +
       "'post' is rejected as not-found (mirrors pages/get-by-id.ts's explicit guard) — but with kind:'post', a row whose actual " +
       "kind is 'page' is still returned (mirrors posts/get-by-id.ts's own legacy, kind-blind lookup). Use content_post_list first " +
@@ -403,7 +418,9 @@ export const postAgentToolCatalog: AgentToolDefinition[] = [
     description:
       "Creates a new post or page. Always starts as 'draft' unless status is explicitly set to 'published'. slug is derived from " +
       "title when omitted (disambiguated on collision); bodyJson defaults to an empty TipTap document ({ type: 'doc', content: [] }) " +
-      "when omitted. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace.",
+      "when omitted. Rejected if an explicitly-supplied slug is malformed, reserved ('admin'/'api'), or already taken in this workspace. " +
+      "The returned post includes publicUrl — its resolved public path when created with status 'published', or null for the " +
+      "default 'draft' (nothing to link to yet until it is published via content_post_update).",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "content.write" },
     inputSchema: {

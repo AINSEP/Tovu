@@ -396,6 +396,11 @@ function staticThemeWithTemplateShells(): DiscoveredTheme {
       tier: "static",
       engine: 1,
       templates: ["blog-post.html", "page-shell.html"],
+      // Theme pages are OFF by default (2026-08-30 owner decision): a manifest with no
+      // `publishedPages` publishes nothing. The control below needs `about` reachable, so this
+      // fixture opts in explicitly — keeping the test about the TEMPLATES exclusion, not the
+      // publish default.
+      publishedPages: ["about"],
     },
     dir: "/nonexistent/template-shell-test-theme",
     tokens: {},

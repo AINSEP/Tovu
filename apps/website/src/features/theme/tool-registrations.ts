@@ -1,10 +1,12 @@
 /**
- * @file Themes' half of ADR-049 Decision 4: maps all 4 of `agent-tools.ts`'s catalog entries onto
- * real filesystem reads/writes inside one theme's own folder, as `ToolRegistration`s. The catalog is
- * wired in full — there is no `unwiredToolIds` set here, which means the kit treats ANY future
- * catalog entry added without a handler as a build failure. See `agent-tools.ts`'s own file header
- * for the operations deliberately never put in the catalog at all (delete-file, rename/create/delete
- * theme) and why.
+ * @file Themes' half of ADR-049 Decision 4: maps every one of `agent-tools.ts`'s catalog entries
+ * onto real filesystem reads/writes inside one theme's own folder, as `ToolRegistration`s
+ * (`theme_list`/`theme_list_files`/`theme_read_file`/`theme_write_file`/`theme_edit_file`/
+ * `theme_rename_file`/`theme_trash_file`/`theme_restore_trashed_file` as of 2026-08-30). The
+ * catalog is wired in full — there is no `unwiredToolIds` set here, which means the kit treats ANY
+ * future catalog entry added without a handler as a build failure. See `agent-tools.ts`'s own file
+ * header for the operations deliberately never put in the catalog at all (hard file-delete,
+ * rename/create/delete a whole theme's folder) and why.
  *
  * Authorization shape: nothing in `theme.ts`/`theme-files.ts` accepts an `authorize` dependency —
  * they are pure discovery/filesystem functions with no notion of a principal, exactly like
@@ -47,11 +49,24 @@ import {
   isGeneratedThemePath,
   listThemeFiles,
   readThemeFile,
+  renameThemeFile,
   resolveThemeFileWriteScope,
   ThemePathError,
   writeThemeFile,
 } from "./theme-files.js";
 import { loadTheme, type DiscoveredTheme } from "./theme.js";
+// The shared "can this file's identity (name/existence) change" gate — same-module sibling import
+// (this file lives inside `features/theme`, so a direct import is the module's own internal wiring,
+// not a deep-import-from-outside the `no-deep-imports:features/theme` rule polices). `explore.ts`'s
+// HTTP rename/delete routes call the exact same function — see `file-identity-lock.ts`'s own header
+// for why the decision had to live here rather than in `explore.ts` alongside its original home.
+import {
+  fileExtension,
+  isTrashedThemePath,
+  originalPathFromTrashedPath,
+  trashDestinationFor,
+  validateFileIdentityChange,
+} from "./file-identity-lock.js";
 
 const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
 
@@ -83,9 +98,10 @@ class ThemeNotFoundError extends Error {
   }
 }
 
-/** Raised when `theme_write_file` targets a BUILT theme's generated tree — ADR-020 §5's "editor-
- * read-only" half of the lifecycle split. A different `path` (inside `build.sourceDir`, or
- * `theme.json`) is exactly what would fix this, so it is a shape rejection like {@link ThemePathError}. */
+/** Raised when `theme_write_file`/`theme_edit_file` targets a BUILT theme's generated tree — ADR-020
+ * §5's "editor-read-only" half of the lifecycle split. A different `path` (inside `build.sourceDir`,
+ * or `theme.json`) is exactly what would fix this, so it is a shape rejection like
+ * {@link ThemePathError}. */
 class ThemeFileReadOnlyError extends Error {
   constructor(message: string) {
     super(message);
@@ -93,11 +109,44 @@ class ThemeFileReadOnlyError extends Error {
   }
 }
 
+/** Raised when `theme_edit_file`'s `oldString` does not match the file's current content exactly
+ * once — either zero matches (nothing to replace) or more than one without `replaceAll: true`
+ * (which occurrence was meant is genuinely ambiguous, and guessing would risk changing the wrong
+ * one). A different `oldString`/`replaceAll` is exactly what would fix this, so it is a shape
+ * rejection like {@link ThemePathError}. */
+class ThemeFileEditMatchError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeFileEditMatchError";
+  }
+}
+
+/** Raised when `theme_rename_file`/`theme_trash_file` targets a path
+ * {@link validateFileIdentityChange} refuses to let change identity — a theme's own required file,
+ * a `script`/`other`-group file, or (message-only overlap with {@link ThemeFileReadOnlyError}'s own
+ * concern) a built theme's generated tree. Kept as its OWN class rather than reusing
+ * {@link ThemeFileReadOnlyError}: that class's existing callers (`theme_write_file`/`theme_edit_file`)
+ * mean specifically "this ADR-020 generated-tree write is refused," and folding the identity-lock's
+ * three DIFFERENT reasons into the same class would blur which check actually fired. A different
+ * `path` is exactly what would fix this, so it is a shape rejection like {@link ThemePathError}. */
+class ThemeFileIdentityLockedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeFileIdentityLockedError";
+  }
+}
+
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with. A
  * genuine I/O failure (a permission-denied disk, a full volume) is not one of these and propagates
  * undecorated, because retrying with different arguments would not help. */
 function isShapeRejection(error: unknown): boolean {
-  return error instanceof ThemePathError || error instanceof ThemeNotFoundError || error instanceof ThemeFileReadOnlyError;
+  return (
+    error instanceof ThemePathError ||
+    error instanceof ThemeNotFoundError ||
+    error instanceof ThemeFileReadOnlyError ||
+    error instanceof ThemeFileEditMatchError ||
+    error instanceof ThemeFileIdentityLockedError
+  );
 }
 
 /**
@@ -149,6 +198,137 @@ function findThemeOrThrow(routeDeps: ThemeToolDeps, themeId: string): Discovered
 }
 
 /**
+ * The three refusals `theme_write_file` and `theme_edit_file` both need to check BEFORE touching
+ * disk — pulled into one function once a second write-path tool needed the identical checks, so
+ * there is exactly one place that decides "can this path be written at all" rather than copies that
+ * could drift. The ADR-020/`preview/` pair is unchanged from `theme_write_file`'s own original inline
+ * comments (git history); the `.trash/` refusal is new (2026-08-30, soft-delete) — see
+ * `file-identity-lock.ts`'s `TRASH_DIR_NAME` doc for why writing directly into trash has to be
+ * refused rather than merely left unlikely: `theme_restore_trashed_file` is the only sanctioned door
+ * back out, and an agent that could `theme_write_file`/`theme_edit_file` a `.trash/...` path in place
+ * would have a second, unaudited way to mutate what is supposed to be inert, already-soft-deleted
+ * content.
+ */
+function assertThemeFileWritable(theme: DiscoveredTheme, relativePath: string): void {
+  const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+  if (writeScope.kind === "generated-readonly") {
+    throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
+  }
+  if (isGeneratedThemePath(relativePath)) {
+    throw new ThemeFileReadOnlyError(
+      `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead`
+    );
+  }
+  if (isTrashedThemePath(relativePath)) {
+    throw new ThemeFileReadOnlyError(
+      `'${relativePath}' is inside the trash and cannot be written to directly — restore it first with theme_restore_trashed_file`
+    );
+  }
+}
+
+/**
+ * Re-validate `themeId` through the SAME `loadTheme()` boot-time discovery uses, and swap the result
+ * into the live `routeDeps.themes` array in place — the one piece of live-state coupling every write
+ * tool in this domain shares (`theme_write_file`'s own header explains why: the running site serves
+ * out of this array, not off disk, so skipping this makes a successful write invisible to the next
+ * page view). Returns the reloaded theme so the caller can report its `status`/`errors` in the same
+ * turn.
+ */
+function reloadThemeInPlace(routeDeps: ThemeToolDeps, theme: DiscoveredTheme, themeId: string): DiscoveredTheme {
+  const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
+  const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
+  if (index >= 0) routeDeps.themes[index] = reloaded;
+  return reloaded;
+}
+
+/** How many times `needle` occurs in `haystack`, as a plain literal substring (never a regex) — the
+ *  same counting trick `split(needle).length - 1` uses everywhere else a literal (not regex) count
+ *  is wanted, avoiding any need to escape `needle` for a regex engine. */
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+/**
+ * Apply `theme_edit_file`'s old-string/new-string replacement to `currentContent`, enforcing the
+ * uniqueness contract described on {@link ThemeFileEditMatchError}: `oldString` must appear exactly
+ * once unless `replaceAll` is set, in which case every occurrence changes. Ambiguity is refused
+ * rather than guessed at — silently picking "the first match" on a multiply-occurring string would
+ * risk changing the wrong one with no signal to the caller that anything was ambiguous.
+ *
+ * @complexity O(n) in the file's size, for the split/replace `oldString`/`newString` each perform.
+ */
+function applyThemeFileEdit(
+  currentContent: string,
+  edit: { oldString: string; newString: string; replaceAll: boolean },
+  relativePath: string
+): string {
+  const occurrences = countOccurrences(currentContent, edit.oldString);
+  if (occurrences === 0) {
+    throw new ThemeFileEditMatchError(
+      `oldString was not found in '${relativePath}' — read the file with theme_read_file and copy the exact text to replace, including whitespace`
+    );
+  }
+  if (occurrences > 1 && !edit.replaceAll) {
+    throw new ThemeFileEditMatchError(
+      `oldString matches ${occurrences} times in '${relativePath}'; pass more surrounding context in oldString to make it unique, or replaceAll: true to change every occurrence`
+    );
+  }
+  return edit.replaceAll
+    ? currentContent.split(edit.oldString).join(edit.newString)
+    : currentContent.replace(edit.oldString, edit.newString);
+}
+
+/** `name` is a bare filename, not a path — mirrors `explore.ts`'s `validateRenameTargetName` (the
+ *  HTTP rename route's identical check on the identical input shape); kept as its own small
+ *  duplicate here rather than a third shared module, since it is a 3-line, dependency-free input
+ *  check with nothing else to drift out of sync. `null` means `name` is valid. */
+function invalidRenameTargetNameReason(name: string): string | null {
+  if (name.length === 0) return "name is required";
+  if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+    return `name '${name}' must be a plain filename in the same folder, not a path`;
+  }
+  return null;
+}
+
+/**
+ * Perform `theme_rename_file`'s actual rename once every refusal check has passed, mirroring
+ * `explore.ts`'s `renameThemeFileIfChanged` (same no-op/collision/extension-preservation/
+ * destination-write-scope shape) but throwing instead of writing an HTTP response — see that
+ * function's own doc for the full reasoning behind each check.
+ *
+ * @returns The path the file ends up at (`sourcePath` unchanged, for the deliberate no-op case).
+ */
+function performThemeFileRename(
+  routeDeps: ThemeToolDeps,
+  theme: DiscoveredTheme,
+  paths: { sourcePath: string; destPath: string; name: string },
+  existingPaths: ReadonlySet<string>
+): string {
+  const { sourcePath, destPath, name } = paths;
+  if (destPath === sourcePath) return sourcePath;
+
+  if (existingPaths.has(destPath)) {
+    throw new ThemePathError(`'${destPath}' already exists in this theme`);
+  }
+  if (fileExtension(sourcePath) !== fileExtension(destPath)) {
+    throw new ThemePathError(
+      `renaming '${sourcePath}' to '${name}' would change its extension, which is not allowed — a file's extension decides how it is served and must not change via rename`
+    );
+  }
+  // Defense-in-depth, not currently reachable: `destPath` is always built from `sourcePath`'s OWN
+  // directory (`name` may not contain `/`), so its write-scope is provably identical to
+  // `sourcePath`'s already-checked one. Asserted directly anyway, matching `explore.ts`'s own
+  // identical comment on this exact check.
+  const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: destPath });
+  if (destWriteScope.kind === "generated-readonly") {
+    throw new ThemeFileReadOnlyError(`'${destPath}' is read-only: ${destWriteScope.reason}`);
+  }
+
+  renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath, destPath });
+  return destPath;
+}
+
+/**
  * This wiring layer's OWN risk classification, authored from what each handler below actually does.
  * See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own `sideEffects`
  * declaration.
@@ -163,6 +343,16 @@ export const themesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolS
   // -> writeThemeFile(): mkdir + writeFileSync on disk, then loadTheme() + in-place replacement of
   //    the live routeDeps.themes entry. Durable on both counts.
   ["theme_write_file", "mutates-durable-state"],
+  // -> readThemeFile() + writeThemeFile(): same durable write as theme_write_file, just computed
+  //    from a read instead of taking the whole content as input.
+  ["theme_edit_file", "mutates-durable-state"],
+  // -> renameThemeFile(): renameSync on disk, then loadTheme() + in-place replacement. Durable.
+  ["theme_rename_file", "mutates-durable-state"],
+  // -> renameThemeFile() into .trash/: same durable move as theme_rename_file, just to a
+  //    system-computed destination. Reversible (theme_restore_trashed_file), but still a disk write.
+  ["theme_trash_file", "mutates-durable-state"],
+  // -> renameThemeFile() out of .trash/: the mirror-image move. Durable.
+  ["theme_restore_trashed_file", "mutates-durable-state"],
 ]);
 
 export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistration[] {
@@ -185,7 +375,9 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
     },
 
     theme_list_files: async (ctx) => {
-      const themeId = requireString(requireInputRecord(ctx.input), "themeId");
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const includeTrash = input.includeTrash === true;
       await requireToolPermission(routeDeps, {
         principalId: ctx.principal.id,
         permission: THEME_READ_PERMISSION,
@@ -195,7 +387,11 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
 
       return withSchemaOnRejection({ toolId: "theme_list_files", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
-        return { themeId, files: listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }) };
+        const files = listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir });
+        // Trashed files are hidden by default (2026-08-30 soft-delete requirement: a trashed file
+        // must not surface as a file-list entry) — `includeTrash: true` is the deliberate escape
+        // hatch an agent needs to discover what it can restore.
+        return { themeId, files: includeTrash ? files : files.filter((path) => !isTrashedThemePath(path)) };
       });
     },
 
@@ -232,24 +428,10 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
       return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
 
-        // ADR-020 §5: a built theme's generated tree is read-only from every per-file surface,
-        // this AI tool included — see `resolveThemeFileWriteScope`'s own doc for why. Checked BEFORE
-        // any filesystem write, so a rejected write never touches disk.
-        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
-        if (writeScope.kind === "generated-readonly") {
-          throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
-        }
-
-        // Security parity fix (2026-08-18): `explore.ts`'s PUT route has always refused a write into
-        // `preview/` (`isGeneratedThemePath` — `build-preview.mjs`'s own output, a DIFFERENT question
-        // than the ADR-020 `writeScope` check above, see that function's own doc) but this tool never
-        // called it, so an agent could write straight into `preview/` where the next preview build
-        // silently overwrites the change. Matches the human-editor surface's refusal shape.
-        if (isGeneratedThemePath(relativePath)) {
-          throw new ThemeFileReadOnlyError(
-            `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead`
-          );
-        }
+        // ADR-020 §5 generated-tree refusal + the `preview/` security-parity refusal (2026-08-18) —
+        // both checked BEFORE any filesystem write, so a rejected write never touches disk. See
+        // `assertThemeFileWritable`'s own doc; shared with `theme_edit_file` below.
+        assertThemeFileWritable(theme, relativePath);
 
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content });
 
@@ -257,14 +439,213 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
         // this domain's safety argument is that an agent-authored file is validated identically to a
         // human-authored one, so re-running the real loader (rather than a bespoke "check what we
         // just wrote" path) is what makes that true rather than merely claimed.
-        const reloaded = loadTheme({ themeDir: theme.dir, id: themeId, source: theme.source });
-        const index = routeDeps.themes.findIndex((t) => t.manifest.id === themeId);
-        if (index >= 0) routeDeps.themes[index] = reloaded;
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
 
         return {
           themeId,
           path: relativePath,
           bytesWritten: Buffer.byteLength(content, "utf8"),
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    theme_edit_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const relativePath = requireString(input, "path");
+      const oldString = requireString(input, "oldString");
+      const newString = requireString(input, "newString");
+      const replaceAll = input.replaceAll === true;
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_edit_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        // Same two ADR-020/`preview/` refusals `theme_write_file` checks, and for the identical
+        // reason — a partial edit is still a write, and must be refused BEFORE reading the file so
+        // an agent gets one clear reason rather than a read that then turns out pointless.
+        assertThemeFileWritable(theme, relativePath);
+
+        const currentContent = readThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath });
+        const nextContent = applyThemeFileEdit(currentContent, { oldString, newString, replaceAll }, relativePath);
+        const occurrencesReplaced = replaceAll ? countOccurrences(currentContent, oldString) : 1;
+
+        writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content: nextContent });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: relativePath,
+          occurrencesReplaced,
+          bytesWritten: Buffer.byteLength(nextContent, "utf8"),
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    theme_rename_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const relativePath = requireString(input, "path");
+      const name = requireString(input, "name");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_rename_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        // A trashed file is restored (theme_restore_trashed_file), never renamed in place — renaming
+        // inside `.trash/` would leave `theme_trash_file`'s own response (`trashedPath`) pointing at
+        // nothing, with no benefit over restoring to the name the caller actually wants.
+        if (isTrashedThemePath(relativePath)) {
+          throw new ThemePathError(`'${relativePath}' is inside the trash — restore it first with theme_restore_trashed_file`);
+        }
+
+        const nameError = invalidRenameTargetNameReason(name);
+        if (nameError) throw new ThemePathError(nameError);
+
+        // The ONE shared gate `explore.ts`'s HTTP rename route also calls — see
+        // `file-identity-lock.ts`'s own header for why the decision lives there now. Refuses a
+        // theme's own required files, a built theme's generated tree, and `script`/`other`-group
+        // files (nothing tracks what still references a file by its old name).
+        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+        const lock = validateFileIdentityChange(theme, relativePath, writeScope, "renamed");
+        if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+
+        const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
+        if (!existingPaths.has(relativePath)) {
+          throw new ThemePathError(`file '${relativePath}' does not exist in this theme`);
+        }
+
+        const slash = relativePath.lastIndexOf("/");
+        const destPath = slash === -1 ? name : `${relativePath.slice(0, slash)}/${name}`;
+        const finalPath = performThemeFileRename(routeDeps, theme, { sourcePath: relativePath, destPath, name }, existingPaths);
+
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: finalPath,
+          renamedFrom: relativePath,
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    theme_trash_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const relativePath = requireString(input, "path");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_trash_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        if (isTrashedThemePath(relativePath)) {
+          throw new ThemePathError(`'${relativePath}' is already inside the trash`);
+        }
+
+        // Soft-delete shares the SAME identity-lock gate rename/hard-delete use — a theme's own
+        // required files, a built theme's generated tree, and script/other-group files stay
+        // un-trashable, for the identical reasons theme_delete_file was never wired at all (see
+        // `agent-tools.ts`'s header — losing a required file still drops the theme to 'invalid',
+        // and nothing tracks what still references a script/other file by its old location).
+        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+        const lock = validateFileIdentityChange(theme, relativePath, writeScope, "trashed");
+        if (lock) throw new ThemeFileIdentityLockedError(lock.error);
+
+        const trashedPath = trashDestinationFor(relativePath);
+        // Defense-in-depth, mirroring performThemeFileRename's own destWriteScope check: `.trash/`
+        // sits at the theme's ROOT, which is only "editable" for an authored theme (every theme on
+        // disk today). For a COMPILED theme, `.trash/` resolves generated-readonly (it is neither
+        // `theme.json` nor inside `build.sourceDir`) — trashing is refused outright rather than
+        // silently landing an untracked extra inside ADR-020's generated region, where a later
+        // "restore the generated tree" call would wipe it without warning.
+        const trashWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: trashedPath });
+        if (trashWriteScope.kind === "generated-readonly") {
+          throw new ThemeFileReadOnlyError(
+            `'${relativePath}' cannot be trashed: this theme is a built release with no writable location outside build.sourceDir/theme.json to move a trashed file into`
+          );
+        }
+
+        renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: relativePath, destPath: trashedPath });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: relativePath,
+          trashedPath,
+          status: reloaded.status,
+          errors: reloaded.errors,
+          theme: toThemeToolView(reloaded),
+        };
+      });
+    },
+
+    theme_restore_trashed_file: async (ctx) => {
+      const input = requireInputRecord(ctx.input);
+      const themeId = requireString(input, "themeId");
+      const trashedPath = requireString(input, "trashedPath");
+      const explicitRestoreTo = optionalString(input, "restoreTo");
+      await requireToolPermission(routeDeps, {
+        principalId: ctx.principal.id,
+        permission: THEME_WRITE_PERMISSION,
+        entityType: "theme",
+        entityId: themeId,
+      });
+
+      return withSchemaOnRejection({ toolId: "theme_restore_trashed_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
+        const theme = findThemeOrThrow(routeDeps, themeId);
+
+        const derivedRestoreTo = originalPathFromTrashedPath(trashedPath);
+        if (derivedRestoreTo === null) {
+          throw new ThemePathError(`'${trashedPath}' is not a path theme_trash_file ever produced — it must look like '.trash/<number>/<original path>'`);
+        }
+        const restoreTo = explicitRestoreTo ?? derivedRestoreTo;
+
+        const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: routeDeps.themesDir }));
+        if (!existingPaths.has(trashedPath)) {
+          throw new ThemePathError(`'${trashedPath}' does not exist in this theme's trash`);
+        }
+        if (existingPaths.has(restoreTo)) {
+          throw new ThemePathError(`'${restoreTo}' already exists in this theme — pass a different restoreTo, or move/rename the existing file first`);
+        }
+
+        // Defense-in-depth, mirroring theme_trash_file's own destination check: an explicit
+        // `restoreTo` could otherwise name a location inside a built theme's generated tree.
+        const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: restoreTo });
+        if (destWriteScope.kind === "generated-readonly") {
+          throw new ThemeFileReadOnlyError(`'${restoreTo}' is read-only: ${destWriteScope.reason}`);
+        }
+
+        renameThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, sourcePath: trashedPath, destPath: restoreTo });
+        const reloaded = reloadThemeInPlace(routeDeps, theme, themeId);
+
+        return {
+          themeId,
+          path: restoreTo,
+          restoredFrom: trashedPath,
           status: reloaded.status,
           errors: reloaded.errors,
           theme: toThemeToolView(reloaded),

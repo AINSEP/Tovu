@@ -23,7 +23,8 @@ import type { ContentRouteDeps } from "../../content/deps.js";
  *
  * `d822d87` closed the `.svg`/`.html`/`.js` XSS write hole for a COMPILED theme's `build.sourceDir`
  * only. The general `isThemeFileWritable` gate every OTHER theme write falls back to still classifies
- * `.svg` "asset" and a root-level `.html` "partial" -- neither is in `READ_ONLY_GROUPS` -- so both
+ * `.svg` "asset" and a root-level `.html` "partial" -- neither is in `CONTENT_EDIT_LOCKED_GROUPS`
+ * (renamed from `READ_ONLY_GROUPS` 2026-08-29; asset/partial were never a member either way) -- so both
  * remain writable everywhere else, exactly as before `3d36d44`/`d822d87`. This file used to PROVE that
  * gap (a version of it is preserved in this file's git history, and reproduced by the assertions this
  * file no longer makes -- write succeeds, unescaped script comes back over HTTP).
