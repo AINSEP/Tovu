@@ -14,6 +14,28 @@ export interface AgentPluginDetailsModalProps {
   readonly useDetails?: typeof useAgentPluginDetailsModal;
 }
 
+/** A package-relative path with a `<wbr>` after every `/` (visual QA, 2026-08-31). The file list
+ *  is narrow (`.agent-plugin-source-files`, `minmax(14rem, 20rem)`) and these paths run long
+ *  (`skills/interface-design/references/commands/critique.md`) — without a preferred break point
+ *  `overflow-wrap: anywhere` (styles.css) was free to split mid-filename, e.g. leaving a lone `d`
+ *  orphaned on its own line after "critique.m". `<wbr>` only offers the browser a *preferred* spot
+ *  to break, so `overflow-wrap: anywhere` still catches the rare segment too long for the pane on
+ *  its own — this only makes the common case break at a path boundary instead of a word. */
+function PluginFilePath({ path }: { path: string }) {
+  const segments = path.split("/");
+  return (
+    <>
+      {segments.map((segment, i) => (
+        <span key={i}>
+          {segment}
+          {i < segments.length - 1 ? "/" : null}
+          {i < segments.length - 1 ? <wbr /> : null}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /**
  * Read-only inspection of an explicitly bundled plugin package.
  *
@@ -44,13 +66,15 @@ export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgent
                     aria-pressed={selectedFile?.relativePath === file.relativePath}
                     onClick={() => selectFile(file.relativePath)}
                   >
-                    {file.relativePath}
+                    <PluginFilePath path={file.relativePath} />
                   </button>
                 ))}
               </nav>
               {selectedFile ? (
                 <section className="agent-plugin-source-content" aria-labelledby={selectedFileHeadingId}>
-                  <h3 id={selectedFileHeadingId}>{selectedFile.relativePath}</h3>
+                  <h3 id={selectedFileHeadingId}>
+                    <PluginFilePath path={selectedFile.relativePath} />
+                  </h3>
                   <CodeWithLines text={selectedFile.content} />
                 </section>
               ) : (

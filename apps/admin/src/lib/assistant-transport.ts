@@ -566,6 +566,21 @@ export function buildLocalCliContextRef(input: StartRunInput, prompt: string): R
     if (filtered.length > 0) contextRef.pluginRefIds = filtered;
   }
 
+  /**
+   * The active conversation id, from `ChatPane`'s `runContext` prop (`AssistantDock.tsx`'s
+   * `chats.activeId`, the same `useRunContext` seam `frontendBindToken`/`model`/`pluginRefIds`
+   * above already ride). Lets `agent-daemon-server.ts`'s `onStarted` resume this conversation's
+   * agent-CLI session across turns instead of spawning cold every time
+   * (`server/inbound/assistant/agent-session-resume.ts`) — see that file's own doc. Omitted
+   * entirely when absent, same convention as every other optional field here: a run started before
+   * any conversation exists yet (or from a future daemon client that never sends one) just gets no
+   * session-resume behavior, not an error.
+   */
+  const conversationId = input.context?.["conversationId"];
+  if (typeof conversationId === "string" && conversationId.length > 0) {
+    contextRef.conversationId = conversationId;
+  }
+
   return contextRef;
 }
 

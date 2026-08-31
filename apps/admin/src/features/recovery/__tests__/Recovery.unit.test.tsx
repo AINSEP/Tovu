@@ -83,7 +83,9 @@ describe("loaded — header and cost class", () => {
   it("renders the page title and cost class from status", () => {
     renderRecovery({ status: { costClass: "expensive", banner: null } });
     expect(screen.getByRole("heading", { name: "Recovery" })).toBeInTheDocument();
-    expect(screen.getByText("expensive")).toBeInTheDocument();
+    // Real cost-class badge text (`costClassLabel`), not the raw `"expensive"` enum value — see
+    // `rules.ts`'s own doc comment on why the raw value never reaches the screen anymore.
+    expect(screen.getByText("Costly restore")).toBeInTheDocument();
   });
 
   it("shows an inline banner ABOVE the list, not a blank screen, once loaded and a later error occurs", () => {
@@ -148,7 +150,9 @@ describe("restore points list", () => {
     renderRecovery({ points: [POINT] });
     expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
     expect(screen.getByText("manual")).toBeInTheDocument();
-    expect(screen.getAllByText("cheap").length).toBeGreaterThan(0);
+    // Real cost-class badge text, not the raw `"cheap"` enum value — see the "loaded — header and
+    // cost class" describe block above for the same fix on the top status bar.
+    expect(screen.getAllByText("Fast restore").length).toBeGreaterThan(0);
   });
 
   it("renders a 'Restore…' button for a restorable point", () => {
@@ -219,7 +223,7 @@ describe("RestoreFlow shell (rendered via Recovery with a point selected)", () =
     expect(screen.getByRole("button", { name: "← Restore points" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Restore to 2026-08-01 12:34" })).toBeInTheDocument();
     expect(screen.getByText("manual")).toBeInTheDocument();
-    expect(screen.getAllByText("cheap").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Fast restore").length).toBeGreaterThan(0);
     expect(screen.getByText("full")).toBeInTheDocument();
     expect(screen.getByText("Computing the discarded-write-window disclosure…")).toBeInTheDocument();
   });

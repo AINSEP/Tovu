@@ -280,12 +280,48 @@
   font-family: var(--font-mono);
 }
 
-/* --- Message list --- */
-
+/* --- Message list ---
+ *
+ * BUG (owner-reported, live, 2026-08-30): the chat pane scrolled horizontally "far" -- not a
+ * page-level overflow (`document.body.scrollWidth === window.innerWidth` already held at the
+ * dashboard route) but this list's OWN box. Root cause, confirmed live against the real running
+ * dock via Playwright DOM measurement (`scrollWidth`/`clientWidth` at every ancestor):
+ *
+ * `overflow-y: auto` was the only overflow longhand set here. Per the CSS Overflow spec, a
+ * `visible` value paired with a non-`visible` value on the other axis computes to `auto` too --
+ * the browser silently turned `overflow-x` into `auto` as well, so THIS element (not
+ * `.jini-chat-pane`, not `.admin-chat-dock` -- both measured correctly bounded at 379px in every
+ * probe) became a horizontal scroll container for the WHOLE transcript. Any one message with wide
+ * unwrappable content then dragged every OTHER message sideways with it when scrolled, which is
+ * exactly "the chat pane scrolls horizontally" rather than "one bad message renders wide."
+ *
+ * The concrete wide content, reproduced live by injecting each candidate into the real DOM:
+ * - A fenced code block (`Markdown.tsx`'s `renderBlock` case `'code'` emits a bare `<pre><code>`,
+ *   no class, styled nowhere -- not this file, not the package's injected `CHAT_PANE_STYLES`) with
+ *   one long unbroken line: confirmed overflowing (list scrollWidth 1662 vs clientWidth 379).
+ *   `<pre>`'s UA default `white-space: pre` never wraps regardless of an ancestor's
+ *   `overflow-wrap`. This is what an owner-authored ASCII/box-drawing table -- the "hand-written
+ *   markdown table" symptom -- looks like once it lands inside a code fence: `Markdown.tsx` has NO
+ *   GFM pipe-table parser at all (its own module doc says so), so a genuine `| a | b |` table
+ *   outside a fence becomes one literal paragraph that wraps fine at its own spaces/hyphens
+ *   (verified: even a 141-char unbroken dash separator did not overflow this box) -- it is the
+ *   CODE-FENCED case that has no wrap defense.
+ * - A long unbroken token in plain paragraph text (a URL, hash, or path with no space/hyphen break
+ *   opportunity) inside `.jini-message-content` itself: confirmed overflowing the same way
+ *   (scrollWidth 1319 vs clientWidth 379) even without any `<pre>` involved.
+ *
+ * MCP-UI is not a third case needing its own fix: `McpUiHost.tsx` always renders its iframe
+ * wrapper at `style={{ width: '100%', height }}` (verified in source -- the resource's optional
+ * preferred WIDTH hint is parsed but never applied, only the height half of the pair is used), so
+ * it cannot itself intrinsically exceed its container. It shares this exact vulnerability only
+ * through the same unguarded ancestor, which the `overflow-x: hidden` below removes for every
+ * child alike.
+ */
 .jini-message-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;
@@ -298,7 +334,31 @@
   font-size: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   max-width: 80%;
+}
+
+/* Fenced code blocks (`Markdown.tsx`'s bare `<pre><code>`) get their OWN scrollbar instead of
+   relying on `.jini-message-list`'s now-`hidden` overflow-x to (mis)handle them -- "wide content
+   must scroll inside its own container, never widen the pane." `overflow-wrap` on the ancestor
+   above does not help here: `<pre>`'s `white-space: pre` blocks normal wrap opportunities
+   regardless of it. `max-width: 100%` keeps this box from ever exceeding the bubble that contains
+   it even before the scrollbar kicks in. */
+.jini-message-content pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Defensive width cap for MCP-UI's card and the generic ext-event wrapper around it -- both ship
+   with zero CSS from either this file or the package's injected theme today. `McpUiHost` already
+   sizes its own iframe at `width: 100%` (see this section's own note above), so this is a second
+   line of defense, not the load-bearing fix -- it keeps a future surface or a wrapper Tovu adds
+   around it (see `OverflowAwareMcpUiSurfaceCard.tsx`) from ever exceeding the message row's width
+   even if that guarantee changes upstream. */
+.jini-message-ext-events,
+.mcpui-surface-card {
+  max-width: 100%;
+  min-width: 0;
 }
 
 .jini-message-agent .jini-message-content {

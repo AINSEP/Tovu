@@ -1,10 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Pages, pagesListNotice } from "../Pages";
 import type { PagesController } from "../hooks/use-pages.hooks";
-import type { ThemePagesController } from "../hooks/use-theme-pages.hooks";
+import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
 
@@ -25,6 +25,19 @@ vi.mock("../../../lib/router", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../lib/router")>()),
   navigate: vi.fn(),
 }));
+
+/**
+ * Global, file-wide reset — NOT scoped to the `?tab=` describe block below. `Pages`'s tab switch
+ * now writes `?tab=` via `history.replaceState` (`selectTab`, `Pages.tsx`) as a side effect, and
+ * jsdom's `window.location` is shared across every test in this FILE (one jsdom window per file,
+ * not per test) — so ANY earlier test that clicks the Theme Pages tab (most of the ones below do,
+ * just to assert its content) leaves `?tab=themes` on the address bar for whichever test runs next,
+ * silently changing that next test's OWN initial tab resolution. Reset after every test, not just
+ * the ones that assert on the URL directly.
+ */
+afterEach(() => {
+  window.history.replaceState(null, "", "/");
+});
 
 const PAGE: AdminPost = {
   id: "pg1",
@@ -60,8 +73,27 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
   };
 }
 
+/** A real candidate page ("about") — this shape is what most rows on a live theme are. */
+function candidateRow(overrides: Partial<ThemePageRow> = {}): ThemePageRow {
+  return {
+    pageId: "about",
+    filePath: "render/pages/about.html",
+    published: false,
+    resettable: true,
+    collidingContent: null,
+    ...overrides,
+  };
+}
+
 function themePagesController(overrides: Partial<ThemePagesController> = {}): ThemePagesController {
-  return { pageIds: [], activeThemeId: "basic", error: null, ...overrides };
+  return {
+    pages: [],
+    activeThemeId: "basic",
+    error: null,
+    savingPageId: null,
+    setPagePublished: vi.fn(async () => {}),
+    ...overrides,
+  };
 }
 
 /**
@@ -221,78 +253,486 @@ describe("delete confirmation dialog", () => {
 describe("Theme Pages tab", () => {
   it("shows a count on each tab and hides the New Page action once switched to Theme Pages", async () => {
     const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["pricing", "docs"] });
+    renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" }), candidateRow({ pageId: "docs" })] });
     expect(screen.getByRole("tab", { name: "My Pages1" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Theme Pages2" })).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: "Theme Pages2" }));
     expect(screen.queryByRole("button", { name: "New Page" })).not.toBeInTheDocument();
   });
 
-  it("lists each theme page id with a view link and a read-only badge, no RowMenu", async () => {
+  /**
+   * 2026-08-31 owner review pass: this tab now matches "My Pages"' own column shape — same
+   * `DataTable` `columns` API, same shared `RowMenu` in a `More` column — rather than being its own
+   * bespoke screen. This replaces an earlier assertion that pinned the OPPOSITE ("no RowMenu"), from
+   * before the owner asked for the two tabs to read as siblings.
+   */
+  it("lists each theme page id with a publish switch and a RowMenu in the More column, same shape as My Pages", async () => {
     const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["pricing"] });
+    renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: true })] });
     await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
     expect(screen.getByText("pricing")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "/pricing" })).toBeInTheDocument();
-    expect(screen.getByText("Theme content — read-only")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Actions for/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: 'Actions for "pricing"' })).toBeInTheDocument();
+  });
+
+  /** Every row renders the SAME five columns regardless of its own locked/candidate shape — the
+   *  table's own structure must never depend on which row it is (owner-reported bug, the old inline
+   *  "see more" disclosure changed row height/column contents row to row). Two URL columns
+   *  (PART 1, 2026-08-31 owed-work pass) replace the old single mislabeled "URL" column that
+   *  actually linked to the theme studio — see `ThemePagesTab.tsx`'s own file header. */
+  it("gives every row the same column set — a locked row and a candidate row both get page/URL/Theme Studio/publish/More", async () => {
+    const user = userEvent.setup();
+    renderWith(
+      { pages: [PAGE] },
+      { pages: [candidateRow({ pageId: "index", published: null }), candidateRow({ pageId: "about", published: false })] }
+    );
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    const columnHeaders = screen.getAllByRole("columnheader").map((h) => h.textContent);
+    expect(columnHeaders).toEqual(["Page", "URL", "Theme Studio", "Publish", "More"]);
+    expect(screen.getByRole("button", { name: 'Actions for "index"' })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: 'Actions for "about"' })).toBeInTheDocument();
+  });
+
+  describe("publish switch", () => {
+    /**
+     * Regression guard (2026-08-31 owner-reported bug): every row here sits inside a `.list-table
+     * td`, which is exactly the context `styles.css`'s row-action reset
+     * (`.list-table td button:not([class*="btn-"]):not(.link-button)`) targets — and that
+     * selector's specificity silently overrode this switch's on/off background to one flat colour
+     * regardless of state, which is why a locked-ON switch read as indistinguishable from a
+     * genuinely off one. `btn-toggle-switch` is the documented escape hatch (`styles.css`'s own
+     * comment on that reset) — this pins its presence so the collision cannot silently return.
+     */
+    it("carries the btn- escape-hatch class, so the shared row-button reset never reaches this switch's own background", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.getByRole("switch")).toHaveClass("btn-toggle-switch");
+    });
+
+    it("reflects the row's published state and calls setPagePublished with the flipped value on click", async () => {
+      const user = userEvent.setup();
+      const setPagePublished = vi.fn(async () => {});
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: false })], setPagePublished });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const toggle = screen.getByRole("switch");
+      expect(toggle).toHaveAttribute("aria-checked", "false");
+      await user.click(toggle);
+      expect(setPagePublished).toHaveBeenCalledWith("pricing", true);
+    });
+
+    it("disables the switch, renders it ON, and carries the reason on an info icon (not inline text) for index", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const toggle = screen.getByRole("switch");
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(toggle).toHaveClass("is-on");
+      // The reason is no longer inline text sprawling the row — it lives on the info icon's tooltip.
+      expect(screen.queryByText("Always published — theme home page")).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Always published — theme home page")).toBeInTheDocument();
+    });
+
+    it("disables the switch, renders it ON, and carries the reason on an info icon for 404", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const toggle = screen.getByRole("switch");
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveAttribute("aria-checked", "true");
+      expect(toggle).toHaveClass("is-on");
+      expect(screen.getByLabelText("Always published — error page")).toBeInTheDocument();
+    });
+
+    it("disables the switch, renders it OFF, and carries the reason on an info icon for a declared template shell", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "blog-post", published: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const toggle = screen.getByRole("switch");
+      expect(toggle).toBeDisabled();
+      expect(toggle).toHaveAttribute("aria-checked", "false");
+      expect(toggle).not.toHaveClass("is-on");
+      expect(screen.getByLabelText("Not a standalone page — used as a content template")).toBeInTheDocument();
+    });
+
+    /**
+     * Owner-reported bug (2026-08-31): a locked-ON switch used to be visually indistinguishable
+     * from a genuinely off, switchable one — both rendered dim/grey at a glance. The lock glyph is
+     * the added third, colour-independent signal: present on every locked row regardless of on/off,
+     * absent on every switchable row regardless of on/off — the three real states (off+switchable,
+     * on+switchable, locked) are then each a distinct (checked, disabled, hasLockGlyph) triple.
+     */
+    it("shows the lock glyph on a locked row (on or off) and never on a switchable one", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        {
+          pages: [
+            candidateRow({ pageId: "index", published: null }), // locked ON
+            candidateRow({ pageId: "blog-post", published: null }), // locked OFF
+            candidateRow({ pageId: "about", published: false }), // switchable OFF
+            candidateRow({ pageId: "pricing", published: true }), // switchable ON
+          ],
+        }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      // Exactly the two locked rows carry a lock glyph — an `aria-hidden` svg, so found by class.
+      expect(document.querySelectorAll(".theme-page-lock-glyph")).toHaveLength(2);
+    });
+
+    it("never renders a locked-row info icon for a switchable row", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", published: false })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.queryByLabelText("Not a standalone page — used as a content template")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Always published — theme home page")).not.toBeInTheDocument();
+      expect(screen.queryByLabelText("Always published — error page")).not.toBeInTheDocument();
+    });
+
+    it("disables the switch while its own row's publish call is in flight, without disabling other rows", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        { pages: [candidateRow({ pageId: "about" }), candidateRow({ pageId: "pricing" })], savingPageId: "about" }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const [aboutSwitch, pricingSwitch] = screen.getAllByRole("switch");
+      expect(aboutSwitch).toBeDisabled();
+      expect(pricingSwitch).not.toBeDisabled();
+    });
   });
 
   /**
-   * Owner request (2026-08-27): this cell used to link to the LIVE site. It now opens the theme
-   * studio focused on that page instead — the row is about the THEME's copy of the page, and the
-   * only useful thing to do with it from here is edit it.
+   * PART 1 (2026-08-31 owed-work pass): the old single "URL" column was mislabeled — it always
+   * linked to the theme studio, never the page's own public address. Split into two real columns;
+   * see `ThemePagesTab.tsx`'s own file header. These pin the public "URL" column's three cases —
+   * the part that needs care, not the column split itself.
    */
-  it("links each theme page row to the theme studio with both params, not to the live site", async () => {
-    const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: "basic" });
-    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-    const link = screen.getByRole("link", { name: "/404" });
-    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=404");
+  describe("URL column (public site)", () => {
+    it("links a published candidate page to its real address on the public origin, external target/rel", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: true })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "/pricing" });
+      expect(link).toHaveAttribute("href", "http://localhost:3000/pricing");
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noreferrer");
+    });
+
+    /**
+     * Theme pages ship unpublished by default (2026-08-30), so most rows currently 404 on the real
+     * site. The public column must never present that as a working link — text only, no `<a>`.
+     */
+    it("shows an unpublished candidate page's address as plain text, not a dead link", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", published: false })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.queryByRole("link", { name: "/about" })).not.toBeInTheDocument();
+      const text = screen.getByText("/about");
+      expect(text.tagName).toBe("SPAN");
+      expect(text).toHaveClass("theme-page-url-not-live");
+    });
+
+    /** `index` is genuinely live at `/`, not at `/index` — the one locked row with a real address. */
+    it("links index to '/' — it is genuinely always reachable there, unlike its own id-path", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "/" });
+      expect(link).toHaveAttribute("href", "http://localhost:3000/");
+      expect(link).toHaveAttribute("target", "_blank");
+    });
+
+    /** `404` and a declared template shell have no public address at all — not "a URL that 404s",
+     *  no address, so no `<a>` at all, not even a non-clickable-looking one. */
+    it("shows no link at all for 404 or a declared template shell — they have no address, not a broken one", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        { pages: [candidateRow({ pageId: "404", published: null }), candidateRow({ pageId: "blog-post", published: null })] }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.queryByRole("link", { name: "No direct URL" })).not.toBeInTheDocument();
+      const texts = screen.getAllByText("No direct URL");
+      expect(texts).toHaveLength(2);
+      for (const text of texts) {
+        expect(text.tagName).toBe("SPAN");
+        expect(text).toHaveClass("theme-page-no-url");
+      }
+    });
   });
 
   /**
-   * An in-app admin destination, so it must NOT open a new tab: `installInternalLinkInterceptor`
-   * (`@jini-ai/admin/browser`) explicitly declines to intercept any anchor carrying a `target`, so
-   * leaving `target="_blank"` on would both full-page-load the SPA and strand the operator in a
-   * second tab.
+   * PART 1's second column — unchanged destination (`themeStudioHref`) and unchanged no-target/no-
+   * rel in-app treatment, just its own column now instead of sharing the (wrongly labeled) "URL"
+   * one. Cell text is `t("Edit")`, not the page's path — showing a site path as THIS link's text was
+   * half of the original mislabel.
    */
-  it("navigates in place — no target/rel, so the SPA link interceptor handles it", async () => {
-    const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: "basic" });
-    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-    const link = screen.getByRole("link", { name: "/404" });
-    expect(link).not.toHaveAttribute("target");
-    expect(link).not.toHaveAttribute("rel");
+  describe("Theme Studio column", () => {
+    it("links every row to the theme studio with both params, labeled Edit, regardless of publish state", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })], activeThemeId: "basic" });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "Edit" });
+      expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=404");
+    });
+
+    /**
+     * An in-app admin destination, so it must NOT open a new tab: `installInternalLinkInterceptor`
+     * (`@jini-ai/admin/browser`) explicitly declines to intercept any anchor carrying a `target`, so
+     * leaving `target="_blank"` on would both full-page-load the SPA and strand the operator in a
+     * second tab.
+     */
+    it("navigates in place — no target/rel, so the SPA link interceptor handles it", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })], activeThemeId: "basic" });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "Edit" });
+      expect(link).not.toHaveAttribute("target");
+      expect(link).not.toHaveAttribute("rel");
+    });
+
+    it("percent-encodes both params, so a page id or theme id containing a space or & cannot forge a third param", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        { pages: [candidateRow({ pageId: "my page&x=1", published: false })], activeThemeId: "b a&sic" }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "Edit" });
+      expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=b%20a%26sic&page=my%20page%26x%3D1");
+    });
+
+    it("still points 'index' at that page's own studio entry — pages.ts's static-page route excludes that slug (home is served by the route === \"home\" branch instead)", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })], activeThemeId: "basic" });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const link = screen.getByRole("link", { name: "Edit" });
+      expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=index");
+    });
+
+    it("shows a loading notice, never a half-built ?theme= link, before the active theme id is known", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "404", published: null })], activeThemeId: null });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      expect(screen.getByText("Loading theme pages…")).toBeInTheDocument();
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    });
   });
 
-  it("percent-encodes both params, so a page id or theme id containing a space or & cannot forge a third param", async () => {
-    const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["my page&x=1"], activeThemeId: "b a&sic" });
-    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-    const link = screen.getByRole("link", { name: "/my page&x=1" });
-    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=b%20a%26sic&page=my%20page%26x%3D1");
+  /**
+   * 2026-08-31 owner review pass: the old inline "see more" disclosure reflowed the row in place —
+   * *"this reorganization when you click see more... looks awful."* Its content (file path, whether
+   * there is an original to reset to) now lives in `ThemePageDetailsModal.tsx`, opened from the
+   * row's `RowMenu` `More` menu, plus two facts the old panel never showed: the row's own publish
+   * reason and any colliding content record.
+   */
+  describe("Details modal", () => {
+    async function openDetails(user: ReturnType<typeof userEvent.setup>, pageName: string) {
+      await user.click(screen.getByRole("button", { name: `Actions for "${pageName}"` }));
+      await user.click(screen.getByRole("menuitem", { name: "Details" }));
+    }
+
+    it("opens from the row's More menu, revealing its underlying file path, without reflowing the row", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", filePath: "render/pages/about.html" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const row = screen.getByText("about").closest("tr")!;
+      const cellCountBefore = row.querySelectorAll("td").length;
+      expect(screen.queryByText("render/pages/about.html")).not.toBeInTheDocument();
+      await openDetails(user, "about");
+      expect(screen.getByText("render/pages/about.html")).toBeInTheDocument();
+      // The row itself never changed shape — the detail lives in a dialog OUTSIDE the table, not a
+      // fifth cell or extra content squeezed into an existing one.
+      expect(row.querySelectorAll("td").length).toBe(cellCountBefore);
+      expect(row.contains(document.querySelector("dialog.theme-page-details-dialog"))).toBe(false);
+    });
+
+    it("mentions there is no original to reset to for a page the theme author added after install", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", resettable: false })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.getByText("Added to this theme after it was installed — there is no original to reset to.")).toBeInTheDocument();
+    });
+
+    it("omits the 'no original' note when the page is resettable", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", resettable: true })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.queryByText("Added to this theme after it was installed — there is no original to reset to.")).not.toBeInTheDocument();
+    });
+
+    it("shows the Live/Not live publish state for a real candidate row", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: true })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "pricing");
+      // "Publish"/value now render as a label/value pair (a `<dl>`), not one "Publish: Live"
+      // sentence — see `ThemePageDetailsModal.tsx`'s own header, PART 3.
+      const dialog = document.querySelector<HTMLElement>("dialog.theme-page-details-dialog")!;
+      expect(within(dialog).getByText("Publish")).toBeInTheDocument();
+      expect(within(dialog).getByText("Live")).toBeInTheDocument();
+    });
+
+    it("shows the locked reason (not Live/Not live) as the Publish line for a locked row", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "index");
+      const dialog = document.querySelector<HTMLElement>("dialog.theme-page-details-dialog")!;
+      expect(within(dialog).getByText("Always published — theme home page")).toBeInTheDocument();
+    });
+
+    it("is available for a locked row too — the row's own detail did not disappear when the inline reason moved onto the info icon", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null, filePath: "render/pages/index.html" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "index");
+      expect(screen.getByText("render/pages/index.html")).toBeInTheDocument();
+    });
+
+    it("shows a warning naming the colliding content record and a link to open it", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        {
+          pages: [
+            candidateRow({
+              pageId: "about",
+              published: true,
+              collidingContent: { id: "post-1", slug: "about", title: "About Us", kind: "post" },
+            }),
+          ],
+        }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.getByText(/A content record shares this page's URL: About Us\./)).toBeInTheDocument();
+      const openLink = screen.getByRole("link", { name: "Open About Us" });
+      expect(openLink).toHaveAttribute("href", "/admin/posts/post-1");
+    });
+
+    it("links to the Pages editor by slug, not id, when the colliding record is a Page", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        {
+          pages: [
+            candidateRow({
+              pageId: "about",
+              collidingContent: { id: "pg-9", slug: "about-us", title: "About Us Page", kind: "page" },
+            }),
+          ],
+        }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.getByRole("link", { name: "Open About Us Page" })).toHaveAttribute("href", "/admin/pages/about-us");
+    });
+
+    it("shows no collision warning when the row has no colliding content", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about", collidingContent: null })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.queryByText(/A content record shares this page's URL/)).not.toBeInTheDocument();
+    });
+
+    it("closes via its own Close button", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      const dialog = document.querySelector("dialog.theme-page-details-dialog")!;
+      expect(dialog.hasAttribute("open")).toBe(true);
+      await user.click(screen.getByRole("button", { name: "Close" }));
+      expect(dialog.hasAttribute("open")).toBe(false);
+    });
+
+    it("closes on Escape (the dialog's native cancel event), preventing the browser's own close — mirrors MessageOverflowModal.unit.test.tsx's own pattern", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      const dialog = document.querySelector("dialog.theme-page-details-dialog")!;
+      expect(dialog.hasAttribute("open")).toBe(true);
+      const cancelEvent = new Event("cancel", { cancelable: true });
+      fireEvent(dialog, cancelEvent);
+      expect(dialog.hasAttribute("open")).toBe(false);
+      expect(cancelEvent.defaultPrevented).toBe(true);
+    });
+
+    it("closes on a click landing on the dialog's own backdrop area, not when it lands on content", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      const dialog = document.querySelector("dialog.theme-page-details-dialog")!;
+      fireEvent.click(screen.getByText("render/pages/about.html"));
+      expect(dialog.hasAttribute("open")).toBe(true);
+      fireEvent.click(dialog);
+      expect(dialog.hasAttribute("open")).toBe(false);
+    });
+
+    it("stays closed (no attribute) until a row's Details item is chosen", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })] });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      const dialog = document.querySelector("dialog.theme-page-details-dialog")!;
+      expect(dialog.hasAttribute("open")).toBe(false);
+    });
+
   });
 
-  it("still labels the 'index' page id as the site root, and points it at that page's own studio entry — pages.ts's static-page route excludes that slug (home is served by the route === \"home\" branch instead)", async () => {
-    const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["index"], activeThemeId: "basic" });
-    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-    const link = screen.getByRole("link", { name: "/" });
-    expect(link.getAttribute("href")).toBe("/admin/themes/explore?theme=basic&page=index");
-  });
+  /**
+   * PART 4 (2026-08-31, same-day follow-up to PART 2 above): the owner asked for Edit to live in the
+   * row's `RowMenu`, directly under Details, not as a button inside the modal — moved out of
+   * `ThemePageDetailsModal.tsx`'s own footer entirely. Same Theme Studio destination as before
+   * (`themeStudioHref`, reused rather than re-derived) and as the table's own Theme Studio column;
+   * `navigate` is mocked at the top of this file, same pattern `"row menu — Disable visibility..."`'s
+   * own "Edit navigates to the Pages editor" test above uses for My Pages' row menu.
+   */
+  describe("row menu — Edit (Theme Pages)", () => {
+    it("navigates to the same Theme Studio destination as the table's own column", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })], activeThemeId: "basic" });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      // The row's OWN Theme Studio column also renders an "Edit" link (role "link"), distinct from
+      // this row-menu item (role "menuitem") — no scoping needed to disambiguate.
+      await user.click(screen.getByRole("button", { name: 'Actions for "about"' }));
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+      expect(navigate).toHaveBeenCalledWith("/admin/themes/explore?theme=basic&page=about");
+    });
 
-  it("shows the page path as plain text, never a half-built ?theme= link, before the active theme id is known", async () => {
-    const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: ["404"], activeThemeId: null });
-    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
-    expect(screen.getByText("Loading theme pages…")).toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "/404" })).not.toBeInTheDocument();
+    it("works for a locked row too — index has no `PostRecord` but is still editable in Theme Studio", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        { pages: [candidateRow({ pageId: "index", published: null })], activeThemeId: "basic" }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await user.click(screen.getByRole("button", { name: 'Actions for "index"' }));
+      await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+      expect(navigate).toHaveBeenCalledWith("/admin/themes/explore?theme=basic&page=index");
+    });
+
+    it("is listed directly under Details in the menu", async () => {
+      const user = userEvent.setup();
+      renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "about" })], activeThemeId: "basic" });
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await user.click(screen.getByRole("button", { name: 'Actions for "about"' }));
+      const menuItems = screen.getAllByRole("menuitem").map((item) => item.textContent);
+      expect(menuItems).toEqual(["Details", "Edit"]);
+    });
   });
 
   it("shows a sensible empty state, not the My Pages empty copy, when the active theme ships no pages", async () => {
     const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: [] });
+    renderWith({ pages: [PAGE] }, { pages: [] });
     await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
     expect(screen.getByText("The active theme doesn't ship any of its own static pages.")).toBeInTheDocument();
     expect(screen.queryByText("No pages yet.")).not.toBeInTheDocument();
@@ -300,12 +740,44 @@ describe("Theme Pages tab", () => {
 
   it("shows a loading notice on the Theme Pages tab while its own request is still in flight, without blocking My Pages", async () => {
     const user = userEvent.setup();
-    renderWith({ pages: [PAGE] }, { pageIds: null, error: null });
+    renderWith({ pages: [PAGE] }, { pages: null, error: null });
     // "My Pages" (the default tab) already rendered its table — only the Theme Pages tab's own
     // body is gated on its own load, not the whole screen.
     expect(screen.getByRole("table")).toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
     expect(screen.getByText("Loading theme pages…")).toBeInTheDocument();
+  });
+});
+
+describe("Theme Pages tab — deep link via ?tab=", () => {
+  it("opens directly on Theme Pages when the URL carries ?tab=themes", () => {
+    window.history.replaceState(null, "", "/admin/pages?tab=themes");
+    renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" })] });
+    expect(screen.getByRole("tab", { name: /^Theme Pages/, selected: true })).toBeInTheDocument();
+  });
+
+  it("falls back to My Pages for an unrecognized ?tab= value, rather than rendering neither tab", () => {
+    window.history.replaceState(null, "", "/admin/pages?tab=bogus");
+    renderWith({ pages: [PAGE] });
+    expect(screen.getByRole("tab", { name: /^My Pages/, selected: true })).toBeInTheDocument();
+  });
+
+  it("writes ?tab=themes into the address bar via replaceState (not a new history entry) when the tab is clicked", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/admin/pages");
+    const lengthBefore = window.history.length;
+    renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" })] });
+    await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+    expect(window.location.search).toBe("?tab=themes");
+    expect(window.history.length).toBe(lengthBefore);
+  });
+
+  it("removes the ?tab= param when switching back to My Pages", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, "", "/admin/pages?tab=themes");
+    renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing" })] });
+    await user.click(screen.getByRole("tab", { name: /^My Pages/ }));
+    expect(window.location.search).toBe("");
   });
 });
 

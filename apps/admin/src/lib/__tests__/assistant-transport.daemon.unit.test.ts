@@ -110,6 +110,15 @@ describe("buildLocalCliContextRef", () => {
     expect(buildLocalCliContextRef(input({ context: { pluginRefIds: [] } }), "p")).toEqual({ prompt: "p" });
     expect(buildLocalCliContextRef(input({ context: { pluginRefIds: "not-an-array" } }), "p")).toEqual({ prompt: "p" });
   });
+
+  test("includes conversationId only when it is a non-empty string", () => {
+    expect(buildLocalCliContextRef(input({ context: { conversationId: "c1" } }), "p")).toEqual({
+      prompt: "p",
+      conversationId: "c1",
+    });
+    expect(buildLocalCliContextRef(input({ context: { conversationId: "" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { conversationId: 42 } }), "p")).toEqual({ prompt: "p" });
+  });
 });
 
 describe("startRun — guard and request shape", () => {

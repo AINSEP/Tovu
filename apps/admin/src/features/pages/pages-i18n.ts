@@ -31,6 +31,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "¿Mover",
     "to trash? It will disappear from the site and from this list.":
       "a la papelera? Desaparecerá del sitio y de esta lista.",
+    "Loading theme pages…": "Cargando páginas del tema…",
+    "No theme pages.": "No hay páginas del tema.",
+    "The active theme doesn't ship any of its own static pages.":
+      "El tema activo no incluye ninguna página estática propia.",
+    Page: "Página",
+    "URL": "URL",
+    "Theme Studio": "Estudio de temas",
+    "Always published — theme home page": "Siempre publicada — página de inicio del tema",
+    "Always published — error page": "Siempre publicada — página de error",
+    "Not a standalone page — used as a content template":
+      "No es una página independiente — se usa como plantilla de contenido",
+    "No direct URL": "Sin URL propia",
+    "Not live": "No publicada",
+    "Live": "Publicada",
+    Publish: "Publicar",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Indica si esta página tiene su propia URL activa en tu sitio. Las páginas del tema empiezan desactivadas, porque un tema incluye contenido genérico de muestra en lugar del tuyo. Actívala cuando la hayas hecho tuya.",
+    File: "Archivo",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Se añadió a este tema después de instalarlo — no hay un original al que restablecerla.",
+    Details: "Detalles",
+    "Close": "Cerrar",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Un registro de contenido comparte la URL de esta página: {title}. Cuál de los dos gana depende del estado de publicación de esta página y de la opción de anulación de ese registro, no solo de este interruptor.",
+    "Open {title}": "Abrir {title}",
   },
   id: {
     Content: "Konten",
@@ -52,6 +77,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Pindahkan",
     "to trash? It will disappear from the site and from this list.":
       "ke sampah? Ini akan hilang dari situs dan dari daftar ini.",
+    "Loading theme pages…": "Memuat halaman tema…",
+    "No theme pages.": "Tidak ada halaman tema.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Tema aktif tidak menyertakan halaman statis miliknya sendiri.",
+    Page: "Halaman",
+    "URL": "URL",
+    "Theme Studio": "Studio Tema",
+    "Always published — theme home page": "Selalu dipublikasikan — halaman beranda tema",
+    "Always published — error page": "Selalu dipublikasikan — halaman kesalahan",
+    "Not a standalone page — used as a content template":
+      "Bukan halaman mandiri — digunakan sebagai templat konten",
+    "No direct URL": "Tidak ada URL langsung",
+    "Not live": "Belum dipublikasikan",
+    "Live": "Dipublikasikan",
+    Publish: "Publikasikan",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Menunjukkan apakah halaman ini memiliki URL aktifnya sendiri di situs Anda. Halaman tema mulai dalam keadaan nonaktif, karena tema menyertakan konten generik alih-alih milik Anda. Aktifkan setelah Anda menjadikannya milik Anda sendiri.",
+    File: "Berkas",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Ditambahkan ke tema ini setelah dipasang — tidak ada versi asli untuk dipulihkan.",
+    Details: "Detail",
+    "Close": "Tutup",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Sebuah catatan konten berbagi URL halaman ini: {title}. Mana yang menang bergantung pada status penerbitan halaman ini dan pilihan penggantian (override) milik catatan itu sendiri, bukan hanya oleh sakelar ini.",
+    "Open {title}": "Buka {title}",
   },
   de: {
     Content: "Inhalt",
@@ -73,6 +123,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Verschiebe",
     "to trash? It will disappear from the site and from this list.":
       "in den Papierkorb? Sie verschwindet von der Website und aus dieser Liste.",
+    "Loading theme pages…": "Themenseiten werden geladen…",
+    "No theme pages.": "Keine Themenseiten.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Das aktive Theme enthält keine eigenen statischen Seiten.",
+    Page: "Seite",
+    "URL": "URL",
+    "Theme Studio": "Design-Studio",
+    "Always published — theme home page": "Immer veröffentlicht — Startseite des Themes",
+    "Always published — error page": "Immer veröffentlicht — Fehlerseite",
+    "Not a standalone page — used as a content template":
+      "Keine eigenständige Seite — wird als Inhaltsvorlage verwendet",
+    "No direct URL": "Keine eigene URL",
+    "Not live": "Nicht veröffentlicht",
+    "Live": "Veröffentlicht",
+    Publish: "Veröffentlichen",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Gibt an, ob diese Seite eine eigene aktive URL auf deiner Website hat. Themenseiten sind zunächst deaktiviert, da ein Theme generische Platzhalterinhalte statt deiner eigenen enthält. Aktiviere sie, sobald du sie an deine Bedürfnisse angepasst hast.",
+    File: "Datei",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Wurde diesem Theme nach der Installation hinzugefügt — es gibt kein Original, auf das zurückgesetzt werden kann.",
+    Details: "Details",
+    "Close": "Schließen",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Ein Content-Eintrag teilt sich die URL dieser Seite: {title}. Welcher davon gewinnt, hängt vom Veröffentlichungsstatus dieser Seite und der eigenen Override-Entscheidung dieses Eintrags ab, nicht allein von diesem Schalter.",
+    "Open {title}": "{title} öffnen",
   },
   "zh-CN": {
     Content: "内容",
@@ -94,6 +169,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "将",
     "to trash? It will disappear from the site and from this list.":
       "移到回收站？它将从网站和此列表中消失。",
+    "Loading theme pages…": "正在加载主题页面…",
+    "No theme pages.": "没有主题页面。",
+    "The active theme doesn't ship any of its own static pages.":
+      "当前主题未提供任何自带的静态页面。",
+    Page: "页面",
+    "URL": "URL",
+    "Theme Studio": "主题工作室",
+    "Always published — theme home page": "始终已发布 — 主题首页",
+    "Always published — error page": "始终已发布 — 错误页面",
+    "Not a standalone page — used as a content template":
+      "不是独立页面 — 用作内容模板",
+    "No direct URL": "没有独立网址",
+    "Not live": "未发布",
+    "Live": "已发布",
+    Publish: "发布",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "表示此页面在您的网站上是否有自己的实时网址。主题页面默认处于关闭状态，因为主题提供的是通用占位内容，而不是您自己的内容。当您将其修改为自己的内容后再开启。",
+    File: "文件",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "此页面是在安装主题后添加的 — 没有可还原的原始版本。",
+    Details: "详情",
+    "Close": "关闭",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "有一条内容记录与此页面共用同一个网址：{title}。最终由哪一个胜出，取决于此页面的发布状态和该记录自身的覆盖选择，而不仅仅是这个开关。",
+    "Open {title}": "打开 {title}",
   },
   "zh-TW": {
     Content: "內容",
@@ -115,6 +215,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "將",
     "to trash? It will disappear from the site and from this list.":
       "移到資源回收筒？它將從網站和此清單中消失。",
+    "Loading theme pages…": "正在載入主題頁面…",
+    "No theme pages.": "沒有主題頁面。",
+    "The active theme doesn't ship any of its own static pages.":
+      "目前的主題未提供任何自帶的靜態頁面。",
+    Page: "頁面",
+    "URL": "URL",
+    "Theme Studio": "佈景主題工作室",
+    "Always published — theme home page": "永遠已發布 — 主題首頁",
+    "Always published — error page": "永遠已發布 — 錯誤頁面",
+    "Not a standalone page — used as a content template":
+      "不是獨立頁面 — 用作內容範本",
+    "No direct URL": "沒有獨立網址",
+    "Not live": "尚未發布",
+    "Live": "已發布",
+    Publish: "發布",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "表示此頁面在您的網站上是否有自己的即時網址。主題頁面預設為關閉，因為主題提供的是通用預留內容，而非您自己的內容。等您將其改為自己的內容後再開啟。",
+    File: "檔案",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "此頁面是安裝主題後才新增的 — 沒有可還原的原始版本。",
+    Details: "詳細資料",
+    "Close": "關閉",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "有一筆內容記錄與此頁面共用同一個網址：{title}。最終由哪一個勝出，取決於此頁面的發布狀態和該記錄自身的覆寫選擇，而不只是這個開關。",
+    "Open {title}": "開啟 {title}",
   },
   "pt-BR": {
     Content: "Conteúdo",
@@ -136,6 +261,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Mover",
     "to trash? It will disappear from the site and from this list.":
       "para a lixeira? Ela desaparecerá do site e desta lista.",
+    "Loading theme pages…": "Carregando páginas do tema…",
+    "No theme pages.": "Nenhuma página do tema.",
+    "The active theme doesn't ship any of its own static pages.":
+      "O tema ativo não inclui nenhuma página estática própria.",
+    Page: "Página",
+    "URL": "URL",
+    "Theme Studio": "Estúdio de Temas",
+    "Always published — theme home page": "Sempre publicada — página inicial do tema",
+    "Always published — error page": "Sempre publicada — página de erro",
+    "Not a standalone page — used as a content template":
+      "Não é uma página independente — usada como modelo de conteúdo",
+    "No direct URL": "Sem URL própria",
+    "Not live": "Não publicada",
+    "Live": "Publicada",
+    Publish: "Publicar",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Indica se esta página tem sua própria URL ativa no seu site. As páginas do tema começam desativadas, porque um tema traz conteúdo genérico em vez do seu. Ative quando ela já estiver com o seu conteúdo.",
+    File: "Arquivo",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Adicionada a este tema depois que ele foi instalado — não há um original para restaurar.",
+    Details: "Detalhes",
+    "Close": "Fechar",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Um registro de conteúdo compartilha a URL desta página: {title}. Qual dos dois vence depende do estado de publicação desta página e da própria escolha de substituição desse registro, não apenas deste botão.",
+    "Open {title}": "Abrir {title}",
   },
   ru: {
     Content: "Контент",
@@ -157,6 +307,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Переместить",
     "to trash? It will disappear from the site and from this list.":
       "в корзину? Она исчезнет с сайта и из этого списка.",
+    "Loading theme pages…": "Загрузка страниц темы…",
+    "No theme pages.": "Нет страниц темы.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Активная тема не содержит собственных статических страниц.",
+    Page: "Страница",
+    "URL": "URL",
+    "Theme Studio": "Студия тем",
+    "Always published — theme home page": "Всегда опубликована — главная страница темы",
+    "Always published — error page": "Всегда опубликована — страница ошибки",
+    "Not a standalone page — used as a content template":
+      "Не отдельная страница — используется как шаблон содержимого",
+    "No direct URL": "Нет собственного URL",
+    "Not live": "Не опубликована",
+    "Live": "Опубликована",
+    Publish: "Публикация",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Показывает, есть ли у этой страницы собственный активный URL на вашем сайте. Страницы темы изначально отключены, так как тема содержит типовое содержимое-заполнитель, а не ваше собственное. Включите её, когда сделаете своей.",
+    File: "Файл",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Добавлена в эту тему после установки — оригинала для восстановления нет.",
+    Details: "Подробности",
+    "Close": "Закрыть",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Запись контента использует тот же URL, что и эта страница: {title}. Какая из них победит, зависит от статуса публикации этой страницы и собственного выбора переопределения этой записи, а не только от этого переключателя.",
+    "Open {title}": "Открыть {title}",
   },
   fa: {
     Content: "محتوا",
@@ -178,6 +353,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "آیا می‌خواهید",
     "to trash? It will disappear from the site and from this list.":
       "را به زباله‌دان منتقل کنید؟ از سایت و از این فهرست ناپدید خواهد شد.",
+    "Loading theme pages…": "در حال بارگذاری صفحات پوسته…",
+    "No theme pages.": "هیچ صفحهٔ پوسته‌ای وجود ندارد.",
+    "The active theme doesn't ship any of its own static pages.":
+      "پوستهٔ فعال هیچ صفحهٔ ایستای مخصوص به خود را ارائه نمی‌دهد.",
+    Page: "صفحه",
+    "URL": "URL",
+    "Theme Studio": "استودیوی پوسته",
+    "Always published — theme home page": "همیشه منتشرشده — صفحهٔ اصلی پوسته",
+    "Always published — error page": "همیشه منتشرشده — صفحهٔ خطا",
+    "Not a standalone page — used as a content template":
+      "صفحه‌ای مستقل نیست — به‌عنوان قالب محتوا استفاده می‌شود",
+    "No direct URL": "بدون نشانی اینترنتی مستقل",
+    "Not live": "منتشرنشده",
+    "Live": "منتشرشده",
+    Publish: "انتشار",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "نشان می‌دهد که آیا این صفحه نشانی اینترنتی فعال خود را در سایت شما دارد یا خیر. صفحات پوسته در ابتدا غیرفعال هستند، زیرا یک پوسته محتوای عمومی جایگزین ارائه می‌دهد نه محتوای شما. وقتی آن را مخصوص خودتان کردید، آن را فعال کنید.",
+    File: "پرونده",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "پس از نصب این پوسته به آن افزوده شده — نسخهٔ اصلی‌ای برای بازگردانی وجود ندارد.",
+    Details: "جزئیات",
+    "Close": "بستن",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "یک رکورد محتوا همین نشانی این صفحه را دارد: {title}. اینکه کدام‌یک برنده می‌شود به وضعیت انتشار این صفحه و انتخاب لغو (override) خودِ آن رکورد بستگی دارد، نه فقط این کلید.",
+    "Open {title}": "باز کردن {title}",
   },
   ar: {
     Content: "المحتوى",
@@ -199,6 +399,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "هل تريد نقل",
     "to trash? It will disappear from the site and from this list.":
       "إلى سلة المهملات؟ ستختفي من الموقع ومن هذه القائمة.",
+    "Loading theme pages…": "جارٍ تحميل صفحات القالب…",
+    "No theme pages.": "لا توجد صفحات للقالب.",
+    "The active theme doesn't ship any of its own static pages.":
+      "لا يوفر القالب النشط أي صفحات ثابتة خاصة به.",
+    Page: "صفحة",
+    "URL": "URL",
+    "Theme Studio": "استوديو القوالب",
+    "Always published — theme home page": "منشورة دائمًا — الصفحة الرئيسية للقالب",
+    "Always published — error page": "منشورة دائمًا — صفحة الخطأ",
+    "Not a standalone page — used as a content template":
+      "ليست صفحة مستقلة — تُستخدم كقالب محتوى",
+    "No direct URL": "لا يوجد رابط مباشر",
+    "Not live": "غير منشورة",
+    "Live": "منشورة",
+    Publish: "النشر",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "يوضح ما إذا كانت هذه الصفحة تملك رابطًا نشطًا خاصًا بها على موقعك. تبدأ صفحات القالب معطّلة، لأن القالب يوفر محتوى عامًا بدلاً من محتواك. فعّلها بعد أن تجعلها خاصة بك.",
+    File: "الملف",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "أُضيفت إلى هذا القالب بعد تثبيته — لا توجد نسخة أصلية لاستعادتها.",
+    Details: "التفاصيل",
+    "Close": "إغلاق",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "يشارك سجل محتوى نفس عنوان URL الخاص بهذه الصفحة: {title}. من يفوز يعتمد على حالة نشر هذه الصفحة وخيار التجاوز الخاص بذلك السجل، وليس على هذا المفتاح وحده.",
+    "Open {title}": "فتح {title}",
   },
   ja: {
     Content: "コンテンツ",
@@ -220,6 +445,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "をゴミ箱に移動しますか？サイトとこの一覧から削除されます。",
+    "Loading theme pages…": "テーマページを読み込み中…",
+    "No theme pages.": "テーマページはありません。",
+    "The active theme doesn't ship any of its own static pages.":
+      "アクティブなテーマには独自の静的ページがありません。",
+    Page: "ページ",
+    "URL": "URL",
+    "Theme Studio": "テーマスタジオ",
+    "Always published — theme home page": "常に公開 — テーマのホームページ",
+    "Always published — error page": "常に公開 — エラーページ",
+    "Not a standalone page — used as a content template":
+      "独立したページではありません — コンテンツテンプレートとして使用",
+    "No direct URL": "固有のURLなし",
+    "Not live": "非公開",
+    "Live": "公開済み",
+    Publish: "公開",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "このページがサイト上で独自の公開URLを持っているかどうかを示します。テーマページは最初はオフになっています。テーマには独自のコンテンツではなく、一般的なプレースホルダーコンテンツが含まれているためです。自分の内容に編集したらオンにしてください。",
+    File: "ファイル",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "このテーマのインストール後に追加されたページです — リセットできる元のファイルはありません。",
+    Details: "詳細",
+    "Close": "閉じる",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "コンテンツレコード「{title}」がこのページと同じURLを共有しています。どちらが実際に表示されるかは、このページの公開状態とそのレコード自身の上書き設定によって決まり、このスイッチだけでは決まりません。",
+    "Open {title}": "{title} を開く",
   },
   ko: {
     Content: "콘텐츠",
@@ -241,6 +491,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "휴지통으로 이동할까요? 사이트와 이 목록에서 사라집니다.",
+    "Loading theme pages…": "테마 페이지 로드 중…",
+    "No theme pages.": "테마 페이지가 없습니다.",
+    "The active theme doesn't ship any of its own static pages.":
+      "활성 테마에는 자체 정적 페이지가 없습니다.",
+    Page: "페이지",
+    "URL": "URL",
+    "Theme Studio": "테마 스튜디오",
+    "Always published — theme home page": "항상 게시됨 — 테마 홈 페이지",
+    "Always published — error page": "항상 게시됨 — 오류 페이지",
+    "Not a standalone page — used as a content template":
+      "독립 페이지가 아님 — 콘텐츠 템플릿으로 사용됨",
+    "No direct URL": "고유 URL 없음",
+    "Not live": "게시되지 않음",
+    "Live": "게시됨",
+    Publish: "게시",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "이 페이지가 사이트에서 자체 실시간 URL을 가지고 있는지를 나타냅니다. 테마 페이지는 기본적으로 꺼져 있습니다. 테마에는 사용자의 콘텐츠가 아닌 일반 자리표시자 콘텐츠가 포함되어 있기 때문입니다. 페이지를 직접 수정한 후에 켜세요.",
+    File: "파일",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "이 테마가 설치된 후에 추가된 페이지입니다 — 되돌릴 원본이 없습니다.",
+    Details: "세부 정보",
+    "Close": "닫기",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "콘텐츠 레코드 “{title}”이(가) 이 페이지와 동일한 URL을 공유합니다. 어느 쪽이 실제로 표시되는지는 이 페이지의 게시 상태와 해당 레코드 자체의 재정의 선택에 따라 달라지며, 이 스위치만으로 결정되지 않습니다.",
+    "Open {title}": "{title} 열기",
   },
   pl: {
     Content: "Treść",
@@ -262,6 +537,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Przenieś",
     "to trash? It will disappear from the site and from this list.":
       "do kosza? Zniknie z witryny i z tej listy.",
+    "Loading theme pages…": "Ładowanie stron motywu…",
+    "No theme pages.": "Brak stron motywu.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Aktywny motyw nie zawiera żadnych własnych stron statycznych.",
+    Page: "Strona",
+    "URL": "URL",
+    "Theme Studio": "Studio motywów",
+    "Always published — theme home page": "Zawsze opublikowana — strona główna motywu",
+    "Always published — error page": "Zawsze opublikowana — strona błędu",
+    "Not a standalone page — used as a content template":
+      "Nie jest samodzielną stroną — używana jako szablon treści",
+    "No direct URL": "Brak własnego adresu URL",
+    "Not live": "Nieopublikowana",
+    "Live": "Opublikowana",
+    Publish: "Publikuj",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Wskazuje, czy ta strona ma własny, aktywny adres URL w Twojej witrynie. Strony motywu są domyślnie wyłączone, ponieważ motyw zawiera ogólną treść zastępczą zamiast Twojej własnej. Włącz ją, gdy dostosujesz stronę do siebie.",
+    File: "Plik",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Dodana do tego motywu po jego instalacji — nie ma oryginału, do którego można przywrócić.",
+    Details: "Szczegóły",
+    "Close": "Zamknij",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Rekord treści współdzieli adres URL z tą stroną: {title}. To, który z nich wygrywa, zależy od stanu publikacji tej strony oraz własnego wyboru zastąpienia tego rekordu, a nie tylko od tego przełącznika.",
+    "Open {title}": "Otwórz {title}",
   },
   hu: {
     Content: "Tartalom",
@@ -283,6 +583,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Áthelyezés",
     "to trash? It will disappear from the site and from this list.":
       "a kukába? Eltűnik a webhelyről és erről a listáról.",
+    "Loading theme pages…": "Sablonoldalak betöltése…",
+    "No theme pages.": "Nincsenek sablonoldalak.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Az aktív sablon nem tartalmaz saját statikus oldalakat.",
+    Page: "Oldal",
+    "URL": "URL",
+    "Theme Studio": "Téma stúdió",
+    "Always published — theme home page": "Mindig közzétéve — a sablon kezdőlapja",
+    "Always published — error page": "Mindig közzétéve — hibaoldal",
+    "Not a standalone page — used as a content template":
+      "Nem önálló oldal — tartalomsablonként használva",
+    "No direct URL": "Nincs saját URL",
+    "Not live": "Nincs közzétéve",
+    "Live": "Közzétéve",
+    Publish: "Közzététel",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Megmutatja, hogy ennek az oldalnak van-e saját, élő URL-je a webhelyeden. A sablonoldalak alapértelmezés szerint ki vannak kapcsolva, mivel a sablon általános helyőrző tartalmat kínál a sajátod helyett. Kapcsold be, ha már a sajátoddá tetted.",
+    File: "Fájl",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Ez az oldal a sablon telepítése után lett hozzáadva — nincs eredeti, amelyre visszaállítható lenne.",
+    Details: "Részletek",
+    "Close": "Bezárás",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Egy tartalomrekord osztozik ennek az oldalnak az URL-jén: {title}. Hogy melyik nyer, az az oldal közzétételi állapotától és a rekord saját felülbírálási választásától függ, nem csak ettől a kapcsolótól.",
+    "Open {title}": "{title} megnyitása",
   },
   fr: {
     Content: "Contenu",
@@ -304,6 +629,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Déplacer",
     "to trash? It will disappear from the site and from this list.":
       "vers la corbeille ? Elle disparaîtra du site et de cette liste.",
+    "Loading theme pages…": "Chargement des pages du thème…",
+    "No theme pages.": "Aucune page de thème.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Le thème actif ne fournit aucune page statique qui lui soit propre.",
+    Page: "Page",
+    "URL": "URL",
+    "Theme Studio": "Studio de thèmes",
+    "Always published — theme home page": "Toujours publiée — page d'accueil du thème",
+    "Always published — error page": "Toujours publiée — page d'erreur",
+    "Not a standalone page — used as a content template":
+      "Pas une page autonome — utilisée comme modèle de contenu",
+    "No direct URL": "Aucune URL propre",
+    "Not live": "Non publiée",
+    "Live": "Publiée",
+    Publish: "Publier",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Indique si cette page a sa propre URL active sur votre site. Les pages de thème sont désactivées par défaut, car un thème fournit un contenu générique de remplacement plutôt que le vôtre. Activez-la une fois que vous l'avez adaptée.",
+    File: "Fichier",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Ajoutée à ce thème après son installation — il n'existe aucun original vers lequel la réinitialiser.",
+    Details: "Détails",
+    "Close": "Fermer",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Un contenu partage l'URL de cette page : {title}. Celui qui l'emporte dépend de l'état de publication de cette page et du choix de remplacement propre à ce contenu, pas uniquement de cet interrupteur.",
+    "Open {title}": "Ouvrir {title}",
   },
   uk: {
     Content: "Вміст",
@@ -325,6 +675,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Перемістити",
     "to trash? It will disappear from the site and from this list.":
       "в кошик? Вона зникне з сайту та з цього списку.",
+    "Loading theme pages…": "Завантаження сторінок теми…",
+    "No theme pages.": "Немає сторінок теми.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Активна тема не містить власних статичних сторінок.",
+    Page: "Сторінка",
+    "URL": "URL",
+    "Theme Studio": "Студія тем",
+    "Always published — theme home page": "Завжди опублікована — головна сторінка теми",
+    "Always published — error page": "Завжди опублікована — сторінка помилки",
+    "Not a standalone page — used as a content template":
+      "Не окрема сторінка — використовується як шаблон вмісту",
+    "No direct URL": "Немає власної URL-адреси",
+    "Not live": "Не опубліковано",
+    "Live": "Опубліковано",
+    Publish: "Публікація",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Показує, чи має ця сторінка власну активну URL-адресу на вашому сайті. Сторінки теми спочатку вимкнені, оскільки тема містить типовий заповнювальний вміст замість вашого власного. Увімкніть її, коли зробите своєю.",
+    File: "Файл",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Додано до цієї теми після її встановлення — оригіналу для відновлення немає.",
+    Details: "Подробиці",
+    "Close": "Закрити",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Запис контенту використовує ту саму URL-адресу, що й ця сторінка: {title}. Хто з них переможе, залежить від стану публікації цієї сторінки та власного вибору перевизначення цього запису, а не лише від цього перемикача.",
+    "Open {title}": "Відкрити {title}",
   },
   tr: {
     Content: "İçerik",
@@ -346,6 +721,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "çöp kutusuna taşınsın mı? Siteden ve bu listeden kaybolacak.",
+    "Loading theme pages…": "Tema sayfaları yükleniyor…",
+    "No theme pages.": "Tema sayfası yok.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Etkin tema kendi statik sayfalarından hiçbirini içermiyor.",
+    Page: "Sayfa",
+    "URL": "URL",
+    "Theme Studio": "Tema Stüdyosu",
+    "Always published — theme home page": "Her zaman yayınlanır — temanın ana sayfası",
+    "Always published — error page": "Her zaman yayınlanır — hata sayfası",
+    "Not a standalone page — used as a content template":
+      "Bağımsız bir sayfa değil — içerik şablonu olarak kullanılıyor",
+    "No direct URL": "Kendine ait URL yok",
+    "Not live": "Yayınlanmadı",
+    "Live": "Yayınlandı",
+    Publish: "Yayınla",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Bu sayfanın sitenizde kendine ait, canlı bir URL'si olup olmadığını gösterir. Tema sayfaları başlangıçta kapalıdır, çünkü bir tema sizin içeriğiniz yerine genel yer tutucu içerik sunar. Sayfayı kendinize göre düzenledikten sonra açın.",
+    File: "Dosya",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Bu sayfa, tema kurulduktan sonra eklendi — geri alınabilecek bir orijinali yok.",
+    Details: "Ayrıntılar",
+    "Close": "Kapat",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Bir içerik kaydı bu sayfayla aynı URL'yi paylaşıyor: {title}. Hangisinin kazanacağı, bu sayfanın yayın durumuna ve o kaydın kendi geçersiz kılma seçimine bağlıdır, yalnızca bu anahtara değil.",
+    "Open {title}": "{title} öğesini aç",
   },
   th: {
     Content: "เนื้อหา",
@@ -367,6 +767,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "ย้าย",
     "to trash? It will disappear from the site and from this list.":
       "ไปถังขยะหรือไม่ จะหายไปจากเว็บไซต์และรายการนี้",
+    "Loading theme pages…": "กำลังโหลดหน้าธีม…",
+    "No theme pages.": "ไม่มีหน้าธีม",
+    "The active theme doesn't ship any of its own static pages.":
+      "ธีมที่ใช้งานอยู่ไม่มีหน้าแบบสแตติกของตัวเอง",
+    Page: "หน้า",
+    "URL": "URL",
+    "Theme Studio": "สตูดิโอธีม",
+    "Always published — theme home page": "เผยแพร่เสมอ — หน้าแรกของธีม",
+    "Always published — error page": "เผยแพร่เสมอ — หน้าข้อผิดพลาด",
+    "Not a standalone page — used as a content template":
+      "ไม่ใช่หน้าแบบสแตนด์อโลน — ใช้เป็นเทมเพลตเนื้อหา",
+    "No direct URL": "ไม่มี URL ของตัวเอง",
+    "Not live": "ยังไม่เผยแพร่",
+    "Live": "เผยแพร่แล้ว",
+    Publish: "เผยแพร่",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "แสดงว่าหน้านี้มี URL ที่ใช้งานจริงเป็นของตัวเองบนเว็บไซต์ของคุณหรือไม่ หน้าธีมจะปิดไว้ก่อนโดยค่าเริ่มต้น เนื่องจากธีมมีเนื้อหาตัวอย่างทั่วไปแทนที่จะเป็นเนื้อหาของคุณเอง เปิดใช้งานเมื่อคุณปรับแต่งเป็นของคุณเองแล้ว",
+    File: "ไฟล์",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "ถูกเพิ่มเข้าธีมนี้หลังจากติดตั้งแล้ว — ไม่มีต้นฉบับให้เรียกคืน",
+    Details: "รายละเอียด",
+    "Close": "ปิด",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "มีระเบียนเนื้อหาใช้ URL เดียวกันกับหน้านี้: {title} ฝ่ายใดจะเป็นฝ่ายที่แสดงจริงขึ้นอยู่กับสถานะการเผยแพร่ของหน้านี้และตัวเลือกการแทนที่ของระเบียนนั้นเอง ไม่ใช่แค่สวิตช์นี้เพียงอย่างเดียว",
+    "Open {title}": "เปิด {title}",
   },
   it: {
     Content: "Contenuti",
@@ -388,6 +813,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "Sposta",
     "to trash? It will disappear from the site and from this list.":
       "nel cestino? Scomparirà dal sito e da questo elenco.",
+    "Loading theme pages…": "Caricamento pagine del tema…",
+    "No theme pages.": "Nessuna pagina del tema.",
+    "The active theme doesn't ship any of its own static pages.":
+      "Il tema attivo non include alcuna pagina statica propria.",
+    Page: "Pagina",
+    "URL": "URL",
+    "Theme Studio": "Studio dei temi",
+    "Always published — theme home page": "Sempre pubblicata — home page del tema",
+    "Always published — error page": "Sempre pubblicata — pagina di errore",
+    "Not a standalone page — used as a content template":
+      "Non è una pagina autonoma — usata come modello di contenuto",
+    "No direct URL": "Nessun URL proprio",
+    "Not live": "Non pubblicata",
+    "Live": "Pubblicata",
+    Publish: "Pubblica",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "Indica se questa pagina ha un proprio URL attivo sul tuo sito. Le pagine del tema partono disattivate, perché un tema include contenuti generici anziché i tuoi. Attivala una volta che l'hai resa tua.",
+    File: "File",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "Aggiunta a questo tema dopo l'installazione — non esiste un originale a cui ripristinarla.",
+    Details: "Dettagli",
+    "Close": "Chiudi",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "Un record di contenuto condivide l'URL di questa pagina: {title}. Chi prevale dipende dallo stato di pubblicazione di questa pagina e dalla scelta di sostituzione propria di quel record, non solo da questo interruttore.",
+    "Open {title}": "Apri {title}",
   },
   hi: {
     Content: "सामग्री",
@@ -409,6 +859,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "को ट्रैश में भेजें? यह साइट और इस सूची से हट जाएगा।",
+    "Loading theme pages…": "थीम पेज लोड हो रहे हैं…",
+    "No theme pages.": "कोई थीम पेज नहीं है।",
+    "The active theme doesn't ship any of its own static pages.":
+      "सक्रिय थीम अपना कोई स्थिर पेज उपलब्ध नहीं कराती।",
+    Page: "पेज",
+    "URL": "URL",
+    "Theme Studio": "थीम स्टूडियो",
+    "Always published — theme home page": "हमेशा प्रकाशित — थीम का होम पेज",
+    "Always published — error page": "हमेशा प्रकाशित — एरर पेज",
+    "Not a standalone page — used as a content template":
+      "स्वतंत्र पेज नहीं है — कंटेंट टेम्पलेट के रूप में उपयोग होता है",
+    "No direct URL": "अपना कोई URL नहीं",
+    "Not live": "प्रकाशित नहीं",
+    "Live": "प्रकाशित",
+    Publish: "प्रकाशित करें",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "बताता है कि क्या इस पेज का आपकी साइट पर अपना लाइव URL है। थीम पेज डिफ़ॉल्ट रूप से बंद रहते हैं, क्योंकि थीम आपकी सामग्री की बजाय सामान्य प्लेसहोल्डर सामग्री देती है। इसे अपने अनुसार बनाने के बाद चालू करें।",
+    File: "फ़ाइल",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "यह थीम इंस्टॉल होने के बाद इसमें जोड़ा गया — इसे रीसेट करने के लिए कोई मूल संस्करण नहीं है।",
+    Details: "विवरण",
+    "Close": "बंद करें",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "एक कंटेंट रिकॉर्ड इस पेज के समान URL साझा करता है: {title}। कौन जीतता है यह इस पेज की प्रकाशन स्थिति और उस रिकॉर्ड की अपनी ओवरराइड पसंद पर निर्भर करता है, केवल इस स्विच पर नहीं।",
+    "Open {title}": "{title} खोलें",
   },
   ur: {
     Content: "مواد",
@@ -430,6 +905,31 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "کو ردی کی ٹوکری میں بھیجیں؟ یہ سائٹ اور اس فہرست سے غائب ہو جائے گا۔",
+    "Loading theme pages…": "تھیم صفحات لوڈ ہو رہے ہیں…",
+    "No theme pages.": "کوئی تھیم صفحہ نہیں ہے۔",
+    "The active theme doesn't ship any of its own static pages.":
+      "فعال تھیم اپنا کوئی سٹیٹک صفحہ فراہم نہیں کرتی۔",
+    Page: "صفحہ",
+    "URL": "URL",
+    "Theme Studio": "تھیم اسٹوڈیو",
+    "Always published — theme home page": "ہمیشہ شائع شدہ — تھیم کا ہوم پیج",
+    "Always published — error page": "ہمیشہ شائع شدہ — ایرر پیج",
+    "Not a standalone page — used as a content template":
+      "آزاد صفحہ نہیں ہے — مواد کے سانچے کے طور پر استعمال ہوتا ہے",
+    "No direct URL": "کوئی اپنا URL نہیں",
+    "Not live": "غیر شائع شدہ",
+    "Live": "شائع شدہ",
+    Publish: "شائع کریں",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "ظاہر کرتا ہے کہ آیا اس صفحے کا آپ کی سائٹ پر اپنا فعال URL ہے۔ تھیم کے صفحات بطور ڈیفالٹ بند رہتے ہیں، کیونکہ تھیم آپ کے مواد کی بجائے عمومی نمائندہ مواد فراہم کرتی ہے۔ اسے اپنے مطابق بنانے کے بعد فعال کریں۔",
+    File: "فائل",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "یہ تھیم کے انسٹال ہونے کے بعد اس میں شامل کیا گیا — اسے بحال کرنے کے لیے کوئی اصل نسخہ موجود نہیں۔",
+    Details: "تفصیلات",
+    "Close": "بند کریں",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "ایک کنٹینٹ ریکارڈ اس صفحے کے ساتھ وہی URL شیئر کرتا ہے: {title}۔ کون سا حاوی ہوتا ہے یہ اس صفحے کی اشاعت کی حالت اور اس ریکارڈ کے اپنے اوور رائیڈ انتخاب پر منحصر ہے، صرف اس سوئچ پر نہیں۔",
+    "Open {title}": "{title} کھولیں",
   },
   bn: {
     Content: "কন্টেন্ট",
@@ -451,5 +951,30 @@ export const PAGES_DICT: Record<string, Record<string, string>> = {
     Move: "",
     "to trash? It will disappear from the site and from this list.":
       "কে ট্র্যাশে সরাবেন? এটি সাইট এবং এই তালিকা থেকে অদৃশ্য হয়ে যাবে।",
+    "Loading theme pages…": "থিম পেজ লোড হচ্ছে…",
+    "No theme pages.": "কোনো থিম পেজ নেই।",
+    "The active theme doesn't ship any of its own static pages.":
+      "সক্রিয় থিমে নিজস্ব কোনো স্ট্যাটিক পেজ নেই।",
+    Page: "পেজ",
+    "URL": "URL",
+    "Theme Studio": "থিম স্টুডিও",
+    "Always published — theme home page": "সর্বদা প্রকাশিত — থিমের হোম পেজ",
+    "Always published — error page": "সর্বদা প্রকাশিত — এরর পেজ",
+    "Not a standalone page — used as a content template":
+      "স্বতন্ত্র পেজ নয় — কনটেন্ট টেমপ্লেট হিসেবে ব্যবহৃত হয়",
+    "No direct URL": "নিজস্ব কোনো URL নেই",
+    "Not live": "প্রকাশিত হয়নি",
+    "Live": "প্রকাশিত",
+    Publish: "প্রকাশ করুন",
+    "Whether this page has its own live URL on your site. Theme pages start off, because a theme ships generic placeholder content rather than yours. Turn one on once you've made it your own.":
+      "এই পেজটির আপনার সাইটে নিজস্ব লাইভ URL আছে কিনা তা নির্দেশ করে। থিম পেজ ডিফল্টভাবে বন্ধ থাকে, কারণ থিমটি আপনার নিজের কনটেন্টের পরিবর্তে সাধারণ প্লেসহোল্ডার কনটেন্ট সরবরাহ করে। নিজের মতো করে সাজানোর পর এটি চালু করুন।",
+    File: "ফাইল",
+    "Added to this theme after it was installed — there is no original to reset to.":
+      "থিমটি ইনস্টল হওয়ার পর এটি যোগ করা হয়েছে — পুনরুদ্ধারের জন্য কোনো মূল সংস্করণ নেই।",
+    Details: "বিস্তারিত",
+    "Close": "বন্ধ করুন",
+    "A content record shares this page's URL: {title}. Whichever one wins depends on this page's publish state and that record's own override choice, not on this toggle alone.":
+      "একটি কনটেন্ট রেকর্ড এই পৃষ্ঠার সাথে একই URL শেয়ার করে: {title}। কোনটি জিতবে তা নির্ভর করে এই পৃষ্ঠার প্রকাশনার অবস্থা এবং সেই রেকর্ডের নিজস্ব ওভাররাইড পছন্দের উপর, শুধু এই সুইচের উপর নয়।",
+    "Open {title}": "{title} খুলুন",
   },
 };

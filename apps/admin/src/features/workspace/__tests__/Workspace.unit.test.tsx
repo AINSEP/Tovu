@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Workspace } from "../Workspace";
 import type { WorkspaceController } from "../hooks/use-workspace.hooks";
+import { formatTimestamp } from "@/lib/format-timestamp";
 import type { AdminWorkspace } from "@/lib/api";
 
 /**
@@ -56,7 +57,9 @@ describe("rename form", () => {
     expect(screen.getByLabelText("Name")).toHaveValue("My Site");
     expect(screen.getByLabelText("Slug")).toHaveValue("my-site");
     expect(screen.getByText("w1")).toBeInTheDocument();
-    expect(screen.getByText(WORKSPACE.createdAt)).toBeInTheDocument();
+    // Formatted display (`formatTimestamp`), not the raw ISO-8601 value — see `Workspace.tsx`'s
+    // own comment on the created-at cell for why.
+    expect(screen.getByText(formatTimestamp(WORKSPACE.createdAt))).toBeInTheDocument();
   });
 
   it("Save is disabled while the draft matches the persisted workspace (not dirty)", () => {

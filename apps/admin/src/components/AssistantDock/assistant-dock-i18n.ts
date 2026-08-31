@@ -17,6 +17,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Contraer el panel del asistente",
     "Expand assistant panel": "Expandir el panel del asistente",
     "Close assistant": "Cerrar asistente",
+    "The assistant just captured a screenshot of this screen.": "El asistente acaba de capturar una captura de pantalla de esta vista.",
   },
   id: {
     "Workspace chat": "Obrolan ruang kerja",
@@ -26,6 +27,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Ciutkan panel asisten",
     "Expand assistant panel": "Perluas panel asisten",
     "Close assistant": "Tutup asisten",
+    "The assistant just captured a screenshot of this screen.": "Asisten baru saja mengambil tangkapan layar dari layar ini.",
   },
   de: {
     "Workspace chat": "Workspace-Chat",
@@ -35,6 +37,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Assistenten-Panel einklappen",
     "Expand assistant panel": "Assistenten-Panel erweitern",
     "Close assistant": "Assistent schließen",
+    "The assistant just captured a screenshot of this screen.": "Der Assistent hat gerade einen Screenshot dieses Bildschirms aufgenommen.",
   },
   "zh-CN": {
     "Workspace chat": "工作区聊天",
@@ -44,6 +47,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "收起助手面板",
     "Expand assistant panel": "展开助手面板",
     "Close assistant": "关闭助手",
+    "The assistant just captured a screenshot of this screen.": "助手刚刚截取了此屏幕的截图。",
   },
   "zh-TW": {
     "Workspace chat": "工作區聊天",
@@ -53,6 +57,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "收合助理面板",
     "Expand assistant panel": "展開助理面板",
     "Close assistant": "關閉助理",
+    "The assistant just captured a screenshot of this screen.": "助理剛剛擷取了此畫面的截圖。",
   },
   "pt-BR": {
     "Workspace chat": "Chat do espaço de trabalho",
@@ -62,6 +67,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Recolher painel do assistente",
     "Expand assistant panel": "Expandir painel do assistente",
     "Close assistant": "Fechar assistente",
+    "The assistant just captured a screenshot of this screen.": "O assistente acabou de capturar uma captura de tela desta janela.",
   },
   ru: {
     "Workspace chat": "Чат рабочего пространства",
@@ -71,6 +77,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Свернуть панель ассистента",
     "Expand assistant panel": "Развернуть панель ассистента",
     "Close assistant": "Закрыть ассистента",
+    "The assistant just captured a screenshot of this screen.": "Ассистент только что сделал снимок этого экрана.",
   },
   fa: {
     "Workspace chat": "گفتگوی فضای کاری",
@@ -80,6 +87,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "جمع کردن پنل دستیار",
     "Expand assistant panel": "باز کردن پنل دستیار",
     "Close assistant": "بستن دستیار",
+    "The assistant just captured a screenshot of this screen.": "دستیار همین الان از این صفحه یک عکس گرفت.",
   },
   ar: {
     "Workspace chat": "محادثة مساحة العمل",
@@ -89,6 +97,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "طي لوحة المساعد",
     "Expand assistant panel": "توسيع لوحة المساعد",
     "Close assistant": "إغلاق المساعد",
+    "The assistant just captured a screenshot of this screen.": "التقط المساعد للتو لقطة شاشة لهذه الشاشة.",
   },
   ja: {
     "Workspace chat": "ワークスペースチャット",
@@ -98,6 +107,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "アシスタントパネルを折りたたむ",
     "Expand assistant panel": "アシスタントパネルを展開する",
     "Close assistant": "アシスタントを閉じる",
+    "The assistant just captured a screenshot of this screen.": "アシスタントがこの画面のスクリーンショットを撮影しました。",
   },
   ko: {
     "Workspace chat": "워크스페이스 채팅",
@@ -107,6 +117,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "어시스턴트 패널 접기",
     "Expand assistant panel": "어시스턴트 패널 펼치기",
     "Close assistant": "어시스턴트 닫기",
+    "The assistant just captured a screenshot of this screen.": "어시스턴트가 방금 이 화면의 스크린샷을 캡처했습니다.",
   },
   pl: {
     "Workspace chat": "Czat przestrzeni roboczej",
@@ -116,6 +127,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Zwiń panel asystenta",
     "Expand assistant panel": "Rozwiń panel asystenta",
     "Close assistant": "Zamknij asystenta",
+    "The assistant just captured a screenshot of this screen.": "Asystent właśnie zrobił zrzut ekranu tego widoku.",
   },
   hu: {
     "Workspace chat": "Munkaterület-csevegés",
@@ -125,6 +137,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Asszisztens panel összecsukása",
     "Expand assistant panel": "Asszisztens panel kibontása",
     "Close assistant": "Asszisztens bezárása",
+    "The assistant just captured a screenshot of this screen.": "Az asszisztens az imént képernyőképet készített erről a képernyőről.",
   },
   fr: {
     "Workspace chat": "Chat de l'espace de travail",
@@ -134,6 +147,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Réduire le panneau de l'assistant",
     "Expand assistant panel": "Développer le panneau de l'assistant",
     "Close assistant": "Fermer l'assistant",
+    "The assistant just captured a screenshot of this screen.": "L'assistant vient de capturer une capture d'écran de cet écran.",
   },
   uk: {
     "Workspace chat": "Чат робочого простору",
@@ -143,6 +157,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Згорнути панель асистента",
     "Expand assistant panel": "Розгорнути панель асистента",
     "Close assistant": "Закрити асистента",
+    "The assistant just captured a screenshot of this screen.": "Асистент щойно зробив знімок цього екрана.",
   },
   tr: {
     "Workspace chat": "Çalışma alanı sohbeti",
@@ -152,6 +167,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Asistan panelini daralt",
     "Expand assistant panel": "Asistan panelini genişlet",
     "Close assistant": "Asistanı kapat",
+    "The assistant just captured a screenshot of this screen.": "Asistan az önce bu ekranın bir ekran görüntüsünü aldı.",
   },
   th: {
     "Workspace chat": "แชทพื้นที่ทำงาน",
@@ -161,6 +177,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "ย่อแผงผู้ช่วย",
     "Expand assistant panel": "ขยายแผงผู้ช่วย",
     "Close assistant": "ปิดผู้ช่วย",
+    "The assistant just captured a screenshot of this screen.": "ผู้ช่วยเพิ่งจับภาพหน้าจอนี้",
   },
   it: {
     "Workspace chat": "Chat dell'area di lavoro",
@@ -170,6 +187,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "Comprimi il pannello dell'assistente",
     "Expand assistant panel": "Espandi il pannello dell'assistente",
     "Close assistant": "Chiudi assistente",
+    "The assistant just captured a screenshot of this screen.": "L'assistente ha appena catturato uno screenshot di questa schermata.",
   },
   hi: {
     "Workspace chat": "वर्कस्पेस चैट",
@@ -179,6 +197,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "सहायक पैनल संक्षिप्त करें",
     "Expand assistant panel": "सहायक पैनल विस्तृत करें",
     "Close assistant": "सहायक बंद करें",
+    "The assistant just captured a screenshot of this screen.": "सहायक ने अभी इस स्क्रीन का स्क्रीनशॉट लिया है।",
   },
   ur: {
     "Workspace chat": "ورک اسپیس چیٹ",
@@ -188,6 +207,7 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "اسسٹنٹ پینل سکیڑیں",
     "Expand assistant panel": "اسسٹنٹ پینل پھیلائیں",
     "Close assistant": "اسسٹنٹ بند کریں",
+    "The assistant just captured a screenshot of this screen.": "اسسٹنٹ نے ابھی اس اسکرین کا اسکرین شاٹ لیا ہے۔",
   },
   bn: {
     "Workspace chat": "ওয়ার্কস্পেস চ্যাট",
@@ -197,19 +217,27 @@ export const ASSISTANT_DOCK_DICT: Record<string, Record<string, string>> = {
     "Collapse assistant panel": "সহকারী প্যানেল সংকুচিত করুন",
     "Expand assistant panel": "সহকারী প্যানেল প্রসারিত করুন",
     "Close assistant": "সহকারী বন্ধ করুন",
+    "The assistant just captured a screenshot of this screen.": "সহকারী এইমাত্র এই স্ক্রিনের একটি স্ক্রিনশট নিয়েছে।",
   },
 };
 
 /**
  * @file Spanish dictionary backing `@jini-ai/chat/react`'s OWN `I18nAdapter` contract
  * (`JiniChatProvider`'s `i18n` prop — see `slots.ts`'s own doc: "the English string itself is the
- * key"). Scoped to exactly the strings `ConversationList` renders, since that is the one
- * always-visible piece of chat-package chrome the dock's own header mounts
+ * key"). Originally scoped to exactly the strings `ConversationList` renders, since that was the
+ * one always-visible piece of chat-package chrome the dock's own header mounts
  * (`AssistantDock.tsx`'s `header` — the conversation switcher). The rest of the chat package's
  * ~260 translation keys (composer, attachment tray, tool-call cards, runtime picker, …) have no
- * Spanish dictionary anywhere upstream yet — that is a much larger, separate undertaking, not
- * attempted here; see this dispatch's own report for the full account. `createChatI18nAdapter`'s
- * fallback (`key` itself) leaves every one of those untouched exactly as it already renders today.
+ * dictionary anywhere upstream yet — that is a much larger, separate undertaking, not attempted
+ * here. `createChatI18nAdapter`'s fallback (`key` itself) leaves every one of those untouched
+ * exactly as it already renders today.
+ *
+ * Extended 2026-08-30 (chat-overflow fix) with "Show in modal"/"Close" — the copy for
+ * `OverflowAwareMcpUiSurfaceCard.tsx`/`MessageOverflowModal.tsx`, two Tovu-authored components
+ * that also render inside the `JiniChatProvider` tree via `useT()` and so read from this exact
+ * dictionary, the same way `ConversationList` does. Same "one admin copy string is its own i18n
+ * key" rule as everywhere else in this app — adding the button without adding these entries would
+ * have shown correct copy in English and the bare key literal everywhere else.
  */
 const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -221,6 +249,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Doble clic para cambiar el nombre",
     "Delete conversation": "Eliminar conversación",
     Untitled: "Sin título",
+    "Show in modal": "Mostrar en modal",
+    Close: "Cerrar",
     'Delete "{title}"? This cannot be undone.': '¿Eliminar "{title}"? Esta acción no se puede deshacer.',
   },
   id: {
@@ -232,6 +262,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Klik dua kali untuk mengganti nama",
     "Delete conversation": "Hapus percakapan",
     Untitled: "Tanpa judul",
+    "Show in modal": "Tampilkan di modal",
+    Close: "Tutup",
     'Delete "{title}"? This cannot be undone.': 'Hapus "{title}"? Tindakan ini tidak dapat dibatalkan.',
   },
   de: {
@@ -243,6 +275,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Doppelklicken zum Umbenennen",
     "Delete conversation": "Unterhaltung löschen",
     Untitled: "Unbenannt",
+    "Show in modal": "In Modal anzeigen",
+    Close: "Schließen",
     'Delete "{title}"? This cannot be undone.': '„{title}“ löschen? Dies kann nicht rückgängig gemacht werden.',
   },
   "zh-CN": {
@@ -254,6 +288,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "双击以重命名",
     "Delete conversation": "删除对话",
     Untitled: "无标题",
+    "Show in modal": "在弹窗中显示",
+    Close: "关闭",
     'Delete "{title}"? This cannot be undone.': '删除“{title}”？此操作无法撤销。',
   },
   "zh-TW": {
@@ -265,6 +301,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "按兩下以重新命名",
     "Delete conversation": "刪除對話",
     Untitled: "無標題",
+    "Show in modal": "在彈窗中顯示",
+    Close: "關閉",
     'Delete "{title}"? This cannot be undone.': '刪除「{title}」？此操作無法復原。',
   },
   "pt-BR": {
@@ -276,6 +314,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Clique duas vezes para renomear",
     "Delete conversation": "Excluir conversa",
     Untitled: "Sem título",
+    "Show in modal": "Mostrar em modal",
+    Close: "Fechar",
     'Delete "{title}"? This cannot be undone.': 'Excluir "{title}"? Isso não pode ser desfeito.',
   },
   ru: {
@@ -287,6 +327,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Дважды щёлкните, чтобы переименовать",
     "Delete conversation": "Удалить беседу",
     Untitled: "Без названия",
+    "Show in modal": "Показать в модальном окне",
+    Close: "Закрыть",
     'Delete "{title}"? This cannot be undone.': 'Удалить «{title}»? Это действие нельзя отменить.',
   },
   fa: {
@@ -298,6 +340,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "برای تغییر نام دوبار کلیک کنید",
     "Delete conversation": "حذف گفتگو",
     Untitled: "بدون عنوان",
+    "Show in modal": "نمایش در پنجره بازشو",
+    Close: "بستن",
     'Delete "{title}"? This cannot be undone.': '«{title}» حذف شود؟ این کار قابل بازگشت نیست.',
   },
   ar: {
@@ -309,6 +353,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "انقر نقرًا مزدوجًا لإعادة التسمية",
     "Delete conversation": "حذف المحادثة",
     Untitled: "بلا عنوان",
+    "Show in modal": "إظهار في نافذة منبثقة",
+    Close: "إغلاق",
     'Delete "{title}"? This cannot be undone.': 'هل تريد حذف "{title}"؟ لا يمكن التراجع عن هذا الإجراء.',
   },
   ja: {
@@ -320,6 +366,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "ダブルクリックで名前を変更",
     "Delete conversation": "会話を削除",
     Untitled: "無題",
+    "Show in modal": "モーダルで表示",
+    Close: "閉じる",
     'Delete "{title}"? This cannot be undone.': '「{title}」を削除しますか？ この操作は元に戻せません。',
   },
   ko: {
@@ -331,6 +379,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "더블클릭하여 이름 바꾸기",
     "Delete conversation": "대화 삭제",
     Untitled: "제목 없음",
+    "Show in modal": "모달로 보기",
+    Close: "닫기",
     'Delete "{title}"? This cannot be undone.': '"{title}"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
   },
   pl: {
@@ -342,6 +392,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Kliknij dwukrotnie, aby zmienić nazwę",
     "Delete conversation": "Usuń rozmowę",
     Untitled: "Bez tytułu",
+    "Show in modal": "Pokaż w oknie modalnym",
+    Close: "Zamknij",
     'Delete "{title}"? This cannot be undone.': 'Usunąć „{title}”? Tej operacji nie można cofnąć.',
   },
   hu: {
@@ -353,6 +405,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Dupla kattintás az átnevezéshez",
     "Delete conversation": "Beszélgetés törlése",
     Untitled: "Névtelen",
+    "Show in modal": "Megjelenítés modális ablakban",
+    Close: "Bezárás",
     'Delete "{title}"? This cannot be undone.': '„{title}” törlése? Ez nem vonható vissza.',
   },
   fr: {
@@ -364,6 +418,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Double-cliquez pour renommer",
     "Delete conversation": "Supprimer la conversation",
     Untitled: "Sans titre",
+    "Show in modal": "Afficher dans une fenêtre modale",
+    Close: "Fermer",
     'Delete "{title}"? This cannot be undone.': 'Supprimer « {title} » ? Cette action est irréversible.',
   },
   uk: {
@@ -375,6 +431,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Двічі клацніть, щоб перейменувати",
     "Delete conversation": "Видалити розмову",
     Untitled: "Без назви",
+    "Show in modal": "Показати у модальному вікні",
+    Close: "Закрити",
     'Delete "{title}"? This cannot be undone.': 'Видалити «{title}»? Цю дію не можна скасувати.',
   },
   tr: {
@@ -386,6 +444,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Yeniden adlandırmak için çift tıklayın",
     "Delete conversation": "Konuşmayı sil",
     Untitled: "Adsız",
+    "Show in modal": "Modalda göster",
+    Close: "Kapat",
     'Delete "{title}"? This cannot be undone.': '"{title}" silinsin mi? Bu işlem geri alınamaz.',
   },
   th: {
@@ -397,6 +457,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "ดับเบิลคลิกเพื่อเปลี่ยนชื่อ",
     "Delete conversation": "ลบการสนทนา",
     Untitled: "ไม่มีชื่อ",
+    "Show in modal": "แสดงในหน้าต่างโมดัล",
+    Close: "ปิด",
     'Delete "{title}"? This cannot be undone.': 'ลบ "{title}" ใช่หรือไม่ การดำเนินการนี้ไม่สามารถย้อนกลับได้',
   },
   it: {
@@ -408,6 +470,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "Fai doppio clic per rinominare",
     "Delete conversation": "Elimina conversazione",
     Untitled: "Senza titolo",
+    "Show in modal": "Mostra in una finestra modale",
+    Close: "Chiudi",
     'Delete "{title}"? This cannot be undone.': 'Eliminare "{title}"? Questa azione non può essere annullata.',
   },
   hi: {
@@ -419,6 +483,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "नाम बदलने के लिए डबल-क्लिक करें",
     "Delete conversation": "बातचीत हटाएं",
     Untitled: "बिना शीर्षक",
+    "Show in modal": "मोडल में दिखाएं",
+    Close: "बंद करें",
     'Delete "{title}"? This cannot be undone.': '"{title}" हटाएं? इसे पूर्ववत नहीं किया जा सकता।',
   },
   ur: {
@@ -430,6 +496,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "نام تبدیل کرنے کے لیے ڈبل کلک کریں",
     "Delete conversation": "گفتگو حذف کریں",
     Untitled: "بلا عنوان",
+    "Show in modal": "موڈل میں دکھائیں",
+    Close: "بند کریں",
     'Delete "{title}"? This cannot be undone.': '"{title}" حذف کریں؟ اسے واپس نہیں لایا جا سکتا۔',
   },
   bn: {
@@ -441,6 +509,8 @@ const CHAT_PANE_I18N_DICT: Record<string, Record<string, string>> = {
     "Double-click to rename": "নাম পরিবর্তন করতে ডাবল-ক্লিক করুন",
     "Delete conversation": "কথোপকথন মুছুন",
     Untitled: "শিরোনামহীন",
+    "Show in modal": "মোডালে দেখান",
+    Close: "বন্ধ করুন",
     'Delete "{title}"? This cannot be undone.': '"{title}" মুছবেন? এটি পূর্বাবস্থায় ফেরানো যাবে না।',
   },
 };

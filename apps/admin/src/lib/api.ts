@@ -1964,6 +1964,16 @@ export const api = {
          *  (`script`, `other`) even though those stay `readable`. */
         editable: boolean;
         resettable: boolean;
+        /** `null` for every file the publish question does not apply to at all — every non-page
+         *  file, plus a page that is `index`/`404` or a declared Post/Page template shell. Only a
+         *  real standalone page gets `true`/`false`. Optional so an older cached client response
+         *  (before this field existed) still parses. */
+        published?: boolean | null;
+        /** The live content record occupying this page's own slug — `null`/absent for every file
+         *  `published` is also `null`/absent for, plus a real candidate page with no such record.
+         *  See `ThemeExploreFile.collidingContent` (`use-theme-explore.hooks.ts`) for the full
+         *  contract: a page can read `published: true` and still not be what a visitor gets. */
+        collidingContent?: { id: string; slug: string; title: string; kind: "post" | "page" } | null;
       }>;
       lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;
       /** True when an untouched original of this theme exists in the catalog to reset back to. */
@@ -2026,6 +2036,30 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ path, name }),
     }),
+  /**
+   * Delete one file inside a theme, permanently — this repo keeps no theme-file revision history, so
+   * there is no server-side undo. Refused for a theme's required files
+   * (`ApiError.code === "REQUIRED_FILE_LOCKED"`) and for the same read-only-identity groups
+   * (`script`, `other`) rename refuses (`code === "READ_ONLY_FILE"`) — see `explore.ts`'s
+   * `validateFileIdentityChange` for the shared reasoning.
+   */
+  deleteThemeFile: (themeId: string, path: string) =>
+    request<{ path: string; deleted: boolean }>(
+      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/file/delete`,
+      { method: "POST", body: JSON.stringify({ path }) }
+    ),
+  /**
+   * Publish or unpublish one of a static theme's own pages — the real replacement for the
+   * `_unpublished/` folder convention an agent invented ad hoc because no such control existed at the
+   * time. Refused for a non-`static`-tier theme (`ApiError.code === "NOT_STATIC_TIER"`) or a page id
+   * that isn't one of this theme's own standalone pages — it does not exist, or is `index`/`404`/a
+   * declared Post-or-Page template shell — with `code === "PAGE_NOT_PUBLISHABLE"`.
+   */
+  setThemePagePublished: (themeId: string, page: string, published: boolean) =>
+    request<{ page: string; published: boolean; publishedPages: string[] }>(
+      `/workspaces/${WORKSPACE_ID}/themes/${encodeURIComponent(themeId)}/page/publish`,
+      { method: "POST", body: JSON.stringify({ page, published }) }
+    ),
   /**
    * Re-run theme discovery server-side. Needed because the server's theme list is built once at
    * boot, so a theme added to disk afterwards (downloaded, copied, pulled in by git, created by the

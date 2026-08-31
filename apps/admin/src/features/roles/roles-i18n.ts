@@ -32,6 +32,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Permiso",
   "resource type (optional)": "tipo de recurso (opcional)",
+  "e.g. content.write": "p. ej. content.write",
   Add: "Agregar",
   "Current permissions": "Permisos actuales",
   "Loading permissions…": "Cargando permisos…",
@@ -89,6 +90,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Izin",
   "resource type (optional)": "jenis sumber daya (opsional)",
+  "e.g. content.write": "mis. content.write",
   Add: "Tambah",
   "Current permissions": "Izin saat ini",
   "Loading permissions…": "Memuat izin…",
@@ -140,6 +142,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Berechtigung",
   "resource type (optional)": "Ressourcentyp (optional)",
+  "e.g. content.write": "z. B. content.write",
   Add: "Hinzufügen",
   "Current permissions": "Aktuelle Berechtigungen",
   "Loading permissions…": "Berechtigungen werden geladen…",
@@ -191,6 +194,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "权限",
   "resource type (optional)": "资源类型（可选）",
+  "e.g. content.write": "例如 content.write",
   Add: "添加",
   "Current permissions": "当前权限",
   "Loading permissions…": "正在加载权限…",
@@ -242,6 +246,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "權限",
   "resource type (optional)": "資源類型（選填）",
+  "e.g. content.write": "例如 content.write",
   Add: "新增",
   "Current permissions": "目前權限",
   "Loading permissions…": "正在載入權限…",
@@ -293,6 +298,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Permissão",
   "resource type (optional)": "tipo de recurso (opcional)",
+  "e.g. content.write": "ex.: content.write",
   Add: "Adicionar",
   "Current permissions": "Permissões atuais",
   "Loading permissions…": "Carregando permissões…",
@@ -344,6 +350,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Разрешение",
   "resource type (optional)": "тип ресурса (необязательно)",
+  "e.g. content.write": "напр. content.write",
   Add: "Добавить",
   "Current permissions": "Текущие разрешения",
   "Loading permissions…": "Загрузка разрешений…",
@@ -395,6 +402,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "مجوز",
   "resource type (optional)": "نوع منبع (اختیاری)",
+  "e.g. content.write": "مثلاً content.write",
   Add: "افزودن",
   "Current permissions": "مجوزهای فعلی",
   "Loading permissions…": "در حال بارگذاری مجوزها…",
@@ -446,6 +454,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "إذن",
   "resource type (optional)": "نوع المورد (اختياري)",
+  "e.g. content.write": "مثلاً content.write",
   Add: "إضافة",
   "Current permissions": "الأذونات الحالية",
   "Loading permissions…": "جارٍ تحميل الأذونات…",
@@ -497,6 +506,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "権限",
   "resource type (optional)": "リソースの種類（任意）",
+  "e.g. content.write": "例: content.write",
   Add: "追加",
   "Current permissions": "現在の権限",
   "Loading permissions…": "権限を読み込んでいます…",
@@ -548,6 +558,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "권한",
   "resource type (optional)": "리소스 유형(선택 사항)",
+  "e.g. content.write": "예: content.write",
   Add: "추가",
   "Current permissions": "현재 권한",
   "Loading permissions…": "권한을 불러오는 중…",
@@ -599,6 +610,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Uprawnienie",
   "resource type (optional)": "typ zasobu (opcjonalnie)",
+  "e.g. content.write": "np. content.write",
   Add: "Dodaj",
   "Current permissions": "Bieżące uprawnienia",
   "Loading permissions…": "Wczytywanie uprawnień…",
@@ -650,6 +662,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Jogosultság",
   "resource type (optional)": "erőforrás típusa (nem kötelező)",
+  "e.g. content.write": "pl. content.write",
   Add: "Hozzáadás",
   "Current permissions": "Jelenlegi jogosultságok",
   "Loading permissions…": "Jogosultságok betöltése…",
@@ -701,6 +714,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Autorisation",
   "resource type (optional)": "type de ressource (facultatif)",
+  "e.g. content.write": "p. ex. content.write",
   Add: "Ajouter",
   "Current permissions": "Autorisations actuelles",
   "Loading permissions…": "Chargement des autorisations…",
@@ -752,6 +766,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Дозвіл",
   "resource type (optional)": "тип ресурсу (необов'язково)",
+  "e.g. content.write": "напр. content.write",
   Add: "Додати",
   "Current permissions": "Поточні дозволи",
   "Loading permissions…": "Завантаження дозволів…",
@@ -803,6 +818,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "İzin",
   "resource type (optional)": "kaynak türü (isteğe bağlı)",
+  "e.g. content.write": "örn. content.write",
   Add: "Ekle",
   "Current permissions": "Geçerli izinler",
   "Loading permissions…": "İzinler yükleniyor…",
@@ -854,6 +870,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "สิทธิ์",
   "resource type (optional)": "ประเภททรัพยากร (ไม่บังคับ)",
+  "e.g. content.write": "เช่น content.write",
   Add: "เพิ่ม",
   "Current permissions": "สิทธิ์ปัจจุบัน",
   "Loading permissions…": "กำลังโหลดสิทธิ์…",
@@ -905,6 +922,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "Autorizzazione",
   "resource type (optional)": "tipo di risorsa (facoltativo)",
+  "e.g. content.write": "es. content.write",
   Add: "Aggiungi",
   "Current permissions": "Autorizzazioni correnti",
   "Loading permissions…": "Caricamento delle autorizzazioni…",
@@ -956,6 +974,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "अनुमति",
   "resource type (optional)": "संसाधन प्रकार (वैकल्पिक)",
+  "e.g. content.write": "जैसे content.write",
   Add: "जोड़ें",
   "Current permissions": "वर्तमान अनुमतियाँ",
   "Loading permissions…": "अनुमतियाँ लोड हो रही हैं…",
@@ -1007,6 +1026,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "اجازت",
   "resource type (optional)": "وسائل کی قسم (اختیاری)",
+  "e.g. content.write": "مثلاً content.write",
   Add: "شامل کریں",
   "Current permissions": "موجودہ اجازتیں",
   "Loading permissions…": "اجازتیں لوڈ ہو رہی ہیں…",
@@ -1058,6 +1078,7 @@ const ROLES_DICT: Record<string, Record<string, string>> = {
 
   Permission: "অনুমতি",
   "resource type (optional)": "রিসোর্সের ধরন (ঐচ্ছিক)",
+  "e.g. content.write": "যেমন content.write",
   Add: "যোগ করুন",
   "Current permissions": "বর্তমান অনুমতি",
   "Loading permissions…": "অনুমতি লোড হচ্ছে…",

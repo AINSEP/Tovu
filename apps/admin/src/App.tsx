@@ -1,6 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { Sidebar, useSidebar } from "@jini-ai/admin/react";
+import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
@@ -17,6 +18,7 @@ import {
   useAgentPageBridge,
   useChatDockLayout,
   useInternalLinkInterceptor,
+  useScreenshotAnnouncement,
   useSidebarDrawer,
 } from "./App.hooks";
 
@@ -247,6 +249,9 @@ export function App(props: AppProps) {
   } = useChatDock();
 
   const { contentEl, setContentEl, agentBridge } = useAgentBridge();
+  // The `admin.capture_screenshot` consent announcement — see `useScreenshotAnnouncement`'s own doc
+  // (`App.hooks.tsx`) and `agent-screenshot-bus.ts`'s module doc for the privacy decision behind it.
+  const { announced: screenshotAnnounced, dismiss: dismissScreenshotAnnouncement } = useScreenshotAnnouncement();
 
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
@@ -458,6 +463,17 @@ export function App(props: AppProps) {
             avoidRightPx={!isSheetMode && chatOpen ? dockWidthPx : 0}
           />
         </>
+      ) : null}
+      {/* Rendered unconditionally on `chatOpen`, deliberately: the assistant can capture a
+          screenshot while the panel is collapsed (a background run in flight), and the operator must
+          see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
+      {screenshotAnnounced ? (
+        <Toast
+          message={dockT("The assistant just captured a screenshot of this screen.")}
+          tone="default"
+          ttlMs={5000}
+          onDismiss={dismissScreenshotAnnouncement}
+        />
       ) : null}
     </div>
   );

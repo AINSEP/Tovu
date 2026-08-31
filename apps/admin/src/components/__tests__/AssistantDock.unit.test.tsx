@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ExecutionConfig } from "@jini-ai/ui";
+import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 
 /**
  * @file `AssistantDock`'s own prop-wiring to `ChatPane` through the DOM — the render layer only.
@@ -173,6 +174,22 @@ function fakeLocalCliSelection(overrides: Partial<UseLocalCliSelection> = {}): U
   return {
     localCliSelection: { agentId: "impossible-agent", model: "impossible-model" },
     handleLocalCliSelectionChange: vi.fn(),
+    ...overrides,
+  };
+}
+
+/**
+ * A page-control bridge whose `bridgeAccess` is a plain spy object — no real `EventSource`, no real
+ * daemon. Exercises exactly what `AssistantDock` is responsible for: forwarding this object onto
+ * `<ChatPane agentControl={...}>` so `@jini-ai/chat/react`'s own `useChatPaneAgentControl` can call
+ * `subscribe` on it. See the regression test below for why this specific wiring is load-bearing.
+ */
+function fakeAgentBridge(overrides: Partial<FrontendSessionBridge> = {}): FrontendSessionBridge {
+  return {
+    bridgeAccess: { subscribe: vi.fn(() => vi.fn()), respondSuccess: vi.fn(), respondError: vi.fn() },
+    ready: Promise.resolve({ sessionId: "session-1", bindToken: "token-1" }),
+    bindToken: () => "token-1",
+    close: vi.fn(),
     ...overrides,
   };
 }
@@ -508,5 +525,54 @@ describe("AssistantDock useAdminLocale injection", () => {
     // "Tovu assistant" unchanged (no "en" entry in `ASSISTANT_DOCK_DICT`). "Asistente de Tovu" is
     // reachable ONLY through the injected "es" override.
     expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ title: "Asistente de Tovu" }));
+  });
+});
+
+/**
+ * Regression coverage for the `chat.get_state` hang (production `agent_tool_attempts` rows:
+ * `requested` -> 30.008s later -> `timed-out`, run `4ea23482-c7de-4402-8985-1b83470f4ff8`).
+ *
+ * Root cause, traced end to end: `useAgentPageBridge` (`App.hooks.tsx`) builds the page-control
+ * bridge via `createFrontendSessionBridge({ pageDriver, onError })` with no `executors`. Jini's
+ * `createFrontendSessionBridge` (`frontend-session-bridge.ts`) claims ALL seven `CHAT_CAPABILITIES`
+ * ids unconditionally in its `attached` handshake (unlike `page.*`, gated behind `pageDriver`) — so
+ * the daemon's `FrontendSessionRegistry` believes this tab can serve `chat.get_state` and delivers
+ * the invocation to it over SSE. But nothing in Tovu ever called `bridgeAccess.subscribe` — this
+ * component never passed a `ChatPane agentControl` prop at all — so the browser's own dispatcher
+ * (`if (capabilityId.startsWith('chat.')) { for (const listener of chatListeners) listener(action); }`)
+ * loops over an EMPTY listener set and silently drops the invocation: no `respondSuccess`, no
+ * `respondError`, nothing. The daemon-side `FrontendSessionRegistry.invoke` promise is then never
+ * settled, and the only thing that ever ends it is `ToolExecutor`'s own 30s `descriptor.timeoutMs`
+ * (`DEFAULT_FRONTEND_CAPABILITY_TIMEOUT_MS`) — which reports the terminal status as `'timed-out'`
+ * regardless of the real reason, exactly matching the production symptom.
+ *
+ * `chat.*` capabilities are claimed unconditionally by design (unlike `page.*`), so the fix has to
+ * live on the consuming side: wiring `<ChatPane agentControl={{ enabled: true, bridgeAccess }}>` is
+ * what makes `@jini-ai/chat/react`'s own `useChatPaneAgentControl` call `bridgeAccess.subscribe(...)`
+ * and actually answer `chat.*` invocations — see that hook's own module doc
+ * (`packages/chat/src/react/features/chat-pane/hooks/useChatPaneAgentControl.hooks.ts` in Jini) for
+ * the handler side of this contract, which was already correct and unchanged by this fix.
+ */
+describe("AssistantDock agentControl wiring (chat.* frontend-control bridge)", () => {
+  it("wires ChatPane's agentControl to the page bridge, so a claimed chat.* invocation reaches a live listener instead of parking until the daemon's 30s timeout", () => {
+    const agentBridge = fakeAgentBridge();
+
+    render(<AssistantDock useChats={() => fakeChats()} agentBridge={agentBridge} />);
+
+    // Asserts the wiring directly rather than waiting out a real 30s daemon timeout: the cause of
+    // the hang IS "nothing ever calls `bridgeAccess.subscribe`", so proving `subscribe` is reachable
+    // through `AssistantDock`'s own `agentControl` prop is the precise, fast regression check for it.
+    expect(chatPaneSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agentControl: expect.objectContaining({ enabled: true, bridgeAccess: agentBridge.bridgeAccess }),
+      }),
+    );
+  });
+
+  it("does not crash and does not falsely claim agentControl when no page bridge has attached yet (agentBridge is null)", () => {
+    render(<AssistantDock useChats={() => fakeChats()} agentBridge={null} />);
+
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { agentControl?: { bridgeAccess?: unknown } };
+    expect(props.agentControl?.bridgeAccess).toBeUndefined();
   });
 });

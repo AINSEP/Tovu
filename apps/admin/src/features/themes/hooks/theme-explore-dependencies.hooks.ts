@@ -16,6 +16,8 @@ export const defaultThemeExplorePort: ThemeExplorePort = {
   resetThemeFile: (themeId, path) => api.resetThemeFile(themeId, path),
   renameThemeFile: (themeId, path, name) => api.renameThemeFile(themeId, path, name),
   copyThemeFile: (themeId, path) => api.copyThemeFile(themeId, path),
+  deleteThemeFile: (themeId, path) => api.deleteThemeFile(themeId, path),
+  setPagePublished: (themeId, page, published) => api.setThemePagePublished(themeId, page, published),
 };
 
 /** Seed state for {@link createFakeThemeExplorePort}. */
@@ -88,6 +90,22 @@ export function createFakeThemeExplorePort(options: FakeThemeExplorePortOptions 
       const content = contents.get(path);
       if (content !== undefined) contents.set(nextPath, content);
       return { path: nextPath };
+    },
+
+    async deleteThemeFile(_themeId, path) {
+      files = files.filter((f) => f.path !== path);
+      contents.delete(path);
+      return { path };
+    },
+
+    async setPagePublished(_themeId, page, published) {
+      // Same basename-minus-`.html` derivation `explore.ts`'s `pageIdForPagePath` uses — a fake
+      // stand-in for that lookup, not a second copy of the real predicate this port has no business
+      // re-implementing.
+      const target = files.find((f) => f.group === "page" && f.path.slice(f.path.lastIndexOf("/") + 1) === `${page}.html`);
+      if (!target) throw new Error(`fake theme page not found: ${page}`);
+      files = files.map((f) => (f === target ? { ...f, published } : f));
+      return { page, published };
     },
   };
 }

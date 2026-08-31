@@ -727,6 +727,16 @@ describe("resolveRunContext", () => {
     expect(resolveRunContext({ bindToken: undefined, pluginRefIds: [] })).toEqual({});
     expect(resolveRunContext({ bindToken: undefined })).toEqual({});
   });
+
+  it("carries the active conversation id through when one exists", () => {
+    expect(resolveRunContext({ bindToken: undefined, conversationId: "c1" })).toEqual({ conversationId: "c1" });
+  });
+
+  it("omits conversationId entirely when absent, null, or empty — no conversation is active yet", () => {
+    expect(resolveRunContext({ bindToken: undefined, conversationId: undefined })).toEqual({});
+    expect(resolveRunContext({ bindToken: undefined, conversationId: null })).toEqual({});
+    expect(resolveRunContext({ bindToken: undefined, conversationId: "" })).toEqual({});
+  });
 });
 
 /**
@@ -1178,6 +1188,22 @@ describe("useRunContext", () => {
     rerender({ pluginRefIds: ["ui-ux-design"] });
 
     expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet", pluginRefIds: ["ui-ux-design"] });
+  });
+
+  it("carries conversationId through, and rebuilds the callback when it changes (a conversation switch)", () => {
+    const agentBridge = { bindToken: () => "tok" } as unknown as FrontendSessionBridge;
+    const { result, rerender } = renderHook(
+      ({ conversationId }: { conversationId: string | null }) => useRunContext({ agentBridge, model: "sonnet", conversationId }),
+      { initialProps: { conversationId: null as string | null } },
+    );
+    const first = result.current;
+
+    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet" });
+
+    rerender({ conversationId: "c1" });
+
+    expect(result.current()).toEqual({ frontendBindToken: "tok", model: "sonnet", conversationId: "c1" });
+    expect(result.current).not.toBe(first);
   });
 });
 

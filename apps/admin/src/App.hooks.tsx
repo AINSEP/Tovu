@@ -3,6 +3,13 @@ import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-a
 import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
+import {
+  ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID,
+  captureAdminScreenshotToolResult,
+  renderAdminScreenshotCanvas,
+  type RenderElementToCanvas,
+} from "./lib/agent-screenshot";
+import { publishScreenshotCaptured, subscribeToScreenshotCaptured } from "./lib/agent-screenshot-bus";
 import { installInternalLinkInterceptor } from "./lib/router";
 import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
@@ -421,6 +428,43 @@ export interface UseAgentPageBridge {
  * @example
  * const { contentEl, setContentEl, agentBridge } = useAgentPageBridge();
  */
+/**
+ * Builds the `executors` map `createFrontendSessionBridge` claims under the `"admin."` prefix — the
+ * host-extension seam `frontend-session-bridge.ts`'s own module doc describes ("Product capabilities,
+ * keyed by id prefix... This is how a consumer exposes verbs the engine has never heard of"), used
+ * here for the first time by a Tovu-native verb rather than a Jini one. See `lib/agent-screenshot.ts`'s
+ * module doc for why `admin.capture_screenshot` lives outside `page.*`/`chat.*`.
+ *
+ * A plain function, not inlined into {@link useAgentPageBridge}'s effect, so it is directly
+ * unit-testable with no `EventSource`/React involved — see `app-hooks-admin-capability-executors.unit.test.tsx`.
+ *
+ * @param contentEl - The element to capture. `null` is handled by
+ * {@link captureAdminScreenshotToolResult} itself (reported as a text failure, not thrown).
+ * @param renderElementToCanvas - Test seam; defaults to the real `html2canvas`-backed adapter.
+ * @throws Rejects (never throws synchronously) for a capability id under this prefix this module does
+ * not recognize — mirrors `frontend-session-bridge.ts`'s own "nothing on this page serves ..." wording
+ * for an unclaimed id, since `serveLocally` there always awaits this.
+ * @complexity O(1) to build; the returned handler's cost is `captureAdminScreenshotToolResult`'s own.
+ */
+export function buildAdminCapabilityExecutors(
+  contentEl: HTMLElement | null,
+  renderElementToCanvas: RenderElementToCanvas = renderAdminScreenshotCanvas,
+): Record<string, (capabilityId: string, input: Record<string, unknown>) => Promise<unknown>> {
+  return {
+    "admin.": async (capabilityId: string) => {
+      if (capabilityId !== ADMIN_CAPTURE_SCREENSHOT_CAPABILITY_ID) {
+        throw new Error(`no admin capability serves "${capabilityId}"`);
+      }
+      const result = await captureAdminScreenshotToolResult({ element: contentEl, renderElementToCanvas });
+      // Announce on success only: a failure (no content area attached, capture error, over budget)
+      // never actually showed the operator's screen to anyone, so nothing needs announcing — see
+      // `agent-screenshot-bus.ts`'s own module doc for why every REAL capture must be, though.
+      if (result.content.some((block) => block.type === "image")) publishScreenshotCaptured();
+      return result;
+    },
+  };
+}
+
 export function useAgentPageBridge(): UseAgentPageBridge {
   const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
   const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
@@ -434,6 +478,7 @@ export function useAgentPageBridge(): UseAgentPageBridge {
 
     const bridge = createFrontendSessionBridge({
       pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
+      executors: buildAdminCapabilityExecutors(contentEl),
       onError: (error) => console.error("[admin] frontend session", error),
     });
     // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
@@ -448,4 +493,30 @@ export function useAgentPageBridge(): UseAgentPageBridge {
   }, [contentEl, agentPages]);
 
   return { contentEl, setContentEl, agentBridge };
+}
+
+export interface UseScreenshotAnnouncement {
+  /** Whether `admin.capture_screenshot` has captured this admin's screen since the last dismissal. */
+  announced: boolean;
+  /** Clears `announced` — wired to the `<Toast>`'s `onDismiss` in `App.tsx`. */
+  dismiss: () => void;
+}
+
+/**
+ * The on-screen half of `admin.capture_screenshot`'s consent decision — see
+ * `agent-screenshot-bus.ts`'s own module doc for why a capture is announced rather than silent or
+ * settings-gated.
+ *
+ * Extracted out of `App()`'s body for the same "grouped by cohesive concern" reasoning as this
+ * file's other hooks (see the file header), even though this one is not itself one of `App.tsx`'s
+ * five DI-seamed hooks: subscribing to an in-memory pub/sub module touches no DOM, browser API, or
+ * IO (rule 3's own criterion), so there is nothing here a test would need to fake in place of.
+ *
+ * @example
+ * const { announced, dismiss } = useScreenshotAnnouncement();
+ */
+export function useScreenshotAnnouncement(): UseScreenshotAnnouncement {
+  const [announced, setAnnounced] = useState(false);
+  useEffect(() => subscribeToScreenshotCaptured(() => setAnnounced(true)), []);
+  return { announced, dismiss: () => setAnnounced(false) };
 }
