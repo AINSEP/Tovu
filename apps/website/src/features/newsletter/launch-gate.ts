@@ -68,9 +68,7 @@ export async function evaluateLaunchGate(required: {
   }
 
   // (b) consent capability bound — skipped for isTestSend. Presence-only check (see file header).
-  if (!isTestSend) {
-    if (deps.consentCapability == null) unmet.push("consent_capability_unbound");
-  }
+  if (!isTestSend && deps.consentCapability == null) unmet.push("consent_capability_unbound");
 
   // (c) origin verified — NEVER skipped, even for test sends (EC-10: precondition (c) never waived).
   try {

@@ -239,7 +239,6 @@ function createFakeHost(deliverToView: (message: JsonRpcMessage) => void) {
         if (state !== "awaiting-initialized") return;
         state = "ready";
         resolveReady();
-        return;
       }
       // `ui/notifications/size-changed` / `ui/notifications/request-teardown` / anything else:
       // observed and ignored — see this file's header on what this fake does not implement.

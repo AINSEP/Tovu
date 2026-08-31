@@ -367,7 +367,6 @@ async function writeReplace(port: OtherCredentialsPort, storeId: OtherCredential
   if (storeId === "media-provider") {
     const current = await port.getMediaProviders();
     await port.saveMediaProviders(rebuildMediaProviderMap(current, itemId, { apiKey }));
-    return;
   }
 }
 

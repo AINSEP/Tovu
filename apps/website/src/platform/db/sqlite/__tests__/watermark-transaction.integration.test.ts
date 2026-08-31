@@ -108,6 +108,11 @@ test("EC-01 (SQLite mechanism): a second connection's write transaction is block
         connB.prepare("BEGIN IMMEDIATE").run();
         connB.prepare("COMMIT").run();
       } catch (err) {
+        // Confirm this is actually the busy/locked failure the test is naming, not some unrelated
+        // exception (a SQL typo, a missing table) that would otherwise let `sawBusyOrBlocked` go
+        // true for the wrong reason and mask a real regression.
+        const code = err instanceof Error ? (err as NodeJS.ErrnoException).code : undefined;
+        assert.equal(code, "SQLITE_BUSY", `expected a SQLITE_BUSY error, got: ${err}`);
         sawBusyOrBlocked = true;
       }
     });

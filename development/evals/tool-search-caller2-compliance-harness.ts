@@ -80,7 +80,6 @@ import type { AdapterContext, RunStartHandler } from "@jini-ai/http-kit";
 import { registerRunRoutes, registerToolCatalogRoutes } from "@jini-ai/http-kit";
 import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 import { createToolRegistry } from "@jini-ai/core";
-import type { Principal } from "@jini-ai/core";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
 import { createRouteDeps } from "../../apps/website/src/server/runtime/composition/app.js";
@@ -231,26 +230,24 @@ async function main(): Promise<void> {
     promptAugmenter,
   });
 
-  const principalByRunId = new Map<string, Principal>();
-
   // Trimmed copy of agent-daemon-server.ts's onStarted — same contract, minus attachment/frontend-
-  // control handling this harness doesn't need. Same <<SUBAGENT_DISPATCH>> prefix, same contextRef
-  // decode shape.
+  // control handling this harness doesn't need (including the real server's `principalByRunId` map:
+  // that exists there to authorize later per-run requests against the principal that started the
+  // run, but this harness registers no such route, so tracking one here was dead weight — the
+  // principalId shape check below stays, since it still validates the dispatched contextRef payload).
+  // Same <<SUBAGENT_DISPATCH>> prefix, same contextRef decode shape.
   const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) => {
     let prompt: string;
-    let principal: Principal;
     try {
       const parsed = JSON.parse(request.contextRef) as { prompt?: unknown; principalId?: unknown };
       if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) throw new Error("bad prompt");
       if (typeof parsed.principalId !== "string" || parsed.principalId.length === 0) throw new Error("bad principalId");
       prompt = `<<SUBAGENT_DISPATCH>>\n\n${parsed.prompt}`;
-      principal = { id: parsed.principalId };
     } catch (error) {
       void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
       console.error(`[harness] run ${run.id}: malformed contextRef`, error);
       return;
     }
-    principalByRunId.set(run.id, principal);
 
     const cwd = mkdtempSync(join(tmpdir(), "tool-search-caller2-"));
     void agentExecutor

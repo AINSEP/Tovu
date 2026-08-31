@@ -272,7 +272,7 @@ describe("onChange debouncing", () => {
 describe("diff base (persisted) semantics", () => {
   it("advances the diff base only on a SUCCESSFUL save", async () => {
     vi.useFakeTimers();
-    const save = vi.fn(async (next: string) => (next === "v1" ? ["k"] : ["k"]));
+    const save = vi.fn(async () => ["k"]);
     const { result } = renderHook(() => useSettingsSlice({ load: () => Promise.resolve("v0"), save, defaultValue: "default" }));
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);

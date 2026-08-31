@@ -164,14 +164,12 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
     // Step 5: config.json write.
     const config: ConfigJson = { name: resolvedName, domain: null, port: null };
     writeJsonFileAtomic(path.join(target, "config.json"), config);
-    wroteAnything = true;
 
     // Steps 6-7: content.db create + migrate + seed insertion (one call — `openContentDb`
     // migrates then seeds when given seed data; see read-template.ts's Known-Gap disclosure on
     // why these two BR-01 steps are not independently fault-isolable at the fs level).
     const dbPath = path.join(target, "content.db");
     const db = openContentDb(dbPath, seed);
-    wroteAnything = true;
     db.$client.close();
 
     // Step 8: .site-meta.json write — the commit marker, and the physically LAST write on
