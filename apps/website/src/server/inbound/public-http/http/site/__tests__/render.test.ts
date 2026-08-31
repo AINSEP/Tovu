@@ -476,6 +476,27 @@ test("renderSite: siteAssistantEnabled:true injects the stylesheet link, mount n
   assert.ok(bodyIndex < scriptIndex, "the script tag must come after the themed page body");
 });
 
+test("renderSite: siteAssistantEnabled:true injects the widget on a static-tier home page too — regression for the ADR-054 gap where `renderStaticTierHomePage` bypasses `pageShell` (and its siteAssistantMarkup splice) entirely, so the widget silently never appeared for any static theme's home route no matter the setting", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "content", "themes", "static", "basic"), id: "basic", source: "built-in" });
+  assert.equal(theme.status, "valid");
+  assert.equal(theme.manifest.tier, "static");
+
+  const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [], siteAssistantEnabled: true });
+  assert.match(html, /<div id="tovu-site-assistant-root"><\/div>/);
+  assert.match(html, /<script defer src="\/site-chat\/site-assistant\.js"><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\/site-chat\/site-assistant\.css"\/>/);
+});
+
+test("renderSite: siteAssistantEnabled:false (or omitted) shows no widget on a static-tier home page — same fail-closed default as every other tier", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "content", "themes", "static", "basic"), id: "basic", source: "built-in" });
+  assert.equal(theme.status, "valid");
+
+  const html = await renderSite({ theme, route: "home", siteTitle: "Basic Demo", posts: [] });
+  assert.doesNotMatch(html, /tovu-site-assistant-root/);
+  assert.doesNotMatch(html, /site-assistant\.js/);
+  assert.doesNotMatch(html, /site-assistant\.css/);
+});
+
 test("renderSite falls back to the minimal built-in body (never 500s) when a templated theme's source is hostile at render time", async () => {
   const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(theme.status, "valid");
