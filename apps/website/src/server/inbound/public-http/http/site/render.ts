@@ -13,6 +13,39 @@ import { substituteHtmlEmbeds } from "#src/features/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
 import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
 import { renderLiquidInSandbox } from "./liquid-sandbox.js";
+import { FORM_BASELINE_STYLE, FORM_CLASS, renderFormSuccessSlot, renderFormErrorSlot } from "./form-render.js";
+import {
+  decodeFormSubmissionResultFromQuery,
+  encodeFormSubmissionResultQuery,
+  clearFormSubmissionResultQueryParams,
+  injectFormSubmissionResultIntoHtml,
+  decodeFormFlashCookieValue,
+  encodeFormFlashCookieValue,
+  mergeFormFlashIntoResult,
+  FORM_FLASH_COOKIE_NAME,
+  type FormSubmissionRedirectResult,
+  type FormFlashPayload,
+} from "./form-render.js";
+
+/**
+ * Re-exported so every existing importer of this file (`render.test.ts`, `routes/site/pages.ts`,
+ * `routes/site/forms-submit.ts`) keeps working unchanged after the 2026-08-31 "generalize the form
+ * pattern" split moved their actual implementations into `form-render.js`. `render.ts` stays the one
+ * public-HTTP-rendering façade; `form-render.ts` is the (framework-agnostic) module that owns the
+ * form-specific pieces of it.
+ */
+export {
+  decodeFormSubmissionResultFromQuery,
+  encodeFormSubmissionResultQuery,
+  clearFormSubmissionResultQueryParams,
+  injectFormSubmissionResultIntoHtml,
+  decodeFormFlashCookieValue,
+  encodeFormFlashCookieValue,
+  mergeFormFlashIntoResult,
+  FORM_FLASH_COOKIE_NAME,
+  type FormSubmissionRedirectResult,
+  type FormFlashPayload,
+};
 
 /**
  * @file Template-tree renderer for the public site (SPEC-004 spike slice).
@@ -1209,10 +1242,18 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
  * out" discipline this file's own header states for every other widget-shaped render path here.
  *
  * Within an owned type, `resolved` being `undefined` (no pre-existing caller of `renderSite` passes
- * `pageHtmlEmbeds`), that type having no entry in `resolved`, or a ref's `id` being `null` (missing
- * or invalid `id` key) all degrade identically to the public-safe REQ-28 marker — this function
- * never distinguishes "unresolved" from "unresolvable" from "never attempted", never a crash and
- * never literal, unresolved marker markup reaching a visitor.
+ * `pageHtmlEmbeds`), that type having no entry in `resolved`, or a ref having neither a usable `id`
+ * NOR `slug` (missing or invalid keys) all degrade identically to the public-safe REQ-28 marker —
+ * this function never distinguishes "unresolved" from "unresolvable" from "never attempted", never a
+ * crash and never literal, unresolved marker markup reaching a visitor.
+ *
+ * **Lookup key, 2026-08-31:** `ref.id ?? ref.slug` — `resolveHtmlPageEmbeds`'s per-type resolvers key
+ * their returned map by whichever of the two the AUTHORED marker actually carried (never by an id a
+ * slug resolved to internally, which this function has no way to know), so the lookup here must use
+ * the same key. `ref.id` still wins when both are present, since a slug-only ref never reaches this
+ * fallback in the first place ({@link PageHtmlEmbedRef}'s own doc). A type whose resolver never
+ * consults `slug` (every type but `widget` today) simply never populates a slug-keyed entry, so this
+ * widened lookup is a no-op for them — `undefined ?? null` still misses, same placeholder as before.
  *
  * A marker of an UNOWNED type is a different case and gets the opposite treatment: untouched. Since
  * the 2026-08-10 marker unification every consumer shares one permissive parser, so this stage now
@@ -1237,7 +1278,8 @@ const HTML_EMBED_PLACEHOLDER_IR: WidgetRenderIR = { componentId: "widget-placeho
 export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbedsResult | undefined): string {
   return substituteHtmlEmbeds(html, (ref) => {
     if (!isPageEmbedType(ref.type)) return undefined;
-    const ir = (ref.id !== null ? resolved?.get(ref.type)?.get(ref.id) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
+    const lookupKey = ref.id ?? ref.slug;
+    const ir = (lookupKey !== null ? resolved?.get(ref.type)?.get(lookupKey) : undefined) ?? HTML_EMBED_PLACEHOLDER_IR;
     return renderWidgetIr(ir);
   });
 }
@@ -1557,18 +1599,28 @@ function renderExtraFieldAttrs(o: JsonObject): string {
  *  of {@link renderContactFormField}'s old three-way nested ternary so each shape is a flat, separately
  *  readable branch rather than one expression whose nesting depth drove the field-renderer's cognitive
  *  complexity. `requiredAttr` is computed once and reused across all three shapes, same value the old
- *  nested ternary recomputed per-branch. */
-function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string): string {
+ *  nested ternary recomputed per-branch. `describedByAttr` wires the field to its own (initially empty
+ *  and hidden) error slot for assistive tech — see {@link renderContactFormField}'s own doc for why
+ *  that slot exists even though nothing fills it in on the very first render. */
+function renderContactFormInput(kind: string, id: string, required: boolean, extraAttrs: string, describedByAttr: string): string {
   const requiredAttr = required ? " required" : "";
-  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}></textarea>`;
-  if (kind === "checkbox") return `<input type="checkbox" name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}/>`;
+  if (kind === "textarea") return `<textarea name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}></textarea>`;
+  if (kind === "checkbox") return `<input type="checkbox" name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}/>`;
   const inputType = kind === "email" ? "email" : "text";
-  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${requiredAttr}${extraAttrs}/>`;
+  return `<input type="${inputType}" name="${id}" id="widget-contact-${id}"${requiredAttr}${describedByAttr}${extraAttrs}/>`;
 }
 
 /** One contact-form field descriptor -> its `<div class="widget-form-field">` markup — extracted from
  *  {@link renderWidgetContactForm}'s old inline `.map()` callback so the field's own render logic is a
- *  named, independently measured function rather than an anonymous closure. */
+ *  named, independently measured function rather than an anonymous closure.
+ *
+ *  Carries its own `<div class="widget-form-field-error" data-field="ID" hidden></div>` slot, hidden
+ *  and empty on every ordinary render — `renderWidgetContactForm` has no request in scope (this is a
+ *  pure prop-to-HTML function, no I/O), so it cannot know at render time whether THIS submission
+ *  failed validation on THIS field. The slot exists purely as a stable, pre-built anchor
+ *  {@link injectFormSubmissionResultIntoHtml} fills in and un-hides after the fact, on the
+ *  Post/Redirect/Get reload that follows a failed submission (see that function's own doc for the
+ *  full mechanism). */
 function renderContactFormField(f: JsonValue): string {
   const o = obj(f);
   if (!o) return "";
@@ -1577,19 +1629,50 @@ function renderContactFormField(f: JsonValue): string {
   const required = o.required === true;
   const kind = str(o.type, "text");
   const extraAttrs = renderExtraFieldAttrs(o);
-  const inputEl = renderContactFormInput(kind, id, required, extraAttrs);
-  return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}</div>`;
+  const errorId = `widget-contact-${id}-error`;
+  const inputEl = renderContactFormInput(kind, id, required, extraAttrs, ` aria-describedby="${errorId}"`);
+  const errorSlot = `<div class="widget-form-field-error" data-field="${id}" id="${errorId}" hidden></div>`;
+  return `<div class="widget-form-field"><label for="widget-contact-${id}">${label}${required ? " *" : ""}</label>${inputEl}${errorSlot}</div>`;
 }
+
+const DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE = "Thanks — your message has been sent.";
 
 /** Renders a `contact-form` widget: Forms' own declared field vocabulary (REQ-37 — never a
  * hardcoded field-type list), posting to Forms' existing public route unmodified (`POST
  * /forms/:slug/submit`, `routes/site/forms-submit.ts`) — this widget type introduces no new
- * submission endpoint (REQ-39). */
+ * submission endpoint (REQ-39).
+ *
+ * Carries three things beyond the original bare `<form>` (2026-08-31 fix, generalized the same day —
+ * see `form-render.ts`'s module doc for why the baseline style/slots/splice live there now):
+ * 1. `form-render.ts`'s {@link FORM_BASELINE_STYLE} — see that constant's own doc for why a `<style>`
+ *    tag lives here instead of a theme stylesheet or `pageShell`'s `<head>`.
+ * 2. The GENERIC `data-form-slug` anchor (plus `.widget-contact-form-success`/`-error`/
+ *    `data-contact-form-slug` kept alongside it for theme back-compat — no theme has ever targeted
+ *    them, per the audit `form-render.ts` cites, but they were always a documented override surface)
+ *    on both the form and its (initially hidden) success-message sibling — the stable anchor
+ *    {@link injectFormSubmissionResultIntoHtml} matches against.
+ * 3. `props.successMessage` (previously accepted by the resolver, `contact-form.ts`, but never read
+ *    here) rendered into that hidden success slot up front, so the post-submission splice only has to
+ *    reveal it, never invent or fetch it — this render function is the only place `successMessage` is
+ *    naturally in scope.
+ */
 function renderWidgetContactForm(props: JsonObject): string {
   const slug = str(props.slug);
   if (!slug) return renderWidgetPlaceholder();
+  const escapedSlug = escapeHtml(slug);
   const fields = arr(props.fields).map(renderContactFormField).join("");
-  return `<form class="widget widget-contact-form" method="post" action="/forms/${escapeHtml(slug)}/submit">${fields}<button type="submit">Send</button></form>`;
+  const successMessage = escapeHtml(str(props.successMessage) || DEFAULT_CONTACT_FORM_SUCCESS_MESSAGE);
+  const legacyAttrs = `data-contact-form-slug="${escapedSlug}"`;
+  const successSlot = renderFormSuccessSlot({ slug: escapedSlug, message: successMessage, extraClasses: "widget-contact-form-success", extraAttrs: legacyAttrs });
+  const errorSlot = renderFormErrorSlot({ slug: escapedSlug, extraClasses: "widget-contact-form-error", extraAttrs: legacyAttrs });
+  return (
+    FORM_BASELINE_STYLE +
+    successSlot +
+    `<form class="widget ${FORM_CLASS} widget-contact-form" method="post" action="/forms/${escapedSlug}/submit" data-form-slug="${escapedSlug}" ${legacyAttrs}>` +
+    errorSlot +
+    fields +
+    `<button type="submit">Send</button></form>`
+  );
 }
 
 /** REQ-28: no internal detail, no stack trace, no configuration secret — the placeholder itself

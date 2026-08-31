@@ -37,8 +37,15 @@ import {
   renderHtmlPageBody,
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,
+  decodeFormSubmissionResultFromQuery,
+  injectFormSubmissionResultIntoHtml,
+  decodeFormFlashCookieValue,
+  mergeFormFlashIntoResult,
+  FORM_FLASH_COOKIE_NAME,
+  type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
+import { isHttpsRequest } from "../oauth/public-origin.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
@@ -959,6 +966,46 @@ export async function handlePostNotFoundOnSlugRoute(
   res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
 }
 
+/** Manual `req.headers.cookie` parse — no `cookie-parser` middleware mounted anywhere in this app;
+ *  mirrors `dev-auth.ts`'s `readSessionToken`, the established convention for every cookie this
+ *  codebase reads. */
+function readRawCookie(req: Request, name: string): string | undefined {
+  const header = req.headers.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return undefined;
+}
+
+/** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
+ *  GET has read it, a later plain reload of the same page must NOT resurrect the same stale values.
+ *  Attributes mirror what `forms-submit.ts`'s `setFormFlashCookie` set it with; matching them isn't
+ *  required for the browser to recognize this as the same cookie (only name+Path are), but keeps the
+ *  set/clear pair symmetric, same as `dev-auth.ts`'s own `setSessionCookie`/`clearSessionCookie`. */
+function clearFormFlashCookie(req: Request, res: Response): void {
+  const secureAttr = isHttpsRequest(req) ? "; Secure" : "";
+  res.setHeader("Set-Cookie", `${FORM_FLASH_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`);
+}
+
+/** Resolves this request's {@link FormSubmissionRedirectResult}, if any — the query-string half
+ *  (`decodeFormSubmissionResultFromQuery`) plus, for a `"validation"` result, the same-slug flash
+ *  cookie's field values (`mergeFormFlashIntoResult`) so the OTHER fields the visitor already typed
+ *  survive the Post/Redirect/Get round trip instead of coming back wiped (2026-08-31 fix). The flash
+ *  cookie is READ-ONCE: whether or not one was present, it is cleared on `res` right here, in the
+ *  same response that reads it. Resolved once per request and reused across every render branch —
+ *  same "compute once, thread to every branch" shape `siteAssistantEnabled` already uses on the
+ *  `/:slug` handler (ADR-054).
+ * @complexity O(1) plus the bounded cost already documented on the functions it calls. */
+function resolveFormSubmissionResult(req: Request, res: Response): FormSubmissionRedirectResult | undefined {
+  const queryResult = decodeFormSubmissionResultFromQuery(req.query);
+  const flash = decodeFormFlashCookieValue(readRawCookie(req, FORM_FLASH_COOKIE_NAME));
+  if (flash) clearFormFlashCookie(req, res);
+  return mergeFormFlashIntoResult(queryResult, flash);
+}
+
 /**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
@@ -990,19 +1037,24 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         buildExtraHead(deps, "home", SITE_TITLE, undefined),
         resolveStaticMenusForRender(deps, theme, "/"),
       ]);
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({
-          theme,
-          route: "home",
-          siteTitle: SITE_TITLE,
-          posts,
-          widgets,
-          mediaTransformVersions,
-          extraHead,
-          siteAssistantEnabled,
-          staticMenus,
-        }),
-      );
+      const html = await renderSite({
+        theme,
+        route: "home",
+        siteTitle: SITE_TITLE,
+        posts,
+        widgets,
+        mediaTransformVersions,
+        extraHead,
+        siteAssistantEnabled,
+        staticMenus,
+      });
+      // Post/Redirect/Get result for a form widget on the home page (2026-08-31 fix, generalized
+      // the same day) — `forms-submit.ts` redirects back here with `?form=...&form_status=...` after
+      // a JS-disabled submission; a request with none of those params is the ordinary case and this
+      // is a no-op. Also reads (and clears) the validation flash cookie, if any — see
+      // `resolveFormSubmissionResult`'s own doc.
+      const formSubmissionResult = resolveFormSubmissionResult(req, res);
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(injectFormSubmissionResultIntoHtml(html, formSubmissionResult));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -1035,9 +1087,20 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // this one resolve rather than re-querying the same two locations per branch.
       staticMenus = await resolveStaticMenusForRender(deps, theme, req.path);
 
+      // Post/Redirect/Get result for a form widget on THIS route (2026-08-31 fix, generalized the
+      // same day) — resolved once and applied uniformly across all three branches below, the same
+      // "compute once, thread to every branch" shape `siteAssistantEnabled` already uses on this
+      // handler (ADR-054). A request with none of the `form_*` params (the ordinary case) decodes to
+      // `undefined`, and `injectFormSubmissionResultIntoHtml` is a no-op for that. Also reads (and
+      // clears) the validation flash cookie, if any — see `resolveFormSubmissionResult`'s own doc.
+      const formSubmissionResult = resolveFormSubmissionResult(req, res);
+
       const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled);
       if (marketingResolution.kind === "responded") {
-        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(marketingResolution.html);
+        res
+          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+          .type("html")
+          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, formSubmissionResult));
         return;
       }
 
@@ -1045,14 +1108,18 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
       if (templateHtml !== undefined) {
-        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(templateHtml);
+        res
+          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+          .type("html")
+          .send(injectFormSubmissionResultIntoHtml(templateHtml, formSubmissionResult));
         return;
       }
 
+      const genericPostHtml = await renderGenericPostPage(deps, theme, post, posts, siteAssistantEnabled);
       res
         .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
         .type("html")
-        .send(await renderGenericPostPage(deps, theme, post, posts, siteAssistantEnabled));
+        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, formSubmissionResult));
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);

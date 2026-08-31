@@ -34,7 +34,7 @@ import type { Request } from "express";
  *
  * @complexity O(1).
  */
-function resolveProtocol(req: Request): string {
+export function resolveProtocol(req: Request): string {
   const forwarded = req.headers["x-forwarded-proto"];
   const firstHop = (Array.isArray(forwarded) ? forwarded[0] : forwarded)
     ?.split(",")[0]
@@ -42,6 +42,21 @@ function resolveProtocol(req: Request): string {
     .toLowerCase();
   if (firstHop === "http" || firstHop === "https") return firstHop;
   return req.protocol;
+}
+
+/**
+ * True when {@link resolveProtocol} resolves this request as HTTPS — exported so any route that
+ * conditionally sets a cookie's `Secure` attribute (e.g. `routes/site/forms-submit.ts`'s validation
+ * flash cookie) uses the SAME "honor `X-Forwarded-Proto` without a `trust proxy` config" logic this
+ * file already got right for OAuth callback URLs, rather than re-deriving it (and re-risking the
+ * `req.protocol`-behind-a-TLS-terminating-proxy mistake {@link resolveProtocol}'s own doc describes).
+ * Unlike `dev-auth.ts`'s/`complete-sign-in.ts`'s session cookies (both gate a real login, so an
+ * always-on `Secure` is the right call there), a cookie with no auth purpose should not force
+ * `Secure` unconditionally — that would silently break on a plain `http://localhost` dev/test run.
+ * @complexity O(1).
+ */
+export function isHttpsRequest(req: Request): boolean {
+  return resolveProtocol(req) === "https";
 }
 
 /**

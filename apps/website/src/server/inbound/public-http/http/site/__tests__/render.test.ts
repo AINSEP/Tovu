@@ -7,7 +7,22 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
-import { injectExtraHeadIntoStaticPage, renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render.js";
+import {
+  injectExtraHeadIntoStaticPage,
+  renderDocNode,
+  renderHtmlPageBody,
+  renderSite,
+  renderWidgetIr,
+  decodeFormSubmissionResultFromQuery,
+  encodeFormSubmissionResultQuery,
+  injectFormSubmissionResultIntoHtml,
+  decodeFormFlashCookieValue,
+  encodeFormFlashCookieValue,
+  mergeFormFlashIntoResult,
+  type FormSubmissionRedirectResult,
+  type FormFlashPayload,
+  type SiteProduct,
+} from "../render.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
 // drove this 8-core box to load average 135 and the sandboxed renders below failed with
@@ -1012,6 +1027,347 @@ test("contact-form widget: a non-allowlisted attribute name (e.g. an 'onclick' t
 });
 
 // ---------------------------------------------------------------------------
+// contact-form widget — Bug 1 (unstyled everywhere) and Bug 2 (raw JSON on submit), 2026-08-31.
+//
+// Root cause of Bug 1: every theme in content/themes/ was grepped for `widget-contact-form` /
+// `widget-form-field` and NONE had a single rule — confirmed with
+// `grep -rln "widget-contact-form\|widget-form-field" content/themes/*/*/css/*.css` returning
+// nothing, and cross-checked against a bare `\.widget\b` scan across every theme's css/ directory
+// (also empty). The class hooks were always there; nothing anywhere ever styled them, in ANY theme,
+// not just the active `basic` one — so the fix ships baseline styles WITH the widget itself.
+// ---------------------------------------------------------------------------
+
+test("contact-form widget: ships its own baseline <style> block (Bug 1 fix) — no theme has ever had CSS for these class hooks (grep -rl over content/themes/ returns nothing), so the widget must be usable without any theme-author work", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: { slug: "contact-us", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null },
+  });
+  assert.match(html, /<style>/);
+  // Generalized 2026-08-31: the baseline CSS now keys ONLY on the generic `.tovu-form`/
+  // `.widget-form-field` hooks (`:not([hidden])` still guards the display-setting one, Fix 1) — a
+  // theme override still works because the RENDERED markup carries the legacy class too (see the
+  // next assertion), which is what a theme's own selector actually targets, not this internal
+  // stylesheet.
+  assert.match(html, /\.tovu-form(:not\(\[hidden\]\))?\)/);
+  assert.match(html, /\.widget-form-field(:not\(\[hidden\]\))?\)/);
+  // The pre-existing class hooks and POST target must survive unchanged in the MARKUP — a theme CAN
+  // still override them (a real theme selector, without `:where()`, naturally outranks this baseline
+  // stylesheet regardless of cascade order) — alongside the new generic `tovu-form`/`data-form-slug`
+  // hooks any other form-rendering widget can share.
+  assert.match(html, /class="widget tovu-form widget-contact-form"/);
+  assert.match(html, /data-form-slug="contact-us" data-contact-form-slug="contact-us"/);
+  assert.match(html, /action="\/forms\/contact-us\/submit"/);
+});
+
+test("contact-form widget: baseline CSS must not force display on a hidden form (Fix 1 — [hidden] must win over the widget's own display:flex)", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: { slug: "contact-us", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null },
+  });
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+  assert.ok(styleMatch, "baseline style block must be present");
+  const css = styleMatch![1];
+  // Any rule that sets `display` on a widget-* class an instance could carry `hidden` on must scope
+  // itself with `:not([hidden])` — otherwise a zero-specificity `:where()` author rule still beats the
+  // UA stylesheet's `[hidden]{display:none}`, and the empty form stays visible under the success
+  // message (2026-08-31 regression: /contact?form=contact-us&form_status=success showed both).
+  // Selector body allows one level of nested parens (e.g. `:not([hidden])` inside `:where(...)`).
+  const displayRules = [...css.matchAll(/:where\(((?:[^()]|\([^()]*\))*)\)\s*\{[^}]*\bdisplay\s*:/g)].map((m) => m[1]);
+  assert.ok(displayRules.length > 0, "expected at least one display-setting rule to audit");
+  for (const selector of displayRules) {
+    assert.match(selector, /:not\(\[hidden\]\)/, `display-setting selector "${selector}" must exclude [hidden] elements`);
+  }
+});
+
+test("contact-form widget: baseline CSS only references design tokens that actually exist in a theme's token set (Fix 2 — --danger/--danger-bg/--success-bg/--success-fg exist in no theme's tokens.json)", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: { slug: "contact-us", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null },
+  });
+  const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
+  assert.ok(styleMatch, "baseline style block must be present");
+  const css = styleMatch![1];
+  // The set every `basic`/`fuel`/`basic-2` theme's tokens.json + tokens.light.json actually defines
+  // (verified 2026-08-31) — mode-aware (dark on bare :root, light on :root[data-theme="light"]).
+  const existingTokens = new Set([
+    "--bg", "--surface", "--surface-2", "--fg", "--muted", "--border", "--border-strong",
+    "--accent", "--accent-fg", "--font-display", "--font-body", "--container",
+  ]);
+  const referencedTokens = [...css.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
+  assert.ok(referencedTokens.length > 0, "expected at least one var(--token) reference to audit");
+  for (const token of referencedTokens) {
+    assert.ok(existingTokens.has(token), `token ${token} referenced in widget CSS does not exist in the theme token set`);
+  }
+});
+
+test("contact-form widget: the baseline <style> tag itself carries no attributes — must never trip the existing 'no style= attribute leaks from field attrs' guard a few tests above", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: { slug: "contact", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null },
+  });
+  assert.match(html, /<style>/); // present...
+  assert.doesNotMatch(html, /<style /); // ...but never `<style anything=`
+});
+
+test("contact-form widget: renders a hidden success slot from props.successMessage, escaped, and a hidden per-field error slot — the anchors injectFormSubmissionResultIntoHtml fills in later", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: {
+      slug: "contact",
+      fields: [{ id: "email", label: "Email", type: "email", required: true }],
+      successMessage: "Thanks <for> reaching out",
+    },
+  });
+  // Generic `tovu-form-success`/`data-form-slug` hooks alongside the legacy `widget-contact-form-*`/
+  // `data-contact-form-slug` ones (2026-08-31 generalization) — any form-rendering widget gets the
+  // former; contact-form additionally keeps the latter for theme back-compat.
+  assert.match(
+    html,
+    /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact" hidden>Thanks &lt;for&gt; reaching out<\/div>/
+  );
+  assert.match(html, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact" hidden><\/div>/);
+  assert.match(html, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error" hidden><\/div>/);
+  assert.match(html, /aria-describedby="widget-contact-email-error"/);
+});
+
+// ---------------------------------------------------------------------------
+// injectFormSubmissionResultIntoHtml / decode+encodeFormSubmissionResultQuery — Bug 2's
+// Post/Redirect/Get round trip. `forms-submit.ts` builds the query with `encode...`; `pages.ts`
+// reads it back with `decode...` and passes the result here to splice into the already-rendered page.
+// ---------------------------------------------------------------------------
+
+function contactFormPageHtml(slug = "contact"): string {
+  return renderWidgetIr({
+    componentId: "contact-form",
+    props: { slug, fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: "All set!" },
+  });
+}
+
+test("injectFormSubmissionResultIntoHtml: undefined result is a byte-identical no-op", () => {
+  const html = contactFormPageHtml();
+  assert.equal(injectFormSubmissionResultIntoHtml(html, undefined), html);
+});
+
+test("injectFormSubmissionResultIntoHtml: a result for a slug NOT present on the page is a silent no-op (stale or forged query string)", () => {
+  const html = contactFormPageHtml("contact");
+  const result: FormSubmissionRedirectResult = { kind: "success", slug: "some-other-form" };
+  assert.equal(injectFormSubmissionResultIntoHtml(html, result), html);
+});
+
+test("injectFormSubmissionResultIntoHtml: success reveals the success message and hides the form", () => {
+  const html = contactFormPageHtml();
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "success", slug: "contact" });
+  assert.match(updated, /<div class="tovu-form-success widget-contact-form-success" data-form-slug="contact" data-contact-form-slug="contact">All set!<\/div>/);
+  assert.match(updated, /<form hidden class="widget tovu-form widget-contact-form"/);
+});
+
+test("injectFormSubmissionResultIntoHtml: validation reveals the matching field's error, escaped, and leaves an unrelated field's slot untouched", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: {
+      slug: "contact",
+      fields: [
+        { id: "email", label: "Email", type: "email", required: true },
+        { id: "message", label: "Message", type: "textarea", required: true },
+      ],
+      successMessage: null,
+    },
+  });
+  const updated = injectFormSubmissionResultIntoHtml(html, {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [{ field: "email", reason: "<script>bad</script>" }],
+  });
+  assert.match(updated, /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">&lt;script&gt;bad&lt;\/script&gt;<\/div>/);
+  assert.doesNotMatch(updated, /<script>bad<\/script><\/div>/, "reason text must be escaped, not raw HTML");
+  assert.match(updated, /data-field="message"[^>]*hidden><\/div>/, "an untouched field's error slot must stay hidden");
+  assert.match(updated, /Please fix the highlighted fields below\./);
+});
+
+test("injectFormSubmissionResultIntoHtml: a field reason containing '$&'/'$1'-shaped text renders literally instead of corrupting the surrounding HTML (String.prototype.replace's own replacement-pattern syntax)", () => {
+  const html = contactFormPageHtml();
+  const updated = injectFormSubmissionResultIntoHtml(html, {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [{ field: "email", reason: "cost is $1.00, not $&" }],
+  });
+  assert.match(updated, /cost is \$1\.00, not \$&amp;/);
+  // A `$&` mis-substitution would have duplicated the matched substring inline — the baseline count
+  // (success slot + form tag + the form's own error-summary div, all three carry the attribute) must
+  // stay exactly 3, not grow. Checked on BOTH the legacy attribute and the generic one it now stands
+  // alongside (2026-08-31 generalization).
+  assert.equal((updated.match(/data-contact-form-slug="contact"/g) ?? []).length, 3);
+  assert.equal((updated.match(/data-form-slug="contact"/g) ?? []).length, 3);
+});
+
+test("injectFormSubmissionResultIntoHtml: rate-limited reveals the error summary with the retry seconds", () => {
+  const html = contactFormPageHtml();
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "rate-limited", slug: "contact", retryAfterSeconds: 42 });
+  assert.match(updated, /<div class="tovu-form-error widget-contact-form-error" data-form-slug="contact" data-contact-form-slug="contact">Too many submissions.*42 seconds\.<\/div>/);
+});
+
+test("injectFormSubmissionResultIntoHtml: generic error reveals a generic message", () => {
+  const html = contactFormPageHtml();
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "error", slug: "contact" });
+  assert.match(updated, /Something went wrong — please try again\./);
+});
+
+test("encodeFormSubmissionResultQuery + decodeFormSubmissionResultFromQuery round-trip every result kind", () => {
+  const cases: FormSubmissionRedirectResult[] = [
+    { kind: "success", slug: "contact" },
+    { kind: "validation", slug: "contact", fieldErrors: [{ field: "email", reason: "Required" }] },
+    { kind: "rate-limited", slug: "contact", retryAfterSeconds: 30 },
+    { kind: "error", slug: "contact" },
+  ];
+  for (const result of cases) {
+    const params = encodeFormSubmissionResultQuery(result);
+    const query = Object.fromEntries(params.entries());
+    assert.deepEqual(decodeFormSubmissionResultFromQuery(query), result);
+  }
+});
+
+test("decodeFormSubmissionResultFromQuery: malformed/hostile query input degrades to undefined or an empty error list rather than throwing", () => {
+  assert.equal(decodeFormSubmissionResultFromQuery({}), undefined);
+  assert.equal(decodeFormSubmissionResultFromQuery({ form: "contact" }), undefined, "status missing");
+  assert.equal(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "bogus" }), undefined);
+  assert.deepEqual(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: "not json" }), {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [],
+  });
+  assert.deepEqual(decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: '{"not":"an array"}' }), {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [],
+  });
+  // Oversized array is truncated, not rejected outright or allowed to grow unbounded.
+  const manyErrors = JSON.stringify(Array.from({ length: 50 }, (_, i) => ({ field: `f${i}`, reason: "bad" })));
+  const decoded = decodeFormSubmissionResultFromQuery({ form: "contact", form_status: "validation", form_errors: manyErrors });
+  assert.equal(decoded?.kind, "validation");
+  assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors.length : -1, 20);
+});
+
+// ---------------------------------------------------------------------------
+// Validation flash cookie (2026-08-31 field-wipe fix) — OPEN BUG B from the 2026-08-31 handoff: a
+// failed validation used to wipe EVERY typed value, not just the invalid field, because PRG's fresh
+// GET cannot see the prior POST body. `forms-submit.ts` sets a short-lived, HttpOnly cookie on a
+// validation failure; `pages.ts` decodes it and merges it into the query-string result via
+// `mergeFormFlashIntoResult` before splicing. These tests exercise the pure encode/decode/merge/
+// splice layer in isolation from the two Express route files.
+// ---------------------------------------------------------------------------
+
+test("encodeFormFlashCookieValue + decodeFormFlashCookieValue round-trip a small payload", () => {
+  const payload: FormFlashPayload = { slug: "contact", values: { name: "Ada Lovelace", email: "ada@example.com" } };
+  const json = encodeFormFlashCookieValue(payload);
+  assert.ok(json, "small payload must fit and encode to a real string");
+  assert.deepEqual(decodeFormFlashCookieValue(json), payload);
+});
+
+test("encodeFormFlashCookieValue: never puts field values in the URL/query layer — the query round-trip functions are untouched by `values`", () => {
+  // Regression guard for the explicit "do NOT put submitted values in the query string" requirement:
+  // even a validation result that ALREADY carries `values` (as `mergeFormFlashIntoResult` would
+  // attach) must not leak them through `encodeFormSubmissionResultQuery`.
+  const result: FormSubmissionRedirectResult = {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [{ field: "message", reason: "Required" }],
+    values: { name: "Ada Lovelace", email: "ada@example.com" },
+  };
+  const params = encodeFormSubmissionResultQuery(result);
+  const serialized = params.toString();
+  assert.doesNotMatch(serialized, /Ada/);
+  assert.doesNotMatch(serialized, /example\.com/);
+  assert.doesNotMatch(serialized, /values/);
+});
+
+test("encodeFormFlashCookieValue: a value longer than the per-field bound is truncated, not rejected", () => {
+  const longValue = "x".repeat(5000); // MAX_BODY_STRING_LENGTH's own bound in forms-submit.ts
+  const json = encodeFormFlashCookieValue({ slug: "contact", values: { message: longValue } });
+  assert.ok(json);
+  const decoded = decodeFormFlashCookieValue(json);
+  assert.equal(decoded?.values.message.length, 300);
+  assert.ok(longValue.startsWith(decoded!.values.message), "the truncated preview must be a real prefix of what was typed");
+});
+
+test("encodeFormFlashCookieValue: a form with many long fields that would not fit in one cookie drops LATER fields, keeping earlier ones, rather than emitting an oversized/broken cookie", () => {
+  const fields = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`field${i}`, "y".repeat(300)]));
+  const json = encodeFormFlashCookieValue({ slug: "contact", values: fields });
+  assert.ok(json, "must still encode SOMETHING — dropping fields, not giving up entirely");
+  assert.ok(Buffer.byteLength(json, "utf8") <= 3000, "encoded cookie value must respect the byte budget");
+  const decoded = decodeFormFlashCookieValue(json)!;
+  const keptCount = Object.keys(decoded.values).length;
+  assert.ok(keptCount > 0 && keptCount < 20, `expected some but not all fields to survive, got ${keptCount}`);
+  assert.ok("field0" in decoded.values, "the FIRST-declared field must survive the drop");
+  assert.ok(!("field19" in decoded.values), "the LAST-declared field must be the one dropped");
+});
+
+test("decodeFormFlashCookieValue: malformed/hostile cookie input degrades to undefined rather than throwing", () => {
+  assert.equal(decodeFormFlashCookieValue(undefined), undefined);
+  assert.equal(decodeFormFlashCookieValue(""), undefined);
+  assert.equal(decodeFormFlashCookieValue("not json"), undefined);
+  assert.equal(decodeFormFlashCookieValue('{"slug":""}'), undefined, "empty slug is not a usable flash");
+  assert.equal(decodeFormFlashCookieValue('{"slug":"contact"}'), undefined, "missing values object");
+  assert.equal(decodeFormFlashCookieValue('{"slug":"contact","values":"not an object"}'), undefined);
+  assert.deepEqual(decodeFormFlashCookieValue('{"slug":"contact","values":{"a":"ok","b":123}}'), {
+    slug: "contact",
+    values: { a: "ok" },
+  });
+});
+
+test("mergeFormFlashIntoResult: attaches values only to a validation result for the SAME slug", () => {
+  const validation: FormSubmissionRedirectResult = { kind: "validation", slug: "contact", fieldErrors: [] };
+  assert.deepEqual(mergeFormFlashIntoResult(validation, { slug: "contact", values: { name: "Ada" } }), {
+    ...validation,
+    values: { name: "Ada" },
+  });
+  assert.equal(mergeFormFlashIntoResult(validation, { slug: "newsletter", values: { name: "Ada" } }), validation, "different slug: unchanged");
+  assert.equal(mergeFormFlashIntoResult(validation, undefined), validation, "no flash: unchanged");
+  assert.equal(mergeFormFlashIntoResult(undefined, { slug: "contact", values: { name: "Ada" } }), undefined, "no result: unchanged");
+  const success: FormSubmissionRedirectResult = { kind: "success", slug: "contact" };
+  assert.equal(mergeFormFlashIntoResult(success, { slug: "contact", values: { name: "Ada" } }), success, "non-validation kind: unchanged");
+});
+
+test("injectFormSubmissionResultIntoHtml: validation WITH flash values re-populates the untouched fields' <input>/<textarea>, escaped, instead of leaving them wiped", () => {
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: {
+      slug: "contact",
+      fields: [
+        { id: "name", label: "Name", type: "text", required: true },
+        { id: "email", label: "Email", type: "email", required: true },
+        { id: "message", label: "Message", type: "textarea", required: true },
+      ],
+      successMessage: null,
+    },
+  });
+  const updated = injectFormSubmissionResultIntoHtml(html, {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [{ field: "message", reason: "Required" }],
+    values: { name: "Ada <Lovelace>", email: "ada@example.com" },
+  });
+  // The two fields that were VALID (no error) must come back with what the visitor typed — this is
+  // the actual bug: before the fix, a 303 PRG reload wiped these even though only "message" failed.
+  assert.match(updated, /<input type="text" name="name" id="widget-contact-name"[^>]*aria-describedby="widget-contact-name-error"[^>]* value="Ada &lt;Lovelace&gt;"\/>/);
+  assert.match(updated, /<input type="email" name="email" id="widget-contact-email"[^>]*aria-describedby="widget-contact-email-error"[^>]* value="ada@example\.com"\/>/);
+  // The invalid field has no flash entry (only name/email were supplied above) — its own error slot
+  // still gets its message, and its <textarea> is untouched (not forced empty, not crashed on).
+  assert.match(updated, /<div class="widget-form-field-error" data-field="message"[^>]*>Required<\/div>/);
+});
+
+test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page's form does not have is a silent no-op for that entry (stale/forged flash)", () => {
+  const html = contactFormPageHtml(); // one field: "email"
+  const updated = injectFormSubmissionResultIntoHtml(html, {
+    kind: "validation",
+    slug: "contact",
+    fieldErrors: [],
+    values: { "no-such-field": "whatever" },
+  });
+  assert.doesNotMatch(updated, /whatever/, "a value for a field the form doesn't have must never appear anywhere in the output");
+  assert.doesNotMatch(updated, /value="/, "the form's own real field ('email') has no flash entry here, so it must stay unpopulated");
+});
+
+// ---------------------------------------------------------------------------
 // SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------
 
@@ -1564,4 +1920,43 @@ test("injectExtraHeadIntoStaticPage: extraHead without a title leaves the theme'
 
   assert.ok(out.includes("<title>Theme Title</title>"), "nothing to suppress it, so it stays");
   assert.equal((out.match(/-->/g) ?? []).length, 1, "and the comment is untouched");
+});
+
+// ---------------------------------------------------------------------------
+// renderHtmlPageBody: lookup-key widening for `slug` (2026-08-31). `resolved` is a plain
+// type -> key -> IR map here (not built via a real resolver), matching how `resolveHtmlPageEmbeds`
+// itself keys a slug-based ref's result — by the SLUG the marker carried, never by the id that slug
+// happened to resolve to. See `resolveWidgetTypeEmbeds`'s own doc for why.
+// ---------------------------------------------------------------------------
+
+const TEXT_WIDGET_IR: WidgetRenderIR = { componentId: "text", props: { body: "hi" } };
+
+function resolvedMap(type: string, key: string, ir: WidgetRenderIR): ResolveHtmlPageEmbedsResult {
+  return new Map([[type, new Map([[key, ir]])]]);
+}
+
+test("renderHtmlPageBody: an id-carrying widget marker still resolves by id (UUID markers keep working unchanged)", () => {
+  const html = `<div data-embed-config='{"type":"widget","id":"w1"}'></div>`;
+  const out = renderHtmlPageBody(html, resolvedMap("widget", "w1", TEXT_WIDGET_IR));
+  assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
+});
+
+test("renderHtmlPageBody: a slug-only widget marker (no id key at all) resolves via the slug-keyed entry in the resolved map", () => {
+  const html = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+  const out = renderHtmlPageBody(html, resolvedMap("widget", "contact-form", TEXT_WIDGET_IR));
+  assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
+});
+
+test("renderHtmlPageBody: a marker carrying BOTH id and slug looks up by id — slug is never consulted once id is present", () => {
+  const html = `<div data-embed-config='{"type":"widget","id":"w1","slug":"stale-slug"}'></div>`;
+  // Only the id-keyed entry is populated; if this function fell back to slug it would find nothing
+  // and render the placeholder instead of TEXT_WIDGET_IR.
+  const out = renderHtmlPageBody(html, resolvedMap("widget", "w1", TEXT_WIDGET_IR));
+  assert.equal(out, renderWidgetIr(TEXT_WIDGET_IR));
+});
+
+test("renderHtmlPageBody: an unresolvable slug (typo, no matching entry) degrades to the REQ-28 placeholder — never a crash, never raw marker markup", () => {
+  const html = `<div data-embed-config='{"type":"widget","slug":"does-not-exist"}'></div>`;
+  const out = renderHtmlPageBody(html, new Map([["widget", new Map()]]));
+  assert.equal(out, renderWidgetIr({ componentId: "widget-placeholder", props: {} }));
 });
