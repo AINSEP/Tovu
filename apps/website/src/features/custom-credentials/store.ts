@@ -28,6 +28,17 @@ import {
  * validate-then-write. `connection`, when supplied, is ALWAYS resealed as a fresh ciphertext (never
  * a re-wrap of the old one) under a fresh AAD bound to that row's own `(workspaceId, id)` — see
  * `./aad.ts`'s `buildCustomCredentialAad`.
+ *
+ * {@link resolveCustomCredentialByLabel} — added 2026-08-31 for the mail HTTP-API/SMTP adapters
+ * (`server/runtime/boot/resolve-mailer.ts`), the first real decrypting reader this table has ever
+ * had. This file's header USED TO say "nothing in this codebase consumes the plaintext connection
+ * yet — adding one with no caller would be dead code"; that day arrived, so the decrypt path was
+ * added the same way the header itself predicted (mirroring `vendor-credentials/store.ts`'s own
+ * `resolveForVendor`/`decryptRecord`). Looked up by LABEL, not id: this table has no `purpose`/
+ * `role` column and `label` is this table's own identity field (see this file's header above), so
+ * a caller that needs "the row a well-known integration should use" has no other stable handle to
+ * find it by. `resolve-mailer.ts` documents the exact label strings an operator must type into the
+ * Access Tokens "Add custom provider" form to activate each mail adapter.
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -318,4 +329,52 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
  */
 export async function deleteCustomCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   await deps.repo.delete(input);
+}
+
+/** Shared decrypt step for {@link resolveCustomCredentialByLabel} — same hardened-from-the-start
+ *  shape `vendor-credentials/store.ts`'s own `decryptRecord` documents (never lets a raw decrypt
+ *  failure escape as an unhandled rejection; see that file's header for the 2026-08-16 incident
+ *  this pattern exists to avoid repeating). */
+async function decryptRecord(sealer: SecretSealerPort, record: CustomCredentialSetRecord): Promise<CustomProviderConnectionInput> {
+  const aad = buildCustomCredentialAad({ workspaceId: record.workspaceId, id: record.id });
+  try {
+    const plaintext = await sealer.open({ sealed: record.sealed, aad });
+    return JSON.parse(plaintext) as CustomProviderConnectionInput;
+  } catch (err) {
+    throw new CustomCredentialSecretStoreUnconfiguredError(
+      `custom credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
+export interface CustomCredentialResolveDeps {
+  repo: CustomCredentialSetRepoPort;
+  sealer: SecretSealerPort;
+}
+
+/**
+ * The ONLY decrypting read this table has (see this file's header). Finds the workspace's custom
+ * credential set by its exact `label` and decrypts it. Returns `null` if no row has that label —
+ * NOT an error, since "not configured" is an expected, ordinary state for an optional integration
+ * (a caller like `resolve-mailer.ts` falls back to a safe default in that case, it does not treat
+ * this as exceptional).
+ *
+ * `listByWorkspace` + an in-memory filter, rather than a new `findByLabel` repo method: this
+ * table's own `listByWorkspace` doc already establishes "inherently small — bounded by how many an
+ * operator bothers to add", so a client-side scan costs nothing measurable and avoids widening
+ * `CustomCredentialSetRepoPort`'s surface (and therefore both its adapters) for a single caller.
+ *
+ * @throws {CustomCredentialSecretStoreUnconfiguredError} A row with this label exists but
+ *   `decryptRecord` failed (master secret missing/rotated, or a corrupted row).
+ * @complexity O(n) in the workspace's own (small) credential-set count, plus one decrypt.
+ */
+export async function resolveCustomCredentialByLabel(
+  deps: CustomCredentialResolveDeps,
+  input: { workspaceId: UUID; label: string }
+): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; connection: CustomProviderConnectionInput } | null> {
+  const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
+  const record = records.find((row) => row.label === input.label);
+  if (!record) return null;
+  const connection = await decryptRecord(deps.sealer, record);
+  return { id: record.id, category: record.category, baseUrl: record.baseUrl, connection };
 }

@@ -16,6 +16,9 @@ import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
 import { SqliteCustomCredentialSetRepo } from "#src/platform/db/sqlite/custom-credential-repo.sqlite";
+import { createDefaultHttpClient } from "#src/platform/http/client";
+import type { EgressPolicy } from "#src/platform/http/index";
+import { createResolvedMailer } from "../boot/resolve-mailer.js";
 import { SqliteSourceControlCredentialSetRepo } from "#src/platform/db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "#src/platform/db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -25,7 +28,12 @@ import { InMemoryPublishCredentialVerificationCache } from "#src/features/deploy
 // the full trace and the crash it produced. Resolved at call time instead.
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import { PagesHtmlDocumentStore } from "#src/features/pages/index";
-import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "#src/assistant/index";
+import {
+  createChatStoreFactory,
+  createSqliteAgentSessionStore,
+  ensurePublicAssistantSettingDefinitions,
+  ensureExecutionSettingDefinitions,
+} from "#src/assistant/index";
 import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/index";
@@ -60,7 +68,6 @@ import {
 } from "../configuration/seed.js";
 import { SqliteBufferSink } from "#src/platform/db/sqlite/analytics-sink.sqlite";
 import {
-  ConsoleMailerAdapter,
   SqliteMagicLinkTokenRepo,
   SqliteMemberRepo,
   SqliteMemberSessionRepo,
@@ -782,6 +789,35 @@ export function createSqliteRouteDeps(
   // and read it back from the other.
   const externalMcpServerRepo = new SqliteExternalMcpServerRepo(db);
 
+  // 2026-08-31 (mail rule-of-two build): resolved once here, ahead of the `RouteDeps` object
+  // literal below, because `mailer:` (built from it) is an earlier property than
+  // `customCredentialSetRepo:` — see `resolve-mailer.ts`'s own header for the full design. Sealed
+  // via the SAME shared sealer/keyring every other credential repo on this root already reuses (no
+  // third `EnvOrFileKeyring` instance).
+  const customCredentialSetRepo = new SqliteCustomCredentialSetRepo(db);
+  const runtimeMode = resolveRuntimeMode();
+  // A dedicated `EgressPolicy` for outbound mail-API calls (Resend today) — no default policy
+  // exists elsewhere in this codebase to reuse (checked: no production `HttpClientPort` consumer
+  // is wired into either composition root yet; `platform/http/__tests__/client.test.ts`'s own
+  // fixture is the only prior art, mirrored loosely here). `maxRedirects: 0`: a JSON POST to a
+  // fixed, first-party API endpoint has no legitimate reason to redirect.
+  const mailHttpClientPolicy: EgressPolicy = {
+    allowedSchemes: ["https"],
+    denyPrivateAddresses: true,
+    devHostAllowlist: [],
+    maxRedirects: 0,
+    connectTimeoutMs: 10_000,
+    maxResponseBytes: 1_000_000,
+    maxDecompressedBytes: 1_000_000,
+  };
+  const resolvedMailer = createResolvedMailer({
+    workspaceId,
+    customCredentialRepo: customCredentialSetRepo,
+    sealer: siteAssistantSecretSealer,
+    httpClient: createDefaultHttpClient(mailHttpClientPolicy),
+    mode: runtimeMode,
+  });
+
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
   // OAuth pending-state map, so a second instance would silently not share either.
@@ -827,6 +863,9 @@ export function createSqliteRouteDeps(
     // property that keeps it writing into `content.db` rather than its own `app.sqlite`. The
     // tables come from migration `0023`, applied by Tovu's own migrator.
     chatHistory: createChatStoreFactory(db.$client),
+    // Migration `0051`'s table, over the same raw handle immediately above — see
+    // `RouteDeps.agentSessions`'s own doc for why this is not principal-scoped like `chatHistory`.
+    agentSessions: createSqliteAgentSessionStore(db.$client),
     presentationRepo,
     settingsRepo,
     getEffective,
@@ -912,10 +951,13 @@ export function createSqliteRouteDeps(
     // SPEC-022 REQ-09/REQ-10: every send routes through the purpose-scoped seam. No capability
     // has a durable outbox path yet (Phase 1 territory — see capability-inventory.ts's "outbox"
     // entry), so `durableOutboxReady` is unconditionally false today; in `local` mode (the
-    // default) the gate never refuses regardless (INV-06).
+    // default) the gate never refuses regardless (INV-06). `resolvedMailer.mailer` (built above,
+    // ahead of this object literal) is the boot-time-resolved real-or-console adapter — see
+    // `resolve-mailer.ts`'s own header for the hosted-API/SMTP/console resolution order and the
+    // disclosed startup race.
     mailer: wrapMailerWithPurposeGate({
-      inner: new ConsoleMailerAdapter(),
-      mode: resolveRuntimeMode(),
+      inner: resolvedMailer.mailer,
+      mode: runtimeMode,
       durableOutboxReady: () => false,
     }),
     menuRepo,
@@ -1091,8 +1133,8 @@ export function createSqliteRouteDeps(
     vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(db),
     // 2026-08-17 — see `routes/types.ts`'s `customCredentialSetRepo` doc. Sealed via the same
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
-    // instance).
-    customCredentialSetRepo: new SqliteCustomCredentialSetRepo(db),
+    // instance). Same instance `resolvedMailer` above was built from — not a second repo.
+    customCredentialSetRepo,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).

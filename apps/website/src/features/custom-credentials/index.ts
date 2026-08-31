@@ -23,9 +23,11 @@ export {
   describeCredential,
   isUniqueLabelViolation,
   listCustomCredentials,
+  resolveCustomCredentialByLabel,
   updateCustomCredential,
   type CreateCustomCredentialInput,
   type CustomCredentialReadDeps,
+  type CustomCredentialResolveDeps,
   type CustomCredentialWriteDeps,
   type UpdateCustomCredentialInput,
 } from "./store.js";
