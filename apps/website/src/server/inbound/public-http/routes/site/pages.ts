@@ -36,6 +36,7 @@ import {
   renderSite,
   renderHtmlPageBody,
   injectExtraHeadIntoStaticPage,
+  injectSiteAssistantIntoStaticPage,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
@@ -578,6 +579,13 @@ export async function resolveHtmlFormatContentMarkers(
  * site's own comment). Optional and omitted by both existing callers that don't render the live
  * public page (`routes/admin/posts/template-preview.ts`'s pending-preview endpoint), matching every
  * other optional parameter's "omit = unchanged prior behavior" contract in this file.
+ *
+ * `siteAssistantEnabled` (ADR-054 gap fix) — this function's own `renderStaticPage` call has the
+ * identical `pageShell`-bypassing shape the visitor-chat widget missed the same way `extraHead` did;
+ * spliced in via {@link injectSiteAssistantIntoStaticPage} on the resolved-template return only, same
+ * "not the diagnostic branch" scoping `extraHead` already follows immediately above. Defaults to
+ * `false` so both existing callers (the admin preview endpoint, which must never show the public
+ * widget in a preview iframe, and the two direct tests) keep their prior behavior unchanged.
  */
 export async function renderViaTemplate(
   deps: TemplateRenderDeps,
@@ -585,7 +593,8 @@ export async function renderViaTemplate(
   post: PostRecord,
   staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
   pendingBodyJson?: JsonObject,
-  extraHead?: string
+  extraHead?: string,
+  siteAssistantEnabled = false
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
@@ -631,7 +640,7 @@ export async function renderViaTemplate(
   // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
   // `renderStaticPage`'s return type in static-render.ts, outside this file).
   const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
-  return injectExtraHeadIntoStaticPage(rendered, extraHead);
+  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
 
 /**
@@ -809,7 +818,8 @@ export async function resolveMarketingPageOrOverride(
   deps: RouteDeps,
   theme: DiscoveredTheme,
   slug: string,
-  staticMenus: StaticMenuMap | undefined
+  staticMenus: StaticMenuMap | undefined,
+  siteAssistantEnabled: boolean
 ): Promise<MarketingPageResolution> {
   if (!isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
 
@@ -834,7 +844,11 @@ export async function resolveMarketingPageOrOverride(
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
   const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, `/${slug}`);
-  return { kind: "responded", html: injectExtraHeadIntoStaticPage(staticHtml, extraHead) };
+  // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
+  // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
+  // the widget even with the setting on, because `pageShell`'s own injection never ran here.
+  const html = injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead), siteAssistantEnabled);
+  return { kind: "responded", html };
 }
 
 /** Resolves the `post` a `GET /:slug` request renders: the slug-collision winner from
@@ -872,15 +886,17 @@ export async function renderTemplateBranchIfEligible(
   deps: RouteDeps,
   theme: DiscoveredTheme,
   post: PostRecord,
-  staticMenus: StaticMenuMap | undefined
+  staticMenus: StaticMenuMap | undefined,
+  siteAssistantEnabled: boolean
 ): Promise<string | undefined> {
   if (!isEligibleForTemplateBranch({ theme, post })) return undefined;
   // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
   // pageShell-bypassing `renderStaticPage` shape as the marketing-page branch above; unlike
   // that branch this one DOES have a real backing `post`, so it folds through the same
-  // entry-bearing `"post"` shape the generic (non-template) render below already uses.
+  // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
+  // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
   const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
-  return renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead);
+  return renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead, siteAssistantEnabled);
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input
@@ -1019,7 +1035,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // this one resolve rather than re-querying the same two locations per branch.
       staticMenus = await resolveStaticMenusForRender(deps, theme, req.path);
 
-      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus);
+      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled);
       if (marketingResolution.kind === "responded") {
         res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(marketingResolution.html);
         return;
@@ -1027,7 +1043,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       const post = await resolvePostAfterMarketingCheck(deps, slug, marketingResolution);
 
-      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus);
+      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
       if (templateHtml !== undefined) {
         res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(templateHtml);
         return;

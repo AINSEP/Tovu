@@ -2114,6 +2114,28 @@ export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | 
 }
 
 /**
+ * {@link injectExtraHeadIntoStaticPage}'s sibling for the ADR-054 visitor-chat markup. Every
+ * `renderStaticPage` call site bypasses `pageShell()` (see this file's own module doc), so
+ * `pageShell`'s `siteAssistantMarkup()` splice never runs for a static-tier page unless each bypass
+ * site calls this too — this was the actual gap: `site.assistant.public_enabled` could read `true`
+ * and the pageShell-routed tiers would show the widget while every static-tier page (the home route
+ * when the active theme is `"static"`, a theme's own marketing pages, and a template-picker render)
+ * stayed silently unchanged, because none of them ever called {@link siteAssistantMarkup} at all.
+ *
+ * Same two insertion points `pageShell` itself uses — the stylesheet link immediately before
+ * `</head>`, the mount node + deferred script immediately before `</body>` — just spliced into an
+ * already-complete document instead of built into one. A no-op (returns `html` unchanged) when
+ * `enabled` is `false`, matching {@link siteAssistantMarkup}'s own "disabled emits nothing, not an
+ * inert tag" contract.
+ */
+export function injectSiteAssistantIntoStaticPage(html: string, enabled: boolean): string {
+  const { head, body } = siteAssistantMarkup(enabled);
+  if (!head && !body) return html;
+  const withHead = /<\/head>/i.test(html) ? html.replace(/<\/head>/i, `${head}</head>`) : html;
+  return /<\/body>/i.test(withHead) ? withHead.replace(/<\/body>/i, `${body}</body>`) : withHead;
+}
+
+/**
  * True when `index` falls inside an HTML comment. Walks `<!--`/`-->` pairs from the start rather
  * than pattern-matching around `index`, because only a left-to-right scan can tell an opener that is
  * still open at `index` from one that already closed before it. An unterminated `<!--` is treated as
@@ -2359,16 +2381,22 @@ function fallbackSiteBody(ctx: SiteRenderContext, route: SiteRenderContext["rout
  * through to the ordinary fallback-body/`pageShell` path below, same as any other unresolved route on
  * any other tier. `extraHead` still gets spliced in (SPEC-008 T045) via
  * {@link injectExtraHeadIntoStaticPage} — bypassing `pageShell` must not mean bypassing the SEO fold.
+ * The ADR-054 visitor-chat widget gets the identical treatment via
+ * {@link injectSiteAssistantIntoStaticPage} — bypassing `pageShell` must not mean bypassing that
+ * either (this was a live bug: a static-tier home page never showed the widget even with
+ * `site.assistant.public_enabled` on, since `pageShell`'s own injection never ran for this branch).
  */
 function renderStaticTierHomePage(
   theme: DiscoveredTheme,
   route: SiteRenderContext["route"],
   staticMenus: RenderSiteRequired["staticMenus"],
-  extraHead: string | undefined
+  extraHead: string | undefined,
+  siteAssistantEnabled: boolean
 ): string | undefined {
   if (theme.manifest.tier !== "static" || route !== "home") return undefined;
   const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });
-  return staticHtml ? injectExtraHeadIntoStaticPage(staticHtml, extraHead) : undefined;
+  if (!staticHtml) return undefined;
+  return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(staticHtml, extraHead), siteAssistantEnabled);
 }
 
 /** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
@@ -2433,7 +2461,13 @@ export async function renderSite(required: RenderSiteRequired): Promise<string> 
   const { theme, route } = required;
   const ctx = buildSiteRenderContext(required);
 
-  const staticHomePage = renderStaticTierHomePage(theme, route, required.staticMenus, required.extraHead);
+  const staticHomePage = renderStaticTierHomePage(
+    theme,
+    route,
+    required.staticMenus,
+    required.extraHead,
+    required.siteAssistantEnabled ?? false
+  );
   if (staticHomePage !== undefined) return staticHomePage;
 
   let body: string;
