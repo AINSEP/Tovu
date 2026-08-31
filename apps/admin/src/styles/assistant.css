@@ -30,7 +30,17 @@
 .admin-chat-dock .jini-chat-pane {
   --jini-chat-bg: var(--surface);
   --jini-chat-panel: var(--surface);
-  --jini-chat-subtle: var(--surface-2);
+  /* Was `var(--surface-2)` — the pane root/header/focused-composer above already read
+     `--jini-chat-bg`/`--jini-chat-panel` as pure white (`--surface`), but `--jini-chat-subtle`
+     is what the package's own styles.ts paints the UNFOCUSED composer box, the suggestion
+     pills, and the message-status strip with (see `.jini-composer`/`.jini-chat-pane__status` in
+     `Jini/packages/chat/src/react/features/chat-pane/react/styles.ts`) — `--surface-2` is a real,
+     if subtle, off-white (oklch 96.6% vs `--surface`'s 100%), so that idle-state box was the one
+     part of the pane that visibly read as grey next to the rest of the white dock (owner report,
+     2026-08-31: "ChatPane background grey, should be white"). Mapped straight to `--surface` so
+     the composer no longer visibly shifts tone between its unfocused and `:focus-within` states
+     (`.jini-composer:focus-within` already uses `--jini-chat-panel`, i.e. the same `--surface`). */
+  --jini-chat-subtle: var(--surface);
   --jini-chat-text: var(--fg);
   --jini-chat-text-strong: var(--fg);
   --jini-chat-muted: var(--muted);
@@ -978,13 +988,19 @@
  * exactly what makes a broken render easy to miss. Matches `styles.css`'s existing `.notice.error`
  * shape/colors so a refusal reads as the same kind of thing everywhere else in this app says
  * "something went wrong.".
+ *
+ * The extra 3px `border-left` this used to layer on top of the uniform 1px danger border below —
+ * thickening only the left edge into the same left-accent-rail idiom `styles.css`'s `.notice`/
+ * `.card-danger` used to carry — is gone (2026-08-31, owner's explicit call, retired app-wide). The
+ * remaining `border: 1px solid var(--danger)` already outlines all four sides in the danger color;
+ * dropping the extra left rule loses no signal, it just stops making one edge inconsistent with the
+ * other three.
  */
 .a2ui-surface-refused,
 .a2ui-surface-notice-refused,
 .a2ui-surface-notice-delivery-failed {
   display: block;
   border: 1px solid var(--danger);
-  border-left: 3px solid var(--danger);
   background: var(--danger-bg);
   color: var(--danger);
   padding: 0.85rem 1rem;

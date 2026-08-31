@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from "react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
-import { Sidebar, useSidebar } from "@jini-ai/admin/react";
+import { ConfirmDialog, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 import { useRouteLocation } from "./lib/router";
 import { getNav } from "./nav";
@@ -8,6 +8,7 @@ import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
+import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
@@ -18,8 +19,10 @@ import {
   useAgentPageBridge,
   useChatDockLayout,
   useInternalLinkInterceptor,
+  useLogoutConfirm,
   useScreenshotAnnouncement,
   useSidebarDrawer,
+  type UseLogoutConfirm,
 } from "./App.hooks";
 
 /**
@@ -154,6 +157,43 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
   );
 }
 
+/**
+ * The "are you sure you want to log out?" confirmation (owner-requested, 2026-08-31 — someone can
+ * click "Log out" by accident, and the sidebar button used to sign them out immediately with no way
+ * back). `onLogout` above now opens this instead of logging out directly — see `useLogoutConfirm`'s
+ * own doc comment in `App.hooks.tsx`.
+ *
+ * Reuses `@jini-ai/admin/react`'s `ConfirmDialog`, the same component every other destructive
+ * action in this app already confirms through (`Roles.tsx`'s `RoleDeleteDialog`, `Media.tsx`'s
+ * permanent-delete dialog, `ThemeExplore.tsx`'s theme-delete dialog, …) rather than a bespoke modal
+ * or `window.confirm` — a native dialog would block the whole tab and look like a browser artifact,
+ * not part of the product (see `ConfirmDialog.tsx`'s own file header). It gets real focus trapping
+ * and Escape-to-cancel for free from the native `<dialog>` element it's built on, and focus lands on
+ * Cancel — never Confirm — on open, so a fast Enter after a slow read-through can't accidentally
+ * log someone out (`ConfirmDialog.hooks.tsx`'s own comment gives the identical reasoning).
+ *
+ * `confirmLabel` reuses `admin-nav-i18n.ts`'s existing "Log out" translation (the sidebar button's
+ * own label) rather than a second copy of the same English string in the new `app-i18n.ts` — see
+ * that file's own header for why the title/body live there instead. `cancelLabel` is left unset,
+ * matching every other `ConfirmDialog` caller in this app (none override it — see this component's
+ * own commit for the survey) — `ConfirmDialog`'s own default "Cancel" is what every one of them
+ * shows today, in every locale.
+ */
+function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: string }) {
+  const { logoutConfirm, locale } = props;
+  return (
+    <ConfirmDialog
+      open={logoutConfirm.open}
+      title={tApp(locale, "Log out?")}
+      body={<p>{tApp(locale, "Are you sure you want to log out?")}</p>}
+      confirmLabel={translateAdminNavLabel(locale, "Log out")}
+      pending={logoutConfirm.pending}
+      onConfirm={logoutConfirm.confirm}
+      onCancel={logoutConfirm.cancel}
+    />
+  );
+}
+
 export interface AppProps {
   /**
    * Injectable seam for the boot-time auth check — defaults to the real {@link useAdminSession}.
@@ -223,6 +263,11 @@ export function App(props: AppProps) {
   const useAgentBridge = resolveAgentBridgeHook(props.useAgentBridge);
 
   const { user, checking, handleLogin, logout } = useSession();
+  // Confirmation-modal state around `logout` above — see `useLogoutConfirm`'s own doc comment
+  // (`App.hooks.tsx`) for why this is its own hook rather than a `useSession()` field. Called
+  // unconditionally here, ahead of the `checking`/`!user` early returns below (rules of hooks),
+  // same reasoning `useAdminAssistantAvailability` just below already documents for itself.
+  const logoutConfirm = useLogoutConfirm(logout);
   // `TOVU_ADMIN_ASSISTANT=off` — see `useAdminAssistantAvailability`'s own doc for why this is a
   // separate hook rather than a `useSession()` field, and why it is called unconditionally here
   // (before the `checking`/`!user` early returns below) even though it only fetches once `user` is
@@ -336,9 +381,10 @@ export function App(props: AppProps) {
             reload and navigation, and syncs across tabs. */}
         <Sidebar.Nav groups={navGroups.slice(1)} collapsibleGroups={collapsibleGroups} soonLabel={navSoonLabel} />
         <Sidebar.Footer>
-          <SidebarLogoutButton onLogout={logout} locale={navLocale} />
+          <SidebarLogoutButton onLogout={logoutConfirm.request} locale={navLocale} />
         </Sidebar.Footer>
       </Sidebar>
+      <LogoutConfirmDialog logoutConfirm={logoutConfirm} locale={navLocale} />
       {/* Mobile-only backdrop behind the open drawer (`styles.css` hides `.cms-nav`'s off-canvas
           behavior above 900px, so this has nothing to sit behind there either — conditionally
           rendered rather than CSS-hidden since it would otherwise sit invisibly over the whole

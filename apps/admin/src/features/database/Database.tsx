@@ -7,11 +7,15 @@ import { useWiredRestorePointsSection } from "./hooks/use-restore-points-section
 import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { navigate } from "../../lib/router";
+import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t, planReadyMessage } from "./database-i18n";
 
 /**
  * @file Database screen (design-spec.md §3, ADR-041) — the `/admin/database` route: the
- * read-first Timeline, the restore-points list, and the migrate-forward ceremony. Markup only.
+ * read-first Timeline, the restore-points list, and the migrate-forward ceremony, behind a
+ * `TabBar` (`components/TabBar.tsx`) with three tabs — Timeline, Restore points, Migrate forward.
+ * Markup only.
  *
  * State and API calls live in `hooks/use-timeline-section.hooks.ts`,
  * `hooks/use-restore-points-section.hooks.ts`, and `hooks/use-migrate-forward-section.hooks.ts` —
@@ -21,25 +25,48 @@ import { t, planReadyMessage } from "./database-i18n";
  * The migrate-forward plan/confirm/execute ceremony (ADR-041 §3, SPEC-017 C-103/C-105) is now
  * wired to the real `core/gated-mutations`-backed routes (Session 5-6 backend gap closure).
  *
- * The DRIFT BANNER now exists (2026-08-24, `SchemaStateWarningBanner` below), backed by the new
- * `GET /api/admin/v1/database/schema-state` route. It was previously listed here as having "no
- * route yet": `src/platform/db/drift.ts`'s `getDriftStatus` had been built and correct for some time, but
- * its only caller was the `database_get_schema_state` AGENT tool, so a site owner whose database
- * had diverged had no surface that would ever tell them. Read-only — it reports, and offers no
- * repair action of its own; migrate-forward below remains the only write path.
+ * The DRIFT BANNER (`SchemaStateWarningBanner` below), backed by the
+ * `GET /api/admin/v1/database/schema-state` route, stays ABOVE the `TabBar` and renders regardless
+ * of which tab is active — it is the screen's only always-on health statement (see its own doc
+ * comment), and a person on the Migrate forward tab needs to see "your database doesn't match this
+ * software" just as much as someone on Timeline. Read-only — it reports, and offers no repair
+ * action of its own; migrate-forward remains the only write path.
  *
  * Still disclosed, still omitted (per design-spec.md §3.8/§5 and progress-ledger.md "Session 5"):
  * the `PENDING_MIGRATION` boot banner and the Tier-3 browser have no route yet — this screen omits
  * them rather than rendering dead affordances.
  *
- * `Database` itself has no hook of its own (no single fetch/state this top-level shell owns), so it
- * keeps calling `useAdminLocale()`/`database-i18n`'s `t` directly for its own header text — per the
- * standing i18n rule's carve-out for components with no hook file. Each SECTION below (`useTimeline
- * Section`, `useRestorePointsSection`, `useMigrateForwardSection`) already independently resolves
- * `useAdminLocale()` for its own internal error-string translations (unrelated to this file), so
- * `t`/`locale` are now sourced from each section's own hook rather than threaded down from
- * `Database` as a prop — that prop was redundant with a resolution each hook was already doing.
+ * TAB GROUPING (this pass): three tabs, one per section, in read → recover → change order —
+ * **Timeline** (the read-first ledger, so it's what a returning operator sees first), **Restore
+ * points** (the snapshots available to recover to), **Migrate forward** (the one ceremony that
+ * actually writes). `?tab=` deep-linking follows `Deployment.tsx`/`SettingsUi.tsx`'s own pattern:
+ * `panels.tsx` passes `ctx.query.get("tab")` in as `tabId`, an unrecognized or absent value falls
+ * back to the first tab ("timeline") rather than rendering nothing, and switching tabs calls
+ * `navigate(..., { replace: true })` so the URL stays a correct deep link without growing the
+ * back-button history one entry per click.
+ *
+ * `Database` itself still has no hook of its own (no single fetch/state this top-level shell owns
+ * — the tab-id resolution below is pure, not stateful), so it keeps calling
+ * `useAdminLocale()`/`database-i18n`'s `t` directly for its own header and tab-bar text — per the
+ * standing i18n rule's carve-out for components with no hook file. Each SECTION below
+ * (`useTimelineSection`, `useRestorePointsSection`, `useMigrateForwardSection`) already
+ * independently resolves `useAdminLocale()` for its own internal error-string translations
+ * (unrelated to this file), so `t`/`locale` are sourced from each section's own hook rather than
+ * threaded down from `Database` as a prop — that prop was redundant with a resolution each hook
+ * was already doing.
  */
+
+const DATABASE_TAB_IDS = ["timeline", "restore-points", "migrate-forward"] as const;
+type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
+
+/** Falls back to the first tab for an absent or unrecognized `?tab=` value — same "don't trust a
+ *  raw query value" guard `Deployment.tsx`'s `resolveActiveTabId` and `SettingsUi.tsx`'s
+ *  `requestedTabId` both apply, for the same reason (a stale link or a typo must not blank the
+ *  panel).
+ *  @complexity O(1) — fixed-size id list, not caller-controlled. */
+function resolveActiveTabId(tabId: string | null | undefined): DatabaseTabId {
+  return tabId && (DATABASE_TAB_IDS as readonly string[]).includes(tabId) ? (tabId as DatabaseTabId) : "timeline";
+}
 
 const KIND_OPTIONS = [
   "core.migration",
@@ -410,8 +437,38 @@ function SchemaStateWarningBanner({ useSchemaStateSectionHook = useWiredSchemaSt
   );
 }
 
-export function Database() {
+/** Dispatches the one active tab's panel as a flat if-chain — same shape `Deployment.tsx`'s
+ *  `deploymentTabPanel`/`ThemeExplore.tsx`'s `ThemeExploreMainPane`/this file's own
+ *  `migrateForwardStep` use for the identical complexity-gate reason: a component's OWN
+ *  cyclomatic/cognitive score counts a ternary or `&&` written directly in its JSX, not one
+ *  delegated to a plain function like this.
+ *  @complexity O(1) — three mutually exclusive branches, no iteration. */
+function databaseTabPanel(activeTabId: DatabaseTabId) {
+  if (activeTabId === "restore-points") return <RestorePointsSection />;
+  if (activeTabId === "migrate-forward") return <MigrateForwardSection />;
+  return <TimelineSection />;
+}
+
+export interface DatabaseProps {
+  /** The `?tab=` query value from `panels.tsx`'s `database` route (`URLSearchParams.get` returns
+   *  `null` when the param is absent). See {@link resolveActiveTabId}. */
+  tabId?: string | null;
+}
+
+export function Database(props: DatabaseProps) {
   const locale = useAdminLocale();
+  const activeTabId = resolveActiveTabId(props.tabId);
+
+  const tabs: TabBarTab[] = [
+    { id: "timeline", label: t(locale, "Timeline") },
+    { id: "restore-points", label: t(locale, "Restore points") },
+    { id: "migrate-forward", label: t(locale, "Migrate forward") },
+  ];
+
+  function handleTabChange(nextTabId: string) {
+    navigate(`/database?tab=${nextTabId}`, { replace: true });
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -424,9 +481,8 @@ export function Database() {
         </div>
       </div>
       <SchemaStateWarningBanner />
-      <TimelineSection />
-      <RestorePointsSection />
-      <MigrateForwardSection />
+      <TabBar ariaLabel={t(locale, "Database")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} />
+      {databaseTabPanel(activeTabId)}
     </div>
   );
 }

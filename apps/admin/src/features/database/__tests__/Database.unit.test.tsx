@@ -28,6 +28,16 @@ import type { AdminLedgerRow, AdminRestorePoint } from "@/lib/api";
  * identity function (and `locale` to `"en"`, where the controller carries one) — matching
  * `wired-hooks-convention.md`'s own `t: (k) => k` example — so every existing assertion above stays
  * matched against the raw English key with no behavior change.
+ *
+ * TABS (this pass): `Database` now renders one section at a time behind a `TabBar`
+ * (Timeline/Restore points/Migrate forward — see `Database.tsx`'s own header comment for the
+ * grouping rationale), instead of mounting all three at once. `renderDatabase` below resolves a
+ * default `?tab=` from WHICH override key a test passed — `restorePoints` opens on the
+ * "restore-points" tab, `migrateForward` opens on "migrate-forward", anything else (including no
+ * override at all) opens on the default "timeline" tab — so every pre-existing test call below
+ * still lands on the section it was already asserting against with no change to the call itself.
+ * A test that needs a specific tab regardless of that inference (or needs to assert on the tab bar
+ * itself) passes `tabId` explicitly, which always wins.
  */
 
 vi.mock("../../../lib/router", () => ({ navigate: vi.fn() }));
@@ -131,11 +141,25 @@ function schemaStateController(overrides: Partial<SchemaStateSectionController> 
   return { warning: null, settled: true, t: (k: string) => k, ...overrides };
 }
 
+/** See the "TABS" file-header note above for why this infers a default tab from which override
+ *  key a test passed, rather than requiring every existing call site to name one. */
+function resolveDefaultTabId(overrides: {
+  restorePoints?: unknown;
+  migrateForward?: unknown;
+  tabId?: string | null;
+}): string | null | undefined {
+  if (overrides.tabId !== undefined) return overrides.tabId;
+  if (overrides.migrateForward) return "migrate-forward";
+  if (overrides.restorePoints) return "restore-points";
+  return "timeline";
+}
+
 function renderDatabase(overrides: {
   timeline?: Partial<TimelineSectionController>;
   restorePoints?: Partial<RestorePointsSectionController>;
   migrateForward?: Partial<MigrateForwardSectionController>;
   schemaState?: Partial<SchemaStateSectionController>;
+  tabId?: string | null;
 } = {}) {
   const t = timelineController(overrides.timeline);
   const r = restorePointsController(overrides.restorePoints);
@@ -145,7 +169,7 @@ function renderDatabase(overrides: {
   restorePointsRef.current = r;
   migrateForwardRef.current = m;
   schemaStateRef.current = s;
-  render(<Database />);
+  render(<Database tabId={resolveDefaultTabId(overrides)} />);
   return { timeline: t, restorePoints: r, migrateForward: m, schemaState: s };
 }
 
@@ -157,11 +181,51 @@ beforeEach(() => {
 });
 
 describe("page shell", () => {
-  it("renders the page header, all three section headings", () => {
+  it("renders the page header and the three-tab tab bar", () => {
     renderDatabase();
     expect(screen.getByRole("heading", { name: "Database", level: 1 })).toBeInTheDocument();
+    expect(screen.getByRole("tablist", { name: "Database" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Timeline" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Restore points" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Migrate forward" })).toBeInTheDocument();
+  });
+});
+
+describe("tab bar", () => {
+  it("defaults to the Timeline tab and shows only its content when no tabId is given", () => {
+    renderDatabase();
+    expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "false");
+    // Only Timeline's section is mounted — the other two sections' own headings are absent.
+    expect(screen.queryByRole("heading", { name: "Restore points" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Migrate forward" })).not.toBeInTheDocument();
+  });
+
+  it("opens on the tab named by tabId, showing only that section", () => {
+    renderDatabase({ tabId: "restore-points" });
+    expect(screen.getByRole("tab", { name: "Restore points" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("heading", { name: "Restore points" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Migrate forward" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Migrate forward" })).not.toBeInTheDocument();
+  });
+
+  it("falls back to Timeline for an unrecognized tabId", () => {
+    renderDatabase({ tabId: "bogus" });
+    expect(screen.getByRole("tab", { name: "Timeline" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("clicking a tab calls navigate with the new ?tab= query, replacing history", async () => {
+    const user = userEvent.setup();
+    renderDatabase();
+    await user.click(screen.getByRole("tab", { name: "Migrate forward" }));
+    expect(navigate).toHaveBeenCalledWith("/database?tab=migrate-forward", { replace: true });
+  });
+
+  it("keeps the drift banner visible above the tab bar regardless of which tab is active", () => {
+    renderDatabase({
+      tabId: "migrate-forward",
+      schemaState: { warning: { tone: "error", title: "Something is wrong", body: "Details here." } },
+    });
+    expect(screen.getByRole("alert")).toHaveTextContent("Something is wrong");
   });
 });
 
@@ -177,12 +241,12 @@ describe("TimelineSection — loading/error/loaded", () => {
     expect(screen.getByText("Loading timeline…")).toBeInTheDocument();
   });
 
-  it("shows the empty state when rows is an empty array (RestorePointsSection's own table is unaffected)", () => {
+  it("shows the empty state when rows is an empty array, with no table on the active (Timeline) tab", () => {
     renderDatabase({ timeline: { rows: [] } });
     expect(screen.getByText("No database activity recorded yet.")).toBeInTheDocument();
-    // Only one table on the page: RestorePointsSection's (still populated by default) — Timeline
-    // itself rendered its empty-state card instead of a table.
-    expect(screen.getAllByRole("table")).toHaveLength(1);
+    // Only the Timeline tab is mounted (see the "tab bar" describe block) — its own empty-state
+    // card renders instead of a table, and the other two sections aren't in the tree at all.
+    expect(screen.queryAllByRole("table")).toHaveLength(0);
   });
 
   it("renders kind, outcome, restore-point link, and formatted time columns for a loaded row", () => {
@@ -457,12 +521,12 @@ describe("drift warning", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("We could not check your database");
   });
 
-  it("puts the banner before the Timeline, so it is read before the content it is a warning about", () => {
+  it("puts the banner before the tab bar, so it is read before the content it is a warning about", () => {
     renderDatabase({ schemaState: { warning: { tone: "error", title: "Something is wrong", body: "Details here." } } });
 
     const alert = screen.getByRole("alert");
-    const heading = screen.getByRole("heading", { name: "Restore points" });
-    expect(alert.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const tabBar = screen.getByRole("tablist", { name: "Database" });
+    expect(alert.compareDocumentPosition(tabBar) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it("routes its copy through the section's own bound translator", () => {
