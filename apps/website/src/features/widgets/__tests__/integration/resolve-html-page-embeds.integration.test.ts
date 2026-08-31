@@ -345,6 +345,113 @@ test('resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and re
 });
 
 // ---------------------------------------------------------------------------
+// `slug` (2026-08-31) — the owner-requested, human-memorable alternative to `id`, for `"widget"`
+// markers only in this pass (`entries.slug` is unique per `(workspaceId, type)`; see
+// `resolveWidgetTypeEmbeds`'s own doc). This directly exercises the form/contact-form use case that
+// motivated the feature: an author writes `{"type":"widget","slug":"contact-form"}` instead of
+// having to copy a UUID out of the widget's own edit screen.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "widget" embed addressed by SLUG resolves to the same real IR an id-addressed embed would — the concrete form/contact-form use case this feature exists for', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedContactFormWidget(entryRepo, "cf-widget-1", "form-1");
+  const formDefinitionRepo = new InMemoryFormDefinitionRepo();
+  await formDefinitionRepo.create(formDefinition());
+  registerCoreResolver({ typeKey: "contact-form", resolver: createContactFormResolver({ formDefinitionRepo }) });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"cf-widget-1"}'></div>` },
+  });
+
+  // seedWidget stores the entry under `slug: id` (see this file's fixture helper) — so the marker's
+  // slug and the seeded widget's id are literally the same string here, which is realistic: an
+  // author picks a memorable slug when they CREATE the widget, they don't reuse its opaque id as one.
+  const ir = resolved.get("widget")?.get("cf-widget-1");
+  assert.ok(ir, "resolved under the SLUG the marker carried, not the widget's underlying id");
+  assert.equal(ir?.componentId, "contact-form");
+  assert.equal(ir?.props.slug, "contact-us");
+});
+
+test('resolveHtmlPageEmbeds: a "widget" embed referencing an UNKNOWN slug never throws — absent from the resolved map, degrading exactly like a dangling id (render.ts substitutes the REQ-28 placeholder)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"does-not-exist"}'></div>` },
+  });
+
+  assert.equal(resolved.get("widget")?.has("does-not-exist"), false);
+});
+
+test('resolveHtmlPageEmbeds: "id" is authoritative over "slug" when a marker carries both — the slug is not even looked up', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, "widget-1", "resolved via id");
+  // No widget exists under this slug at all — if the resolver fell back to it, findBySlug would
+  // simply miss; asserting the RIGHT value resolves (not just "no crash") proves id truly wins.
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html: `<div data-embed-config='{"type":"widget","id":"widget-1","slug":"nonexistent-slug"}'></div>`,
+    },
+  });
+
+  assert.deepEqual(resolved.get("widget")?.get("widget-1"), { componentId: "text", props: { body: "resolved via id" } });
+});
+
+test('resolveHtmlPageEmbeds: slug lookups are workspace+type scoped — a same-slug widget in a DIFFERENT workspace never resolves across the boundary', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, "other-ws-widget", "should never leak");
+  // Re-save the same widget under a different workspace id but the SAME slug, proving the lookup is
+  // scoped to (workspaceId, type, slug), not merely (type, slug).
+  await entryRepo.save({
+    id: "other-ws-widget",
+    workspaceId: "a-completely-different-workspace",
+    type: WIDGET_CONTENT_TYPE,
+    slug: "shared-slug-name",
+    status: "published",
+    title: "A widget",
+    bodyJson: null,
+    fieldsJson: {
+      ext: { [WIDGET_FIELD_NAMESPACE]: { [WIDGET_PAYLOAD_FIELD]: JSON.stringify({ status: "active", widgetType: "text", config: { body: "wrong workspace" } }) } },
+    },
+    publishedAt: NOW,
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+  });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widget","slug":"shared-slug-name"}'></div>` },
+  });
+
+  assert.equal(resolved.get("widget")?.has("shared-slug-name"), false, "the other workspace's widget must not leak across the boundary");
+});
+
+test('resolveHtmlPageEmbeds: two DIFFERENT slug-addressed widgets on the same page each resolve independently in ONE batched pass (mirrors the pre-existing multi-id coverage above)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  await seedTextWidget(entryRepo, "widget-a", "A body");
+  await seedTextWidget(entryRepo, "widget-b", "B body");
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo },
+    input: {
+      workspaceId: WORKSPACE_ID,
+      html:
+        `<div data-embed-config='{"type":"widget","slug":"widget-a"}'></div>` +
+        `<div data-embed-config='{"type":"widget","slug":"widget-b"}'></div>`,
+    },
+  });
+
+  assert.equal(resolved.get("widget")?.size, 2);
+  assert.deepEqual(resolved.get("widget")?.get("widget-a"), { componentId: "text", props: { body: "A body" } });
+  assert.deepEqual(resolved.get("widget")?.get("widget-b"), { componentId: "text", props: { body: "B body" } });
+});
+
+// ---------------------------------------------------------------------------
 // SPEC-047 Slice 3 (2026-08-07) — the `media` type, a NEW resolver (not adapted from
 // resolveWidgetType). Real InMemoryMediaRepo/InMemoryTransformDefinitionRepo, same "real repo, no
 // hand-rolled test double" style as the widget coverage above.

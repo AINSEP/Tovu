@@ -79,7 +79,7 @@ for (const [i, html] of FIXTURES.entries()) {
 test('html-entry-refs consistency: a media embed is indexed with targetKind "asset" (2026-08-07 §4) — never "entry", since a media asset lives in a different storage domain than the generic entries graph', () => {
   const html = `<div data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "media", id: "asset-1", name: null, variant: "thumb" }]);
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb" }]);
 
   const fromExtractor = extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html });
   assert.equal(fromExtractor.length, 1);
@@ -90,8 +90,29 @@ test('html-entry-refs consistency: a media embed is indexed with targetKind "ass
 test("html-entry-refs consistency: an unregistered/future embed type is scanned but not indexed, with neither side needing a code change to tolerate it", () => {
   const html = `<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "some-future-type", id: "x1", name: null, variant: null }]);
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null }]);
   assert.deepEqual(extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }), []);
+});
+
+// ---------------------------------------------------------------------------
+// Disclosed gap (2026-08-31, `extractor.ts`'s own doc on `extractHtmlEntryRefs`): a `slug`-only
+// widget marker is NOT indexed into `entry_refs`, even though `resolver-service.ts` now resolves it
+// at render time. `extractHtmlEntryRefs` is deliberately pure/I-O-free and cannot turn a slug into
+// the real `UUID` `EntryRefRow.targetId` requires — closing this needs either widening this
+// function's contract or normalizing a marker's `slug` to a real `id` at WRITE time, neither
+// attempted in this pass. This test pins the CURRENT (gap) behavior precisely so a future fix has a
+// failing test to flip, rather than leaving the asymmetry undocumented in code.
+// ---------------------------------------------------------------------------
+
+test('html-entry-refs consistency: DISCLOSED GAP — a slug-only "widget" marker (no id key) is scanned by scanHtmlEmbeds but produces NO entry_refs row, unlike an equivalent id-only marker', () => {
+  const html = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
+
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null }]);
+  assert.deepEqual(
+    extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }),
+    [],
+    "safe-delete's where-used index cannot see this reference yet — see extractHtmlEntryRefs's own doc"
+  );
 });
 
 test("html-entry-refs consistency: a marker neither side can parse is dropped by BOTH, so they stay in step even on failure", () => {
