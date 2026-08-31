@@ -51,6 +51,11 @@ test("assistant_demo_choices is on the allowlist unconditionally — it performs
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_demo_choices"));
 });
 
+test("assistant_ask_choice is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does, not assistant_demo_choices's carve-out", () => {
+  assert.equal(isMcpUiToolCallAllowed("assistant_ask_choice"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_ask_choice"));
+});
+
 // ---------------------------------------------------------------------------
 // The closed-set property
 // ---------------------------------------------------------------------------
@@ -64,6 +69,7 @@ test("assistant_demo_choices is on the allowlist unconditionally — it performs
 
 /** Exactly what this endpoint will forward to. Adding an entry must be a deliberate edit HERE too. */
 const EXPECTED_ALLOWLIST = [
+  "assistant_ask_choice",
   "assistant_demo_choices",
   "content_post_delete",
   "content_post_search",

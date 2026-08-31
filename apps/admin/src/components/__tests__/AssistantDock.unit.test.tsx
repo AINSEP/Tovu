@@ -36,6 +36,7 @@ vi.mock("@jini-ai/chat/react", () => ({
     conversationId?: string;
     initialMessages?: unknown[];
     composerSlots?: { discoveryGroups?: readonly unknown[] };
+    attachmentAccept?: string;
   }) => {
     chatPaneSpy(props);
     return (
@@ -61,6 +62,12 @@ vi.mock("@jini-ai/chat/react", () => ({
   createMcpUiToolCaller: () => vi.fn(),
   registerExtEventRenderer: vi.fn(),
   registerMcpUiSurfaceRenderer: vi.fn(),
+  // Module-scope value, not a function: `AssistantDock.tsx` reads it at import time for its
+  // `registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, ...)` call, so omitting it from this factory
+  // made the whole file throw on import ("No MCP_UI_EXT_EVENT_NAME export is defined") rather than
+  // fail a single test. Kept as the literal the package exports rather than a placeholder, since
+  // the registration key is the value under test if this ever grows an assertion.
+  MCP_UI_EXT_EVENT_NAME: "mcp-ui",
 }));
 
 vi.mock("../../lib/execution-settings", async (importOriginal) => {
@@ -219,6 +226,27 @@ describe("AssistantDock", () => {
     // reintroduced around it (the `display:contents` regression this file's dispatch calls out)
     // would show up here as an extra element between `container` and the chat-pane div.
     expect(container.firstElementChild).toBe(screen.getByTestId("chat-pane"));
+  });
+
+  /**
+   * 2026-08-31 regression coverage for "a `.md` file cannot be added as a chat attachment". The
+   * composer's file picker was driven entirely by an `attachmentAccept="image/*"` prop, so a
+   * markdown file was greyed out in the OS dialog and there was no way to attach one at all. The
+   * upload path itself never had this restriction — `@jini-ai/http-kit`'s `attachments.ts` sniffs
+   * `detectAttachmentKind` from the leading bytes and stores `'image' | 'file'` regardless of
+   * what the picker offered — and `accept` never applies to drag-and-drop in any browser either,
+   * so the filter was pure friction on the cooperative path with no matching restriction on the
+   * bypass. The fix is to pass no `attachmentAccept` at all rather than grow the allowlist, so the
+   * property this test protects is "no file type is excluded from the picker" — not any particular
+   * set of extensions, which would just be tomorrow's version of the same bug for the next
+   * extension nobody thought to add.
+   */
+  it("applies no type filter to the composer's file picker, so no file type is excluded", () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as { attachmentAccept?: string };
+
+    expect(props.attachmentAccept).toBeUndefined();
   });
 
   /**
