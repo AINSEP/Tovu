@@ -60,6 +60,174 @@ export default [
   },
   {
     /**
+     * sonarjs expansion, 2026-08-31. `eslint-plugin-sonarjs` v4.2.0 ships 279 rules; before this
+     * block only `cognitive-complexity` (above) was on. A report-only pass with all 279 forced to
+     * `warn` was run across the repo (no autofix, no tracked-source changes) to measure real counts
+     * before enabling anything for real — see the report this block's dispatch produced for the full
+     * per-rule table and file:line samples. 76 rules actually fired; the rest never matched anything
+     * in this codebase (many need frameworks not in use here — AWS CDK, Angular — or type-aware
+     * linting this config doesn't run, see the `off` block below for that group).
+     *
+     * Every rule below was spot-checked by reading real source at the reported line, not just
+     * counted — this repo's own `AGENTS.md` warns raw analyzer counts here have been inflated 5-7x
+     * before by generated files and same-file-only usages, and that pattern repeated: five of the
+     * highest-volume rules turned out to be near-100% noise once read (see the `off` block).
+     *
+     * Nothing here is promoted to `error`. `npm run complexity` is a blocking CI step and several
+     * of these rules have small amounts of pre-existing, real debt (counts below); flipping to
+     * `error` today would fail the gate for everyone on this branch over unrelated findings. Rules
+     * marked (0-2 hits) below are effectively free to promote once that debt is fixed — see the
+     * dispatch report for the exact file:line list.
+     */
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      // True-bug shape, near-zero or zero current hits — cheapest rules to promote to `error` after
+      // a trivial fix-up (counts from the measurement pass, repo-wide).
+      'sonarjs/no-extra-arguments': 'warn', // 1 hit
+      'sonarjs/no-floating-point-equality': 'warn', // 1 hit
+      'sonarjs/no-ignored-exceptions': 'warn', // 1 hit
+      'sonarjs/no-unused-collection': 'warn', // 1 hit
+      'sonarjs/no-all-duplicated-branches': 'warn', // 1 hit
+      'sonarjs/no-collapsible-if': 'warn', // 1 hit
+      'sonarjs/array-constructor': 'warn', // 1 hit
+      'sonarjs/no-redundant-assignments': 'warn', // 2 hits
+      'sonarjs/no-redundant-jump': 'warn', // 2 hits
+      'sonarjs/no-trivial-assertions': 'warn', // 2 hits
+      // Real bug/readability shape, verified against source, moderate volume — genuinely useful but
+      // not zero-debt, so `warn` for now.
+      'sonarjs/no-dead-store': 'warn',
+      'sonarjs/no-unused-function-argument': 'warn',
+      'sonarjs/no-nested-conditional': 'warn',
+      'sonarjs/no-nested-template-literals': 'warn',
+      'sonarjs/no-nested-incdec': 'warn',
+      'sonarjs/no-nested-assignment': 'warn',
+      'sonarjs/nested-control-flow': 'warn',
+      'sonarjs/too-many-break-or-continue-in-loop': 'warn',
+      'sonarjs/elseif-without-else': 'warn',
+      'sonarjs/no-inconsistent-returns': 'warn',
+      'sonarjs/expression-complexity': 'warn',
+      'sonarjs/bool-param-default': 'warn',
+      'sonarjs/declarations-in-global-scope': 'warn',
+      // TypeScript hygiene, low noise.
+      'sonarjs/redundant-type-aliases': 'warn',
+      'sonarjs/use-type-alias': 'warn',
+      'sonarjs/no-redundant-optional': 'warn',
+      // Severe-if-real security shape (dynamic SQL, code injection). Only fires in test/dev-tooling
+      // fixtures today (6 hits total, 0 in production source) — `warn`, not `off`, because unlike the
+      // hardcoded-literal/PRNG cluster below these two don't have a structural false-positive source
+      // in this codebase; a future hit is worth a human look.
+      'sonarjs/sql-queries': 'warn',
+      'sonarjs/code-eval': 'warn',
+      // Visibility/hygiene, low volume.
+      'sonarjs/todo-tag': 'warn',
+      'sonarjs/fixme-tag': 'warn',
+      'sonarjs/no-skipped-tests': 'warn',
+      'sonarjs/no-commented-code': 'warn',
+      // Test-quality rules — this repo already cares about assertion strength (see
+      // feedback_assert_exact_error_text in project memory); these three catch weaker versions of
+      // the same problem class.
+      'sonarjs/prefer-specific-assertions': 'warn',
+      'sonarjs/assertions-in-tests': 'warn',
+      'sonarjs/no-fixed-wait-in-tests': 'warn',
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/parameterized-tests': 'warn',
+      'sonarjs/public-static-readonly': 'warn',
+      // Regex readability micro-smells, very low volume (10 hits total across 4 rules).
+      'sonarjs/concise-regex': 'warn',
+      'sonarjs/duplicates-in-character-class': 'warn',
+      'sonarjs/regex-complexity': 'warn',
+      'sonarjs/single-character-alternation': 'warn',
+    },
+  },
+  {
+    // `sonarjs/no-duplicate-string` is real and worth keeping (158 production hits, verified), but
+    // 90% of its repo-wide volume (1484/1642) is test files legitimately repeating the same literal
+    // across many `it()` blocks — scoped out here the same way the complexity blocks below scope out
+    // test directories, just repo-wide since this rule's noise isn't apps/admin-specific.
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: [
+      '**/__tests__/**',
+      '**/__measurements__/**',
+      '**/*.test.ts',
+      '**/*.test.tsx',
+      '**/*.spec.ts',
+      'development/e2e/**',
+    ],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      'sonarjs/no-duplicate-string': 'warn',
+    },
+  },
+  {
+    // `no-hardcoded-passwords` / `no-hardcoded-secrets` are the highest-value rules in the
+    // hardcoded-literal cluster (a real future leaked secret is worth catching), but every hit found
+    // in apps/admin during the measurement pass was a translation-dictionary VALUE like `"Owner
+    // password": "Besitzer-Passwort"` — copy, not a credential (see
+    // reference_admin_copy_string_is_i18n_key in project memory: an admin copy string is its own
+    // i18n key, and these files are literally hundreds of UI-label entries). Scoped off there; kept
+    // warn everywhere else.
+    files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*-i18n.ts', '**/*-i18n.tsx'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      'sonarjs/no-hardcoded-passwords': 'warn',
+      'sonarjs/no-hardcoded-secrets': 'warn',
+    },
+  },
+  {
+    // Deliberately left OFF. Each was measured, then verified by reading real source at the reported
+    // line before being rejected — not rejected on volume alone. See the dispatch report for the
+    // full file:line evidence behind each of these.
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: { parser: tseslint.parser },
+    plugins: { sonarjs },
+    rules: {
+      // Pure style/formatting opinions with no functional finding behind them — this repo's
+      // formatter's job, not a lint gate's.
+      'sonarjs/arrow-function-convention': 'off', // arrow-paren style; 6346 hits, the single largest source of noise in the whole survey
+      'sonarjs/shorthand-property-grouping': 'off', // object-property ordering; cosmetic only
+      // Needs configuration this repo doesn't have; with no config it produces a false positive on
+      // (effectively) every file.
+      'sonarjs/file-header': 'off', // requires a license/header template; fired on all 2567 scanned files
+      'sonarjs/no-reference-error': 'off', // needs browser/DOM `globals`; flags window/document/HTMLElement/ResizeObserver etc. as undefined
+      // Actively wrong for this codebase's conventions — verified, not just "noisy".
+      'sonarjs/no-implicit-dependencies': 'off', // doesn't resolve this repo's `@/` tsconfig path alias; flags nearly every aliased import as an undeclared dependency
+      'sonarjs/function-name': 'off', // camelCase-only regex rejects PascalCase, mandatory for React/JSX component functions
+      'sonarjs/no-undefined-assignment': 'off', // fights this codebase's (and TS optional-property) convention of `undefined` for absence, not `null` — verified against test fixtures asserting exactly that semantics
+      'sonarjs/no-wildcard-import': 'off', // fires on deliberate barrel `export *` re-exports and `import * as X` test-mocking, both idiomatic here
+      'sonarjs/max-union-size': 'off', // default cap of 3 conflicts with ordinary TS discriminated-union/status modeling
+      'sonarjs/no-small-switch': 'off', // fired only in panels.tsx's uniform switch-per-view convention (~15 panels); the flagged ones just currently have 2 cases, not a design smell
+      'sonarjs/file-name-differ-from-class': 'off', // only hit was a Playwright `*.globalSetup.ts` file — that's Playwright's naming convention, not a mismatch
+      // Raw size/complexity metrics duplicating a gate this file already enforces differently, or
+      // that this agent's own governing skill treats as never a standalone finding.
+      'sonarjs/cyclomatic-complexity': 'off', // duplicates the `complexity` core rule already tiered per-scope in this file at a third default threshold (10)
+      'sonarjs/max-lines-per-function': 'off', // raw function size; never a standalone finding per this agent's own function-quality-assessment skill
+      'sonarjs/max-lines': 'off', // same size-metric objection, and fires mostly on `*-i18n.{ts,tsx}` flat translation dictionaries that are large by design
+      // Duplicates biome, which already runs repo-wide via `npm run lint` (recommended preset).
+      'sonarjs/no-unused-vars': 'off', // duplicates biome's `noUnusedVariables`
+      'sonarjs/unused-import': 'off', // duplicates biome's `noUnusedImports`
+      // Security/hardcoded-literal rules with a structural false-positive source in this codebase —
+      // every verified hit (test files AND the rare production hit) was benign, not just untriaged.
+      'sonarjs/no-hardcoded-ip': 'off', // every hit is IP-classification code (e.g. `classifyIpv6`) or documented test-fixture IPs; zero real endpoint literals found
+      'sonarjs/pseudo-random': 'off', // every hit is `Math.random()` used only as a non-crypto UI-id fallback after `crypto.randomUUID()`, never a security context
+      'sonarjs/file-permissions': 'off', // 100% test fixtures exercising fs-permission behavior as the subject under test
+      'sonarjs/publicly-writable-directories': 'off', // same reason, 100% test fixtures
+      'sonarjs/no-clear-text-protocols': 'off', // 13/14 hits in tests; the one prod hit is a `.invalid`-TLD placeholder used only for URL parsing, never a live request
+      'sonarjs/no-os-command-from-path': 'off', // 100% PATH-related fault-injection test fixtures, zero production hits
+      // Needs type-aware linting (`parserOptions.project`) to produce sound results; this config
+      // doesn't run one (see dispatch report's type-aware-linting section for the cost). Without it
+      // this rule doesn't just miss cases, it actively misfires.
+      'sonarjs/class-prototype': 'off', // flags standard DOM prototype methods (`HTMLDialogElement.showModal`, `Element.scrollIntoView`) as "undeclared" without type info
+      // Single stray hit each, traced to something other than authored production source.
+      'sonarjs/no-tab': 'off', // only hit is inside a bundler-generated `.astro/content.d.ts` fixture checked in for a probe test
+    },
+  },
+  {
+    /**
      * Keeps `@tanstack/react-query` rippable.
      *
      * The admin talks to server state through `lib/fetch-query`, whose whole
