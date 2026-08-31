@@ -371,8 +371,18 @@
   min-width: 0;
 }
 
+/* Flattened from `--surface-2` to `--surface` (2026-08-31) now that the pane background is also
+   `--surface` (see the header's "ChatPane background grey" note) -- `--surface-2` was the last grey
+   left over from before that fix. With no colour difference from the pane left to lean on, the
+   border+shadow pairing already used for `.card`/`.notice` elsewhere in this file's parent
+   (`styles.css`) carries the separation instead: a hairline `--border` plus `--shadow-sm` reads as a
+   distinct surface without reintroducing grey fill. `--border`/`--shadow-sm` are both theme-aware
+   tokens (redefined under `:root[data-theme="dark"]` in `styles.css`), so no separate dark rule is
+   needed here -- the user bubble keeps its own `--accent` fill for the other half of the contrast. */
 .jini-message-agent .jini-message-content {
-  background: var(--surface-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
   color: var(--fg);
 }
 

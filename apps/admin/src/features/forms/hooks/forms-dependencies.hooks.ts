@@ -44,7 +44,10 @@ export function createFakeFormsPort(options: FakeFormsPortOptions = {}): FormsPo
     },
 
     async getForm(id) {
-      const found = forms.find((f) => f.id === id);
+      // Slug-or-id, mirroring the real GET route's own resolution (ui-fixes-backlog.md #8,
+      // `get-by-id.ts`) — a test seeding by slug (the admin URL's new shape) needs this fake to
+      // resolve it the same way the server does, not just the legacy id.
+      const found = forms.find((f) => f.slug === id) ?? forms.find((f) => f.id === id);
       if (!found) throw new Error(`fake forms port: unknown form ${id}`);
       return { data: found };
     },

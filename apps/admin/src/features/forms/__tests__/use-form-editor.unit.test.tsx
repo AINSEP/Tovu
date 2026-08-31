@@ -77,7 +77,36 @@ describe("useFormEditor — injected port + navigate + t", () => {
     });
 
     expect(navigate).toHaveBeenCalledTimes(1);
-    expect(navigate).toHaveBeenCalledWith(expect.stringMatching(/^\/forms\/fake-1$/));
+    // Slug, not id (ui-fixes-backlog.md #8) — `createFakeFormsPort.createForm` echoes back
+    // `input.slug`, so this is "newsletter" (set via `setSlug` above), not the fake's own
+    // generated "fake-1" id.
+    expect(navigate).toHaveBeenCalledWith(expect.stringMatching(/^\/forms\/newsletter$/));
+  });
+
+  it("saving an existing form targets the loaded record's real id, even when the route param is a slug", async () => {
+    // Simulates the admin URL now carrying a slug (ui-fixes-backlog.md #8): `formId` here is
+    // "contact-us", NOT the fixture's real id "f1". Proves `handleSave`'s update mutation reads
+    // `form.id`, never `props.formId`, for its write target.
+    const port = createFakeFormsPort({ forms: [formFixture({ id: "f1", slug: "contact-us" })] });
+    const navigate = vi.fn();
+    const { result } = renderHook(
+      () => useFormEditor({ formId: "contact-us" }, { port, navigate, t: (key: string) => key }),
+      { wrapper }
+    );
+    await waitFor(() => expect(result.current.form).not.toBeNull());
+
+    // Two `act()` calls, not one — matches the "does not load for a new form" test above:
+    // `result.current` inside a single callback still points at the pre-update closure, so
+    // `handleSave` would read `name` from before `setName`'s re-render if called in the same act.
+    act(() => {
+      result.current.setName("Contact (renamed)");
+    });
+    await act(async () => {
+      await result.current.handleSave();
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.form?.name).toBe("Contact (renamed)");
   });
 
   it("handleStatusToggle flips status through the port for an existing form", async () => {

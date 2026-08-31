@@ -288,7 +288,11 @@ describe("status toggle", () => {
 });
 
 describe("Edit", () => {
-  it("navigates to /forms/:id via the router (not a full page load)", async () => {
+  // Slug, not id (ui-fixes-backlog.md #8: a raw UUID in the URL bar was the reported bug) — the
+  // GET route still resolves an id too, so an old id-based bookmark keeps working; this row link
+  // is what changed. `ACTIVE_FORM.slug` is "contact", distinct from its id "f1", so this fails
+  // loudly if either link reverts to `form.id`.
+  it("navigates to /forms/:slug via the router (not a full page load)", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
     renderScreen(<FormsList />);
@@ -297,6 +301,13 @@ describe("Edit", () => {
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
 
-    expect(window.location.pathname).toBe("/admin/forms/f1");
+    expect(window.location.pathname).toBe("/admin/forms/contact");
+  });
+
+  it("the row's own title link also points at /forms/:slug", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
+    renderScreen(<FormsList />);
+
+    expect(await screen.findByRole("link", { name: "Contact" })).toHaveAttribute("href", "/admin/forms/contact");
   });
 });

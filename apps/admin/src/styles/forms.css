@@ -60,8 +60,27 @@
    width. Scoped to this one table's class, not `.list-table` generally — every other `.list-table`
    in the app holds plain text cells with occasional buttons, not a live input in every cell, and
    forcing fixed-percentage columns onto those would be a different, unrequested change. */
+/* `min-width` (ui-fixes-backlog.md #9, dock-open clipping) — the rule above solved the AUTO-layout
+   overflow, but `table-layout: fixed` with percentage `<colgroup>` widths has an overflow problem
+   of its own: a fixed-layout table always sizes to exactly 100% of its container, so it can never
+   itself be wider than `.table-scroll` and hand that wrapper's `overflow-x: auto` anything to
+   scroll. With the assistant dock open (narrowing `.table-scroll`'s own container — the dock is a
+   sibling, not a descendant, so its `overflow: hidden` was never the cause; ruled out by reading
+   `App.tsx`'s layout, not assumed) the seven percentage columns just get crushed proportionally
+   instead — worst on the 8%-width Req/More columns and the button-holding 18%-width Remove column,
+   which is the exact "Remove sliced vertically, nothing to scroll to" symptom reported. A `min-width`
+   here is what makes the table genuinely overflow again once its container drops below it, giving
+   `.table-scroll` real content to scroll — same fix shape as the auto-layout rule above, just for
+   the fixed-layout case that rule itself introduced. 720px sized off each column's own worst-case
+   content at this table's percentages, not guessed: the tightest columns (Req/More, 8% each) need
+   room for a checkbox or the 30px round kebab button plus this table's `--space-4` (16px)
+   side padding on each edge — 8% of anything under ~690px starts clipping one of those two; 720px
+   clears both with a small margin. The wider columns (ID 14%, Label/Type 17% each, Max length/
+   Remove 18% each) are already comfortable at that same total, so this one number is set by the
+   narrowest columns, not an average. */
 .form-fields-table {
   table-layout: fixed;
+  min-width: 720px;
 }
 .form-fields-table input,
 .form-fields-table select {
