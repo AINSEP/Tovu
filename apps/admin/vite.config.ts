@@ -82,6 +82,13 @@ export default defineConfig({
   },
   server: {
     https: httpsOptions,
+    // Mirrors the `TOVU_API_URL` convention just below: `development/scripts/dev.mjs` computes this
+    // port for its own preflight port-collision check and now passes it here too (previously it
+    // computed the value but never passed it, and this file never read it, so a second dev stack's
+    // admin vite child silently ignored whatever port dev.mjs actually preflight-checked). The
+    // `package.json` `dev` script deliberately does NOT hardcode `--port` any more — a CLI flag would
+    // outrank this config value, defeating it.
+    port: Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173),
     // The `@jini-ai/*` deps are `file:` links straight into a sibling checkout (ADR-049 Decision
     // 7's temporary state, not the intended published-package boundary — see F1 in the fulldiff
     // audit). Vite resolves symlinks to their real path before checking `fs.allow`, so serving any
@@ -108,6 +115,15 @@ export default defineConfig({
       // URL of /admin/ ...`) instead of reaching the backend that actually serves it. Production
       // is unaffected — one server serves both the built admin SPA and this route there.
       "/readyz": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      // `mcp-ui-sandbox-proxy-route.ts`'s `/mcp-ui/sandbox-proxy.html` — `AssistantDock.tsx` builds
+      // its `sandboxProxyUrl` against `location.origin`, root-relative, for the same reason
+      // `/agent-icons` above is: the iframe `@mcp-ui/client`'s `AppFrame` navigates to needs a URL
+      // that resolves the same way no matter which page embedded the dock, so it cannot live under
+      // `/admin/`. Without this entry Vite 404s it with the same "did you mean to visit
+      // /admin/mcp-ui/sandbox-proxy.html instead?" base-URL error every MCP-UI surface hit before
+      // this fix. Production is unaffected — one server serves both the built admin SPA and this
+      // route there.
+      "/mcp-ui": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
     },
   },
 });
