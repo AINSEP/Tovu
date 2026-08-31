@@ -14,7 +14,11 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-img { max-width: 100%; display: block; }
+/* `height: auto` keeps aspect ratio intact for an `<img>` carrying HTML `width`/`height`
+   attributes: `max-width` alone clamps the rendered width on a narrow viewport but leaves the
+   attribute-set height pinned, stretching/squashing the image. `.post-detail-body img` below
+   already had this; every image outside the post body did not. */
+img { max-width: 100%; height: auto; display: block; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; margin: 0; letter-spacing: -0.02em; }
 p { margin: 0; color: var(--muted); }
@@ -64,7 +68,11 @@ p { margin: 0; color: var(--muted); }
 }
 .main-nav a:hover, .main-nav a[aria-current="page"] { color: var(--fg); }
 .nav-actions { display: flex; align-items: center; gap: 8px; }
-.nav-toggle { display: none; }
+/* `.nav-actions` prefix is load-bearing: this button also carries `.btn`, whose
+   `display: inline-flex` (below) has IDENTICAL specificity and comes LATER, so a bare
+   `.nav-toggle` selector loses on source order and the hamburger shows at every width.
+   Same collision class as `.wrap`/`.post-detail`. Fixed 2026-08-30. */
+.nav-actions .nav-toggle { display: none; }
 
 .theme-toggle {
   display: inline-flex;
@@ -282,7 +290,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-meta { font: 12.5px/1 var(--font-mono); color: var(--muted); display: flex; gap: 8px; margin-top: auto; }
 
 /* ---------- blog post (single-post template) ---------- */
-.post-detail { max-width: 720px; margin: 0 auto; padding: 72px 0 96px; }
+.post-detail { max-width: 720px; margin: 0 auto; padding-block: 72px 96px; }
 .post-detail-header { margin-bottom: 40px; }
 .post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
 .post-detail-header .post-meta { font-size: 13px; }
@@ -422,7 +430,7 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
     border-top: 1px solid var(--border);
     font-size: 15px;
   }
-  .nav-toggle { display: inline-flex; }
+  .nav-actions .nav-toggle { display: inline-flex; }
 }
 
 /* ---------------------------------------------------------------------------
