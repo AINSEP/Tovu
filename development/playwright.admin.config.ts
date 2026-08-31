@@ -69,7 +69,7 @@ export default defineConfig({
   webServer: [
     {
       // In-memory DB: hermetic, no risk to any real workspace data, fresh state every run.
-      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 30_000,

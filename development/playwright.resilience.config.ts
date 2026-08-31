@@ -56,7 +56,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4353 node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4353 node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

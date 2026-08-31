@@ -123,7 +123,7 @@ export default defineConfig({
      */
     command:
       `apps/site-chat/node_modules/.bin/vite build apps/site-chat --config apps/site-chat/vite.config.ts && ` +
-      `GEMINI_API_KEY= PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      `GEMINI_API_KEY= PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 90_000,

@@ -27,7 +27,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -190,63 +190,101 @@ function start(name, command, args, env) {
   return child;
 }
 
-preflight();
-
-console.log(
-  `tovu dev: starting API on http://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
-    `tovu dev: admin will open on http://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
-    `tovu dev: Ctrl-C stops everything.\n`
-);
-
-start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], {
-  // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
-  // and :5173/admin/ agree in dev.
-  TOVU_ADMIN_DEV_PROXY_URL: `http://localhost:${VITE_PORT}`,
-  PORT: String(API_PORT),
-  // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
-  // full rationale). Deliberately this process's own pid, not left for the child to infer via its
-  // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
-  // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
-  // survives even if this process dies — confirmed live (`ADS-memory/reports/analysis/
-  // 2026-08-05-symmetric-watchdog.md`): killing only this process left the API and its own spawned
-  // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
-  // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
-  TOVU_DEV_SUPERVISOR_PID: String(process.pid),
-});
-
 /**
- * Vite starts only once the API is accepting connections.
+ * Env for the admin Vite child — the other half of the API/Vite pair `start("api server", ...)`
+ * above already gets right.
  *
- * Both used to start together, which meant Vite was serving ~9 seconds before anything could answer
- * the requests it proxies. A browser tab already open on :5173 would reconnect the moment Vite came
- * up and immediately fire `/api/agents`, `/api/admin/v1/.../settings/events` and the frontend-session
- * SSE stream — each answered with a multi-line `AggregateError [ECONNREFUSED]` stack. Pages of
- * alarming output for a stack that was simply still booting, and indistinguishable at a glance from
- * the real "the API died" failure this script exists to make obvious.
+ * Both entries mirror the SAME preflight-checked ports `TOVU_API_URL` (`apps/admin/vite.config.ts`'s
+ * `/api` proxy target) and `TOVU_ADMIN_DEV_PORT` (that same file's own dev-server `server.port`) —
+ * back to the child that actually needs them. Before this function existed, the admin vite child was
+ * started with no env at all (`{}`), so it silently fell back to those two vars' hardcoded defaults
+ * (`http://localhost:3000`, `5173`) regardless of what `API_PORT`/`VITE_PORT` this script had
+ * actually computed and preflight-checked. That is invisible the moment a second `npm run dev` on
+ * this machine sets `PORT`/`TOVU_ADMIN_DEV_PORT` to get past preflight's port-collision check (the
+ * whole point of overriding them): preflight passes, both children start, but the SECOND instance's
+ * admin silently proxies `/api` to the FIRST instance's API on :3000 — so a developer edits one
+ * site's content while the admin UI reads and writes another site's data, with no error anywhere.
+ * Extracted as a pure function (rather than inlined into the `start(...)` call below) specifically so
+ * a test can assert on the exact env object without spawning anything — see this file's own test for
+ * the regression this closes.
  *
- * Ordering them removes the window rather than muting the symptom. The cost is that :5173 is not
- * live for the first few seconds — which is honest, because until the API is up the admin cannot do
- * anything anyway.
- *
- * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
- * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
- * seconds before the daemon binds :4319. That one is handled where it belongs, in
- * `server/modules/assistant.ts`'s proxy — see its retry note.
+ * @param {{apiPort: number, vitePort: number}} ports
+ * @returns {{TOVU_API_URL: string, TOVU_ADMIN_DEV_PORT: string}}
  */
-if (!(await waitForPort(API_PORT))) {
-  console.warn(
-    `\ntovu dev: API did not come up within 30s — starting the admin anyway.\n` +
-      `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
-  );
-}
-if (!shuttingDown) {
-  console.log(`tovu dev: API is up. Open http://localhost:${VITE_PORT}/admin/\n`);
-  start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], {});
+export function buildAdminViteEnv({ apiPort, vitePort }) {
+  return {
+    TOVU_API_URL: `http://localhost:${apiPort}`,
+    TOVU_ADMIN_DEV_PORT: String(vitePort),
+  };
 }
 
-for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
-  process.on(sig, () => {
-    console.log("\ntovu dev: stopping…");
-    shutdown(0);
+async function main() {
+  preflight();
+
+  console.log(
+    `tovu dev: starting API on http://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
+      `tovu dev: admin will open on http://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
+      `tovu dev: Ctrl-C stops everything.\n`
+  );
+
+  start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], {
+    // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
+    // and :5173/admin/ agree in dev.
+    TOVU_ADMIN_DEV_PROXY_URL: `http://localhost:${VITE_PORT}`,
+    PORT: String(API_PORT),
+    // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
+    // full rationale). Deliberately this process's own pid, not left for the child to infer via its
+    // OS `ppid`: `tsx watch` is a Node-based wrapper that does not exec-replace, so the API's real
+    // ppid resolves to the `tsx watch` supervisor two hops below THIS process, and that supervisor
+    // survives even if this process dies — confirmed live (`ADS-memory/reports/analysis/
+    // 2026-08-05-symmetric-watchdog.md`): killing only this process left the API and its own spawned
+    // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
+    // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
+    TOVU_DEV_SUPERVISOR_PID: String(process.pid),
   });
+
+  /**
+   * Vite starts only once the API is accepting connections.
+   *
+   * Both used to start together, which meant Vite was serving ~9 seconds before anything could answer
+   * the requests it proxies. A browser tab already open on :5173 would reconnect the moment Vite came
+   * up and immediately fire `/api/agents`, `/api/admin/v1/.../settings/events` and the frontend-session
+   * SSE stream — each answered with a multi-line `AggregateError [ECONNREFUSED]` stack. Pages of
+   * alarming output for a stack that was simply still booting, and indistinguishable at a glance from
+   * the real "the API died" failure this script exists to make obvious.
+   *
+   * Ordering them removes the window rather than muting the symptom. The cost is that :5173 is not
+   * live for the first few seconds — which is honest, because until the API is up the admin cannot do
+   * anything anyway.
+   *
+   * NOTE: this closes the Vite→API race only. A second, narrower one remains by design: `apps/website/src/index.ts`
+   * spawns the agent daemon from INSIDE `app.listen()`'s callback, so the API accepts requests a few
+   * seconds before the daemon binds :4319. That one is handled where it belongs, in
+   * `server/modules/assistant.ts`'s proxy — see its retry note.
+   */
+  if (!(await waitForPort(API_PORT))) {
+    console.warn(
+      `\ntovu dev: API did not come up within 30s — starting the admin anyway.\n` +
+        `tovu dev: expect proxy errors on :${VITE_PORT} until it does.\n`
+    );
+  }
+  if (!shuttingDown) {
+    console.log(`tovu dev: API is up. Open http://localhost:${VITE_PORT}/admin/\n`);
+    start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], buildAdminViteEnv({ apiPort: API_PORT, vitePort: VITE_PORT }));
+  }
+
+  for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
+    process.on(sig, () => {
+      console.log("\ntovu dev: stopping…");
+      shutdown(0);
+    });
+  }
+}
+
+// Only run the real boot sequence when this file is executed directly (`node dev.mjs` / `npm run
+// dev`), not when a test imports it for `buildAdminViteEnv` — same guard `emit-dist-package-json.mjs`
+// already uses for the identical reason: importing must never preflight real ports or spawn real
+// child processes.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
 }

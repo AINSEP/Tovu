@@ -52,7 +52,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_INTEGRATIONS_ROOT_KEY=${TEST_ROOT_KEY} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_INTEGRATIONS_ROOT_KEY=${TEST_ROOT_KEY} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 45_000,

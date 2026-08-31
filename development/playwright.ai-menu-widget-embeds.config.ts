@@ -49,7 +49,7 @@ export default defineConfig({
     // TOVU_CONTENT_DB, not TOVU_DB=memory — memory mode gives the daemon subprocess its own
     // disconnected principal store, so a real agent's tool calls 400 principal_disabled before ever
     // reaching a real tool (same trap `playwright.live-agent.config.ts` documents).
-    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

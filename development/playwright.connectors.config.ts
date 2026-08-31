@@ -67,7 +67,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_INTEGRATIONS_ROOT_KEY=${TEST_ROOT_KEY} TOVU_COMPOSIO_BASE_URL=${FAKE_COMPOSIO_URL} TOVU_PUBLIC_URL=${BASE_URL} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory TOVU_INTEGRATIONS_ROOT_KEY=${TEST_ROOT_KEY} TOVU_COMPOSIO_BASE_URL=${FAKE_COMPOSIO_URL} TOVU_PUBLIC_URL=${BASE_URL} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 45_000,

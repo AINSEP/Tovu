@@ -14,14 +14,14 @@ import { defineConfig, devices } from "@playwright/test";
  *    `theme-visual.spec.ts`, …).
  * 2. An EXPLICIT `webServer.cwd` set to the repo root. Playwright resolves `webServer.command`
  *    against the CONFIG FILE's own directory (`development/`) when `cwd` is omitted, not the repo
- *    root — `node --import tsx src/index.ts` would then resolve to the nonexistent
+ *    root — `node --import tsx apps/website/src/index.ts` would then resolve to the nonexistent
  *    `development/src/index.ts` and the server would never boot. Confirmed as a real, pre-existing
  *    trap in the shared `playwright.config.ts` by `playwright.a2ui.config.ts`'s own header;
  *    sidestepped here the same way `a2ui` and `resilience` already do.
  *
  * ## Why `TOVU_CONTENT_DB=<fresh temp file>`, not `TOVU_DB=memory`
  *
- * This app's `node --import tsx src/index.ts` boots TWO processes even from one command: the main
+ * This app's `node --import tsx apps/website/src/index.ts` boots TWO processes even from one command: the main
  * server, and an agent-daemon subprocess it spawns (`spawnAgentDaemon()`) — confirmed by `lsof`
  * showing two independent listeners (app port + `JINI_AGENT_DAEMON_PORT`) from one invocation. Each
  * calls `createRouteDeps()` independently. With `TOVU_DB=memory`, in-memory SQLite is process-local,
@@ -112,7 +112,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,
