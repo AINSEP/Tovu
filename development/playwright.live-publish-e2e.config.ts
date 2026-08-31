@@ -154,7 +154,7 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `PORT=${API_PORT} TOVU_CONTENT_DB=${CONTENT_DB_SNAPSHOT} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_CONTENT_DB=${CONTENT_DB_SNAPSHOT} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 30_000,

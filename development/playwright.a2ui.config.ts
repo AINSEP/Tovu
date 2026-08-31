@@ -15,7 +15,7 @@ import { defineConfig, devices } from "@playwright/test";
  * 2. `playwright.config.ts`'s own `webServer.command` (`PORT=${PORT} ... node --import tsx
  *    src/index.ts`) is a path relative to the REPO ROOT, but Playwright spawns `webServer.command`
  *    with `cwd` defaulting to this config file's own directory (`development/`) when `webServer.cwd`
- *    is not set explicitly. That mismatch means `node --import tsx src/index.ts` resolves to
+ *    is not set explicitly. That mismatch means `node --import tsx apps/website/src/index.ts` resolves to
  *    `development/src/index.ts` (doesn't exist) and the web server never boots — confirmed live,
  *    2026-08-04: both `npm run test:visual` (no args) and a direct `npx playwright test
  *    --config=development/playwright.config.ts` fail identically with `ERR_MODULE_NOT_FOUND` on
@@ -55,7 +55,7 @@ export default defineConfig({
   webServer: {
     // `JINI_AGENT_DAEMON_PORT` pinned away from the default 4319 — this suite must never collide
     // with another Tovu dev instance's own daemon subprocess running concurrently on the same box.
-    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4998 node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=4998 node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

@@ -58,12 +58,12 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 45_000,
       reuseExistingServer: false,
-      // `node --import tsx src/index.ts` boots two processes; a SIGKILL on the wrapper orphans the
+      // `node --import tsx apps/website/src/index.ts` boots two processes; a SIGKILL on the wrapper orphans the
       // child still bound to the port, and the next run dies EADDRINUSE looking like flake.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },

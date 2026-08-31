@@ -13,7 +13,7 @@ import { defineConfig, devices } from "@playwright/test";
  * teardown per suite). Copies that config's two confirmed traps verbatim:
  *
  * 1. `webServer.cwd` must be explicit (`REPO_ROOT`) — Playwright resolves `command` against the
- *    CONFIG file's directory otherwise, and `node --import tsx src/index.ts` silently becomes
+ *    CONFIG file's directory otherwise, and `node --import tsx apps/website/src/index.ts` silently becomes
  *    `development/src/index.ts`.
  * 2. Ports must not collide with any other suite in this directory. The 78xx block already has
  *    7821-3 (admin-fab), 7831-3 (pages), 7841-3 (placeholder-tabs), 7921-3 (visual-parity) —
@@ -53,12 +53,12 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: [
     {
-      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+      command: `PORT=${API_PORT} TOVU_DB=memory JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
       cwd: REPO_ROOT,
       url: API_BASE_URL,
       timeout: 45_000,
       reuseExistingServer: false,
-      // `node --import tsx src/index.ts` boots two processes; a SIGKILL on the wrapper orphans the
+      // `node --import tsx apps/website/src/index.ts` boots two processes; a SIGKILL on the wrapper orphans the
       // child still bound to the port, and the next run dies EADDRINUSE looking like flake. See
       // `ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`.
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },

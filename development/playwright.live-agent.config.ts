@@ -60,7 +60,7 @@ export default defineConfig({
     // this dispatch's Finding 1: memory mode gives the daemon subprocess its own disconnected
     // principal store, so a real agent's tool calls would 400 `principal_disabled` before ever
     // reaching `content_post_delete`.
-    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=${DAEMON_PORT} node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,

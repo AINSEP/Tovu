@@ -15,7 +15,7 @@ const require = createRequire(import.meta.url);
  * bring-up trap (see that file's own header for the full repro): `webServer.command` is a repo-root
  * relative path, but Playwright spawns it with `cwd` defaulting to THIS config file's own directory
  * (`development/`) unless `webServer.cwd` is set explicitly, which silently resolves
- * `node --import tsx src/index.ts` to a nonexistent `development/src/index.ts` and the server never
+ * `node --import tsx apps/website/src/index.ts` to a nonexistent `development/src/index.ts` and the server never
  * boots. Sidestepped here the same way: `cwd: REPO_ROOT` below.
  *
  * ## Why `TOVU_CONTENT_DB=<temp file>`, NOT `TOVU_DB=memory`
@@ -88,7 +88,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=4993 node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_CONTENT_DB=${CONTENT_DB_PATH} JINI_AGENT_DAEMON_PORT=4993 node --import tsx apps/website/src/index.ts`,
     cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,
