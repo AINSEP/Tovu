@@ -682,7 +682,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Operations ---
   {
     id: "database",
-    render: () => <Database />,
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
+    // (see `Database`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
+    // `settings`'s own entries elsewhere in this file.
+    render: (ctx) => <Database tabId={ctx.query.get("tab")} />,
     nav: {
       // Renamed from "storage" to "database" (ADR-041 naming-correction note, 2026-07): "Storage"
       // read as ambiguous next to the Media/Assets subsystem's own file/blob storage — this

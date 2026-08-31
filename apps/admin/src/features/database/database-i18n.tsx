@@ -19,6 +19,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 
 const DATABASE_DICT: Record<string, Record<string, string>> = {
   es: {
+    Timeline: "Cronología",
     Outcome: "Resultado",
     From: "Desde",
     To: "Hasta",
@@ -85,6 +86,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
       "Este sitio informó un estado que esta versión del panel de administración no reconoce, así que no podemos saber si tu base de datos está actualizada.",
   },
   id: {
+    Timeline: "Linimasa",
     Outcome: "Hasil",
     From: "Dari",
     To: "Sampai",
@@ -128,6 +130,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "gagal memuat linimasa basis data",
   },
   de: {
+    Timeline: "Zeitleiste",
     Outcome: "Ergebnis",
     From: "Von",
     To: "Bis",
@@ -171,6 +174,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "Die Datenbank-Zeitleiste konnte nicht geladen werden",
   },
   "zh-CN": {
+    Timeline: "时间线",
     Outcome: "结果",
     From: "从",
     To: "到",
@@ -214,6 +218,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "无法加载数据库时间线",
   },
   "zh-TW": {
+    Timeline: "時間軸",
     Outcome: "結果",
     From: "從",
     To: "到",
@@ -257,6 +262,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "無法載入資料庫時間軸",
   },
   "pt-BR": {
+    Timeline: "Linha do tempo",
     Outcome: "Resultado",
     From: "De",
     To: "Até",
@@ -300,6 +306,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "falha ao carregar a linha do tempo do banco de dados",
   },
   ru: {
+    Timeline: "Хронология",
     Outcome: "Результат",
     From: "От",
     To: "До",
@@ -343,6 +350,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "не удалось загрузить хронологию базы данных",
   },
   fa: {
+    Timeline: "جدول زمانی",
     Outcome: "نتیجه",
     From: "از",
     To: "تا",
@@ -386,6 +394,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "بارگذاری جدول زمانی پایگاه داده ناموفق بود",
   },
   ar: {
+    Timeline: "الجدول الزمني",
     Outcome: "النتيجة",
     From: "من",
     To: "إلى",
@@ -429,6 +438,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "تعذّر تحميل الجدول الزمني لقاعدة البيانات",
   },
   ja: {
+    Timeline: "タイムライン",
     Outcome: "結果",
     From: "開始",
     To: "終了",
@@ -472,6 +482,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "データベースタイムラインの読み込みに失敗しました",
   },
   ko: {
+    Timeline: "타임라인",
     Outcome: "결과",
     From: "시작",
     To: "종료",
@@ -515,6 +526,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "데이터베이스 타임라인을 로드하지 못했습니다",
   },
   pl: {
+    Timeline: "Oś czasu",
     Outcome: "Wynik",
     From: "Od",
     To: "Do",
@@ -558,6 +570,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "nie udało się wczytać osi czasu bazy danych",
   },
   hu: {
+    Timeline: "Idővonal",
     Outcome: "Eredmény",
     From: "Ettől",
     To: "Eddig",
@@ -601,6 +614,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "nem sikerült betölteni az adatbázis idővonalát",
   },
   fr: {
+    Timeline: "Chronologie",
     Outcome: "Résultat",
     From: "De",
     To: "À",
@@ -644,6 +658,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "échec du chargement de la chronologie de la base de données",
   },
   uk: {
+    Timeline: "Хронологія",
     Outcome: "Результат",
     From: "Від",
     To: "До",
@@ -687,6 +702,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "не вдалося завантажити хронологію бази даних",
   },
   tr: {
+    Timeline: "Zaman çizelgesi",
     Outcome: "Sonuç",
     From: "Başlangıç",
     To: "Bitiş",
@@ -730,6 +746,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "veritabanı zaman çizelgesi yüklenemedi",
   },
   th: {
+    Timeline: "ไทม์ไลน์",
     Outcome: "ผลลัพธ์",
     From: "จาก",
     To: "ถึง",
@@ -773,6 +790,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "โหลดไทม์ไลน์ฐานข้อมูลไม่สำเร็จ",
   },
   it: {
+    Timeline: "Cronologia",
     Outcome: "Esito",
     From: "Da",
     To: "A",
@@ -816,6 +834,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "impossibile caricare la cronologia del database",
   },
   hi: {
+    Timeline: "टाइमलाइन",
     Outcome: "परिणाम",
     From: "से",
     To: "तक",
@@ -859,6 +878,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "डेटाबेस टाइमलाइन लोड करना विफल रहा",
   },
   ur: {
+    Timeline: "ٹائم لائن",
     Outcome: "نتیجہ",
     From: "سے",
     To: "تک",
@@ -902,6 +922,7 @@ const DATABASE_DICT: Record<string, Record<string, string>> = {
     "failed to load the Database Timeline": "ڈیٹا بیس ٹائم لائن لوڈ کرنا ناکام ہوا",
   },
   bn: {
+    Timeline: "টাইমলাইন",
     Outcome: "ফলাফল",
     From: "থেকে",
     To: "পর্যন্ত",

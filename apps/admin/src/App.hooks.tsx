@@ -190,6 +190,64 @@ export function useAdminAssistantAvailability(user: AdminUser | null): boolean {
   return enabled;
 }
 
+export interface UseLogoutConfirm {
+  /** Whether the "are you sure you want to log out?" dialog is open. */
+  open: boolean;
+  /** Opens the dialog — wired to the sidebar's logout button's own click, which no longer logs out
+   *  directly (see `App.tsx`'s `SidebarLogoutButton`). */
+  request: () => void;
+  /** Closes the dialog without logging out — wired to `ConfirmDialog`'s `onCancel` (Escape,
+   *  backdrop click, and the Cancel button all route through this one prop). */
+  cancel: () => void;
+  /** Disables both dialog actions while the real `logout()` call is in flight, same `pending`
+   *  convention every other `ConfirmDialog` caller in this app uses (e.g. `Roles.tsx`'s
+   *  `RoleDeleteDialog`). */
+  pending: boolean;
+  /** Calls the real `logout` this hook was given, then closes the dialog. */
+  confirm: () => Promise<void>;
+}
+
+/**
+ * Confirmation-modal state around the `logout` action `useAdminSession` already provides —
+ * deliberately its OWN hook rather than a field added to `UseAdminSession` itself. It is not one of
+ * `App.tsx`'s five injectable seams (see that file's own `AppProps` doc): it touches no DOM or
+ * browser API of its own, only `setState` and whatever `logout` implementation the caller already
+ * resolved (real or a test's fake), so `app-session-seam.unit.test.tsx`'s existing `UseAdminSession`
+ * fixture — a full object literal, not a partial — stays exactly as it was.
+ *
+ * The owner's own words for why this exists at all: people can click "Log out" by accident, so it
+ * should ask first, the same way every other destructive action in this app (delete role, delete
+ * page, …) already does via `@jini-ai/admin/react`'s `ConfirmDialog` rather than `window.confirm`.
+ *
+ * @param logout - The real (or faked) `logout` from `useAdminSession()`.
+ * @example
+ * const { logout } = useSession();
+ * const logoutConfirm = useLogoutConfirm(logout);
+ */
+export function useLogoutConfirm(logout: () => Promise<void>): UseLogoutConfirm {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+
+  async function confirm() {
+    setPending(true);
+    try {
+      await logout();
+    } finally {
+      // Still reached even after a successful logout: `logout()` clears `user`, which makes
+      // `App.tsx` render `<Login>` instead of the shell this dialog lives in — this dialog
+      // unmounts along with it, so resetting this state here is a no-op then, not a bug. It only
+      // does real work on a FAILED logout (`useAdminSession.logout` already swallows the request
+      // error and clears `user` regardless — see that function's own comment — so today this
+      // branch is unreachable in practice; kept anyway so a future `logout` that can actually
+      // reject leaves the dialog usable instead of stuck `pending` forever).
+      setPending(false);
+      setOpen(false);
+    }
+  }
+
+  return { open, pending, request: () => setOpen(true), cancel: () => setOpen(false), confirm };
+}
+
 export interface UseSidebarDrawer {
   /** Off-canvas sidebar drawer, mobile only (`styles.css`'s `@media (max-width: 900px)`; inert at
    *  desktop widths since `.cms-nav` stays in-flow there regardless of this state). */

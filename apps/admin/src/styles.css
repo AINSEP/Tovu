@@ -824,11 +824,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
    measure instead of running the full width of a 1440px card. */
 .card-lead { margin: 0; font-size: var(--text-md); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
-/* Danger-zone card modifier — the same red-left-border signal `.notice.error`/`.notice.warning`
-   already use, applied to `.card` for a section that isn't itself an error/warning message but
-   genuinely destructive content (Workspace's "Delete workspace"). `.card`'s own background/border/
-   radius/shadow stay, so it still reads as the same family of container as every other `.card`. */
-.card-danger { border-left: 3px solid var(--danger); }
+/* Danger-zone card modifier (2026-08-31: the left-accent-border idiom this used to share with
+   `.notice.error`/`.notice.warning` is retired everywhere in this app — owner's explicit call,
+   "I don't like that idiom at all" — see the `.notice` rules below for the fuller reasoning).
+   Recolors `.card`'s own hairline border to `--danger` on all four sides instead of just the left
+   edge, and tints the fill with the same subtle `--danger-bg` `.notice.error` already uses, so a
+   danger card and an error notice read as the same family of "something serious here" surface.
+   `.card-title` gets its own rule below rather than this selector setting `color` directly — a
+   whole card's BODY text recolored red would fight the readability of an actual explanatory
+   paragraph (Workspace's "Delete workspace" card is a full sentence, not `.notice`'s one-liner);
+   the heading alone carries the color signal, `.card-lead`/buttons keep their normal contrast. */
+.card-danger { border-color: var(--danger); background: var(--danger-bg); }
+.card-danger .card-title { color: var(--danger); }
 /* Section eyebrow for a group of cards that needs a name but not a second page-level heading —
    same uppercase/letterspaced idiom as `.page-kicker` and `.field-label`, one tier down from
    `.card-title` so it never competes with it. */
@@ -1313,9 +1320,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 
 /* Content bits */
-.notice { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
-.notice.error { border-left-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
-.notice.warning { border-left-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
+/* Left-accent-border idiom retired 2026-08-31 (owner: "I also wanna get rid of that left accent
+   border. I don't like it at all") — was a 3px `border-left` on the base rule, recolored per
+   variant (`--border-strong` neutral / `--danger` error / `--warning` warning). Replaced with a
+   FULL border in the variant's own color: `.notice` already changes `background`+`color` per
+   variant (the danger/warning tint and text color below are unchanged), so the border was always a
+   second, redundant expression of the same signal, not the only one — making it symmetric instead
+   of left-only loses no information. The neutral base variant (no `.error`/`.warning`) had no tint
+   of its own to fall back on, so its border stays `--border-strong` (was already the left edge's
+   color) rather than the plain `--border` every bare `.card` uses, so an unmodified `.notice` still
+   reads as a slightly more emphatic box than a plain card, just without a directional rail. */
+.notice { background: var(--surface); border: 1px solid var(--border-strong); padding: 0.85rem 1rem; border-radius: var(--r-md); color: var(--fg-2); box-shadow: var(--shadow-sm); }
+.notice.error { border-color: var(--danger); background: var(--danger-bg); color: var(--danger); }
+.notice.warning { border-color: var(--warning); background: var(--warning-bg); color: var(--warning); margin: 0.6rem 0; }
 .notice.warning label { display: flex; align-items: center; gap: 0.4rem; margin-top: 0.5rem; font-size: 0.85rem; color: var(--fg-2); cursor: pointer; }
 .list-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
 .list-table th, .list-table td { text-align: left; padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-2); }
@@ -3648,15 +3665,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-command-prose code::before { content: none; }
 
 /* ---- Recommended route (Static Site) --------------------------------------------------------- */
-/* The "ask the assistant" block. Borrows `.notice`'s left-accent idiom (3px `border-left` on a
-   tinted surface, ~L1188) rather than inventing a second way to mark an emphasized block, but takes
+/* The "ask the assistant" block. Borrows `.notice`'s emphasized-surface idiom (a tinted body plus a
+   colored border, ~L1188) rather than inventing a second way to mark an emphasized block, but takes
    `--primary` for the accent — this is a recommendation, not a warning, and `.notice`'s own variants
    are all severity states. The word "Recommended" sits in the label above, so the accent colour is
-   reinforcement and never the only thing carrying the meaning. */
+   reinforcement and never the only thing carrying the meaning.
+   FULL border, not a left-only accent rail (2026-08-31, owner's explicit call — see `.notice`'s own
+   comment above for the fuller reasoning): recoloring all four sides of the already-present
+   `1px solid var(--border)` to `--primary` reads as a deliberately highlighted card (the way a
+   "recommended plan" is often framed with a colored outline), the same shape `.card-danger` now
+   uses for its own accent, just in `--primary` rather than `--danger`. */
 .deployment-route {
   display: flex; flex-direction: column; gap: var(--space-3);
-  background: var(--surface-2); border: 1px solid var(--border);
-  border-left: 3px solid var(--primary); border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--primary); border-radius: var(--r-md);
   padding: var(--space-4);
 }
 .deployment-route-label { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-2); }
@@ -3678,8 +3699,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    important than anything else. This keeps the same structure (icon+label row, tinted body,
    rounded corners) so the three blocks still read as one family, but drops the accent border and the
    tint down to a plain hairline-bordered surface, so only the block that ends in a live publish
-   action keeps the strong visual claim on the reader's attention. */
-.deployment-route-quiet { border-left-color: var(--border-strong); background: var(--surface); }
+   action keeps the strong visual claim on the reader's attention. Still a full border, not a rail
+   (2026-08-31) — `border-color` recolors all four sides `.deployment-route`'s base rule already
+   draws, same as that rule's own full-primary-border update just above. */
+.deployment-route-quiet { border-color: var(--border-strong); background: var(--surface); }
 /* The "we can't actually check this" line. It needs a rule above it: without one it sits at the
    same indent and nearly the same size as a tool row's own description, so it reads as a third
    sentence about the Vercel CLI rather than as a statement about the whole list. */
