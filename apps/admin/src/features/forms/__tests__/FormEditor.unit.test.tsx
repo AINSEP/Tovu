@@ -17,6 +17,9 @@ import { FormEditor } from "../FormEditor";
  * migration) — `FormEditor`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which
  * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it
  * is one `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
+ * Its returned `rerender` re-wraps in the SAME way, for the ADR-063 "does not remount on tab
+ * switch" test below, which needs to change only the `tab` prop across renders — `FetchQueryProvider`
+ * itself must stay mounted throughout so the query cache (and the seeded, in-progress edit) survives.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -24,7 +27,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function renderScreen(node: React.ReactElement) {
-  return render(<FetchQueryProvider>{node}</FetchQueryProvider>);
+  const utils = render(<FetchQueryProvider>{node}</FetchQueryProvider>);
+  return { ...utils, rerender: (next: React.ReactElement) => utils.rerender(<FetchQueryProvider>{next}</FetchQueryProvider>) };
 }
 
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
@@ -46,13 +50,17 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // The Fields/Submissions tab strip now drives real `history.pushState` (ADR-063) — reset between
+  // tests so one test's tab click can't leak a route into a later test in this file, same
+  // convention `FormsList.unit.test.tsx`'s own afterEach documents for the identical reason.
+  window.history.pushState(null, "", "/");
 });
 
 describe("a form id that does not resolve", () => {
   it("renders only the not-found error, never a live Save button underneath it", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "form definition 'bogus' was not found" }, 404));
 
-    renderScreen(<FormEditor formId="bogus" />);
+    renderScreen(<FormEditor formId="bogus" tab="fields" />);
 
     expect(await screen.findByText(/was not found/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^save$/i })).not.toBeInTheDocument();
@@ -76,7 +84,7 @@ describe("a later save failure, after the form already loaded", () => {
       .mockResolvedValueOnce(jsonResponse({ data: form }))
       .mockResolvedValueOnce(jsonResponse({ error: "save failed" }, 500));
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const saveButton = await screen.findByRole("button", { name: /^save$/i });
     saveButton.click();
@@ -105,7 +113,7 @@ describe("field attributes modal", () => {
       .mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }))
       .mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -136,7 +144,7 @@ describe("field attributes modal", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -158,7 +166,7 @@ describe("field attributes modal", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -187,7 +195,7 @@ describe("field attributes modal", () => {
  */
 describe("new form — no tabs, Create form label, notify recipients reveal", () => {
   it("renders no tab strip for a new form, and the Save button reads 'Create form'", async () => {
-    renderScreen(<FormEditor formId="new" />);
+    renderScreen(<FormEditor formId="new" tab="fields" />);
 
     expect(screen.getByRole("button", { name: /create form/i })).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
@@ -195,7 +203,7 @@ describe("new form — no tabs, Create form label, notify recipients reveal", ()
 
   it("reveals the recipients input only once notify is enabled", async () => {
     const user = userEvent.setup();
-    renderScreen(<FormEditor formId="new" />);
+    renderScreen(<FormEditor formId="new" tab="fields" />);
 
     expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
@@ -215,13 +223,24 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
     };
   }
 
-  it("shows the tab strip and switches to the Submissions panel on click", async () => {
-    const user = userEvent.setup();
+  it("shows the tab strip and opens directly on the Submissions panel when tab=\"submissions\" (route-derived, ADR-063)", async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
       .mockResolvedValueOnce(jsonResponse({ data: [] })); // FormSubmissions' own load on mount
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+
+    const tablist = await screen.findByRole("tablist");
+    expect(tablist).toBeInTheDocument();
+    expect(await screen.findByRole("tabpanel", { name: /submissions/i })).toBeInTheDocument();
+    expect(screen.queryByRole("tabpanel", { name: /fields/i })).not.toBeInTheDocument();
+  });
+
+  it("clicking the Submissions tab navigates to this form's /submissions route, not local state", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: activeForm() }));
+
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const tablist = await screen.findByRole("tablist");
     expect(tablist).toBeInTheDocument();
@@ -229,8 +248,57 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
 
     await user.click(screen.getByRole("tab", { name: /submissions/i }));
 
+    // `tab` is a controlled prop here (this render never gets a new one), so the visible panel
+    // does NOT switch in this harness — see the `tab="submissions"` test above for that. What this
+    // proves is the click drove the real router, the same split `Deployment.unit.test.tsx`'s own
+    // "?tab= deep linking" describe block uses for its `navigate()`-backed tab strip.
+    expect(window.location.pathname).toBe("/admin/forms/f1/submissions");
+    expect(screen.getByRole("tabpanel", { name: /fields/i })).toBeInTheDocument();
+  });
+
+  it("clicking the Fields tab from Submissions navigates back to this form's base route", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
+      .mockResolvedValueOnce(jsonResponse({ data: [] })); // FormSubmissions' own load on mount
+
+    renderScreen(<FormEditor formId="f1" tab="submissions" />);
+    await screen.findByRole("tablist");
+
+    await user.click(screen.getByRole("tab", { name: /^fields$/i }));
+
+    expect(window.location.pathname).toBe("/admin/forms/f1");
+  });
+
+  it("switching Fields -> Submissions -> Fields does NOT remount FormEditor — an in-progress Name edit survives (ADR-063)", async () => {
+    const user = userEvent.setup();
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ data: activeForm() })) // initial form load
+      .mockResolvedValueOnce(jsonResponse({ data: [] })); // FormSubmissions' own load, once mounted
+
+    // Same `key={ctx.params.formId}` `panels.tsx` passes on BOTH routes — `rerender` with that same
+    // key, changing only `tab`, simulates the route change a real Submissions-tab click drives,
+    // without tearing the component down and remounting it (which a naive `key={view}` or a fresh
+    // `<FormEditor>` at a different tree position would do instead).
+    const { rerender } = renderScreen(<FormEditor key="f1" formId="f1" tab="fields" />);
+
+    const nameInput = await screen.findByLabelText(/^name$/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, "Contact (editing)");
+    expect(nameInput).toHaveValue("Contact (editing)");
+
+    rerender(<FormEditor key="f1" formId="f1" tab="submissions" />);
     expect(await screen.findByRole("tabpanel", { name: /submissions/i })).toBeInTheDocument();
-    expect(screen.queryByRole("tabpanel", { name: /fields/i })).not.toBeInTheDocument();
+
+    rerender(<FormEditor key="f1" formId="f1" tab="fields" />);
+
+    // A remount would reset `useFormEditor`'s local `name` state to `""`, then re-seed it from the
+    // form-load query's already-cached response — the ORIGINAL "Contact", never this in-progress
+    // edit. Only a live, never-torn-down component instance can still be holding it here.
+    expect(await screen.findByLabelText(/^name$/i)).toHaveValue("Contact (editing)");
+    // Only the two queued responses were ever consumed (initial load + Submissions' own list) — no
+    // extra GET /forms/f1 fired, which is what a remount's fresh `useFetchQuery` mount would cause.
+    expect(fetchMock.mock.calls).toHaveLength(2);
   });
 
   it("an active form's status button reads 'Disable' (btn-warning) and flips the form to disabled", async () => {
@@ -244,7 +312,7 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
       .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
       .mockResolvedValueOnce(jsonResponse({ data: { ...activeForm(), status: "disabled" } })); // PUT status update
 
-    renderScreen(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" tab="fields" />);
 
     const disableButton = await screen.findByRole("button", { name: /^disable$/i });
     expect(disableButton).toHaveClass("btn-warning");

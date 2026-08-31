@@ -628,6 +628,10 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
 
 export interface FormEditorProps {
   formId: string;
+  /** Which tab is active, derived from the route by `panels.tsx` (`/forms/:formId` -> `"fields"`,
+   *  `/forms/:formId/submissions` -> `"submissions"`) — ADR-063. Ignored while `isNew`/tabs aren't
+   *  shown. */
+  tab: "fields" | "submissions";
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useFormEditorHook?: typeof useWiredFormEditor;
 }
@@ -879,7 +883,7 @@ function FormEditorMainPanel(props: {
   );
 }
 
-export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: FormEditorProps) {
+export function FormEditor({ formId, tab, useFormEditorHook = useWiredFormEditor }: FormEditorProps) {
   const {
     isNew,
     form,
@@ -893,8 +897,8 @@ export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: F
     setNotify,
     recipientsText,
     setRecipientsText,
-    tab,
-    setTab,
+    tab: activeTab,
+    onTabChange,
     error,
     saving,
     existingFieldIds,
@@ -904,7 +908,7 @@ export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: F
     handleSave,
     handleStatusToggle,
     t,
-  } = useFormEditorHook({ formId });
+  } = useFormEditorHook({ formId, tab });
 
   if (!isNew && !form && !error) return <div className="notice">Loading form…</div>;
   // Previously this was the ONLY guard, and it only covers the pre-error case — once the load
@@ -967,9 +971,9 @@ export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: F
       </div>
       {error ? <div className="notice error">{error}</div> : null}
 
-      <FormEditorTabStrip showTabs={showTabs} tab={tab} onTabChange={setTab} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} t={t} />
+      <FormEditorTabStrip showTabs={showTabs} tab={activeTab} onTabChange={onTabChange} tabRefs={tabRefs} onTabsKeyDown={onTabsKeyDown} t={t} />
 
-      <FormEditorMainPanel isNew={isNew} tab={tab} formId={formId} fieldsBody={fieldsBody} t={t} />
+      <FormEditorMainPanel isNew={isNew} tab={activeTab} formId={formId} fieldsBody={fieldsBody} t={t} />
     </div>
   );
 }
