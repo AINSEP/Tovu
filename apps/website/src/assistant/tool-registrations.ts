@@ -43,6 +43,8 @@
  * in-chat UI ones just un-gated. The per-domain table above is a 2026-08-05 snapshot summing to
  * 131 and has NOT been re-measured since; domains added after that date (see the dated notes
  * below) are why the live number is higher. Trust the measurement, not the table.
+ * 2026-08-30: `component-catalog` added two more (`search_components`/`describe_component` —
+ * see its own `DOMAIN_SLICES` entry below), not re-measured into the 154 figure above either.
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
@@ -141,6 +143,8 @@
  * changes for that path, which is the property the registry exists to buy.
  */
 import type { CommentsToolDeps } from "../features/comments/tool-registrations.js";
+import { buildAskChoiceRegistrations, askChoiceDerivedRisk } from "./ask-choice-tool.js";
+import { buildComponentCatalogRegistrations, componentCatalogDerivedRisk } from "./component-catalog-tool.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
@@ -499,6 +503,22 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // General-purpose: lets the model draw ANY component the catalog knows about (basic primitives
   // plus every shadcn/recharts registry component), not a scripted fixed shape.
   { domain: "render-ui", build: buildRenderUiRegistrations, risk: renderUiDerivedRisk },
+  // 2026-08-30: `search_components`/`describe_component` were real `@jini-ai/mcp` top-level tools
+  // for the spawned-CLI path (via `registerComponentCatalogRoutes`) but unreachable from a BYOK turn
+  // — `byok-tool-surface.ts` publishes only 3 meta-tools and resolves everything else through
+  // `execute_delegated_tool` against THIS registry, which never held these two ids. Confirmed live in
+  // `agent_tool_attempts` (`phase='unknown-tool'`): the model calling `search_components` directly
+  // and, separately, guessing `assistant_search_components`/`assistant_describe_component`. Wiring
+  // them here is additive, not a replacement — see `component-catalog-tool.ts`'s own header.
+  { domain: "component-catalog", build: buildComponentCatalogRegistrations, risk: componentCatalogDerivedRisk },
+  // 2026-08-30: `assistant_ask_choice` — the production counterpart to `demo-choices` above. That
+  // tool proves the held-open MCP-UI round trip works at all, but always renders the same fixed
+  // "Basic/Pro/Team" sample; it cannot ask about anything real because the model can never supply
+  // its own title or options. This one can, and is what `agent-daemon-server.ts`'s system overlay
+  // now instructs the assistant to call whenever it needs a real decision, confirmation, or choice
+  // from the administrator. See `ask-choice-tool.ts`'s own header for why this is additive rather
+  // than a rename of the demo tool.
+  { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },
 ];
 
 /**

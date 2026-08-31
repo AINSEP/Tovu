@@ -93,7 +93,16 @@ export function resolveDegradedBanner(
   if (!capabilities.watermarkBaselineAvailable) {
     return {
       kind: "watermark-baseline-unavailable",
-      accessibleText: "The discarded-write-window baseline could not be computed for this site right now.",
+      // Rewritten (web-design pass): the prior copy said "right now", which frames this as a
+      // transient blip an operator might retry — but `watermarkBaselineAvailable` is currently a
+      // hardcoded `false` (an "honest stub", see both `disclosure.ts` and this route's own
+      // `status.ts`), not a live computation that can fail-then-succeed. "Right now" is therefore
+      // actively misleading about the site's real state. This text also avoids the internal terms
+      // "discarded-write-window"/"watermark baseline" and says what still works (restoring) and
+      // what the operator will see instead (counts marked "unknown", not a verified zero — the
+      // same word `DisclosurePanel`'s own per-point disclosure uses, so the two stay consistent).
+      accessibleText:
+        "This site can't show exactly what a restore would discard. Restoring still works — the counts you'll see are marked \"unknown\" rather than a confirmed number.",
       actionKind: "none",
     };
   }

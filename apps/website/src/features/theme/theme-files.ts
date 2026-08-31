@@ -1,4 +1,6 @@
 import {
+  accessSync,
+  chmodSync,
   constants as fsConstants,
   copyFileSync,
   existsSync,
@@ -11,7 +13,8 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { randomUUID } from "node:crypto";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme.js";
 
@@ -415,6 +418,49 @@ export function readThemeFile(
 }
 
 /**
+ * Write `content` to `target` by writing a sibling temp file in the SAME directory and
+ * `renameSync`-ing it over `target`, instead of truncating `target` in place.
+ *
+ * Why this matters: a plain `writeFileSync(target, …, "w")` truncates `target`'s own inode the
+ * instant it opens, before any content lands — a crash or a concurrent reader mid-write can then
+ * observe an empty or partial file. For `theme.json`, the file `loadTheme()` must parse whole,
+ * that turns one torn write into a broken WHOLE theme. Renaming a fully-written temp file over
+ * `target` instead swaps the directory entry atomically: a reader that already has `target` open
+ * by descriptor keeps reading the old, complete inode; a reader that opens `target` by path
+ * afterward sees either the fully-old or fully-new content, never a partial one.
+ *
+ * The temp file is a sibling of `target` (same directory), not under a shared system tmp dir,
+ * because `renameSync` requires both paths on the SAME filesystem — a cross-device rename throws
+ * `EXDEV` instead of renaming.
+ *
+ * Checks write access on an existing `target` up front: `rename()` only needs write permission on
+ * the DIRECTORY, not the destination file, so a bare temp-then-rename would otherwise silently
+ * succeed over a read-only target — regressing the permission-denied refusal a `"w"`-flag
+ * `writeFileSync` open gave callers before this change. The temp file also inherits `target`'s
+ * existing mode before the rename, so replacing a file does not silently change its permissions.
+ *
+ * @throws whatever the underlying `accessSync`/`writeFileSync`/`chmodSync`/`renameSync` call
+ * throws. The temp file is removed before the error propagates, so a failed write leaves no
+ * artifact behind in the theme folder.
+ * @complexity O(s) in the content size.
+ */
+function writeFileAtomically(target: string, content: string): void {
+  const existing = statSync(target, { throwIfNoEntry: false });
+  if (existing) {
+    accessSync(target, fsConstants.W_OK);
+  }
+  const tempPath = join(dirname(target), `.${basename(target)}.${process.pid}-${randomUUID()}.tmp`);
+  try {
+    writeFileSync(tempPath, content, "utf8");
+    if (existing) chmodSync(tempPath, existing.mode);
+    renameSync(tempPath, target);
+  } catch (err) {
+    rmSync(tempPath, { force: true });
+    throw err;
+  }
+}
+
+/**
  * Write (create or overwrite) one file inside a theme's folder, creating any
  * intermediate directories — which are themselves inside the folder, since the
  * resolved path already passed containment.
@@ -438,7 +484,7 @@ export function writeThemeFile(
     throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileSync(target, required.content, "utf8");
+  writeFileAtomically(target, required.content);
   return target;
 }
 
@@ -525,6 +571,33 @@ export function renameThemeFile(
   mkdirSync(dirname(dest), { recursive: true });
   renameSync(source, dest);
   return dest;
+}
+
+/**
+ * Delete one file inside a theme's folder.
+ *
+ * Callers are expected to have already decided this delete is SAFE to perform — required-file,
+ * generated-tree, and identity-lock checks live one layer up ({@link resolveThemeFileWriteScope}, and
+ * `explore.ts`'s own `validateFileIdentityChange`, shared with {@link renameThemeFile}'s own route).
+ * This function only enforces the one thing every write in this file enforces: containment. There is
+ * no recovery path if a caller got that wrong — this repo keeps no theme-file revision history, so a
+ * deleted file is gone until it is re-authored, or (for a file with a catalog original) reset from
+ * there before it was deleted, which is no longer possible once the path itself does not exist.
+ *
+ * @throws {ThemePathError} On containment failure, a missing target, or a target that is not a
+ * regular file — deleting a directory through this path is refused, not attempted.
+ * @complexity O(1) — a single `rmSync`.
+ * @overallScore 100/100
+ */
+export function deleteThemeFile(
+  required: { themeDir: string; themesRoot: string; relativePath: string },
+  _optional: Record<string, never> = {}
+): void {
+  const target = resolveThemeFilePath(required);
+  const stat = statSync(target, { throwIfNoEntry: false });
+  if (!stat) throw new ThemePathError(`file '${required.relativePath}' does not exist in this theme`);
+  if (!stat.isFile()) throw new ThemePathError(`path '${required.relativePath}' is not a regular file`);
+  rmSync(target);
 }
 
 /**

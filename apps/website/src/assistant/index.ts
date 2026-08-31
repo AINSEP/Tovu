@@ -17,12 +17,15 @@
  * Organized into six sections, matching the six independent consumer clusters the trace found.
  *
  * NOT re-exported here FOR `routes/types.ts`'s USE: `ChatStoreFactory` (`./persistence/tenant-scope`),
- * `SiteAssistantCredentialRepoPort` (`./site-credential-store`), `AdminExecutionCredentialRepoPort`
- * (`./execution-credential-store`), `ExternalMcpServerRepoPort` (`./external-mcp-store`), and
- * `ExternalMcpOAuthService` (`./external-mcp-oauth`, added 2026-08-25 — it IS exported below for
- * every other consumer, but `routes/types.ts` deep-imports it for the reason that follows). All five
- * are otherwise-qualifying type-only symbols that `server/routes/types.ts` imports directly instead
- * — deliberately, not an oversight.
+ * `AgentSessionStore` (`./persistence/agent-session-store`, added 2026-08-30 alongside its store
+ * factories — same "routes/types.ts deep-imports the type, this barrel exports only the value
+ * factories" split as `ChatStoreFactory`), `SiteAssistantCredentialRepoPort`
+ * (`./site-credential-store`), `AdminExecutionCredentialRepoPort` (`./execution-credential-store`),
+ * `ExternalMcpServerRepoPort` (`./external-mcp-store`), and `ExternalMcpOAuthService`
+ * (`./external-mcp-oauth`, added 2026-08-25 — it IS exported below for every other consumer, but
+ * `routes/types.ts` deep-imports it for the reason that follows). All six are otherwise-qualifying
+ * type-only symbols that `server/routes/types.ts` imports directly instead — deliberately, not an
+ * oversight.
  * `routes/types.ts` defines `RouteDeps`, a god-type with ~22 landing imports across `server/routes/**`
  * (2026-08-13 architecture audit). Measured empirically (`npm run check:architecture`, propagation
  * cost = mean fraction of the file graph reachable from each file): routing those 3 lines through
@@ -284,3 +287,12 @@ export type { ToolContributor } from "./tool-contribution-registry.js";
 // ---------------------------------------------------------------------------------------------
 export { createChatStoreFactory, createInMemoryChatStoreFactory } from "./persistence/store-factory.js";
 export type { ChatStoreFactory } from "./persistence/tenant-scope.js";
+
+// `persistence/agent-session-store.ts`'s SQLite/in-memory pair, same ADR-006 "composition root
+// selects the adapter" shape as the chat-history pair immediately above, added for the same two
+// consumers (`server/app.ts` and `server/deps.ts`) plus `agent-daemon-server.ts`'s `onStarted` —
+// the per-conversation agent-CLI session id lookup that backs `AgentExecutorRunInput.resumeSessionId`/
+// `.newSessionId` (`RunEndPayload.sessionRef`'s round trip, `@jini-ai/protocol`'s doc on that field).
+// `AgentSessionStore` (the type) stays un-re-exported here, same "routes/types.ts deep-imports it
+// instead" treatment as `ChatStoreFactory` above — see this file's own header.
+export { createSqliteAgentSessionStore, createInMemoryAgentSessionStore } from "./persistence/agent-session-store.js";

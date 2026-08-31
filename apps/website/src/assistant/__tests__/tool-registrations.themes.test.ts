@@ -101,19 +101,47 @@ function catalogEntry(toolId: string): AgentToolDefinition {
   return entry;
 }
 
-const WIRED_THEMES_TOOL_IDS = ["theme_list", "theme_list_files", "theme_read_file", "theme_write_file"];
+const WIRED_THEMES_TOOL_IDS = [
+  "theme_list",
+  "theme_list_files",
+  "theme_read_file",
+  "theme_write_file",
+  "theme_edit_file",
+  "theme_rename_file",
+  "theme_trash_file",
+  "theme_restore_trashed_file",
+];
+
+// Tools that mutate durable state — everything else in `WIRED_THEMES_TOOL_IDS` is read-only.
+const DESTRUCTIVE_WRITE_TOOL_IDS = [
+  "theme_write_file",
+  "theme_edit_file",
+  "theme_rename_file",
+  "theme_trash_file",
+  "theme_restore_trashed_file",
+];
 
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness
 // ---------------------------------------------------------------------------
 
-test("exactly the 4 themes entries are registered — nothing else", () => {
+// Registry-lock test, NOT a safety assertion (contrast the destructive-exclusion test just below,
+// which stays byte-identical) — this one is EXPECTED to change every time the catalog legitimately
+// grows. Updated 2026-08-30: 6 -> 8 (added theme_trash_file/theme_restore_trashed_file, the
+// soft-delete pair the owner approved in place of theme_delete_file).
+test("exactly the 8 themes entries are registered — nothing else", () => {
   const { deps } = fakeRouteDeps();
   assert.deepEqual([...themesRegistrations(deps).keys()].sort(), [...WIRED_THEMES_TOOL_IDS].sort());
-  assert.equal(getThemesAgentToolCatalog().length, 4, "sanity: the full themes catalog is still 4 entries");
+  assert.equal(getThemesAgentToolCatalog().length, 8, "sanity: the full themes catalog is still 8 entries");
 });
 
-test("no destructive theme operation is agent-callable anywhere in the whole assistant tool set", () => {
+// `theme_delete_file` stays excluded (2026-08-30 re-examination pending an explicit owner call —
+// see `agent-tools.ts`'s own header) — `theme_rename_file` is NOT one of the excluded operations
+// below: it only ever renames a FILE inside an already-discovered theme's folder, a narrower
+// operation than the whole-theme `theme_rename_folder`/`theme_create`/`theme_delete` this test means
+// to keep excluded (folder rename/create/delete can break the live active-theme resolution; see
+// `agent-tools.ts`'s header for the full reasoning).
+test("no whole-theme or file-delete operation is agent-callable anywhere in the whole assistant tool set", () => {
   const { deps } = fakeRouteDeps();
   const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
   for (const excluded of ["theme_delete_file", "theme_delete", "theme_create", "theme_rename_folder", "theme_rename"]) {
@@ -152,18 +180,22 @@ test("each catalog entry's declared risk matches what this layer derives from it
   }
 });
 
-test("only theme_write_file declares a durable side effect; the three read tools declare none", () => {
-  assert.equal(catalogEntry("theme_write_file").sideEffects, "mutates-durable-state");
+test("only the write/edit/rename tools declare a durable side effect; the three read tools declare none", () => {
+  for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
+    assert.equal(catalogEntry(id).sideEffects, "mutates-durable-state", `${id} should be durable`);
+  }
   for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).sideEffects, "none");
   }
 });
 
-test("reads reuse the existing theme.set permission; the write is gated by its own theme.edit", () => {
+test("reads reuse the existing theme.set permission; every write/edit/rename is gated by its own theme.edit", () => {
   for (const id of ["theme_list", "theme_list_files", "theme_read_file"]) {
     assert.equal(catalogEntry(id).authorization.permission, "theme.set");
   }
-  assert.equal(catalogEntry("theme_write_file").authorization.permission, "theme.edit");
+  for (const id of DESTRUCTIVE_WRITE_TOOL_IDS) {
+    assert.equal(catalogEntry(id).authorization.permission, "theme.edit", `${id} should require theme.edit`);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -179,6 +211,10 @@ test("every themes tool refuses when authorize() denies, and performs no work", 
     ["theme_list_files", { themeId: "plain" }],
     ["theme_read_file", { themeId: "plain", path: "tokens.json" }],
     ["theme_write_file", { themeId: "plain", path: "tokens.json", content: "{}" }],
+    ["theme_edit_file", { themeId: "plain", path: "tokens.json", oldString: "{}", newString: "{ }" }],
+    ["theme_rename_file", { themeId: "plain", path: "tokens.json", name: "tokens2.json" }],
+    ["theme_trash_file", { themeId: "plain", path: "styles.css" }],
+    ["theme_restore_trashed_file", { themeId: "plain", trashedPath: ".trash/1/styles.css" }],
   ];
   for (const [id, input] of calls) {
     await assert.rejects(() => wired(deps, id).handler(executionContext(input)), /not authorized/, `${id} must refuse`);

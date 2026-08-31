@@ -16,9 +16,9 @@ import type { ContentRouteDeps } from "../../content/deps.js";
  * @file Branch coverage for `registerAdminThemeFilePutRoute` not already exercised by
  * `explore-built-theme-gate.test.ts` (the ADR-020 §5 write-scope split) or
  * `explore-liquid-readable.test.ts` (the `.liquid` read-only-group refusal): the `content` type
- * check, `isThemeFileWritable`'s per-GROUP outcomes on an ORDINARY (non-compiled) theme (`asset`
- * writable, `script`/`other` read-only — `config`/`page` are already covered elsewhere via
- * `tokens.json`/`pages/index.html` writes), a compiled theme's `theme.json` PUT (the one case where
+ * check, `isThemeFileWritable`'s per-GROUP outcomes on an ORDINARY (non-compiled) theme (`asset` and,
+ * as of 2026-08-29, `script` both writable; `other` read-only — `config`/`page` are already covered
+ * elsewhere via `tokens.json`/`pages/index.html` writes), a compiled theme's `theme.json` PUT (the one case where
  * `isInsideCompiledSourceDir`'s `relativePath !== "theme.json"` condition is FALSE), and the route's
  * own catch-all (a non-`ThemePathError` write failure -> 500).
  */
@@ -127,25 +127,22 @@ test("PUT of an .svg (asset group) on an ordinary theme succeeds -- isThemeFileW
   assert.equal(fs.readFileSync(path.join(themesDir, "static", "plain", "logo.svg"), "utf8"), "<svg><circle/></svg>");
 });
 
-test("PUT of a .js file (script group) on an ordinary theme is refused 403 -- isThemeFileWritable is false via READ_ONLY_GROUPS", async (t) => {
+test("PUT of a .js file (script group) on an ordinary theme succeeds -- 2026-08-29 owner ask reversed the 2026-08-11 READ_ONLY_GROUPS exclusion; CONTENT_EDIT_LOCKED_GROUPS no longer includes 'script'", async (t) => {
   const themesDir = makePlainThemesRoot();
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);
   const target = path.join(themesDir, "static", "plain", "main.js");
-  const before = fs.readFileSync(target, "utf8");
 
   const res = await fetch(`${baseUrl}${BASE("plain")}/file`, {
     method: "PUT",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ path: "main.js", content: "alert(1)" }),
   });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "READ_ONLY_FILE");
-  assert.equal(fs.readFileSync(target, "utf8"), before);
+  assert.equal(res.status, 200, `expected a script PUT to succeed, got ${res.status}`);
+  assert.equal(fs.readFileSync(target, "utf8"), "alert(1)");
 });
 
-test("PUT of a .md file ('other' group) on an ordinary theme is refused 403 -- READ_ONLY_GROUPS covers 'other' too", async (t) => {
+test("PUT of a .md file ('other' group) on an ordinary theme is refused 403 -- CONTENT_EDIT_LOCKED_GROUPS still covers 'other'", async (t) => {
   const themesDir = makePlainThemesRoot();
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);

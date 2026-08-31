@@ -20,6 +20,7 @@ import { startTestServer } from "#src/server/__tests__/helpers/http-test-server"
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
 import type { DiscoveredTheme } from "#src/features/theme/index";
+import { InMemoryPostRepo } from "#src/features/post/index";
 
 /**
  * @file Branch coverage for `registerAdminThemeDetailRoute`'s own logic, once the shared
@@ -39,6 +40,10 @@ function baseDeps(themesDir: string): ContentRouteDeps {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir,
+    // The detail route now does one `postRepo.list()` per request (slug-collision signal,
+    // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
+    // has no posts of its own to collide with any theme page.
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
 }
 
@@ -160,6 +165,7 @@ test("malformed theme.json: the route still 200s on a theme loadTheme marked inv
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir: root,
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -189,6 +195,10 @@ test("an unrecognized theme root triggers the route's outer catch-all 500", asyn
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir,
+    // The detail route now does one `postRepo.list()` per request (slug-collision signal,
+    // `contentRecordsBySlug`) — an empty in-memory repo, matching every fixture in this file that
+    // has no posts of its own to collide with any theme page.
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
   const app = buildTestApp(deps);
   const baseUrl = await startTestServer(app, t);

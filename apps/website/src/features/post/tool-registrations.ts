@@ -17,6 +17,31 @@
  * precedent. `content_post_search` is in that same group (`searchAdminPosts` takes no `authorize`
  * param either), with the one difference that it has no admin route to mirror at all — see
  * `agent-tools.ts`'s header for why that is deliberate rather than a gap in the mirroring rule.
+ *
+ * `publicUrl` (2026-08-30, closing a real capability gap surfaced by a production transcript —
+ * `sites/tovu-com/content.db`, `ai_chat_messages` rowid 427): the agent had no tool that told it
+ * where a post/page it just read or created is actually reachable on the live site, and fell back
+ * to grepping route source to reverse-engineer the URL pattern. `content_post_get`/`content_post_list`/
+ * `content_post_create` now resolve it through {@link resolvePublicUrl}, which calls
+ * `platform/routing`'s {@link entryPublicPath} — the pure per-record half of the SAME `urlFor`
+ * inverse resolver `routes/site/pages.ts`'s `buildExtraHead` already treats as the one source of
+ * truth for a post's live path (SEO's canonical tag, menu active state); `urlFor`'s own
+ * `resolveEntryRefTarget` calls this identical function after its `postRepo.findById`, so a caller
+ * resolving from an id and a caller resolving from an already-held `PostRecord` (this file's own
+ * case — the row is already sitting in the loop variable) always agree. Deliberately NOT added to
+ * `content_post_update`/`content_post_delete`'s existing `toPostToolView(...)` call sites: those
+ * return the row incidentally (to confirm what was just written/deleted/cancelled), not to answer
+ * "where does this live", so there is no reason to pay for the extra resolution there — hence the
+ * separate {@link PostToolViewWithPublicUrl}/{@link toPostToolViewWithPublicUrl} rather than
+ * widening the shared `PostToolView`/`toPostToolView`.
+ *
+ * `content_post_list` scale (2026-08-30, H3): `resolvePublicUrl` used to call `urlFor` per row,
+ * which re-fetched the exact record the list loop already held (an O(n) `postRepo.findById` fan-out
+ * on top of the O(1) `postRepo.list()` that already produced every row) — see {@link entryPublicPath}
+ * above for the fix. `content_post_list` also now caps its output at {@link DEFAULT_POST_LIST_LIMIT}
+ * (raisable up to {@link MAX_POST_LIST_LIMIT} via the `limit` input) with `total`/`hasMore` in the
+ * response, so a large workspace can no longer flood the agent's context with every row, and
+ * truncation is never silent.
  */
 import {
   AGENT_TOOL_PRINCIPAL_KIND,
@@ -44,6 +69,7 @@ import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../contracts/core/commands/index.js";
 import { processOutbox } from "../../contracts/core/events/index.js";
+import { entryPublicPath } from "#src/platform/routing/index";
 import type { ToolContributor } from "#src/assistant/index";
 import {
   postAgentToolCatalog,
@@ -61,6 +87,8 @@ import {
   listAdminPages,
   listAdminPosts,
   updatePost,
+  DEFAULT_POST_LIST_LIMIT,
+  MAX_POST_LIST_LIMIT,
   PostNotFoundError,
   PostValidationError,
   type PostKind,
@@ -158,6 +186,19 @@ function optionalPostStatus(input: Record<string, unknown>): PostStatus | undefi
   return requirePostStatus(input);
 }
 
+/**
+ * Clamps `content_post_list`'s optional `limit` into `[1, MAX_POST_LIST_LIMIT]`, flooring
+ * fractions, defaulting to `DEFAULT_POST_LIST_LIMIT` when omitted — mirrors `search.ts`'s own
+ * `clampLimit` for `content_post_search` (clamp rather than reject: an out-of-range `limit` is not
+ * a shape problem worth a round trip to fix).
+ *
+ * @complexity O(1).
+ */
+function clampPostListLimit(limit: number | undefined): number {
+  if (limit === undefined) return DEFAULT_POST_LIST_LIMIT;
+  return Math.min(Math.max(Math.floor(limit), 1), MAX_POST_LIST_LIMIT);
+}
+
 /** `requireObject` (the kit's generic reader) returns `Record<string, unknown>` — this domain's
  * `bodyJson` is typed as `JsonObject` (`post.ts`), so this narrows the one field that differs.
  * `post.ts`'s own `isJsonObject` check (inside `createPost`/`updatePost`) is the actual runtime
@@ -205,6 +246,42 @@ function toPostToolView(post: PostRecord): PostToolView {
     updatedAt: post.updatedAt,
     version: post.version,
   };
+}
+
+/** {@link PostToolView} plus the resolved public path — see this file's header ("`publicUrl`") for
+ *  why this is a separate type rather than a field added to the base shape. */
+interface PostToolViewWithPublicUrl extends PostToolView {
+  publicUrl: string | null;
+}
+
+/**
+ * Resolves the root-relative public path for `post` through `platform/routing`'s
+ * {@link entryPublicPath} — the same pure per-record half `urlFor`'s `resolveEntryRefTarget` calls
+ * internally, so this stays the single inverse resolver this codebase treats as the source of truth
+ * for where a post/page actually lives (see this file's header). Deliberately not composed by hand
+ * as `/${post.slug}` here: that string is only correct for a published row, and re-deriving the
+ * publish check next to the real one in `routing.ts` is exactly the kind of drift this exists to
+ * remove. Takes the `PostRecord` the caller already holds rather than an id — unlike `urlFor`, this
+ * makes no `postRepo.findById` call of its own (H3: the caller, e.g. `content_post_list` iterating
+ * `postRepo.list()`'s own result, already has the row; a second fetch per row would be exactly the
+ * N+1 this signature exists to avoid).
+ *
+ * @returns `null` for a draft, unpublished, or otherwise unresolvable row — never a link a visitor
+ * would 404 on.
+ * @complexity O(1).
+ */
+function resolvePublicUrl(routeDeps: PostToolDeps, post: PostRecord): string | null {
+  const resolved = entryPublicPath(post, { workspaceId: routeDeps.workspaceId });
+  return resolved?.canonicalUrl ?? null;
+}
+
+/**
+ * {@link toPostToolView} plus {@link resolvePublicUrl} — the shape `content_post_get`/
+ * `content_post_list`/`content_post_create` return to the model (see this file's header,
+ * "`publicUrl`").
+ */
+function toPostToolViewWithPublicUrl(routeDeps: PostToolDeps, post: PostRecord): PostToolViewWithPublicUrl {
+  return { ...toPostToolView(post), publicUrl: resolvePublicUrl(routeDeps, post) };
 }
 
 /**
@@ -335,11 +412,19 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "content.read", entityType: "post" });
 
       const kind = requirePostKind(input);
-      const { posts } =
+      const limit = clampPostListLimit(optionalNumber(input, "limit"));
+      const { posts: allPosts } =
         kind === "post"
           ? await listAdminPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } })
           : await listAdminPages({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } });
-      return { posts: posts.map(toPostToolView) };
+
+      const total = allPosts.length;
+      const posts = allPosts.slice(0, limit);
+      return {
+        posts: posts.map((post) => toPostToolViewWithPublicUrl(routeDeps, post)),
+        total,
+        hasMore: total > posts.length,
+      };
     },
 
     content_post_get: async (ctx) => {
@@ -357,7 +442,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         throw new PostNotFoundError(`page '${id}' was not found`);
       }
 
-      return { post: toPostToolView(post) };
+      return { post: toPostToolViewWithPublicUrl(routeDeps, post) };
     },
 
     content_post_create: async (ctx) => {
@@ -396,7 +481,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
           },
         });
 
-        return { post: toPostToolView(result.post) };
+        return { post: toPostToolViewWithPublicUrl(routeDeps, result.post) };
       });
     },
 

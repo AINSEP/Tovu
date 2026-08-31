@@ -4,6 +4,8 @@ import test from "node:test";
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
+import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
+import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
 import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
@@ -192,6 +194,13 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(demoImageAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(renderUiAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `component-catalog` (2026-08-30): `search_components`/`describe_component`, wired into this
+  // registry so a BYOK turn's `execute_delegated_tool` can reach them — see
+  // `component-catalog-tool.ts`'s own header for why they were previously unreachable from BYOK.
+  ...(componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `assistant_ask_choice` (2026-08-30): the production counterpart to `demo-choices` above — see
+  // `ask-choice-tool.ts`'s own header.
+  ...(askChoiceAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {
@@ -471,4 +480,62 @@ test("deployment_get_static_publish_capabilities actually executes through the R
     output.providers.map((p) => p.providerId).sort(),
     ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"],
   );
+});
+
+// ---------------------------------------------------------------------------
+// 6. component-catalog reachability — BYOK's ONLY path to search_components/describe_component (2026-08-30)
+// ---------------------------------------------------------------------------
+
+/**
+ * The bug this pins: `search_components`/`describe_component` were real `@jini-ai/mcp` top-level
+ * tools for the spawned-CLI path (`registerComponentCatalogRoutes` in `agent-daemon-server.ts`), but
+ * `byok-tool-surface.ts` publishes only 3 meta-tools and resolves every other tool by an id through
+ * `execute_delegated_tool` against the SAME `ToolRegistry` `buildRealAssembledSurface()` builds
+ * below. Before `component-catalog-tool.ts` existed, neither id was registered there, so a BYOK turn
+ * had no path to the interactive-component catalog at all — confirmed in production
+ * `agent_tool_attempts` (`phase='unknown-tool'`) for exactly these two ids, plus two guessed variants
+ * (`assistant_search_components`/`assistant_describe_component`) from a model that had correctly
+ * learned "look this up like any other tool" but found no registry entry under either name.
+ */
+test("search_components and describe_component are present in the REAL ToolRegistry, built the same way agent-daemon-server.ts and byok-tool-surface.ts both build it", async () => {
+  const { registry } = await buildRealAssembledSurface();
+
+  assert.equal(registry.has("search_components"), true);
+  assert.equal(registry.has("describe_component"), true);
+});
+
+test("both are discoverable through the real search_tools/describe_tool catalog — the ONLY channel a BYOK turn has to reach them", async () => {
+  const { catalog } = await buildRealAssembledSurface();
+
+  const search = catalog.describe("search_components");
+  const describe = catalog.describe("describe_component");
+  assert.ok(search, "search_components must be describable via describe_tool");
+  assert.ok(describe, "describe_component must be describable via describe_tool");
+  assert.match(search!.description, /interactive-UI component catalog/);
+
+  const hits = catalog.search("find a UI component to render a chart", 25);
+  assert.ok(
+    hits.some((hit) => hit.id === "search_components"),
+    `expected search_components among search hits: ${JSON.stringify(hits.map((h) => h.id))}`,
+  );
+});
+
+test("search_components actually executes through the REAL ToolExecutor and returns real manifest hits — the same gate execute_delegated_tool routes through", async () => {
+  const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
+  const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
+
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "search_components", { query: "button" });
+
+  assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
+  assert.ok(Array.isArray(result.output), "search_components must return an array of hits");
+});
+
+test("describe_component actually executes and rejects an unknown id with a plain, non-crashing error — presence in the registry is not the same as being callable", async () => {
+  const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
+  const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
+
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "describe_component", { id: "nonexistent.component" });
+
+  assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
+  assert.match(result.error ?? "", /nonexistent\.component.*was not found/);
 });

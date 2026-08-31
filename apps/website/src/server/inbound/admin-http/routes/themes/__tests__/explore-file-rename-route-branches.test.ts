@@ -15,7 +15,9 @@ import type { ContentRouteDeps } from "../../content/deps.js";
 /**
  * @file Rename-route branches not already covered by `explore-built-theme-gate.test.ts` (ADR-020 §5
  * sourceDir/generated-tree gating and the extension-change refusal): the `REQUIRED_THEME_FILES` hard
- * lock, `sourceRenamable`'s non-compiled `READ_ONLY_GROUPS` refusal, the four `INVALID_NAME` shapes,
+ * lock, `isFileIdentityChangeAllowed`'s non-compiled `IDENTITY_LOCKED_GROUPS` refusal (renamed from
+ * `sourceRenamable`/`READ_ONLY_GROUPS` 2026-08-29, when delete started sharing the same gate), the
+ * four `INVALID_NAME` shapes,
  * source-not-found, the same-name no-op (skipping the whole destination-checking block), and
  * dest-already-exists (`NAME_TAKEN`).
  *
@@ -87,7 +89,7 @@ for (const required of ["pages/index.html", "theme.json", "tokens.json"]) {
   });
 }
 
-test("renaming a script-group (.js) file on an ORDINARY (non-compiled) theme is refused 409 via READ_ONLY_GROUPS, not the sourceDir rule", async (t) => {
+test("renaming a script-group (.js) file on an ORDINARY (non-compiled) theme is refused 409 via IDENTITY_LOCKED_GROUPS, not the sourceDir rule -- unaffected by script's content becoming editable 2026-08-29", async (t) => {
   const themesDir = makeThemesRoot();
   const app = buildTestApp(themesDir);
   const baseUrl = await startTestServer(app, t);

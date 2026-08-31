@@ -93,6 +93,12 @@ import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite
 import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
+import {
+  extractSessionRefFromEndEvent,
+  resolveResumeSessionField,
+  shouldClearSessionOnFailedResume,
+} from "./agent-session-resume.js";
+import { createLiveRunTracker } from "./agent-run-concurrency.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
@@ -350,9 +356,10 @@ for (const registration of buildAssistantToolRegistrations(
 
 /**
  * Agent-driven control of the admin's own browser tab and chat pane — `page.navigate`,
- * `page.scroll_to`, `page.find_elements`, `chat.send_message`, and the rest of
- * {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus six of `chat.*`'s seven verbs;
- * `chat.reset_conversation` is deliberately excluded — see that module's own doc for why).
+ * `page.scroll_to`, `page.find_elements`, `chat.send_message`, `admin.capture_screenshot`, and the
+ * rest of {@link FRONTEND_CONTROL_CAPABILITIES} (`page.*` plus six of `chat.*`'s seven verbs, plus
+ * Tovu's own `admin.*` additions; `chat.reset_conversation` is deliberately excluded — see that
+ * module's own doc for why).
  *
  * `createFrontendControl` assembles the three parts (session registry, gated tool registrations,
  * the stream/response routes) and deliberately never hands back the registry — its `invoke`
@@ -476,9 +483,20 @@ const assistantPromptAugmenter: PromptAugmenter = {
       "something, that is a rendering request for the live admin UI, not a request to author a " +
       "standalone artifact — search_tools for the rendering tool (assistant_render_ui) and " +
       "search_components/describe_component for the exact chart/component id, the same way you " +
-      "would look up any other tool here. Do not reach for a general-purpose charting/dataviz skill " +
+      "would look up any other tool here — and if you ever forget those two exact names, " +
+      "search_tools/describe_tool/execute_delegated_tool can find and run them too, the same as any " +
+      "other registered tool. Do not reach for a general-purpose charting/dataviz skill " +
       "or write a static HTML file as a substitute; those produce a file on disk nobody asked for " +
-      "instead of something the administrator actually sees.";
+      "instead of something the administrator actually sees. When you need a decision, a " +
+      "confirmation, or a choice between options from the administrator — especially before any " +
+      "action that writes, overwrites, or changes what the live site serves — ask through an " +
+      "interactive surface, not by describing the options in prose and waiting: an administrator " +
+      "reading a paragraph has no reliable way to notice a question was buried in it, so \"say the " +
+      "word and I'll do it\" prose is the failure this replaces, not a courtesy. Call " +
+      "assistant_ask_choice with your own title and options (a single choice, a multi-select, or " +
+      "both) — it blocks until they answer; if you ever forget that exact name, " +
+      "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
+      "other registered tool.";
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
     // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
@@ -512,6 +530,10 @@ let attachmentStore: AttachmentStore | undefined;
 /** The same fact with the opposite lifetime — a finished run is still readable, so its owner must
  * stay known. See `run-ownership.ts` for why the two maps are not redundant. */
 const runOwners = createRunOwnerRegistry();
+
+/** H2 fix — see `agent-run-concurrency.ts`'s own doc. One instance for this process's whole
+ * lifetime, registered/unregistered per run inside `onStarted` below. */
+const liveRunTracker = createLiveRunTracker();
 
 /**
  * Claims `attachmentIds` against `attachmentStore` and resolves the extra `AgentExecutor.run()`
@@ -569,6 +591,11 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let attachmentIds: readonly string[] = [];
   let pluginRefIds: readonly string[] = [];
   let model: string | undefined;
+  let conversationId: string | undefined;
+  // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
+  // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
+  // resume in the first place, so a failed/no-sessionRef end event has nothing stale to clear.
+  let attemptedResumeSessionId: string | null = null;
   try {
     // `frontendBindToken` also rides in this envelope but is deliberately not read here —
     // `createFrontendControl`'s own `resolveBindToken` above owns that field, so there is exactly
@@ -586,6 +613,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
     model = decoded.model;
+    conversationId = decoded.conversationId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
@@ -595,8 +623,15 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
   principalByRunId.set(run.id, principal);
   runOwners.record(run.id, principal.id);
+  // H2 fix (`agent-run-concurrency.ts`): registered synchronously, in this same
+  // never-`await`-ed-yet prefix, so a second `onStarted` call for the same conversation — however
+  // close together the two requests arrive — is guaranteed to observe this run as already live.
+  // A no-op when `conversationId` is absent, matching the stream subscription below: there is
+  // nothing to key concurrency by for a daemon client other than the admin chat pane.
+  if (conversationId !== undefined) liveRunTracker.register(conversationId, run.id);
   void runLifecycle.waitForTerminal(run.id).finally(() => {
     principalByRunId.delete(run.id);
+    if (conversationId !== undefined) liveRunTracker.unregister(conversationId, run.id);
     // Safe to call even for a run that claimed nothing (`AttachmentStore.cleanupRun`'s own
     // contract) — always wired, not only when `attachmentIds` was non-empty, so a run that failed
     // before reaching the claim step below still releases anything a *retry* of the same run id
@@ -607,6 +642,38 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       console.error(`[agent-daemon] run ${run.id}: attachment cleanup failed`, error);
     });
   });
+
+  // Session-resume capture (Gap 5, `RunEndPayload.sessionRef` — `@jini-ai/protocol`'s doc on that
+  // field): watches this run's own event stream for its terminal `end` event and persists whatever
+  // agent-CLI session id it reports, so the NEXT turn in this conversation can resume it instead of
+  // spawning cold (`agent-session-resume.ts`). A no-op subscription when `conversationId` is absent
+  // — any daemon client other than the admin chat pane, today — since there is nowhere to key the
+  // stored id by. Subscribed here, before `agentExecutor.run()` is ever called below, so a run that
+  // fails immediately after spawn still has its `end` event observed (`stream()`'s own contract:
+  // subscribe-before-replay never loses an event to timing).
+  if (conversationId !== undefined) {
+    const resolvedConversationId = conversationId;
+    const resolvedAgentId = request.agentId ?? DEFAULT_AGENT_ID;
+    void runLifecycle.stream(run.id, (event) => {
+      const sessionRef = extractSessionRefFromEndEvent(event);
+      if (sessionRef !== undefined) {
+        void routeDeps.agentSessions.setSessionId(resolvedConversationId, resolvedAgentId, sessionRef).catch((error: unknown) => {
+          console.error(`[agent-daemon] run ${run.id}: failed to persist agent session id`, error);
+        });
+        return;
+      }
+      // H1 fix: this run attempted `--resume <attemptedResumeSessionId>` and reached its terminal
+      // `end` event without the CLI ever reconfirming a session id — the stored id is unconfirmed
+      // at best, and per this repo's own daemon-restarted-from-a-different-cwd hazard, frequently
+      // dead. Clear it so the NEXT turn falls back to a cold start instead of retrying the same
+      // dead id forever. See `shouldClearSessionOnFailedResume`'s own doc for the full condition.
+      if (shouldClearSessionOnFailedResume(event, attemptedResumeSessionId)) {
+        void routeDeps.agentSessions.clearSessionId(resolvedConversationId, resolvedAgentId).catch((error: unknown) => {
+          console.error(`[agent-daemon] run ${run.id}: failed to clear dead agent session id`, error);
+        });
+      }
+    });
+  }
 
   // Bind this run to the tab that started it, so `page.*` calls have an addressee. A run has
   // exactly one originating surface, which is what makes the routing unambiguous with several
@@ -651,14 +718,34 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       if (pluginPromptPrefix === null) return;
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
+      const agentId = request.agentId ?? DEFAULT_AGENT_ID;
+      // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
+      // the plugin prefix above. `null` (no conversationId at all, nothing on record yet, OR — H2
+      // fix — another run for this same conversation is already live) makes
+      // `resolveResumeSessionField` a no-op — see that function's own doc for why this run then
+      // starts cold rather than this handler minting a session id itself.
+      //
+      // The `hasConcurrentLiveRun` check is the H2 fix: refusing to resume here means at most one
+      // process ever holds `--resume <id>` for this conversation's CLI session at a time, closing
+      // the two-live-`--resume`-processes-on-one-transcript-file hazard even though the two runs'
+      // `end` events can still race each other for the store's last write — see
+      // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
+      // tracker needs no special handling across a daemon restart.
+      const storedSessionId =
+        conversationId !== undefined && !liveRunTracker.hasConcurrentLiveRun(conversationId, run.id)
+          ? await routeDeps.agentSessions.getSessionId(conversationId, agentId)
+          : null;
+      attemptedResumeSessionId = storedSessionId;
+
       await agentExecutor.run({
         runId: run.id,
-        agentId: request.agentId ?? DEFAULT_AGENT_ID,
+        agentId,
         prompt,
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
         ...(model !== undefined ? { model } : {}),
         ...attachmentRunFields,
+        ...resolveResumeSessionField(storedSessionId),
       });
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on
@@ -687,7 +774,15 @@ const app = express();
 // instead covered by `resolvePrincipal`'s fail-closed live-`runId` check below. Full rationale and
 // residual-risk statement: `daemon-auth.ts`'s `DELEGATED_TOOL_CALLS_PATH`.
 app.use(requireAgentDaemonToken({ exemptPaths: [DELEGATED_TOOL_CALLS_PATH] }));
-app.use(express.json());
+// Default (100kb) is too small for `admin.capture_screenshot`'s answer: a base64-encoded JPEG of an
+// admin viewport, posted back to `/api/frontend-sessions/:id/responses`
+// (`frontend-session-bridge.ts`'s `respond()`), routinely exceeds it even after
+// `agent-screenshot.ts`'s own quality/size retries — a silent 413 would look like a capture bug
+// rather than the transport limit it actually is. Raised, not removed: this still bounds the worst
+// case for every route mounted below (all of them, since this is `app.use` with no path), and every
+// caller reaching them is already past `requireAgentDaemonToken` above, so this is not a new
+// unauthenticated attack surface, only a larger authenticated one.
+app.use(express.json({ limit: "6mb" }));
 const adapter: AdapterContext = { resolvedPortRef: { current: port } };
 
 // Per-run authorization, mounted between the bearer gate and the run routes it protects. The gate

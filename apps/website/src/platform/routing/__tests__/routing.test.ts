@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget } from "../types.js";
 import {
+  entryPublicPath,
   getNamedRoute,
   getSlugChangeCapture,
   isActive,
@@ -74,6 +75,41 @@ test("urlFor returns null for an entryRef target that is a draft", async () => {
   const result = await urlFor({ deps: { postRepo: repo }, target, ctx });
 
   assert.equal(result, null);
+});
+
+// ---------------------------------------------------------------------------
+// entryPublicPath — pure per-record half of entryRef resolution (H3: exported so a caller already
+// holding a PostRecord, e.g. content_post_list, can resolve publicUrl with no postRepo.findById)
+// ---------------------------------------------------------------------------
+
+test("entryPublicPath resolves a published record to its slug path with no repo call", () => {
+  const result = entryPublicPath(seedPost, ctx);
+
+  assert.deepEqual(result, { path: "/hello-world", canonicalUrl: "/hello-world" });
+});
+
+test("entryPublicPath returns null for a draft record", () => {
+  const result = entryPublicPath({ ...seedPost, status: "draft" }, ctx);
+
+  assert.equal(result, null);
+});
+
+test("entryPublicPath composes canonicalUrl from originOverride, same as urlFor", () => {
+  const ctxWithOrigin: RouteResolveContext = { workspaceId: "workspace-1", originOverride: "https://example.com/" };
+
+  const result = entryPublicPath(seedPost, ctxWithOrigin);
+
+  assert.deepEqual(result, { path: "/hello-world", canonicalUrl: "https://example.com/hello-world" });
+});
+
+test("entryPublicPath agrees with urlFor's entryRef resolution for the same record (no drift)", async () => {
+  const repo = new InMemoryPostRepo([seedPost]);
+  const target: RouteTarget = { kind: "entryRef", entryId: "post-1" };
+
+  const viaUrlFor = await urlFor({ deps: { postRepo: repo }, target, ctx });
+  const viaEntryPublicPath = entryPublicPath(seedPost, ctx);
+
+  assert.deepEqual(viaEntryPublicPath, viaUrlFor);
 });
 
 // ---------------------------------------------------------------------------

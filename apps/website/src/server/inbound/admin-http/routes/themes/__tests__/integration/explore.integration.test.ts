@@ -138,9 +138,10 @@ test("explore: PUT a writable file, then GET reflects the reload (not stale)", a
   assert.equal(body.content, "body { color: red; }");
 });
 
-test("explore: PUT of a read-only group (script/.js) is refused 403", async (t) => {
+test("explore: PUT of a script (.js) file succeeds -- 2026-08-29 owner ask, script is no longer a content-read-only group", async (t) => {
   const themesDir = makeThemesRoot();
-  fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "app.js"), "console.log(1);", "utf8");
+  const appJsPath = path.join(themesDir, "static", THEME_ID, "app.js");
+  fs.writeFileSync(appJsPath, "console.log(1);", "utf8");
   const app = createApp(testDeps(themesDir));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -148,6 +149,21 @@ test("explore: PUT of a read-only group (script/.js) is refused 403", async (t) 
     method: "PUT",
     headers: { cookie, "content-type": "application/json" },
     body: JSON.stringify({ path: "app.js", content: "console.log(2);" }),
+  });
+  assert.equal(res.status, 200);
+  assert.equal(fs.readFileSync(appJsPath, "utf8"), "console.log(2);");
+});
+
+test("explore: PUT of a read-only group ('other', e.g. NOTICE.md) is refused 403", async (t) => {
+  const themesDir = makeThemesRoot();
+  fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "NOTICE.md"), "# notice", "utf8");
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "NOTICE.md", content: "tampered" }),
   });
   assert.equal(res.status, 403);
 });
@@ -976,7 +992,7 @@ test("explore: reset of a built theme with an unreadable catalog generated file 
 
 // --- RENAME's remaining branches --------------------------------------------------------------------
 
-test("explore: renaming a script (.js) file on an ordinary theme is refused 409 READ_ONLY_FILE via validateRenameSource's isRenameSourceAllowed check", async (t) => {
+test("explore: renaming a script (.js) file on an ordinary theme is refused 409 READ_ONLY_FILE via validateFileIdentityChange's isFileIdentityChangeAllowed check", async (t) => {
   const themesDir = makeThemesRoot();
   fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "app.js"), "console.log(1);", "utf8");
   const app = createApp(testDeps(themesDir));

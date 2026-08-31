@@ -110,6 +110,7 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "pages",
   "slots",
   "templates",
+  "publishedPages",
 ]);
 
 /**
@@ -137,6 +138,7 @@ const V2_FIELDS_READ_BY_LOADER: ReadonlySet<string> = new Set([
   "modes",
   "defaultMode",
   "slots",
+  "publishedPages",
 ]);
 
 /**

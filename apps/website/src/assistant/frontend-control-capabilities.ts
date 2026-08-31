@@ -39,9 +39,59 @@
  * it and pressed send — the agent prompting itself, not a human. Not destructive and not blocking
  * this change, but worth naming here since it's the kind of thing the next reader of this file
  * needs to already know rather than rediscover.
+ *
+ * ## `admin.capture_screenshot` — Tovu-owned, not from either Jini vocabulary
+ *
+ * Added 2026-08-30 so the assistant can see the admin's OWN rendered pixels rather than only DOM
+ * structure (`page.find_elements`) — the gap that forced an operator to screenshot-and-paste by
+ * hand. It is not part of `PAGE_CAPABILITIES` or `CHAT_CAPABILITIES` because it is not generic chat/
+ * page vocabulary; it belongs to Tovu the way `TOVU_FRONTEND_CAPABILITIES` below is scoped.
+ *
+ * The browser side (`apps/admin/src/App.hooks.tsx`'s `useAgentPageBridge`) claims it through
+ * `createFrontendSessionBridge`'s `executors` map, keyed by the `"admin."` prefix — the SAME
+ * extension point this file's header describes `chat.*`/`page.*` using, just exercised for the
+ * first time by a Tovu-native verb instead of a Jini one. `apps/admin/src/lib/agent-screenshot.ts`
+ * is the executor; its own module doc has the capture design (in-page `html2canvas-pro` rasterization,
+ * chosen over a native OS screen-share permission prompt or a server-side headless-Chromium
+ * re-render — see that file for why) and the full list of what it cannot see.
+ *
+ * `risk: 'read'` and `surface: 'session'`: it changes nothing and is meaningless with no live admin
+ * tab bound to the run, exactly like `page.find_elements`. It carries no `requiresConfirmation` — it
+ * would be filtered out below if it did, same as every other capability in this file.
  */
 import { PAGE_CAPABILITIES, type CapabilityDef } from "@jini-ai/agentic";
 import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
+
+/**
+ * Tovu-native capabilities that reach the admin's own browser tab through the same frontend-session
+ * channel as `page.*`/`chat.*`, but describe verbs neither Jini vocabulary knows about. See this
+ * file's header ("`admin.capture_screenshot` — Tovu-owned, not from either Jini vocabulary") for why
+ * this lives here rather than being folded into an upstream package.
+ */
+const TOVU_FRONTEND_CAPABILITIES: readonly CapabilityDef[] = [
+  {
+    id: "admin.capture_screenshot",
+    description:
+      "Captures a picture of what the operator's admin browser tab actually looks like RIGHT NOW — " +
+      "current scroll position, open panels, in-progress edits — as a real image, not a description. " +
+      "Use this whenever a request is about how something LOOKS (cramped, misaligned, overlapping, " +
+      "clipped, ugly, 'does this look right') rather than what the markup contains; page.find_elements " +
+      "only reports DOM structure and cannot answer a visual question. " +
+      "FIDELITY LIMITS, read before trusting what is or is not in the image: this is an in-page " +
+      "rasterization of the admin's main content area (not the assistant panel itself), not a real " +
+      "screen capture. Cross-origin iframes render as BLANK space — this includes every MCP-UI surface " +
+      "the assistant itself has rendered, so a blank rectangle where a rendered UI card should be is " +
+      "NOT evidence that nothing is there. Cross-origin images without permissive CORS headers, " +
+      "<canvas>/WebGL content, and <video> frames may also render blank or wrong. Only what is " +
+      "currently visible within that content area is captured — content scrolled out of view is not " +
+      "included. Capture can fail or be refused if the admin tab is not currently attached, or if the " +
+      "rendered view is too large to encode within this tool's size budget; either case is reported as " +
+      "a text explanation rather than a partial or corrupted image.",
+    inputSchema: { type: "object", properties: {}, additionalProperties: false },
+    risk: "read",
+    surface: "session",
+  },
+];
 
 /**
  * The full set of capabilities `createFrontendControl` gates and exposes to a run's agent —
@@ -55,4 +105,5 @@ import { CHAT_CAPABILITIES } from "@jini-ai/chat/core";
 export const FRONTEND_CONTROL_CAPABILITIES: readonly CapabilityDef[] = [
   ...PAGE_CAPABILITIES,
   ...CHAT_CAPABILITIES.filter((capability) => capability.requiresConfirmation !== true),
+  ...TOVU_FRONTEND_CAPABILITIES,
 ];

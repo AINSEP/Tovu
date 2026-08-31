@@ -10,7 +10,8 @@ import type { NextFunction, Request, Response } from "express";
  *
  * DELIBERATELY a serve-side fix, not a write-side one: `.svg` and top-level `.html` stay exactly as
  * writable as before this file exists (`explore.ts`'s `isThemeFileWritable`/`TEXT_READABLE_EXTENSIONS`/
- * `ASSET_EXTENSIONS`/`READ_ONLY_GROUPS` are UNCHANGED) — SVGs and HTML partials are legitimate theme
+ * `ASSET_EXTENSIONS`/`CONTENT_EDIT_LOCKED_GROUPS` — renamed from `READ_ONLY_GROUPS` 2026-08-29, same
+ * asset/partial classification either name — are UNCHANGED) — SVGs and HTML partials are legitimate theme
  * assets (owner's "anyone can author themes" position), and this fix removes the actual risk (script
  * execution) without removing the capability (writing/reading real SVG/HTML content). See this
  * function's own doc below for why this is safe for `<img>`/`<link>`/`<script src>` consumption and

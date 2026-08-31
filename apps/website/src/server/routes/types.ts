@@ -22,6 +22,7 @@ import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
 import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
+import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
 import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
 import type { DiscoveredTheme } from "../../features/theme/index.js";
@@ -1149,6 +1150,15 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
    */
   chatHistory: ChatStoreFactory;
+  /**
+   * Per-(conversation, agent) agent-CLI session id (`assistant_agent_sessions`, migration `0051`),
+   * so `agent-daemon-server.ts`'s `onStarted` can resume the underlying CLI session across chat
+   * turns instead of spawning cold every time. Unlike `chatHistory` this is not per-principal
+   * scoped: the daemon process has no `ChatPrincipal` to scope by (it decodes only `principalId`
+   * from `contextRef`), and a conversation's session id carries no content of its own to protect —
+   * see `assistant/persistence/agent-session-store.ts`.
+   */
+  agentSessions: AgentSessionStore;
   /**
    * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
    * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;

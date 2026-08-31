@@ -129,15 +129,34 @@ function isPublished(post: PostRecord): boolean {
   return post.status === "published";
 }
 
+/**
+ * Pure half of `entryRef` resolution: given a `PostRecord` already in hand, decides its public path
+ * with no repo call of its own. Factored out of {@link resolveEntryRefTarget} (and exported) so a
+ * caller that already holds the record — e.g. `features/post/tool-registrations.ts`'s
+ * `content_post_list`, iterating rows a prior `postRepo.list()` already fetched — can resolve
+ * `publicUrl` without a redundant `postRepo.findById` per row. `resolveEntryRefTarget`/`urlFor`
+ * still call this internally, so a caller resolving by id and a caller resolving from an
+ * already-held record always compute the identical path/canonicalUrl — the one-resolver property
+ * SEO's canonical tags depend on is unchanged.
+ *
+ * @returns `null` for a draft, unpublished, or otherwise non-live row — never a link a visitor
+ * would 404 on.
+ * @complexity O(1).
+ */
+export function entryPublicPath(post: PostRecord, ctx: RouteResolveContext): RouteUrl | null {
+  if (!isPublished(post)) return null;
+  const path = `/${post.slug}`;
+  return { path, canonicalUrl: composeCanonicalUrl(path, ctx) };
+}
+
 async function resolveEntryRefTarget(
   deps: RouteResolverDeps,
   target: EntryRefTarget,
   ctx: RouteResolveContext
 ): Promise<RouteUrl | null> {
   const post = await deps.postRepo.findById({ workspaceId: ctx.workspaceId, id: target.entryId });
-  if (!post || !isPublished(post)) return null;
-  const path = `/${post.slug}`;
-  return { path, canonicalUrl: composeCanonicalUrl(path, ctx) };
+  if (!post) return null;
+  return entryPublicPath(post, ctx);
 }
 
 /**

@@ -38,6 +38,10 @@ function themeWithMenuMarker(pageId: string): DiscoveredTheme {
       tier: "static",
       engine: 1,
       templates: [],
+      // Theme pages are OFF by default (2026-08-30 owner decision): a manifest with no
+      // `publishedPages` publishes nothing. This test is about menu-marker resolution, not the
+      // publish default, so the page under test opts in explicitly.
+      publishedPages: [pageId],
     },
     dir: "/nonexistent/menu-integration-theme",
     tokens: {},

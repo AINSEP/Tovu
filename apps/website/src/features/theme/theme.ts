@@ -223,6 +223,36 @@ export interface ThemeManifest {
    */
   templates?: string[];
   /**
+   * `static` tier only — the allow-list of {@link isPublishableThemePageCandidate} page ids this
+   * theme currently serves publicly (2026-08-30, owner ask: a static theme's public routing was
+   * pure file presence with no draft/unpublished concept at all — the gap an agent worked around by
+   * moving a live page into an invented `_unpublished/` folder and dropping it from `theme.json`,
+   * outside every audited write path. This field is the real mechanism that replaces it).
+   *
+   * **Absent (no recorded decision — applies RETROACTIVELY to every theme on disk, not only ones
+   * touched after this date): off by default.** {@link isStandaloneThemePage} treats every eligible
+   * candidate page as unpublished until a decision is recorded. This reverses this field's own
+   * first-day default (absent originally meant "everything published", for backward compatibility
+   * with pure file-presence routing) per the owner's explicit correction, in their own words: "The
+   * pages are not published by default. They shouldn't be... because then they would have wrong
+   * information because they're generic themes." Only `index`, `404`, and a declared {@link templates}
+   * shell stay live regardless — {@link isPublishableThemePageCandidate} excludes those from this
+   * field's reach entirely; they were never "published", they are structurally load-bearing.
+   *
+   * **Present (a theme where the publish toggle has been used at least once): an explicit allow-list.**
+   * A candidate page id NOT in this array is unpublished, same meaning as the absent case — the array
+   * only ever records what has been turned ON. The publish route (`explore.ts`'s
+   * `registerAdminThemePagePublishRoute`) is the only writer: because the default is already "off",
+   * the first toggle on a theme with no recorded array needs no backfill — it simply starts from an
+   * empty array and applies the one requested change.
+   *
+   * Entries are candidate page ids (`pricing`, matching {@link DiscoveredTheme.pages}' own keys), not
+   * filenames — `index`/`404` and a declared {@link templates} shell can never appear meaningfully
+   * here even if listed: {@link isStandaloneThemePage} excludes them before this array is ever
+   * consulted, the same way it always has.
+   */
+  publishedPages?: string[];
+  /**
    * `static` tier only — the color modes this theme ships token sets for, e.g. `["dark", "light"]`.
    * A mode name is just the value written into the page's root `data-theme` attribute, which is the
    * selector `tokensToRootCss` (`static-render.ts`) already emits its `tokens.light.json` override
@@ -619,6 +649,26 @@ function validateTemplateDeclarations(
 const NON_ROUTABLE_THEME_PAGE_IDS: ReadonlySet<string> = new Set(["index", "404"]);
 
 /**
+ * Whether `pageId` is a page SHAPE {@link isStandaloneThemePage}'s publish check can apply to at all —
+ * every check that predicate makes EXCEPT the publish-state lookup itself: the page exists, isn't
+ * `index`/`404`, and isn't a declared {@link ThemeManifest.templates} shell.
+ *
+ * Split out (2026-08-30) so the publish-toggle UI/route can tell "this isn't a publishable page at
+ * all" (index, 404, a Post/Page template shell, or no such page) apart from "it's a real candidate
+ * page that is currently turned off" — {@link isStandaloneThemePage} answers only the second question
+ * once this one is already true, and re-deriving these same three checks a second time at the route
+ * layer is exactly the drift this predicate's own history already warns against once (see that
+ * function's own doc for the pre-2026 duplication this file fixed).
+ *
+ * @complexity O(t) over `manifest.templates`' length — 0–3 entries on every real theme on disk.
+ */
+export function isPublishableThemePageCandidate(theme: DiscoveredTheme, pageId: string): boolean {
+  if (theme.pages[pageId] === undefined) return false;
+  if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId)) return false;
+  return !(theme.manifest.templates ?? []).some((entry) => entry.replace(/\.html$/, "") === pageId);
+}
+
+/**
  * Whether `pageId` is one of this theme's own standalone, publicly reachable pages — i.e. whether
  * `GET /<pageId>` should render it directly.
  *
@@ -645,12 +695,22 @@ const NON_ROUTABLE_THEME_PAGE_IDS: ReadonlySet<string> = new Set(["index", "404"
  * (the live route to pick a resolution strategy, the exporter to skip the theme entirely). Gating
  * here too would be a third copy of a guarantee that already holds twice over.
  *
+ * **Publish state (2026-08-30 addition, off-by-default retroactively since the same day).** Once
+ * every {@link isPublishableThemePageCandidate} check passes, this also consults
+ * {@link ThemeManifest.publishedPages} — see that field's own doc for the absent-means-unpublished /
+ * present-means-explicit-allow-list contract. Checked LAST, after every shape check above: a page
+ * that isn't even a candidate is never "unpublished", it simply isn't a publishable page at all.
+ *
  * @complexity O(t) over `manifest.templates`' length — 0–3 entries on every real theme on disk.
  */
 export function isStandaloneThemePage(theme: DiscoveredTheme, pageId: string): boolean {
-  if (theme.pages[pageId] === undefined) return false;
-  if (NON_ROUTABLE_THEME_PAGE_IDS.has(pageId)) return false;
-  return !(theme.manifest.templates ?? []).some((entry) => entry.replace(/\.html$/, "") === pageId);
+  if (!isPublishableThemePageCandidate(theme, pageId)) return false;
+  const { publishedPages } = theme.manifest;
+  // No recorded decision on this theme at all — off by default (2026-08-30 owner correction,
+  // applied retroactively to every theme, not only ones touched after this date). See
+  // `ThemeManifest.publishedPages`'s own doc for the full history and the owner's own reasoning.
+  if (publishedPages === undefined) return false;
+  return publishedPages.includes(pageId);
 }
 
 /**
@@ -745,6 +805,7 @@ function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeMan
     // retired spelling simply loads with no templates, same as one that never declared any —
     // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
     templates: parseOptionalStringArray(raw.templates),
+    publishedPages: parseOptionalStringArray(raw.publishedPages),
     modes: parseOptionalStringArray(raw.modes),
     defaultMode: parseOptionalString(raw.defaultMode),
     slots: parseSlots(raw.slots),

@@ -22,6 +22,7 @@ import {
   registerAdminThemeFileRenameRoute,
 } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 
 /**
  * @file Branch coverage for the two gates every one of the six routes runs BEFORE its own logic:
@@ -67,6 +68,9 @@ function buildTestApp(
     authorize,
     themes,
     themesDir,
+    // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
+    // empty in-memory repo, matching this fixture's lack of any posts to collide with.
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
 
   const app = express();

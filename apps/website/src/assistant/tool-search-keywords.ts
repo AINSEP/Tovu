@@ -142,10 +142,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   widgets_list_instances: "widget widgets list existing placed blocks",
 
   // --- theme ---------------------------------------------------------------------------------------
-  theme_write_file: "theme stylesheet css template edit change design code file",
+  theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file",
+  theme_edit_file: "theme stylesheet css template edit change design code file one line small change patch replace single word snippet section",
   theme_read_file: "theme stylesheet css template view read design code file",
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
+  theme_rename_file: "theme file rename renaming move name change filename css template stylesheet",
 
   // --- database ------------------------------------------------------------------------------------
   database_get_health: "database health healthy status ok working check diagnose",
@@ -172,6 +174,22 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- plugins -------------------------------------------------------------------------------------------
   plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
   plugins_list: "plugin plugins extensions installed available list",
+
+  // --- interactive-UI component catalog -----------------------------------------------------------------
+  search_components: "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
+  describe_component: "component props properties schema fields interactive ui widget render rendering",
+
+  // --- ask the administrator a question -----------------------------------------------------------------
+  assistant_ask_choice:
+    "ask question decide decision confirm confirmation choose choice choices options option select " +
+    "single multi checklist checkbox radio approve approval permission go-ahead consent which one " +
+    "poll survey form dialog interactive get input from user administrator before doing proceed",
+
+  // --- agent-driven admin screen capture --------------------------------------------------------------
+  "admin.capture_screenshot":
+    "screenshot screenshots screen capture picture image photo see view look looks looking visual visually appearance " +
+    "layout broken cramped misaligned overlapping clipped cut off ugly render rendering rendered how does this look " +
+    "what does this look like show me the screen check the ui verify visually",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by

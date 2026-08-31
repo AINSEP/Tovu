@@ -16,6 +16,7 @@ import {
   registerAdminThemeFileResetRoute,
 } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
+import { InMemoryPostRepo } from "#src/features/post/index";
 
 /**
  * @file FIX VERIFICATION (2026-08-12 follow-up to the owner-reported `.liquid` preview bug): `.liquid`
@@ -29,7 +30,8 @@ import type { ContentRouteDeps } from "../../content/deps.js";
  * entry point (narrowed one side of a check, the other side still admitted it — see
  * `explore-svg-xss.test.ts`'s own header for that history). Team-lead's ask: don't accept "the
  * extension set is only read by `isTextReadable`, and `isThemeFileWritable`'s OTHER two conditions
- * (`READ_ONLY_GROUPS`, `isGeneratedThemePath`) still gate it" as a read of the code — hand-construct a
+ * (`CONTENT_EDIT_LOCKED_GROUPS`, renamed from `READ_ONLY_GROUPS` 2026-08-29, and `isGeneratedThemePath`)
+ * still gate it" as a read of the code — hand-construct a
  * real PUT and a real reset against a `.liquid` path through the actual Express routes and observe
  * what happens. This is that empirical check, not a restatement of the reasoning.
  *
@@ -79,6 +81,9 @@ function buildTestApp(themesDir: string): express.Express {
     authorize: async () => ({ allowed: true, reason: "matched" }),
     themes,
     themesDir,
+    // The detail route now does one `postRepo.list()` per request (slug-collision signal) — an
+    // empty in-memory repo, matching this fixture's lack of any posts to collide with.
+    postRepo: new InMemoryPostRepo(),
   } as unknown as ContentRouteDeps;
 
   const app = express();
