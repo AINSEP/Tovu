@@ -234,6 +234,57 @@ test("admin forms routes: behavior.spec.md §1.1 — a PUT body containing slug 
   assert.equal(updated.data.name, "Renamed");
 });
 
+test("admin forms routes: ui-fixes-backlog.md #8 — GET resolves by slug, and an old id-based bookmark still resolves too", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      name: "Contact",
+      slug: "contact-us",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }],
+    }),
+  });
+  const created = (await createRes.json()) as { data: { id: string; slug: string } };
+
+  const bySlug = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/contact-us`, { headers: { cookie } });
+  assert.equal(bySlug.status, 200);
+  const bySlugBody = (await bySlug.json()) as { data: { id: string; name: string } };
+  assert.equal(bySlugBody.data.id, created.data.id);
+  assert.equal(bySlugBody.data.name, "Contact");
+
+  const byId = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${created.data.id}`, {
+    headers: { cookie },
+  });
+  assert.equal(byId.status, 200);
+  const byIdBody = (await byId.json()) as { data: { slug: string } };
+  assert.equal(byIdBody.data.slug, "contact-us");
+});
+
+test("admin forms routes: the slug 'new' is reserved (would collide with the admin create-form URL) and is rejected on create", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      name: "New",
+      slug: "new",
+      fields: [{ id: "name", label: "Name", type: "text", required: true }],
+    }),
+  });
+  assert.equal(createRes.status, 400);
+  const body = (await createRes.json()) as { code: string };
+  assert.equal(body.code, "FORMS_FIELD_VALIDATION_ERROR");
+
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/forms`, { headers: { cookie } });
+  const listed = (await listRes.json()) as { data: unknown[] };
+  assert.equal(listed.data.length, 0);
+});
+
 test("admin forms routes: behavior.spec.md §1.2 — an update patch omitting an existing field id is rejected", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

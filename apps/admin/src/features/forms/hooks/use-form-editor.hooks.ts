@@ -140,7 +140,15 @@ export function useFormEditor(
   // `invalidates` names only the sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`.
   const updateMutation = useFetchMutation({
     run: (input: { name: string; fields: AdminFormField[]; notify: AdminFormNotify }) =>
-      port.updateForm({ id: props.formId }, input),
+      // Targets the loaded record's real id, never `props.formId` directly — the admin URL now
+      // carries the form's slug when one resolves (ui-fixes-backlog.md #8), so `props.formId` may
+      // itself BE that slug. `form.id` is always the real id regardless of which one the URL held,
+      // which is what lets the PUT route stay id-only (no matching slug support needed — see
+      // `get-by-id.ts`'s own comment on why only the GET route resolves either). The `?? props
+      // .formId` fallback only matters if this ever fired before `form` loaded, which it can't:
+      // `FormEditor.tsx`'s `!isNew && !form` guards keep the whole editor (Save button included)
+      // off-screen until `form` is set.
+      port.updateForm({ id: form?.id ?? props.formId }, input),
     invalidates: [KEYS.list],
   });
   const createMutation = useFetchMutation({
@@ -158,7 +166,9 @@ export function useFormEditor(
     try {
       if (isNew) {
         const created = await createMutation.mutate({ name, slug, fields, notify: notifyPayload });
-        navigate(`/forms/${created.data.id}`);
+        // Slug, not id — see this hook's own file header / `get-by-id.ts` for the id-or-slug
+        // resolution this now lands on (ui-fixes-backlog.md #8).
+        navigate(`/forms/${created.data.slug}`);
       } else {
         // Set directly from the write's own response — `updateMutation` doesn't invalidate this
         // hook's own `KEYS.form(id)` read (see the mutations' own comment above), so there is no

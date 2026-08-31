@@ -46,6 +46,17 @@ export const SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const MIN_NAME_LENGTH = 1;
 export const MAX_NAME_LENGTH = 200;
 
+/** Route sentinel the admin Forms editor reserves for its create-mode URL (`panels.tsx`'s forms
+ *  route; `FormEditor.tsx`'s `formId === "new"` guard). Once the admin GET route resolves a form
+ *  by slug before falling back to id (ui-fixes-backlog.md #8, `get-by-id.ts`), a form actually
+ *  slugged "new" would be permanently unreachable at its own URL — it would always render the
+ *  blank create form instead of loading the saved one. Rejected here, the one place a slug is
+ *  ever chosen (creation only; slug is immutable after — see `updateFormDefinition` below, which
+ *  never re-validates a slug against this set since it always re-passes back `existing.slug`),
+ *  rather than guarded in the admin UI alone — `agent-tools.ts`'s `createForm` tool writes through
+ *  this same function and has no UI layer to catch it first. */
+const RESERVED_SLUGS = new Set(["new"]);
+
 function defaultNotify(): NotifyConfig {
   return { enabled: false, recipients: [] };
 }
@@ -77,6 +88,11 @@ function validateNameAndSlug(name: string, slug: string): void {
   if (!SLUG_PATTERN.test(slug)) {
     throw new FormFieldValidationError("slug must match ^[a-z0-9][a-z0-9-]{0,63}$", [
       { field: "slug", reason: "must match ^[a-z0-9][a-z0-9-]{0,63}$" },
+    ]);
+  }
+  if (RESERVED_SLUGS.has(slug)) {
+    throw new FormFieldValidationError(`slug '${slug}' is reserved`, [
+      { field: "slug", reason: `'${slug}' is reserved for the admin editor's own URL` },
     ]);
   }
 }

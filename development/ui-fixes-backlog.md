@@ -30,6 +30,14 @@ desynchronise from their numbers.
 files (`plugin.json`, `.ts`) are often genuinely better unwrapped; prose markdown is better
 wrapped. A wrap/no-wrap toggle in the pane header may be the better answer than forcing either.
 
+**Status: DONE 2026-08-31.** Jini's `CodeWithLines` renders gutter and code as two independent
+`pre` blocks kept aligned only because neither wraps, so wrapping it would desync every later line
+number. Jini was off-limits, so a local `WrappedFileContent` renderer was added using one CSS grid
+row per source line (`.code-viewer--wrap`, `minmax(0, 1fr)` rather than `minmax(max-content, ...)`)
+— a wrapped line's row grows and its number grows with it, making desync structurally impossible.
+Resolved as a per-file TOGGLE defaulting on for `.md` and off for code, placed outside the `<h3>`
+so the existing exact-heading-name assertion still holds.
+
 ---
 
 ## 2. Agent reply bubbles still use the grey surface token
@@ -48,6 +56,12 @@ User bubbles use `--accent` for the same separation purpose.
 
 **Decision needed from the owner:** leave the bubbles subtly grey against the white pane, or
 flatten them and add a border/shadow to preserve the distinction some other way.
+
+**Status: DONE 2026-08-31.** Flattened to `var(--surface)` and given `1px solid var(--border)` +
+`var(--shadow-sm)` — reusing the existing `.card`/`.notice` border+shadow idiom rather than a new
+treatment. All three tokens are already redefined under `:root[data-theme="dark"]`, so no separate
+dark rule was needed. User bubbles keep their `--accent` fill, so the user/agent distinction
+survives in both themes.
 
 ---
 
@@ -118,7 +132,13 @@ gold → amber) so the beam still reads as animated rather than a flat static bo
 flat colour may make the motion invisible and lose the effect entirely. Worth confirming with
 the owner, or building the gradient variant and showing it.
 
-**Status: QUEUED — do not start. Owner is collecting more UI items for a single batched pass.**
+**Status: DONE 2026-08-31.** Winning rule confirmed as `.theme-card.active::before`
+(`styles.css:2008`, sole definition, no dark override existed). Mechanism kept exactly — same
+conic-gradient rotation, `@property` angle, mask-composite, same four angle stops. Only colours
+changed, to new `--border-beam-gold-1/2/3` tokens (pale -> deep -> amber) defined in both themes.
+Deliberately NOT reused `--warning`: that token is semantic and could be retuned for contrast
+independently of a decorative beam. Gold-1 repeats as the final stop so the sweep tapers
+pale->deep->amber->pale into the transparent trail instead of cutting from amber to nothing.
 
 ---
 
@@ -166,3 +186,151 @@ design category, not this idiom.
 **Also resolved:** the grey edge on the ordinary Workspace card was NOT a separate accent rule.
 `.card` (styles.css:795) is a plain uniform `1px solid var(--border)` on all four sides plus
 `--shadow-sm`; no left-specific override exists. The screenshot was just the normal border+shadow.
+
+---
+
+## 7. Clean out the dummy form definitions
+
+**Reported:** 2026-08-31, owner, from `/admin/forms`. His read: "I think they're just dummy forms."
+
+**Full inventory** — 9 definitions exist, ALL with status `active` (queried from
+`sites/tovu-com/content.db`, `form_definitions`):
+
+| slug | name | created |
+|---|---|---|
+| `contact-us` | Contact Us | 2026-07-30 |
+| `newsletter-signup` | Newsletter Signup | 2026-07-30 |
+| `feedback` | Feedback | 2026-07-30 |
+| `bug-report` | Bug Report | 2026-07-30 |
+| `canary-contact-form` | Canary Contact Form | 2026-07-31 |
+| `canary-lookup-test` | Canary Lookup Test | 2026-07-31 |
+| `coffee-club-signup` | Coffee Club Signup | 2026-08-22 |
+| `bramblewick-coffee-club-signup` | Bramblewick Coffee Club Signup | 2026-08-22 |
+| `nettlefold-coffee-club-signup` | Nettlefold Coffee Club Signup | 2026-08-22 |
+
+**Two facts that de-risk this, both verified rather than assumed:**
+
+1. **Every one of them has ZERO submissions.** Joined `form_submissions` on `form_definition_id`
+   across all 9 — all zero. So deleting destroys no submitted data. NOTE: the numeric column in
+   the admin list (showing 1 and 3) is therefore NOT a submission count — almost certainly a
+   FIELD count. Do not read it as "3 people submitted this."
+2. **No slug is referenced anywhere in `apps/**` or `development/**`** — grepped all four
+   coffee-club/canary slugs across `.ts`, `.tsx`, `.mjs`, `.json`. Zero hits. So no test or
+   fixture appears to depend on them by slug.
+
+**The one thing to check before deleting anything:** the two `canary-*` entries are named like
+deliberate probes, not demo content. A canary that nothing references by slug may still be
+reached by a test that looks up "the first active form" or similar, and this repo has a known
+precedent of something that LOOKED dead being a live fixture (`src/theme-archive`). Confirm the
+canaries are not load-bearing before removing them — the four dated 07-30 and the three
+coffee-club ones are much safer bets.
+
+**Also worth deciding:** whether Tovu should ship ANY seeded form definitions on a fresh install.
+If these came from seed data rather than manual creation, deleting them from this DB fixes only
+this machine and they will reappear on the next fresh install — the real fix would be in the
+seeder.
+
+**Status: DONE 2026-08-31.** All 9 rows deleted; table empty. The two `canary-*` rows were PROVEN
+unused rather than left on caution: the only code referencing those slugs is a dispatch test running
+against `InMemoryFormDefinitionRepo`, which has no connection to the on-disk DB. The `posts` table
+and `content/` theme files were also swept for all 9 ids and slugs — zero hits. Confirmed hand-made,
+NOT seeded (no seed file touches `form_definitions`, and `sites/*` is gitignored), so they will not
+return on a fresh install and no seeder fix is needed.
+
+**Restore:** full INSERT SQL for all 9 rows saved to the session scratchpad as
+`form_definitions_restore.sql` — replay with `sqlite3 sites/tovu-com/content.db < <file>`.
+
+**Noted:** `features/forms/agent-tools.ts:239` documents INV-08 — "a form definition is never
+permanently deleted, and no tool can delete one." This was an out-of-band SQL delete the app itself
+would never perform. Acceptable for unreachable dummy rows with zero submissions; do NOT repeat it
+against real data.
+
+---
+
+## 8. Form editor URL uses a raw UUID instead of the slug
+
+**Reported:** 2026-08-31, owner, from the form editor.
+
+**Symptom:** the URL is `localhost:5173/admin/forms/6eb1ec19-67cb-4df6-9baf-b157a3718db7`.
+Owner: it "should be a slug in the URL rather than that twenty character monstrosity." Expected
+shape: `/admin/forms/contact-us`.
+
+**Where:** route registration in `apps/admin/src/panels.tsx` (the `forms` panel, ~line 300) and
+`apps/admin/src/features/forms/` (`FormsList.tsx` builds the link, `FormEditor.tsx` reads the
+param — its header notes `formId === "new"` is the create case, so whatever replaces the id must
+keep that sentinel working).
+
+**Design questions to settle before implementing — this is not a pure find-and-replace:**
+- Slugs are user-editable (the editor has a SLUG field). Changing a slug would therefore change
+  the URL and break any bookmark or open tab. Decide whether to accept that, redirect old → new,
+  or keep the id as a canonical fallback the route still resolves.
+- The lookup path changes from "get by id" to "get by slug" — confirm the admin API supports
+  fetching a definition by slug, or the route will need a client-side list lookup first.
+- Slug uniqueness must be guaranteed at the DB/service level if it becomes the URL key. Verify
+  there is a unique constraint on `form_definitions.slug` before relying on it.
+- Precedent: check how other admin screens with user-facing identifiers (Pages, Posts, Themes)
+  already handle id-vs-slug in their URLs and follow whichever pattern is established rather
+  than inventing a third.
+
+**Status: DONE 2026-08-31.** The bookmark-breaking risk this entry worried about turned out not to
+exist: the slug input is `disabled={!isNew}` and `write-service.ts` documents that "slug is never
+accepted from a patch; it is always ignored", so slugs are IMMUTABLE after creation and a
+slug-based URL can never go stale. No redirect logic needed.
+
+Implemented as slug-first / id-second resolution on GET (mirroring Pages'
+`getAdminPostByIdOrSlug`), with WRITES staying id-only — Pages' own hook documents "every write
+uses `page.id`, never `routeSlug`", so the PUT route needed no change. The unique constraint
+`form_definitions_workspace_slug_unique` already existed.
+
+**A novel collision was found and fixed at the source:** with the slug as URL key, a form slugged
+"new" would collide with the `formId === "new"` create sentinel and become permanently unreachable
+by direct URL. Forms is the first screen combining a `/new` sentinel with a user-chosen slug key
+(Pages has no `/new` URL; Menus/Widgets use UUIDs). "new" is now a RESERVED_SLUG rejected at create
+time in `write-service.ts`, which also covers the agent-facing `createForm` tool.
+
+---
+
+## 9. Form fields table is clipped when the assistant dock is open, with no scroll
+
+**Reported:** 2026-08-31, owner, with two screenshots (dock closed vs dock open).
+
+**Symptom:** with the assistant dock open, the fields table's right-hand columns are cut off —
+the `Remove` buttons are sliced vertically — and **it cannot be scrolled horizontally to reach
+them.** Owner: "I can't really scroll to the right to see it. It doesn't allow scrolling, because
+the AI agent is open." With the dock closed the same table fits.
+
+**Important starting point — a fix for this already exists and is being defeated.**
+`apps/admin/src/features/forms/FormEditor.tsx`'s own header comment (~lines 26-29) records that
+the fields table "had no horizontal-scroll escape hatch for its many columns" and that a
+`.table-scroll` wrapper plus `styles/forms.css` were added for precisely this. So the wrapper is
+present; something is stopping it working at dock-open widths. Do not re-add a scroll wrapper —
+find why the existing one does not engage.
+
+**Leading hypothesis (unverified):** the same comment says the table uses `table-layout: fixed`
+with **percentage** column widths. A percentage-width fixed-layout table always sizes to its
+container rather than overflowing it, so `.table-scroll` never gets any overflow to scroll —
+instead the columns are crushed and their contents clip. If so, the fix is a `min-width` on the
+table (in px/ch) so it genuinely overflows and hands the wrapper something to scroll, not a
+change to the wrapper.
+
+**Second candidate:** an ancestor with `overflow: hidden` swallowing the scroll — the same class
+of bug just fixed in the composer discovery menu, where `.jini-chat-pane__body`'s unconditional
+`overflow: hidden` clipped an absolutely-positioned child. `.admin-chat-dock` also sets
+`overflow: hidden`. Rule this in or out before changing anything.
+
+**Test at the narrow width specifically.** This is invisible with the dock closed. Related known
+trap in this repo: always test the SHORTEST/narrowest viewport, not the comfortable one.
+
+**Status: DONE 2026-08-31.** Leading hypothesis CONFIRMED, second candidate ruled out with evidence.
+`table-layout: fixed` + percentage `<colgroup>` widths means the table always sizes to exactly 100%
+of its container and can never exceed `.table-scroll`, so that wrapper never receives any overflow
+to scroll — the columns just crush proportionally, worst on the 8% Req/More and 18% Remove columns.
+The `overflow: hidden` theory was disproved: `.admin-chat-dock` is a SIBLING of `.admin-main-col`,
+never a DOM ancestor of `.table-scroll`, so it cannot clip it.
+
+Fixed with `min-width: 720px` on `.form-fields-table`, sized off the tightest columns, giving the
+existing wrapper real overflow to scroll. No wrapper change.
+
+**Caveat: not visually verified in a browser.** `apps/admin/vitest.config.ts` sets `css: false`, so
+jsdom applies no real CSS and no automated layout regression test is possible. Worth one manual
+check at dock-open narrow width.

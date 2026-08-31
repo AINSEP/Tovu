@@ -85,6 +85,17 @@
   --warning:    oklch(50% 0.15 80);  /* ~#8E5500 — 6.09:1 vs white */
   --warning-bg: oklch(95% 0.035 80);
 
+  /* Active theme card border-beam gold (item 5, 2026-08-31 — replaces the beam's original
+     pink/purple/blue/cyan rainbow). Three stops, not one flat color: a single gold reads as a
+     static outline once the rainbow's hue-cycling is gone, since nothing else in the sweep
+     changes — these keep real lightness/chroma separation within the gold family so the motion
+     still reads. Distinct from `--warning`/`--warning-bg` deliberately: that pair is semantic
+     (alert states) and could shift independently for contrast reasons later, which would
+     silently retune this purely decorative beam if it borrowed the same tokens. */
+  --border-beam-gold-1: oklch(88% 0.10 85);  /* pale gold */
+  --border-beam-gold-2: oklch(72% 0.15 75);  /* deep gold */
+  --border-beam-gold-3: oklch(58% 0.16 55);  /* amber */
+
   --font-display: 'Space Grotesk', system-ui, sans-serif;
   --font-ui:      'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --font-mono:    'JetBrains Mono', ui-monospace, Menlo, monospace;
@@ -164,6 +175,14 @@
   --danger-bg: oklch(50% 0.12 25 / 0.22);
   --warning:    oklch(76% 0.13 82);
   --warning-bg: oklch(50% 0.09 82 / 0.22);
+
+  /* Brighter than the light-theme gold stops, same relationship the `--warning`/`--primary` dark
+     blocks above already use: a fill tuned against white paper reads muddy/low-contrast against
+     `--surface`'s near-black, so lightness (and chroma, to avoid looking washed out) goes up
+     rather than reusing the light-mode values unchanged. */
+  --border-beam-gold-1: oklch(94% 0.08 90);  /* pale gold */
+  --border-beam-gold-2: oklch(82% 0.14 78);  /* deep gold */
+  --border-beam-gold-3: oklch(68% 0.16 58);  /* amber */
 }
 
 * { box-sizing: border-box; }
@@ -2010,9 +2029,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   /* Lighter (owner feedback, 2026-08-09): opacity on the whole layer rather than paler individual
      stops — keeps the same hues/contrast between colors, just softer against the card overall. */
   opacity: 0.6;
+  /* Gold beam (item 5, 2026-08-31): was a pink/purple/blue/cyan rainbow sweep, same 4-stop
+     arc/angles — only the colors changed, reusing `--border-beam-gold-1` as both the first and
+     last stop so the sweep tapers pale -> deep -> amber -> pale into the transparent trail rather
+     than cutting from amber straight to nothing. */
   background: conic-gradient(from var(--border-beam-angle),
     transparent 0deg, transparent 260deg,
-    #ff5f6d 282deg, #ffc371 306deg, #4facfe 330deg, #a855f7 354deg,
+    var(--border-beam-gold-1) 282deg, var(--border-beam-gold-2) 306deg, var(--border-beam-gold-3) 330deg, var(--border-beam-gold-1) 354deg,
     transparent 360deg);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
@@ -3396,9 +3419,26 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .agent-plugin-source-files button:hover,
 .agent-plugin-source-files button[aria-pressed="true"] { color: var(--fg); background: var(--surface); border-color: var(--border); opacity: 1; }
 .agent-plugin-source-content { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; }
-.agent-plugin-source-content h3 {
-  margin: 0; padding: var(--space-3) 4rem var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--border); font: 600 var(--text-sm)/1.4 var(--font-mono); overflow-wrap: anywhere;
+/* Header bar: title + the wrap toggle (item 1, 2026-08-31). The padding/border that used to sit
+   directly on the bare `h3` now live on this row instead, so the toggle shares the same bar rather
+   than stacking under the title; the 4rem right padding is still reserved space for the modal's
+   absolutely-positioned fullscreen toggle (`[data-preview-modal-stage-fullscreen]`), which floats
+   over this corner of the pane regardless of which view is showing. */
+.agent-plugin-source-content-header {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
+  padding: var(--space-3) 4rem var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+.agent-plugin-source-content-header h3 {
+  margin: 0; min-width: 0; font: 600 var(--text-sm)/1.4 var(--font-mono); overflow-wrap: anywhere;
+}
+.agent-plugin-source-content-header button {
+  flex-shrink: 0; padding: 4px 10px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: var(--surface-2); color: var(--fg-2); font-size: 12px; cursor: pointer;
+}
+.agent-plugin-source-content-header button:hover { border-color: var(--border-strong); }
+.agent-plugin-source-content-header button[aria-pressed="true"] {
+  color: var(--fg); background: var(--surface); border-color: var(--accent);
 }
 .agent-plugin-source-content .code-viewer {
   display: grid; grid-template-columns: auto minmax(max-content, 1fr);
@@ -3409,6 +3449,24 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .agent-plugin-source-content .code-viewer .gutter {
   position: sticky; left: 0; text-align: right; user-select: none;
   color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+/* Wrap mode (item 1): one grid row per source line instead of `CodeWithLines`'s two monolithic
+   `pre` blocks — see `WrappedFileContent` in `AgentPluginDetailsModal.tsx` for why the two-block
+   layout can't wrap without desyncing the gutter. `minmax(0, 1fr)` here (not the base rule's
+   `minmax(max-content, 1fr)`) is the load-bearing change: `max-content` sizes the column to the
+   widest *unwrapped* line, which would defeat wrapping outright. Vertical padding moves to the grid
+   container itself, since CSS Grid applies container padding once around every row, not per cell —
+   putting it on `.line-number`/`.line-content` instead would pad every single line. */
+.agent-plugin-source-content .code-viewer--wrap {
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: var(--space-4) 0;
+}
+.agent-plugin-source-content .code-viewer--wrap .line-number {
+  position: sticky; left: 0; text-align: right; user-select: none; padding: 0 var(--space-3);
+  color: var(--faint); background: var(--surface-2); border-right: 1px solid var(--border);
+}
+.agent-plugin-source-content .code-viewer--wrap .line-content {
+  padding: 0 var(--space-4); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 
 @media (max-width: 720px) {

@@ -30,7 +30,20 @@ export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {
         return;
       }
 
-      const definition = await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: formId });
+      // Admin URLs use the slug when one resolves (ui-fixes-backlog.md #8 — the raw id was
+      // unreadable in the URL bar); this route accepts either so an old id-based bookmark/link
+      // keeps working. Slug first, id second — same order and rationale as posts' own
+      // `getAdminPostByIdOrSlug` (`src/features/post/post.ts`): the slug is the handle a human
+      // chose and reads, the id is an implementation detail they never did. Inlined rather than
+      // promoted to a shared helper — forms carry no trash concept (unlike posts) and this is the
+      // only caller; every WRITE below resolves through the loaded record's real `.id` instead of
+      // this route param, so the PUT route needs no matching id-or-slug support (see
+      // `use-form-editor.hooks.ts`'s own comment on its update mutation).
+      const bySlug = await deps.formDefinitionRepo.findBySlug({
+        workspaceId: deps.workspaceId,
+        slug: formId.trim().toLowerCase(),
+      });
+      const definition = bySlug ?? (await deps.formDefinitionRepo.findById({ workspaceId: deps.workspaceId, id: formId }));
       if (!definition) {
         res.status(404).json({ error: `form definition '${formId}' was not found`, code: "FORMS_DEFINITION_NOT_FOUND" });
         return;

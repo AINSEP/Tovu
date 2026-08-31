@@ -45,7 +45,9 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
   // same shape as `Redirects.tsx`'s `if (saving) return;`.
   function rowMenuItems(form: AdminFormDefinition): RowMenuItem[] {
     return [
-      { key: "edit", label: t("Edit"), onSelect: () => navigate(`/forms/${form.id}`) },
+      // Slug, not id — the admin URL reads `/admin/forms/<slug>` (ui-fixes-backlog.md #8); the GET
+      // route still resolves an id too, so this is not a behavior change for any existing bookmark.
+      { key: "edit", label: t("Edit"), onSelect: () => navigate(`/forms/${form.slug}`) },
       {
         key: "toggle-status",
         label: form.status === "active" ? t("Disable") : t("Enable"),
@@ -109,7 +111,7 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
             header: t("Name"),
             cell: (form, index) => (
               <a
-                href={`/admin/forms/${form.id}`}
+                href={`/admin/forms/${form.slug}`}
                 {...agentHandle(`${rowHandles[index]}-edit`, {
                   role: "link",
                   label: "Open this form's editor",
