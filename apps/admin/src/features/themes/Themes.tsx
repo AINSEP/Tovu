@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 
-import { type PresentationSettings } from "../../lib/api";
+import { type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
@@ -126,6 +126,40 @@ export interface ThemesProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useThemesHook?: typeof useWiredThemes;
+  /**
+   * The `?tab=` query value from `panels.tsx`'s `themes`/`appearance` routes (`URLSearchParams.get`
+   * returns `null` when the param is absent) — ADR-063, same `?tab=` deep-linking idiom
+   * `Deployment.tsx`'s `tabId` prop already uses. `null` or an unrecognized value falls back to the
+   * active theme's own tab group, same behavior this screen had before this prop existed (see
+   * {@link resolveActiveTabId}).
+   */
+  tabId?: string | null;
+  /**
+   * Which panel route mounted this screen — `panels.tsx` declares `Themes` at two URLs, `/themes`
+   * (default) and the legacy nav-less `/appearance` alias. Threaded through so a tab click's
+   * `navigate()` targets the URL the operator is actually on, instead of always jumping to
+   * `/themes` regardless of which route rendered this component.
+   */
+  basePath?: string;
+}
+
+/**
+ * Falls back to the active theme's own tab group for an absent or unrecognized `?tab=` value — same
+ * "don't trust a raw query value" guard `Deployment.tsx`'s `resolveActiveTabId` applies, so a stale
+ * link or typo opens on a sensible tab instead of a blank grid (an unrecognized id would otherwise
+ * flow into `grouped[activeTab]`, which is `undefined` for anything but a real {@link ThemeTabGroup}
+ * or {@link MARKETPLACE_TAB_ID}).
+ *
+ * @complexity Time/space: O(1) — fixed-size id list (four tab groups + Marketplace), not
+ * caller-controlled.
+ */
+function resolveActiveTabId(
+  tabId: string | null | undefined,
+  settings: PresentationSettings,
+  themeTiers: Record<string, ThemeTier>,
+): string {
+  const validTabIds: readonly string[] = [...THEME_TAB_GROUPS, MARKETPLACE_TAB_ID];
+  return tabId && validTabIds.includes(tabId) ? tabId : defaultThemeTabGroup(settings, themeTiers);
 }
 
 /**
@@ -346,7 +380,12 @@ function ThemeGrid({
   );
 }
 
-export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
+// `tabId` deliberately has no destructured default (unlike `useThemesHook`/`basePath` below) — this
+// package's ESLint `complexity` rule counts each default-parameter assignment as a branch, and this
+// screen was already at its ceiling. `resolveActiveTabId` already treats an omitted prop
+// (`undefined`) the same as an explicit `null` (its `tabId && ...` check is falsy either way), so a
+// third default here would cost a complexity point for zero behavioral benefit.
+export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes" }: ThemesProps) {
   const {
     settings,
     themes,
@@ -365,19 +404,6 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
     download,
     t,
   } = withThemeDefaults(useThemesHook());
-  // Manual override once the operator picks a tab; `null` means "not yet touched", so the tab
-  // shown on load tracks the active theme's own tab group (`defaultThemeTabGroup`) without a
-  // mount-time effect — same derived-value-with-override shape as `useSettingsDialogShell`'s own
-  // active tab. Typed as plain `string` (not `ThemeTabGroup`) because the Marketplace tab's id is
-  // not a tab group — it lists what is installable rather than what is installed.
-  //
-  // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
-  // 2026-08-14 DI migration sweep). No I/O, and `Themes.unit.test.tsx`'s "switches the visible
-  // cards when a different tab is clicked" test asserts this through a REAL click against a static
-  // `useThemesHook` fake (`() => baseController({…})`), which has no way to carry live state — same
-  // reasoning as `ThemeCardPreview`'s `stage`/`expanded` above and `ThemeExplore.tsx`'s
-  // `device`/`fullscreen`.
-  const [manualTab, setManualTab] = useState<string | null>(null);
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
   // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
@@ -388,7 +414,11 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
   }
 
   const grouped = groupThemesByTabGroup(themes, themeTiers);
-  const activeTab = manualTab ?? defaultThemeTabGroup(settings, themeTiers);
+  // Derived straight from the `?tab=` prop (ADR-063) — no local `useState` override anymore.
+  // `resolveActiveTabId` folds in the same "fall back to the active theme's own tab group" default
+  // `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and additionally
+  // guards against an unrecognized/stale query value (see that function's own doc).
+  const activeTab = resolveActiveTabId(tabId, settings, themeTiers);
   // `?? []` is load-bearing now. It used to be safe to index directly because the Marketplace tab
   // was `disabled`, so `activeTab` provably named a real `ThemeTabGroup`. Enabling that tab made
   // `MARKETPLACE_TAB_ID` reachable here, and `grouped["marketplace"]` is `undefined` — the branch
@@ -432,7 +462,10 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
         tabs={buildThemeTabs(t, grouped, marketplace)}
         activeId={activeTab}
         onChange={(id) => {
-          setManualTab(id);
+          // Real `navigate()`, not local state (ADR-063) — same idiom Deployment/Database's tab
+          // strips use: `replace: true` so switching tabs updates the deep link without growing
+          // back-button history one entry per click.
+          navigate(`${basePath}?tab=${id}`, { replace: true });
           // Fetched on first open rather than on mount: the Themes screen is the common case and
           // should not pay for a listing most visits never look at.
           if (id === MARKETPLACE_TAB_ID && marketplace.length === 0) void loadMarketplace?.();

@@ -302,7 +302,14 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
-          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="fields" />;
+        case "form-submissions":
+          // Guaranteed present: this view only fires when `/:formId/submissions` matched. Same
+          // `key` as `form-editor` above (both key off `ctx.params.formId`) — switching between
+          // Fields and Submissions for the SAME form is a route change, not a remount, so
+          // in-progress Fields edits survive the round trip (ADR-063). A different `formId`
+          // switching the key IS meant to remount, resetting state for the new form.
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} tab="submissions" />;
         default:
           return <FormsList />;
       }
@@ -318,7 +325,16 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       icon: '<rect x="3" y="2" width="12" height="14" rx="1.5"/><rect x="5.5" y="5.75" width="2" height="2" rx="0.5"/><path d="M9.5 6.75h3.5"/><rect x="5.5" y="10.25" width="2" height="2" rx="0.5"/><path d="M9.5 11.25h3.5"/>',
     },
     agentReachable: true,
-    routes: [{ pattern: "/:formId", view: "form-editor" }],
+    // Longer pattern (2 segments) first, then the bare `/:formId` (1 segment) — same order
+    // `collections` already uses for its own `/:contentTypeKey/:entryId` + `/:contentTypeKey` pair
+    // above. Segment count alone disambiguates them (`matchRoute` tries each in order and keeps the
+    // first whose segment count matches), so `/forms/submissions` — a form literally id'd
+    // "submissions" — still resolves as the ONE-segment form-editor route for that id, not a
+    // truncated two-segment match (ADR-063's own stated edge case).
+    routes: [
+      { pattern: "/:formId/submissions", view: "form-submissions" },
+      { pattern: "/:formId", view: "form-editor" },
+    ],
   },
 
   // --- People ---
@@ -435,7 +451,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
             />
           );
         default:
-          return <Themes />;
+          // `?tab=` picks the initially-active tier tab (Declarative/Static/Templated/Code/
+          // Marketplace) and stays in sync as the operator switches — same `?tab=` convention as
+          // `deployment`'s/`database`'s own entries elsewhere in this file (ADR-063).
+          return <Themes tabId={ctx.query.get("tab")} />;
       }
     },
     routes: [{ pattern: "/explore", view: "theme-explore" }],
@@ -955,7 +974,11 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Routable, no sidebar row (deliberate opt-out — see INFO.md "Adding a new admin section") ---
   {
     id: "appearance",
-    render: () => <Themes />,
+    // Same `?tab=` threading as the `themes` entry above (ADR-063) — `basePath="/appearance"` so a
+    // tab click on THIS alias URL navigates within `/appearance`, not away to `/themes`. Without an
+    // explicit base, `Themes`' tab-switch `navigate()` would default to `/themes?tab=...` and silently
+    // redirect an operator on this legacy alias to the other URL for the identical screen.
+    render: (ctx) => <Themes tabId={ctx.query.get("tab")} basePath="/appearance" />,
     agentReachable: true,
   },
 ];

@@ -75,7 +75,7 @@ afterEach(() => {
 
 describe("driving a new form's field editor through page.* verbs", () => {
   it("page.fill on the name and slug fields reaches React state", async () => {
-    const { container } = renderScreen(<FormEditor formId="new" />);
+    const { container } = renderScreen(<FormEditor formId="new" tab="fields" />);
     await screen.findByRole("heading", { name: "New form" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -91,7 +91,7 @@ describe("driving a new form's field editor through page.* verbs", () => {
     // that first row (`form-field-1-*`) is present from the start — the row this test watches for
     // is the SECOND one `page.click` adds, which starts with no id either and so falls back to its
     // own position (`form-field-2-*`, not a repeat of `-1`) via `buildAgentListHandles`.
-    const { container } = renderScreen(<FormEditor formId="new" />);
+    const { container } = renderScreen(<FormEditor formId="new" tab="fields" />);
     await screen.findByRole("heading", { name: "New form" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 
@@ -113,7 +113,7 @@ describe("driving a new form's field editor through page.* verbs", () => {
   });
 
   it("page.select_option to \"checkbox\" removes that row's max-length handle from the next find_elements", async () => {
-    const { container } = renderScreen(<FormEditor formId="new" />);
+    const { container } = renderScreen(<FormEditor formId="new" tab="fields" />);
     await screen.findByRole("heading", { name: "New form" });
     const driver = createDomPageDriver({ root: container, pages: {} });
 

@@ -104,7 +104,6 @@ const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?
   { id: "redirects", component: Redirects },
   { id: "newsletter", component: Placeholder, extraProps: { sectionId: "newsletter" } },
   { id: "analytics", component: Analytics },
-  { id: "appearance", component: Themes },
 ];
 
 describe.each(SIMPLE_PANELS)("panel '$id'", ({ id, component, extraProps }) => {
@@ -122,6 +121,10 @@ const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["source-control", SourceControl],
   ["access-tokens", Security],
   ["settings", SettingsUi],
+  // The nav-less `/appearance` alias for the SITE-themes screen (ADR-063) — its render has no
+  // `ctx.view` switch of its own (unlike `themes` below, which also handles `theme-explore`), so it
+  // fits this generic table even though it renders the same `Themes` component `themes` does.
+  ["appearance", Themes],
 ];
 
 describe.each(TAB_THREADED_PANELS)("panel '%s' — ?tab= threading", (id, component) => {
@@ -243,16 +246,41 @@ describe("panel 'forms'", () => {
     expect((panel("forms").render(ctx()) as ReactElement).type).toBe(FormsList);
   });
 
-  it("form-editor view renders FormEditor with formId", () => {
+  it("form-editor view (/:formId) renders FormEditor with formId, tab: 'fields', keyed by formId", () => {
     const el = panel("forms").render(ctx({ view: "form-editor", params: { formId: "f1" } })) as ReactElement;
     expect(el.type).toBe(FormEditor);
-    expect(el.props).toMatchObject({ formId: "f1" });
+    expect(el.props).toMatchObject({ formId: "f1", tab: "fields" });
+    expect(el.key).toBe("f1");
+  });
+
+  // ADR-063: Submissions is a real route (`/:formId/submissions`), not a `?tab=` filter — same
+  // dual-pattern shape `collections` uses for `/:contentTypeKey/:entryId` + `/:contentTypeKey`.
+  it("form-submissions view (/:formId/submissions) renders FormEditor with formId, tab: 'submissions', SAME key as form-editor", () => {
+    const el = panel("forms").render(ctx({ view: "form-submissions", params: { formId: "f1" } })) as ReactElement;
+    expect(el.type).toBe(FormEditor);
+    expect(el.props).toMatchObject({ formId: "f1", tab: "submissions" });
+    // Same key as the form-editor view's element above for the SAME formId — this is what lets
+    // React treat a Fields<->Submissions switch as a prop update rather than a remount, so
+    // in-progress Fields edits survive (see `FormEditor.unit.test.tsx`'s direct DOM-level proof).
+    expect(el.key).toBe("f1");
   });
 });
 
 describe("panel 'themes'", () => {
   it("index route renders Themes", () => {
     expect((panel("themes").render(ctx()) as ReactElement).type).toBe(Themes);
+  });
+
+  // ADR-063: the tier tabs (Declarative/Static/Templated/Code/Marketplace) get `?tab=`, matching
+  // `TAB_THREADED_PANELS` above — but `themes`' own `render` isn't in that generic table because,
+  // unlike those panels, it ALSO dispatches on `ctx.view` for `theme-explore` below.
+  it("index route threads ?tab= into tabId, and tabId is null when the query param is absent", () => {
+    const withTab = panel("themes").render(ctx({ query: new URLSearchParams("tab=static") })) as ReactElement;
+    expect(withTab.type).toBe(Themes);
+    expect(withTab.props).toMatchObject({ tabId: "static" });
+
+    const withoutTab = panel("themes").render(ctx()) as ReactElement;
+    expect(withoutTab.props).toMatchObject({ tabId: null });
   });
 
   it("theme-explore view renders ThemeExplore with themeId from ?theme=, empty string when absent", () => {

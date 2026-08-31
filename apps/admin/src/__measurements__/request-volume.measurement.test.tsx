@@ -380,7 +380,7 @@ describe("forms", () => {
     const { fn, calls } = createRecorder([{ match: "/forms/f1", respond: () => jsonResponse({ data: FORM }) }]);
     vi.stubGlobal("fetch", fn);
     const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
-    const { result } = renderHook(() => useWiredFormEditor({ formId: "f1" }), { wrapper });
+    const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
     await waitFor(() => expect(result.current.form).not.toBeNull());
     logRow("forms", "editor open (detail panel)", calls);
     expect(calls.length).toBeGreaterThan(0);
@@ -394,7 +394,7 @@ describe("forms", () => {
     ]);
     vi.stubGlobal("fetch", fn);
     const { useWiredFormEditor } = await import("../features/forms/hooks/use-form-editor.hooks");
-    const { result } = renderHook(() => useWiredFormEditor({ formId: "f1" }), { wrapper });
+    const { result } = renderHook(() => useWiredFormEditor({ formId: "f1", tab: "fields" }), { wrapper });
     await waitFor(() => expect(result.current.form).not.toBeNull());
     calls.length = 0;
 

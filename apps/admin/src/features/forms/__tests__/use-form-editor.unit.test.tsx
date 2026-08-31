@@ -48,7 +48,7 @@ describe("useFormEditor — injected port + navigate + t", () => {
     const navigate = vi.fn();
     const t = (key: string) => `[${key}]`;
 
-    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate, t }), { wrapper });
+    const { result } = renderHook(() => useFormEditor({ formId: "f1", tab: "fields" }, { port, navigate, t }), { wrapper });
 
     await waitFor(() => expect(result.current.form).not.toBeNull());
     expect(result.current.name).toBe("Contact");
@@ -61,9 +61,10 @@ describe("useFormEditor — injected port + navigate + t", () => {
   it("does not load for a new form (isNew), and creating one calls the injected navigate", async () => {
     const port = createFakeFormsPort();
     const navigate = vi.fn();
-    const { result } = renderHook(() => useFormEditor({ formId: "new" }, { port, navigate, t: (key: string) => key }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useFormEditor({ formId: "new", tab: "fields" }, { port, navigate, t: (key: string) => key }),
+      { wrapper },
+    );
 
     expect(result.current.isNew).toBe(true);
     expect(result.current.form).toBeNull();
@@ -90,7 +91,7 @@ describe("useFormEditor — injected port + navigate + t", () => {
     const port = createFakeFormsPort({ forms: [formFixture({ id: "f1", slug: "contact-us" })] });
     const navigate = vi.fn();
     const { result } = renderHook(
-      () => useFormEditor({ formId: "contact-us" }, { port, navigate, t: (key: string) => key }),
+      () => useFormEditor({ formId: "contact-us", tab: "fields" }, { port, navigate, t: (key: string) => key }),
       { wrapper }
     );
     await waitFor(() => expect(result.current.form).not.toBeNull());
@@ -112,9 +113,10 @@ describe("useFormEditor — injected port + navigate + t", () => {
   it("handleStatusToggle flips status through the port for an existing form", async () => {
     const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
     const navigate = vi.fn();
-    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate, t: (key: string) => key }), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useFormEditor({ formId: "f1", tab: "fields" }, { port, navigate, t: (key: string) => key }),
+      { wrapper },
+    );
     await waitFor(() => expect(result.current.form).not.toBeNull());
 
     await act(async () => {

@@ -14,10 +14,16 @@ import type { FormsPort } from "./forms-port.hooks";
  * Submissions tab strip's roving-tabindex focus management — so `FormEditor`'s exported component
  * in `FormEditor.tsx` is only markup.
  *
- * Extracted verbatim — same nine pieces of state, same load effect, same save/status-toggle error
- * strings, same "later failure keeps the editor on screen" guard (the audit-blocker fix this
- * screen's file header describes — see `FormEditor.tsx`'s own header for the full rationale, which
- * stays with the guard in the view since it describes render behaviour, not this hook's state).
+ * Extracted verbatim — same load effect, same save/status-toggle error strings, same "later failure
+ * keeps the editor on screen" guard (the audit-blocker fix this screen's file header describes —
+ * see `FormEditor.tsx`'s own header for the full rationale, which stays with the guard in the view
+ * since it describes render behaviour, not this hook's state).
+ *
+ * `tab` (ADR-063, 2026-08-31): no longer local state — it is `props.tab`, derived from the route
+ * (`/forms/:formId` vs `/forms/:formId/submissions`) by `panels.tsx`/`FormEditor.tsx`. Switching
+ * tabs calls the injected `navigate` (real app router), the same idiom `Deployment.tsx`'s tab strip
+ * uses, rather than a local `setTab` — Submissions has its own independent fetch, so a tab switch
+ * is a genuine route change, not a display-layer filter over data already in hand.
  *
  * `tabRefs` moves here too, per Pattern 1 (every `useRef` moves with state/effects, not just
  * `useState`) — the view still attaches each button via its own `ref` callback (an unavoidably
@@ -73,7 +79,12 @@ export interface FormEditorController {
   recipientsText: string;
   setRecipientsText: (value: string) => void;
   tab: "fields" | "submissions";
-  setTab: (tab: "fields" | "submissions") => void;
+  /** Navigates to this form's Fields or Submissions route — real `navigate()`, not local state
+   *  (ADR-063: Submissions has its own independent fetch, so a tab switch is a genuine route
+   *  change, the same idiom `Deployment.tsx`'s tab strip uses). Pushes a history entry (no
+   *  `replace`) so browser back/forward move naturally between the two routes, unlike the
+   *  `?tab=` screens' `replace: true` view-filter switches. */
+  onTabChange: (tab: "fields" | "submissions") => void;
   error: string | null;
   saving: boolean;
   /** Already-persisted field ids on the loaded form — see `existingFieldIdsOf`. */
@@ -95,10 +106,11 @@ export interface FormEditorController {
 }
 
 export function useFormEditor(
-  props: { formId: string },
+  props: { formId: string; tab: "fields" | "submissions" },
   deps: { port: FormsPort; navigate: (path: string) => void; t: (key: string) => string }
 ): FormEditorController {
   const { port, navigate, t } = deps;
+  const { tab } = props;
   const isNew = props.formId === "new";
   const [form, setForm] = useState<AdminFormDefinition | null>(null);
   const [name, setName] = useState("");
@@ -106,7 +118,6 @@ export function useFormEditor(
   const [fields, setFields] = useState<AdminFormField[]>([blankField()]);
   const [notify, setNotify] = useState<AdminFormNotify>({ enabled: false, recipients: [] });
   const [recipientsText, setRecipientsText] = useState("");
-  const [tab, setTab] = useState<"fields" | "submissions">("fields");
   // Roving-tabindex focus targets for the tab strip below, indexed the same as `FORM_TABS` — see
   // `nextTabIndex`'s doc comment for why the index math itself lives outside the component.
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -209,12 +220,19 @@ export function useFormEditor(
     hasForm: form !== null,
   });
 
+  // Navigates to `/forms/:formId` or `/forms/:formId/submissions` (ADR-063) — `panels.tsx`'s
+  // `forms` panel keys `FormEditor` off `ctx.params.formId` on BOTH routes, so this is a route
+  // change, not a remount: in-progress Fields edits survive a trip to Submissions and back.
+  function onTabChange(nextTab: "fields" | "submissions") {
+    navigate(nextTab === "submissions" ? `/forms/${props.formId}/submissions` : `/forms/${props.formId}`);
+  }
+
   function onTabsKeyDown(e: React.KeyboardEvent) {
     const currentIndex = FORM_TABS.findIndex((t) => t.id === tab);
     const index = nextTabIndex(e.key, currentIndex);
     if (index === null) return;
     e.preventDefault();
-    setTab(FORM_TABS[index].id);
+    onTabChange(FORM_TABS[index].id);
     tabRefs.current[index]?.focus();
   }
 
@@ -232,7 +250,7 @@ export function useFormEditor(
     recipientsText,
     setRecipientsText,
     tab,
-    setTab,
+    onTabChange,
     error,
     saving,
     existingFieldIds: existingFieldIdsOf(form),
@@ -253,7 +271,7 @@ export function useFormEditor(
  * `FormEditor.tsx` composes this and a test composes {@link useFormEditor} with
  * `createFakeFormsPort`, a fake `navigate`, and a fake `t`.
  */
-export function useWiredFormEditor(props: { formId: string }): FormEditorController {
+export function useWiredFormEditor(props: { formId: string; tab: "fields" | "submissions" }): FormEditorController {
   const locale = useAdminLocale();
   const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
   return useFormEditor(props, { port: defaultFormsPort, navigate: defaultNavigate, t });

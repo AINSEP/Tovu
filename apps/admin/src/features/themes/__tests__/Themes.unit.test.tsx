@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Themes } from "../Themes";
 import type { ThemesController } from "../hooks/use-themes.hooks";
@@ -32,6 +32,13 @@ function baseController(overrides: Partial<ThemesController> = {}): ThemesContro
     ...overrides,
   };
 }
+
+afterEach(() => {
+  // A tab click now drives real `history.replaceState` via `lib/router`'s `navigate()` (ADR-063) —
+  // reset between tests so one test's tab click can't leak a `?tab=` into the next, same
+  // convention `Deployment.unit.test.tsx`'s own afterEach documents for the identical reason.
+  window.history.replaceState(null, "", "/");
+});
 
 describe("loading and error states", () => {
   it("shows a loading placeholder before settings have loaded", () => {
@@ -206,25 +213,46 @@ describe("tier tabs", () => {
     expect(screen.queryByText("column")).not.toBeInTheDocument();
   });
 
-  it("switches the visible cards when a different tab is clicked", async () => {
+  // ADR-063: a tab click now drives real `navigate()` (`?tab=`), not local state, so a standalone
+  // render can't watch its OWN click switch the visible cards anymore — same split
+  // `Deployment.unit.test.tsx`'s "?tab= deep linking" describe block uses: one test proves the URL
+  // write, a separate one (below, via the `tabId` prop) proves what a given tab shows.
+  it("clicking a tab navigates to ?tab=<id>, replacing history rather than pushing", async () => {
     const user = userEvent.setup();
     render(
       <Themes
         useThemesHook={() => baseController({ themeTiers: { column: "static" } })}
       />,
     );
-    // Starts on Declarative (signal's tier, the fallback for an unlisted id): "column" (static) is
-    // grouped elsewhere and not on screen yet.
-    expect(screen.queryByText("column")).not.toBeInTheDocument();
     await user.click(screen.getByRole("tab", { name: /^Static/ }));
+    expect(window.location.search).toBe("?tab=static");
+  });
+
+  it("opens directly on the tab named by the tabId prop, showing that tier's cards", () => {
+    render(
+      <Themes
+        tabId="static"
+        useThemesHook={() => baseController({ themeTiers: { column: "static" } })}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: /^Static/ })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("column")).toBeInTheDocument();
     expect(screen.queryByText("signal")).not.toBeInTheDocument();
   });
 
-  it("shows a sensible empty state, not an error, for a tier with zero themes", async () => {
-    const user = userEvent.setup();
-    render(<Themes useThemesHook={() => baseController()} />);
-    await user.click(screen.getByRole("tab", { name: /^Code/ }));
+  it("falls back to the active theme's own tab group for an unrecognized tabId, instead of a blank grid", () => {
+    render(
+      <Themes
+        tabId="not-a-real-tab"
+        useThemesHook={() => baseController({ themeTiers: { signal: "static" } })}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: /^Static/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("signal")).toBeInTheDocument();
+  });
+
+  it("shows a sensible empty state, not an error, for a tier with zero themes", () => {
+    render(<Themes tabId="code" useThemesHook={() => baseController()} />);
     expect(screen.getByText("No themes in this tier yet.")).toBeInTheDocument();
     expect(screen.queryByText("failed")).not.toBeInTheDocument();
   });
@@ -234,7 +262,7 @@ describe("tier tabs", () => {
 // its list/download routes landed. These assertions changed because the BEHAVIOR changed — the tab
 // is now selectable and lists real installable themes — not because the old ones were inconvenient.
 describe("Marketplace tab", () => {
-  it("loads the listing on first open, and only once", async () => {
+  it("clicking Marketplace loads the listing, once, and navigates to ?tab=marketplace", async () => {
     const user = userEvent.setup();
     const loadMarketplace = vi.fn(async () => {});
     render(<Themes useThemesHook={() => baseController({ loadMarketplace })} />);
@@ -243,8 +271,18 @@ describe("Marketplace tab", () => {
     expect(marketplaceTab).not.toBeDisabled();
 
     await user.click(marketplaceTab);
-    expect(marketplaceTab).toHaveAttribute("aria-selected", "true");
+    // Loading is a side effect of the click itself (`onChange`), independent of whether THIS
+    // render goes on to show the tab as active — see the `tabId="marketplace"` test below for that
+    // half, split for the same reason `Deployment.unit.test.tsx` splits its own click-vs-content
+    // assertions (ADR-063: a tab click now drives real `navigate()`, not local state).
     expect(loadMarketplace).toHaveBeenCalledTimes(1);
+    expect(window.location.search).toBe("?tab=marketplace");
+  });
+
+  it("opens directly on Marketplace via tabId, listing installable themes rather than installed ones", () => {
+    render(<Themes tabId="marketplace" useThemesHook={() => baseController()} />);
+
+    expect(screen.getByRole("tab", { name: /^Marketplace/ })).toHaveAttribute("aria-selected", "true");
     // Installed-theme cards are gone; this tab lists what is installable, not what is installed.
     expect(screen.queryByText("signal")).not.toBeInTheDocument();
   });
@@ -254,6 +292,7 @@ describe("Marketplace tab", () => {
     const download = vi.fn(async () => {});
     render(
       <Themes
+        tabId="marketplace"
         useThemesHook={() =>
           baseController({
             download,
@@ -264,7 +303,6 @@ describe("Marketplace tab", () => {
         }
       />
     );
-    await user.click(screen.getByRole("tab", { name: /^Marketplace/ }));
 
     // The rename is announced up front. A download that silently lands as `basic-1` after the
     // operator asked for `basic` reads as something having gone wrong.
@@ -275,10 +313,10 @@ describe("Marketplace tab", () => {
     expect(download).toHaveBeenCalledWith("basic");
   });
 
-  it("shows no rename warning when the id is free", async () => {
-    const user = userEvent.setup();
+  it("shows no rename warning when the id is free", () => {
     render(
       <Themes
+        tabId="marketplace"
         useThemesHook={() =>
           baseController({
             marketplace: [
@@ -288,7 +326,6 @@ describe("Marketplace tab", () => {
         }
       />
     );
-    await user.click(screen.getByRole("tab", { name: /^Marketplace/ }));
     expect(screen.queryByText(/already have a theme called/i)).not.toBeInTheDocument();
   });
 });
