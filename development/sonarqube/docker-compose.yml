@@ -1,0 +1,32 @@
+# SonarQube Community Edition, for local evaluation only. See README.md for the self-hosted vs
+# SonarCloud decision (self-hosted, because this repo is private and SonarCloud's free tier is
+# public-repos-only) and for why there is no CI wiring here yet (CI is billing-blocked today).
+#
+# NOT started by this file's presence. Bringing it up is a separate, explicit step — see README.md.
+# Kept to a single container with the embedded database on purpose (this repo's own Constitution
+# Simplicity Gate, see .github/workflows/ci.yml's header comment for that principle applied
+# elsewhere): fine for one person poking at a dashboard, not a claim that this is a supported
+# production setup. SonarQube's own docs mark the embedded H2 database evaluation-only — if this
+# ever needs to survive many `docker compose down`s or run reliably long-term, add a `postgres`
+# service and point SONAR_JDBC_URL at it before relying on it.
+services:
+  sonarqube:
+    image: sonarqube:community
+    container_name: tovu-sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      # Evaluation mode: skips the embedded Elasticsearch bootstrap checks that otherwise require
+      # host `vm.max_map_count` tuning. Remove this if you outgrow local evaluation.
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+    # No `restart:` policy on purpose — this is an on-demand local tool the owner starts and stops,
+    # not a background service that should survive a host reboot silently.
+
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
