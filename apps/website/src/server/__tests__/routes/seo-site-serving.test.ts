@@ -97,6 +97,30 @@ test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real run
   assert.match(robots.headers.get("content-type") ?? "", /text\/plain/);
 });
 
+test("GET /llms.txt is reachable through the real running app, unauthenticated, and lists only currently-published curated doc entries", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+  await deps.seoReady;
+
+  const res = await fetch(`${baseUrl}/llms.txt`);
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type") ?? "", /text\/markdown/);
+
+  const body = await res.text();
+  assert.match(body, /^# Tovu\n/, "llmstxt.org requires an H1 as the very first line");
+  assert.match(body, /^## Docs$/m);
+  // Present in the seeded fixture (seed.ts) -> must be linked.
+  assert.match(body, /- \[How Themes Work\]\(\/how-themes-work\): .+/);
+  assert.match(body, /- \[How Plugins Work\]\(\/how-plugins-work\): .+/);
+  assert.match(body, /- \[The Plugin API\]\(\/plugin-api\): .+/);
+  // Curated, but absent from this environment's seed fixture -> must be silently
+  // omitted rather than linking a 404 (mirrors buildSitemap's own INV-04/05 discipline).
+  assert.doesNotMatch(body, /\/documentation\)/);
+  assert.doesNotMatch(body, /\/quickstart\)/);
+  assert.doesNotMatch(body, /\/how-tovu-works\)/);
+});
+
 test("T045: the real home-page render includes SEO's folded <title> tag, not just the raw shell default", async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
