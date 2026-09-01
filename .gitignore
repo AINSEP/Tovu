@@ -35,8 +35,28 @@ apps/admin/.certs/
 # tangled together.
 # README.md stays tracked so the directory exists in a fresh clone -- openContentDb does not create
 # its parent, so an absent sites/ fails boot with SQLITE_CANTOPEN.
-sites/*
-!sites/README.md
+#
+# 2026-08-31: sites/ is now TRACKED. Ignoring it wholesale meant every git-based deploy (Fly,
+# Railway, Render, App Runner) booted a container with no content.db, no themes and no theme.json --
+# a correct image with no site in it. Tracking the site is what makes a deploy carry its content.
+# Still never tracked, and these must stay ignored:
+#   - content.db itself: this is each site's LIVE, growing database (real chat transcripts, session
+#     auth log, sealed provider credentials, ...) -- committing it verbatim would bloat git history
+#     without bound and leak real secrets/PII. `npm run seed:site` (development/scripts/seed-site.mjs)
+#     produces the thing that SHOULD be committed instead: a pruned, VACUUMed copy at the sibling path
+#     `content.seed.db`, deliberately NOT matched by this pattern so it stays tracked. See that
+#     script's header for the full prune rationale and for what still has to promote `content.seed.db`
+#     into the path a deployed container actually boots from.
+#   - WAL/shm sidecars: transient, and a sidecar committed against a mismatched content.db
+#     corrupts reads on checkout.
+#   - restore points + .bak snapshots: ~67M of point-in-time DB copies, each a full binary blob.
+#   - out/: build output, regenerated.
+sites/*/content.db
+sites/*/content.db-wal
+sites/*/content.db-shm
+sites/*/content.db.bak-*
+sites/*/restore-point-*.db
+sites/*/out/
 
 # `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
 # disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be
@@ -91,3 +111,14 @@ development/other-repos-specs/shopify_specs/schema-dumps/
 # Per-run MCP config the agent daemon writes for each spawned CLI (`mcp-injection.ts`), named
 # `.mcp.jini-<runId>.json`. Transient and machine-specific; one is left behind per run.
 .mcp.jini-*.json
+
+# `npm run link:jini`'s record of which @jini-ai/* packages it npm-linked and where, so
+# `npm run unlink:jini` can clean up. Machine-specific (points at a local Jini checkout path) —
+# never meant to be shared or committed.
+development/.jini-link-state.json
+
+# Pre-npm-switch copies of the three package.json files, back when @jini-ai/* deps were
+# `file:../Jini/packages/*`. Kept as a manual escape hatch: `npm run link:jini` is the supported way
+# back to a local Jini checkout, but these let you restore the old manifests verbatim if that fails.
+# Machine-specific, never committed.
+development/.jini-local-backup/
