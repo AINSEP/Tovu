@@ -603,6 +603,30 @@ export interface CreateTovuAssistantTransportOptions {
    * mid-session without rebuilding the memoized transport.
    */
   getAgUiEnabled?: () => boolean;
+  /**
+   * Agent ids whose own CLI/ACP session already carries multi-turn conversation memory across
+   * spawns — `@jini-ai/agent-runtime`'s `resumesSessionViaCli`/`resumesSessionViaAcpLoad`, projected
+   * client-safe as `AssistantAgentSummary.carriesOwnMemory` (`assistant/agents.ts`, Tovu server-side).
+   * {@link runPrompt}'s own doc has the full "used to send only the newest message" background; this
+   * option is the inverse regression it introduced for exactly these agents — see `startRun`'s Local
+   * CLI branch below, which resends the doc's own contract instead of the full transcript ONLY for an
+   * agentId this set contains: "the caller trusts this adapter's CLI to carry its own multi-turn
+   * conversation memory... and should skip resending the rendered transcript on follow-up turns"
+   * (`types.ts`). Resending it anyway would duplicate everything the daemon's own `--resume`/
+   * `session/load` already restores (`agent-session-resume.ts`).
+   *
+   * Read fresh on every `startRun` call, same "never captured" convention {@link getExecutionConfig}/
+   * {@link getAgUiEnabled} already establish: the admin's own `/api/agents` probe resolves
+   * asynchronously and can still be in flight when this transport is first built, and an operator can
+   * switch the Local CLI agent pick mid-session.
+   *
+   * Omitted, or an agentId absent from the returned set, keeps today's behavior — the full transcript
+   * is sent. That is the SAFE default for a def this option's source has not resolved as resume-capable
+   * yet: sending redundant history to a resume-capable def costs extra tokens, but withholding history
+   * from a stateless def would silently erase its memory — the two failure directions are not
+   * symmetric, so "unknown" must resolve to "send everything," not to "send only the latest message."
+   */
+  getResumeCapableAgentIds?: () => ReadonlySet<string>;
 }
 
 export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}): ChatTransport {
@@ -610,8 +634,10 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
       // Guard on the newest USER turn, not on the assembled transcript: a history containing only
       // assistant messages would still produce a non-empty transcript, and sending that as a
-      // prompt asks the agent to reply to itself. Shared by both paths below.
-      if (!latestUserPromptFromHistory(input.history as ChatMessage[])) {
+      // prompt asks the agent to reply to itself. Shared by both paths below, and reused (rather than
+      // recomputed) by the Local CLI branch's own resume-capable check further down.
+      const latestUserPrompt = latestUserPromptFromHistory(input.history as ChatMessage[]);
+      if (!latestUserPrompt) {
         throw new Error("no user message to send");
       }
 
@@ -639,8 +665,12 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         return startAgUiRun(input, handlers);
       }
 
-      // Local CLI path (unchanged) below.
-      const prompt = runPrompt(input.history);
+      // Local CLI path below. `carriesOwnMemory` is the one branch point this path adds over its
+      // pre-2026-09 shape — see `getResumeCapableAgentIds`'s own doc for the full contract and why
+      // an unresolved/absent agentId fails open to the full transcript rather than the bare message.
+      const carriesOwnMemory =
+        input.agentId !== undefined && options.getResumeCapableAgentIds?.().has(input.agentId) === true;
+      const prompt = carriesOwnMemory ? latestUserPrompt : runPrompt(input.history);
       const contextRef = buildLocalCliContextRef(input, prompt);
 
       const response = await fetch(RUNS_URL, {

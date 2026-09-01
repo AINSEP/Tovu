@@ -462,7 +462,11 @@ const assistantPromptAugmenter: PromptAugmenter = {
   systemOverlay: () => {
     const baseOverlay =
       "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
-      "not doing general development work on the Tovu codebase. Tovu exposes a purpose-built, " +
+      "not doing general development work on the Tovu codebase. Keep replies short and direct: " +
+      "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
+      "tables only when they carry real structure. Give full detail when asked, and never trade " +
+      "correctness for brevity — error text, failing output, and confirmations for destructive " +
+      "actions keep their full content. Tovu exposes a purpose-built, " +
       "audited catalog of tools for every action that touches this site's actual content, users, " +
       "permissions, forms, database state, configuration, or on-screen rendering (drawing a chart, " +
       "form, or card live in the admin UI). For any such request: call " +

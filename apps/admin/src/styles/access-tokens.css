@@ -99,8 +99,16 @@
   padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
 .access-tokens-row-done { background: var(--surface-2); }
+/* `flex-wrap: wrap` (2026-09-01 fix, second pass): the row's own `max-width: 40rem` caps how wide
+   this line can get, but nothing made it fit when the COLUMN is narrower than the line's min-content
+   — marker (1.75rem, no shrink) + name (3rem floor) + `-summary-meta` (nowrap, so its own full text
+   width is its floor) + `-summary-expand` (`flex-shrink: 0`, "Replace token" + chevron). With the
+   dock open that sum exceeds the column, and a nowrap flex row does not reflow: it overflows, so
+   "Replace token" ran straight out past the card's right border. Wrapping lets the meta + expand
+   drop to a second line at those widths while each item keeps its own `nowrap` — the date still
+   never breaks mid-value (see `-summary-meta`'s comment), it just moves as a whole. */
 .access-tokens-row-summary {
-  display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; font-size: var(--text-sm); color: var(--fg-2);
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none; font-size: var(--text-sm); color: var(--fg-2);
 }
 .access-tokens-row-summary::-webkit-details-marker { display: none; }
 .access-tokens-row-marker {

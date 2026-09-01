@@ -4,11 +4,13 @@ import test from "node:test";
 import express from "express";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { createAssistantByokModule } from "../runtime/composition/modules/assistant-byok.js";
+import { createAssistantByokModule, SYSTEM_PREAMBLE } from "../runtime/composition/modules/assistant-byok.js";
 import { registerAuthRoutes } from "../inbound/admin-http/dev-auth.js";
 import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/index.js";
+import { formatCustomInstructionsOverlay } from "../../assistant/custom-instructions.js";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../contracts/core/tool-surface-exchanges.js";
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
+import { INSTRUCTIONS_NAMESPACE } from "../../features/settings/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -75,6 +77,30 @@ async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permission
   });
   assert.equal(login.status, 200);
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
+}
+
+/** Writes `core.instructions.custom` straight at `deps.settingsRepo` — the same shape
+ *  `custom-instructions.test.ts`'s own `writeCustomInstructions` helper uses, standing in for what an
+ *  admin's Settings -> Instructions tab save does. Awaits `settingsUiTabsReady` first so the
+ *  definition is guaranteed registered (see that field's own doc on `RouteDeps`). */
+async function writeCustomInstructions(deps: RouteDeps, text: string): Promise<void> {
+  await deps.settingsUiTabsReady;
+  const definition = (await deps.settingsRepo.listActiveDefinitions({ workspaceId: null })).find(
+    (d) => d.namespace === INSTRUCTIONS_NAMESPACE && d.key === "custom",
+  );
+  assert.ok(definition, "core.instructions.custom must be registered before writing a value");
+  await deps.settingsRepo.saveWorkspaceValue({
+    settingId: definition.settingId,
+    scope: "workspace",
+    workspaceId: deps.workspaceId,
+    principalId: null,
+    valueJson: text,
+    state: "set",
+    defVersion: definition.version,
+    seq: 1,
+    updatedBy: "test",
+    updatedAt: deps.clock.nowIso(),
+  });
 }
 
 /**
@@ -341,6 +367,56 @@ test(`${BYOK_TURN_PATH} reports a provider error on its own SSE event name, not 
   const frames = parseSseFrames(await res.text());
   const errorFrame = frames.find((f) => f.event === "error");
   assert.ok(errorFrame, "expected an 'error' SSE event, not a swallowed/miscategorized one");
+});
+
+/**
+ * Regression coverage for the admin Instructions tab (`core.instructions.custom`) applying to BYOK
+ * turns — before `resolveByokSystemPrompt` (`assistant-byok.ts`), this route always sent the bare
+ * {@link SYSTEM_PREAMBLE}, so an operator's saved instructions silently had no effect in BYOK mode even
+ * though the identical Local CLI path (`agent-daemon-server.ts`'s `systemOverlay()`) already applied
+ * them. Asserts the exact composed string the provider receives, built from the SAME
+ * `formatCustomInstructionsOverlay` production code uses to format the overlay, so this test does not
+ * duplicate that header text as a second hardcoded literal that could drift from the real one.
+ */
+test(`${BYOK_TURN_PATH} composes 'system' from SYSTEM_PREAMBLE plus the admin Instructions tab's custom overlay, when one is set`, async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+
+  await writeCustomInstructions(deps, "Always respond in pirate slang.");
+
+  let capturedSystem: unknown;
+  const providerUrl = await stubProvider(t, (_callCount, requestBody) => {
+    capturedSystem = requestBody.system;
+    return sseBody(messageStart(), textBlock(0, "Arrr, ahoy."), messageDelta("end_turn"), messageStop());
+  });
+
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(res.status, 200);
+  await res.text(); // drain the stream so the request completes
+
+  const expectedOverlay = formatCustomInstructionsOverlay("Always respond in pirate slang.");
+  assert.equal(capturedSystem, `${SYSTEM_PREAMBLE}\n\n${expectedOverlay}`);
+});
+
+test(`${BYOK_TURN_PATH} sends the bare SYSTEM_PREAMBLE as 'system' when no custom instructions are set`, async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
+
+  let capturedSystem: unknown;
+  const providerUrl = await stubProvider(t, (_callCount, requestBody) => {
+    capturedSystem = requestBody.system;
+    return sseBody(messageStart(), textBlock(0, "Hello."), messageDelta("end_turn"), messageStop());
+  });
+
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
+  assert.equal(res.status, 200);
+  await res.text();
+
+  assert.equal(capturedSystem, SYSTEM_PREAMBLE);
 });
 
 /**

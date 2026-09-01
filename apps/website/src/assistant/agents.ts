@@ -21,6 +21,27 @@
 import { AGENT_DEFS, resolveAgentLaunch } from "@jini-ai/agent-runtime";
 import type { AgentSummary } from "@jini-ai/http-kit";
 
+/**
+ * `AgentSummary` plus one extra, Tovu-only field the shared `@jini-ai/http-kit` wire type doesn't
+ * declare — added here rather than upstream because it is a Tovu-side transport decision
+ * (`assistant-transport.ts`'s prompt-assembly gate), not a `@jini-ai/http-kit` transport concern.
+ * The extra key rides the same JSON body `AgentSummary` already serializes to; a consumer that only
+ * knows `AgentSummary` (e.g. `@jini-ai/chat`'s `ChatPaneAgent`) simply never reads it.
+ *
+ * @see {@link probeAssistantAgents} for where `carriesOwnMemory` is derived.
+ */
+export type AssistantAgentSummary = AgentSummary & {
+  /**
+   * True when this def's own CLI/ACP session already carries its multi-turn conversation memory
+   * across spawns — the client-safe projection of `@jini-ai/agent-runtime`'s
+   * `resumesSessionViaCli`/`resumesSessionViaAcpLoad` (`types.ts`), whose own doc says a caller
+   * "should skip resending the rendered transcript on follow-up turns and send just the latest user
+   * message" for such a def. `apps/admin/src/lib/assistant-transport.ts`'s `startRun` reads this to
+   * decide whether a turn needs the full transcript or just the newest message.
+   */
+  readonly carriesOwnMemory: boolean;
+};
+
 /** Defs `@jini-ai/daemon`'s `AgentExecutor` cannot drive, kept out of the picker so the composer
  * never offers an agent whose run then fails (see this file's header). Empty as of 2026-07-30:
  * `antigravity` was the sole previous entry, deferred while its `AgentExecutor` support was
@@ -41,9 +62,9 @@ const UNSUPPORTED_AGENT_IDS = new Set<string>([]);
  * O(d) for the returned summaries.
  * @overallScore 100
  */
-async function probeAssistantAgents(): Promise<AgentSummary[]> {
+async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
   return Promise.all(
-    AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AgentSummary> => {
+    AGENT_DEFS.filter((def) => !UNSUPPORTED_AGENT_IDS.has(def.id)).map(async (def): Promise<AssistantAgentSummary> => {
       const launch = resolveAgentLaunch(def);
       const available = Boolean(launch.launchPath);
       return {
@@ -53,6 +74,9 @@ async function probeAssistantAgents(): Promise<AgentSummary[]> {
         supportsCustomModel: def.supportsCustomModel,
         models: def.fallbackModels,
         modelsSource: "fallback",
+        // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
+        // the CLI itself, not this transport, owns the def's multi-turn memory.
+        carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),
         ...(def.reasoningOptions ? { reasoningOptions: def.reasoningOptions } : {}),
         ...(available ? {} : { diagnostic: launch.diagnostic ?? `${def.name} CLI not found on PATH` }),
       };
@@ -66,7 +90,7 @@ async function probeAssistantAgents(): Promise<AgentSummary[]> {
  * that every concurrent/subsequent {@link listAssistantAgents} call reuses instead of starting a
  * second one.
  */
-let cachedAgents: Promise<AgentSummary[]> | null = null;
+let cachedAgents: Promise<AssistantAgentSummary[]> | null = null;
 
 /**
  * Starts a fresh probe and installs it as the cache, returning it.
@@ -83,8 +107,8 @@ let cachedAgents: Promise<AgentSummary[]> | null = null;
  * @complexity Time/space: O(1) beyond the O(d) probe itself (see {@link probeAssistantAgents}).
  * @overallScore 100
  */
-function refreshAssistantAgentsCache(): Promise<AgentSummary[]> {
-  const probe: Promise<AgentSummary[]> = probeAssistantAgents().catch((error: unknown) => {
+function refreshAssistantAgentsCache(): Promise<AssistantAgentSummary[]> {
+  const probe: Promise<AssistantAgentSummary[]> = probeAssistantAgents().catch((error: unknown) => {
     if (cachedAgents === probe) cachedAgents = null;
     throw error;
   });
@@ -109,7 +133,7 @@ function refreshAssistantAgentsCache(): Promise<AgentSummary[]> {
  * unobservable and unnecessarily allocating on every call). Returning `cachedAgents`/the refresh
  * call's own promise directly keeps the exact same object identity flowing to every caller.
  */
-export function listAssistantAgents(): Promise<AgentSummary[]> {
+export function listAssistantAgents(): Promise<AssistantAgentSummary[]> {
   return cachedAgents ?? refreshAssistantAgentsCache();
 }
 
@@ -124,6 +148,6 @@ export function listAssistantAgents(): Promise<AgentSummary[]> {
  *
  * Deliberately NOT `async`, same reasoning as {@link listAssistantAgents}.
  */
-export function rescanAssistantAgents(): Promise<AgentSummary[]> {
+export function rescanAssistantAgents(): Promise<AssistantAgentSummary[]> {
   return refreshAssistantAgentsCache();
 }

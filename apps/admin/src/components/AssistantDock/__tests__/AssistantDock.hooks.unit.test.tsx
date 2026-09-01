@@ -1,7 +1,13 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useComposerCapabilities } from "../hooks/AssistantDock.hooks";
+import {
+  extractResumeCapableAgentIds,
+  getResumeCapableAgentIds,
+  resetResumeCapableAgentIds,
+  useComposerCapabilities,
+  useRuntimeAccess,
+} from "../hooks/AssistantDock.hooks";
 
 /**
  * @file Regression coverage for the 2026-08-21 owner decision to stop projecting the live
@@ -42,5 +48,78 @@ describe("useComposerCapabilities", () => {
     expect(groupIds).not.toContain("tool-catalog");
     expect(groupIds).toEqual(["regular-plugins", "agent-plugins", "skills", "mcp", "tools"]);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * @file Coverage for the transcript-duplication fix's plumbing: `useAssistantTransport`'s
+ * `getResumeCapableAgentIds` option (`assistant-transport.ts`) has to be fed from SOMEWHERE, and
+ * `GET /api/agents`'s `carriesOwnMemory` field (`apps/website/src/assistant/agents.ts`) is that
+ * source. These pin the two halves: the pure projection, and that `useRuntimeAccess`'s
+ * `listAgents`/`rescanAgents` actually keep the module-level set current as a side effect of the
+ * SAME fetch `ChatPane`'s own agent picker already makes — not a second request.
+ */
+describe("extractResumeCapableAgentIds", () => {
+  it("keeps only the agentIds whose carriesOwnMemory is exactly true", () => {
+    const ids = extractResumeCapableAgentIds([
+      { id: "claude", name: "Claude Code", carriesOwnMemory: true },
+      { id: "qwen", name: "Qwen", carriesOwnMemory: false },
+      { id: "vibe", name: "Vibe" },
+    ]);
+    expect(ids).toEqual(new Set(["claude"]));
+  });
+});
+
+describe("useRuntimeAccess — resume-capable agentId tracking", () => {
+  afterEach(() => {
+    resetResumeCapableAgentIds();
+  });
+
+  it("listAgents() populates the module-level resume-capable set from the /api/agents response", async () => {
+    expect(getResumeCapableAgentIds()).toEqual(new Set());
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        agents: [
+          { id: "claude", name: "Claude Code", carriesOwnMemory: true },
+          { id: "qwen", name: "Qwen", carriesOwnMemory: false },
+        ],
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+    await result.current.listAgents();
+
+    expect(getResumeCapableAgentIds()).toEqual(new Set(["claude"]));
+  });
+
+  it("rescanAgents() also refreshes the resume-capable set from its own response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ agents: [{ id: "codex", name: "Codex", carriesOwnMemory: true }] }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+    await result.current.rescanAgents();
+
+    expect(getResumeCapableAgentIds()).toEqual(new Set(["codex"]));
+  });
+
+  it("a failed rescan falls back to listAgents() — the resume-capable set still comes from a real response, not stale", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, status: 500 })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ agents: [{ id: "amr", name: "AMR", carriesOwnMemory: true }] }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+    await result.current.rescanAgents();
+
+    expect(getResumeCapableAgentIds()).toEqual(new Set(["amr"]));
   });
 });

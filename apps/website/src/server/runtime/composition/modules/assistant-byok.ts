@@ -62,6 +62,7 @@ import {
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
+import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
@@ -69,9 +70,16 @@ import type { ServerModuleHandle } from "./types.js";
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
 
-const SYSTEM_PREAMBLE =
+/** Exported so `assistant-byok-routes.test.ts` can assert the exact composed `system` string against
+ *  this same literal rather than duplicating it — see {@link resolveByokSystemPrompt}'s doc for the
+ *  composition this constant is the fixed half of. */
+export const SYSTEM_PREAMBLE =
   "You are the Tovu admin assistant, running with the operator's own AI provider key (BYOK mode). " +
   "Use the tools you are given to inspect and manage this Tovu site on the operator's behalf. " +
+  "Keep replies short and direct: lead with the answer, skip preamble and skip restating the " +
+  "request. Use headers, lists, or tables only when they carry real structure. Give full detail " +
+  "when asked, and never trade correctness for brevity — error text, failing output, and " +
+  "confirmations for destructive actions keep their full content. " +
   "Only call tools that exist in your tool list; never invent one.";
 
 /** Bounds one BYOK turn's history the same way `assistant-transport.ts`'s `MAX_TRANSCRIPT_TURNS`
@@ -167,6 +175,40 @@ function resolveMessages(raw: unknown): ByokChatMessage[] {
     if (message) messages.push(message);
   }
   return messages.slice(-MAX_HISTORY_MESSAGES);
+}
+
+/**
+ * Composes this route's `system` prompt: {@link SYSTEM_PREAMBLE} plus the admin Instructions tab's
+ * custom overlay (`core.instructions.custom`), when the operator has set one — same composition order
+ * and separator as the Local CLI path's own `systemOverlay()` (`agent-daemon-server.ts`: `` `${base}
+ * \n\n${custom}` `` when a custom overlay exists, the bare base otherwise), so an operator's custom
+ * instructions apply identically in both execution modes rather than only to Local CLI runs.
+ *
+ * Re-reads `core.instructions.custom` fresh on every call rather than caching it at module load or
+ * across turns: this route has no long-lived process to refresh a cache against between requests (each
+ * `handleTurn` invocation is its own request/response lifecycle), so a plain re-read is both simpler
+ * and sufficient here — unlike the Local CLI path, which needs `custom-instructions.ts`'s
+ * `createCustomInstructionsCache` bridge specifically because `PromptAugmenter.systemOverlay()` is
+ * called synchronously inside the daemon's `run()`. `resolveCustomInstructions` never throws (fails
+ * open to `""` on any read error) and `formatCustomInstructionsOverlay` returns `null` for unset,
+ * empty, or whitespace-only text, so an operator who has never opened the Instructions tab gets exactly
+ * {@link SYSTEM_PREAMBLE} back, unchanged.
+ *
+ * @complexity O(1) — one `resolveCustomInstructions` read (itself O(1)) plus a trim/length check.
+ * @overallScore 100
+ */
+async function resolveByokSystemPrompt(routeDeps: RouteDeps): Promise<string> {
+  const customInstructions = await resolveCustomInstructions(
+    {
+      settingsRepo: routeDeps.settingsRepo,
+      settingsReady: routeDeps.settingsUiTabsReady,
+      getEffective: routeDeps.getEffective,
+      instructionsNamespace: routeDeps.instructionsNamespace,
+    },
+    { workspaceId: routeDeps.workspaceId },
+  );
+  const customOverlay = formatCustomInstructionsOverlay(customInstructions);
+  return customOverlay === null ? SYSTEM_PREAMBLE : `${SYSTEM_PREAMBLE}\n\n${customOverlay}`;
 }
 
 /**
@@ -306,6 +348,7 @@ export function createAssistantByokModule(
     const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
     if (!inputs) return;
     const { messages, principal, credential } = inputs;
+    const system = await resolveByokSystemPrompt(routeDeps);
 
     const run = { id: randomUUID() };
 
@@ -344,7 +387,7 @@ export function createAssistantByokModule(
         model: credential.model,
         ...(credential.maxTokens !== undefined ? { maxTokens: credential.maxTokens } : {}),
         maxToolTurns: BYOK_MAX_TOOL_TURNS,
-        system: SYSTEM_PREAMBLE,
+        system,
         messages,
         // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
         // re-sent on EVERY message; the meta-set is under 1 KB and reaches the same tools through

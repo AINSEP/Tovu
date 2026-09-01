@@ -37,6 +37,12 @@ function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done
 
 const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "list my posts" }];
 
+const MULTI_TURN_HISTORY: ChatMessage[] = [
+  { id: "1", role: "user", content: "search my posts for slow mornings" },
+  { id: "2", role: "assistant", content: "One post matched: Slow Mornings." },
+  { id: "3", role: "user", content: "open it in the editor" },
+];
+
 let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
@@ -337,6 +343,83 @@ describe("startRun — guard and request shape", () => {
     await expect(transport.startRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(
       "agent run failed to start (503)",
     );
+  });
+});
+
+/**
+ * @file The transcript-duplication regression: `@jini-ai/agent-runtime`'s `resumesSessionViaCli`/
+ * `resumesSessionViaAcpLoad` doc (`types.ts`) says a caller "should skip resending the rendered
+ * transcript on follow-up turns and send just the latest user message" for a def whose own CLI/ACP
+ * session already carries multi-turn memory across spawns. `startRun`'s Local CLI branch used to call
+ * `runPrompt` (the full `buildTranscript` output) unconditionally, regardless of `input.agentId` —
+ * duplicating history for a def the daemon already resumes via `--resume`/`session/load`
+ * (`agent-session-resume.ts`), on top of whatever the CLI itself remembers. `getResumeCapableAgentIds`
+ * is the gate: an agentId in that set gets just the latest message; anything else (including every
+ * agentId when the option is entirely unwired) keeps the pre-existing full-transcript behavior.
+ */
+describe("startRun — resume-capable agents skip resending the transcript", () => {
+  test("a resume-capable agentId sends only the latest user message, not the full rendered transcript", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getResumeCapableAgentIds: () => new Set(["claude"]) });
+
+    await transport.startRun(
+      { history: MULTI_TURN_HISTORY, agentId: "claude", signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { contextRef: string };
+    const prompt = JSON.parse(body.contextRef).prompt as string;
+    expect(prompt, "expected exactly the newest user message, nothing more").toBe("open it in the editor");
+    expect(prompt, "must not carry the transcript's role-delimiter headers").not.toMatch(/## user/);
+    expect(prompt, "must not carry a prior turn's content — the CLI already remembers it").not.toMatch(/slow mornings/i);
+  });
+
+  test("a non-resume-capable agentId still gets the full rendered transcript", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getResumeCapableAgentIds: () => new Set(["claude"]) });
+
+    await transport.startRun(
+      { history: MULTI_TURN_HISTORY, agentId: "qwen", signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { contextRef: string };
+    const prompt = JSON.parse(body.contextRef).prompt as string;
+    expect(prompt, "a stateless def has no memory of its own — it still needs the prior turn").toMatch(/slow mornings/i);
+    expect(prompt, "the current turn must still be present").toMatch(/open it in the editor/);
+  });
+
+  test("an unwired caller (no getResumeCapableAgentIds option) keeps today's full-transcript behavior for every agentId", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await transport.startRun(
+      { history: MULTI_TURN_HISTORY, agentId: "claude", signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { contextRef: string };
+    const prompt = JSON.parse(body.contextRef).prompt as string;
+    expect(prompt, "fails open to the full transcript when the capability set is not wired up").toMatch(/slow mornings/i);
+  });
+
+  test("a resume-capable agentId with no agentId at all on the request still gets the full transcript — nothing to look up", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport({ getResumeCapableAgentIds: () => new Set(["claude"]) });
+
+    await transport.startRun({ history: MULTI_TURN_HISTORY, signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { contextRef: string };
+    const prompt = JSON.parse(body.contextRef).prompt as string;
+    expect(prompt, "no agentId means no capability to check — must not guess").toMatch(/slow mornings/i);
   });
 });
 

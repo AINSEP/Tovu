@@ -711,6 +711,11 @@ export function useAssistantTransport(
         // `isAgUiTransportEnabled`'s own doc). Read fresh per `startRun` call, same as
         // `getExecutionConfig` above.
         getAgUiEnabled: isAgUiTransportEnabled,
+        // Which Local CLI agentIds carry their own multi-turn memory — see this file's own
+        // `getResumeCapableAgentIds` doc, and `assistant-transport.ts`'s
+        // `CreateTovuAssistantTransportOptions.getResumeCapableAgentIds` for the full contract.
+        // `fetchAgents`/`useRuntimeAccess`'s `rescanAgents` keep the set it reads current.
+        getResumeCapableAgentIds,
       }),
     [executionConfigRef],
   );
@@ -748,13 +753,63 @@ export function useAttachmentUploader(): ReturnType<typeof createDaemonAttachmen
 const AGENTS_URL = "/api/agents";
 const AGENTS_FETCH_TIMEOUT_MS = 60_000;
 
+/**
+ * `ChatPaneAgent` plus the one extra, Tovu-only field `GET /api/agents` actually serializes for
+ * each entry — `apps/website/src/assistant/agents.ts`'s `AssistantAgentSummary.carriesOwnMemory`.
+ * `@jini-ai/chat`'s own `ChatPaneAgent` type never declares it (it's a Tovu transport decision, not
+ * a `@jini-ai/chat` concern), so this widened alias exists purely so this file can read it off the
+ * same response `fetchAgents`/`rescanAgents` already fetch, without a second request.
+ */
+type AgentWithMemoryFlag = ChatPaneAgent & { carriesOwnMemory?: boolean };
+
+/**
+ * The pure half of {@link fetchAgents}/`useRuntimeAccess`'s `rescanAgents`: which agentIds are
+ * resume-capable, from an already-fetched `/api/agents` payload. Split out so it's directly
+ * testable against a plain fixture — no `fetch` mock, no module-state reset, required.
+ */
+export function extractResumeCapableAgentIds(agents: readonly AgentWithMemoryFlag[]): ReadonlySet<string> {
+  return new Set(agents.filter((agent) => agent.carriesOwnMemory === true).map((agent) => agent.id));
+}
+
+/**
+ * The last resume-capable agentId set observed from `/api/agents` — module-scoped, same "outlive
+ * the component, read fresh per call" shape {@link daemonOnlineInFlight} above uses. This is the
+ * live binding `useAssistantTransport`'s `getResumeCapableAgentIds` option reads through
+ * {@link getResumeCapableAgentIds} below.
+ *
+ * Starts empty: before the first `/api/agents` response resolves, every agentId fails open to the
+ * full-transcript path — see `assistant-transport.ts`'s `CreateTovuAssistantTransportOptions
+ * .getResumeCapableAgentIds` doc for why "not yet known" must mean "send everything," not "send
+ * only the latest message."
+ */
+let resumeCapableAgentIds: ReadonlySet<string> = new Set();
+
+/** Test seam — same purpose as `execution-settings.ts`'s `resetLocalAgentDetectionCache`: this
+ *  module's state persists across cases in a file, so a suite asserting on it needs to start cold. */
+export function resetResumeCapableAgentIds(): void {
+  resumeCapableAgentIds = new Set();
+}
+
+/**
+ * {@link useAssistantTransport}'s `getResumeCapableAgentIds` — a stable top-level reference (same
+ * "never captured by value" shape `isAgUiTransportEnabled` already has for `getAgUiEnabled`) so the
+ * memoized transport always reads the CURRENT set, not whatever was live when it was built.
+ *
+ * Exported for the same reason {@link extractResumeCapableAgentIds} is: a test asserting that
+ * `fetchAgents`/`rescanAgents` actually populated the module state needs a way to read it back.
+ */
+export function getResumeCapableAgentIds(): ReadonlySet<string> {
+  return resumeCapableAgentIds;
+}
+
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
   const response = await fetch(AGENTS_URL, {
     credentials: "same-origin",
     signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
   });
   if (!response.ok) return [];
-  const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
+  const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
+  resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
   return agents;
 }
 
@@ -817,7 +872,8 @@ export function useRuntimeAccess(): ChatPaneRuntimeAccess {
           signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
         });
         if (!response.ok) return fetchAgents();
-        const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
+        const { agents } = (await response.json()) as { agents: AgentWithMemoryFlag[] };
+        resumeCapableAgentIds = extractResumeCapableAgentIds(agents);
         return agents;
       },
       daemonOnline,

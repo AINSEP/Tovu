@@ -42,9 +42,23 @@
   --jini-chat-text-strong: var(--fg);
   --jini-chat-muted: var(--muted);
   --jini-chat-faint: var(--faint);
-  --jini-chat-border: var(--border);
-  --jini-chat-border-strong: var(--border-strong);
-  --jini-chat-border-soft: var(--border);
+  /* Sourced from `--chat-border-seam`/`--chat-border-strong-seam` (defined below on
+     `.admin-chat-dock`, this rule's own ancestor) — NOT from `var(--border)`/`var(--border-strong)`
+     directly, and that indirection is load-bearing, not stylistic. Those two token names are exactly
+     what the package's own injected default theme (`CHAT_PANE_STYLES`,
+     `chat/src/react/features/chat-pane/styles.ts`) redefines on this SAME `.jini-chat-pane` element
+     (`--border: var(--jini-chat-border)`) — pointing this block at `--border` closed a cycle between
+     the two stylesheets: `--jini-chat-border` depended on `--border`, which the package's own rule
+     made depend on `--jini-chat-border` right back. Per the CSS custom-properties spec, a cyclic
+     reference makes every property in the cycle invalid at computed-value time, which is why every
+     `--border*`/`--jini-chat-border*` token on this element and its descendants used to compute to
+     nothing (confirmed live: the composer's border rendered `0px none`). `--chat-border-seam` and
+     `--chat-border-strong-seam` break the cycle by re-deriving `--border`/`--border-strong` one DOM
+     level up, on `.admin-chat-dock`, where the package's rule never reaches — so this block's own
+     declarations no longer feed back into themselves. */
+  --jini-chat-border: var(--chat-border-seam);
+  --jini-chat-border-strong: var(--chat-border-strong-seam);
+  --jini-chat-border-soft: var(--chat-border-seam);
   --jini-chat-accent: var(--accent-text);
   --jini-chat-accent-soft: var(--surface-2);
 }
@@ -73,6 +87,14 @@
   border-left: 1px solid var(--border);
   background: var(--surface);
   overflow: hidden;
+  /* Captured here — one DOM level above `.jini-chat-pane`, which the seam block above this one
+     reads from — because `.jini-chat-pane` itself cannot reliably resolve its own
+     `--border`/`--border-strong` (see that block's comment for the redefinition cycle this avoids).
+     `.admin-chat-dock` never redefines `--border`/`--border-strong` itself, so these two just carry
+     this app's real tokens from `styles.css` down unchanged, immune to whatever `.jini-chat-pane`
+     does with those names further down the tree. */
+  --chat-border-seam: var(--border);
+  --chat-border-strong-seam: var(--border-strong);
 }
 
 .admin-chat-dock[hidden] {
@@ -443,6 +465,25 @@
   font-size: 12px;
 }
 
+/* --- Queued prompt strip: NO host CSS, deliberately ---
+ *
+ * Tovu used to re-implement `.jini-chat-pane__queued*` here because the package shipped those
+ * rules only in `reference.css`, which nothing imports. They now live in `@jini-ai/chat`'s
+ * `CHAT_PANE_STYLES`, which `ChatPane` injects as a `<style>` tag into every host automatically —
+ * so this block was deleted (2026-09-01) rather than updated.
+ *
+ * It had gone actively harmful, not merely redundant: the package's redesign moved the pending
+ * prompt out of a banner above the composer and into the transcript as a right-aligned bubble that
+ * WRAPS, and this file's leftover `white-space: nowrap; text-overflow: ellipsis` kept overriding it
+ * back to a single truncated line. It also still styled `.jini-chat-pane__queued-label`, a class
+ * the package no longer renders at all.
+ *
+ * Do not re-add rules for these classes. If the strip looks wrong, fix it in the package so every
+ * host gets the fix; a host-side override here silently wins on source order and strands the
+ * upstream design. Rebuild `packages/chat` (`npm run build`) after changing it — Tovu resolves
+ * `@jini-ai/chat` through the package's `exports` to its built `dist/`, not `src/`.
+ */
+
 /* --- Composer --- */
 
 /* Undocumented wrapper `ChatPane` renders around the composer for file-drag-drop
@@ -473,28 +514,20 @@
 /*
  * The composer box, stated explicitly rather than through the `--jini-chat-*` seam.
  *
- * Measured on the deployed build (computed style, 2026-09-01): the package's own
- * `.jini-chat-pane .jini-composer { border: 1px solid var(--jini-chat-border) }` was computing to
- * `0px none` because `--jini-chat-border` does not resolve in this scope — and an invalid `var()`
- * invalidates the whole `border` shorthand rather than falling back. Combined with
- * `--jini-chat-subtle` having been flattened to `--surface`, the input ended up pure white with no
- * border inside a pure white pane: literally invisible.
+ * FIXED (2026-09-01): the package's own `.jini-chat-pane .jini-composer { border: 1px solid
+ * var(--jini-chat-border) }` was computing to `0px none` because `--jini-chat-border` and `--border`
+ * formed a redefinition cycle between this file and the package's injected stylesheet on the same
+ * `.jini-chat-pane` element — see the seam block at the top of this file
+ * (`.admin-chat-dock .jini-chat-pane`) for the root cause and the fix. `var(--border-strong)` below
+ * is back to a real token now that the cycle is broken and it resolves again; this rule previously
+ * carried a literal copy of that token's value as a workaround.
  *
  * Three classes so this outranks the package's two-class rule on specificity; source order alone
  * is not enough, since `ChatPane` injects its stylesheet at mount and is therefore always LAST.
- *
- * The border colour is a LITERAL, not `var(--border-strong)`, and that is deliberate. Probed in the
- * deployed page: `--surface`, `--surface-2` and `--accent` all resolve inside the dock, but
- * `--border` and `--border-strong` do NOT -- `color: var(--border-strong)` on a probe element
- * returned the inherited text colour, i.e. the fallback, which is the same reason the package's own
- * border declaration collapsed. The literal is `--border-strong`'s value from `styles.css`; if that
- * token is ever retuned, this needs the same edit. Verified live: idle composer computes
- * `background: oklch(0.966 0.006 250)` + `border: 1px solid oklch(0.86 0.01 255)` against a pure
- * white pane.
  */
 .admin-chat-dock .jini-chat-pane .jini-composer {
   background: var(--surface-2);
-  border: 1px solid oklch(86% 0.010 255); /* = --border-strong; see note above */
+  border: 1px solid var(--border-strong);
   border-radius: 12px;
 }
 

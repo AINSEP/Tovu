@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { AGENT_DEFS } from "@jini-ai/agent-runtime";
+
 import { listAssistantAgents, rescanAssistantAgents } from "../agents.js";
 
 /**
@@ -31,6 +33,35 @@ test("listAssistantAgents projects fallback models and reasoning options for cla
   for (const option of claude.reasoningOptions ?? []) {
     assert.equal(typeof option.id, "string");
     assert.equal(typeof option.label, "string");
+  }
+});
+
+/**
+ * @file Regression coverage for the transcript-duplication bug: the admin transport used to resend
+ * the full rendered transcript on every turn regardless of the target agent, even for defs whose CLI
+ * already resumes its own multi-turn session (`--resume`/`session/load`) — duplicating history the
+ * CLI already remembers on top of what it re-derives from `--resume`. `@jini-ai/agent-runtime`'s
+ * `resumesSessionViaCli`/`resumesSessionViaAcpLoad` doc (`types.ts`) is explicit that a caller
+ * should send just the latest message for these defs; `carriesOwnMemory` is `listAssistantAgents`'s
+ * client-safe projection of that pair so the admin transport can gate on it without importing
+ * `@jini-ai/agent-runtime` server-only internals into the browser.
+ *
+ * Asserted against the real `AGENT_DEFS` registry rather than a hand-maintained id list, so a def
+ * that later opts into (or out of) resume support is covered automatically instead of silently
+ * drifting out of sync with this projection.
+ */
+test("listAssistantAgents' carriesOwnMemory exactly matches each def's own resumesSessionViaCli/resumesSessionViaAcpLoad declaration", async () => {
+  const agents = await listAssistantAgents();
+  assert.ok(AGENT_DEFS.length > 0, "expected at least one real def to assert against");
+  for (const def of AGENT_DEFS) {
+    const agent = agents.find((candidate) => candidate.id === def.id);
+    assert.ok(agent, `expected an agent list entry for def '${def.id}'`);
+    const expected = Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad);
+    assert.equal(
+      agent.carriesOwnMemory === true,
+      expected,
+      `agent '${def.id}'.carriesOwnMemory should be ${expected} (resumesSessionViaCli=${def.resumesSessionViaCli}, resumesSessionViaAcpLoad=${def.resumesSessionViaAcpLoad}), got ${agent.carriesOwnMemory}`,
+    );
   }
 });
 
