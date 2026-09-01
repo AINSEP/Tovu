@@ -85,7 +85,17 @@
 /* Row shell — reuses the accordion idiom already proven on Source Control/Static Site (native
    `<details>`, one visible expand affordance). `.access-tokens-row-done` is the "connected" tone. */
 .access-tokens-row {
-  display: flex; flex-direction: column; gap: var(--space-3); max-width: 60%;
+  /* A readable-measure CAP, not a percentage of the column (2026-09-01 fix): `max-width: 60%` used
+     to fit the summary line's marker + name + "saved <date>" + expand affordance on one row at full
+     page width, but the same 60% of a much narrower column (chat dock open) is too tight for that
+     same content, and `.access-tokens-row-summary-meta` had no `white-space` of its own — so the
+     browser wrapped the DATE mid-value ("saved" / "2026-" / "09-01 16:55") instead of the row simply
+     using more of the available width. `40rem` is generous enough to hold every row's content on one
+     line at any realistic column width (including with the dock open) while still capping the row on
+     a very wide monitor, the way `%` was meant to but couldn't once the column itself got narrow.
+     `.source-control-row` (this file's own "visual rhyme" reference, see header) carries no cap at
+     all — 40rem is a deliberately looser middle ground, not a return to unbounded width. */
+  display: flex; flex-direction: column; gap: var(--space-3); max-width: 40rem;
   padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
 .access-tokens-row-done { background: var(--surface-2); }
@@ -99,8 +109,27 @@
   background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--fg-2);
 }
 .access-tokens-row-marker-done { background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok)); color: var(--ok-solid-ink, oklch(99% 0 none)); }
-.access-tokens-row-name { font-weight: 600; color: var(--fg); }
-.access-tokens-row-summary-meta { color: var(--faint); font-size: var(--text-xs); }
+/* A small `min-width` (not `0`) overrides the flex-item default of `min-width: auto` (which
+   resolves to the text's min-content size — i.e. its longest unbreakable word — and would
+   otherwise stop this span from ever shrinking past that, forcing the date or the row itself to
+   give way instead). `0` was tried first and over-corrected: with `.access-tokens-row-summary-meta`
+   now `nowrap` (below) and therefore unable to shrink below its own full text width, a *literal*
+   zero floor let the flex row take 100% of the deficit from this span alone, shrinking the provider
+   name to nothing rather than a few characters + ellipsis — worse than the wrap it replaced. `3rem`
+   keeps enough of the name legible to still read as ellipsized text, not a vanished label, while
+   still yielding first to `.access-tokens-row-summary-meta` and `-expand` (both effectively
+   nowrap/fixed) under pressure. Only a safety net for the narrowest columns —
+   `.access-tokens-row`'s own `max-width: 40rem` fix (see that rule's comment) is what actually
+   prevents this at any realistic width. */
+.access-tokens-row-name {
+  font-weight: 600; color: var(--fg);
+  min-width: 3rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* `white-space: nowrap` (2026-09-01 fix): a "saved <date>" value reads as one unit, not a sentence —
+   letting it wrap mid-value ("saved" / "2026-" / "09-01 16:55") is what ballooned the row's height
+   when `.access-tokens-row`'s old `%`-based cap left too little room for it. See that rule's own
+   comment for the width half of this fix. */
+.access-tokens-row-summary-meta { color: var(--faint); font-size: var(--text-xs); white-space: nowrap; }
 .access-tokens-row-summary-expand {
   display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto; font-size: var(--text-xs); font-weight: 600; color: var(--fg-2);
 }

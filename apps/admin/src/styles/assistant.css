@@ -30,17 +30,14 @@
 .admin-chat-dock .jini-chat-pane {
   --jini-chat-bg: var(--surface);
   --jini-chat-panel: var(--surface);
-  /* Was `var(--surface-2)` — the pane root/header/focused-composer above already read
-     `--jini-chat-bg`/`--jini-chat-panel` as pure white (`--surface`), but `--jini-chat-subtle`
-     is what the package's own styles.ts paints the UNFOCUSED composer box, the suggestion
-     pills, and the message-status strip with (see `.jini-composer`/`.jini-chat-pane__status` in
-     `Jini/packages/chat/src/react/features/chat-pane/react/styles.ts`) — `--surface-2` is a real,
-     if subtle, off-white (oklch 96.6% vs `--surface`'s 100%), so that idle-state box was the one
-     part of the pane that visibly read as grey next to the rest of the white dock (owner report,
-     2026-08-31: "ChatPane background grey, should be white"). Mapped straight to `--surface` so
-     the composer no longer visibly shifts tone between its unfocused and `:focus-within` states
-     (`.jini-composer:focus-within` already uses `--jini-chat-panel`, i.e. the same `--surface`). */
-  --jini-chat-subtle: var(--surface);
+  /* REVERTED to `var(--surface-2)` (owner report, 2026-09-01: "the chat input should be gray,
+     the chat pane should be white — it's hard to see where the input is"). The earlier flattening
+     to `--surface` came from an owner report that the *pane* read grey, but the pane background is
+     `--jini-chat-bg`/`--jini-chat-panel`, not this token — `--jini-chat-subtle` only paints the
+     UNFOCUSED composer box, the suggestion pills and the message-status strip. Flattening it made
+     the composer invisible against the pane without fixing what was actually reported. The pane
+     stays pure white either way. */
+  --jini-chat-subtle: var(--surface-2);
   --jini-chat-text: var(--fg);
   --jini-chat-text-strong: var(--fg);
   --jini-chat-muted: var(--muted);
@@ -471,6 +468,78 @@
   padding: 10px 16px 14px;
   border-top: 1px solid var(--border);
   min-width: 0;
+}
+
+/*
+ * The composer box, stated explicitly rather than through the `--jini-chat-*` seam.
+ *
+ * Measured on the deployed build (computed style, 2026-09-01): the package's own
+ * `.jini-chat-pane .jini-composer { border: 1px solid var(--jini-chat-border) }` was computing to
+ * `0px none` because `--jini-chat-border` does not resolve in this scope — and an invalid `var()`
+ * invalidates the whole `border` shorthand rather than falling back. Combined with
+ * `--jini-chat-subtle` having been flattened to `--surface`, the input ended up pure white with no
+ * border inside a pure white pane: literally invisible.
+ *
+ * Three classes so this outranks the package's two-class rule on specificity; source order alone
+ * is not enough, since `ChatPane` injects its stylesheet at mount and is therefore always LAST.
+ *
+ * The border colour is a LITERAL, not `var(--border-strong)`, and that is deliberate. Probed in the
+ * deployed page: `--surface`, `--surface-2` and `--accent` all resolve inside the dock, but
+ * `--border` and `--border-strong` do NOT -- `color: var(--border-strong)` on a probe element
+ * returned the inherited text colour, i.e. the fallback, which is the same reason the package's own
+ * border declaration collapsed. The literal is `--border-strong`'s value from `styles.css`; if that
+ * token is ever retuned, this needs the same edit. Verified live: idle composer computes
+ * `background: oklch(0.966 0.006 250)` + `border: 1px solid oklch(0.86 0.01 255)` against a pure
+ * white pane.
+ */
+.admin-chat-dock .jini-chat-pane .jini-composer {
+  background: var(--surface-2);
+  border: 1px solid oklch(86% 0.010 255); /* = --border-strong; see note above */
+  border-radius: 12px;
+}
+
+/*
+ * Focused: ONE line, and keep the fill grey.
+ *
+ * The first attempt used `border-color: var(--accent)` and flipped the background to white. Both
+ * were wrong, seen live: `--accent` in the admin theme is `oklch(22% 0.006 260)` -- effectively
+ * black, not the burnt-orange the name suggests -- so focusing painted a heavy black rule; and the
+ * package's own `:focus-within` adds a terracotta ring (`0 0 0 1px rgba(201,100,66,.06)`), so the
+ * two landed as different-coloured lines at different radii (this box is 12px, the textarea inside
+ * it 11px, the drop-target wrapper around it 16px -- three concentric roundings, which is what made
+ * it read as "messed up lines").
+ *
+ * So: suppress the package ring, step the border one stop darker than idle rather than to an accent,
+ * and leave the background grey -- flipping to white on focus undid the whole point of the grey
+ * fill the moment you clicked into it.
+ */
+.admin-chat-dock .jini-chat-pane .jini-composer:focus-within {
+  background: var(--surface-2);
+  border-color: oklch(70% 0.012 255);
+  box-shadow: none;
+}
+
+/*
+ * A SECOND, unrelated ring (2026-09-01 fix), found live after the rule above was reported not to
+ * have fixed the visible pink/red outline: `styles.css`'s own `input:focus, select:focus,
+ * textarea:focus { box-shadow: 0 0 0 3px var(--primary-ring) }` is a global accessibility rule (see
+ * its own comment there -- WCAG 2.1 SC 1.4.11, deliberate, applies to every plain form field in this
+ * admin) with NO class scoping at all, so it matches `.jini-composer-input` too: it is, after all,
+ * a bare `<textarea>`. That box-shadow is painted on the INPUT itself, not on `.jini-composer` --
+ * and box-shadow never cascades from a parent to a child, so the wrapper rule above suppressing
+ * `.jini-composer`'s own box-shadow does nothing to this one. Confirmed live via computed styles in
+ * BOTH surfaces this composer renders in (the docked panel and the mobile bottom sheet) -- the ring
+ * was never sheet-specific, the wrapper-level fix just never reached the element actually painting
+ * it, in either place.
+ *
+ * Safe to drop entirely rather than replace: `.jini-composer:focus-within` above already gives this
+ * control its own real, visible, non-colour-only focus indicator (the border step from idle's
+ * oklch(86%) to oklch(70%)), which is exactly the kind of state change the global rule exists to
+ * guarantee when a field has nothing else. This one does.
+ */
+.admin-chat-dock .jini-chat-pane .jini-composer-input:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .jini-composer-leading,
