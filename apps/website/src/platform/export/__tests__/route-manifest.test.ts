@@ -49,6 +49,17 @@ function makeTheme(overrides: Partial<DiscoveredTheme> & { manifest?: Partial<Di
  * against it would also be wrong against a freshly-installed real site.
  */
 
+/**
+ * Returns a shallow copy of `theme` with `manifest.publishedPages` set to exactly `pages` — used
+ * only to opt a real, disk-loaded theme fixture (the seeded "basic" theme) into the publish
+ * allow-list for one test, without touching the real on-disk `theme.json`, which deliberately ships
+ * no `publishedPages` (`ThemeManifest.publishedPages`'s own doc, 2026-08-30 owner correction: absent
+ * means every ordinary page is unpublished by default, retroactively, for every theme on disk).
+ */
+function withPublishedPages(theme: DiscoveredTheme, pages: string[]): DiscoveredTheme {
+  return { ...theme, manifest: { ...theme.manifest, publishedPages: pages } };
+}
+
 /** MUTATES the object `createRouteDeps()` returns rather than spreading a copy — deliberately,
  *  since 2026-08-20 (RouteDeps-narrowing pass 2): `resolveStorefrontProducts` is a closure bound to
  *  ONE object identity, at construction time, inside `createRouteDeps()` itself (same shape and same
@@ -104,7 +115,7 @@ test("buildRouteManifest: a published PostRecord with kind 'page' is enumerated 
   assert.equal(route?.kind, "page", "a PostRecord.kind of 'page' must map to ManifestRoute.kind 'page', not 'post'");
 });
 
-test("buildRouteManifest: always includes the convention routes robots.txt/sitemap.xml, and reports the missing favicon/manifest route", async () => {
+test("buildRouteManifest: always includes the convention routes robots.txt/sitemap.xml/llms.txt, and reports the missing favicon/manifest route", async () => {
   const manifest = await buildRouteManifest(baseDeps());
 
   const robots = manifest.routes.find((r) => r.path === "/robots.txt");
@@ -114,6 +125,10 @@ test("buildRouteManifest: always includes the convention routes robots.txt/sitem
   const sitemap = manifest.routes.find((r) => r.path === "/sitemap.xml");
   assert.ok(sitemap, "expected /sitemap.xml — always registered regardless of the sitemapEnabled setting");
   assert.equal(sitemap?.kind, "well-known");
+
+  const llmsTxt = manifest.routes.find((r) => r.path === "/llms.txt");
+  assert.ok(llmsTxt, "expected /llms.txt — no HTML page links to it, so a crawl alone would never find it (registerLlmsTxtRoute is always mounted, see modules/seo.ts)");
+  assert.equal(llmsTxt?.kind, "well-known");
 
   assert.ok(
     manifest.skipped.some((s) => s.reason === "no-favicon-or-manifest-route"),
@@ -128,11 +143,18 @@ test("buildRouteManifest: resolves and returns the active theme's id + on-disk d
 });
 
 test("buildRouteManifest: enumerates the active theme's own static pages, excluding index/404 and template shells", async () => {
-  const manifest = await buildRouteManifest(baseDeps());
-
   // seeded active theme is "basic" (server/seed.ts's seededPresentation), a static-tier theme whose
   // theme.json declares "pricing" as a real page and "page-shell"/"blog-post" as template shells
-  // (theme.manifest.templates) a post picks via templateChoice, never their own route.
+  // (theme.manifest.templates) a post picks via templateChoice, never their own route. Its real
+  // theme.json ships no `publishedPages`, so "pricing" is unpublished by default — published here,
+  // for this test only, via `withPublishedPages` (see that helper's own doc) so the
+  // index/404/template-shell exclusion this test targets can still be proven against the theme's
+  // real page content.
+  const publishedBasicThemes = createRouteDeps().themes.map((t) =>
+    t.manifest.id === "basic" ? withPublishedPages(t, ["pricing"]) : t
+  );
+  const manifest = await buildRouteManifest(baseDeps({ themes: publishedBasicThemes }));
+
   const pricing = manifest.routes.find((r) => r.path === "/pricing");
   assert.ok(pricing, "expected the theme's own 'pricing' static page to be enumerated");
   assert.equal(pricing?.kind, "theme-page");
@@ -202,6 +224,11 @@ test("buildRouteManifest: a post that never decided (overridesThemePage omitted)
 
 test("buildRouteManifest: a post explicitly kept at false still loses to the theme's same-slug static page (tri-state, 2026-08-15)", async () => {
   const base = createRouteDeps();
+  // "pricing" ships unpublished by default on the real on-disk "basic" theme (`ThemeManifest.publishedPages`,
+  // 2026-08-30 owner correction) — published here, for this test only, so the theme page actually
+  // contends for the slug; otherwise `buildThemePageRoutes` skips it before `overridesThemePage` is
+  // ever consulted, and the post would win vacuously rather than by the tri-state rule this test targets.
+  const publishedBasicThemes = base.themes.map((t) => (t.manifest.id === "basic" ? withPublishedPages(t, ["pricing"]) : t));
   const explicitlyKeptPost = {
     id: "post-explicit-false-test",
     workspaceId: base.workspaceId,
@@ -217,7 +244,7 @@ test("buildRouteManifest: a post explicitly kept at false still loses to the the
     overridesThemePage: false,
   };
   const postRepo = new InMemoryPostRepo([explicitlyKeptPost]);
-  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+  const manifest = await buildRouteManifest(baseDeps({ postRepo, themes: publishedBasicThemes }));
 
   const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
   assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
@@ -315,7 +342,14 @@ test("buildRouteManifest: a non-static-tier active theme contributes no theme-pa
 
 test("buildRouteManifest: a static theme whose manifest omits `templates` still enumerates its pages (the `templates ?? []` fallback)", async () => {
   const themeWithNoTemplatesField = makeTheme({
-    manifest: { id: "no-templates-field-theme" }, // tier defaults to "static" via makeTheme's base
+    manifest: {
+      id: "no-templates-field-theme", // tier defaults to "static" via makeTheme's base
+      // Published explicitly — `ThemeManifest.publishedPages`'s off-by-default gate (2026-08-30
+      // owner correction) is independent of the `templates ?? []` fallback this test targets; left
+      // absent, the fixture's page would be excluded by the publish gate before `templates ?? []`
+      // is ever reached, for a reason unrelated to what this test is proving.
+      publishedPages: ["no-templates-field-theme-fallback-page"],
+    },
     // A deliberately unusual slug so it cannot collide with any seeded post (the tri-state
     // overridesThemePage rule would otherwise let a same-slug post win, same as the
     // "post explicitly kept at false" test above — irrelevant to what this test targets).

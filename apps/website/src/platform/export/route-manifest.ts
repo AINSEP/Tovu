@@ -248,13 +248,14 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     { path: "/", kind: "home", label: "home" },
     // Convention-addressed files: nothing in any rendered page LINKS to these — browsers and
     // crawlers request them by name — so a crawl-based asset discovery pass (site-exporter.ts)
-    // structurally cannot find them. Both are always-registered routes regardless of settings
-    // (`registerSeoRobotsRoute`/`registerSeoSitemapRoute`, mounted unconditionally in `app.ts`;
-    // `sitemapEnabled` only gates whether `robots.txt` ADVERTISES the sitemap URL, not whether
-    // `/sitemap.xml` itself responds), so — unlike favicon/manifest below — they belong in the
-    // manifest proper rather than in `skipped`.
+    // structurally cannot find them. All three are always-registered routes regardless of settings
+    // (`registerSeoRobotsRoute`/`registerSeoSitemapRoute`/`registerLlmsTxtRoute`, mounted
+    // unconditionally by `modules/seo.ts`; `sitemapEnabled` only gates whether `robots.txt`
+    // ADVERTISES the sitemap URL, not whether `/sitemap.xml` itself responds), so — unlike
+    // favicon/manifest below — they belong in the manifest proper rather than in `skipped`.
     { path: "/robots.txt", kind: "well-known", label: "robots.txt" },
     { path: "/sitemap.xml", kind: "well-known", label: "sitemap.xml" },
+    { path: "/llms.txt", kind: "well-known", label: "llms.txt" },
   ];
   const skipped: ManifestSkip[] = [
     // Also convention-addressed and also invisible to a crawl — but unlike robots.txt/sitemap.xml,
