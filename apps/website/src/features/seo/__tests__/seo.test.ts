@@ -133,6 +133,52 @@ test("getEntryMeta: all precedence sources absent for description resolves undef
   assert.equal(meta.description, undefined);
 });
 
+test("getEntryMeta: description derives from an html-format page's bodyHtml when override and site default are absent (SPEC-047 gap)", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<header><h1>Quickstart</h1></header><p>From nothing to a published post in five steps.</p>",
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Quickstart From nothing to a published post in five steps.");
+});
+
+test("getEntryMeta: html-format description strips a leading <style> block and decodes entities instead of leaking CSS/markup", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<style>.qs-wrap { max-width: 46rem; }</style><div class=\"qs-wrap\"><p>Tovu &amp; you: &lt;init&gt; a site in minutes.</p></div>",
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Tovu & you: <init> a site in minutes.");
+});
+
+test("getEntryMeta: html-format description truncates at the same length and with the same ellipsis as the doc-format path", async () => {
+  const longSentence = "A".repeat(200);
+  const deps = await makeDeps([
+    seedPost({ kind: "page", bodyFormat: "html", bodyHtml: `<p>${longSentence}</p>` }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, `${"A".repeat(160)}…`);
+});
+
+test("getEntryMeta: an explicit description override still wins over the derived html excerpt", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<p>This should never be used as the description.</p>",
+      seoExtJson: JSON.stringify({ description: "Manual override description" }),
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, "Manual override description");
+});
+
 test("getEntryMeta: canonical override is accepted cross-domain as-is (EC-10)", async () => {
   const deps = await makeDeps([
     seedPost({ seoExtJson: JSON.stringify({ canonical: "https://other-domain.example/elsewhere" }) }),

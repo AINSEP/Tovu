@@ -42,8 +42,37 @@ function extractPlainText(node: unknown): string {
 
 const EXCERPT_MAX_LENGTH = 160;
 
+/** Named entities actually observed in stored `bodyHtml` (numeric entities are handled separately
+ *  below); extend only as real content demands it rather than pulling in a full HTML5 entity table. */
+const HTML_NAMED_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+/** Decodes `&amp;`/`&#39;`/`&#x27;`-style entities left over after tag-stripping. Unknown or
+ *  malformed entities pass through unchanged rather than being dropped. */
+function decodeHtmlEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
+    if (entity[0] !== "#") return HTML_NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+    const codePoint = entity[1] === "x" || entity[1] === "X" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+    return Number.isNaN(codePoint) ? match : String.fromCodePoint(codePoint);
+  });
+}
+
+/** Plain-text extraction over a bespoke-HTML Page body (for the derived-excerpt fallback, SPEC-047
+ *  gap): drops `<style>`/`<script>` blocks wholesale (never prose) before stripping the remaining
+ *  tags, so a leading stylesheet — real `bodyHtml` rows start with one, see `/quickstart` — can never
+ *  surface as the description. */
+function extractPlainTextFromHtml(html: string): string {
+  const withoutNonProse = html.replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, " ");
+  const withoutTags = withoutNonProse.replace(/<[^>]+>/g, " ");
+  return decodeHtmlEntities(withoutTags);
+}
+
+/** override > site default > derived excerpt (behavior.spec.md §1.1). Derivation reads whichever
+ *  body column `bodyFormat` says is live — `bodyJson` (TipTap doc) or `bodyHtml` (bespoke-HTML
+ *  Page, SPEC-047/ADR-056 Decision 3) — so an html-format Page gets a real excerpt instead of
+ *  silently resolving to `undefined`. */
 function deriveExcerpt(post: PostRecord): string | undefined {
-  const text = extractPlainText(post.bodyJson).replace(/\s+/g, " ").trim();
+  const rawText = post.bodyFormat === "html" ? extractPlainTextFromHtml(post.bodyHtml ?? "") : extractPlainText(post.bodyJson);
+  const text = rawText.replace(/\s+/g, " ").trim();
   if (!text) return undefined;
   return text.length > EXCERPT_MAX_LENGTH ? `${text.slice(0, EXCERPT_MAX_LENGTH).trim()}…` : text;
 }
