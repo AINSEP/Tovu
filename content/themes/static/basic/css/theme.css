@@ -26,6 +26,32 @@ p { margin: 0; color: var(--muted); }
 .wrap { max-width: var(--container); margin: 0 auto; padding: 0 24px; }
 
 /* ---------- header / nav ---------- */
+/* Single source for the sticky header's rendered height: `.nav-row` below reads `--header-h`
+   directly (its 69px content height; `.site-header`'s own 1px border-bottom brings the real box
+   to 70px). Declared at `:root` rather than scoped to `.site-header` since the header is injected
+   as a partial embed (`blog-sidebar-template.html`'s
+   `data-embed-config='{"type":"partial","id":"nav",...}'`) and ends up a SIBLING of `.docs-layout`
+   under `<body>`, not its ancestor. Header height is the same at every breakpoint (`.nav-row` is
+   never resized in the `@media (max-width: 640px)` block below — the mobile `.main-nav.open` panel
+   is a `position: absolute` overlay under it, not part of its box), so one value covers desktop
+   and mobile alike.
+
+   NOT `--kui-pin-offset`: kUInetic's docs (https://kuinetic.com/docs/catalog.md) say a pinning
+   effect's `offset-top:` defaults to `var(--kui-pin-offset, 0px)`, which reads as "answer the
+   header offset once via that token." That default genuinely exists in the vendored bundle
+   (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
+   `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. The
+   scroll-spy effect this theme DOES use (`data-kui="scroll-spy ..."` on `.docs-layout`,
+   `blog-sidebar-template.html`) is a different code path (`prepareScrollSpyContainer`) whose own
+   `offset-top` param defaults to a literal `"0px"` and is parsed by a plain JS regex
+   (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at all — a CSS custom
+   property can never reach it. That effect's `offset-top:70px` is therefore authored directly on
+   the `data-kui` attribute instead (see the comment there). If this theme ever adds a real pin/
+   sticky effect, reintroduce `--kui-pin-offset: calc(var(--header-h) + 1px)` here for it to pick
+   up automatically; until then it would be a var nothing reads. */
+:root {
+  --header-h: 69px;
+}
 .site-header {
   position: sticky;
   top: 0;
@@ -41,7 +67,7 @@ p { margin: 0; color: var(--muted); }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 69px;
+  height: var(--header-h);
 }
 .brand {
   display: flex;
@@ -231,7 +257,10 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 
 /* ---------- footer ---------- */
 .site-footer { border-top: 1px solid var(--border); padding: 56px 0 40px; }
-.footer-grid { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 32px; margin-bottom: 48px; }
+/* repeat(4,1fr) -> repeat(3,1fr): the footer's "Account" column was commented out in footer.html
+   2026-08-31 (owner request, reversible) leaving 4 visible columns (brand + Product + Resources +
+   Legal), not 5. Restore this to repeat(4,1fr) together with uncommenting that column. */
+.footer-grid { display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 32px; margin-bottom: 48px; }
 .footer-col h4 { font-size: 13px; color: var(--fg); margin-bottom: 14px; font-family: var(--font-body); font-weight: 500; }
 .footer-col a { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .footer-col a:hover { color: var(--fg); }
@@ -258,7 +287,14 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .faq-item p { padding-bottom: 22px; font-size: 14px; max-width: 60ch; }
 
 /* ---------- docs ---------- */
-.docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 48px; padding: 48px 0 96px; }
+/* `padding-block`, not shorthand `padding`: same clobber as `.hero`/`section.band` (fixed
+   2026-08-31) — this rule and `.wrap`'s `padding: 0 24px` share specificity, and this one comes
+   later in the cascade, so a shorthand here would zero out `.wrap`'s inline padding on every
+   `.docs-layout.wrap` element (`docs.html`'s `<main class="wrap docs-layout">`, and
+   `blog-sidebar-template.html`'s `<div class="docs-layout wrap">`), running the sidebar and
+   article flush against the viewport edge. `padding-block` only ever touches top/bottom, so it
+   can't touch `.wrap`'s left/right padding at all. */
+.docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 48px; padding-block: 48px 96px; }
 .docs-side { border-right: 1px solid var(--border); padding-right: 24px; }
 .docs-side .group { margin-bottom: 28px; }
 .docs-side .group h4 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-bottom: 12px; font-family: var(--font-body); font-weight: 500; }
@@ -527,6 +563,18 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
   color: var(--fg);
 }
 
+/* kUInetic scroll-spy (2026-08-31, `blog-sidebar-template.html`'s `data-kui="scroll-spy ..."`) sets
+   this attribute itself on both the in-view section and its paired sidebar link(s) — a boolean data
+   attribute, not a class (see this theme's NOTICE.md "Kuinetic vendored" section), so it needs its
+   own rule rather than reusing `.is-current` above, which the retired `docs-sidebar.js` toggled by a
+   different mechanism entirely. Same visual treatment as `.is-current` on purpose: one page reading
+   as "you are here," regardless of which of the two spies produced it. */
+.docs-nav .menu-item > a[data-kui-active="true"] {
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  font-weight: 500;
+}
+
 /* An unavailable branch renders as inert text so its children survive — dim it so it does not read
    as a link that failed to work. */
 .docs-nav .menu-item > .menu-item-label {
@@ -559,9 +607,22 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    `padding: 72px 0 96px` — correct for a full-width article page, wrong here, because
    `.docs-layout` already supplies the top spacing. The two stacked, so the article started 72px
    below the sidebar's first item instead of level with it. Only the top is zeroed; the 96px
-   bottom is still wanted. */
+   bottom is still wanted.
+
+   `margin: 0` for the same reason: `.post-detail` also carries `margin: 0 auto` to center a
+   full-width article page. On a grid item, auto inline margins opt the item OUT of the grid's
+   default stretch sizing — the browser sizes it to its own content (shrink-to-fit, still capped
+   by `.post-detail`'s `max-width: 720px`) and uses the margins to center whatever's left inside
+   the track, instead of filling it. A wide element inside the article (a `<pre>` code sample,
+   here) has no track width to shrink against once that happens, so `overflow-x: auto` on the
+   `pre` never engages and the article renders at its content's full intrinsic width — well past
+   the sidebar and off the right edge of the viewport on narrow screens. Zeroing the margin here
+   restores plain stretch: the article fills the track (still never wider than 720px), so the
+   reading column lines up flush with the sidebar's edge and a wide `pre` scrolls inside its own
+   box instead of blowing out the page. */
 .docs-layout .docs-content {
   padding-top: 0;
+  margin: 0;
 }
 
 /* A section heading is a label, not a destination, so it takes the accent colour on its own rather
