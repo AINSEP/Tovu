@@ -66,36 +66,23 @@ inflated estimate on this repo already manufactured an unnecessary redesign once
 
 ---
 
-## ❓ QUESTION, parked 2026-08-29 — how hard would SonarQube be to add here?
+## ✅ DONE, 2026-08-29 — SonarQube set up in `development/sonarqube/`
 
-**Owner question, deliberately parked** — logged for a later session, not scoped or estimated yet.
-Answer it as a real evaluation, not a drive-by "sure, add the scanner", because four things in this
-repo make it non-obvious:
-
-- **We already have a metrics tool.** `development/scripts/code-metrics.py` runs 13 metrics and was
-  itself repaired 2026-08-28 (its any-count, complexity, and churn-rename numbers were all wrong
-  before that). The evaluation has to answer *what SonarQube adds over it*, not assume it is purely
-  additive.
-- **It would be a THIRD disagreeing complexity number.** `apps/admin` already has two complexity
-  metrics that disagree (the CI gate is pure ESLint). SonarQube ships its own cognitive-complexity
-  implementation which will agree with neither. Whichever is authoritative needs an explicit
-  decision — note the real ceiling in this repo is **10**, even though config still says 15.
-- **CI cannot verify it end-to-end today.** CI is billing-blocked, not off: triggers fire, the runner
-  never starts, and 8 gates currently run zero tests. A SonarQube CI integration can't be proven
-  green until that is resolved.
-- **`check:architecture` is deliberately RED** (accountability over a green gate). A SonarQube
-  quality gate needs the same explicit blocks-vs-reports decision rather than inheriting a default.
-
-Also a real fork to decide: self-hosted **SonarQube Community** vs hosted **SonarCloud** — SonarCloud
-is free only for public repos, and this one is private.
-
-**Deliverable when picked up:** a short recommendation with an effort estimate covering local-run vs
-CI-gate, self-hosted vs SonarCloud, and how it reconciles with `code-metrics.py` and the
-complexity-ceiling decision.
+The parked evaluation question is answered and built: `development/sonarqube/README.md` covers the
+decisions (self-hosted Community over SonarCloud — this repo is private; reporting not blocking —
+same reasoning as `check:architecture`'s red status; what it adds over `code-metrics.py` honestly,
+which is less than a generic pitch would claim) plus a `docker-compose.yml` + `scan.sh` local-run
+path. Nothing was started (Docker stays off until asked). One correction made along the way: the
+real hard-enforced complexity ceiling verified in `eslint.config.mjs` is **9**, not 10 as stated
+above — the "10" here was stale.
 
 ---
 
-## 🐛 BUG, filed 2026-08-29 — `tovu serve` never starts an agent daemon; Runner instances silently share one
+## ✅ FIXED 2026-08-30 (was: 🐛 BUG, filed 2026-08-29) — `tovu serve` never starts an agent daemon
+**Verified fixed.** `apps/website/src/cli/commands/serve.ts:178` now calls `startAssistantDaemon(...)`
+with `registerProcessSignalHandlers: false`, and per-instance port resolution lives in
+`server/runtime/lifecycle/agent-daemon-port.ts` (whose doc names the exact fixed-4319 collision
+described below). Shipped in commit `6da030b1`. Original report follows.
 
 **Found while running Tovu-Runner against a real instance**, verified directly (not just reported):
 `startAssistantDaemon` only runs from `apps/website/src/index.ts`'s `main()` — the same `main()` that
@@ -273,8 +260,19 @@ no architecture sign-off):
 - **Taxonomy watermark stamping fixed** (`fix(taxonomy)` commit `b4c76b4`) — unrelated to embeds
   but landed in the same session under the same "just fix it" instruction; also never spec'd.
 
-**Still separately unimplemented** (decided but not owed a NEW spec, since the decision itself is
-already recorded): the generic `data-embed-type`/`data-embed-id` contract for Pages' `body_html`
+**CORRECTION (re-verified 2026-08-30): the "still separately unimplemented" claim below is now
+FALSE — do not re-derive it.** The generic `data-embed-type`/`data-embed-id` contract for Pages'
+`body_html` IS implemented: `apps/website/src/contracts/core/embeds/marker.ts`'s own header names
+`widgets/html-embeds.ts` as the module handling `data-embed-type`/`data-embed-id` in a Page's
+`body_html`, and `rg` for `data-widget-embed`/`data-form-embed` across `apps/website/src/features/post`
+returns **zero hits**. This landed via **ADR-047 (widgets region + embed placement, debate-cleared
+2026-07-21)** and its implementation, **SPEC-043** (`apps/website/src/features/widgets/`,
+`resolvers/`, `resolver-service.ts`, `write-service.ts`, `html-embeds.ts`) — commits `03a87816`
+(build), `285bbfc1` (external audit: FAIL, 3 blocker/high), `cf41bf14` (fix + implement the
+routes/UI/AI-tools slice). Per `ADR-INDEX.md` line 54, ADR-047 itself still shows "Debate cleared…
+owes `/audit-work` before ACCEPTED" — so the ADR's formal acceptance may still be open even though
+the code is live; verify that gate before treating ADR-047 as fully closed. Historical text follows.
+The generic `data-embed-type`/`data-embed-id` contract for Pages' `body_html`
 (`[[project_tovu_generic_embed_contract]]` memory, decided 2026-08-05, rules settled) — today Pages
 still uses the older bespoke `data-widget-embed`/`data-form-embed` attributes. Fold this into
 whichever spec covers the Posts-embed work above, since both are "how do embeds work across
@@ -375,6 +373,14 @@ has one authoritative answer instead of being spread across four docs.
 > The ⭐ item (sample plugins) is the current **build-next**.
 
 ### AW-1. Fix the mobile nav drawer (header) — via a visual regression test
+**Status: STALE / DOES NOT REPRODUCE (re-verified 2026-08-30).** This entry described theme
+`tovu-official`, which no longer exists in the repo. The live theme is `basic`, and `basic`'s mobile
+CSS (`content/themes/static/basic/css/theme.css`, `@media (max-width: 640px)`) already uses
+`.main-nav { position:absolute; top:100% }` inside the sticky header — i.e. the very "candidate fix"
+below. The cited selectors (`.nav-menu`, hard-coded `top: 3.7rem`) return ZERO hits repo-wide.
+Verified with real geometry assertions at 390x844, not screenshots: drawer top >= header bottom,
+every nav link clear of the header, CTA reachable, closes on toggle — all passed with no CSS change.
+Guarded now by the `AW-1` block in `development/e2e/theme-visual.spec.ts`. Historical text follows.
 **Status:** known bug, intentionally left unfixed until AW-2 (VRT) exists, so the test proves the bug
 and guards the fix. On narrow viewports (`< 52rem`) tapping the hamburger opens the drawer but its top
 edge doesn't line up with the sticky header bottom — first item ("Product") is clipped. Cause (confirm
@@ -386,6 +392,14 @@ scrim + body-scroll-lock. **Acceptance:** 390×844 — hamburger opens a drawer 
 cleanly, no clipped items, all items+CTA reachable, closes on toggle; VRT captures it and stays green.
 
 ### AW-2. Learn visual regression testing (the skill that fixes AW-1 + AW-4)
+**CORRECTION 2026-08-30: the "all 4 pass clean" claim below was FALSE on this repo layout.** The
+harness never booted: `development/playwright.config.ts` pointed at `src/index.ts`, which moved to
+`apps/website/src/index.ts` in the apps/website restructure. **39 OTHER `playwright.*.config.ts`
+files had the same dead path — the entire e2e suite was non-functional on this branch.** All 40 are
+now repointed and one was re-run end to end to confirm the server boots (1 passed, 25s). Separately,
+the 4 original baselines (`home-desktop`, `home-wide`, `home-mobile-390`, `post-welcome`) now FAIL
+against fresh renders — real content/CSS drift since capture, deliberately NOT regenerated. That
+needs its own look. Historical text follows.
 **Status: SETUP DONE (2026-07-15).** `@playwright/test` + chromium installed; `playwright.config.ts`
 boots a fresh `PORT=3999 TOVU_DB=memory node --import tsx src/index.ts` per run (`reuseExistingServer`
 left off, so a stale long-running dev server can never serve these tests — confirmed the fresh-boot
@@ -416,6 +430,13 @@ plugins. **Still open:** the standalone spec slices (theme bundles; theme tiers 
 sandbox — see AW-5a C6 hardening).
 
 ### AW-4. Fix content-page (entry) wide-screen layout — via a visual regression test
+**Status: STALE / DOES NOT REPRODUCE (re-verified 2026-08-30).** Same stale-theme problem as AW-1.
+In `basic`, `.wrap` and `.post-detail` sit on the SAME element (`<article class="post-detail wrap">`)
+and `.post-detail` carries `margin: 0 auto` — there is no un-centered inner box. Verified across
+2 page types x 3 widths (1280/1920/2560): left and right gutters within 20px, column not collapsed.
+All 6 passed with no CSS change. Guarded by the `AW-4` block in `development/e2e/theme-visual.spec.ts`.
+GAP: a true non-post `page-shell.html` page could not be tested (none seeded under TOVU_DB=memory);
+inferred safe from byte-identical CSS, not directly run. Historical text follows.
 **Status:** known bug, intentionally left unfixed until AW-2 (write the test first). On a content page
 (`/about`, any `/:slug`) at ≥~1600px (obvious at 2560px), nav + footer go full-width but the article
 column is anchored left with the right half empty — stretching just grows white space. Cause (verified):
@@ -450,11 +471,15 @@ one page you were looking at** (home looked fixed; content pages were never chec
   "this runs JS on your site" consent.
 
 ### AW-6. Plugin extensibility ceiling (plugins owning tables) — **DECIDED** (pointer)
-**RESOLVED → ADR-023 (Core-Mediated Plugin Data Modules), PROPOSED** (2-round swarm debate picked
-core-mediated declarative tables + consent model; split-finalized per ADR-024). Plugins may own real
-`p_{pluginId}__*` tables via schema-as-data core executes; snapshot-before-DDL; retain-on-uninstall.
-**Remaining:** owner DRAFT→ACCEPTED sign-off on ADR-023; owed evidence for "commerce-grade" = a
-~50k-product faceted-catalog benchmark on end-user SQLite.
+**CORRECTION (re-verified 2026-08-30): ADR-023 is Accepted, not Proposed.** `ADR-INDEX.md` line 31
+reads "Accepted 2026-07-11 (extends 003/022; relates 024/015/021/008/011; resolves TODO §6; from
+2-round swarm debate + 3-round `/audit-work` `TM-adr023-dataModule-001`, round-3 unanimous PASS Codex
+9.0/agy 10.0)" — the owner DRAFT→ACCEPTED sign-off this entry says is still owed already happened.
+Historical text follows, evidence-corrected: ADR-023 (Core-Mediated Plugin Data Modules) — **Accepted**
+(2-round swarm debate picked core-mediated declarative tables + consent model; split-finalized per
+ADR-024). Plugins may own real `p_{pluginId}__*` tables via schema-as-data core executes;
+snapshot-before-DDL; retain-on-uninstall. **Remaining, not reverified this pass:** owed evidence for
+"commerce-grade" = a ~50k-product faceted-catalog benchmark on end-user SQLite.
 
 ### ⭐ AW-7. HIGH PRIORITY — build one sample plugin at each tier (build-next)
 Approved 2026-07-08. Prove the plugin design (ADR-024 accepted; ADR-023/025 proposed) in real running
@@ -476,6 +501,19 @@ contract is painful. **Acceptance:** three plugins run + live-verified (hand own
 auto-run); Tier-3 slice proves owned-tables end-to-end w/ snapshot-before-change; Tier-1 yields the
 written list of core-mediated primitives core must build; Tier-2 runs over the ABI via worker/RPC with a
 written note on any DX pain.
+
+**UNVERIFIED against this item's own acceptance criteria (checked 2026-08-30).** Real code exists that
+covers similar ground, but through a different subsystem than the one this item specifies, so its status
+is left as-is rather than marked done or stale from a partial look: `apps/website/src/features/plugins/`
+now has `store/` (Tier-3, `store-plugin.ts` + tests), `lipay/`, `deploy/`, and `supabase-mcp/` — real
+plugin-system code, not stubs. But `features/widgets/resolvers/contact-form.ts` shows the Contact Form
+piece shipped as a **widget resolver** under ADR-047/SPEC-043 ("Contact Form ships in v1 (thin adapter
+over the already-built `src/forms/`+`MailerPort`)" per `ADR-047`'s own text) — the **widgets** system, not
+the **plugins**/`dataModule` system AW-7 is specifically about. No Tier-2 sandboxed-code
+content-analyzer/SEO plugin was found (`rg` for `readability|content.analyzer` under `features/plugins`:
+zero hits). Whether `store/` satisfies this item's Tier-3 acceptance bar (owned tables, snapshot-before-
+schema-change, live-verified) was not checked line-by-line — that needs its own look before this item's
+⭐ HIGH PRIORITY status changes.
 
 ---
 
@@ -1455,3 +1493,195 @@ that owns it.
 and two of those surfaces — BYOK and Composio — are already flagged as broken or unfinished elsewhere
 in the backlog. Either confront them or scope the first pass to the stores that are healthy and say so
 on screen, rather than silently listing a subset as if it were everything.
+
+---
+
+## HTML-format Pages render in the fallback shell, not the theme — and nothing can change that
+
+Filed 2026-08-30, from a live admin-assistant session auditing tovu-com. Diagnosis independently
+verified against source before filing; the assistant's line references were all correct.
+
+**Symptom the owner sees:** five authored pages (`/quickstart`, `/documentation`, `/faq`,
+`/how-tovu-works`, `/about`) come back cream-and-peach while Posts render correctly in the full Basic
+theme. The peach is NOT a theme bug. Those pages are served by Tovu's built-in fallback shell
+(`SITE_TITLE = "Tovu Demo Site"`, `server/inbound/public-http/routes/site/pages.ts:137`) — no theme
+CSS is requested at all and no theme toggle appears. With the theme's tokens never emitted, the
+author's own CSS fallbacks win, and `pages_write_html`'s contract specifies those as
+`var(--accent, #8a4b2a)` (burnt orange) over `var(--surface-2, #f6f2ef)` (cream). That is the peach.
+
+**The actual gap.** An `"html"`-format Page should be able to render through the active theme's
+`page-shell` template. It cannot, because **there is no per-page template selection anywhere in the
+system** — verified: every `templateId` in the codebase is site-level provenance (`"starter"`,
+`platform/site-dir/*`), never a page's shell choice. `contracts.ts:126` documents a theme's
+`templates` array (`["blog-post.html", "page-shell.html"]`) but nothing selects one for a Page.
+This also means **no catalog tool can exist for it yet** — the assistant correctly reported it cannot
+fix this from chat. It is a Tovu code change first, a tool second.
+
+Related, already known: this is the same family as the three-diverging-render-paths problem. Confirm
+which of the three the fix belongs in before writing code.
+
+**Second finding — theme pages have no "don't publish" switch.** Public routing for a static theme is
+driven purely by file presence: any `.html` under the theme's `render/pages/` that is not declared as
+a template shell becomes a public URL automatically (`isStandaloneThemePage`,
+`features/theme/theme.ts:650`). There is no draft/unpublished state for a theme page. The assistant
+worked around this for `/pricing` by moving `pricing.html` into `_unpublished/` inside the theme and
+dropping it from `theme.json` — reversible, bytes intact, but a convention it invented, not a feature.
+**Decide whether that convention becomes real** (an ignore rule or a declared `unpublished` list) or
+whether theme pages get a genuine publish flag. Until then `_unpublished/` is undocumented and the
+next person to touch that theme will not know it means anything.
+
+**Smaller, independent:**
+- Footer menu still links `/team`, which is a draft page — a live dead link. Fix or drop the link.
+- Open question the assistant raised and the owner has not answered: re-skin those five pages to a
+  neutral white/grey fallback palette (~15 min) as a stopgap. That hides the peach where it is
+  visible but does not fix the shell problem. Do it only if the real fix is not being picked up now.
+
+**Already landed in that session** (theme edits, live, uncommitted): `/pricing` unpublished as above;
+header nav rewritten to How It Works / Quickstart / Docs / FAQ / About with all five verified
+resolving; the header's Legal dropdown dropped (Terms/Privacy remain in the footer); the theme's demo
+Pricing/Changelog/Download/Blog links removed; and a light-mode fix,
+`:root[data-theme="light"] .site-header { background: #ffffff; }`, replacing an 82%-blended tinted strip.
+
+---
+
+## Deployment — the owner's 3-session-running goal is more built than it looks (verified 2026-08-30)
+
+**Filed as a todos-audit correction, not a fresh gap report.** The dispatch brief for this audit
+described deployment as the owner's stated goal for three sessions running "with essentially no work
+done" and "not appear[ing] as an actionable backlog item at all." **That premise is wrong when checked
+against current source** — real, substantial, committed code exists on both sides:
+
+- **Admin UI** (`apps/admin/src/features/deployment/`): 6,354 lines across `Deployment.tsx` (tab
+  shell), `OverviewTab.tsx`, `StaticSiteTab.tsx` (1,568 lines), `DockerfileTab.tsx` (439 lines),
+  `FullSiteTab.tsx`, `HistoryTab.tsx`, plus a `hooks/` directory of port/dependency/use-* pairs
+  (`use-static-publish.hooks.ts`, `use-static-export.hooks.ts`, `use-dockerfile-source.hooks.ts`,
+  `use-publish-credentials.hooks.ts`) and their own unit tests.
+- **Backend** (`apps/website/src/`): `platform/export/site-exporter.ts` (872 lines, real static
+  exporter — timeout-bounded, per-route failure isolation, fixed in commit `355ccbbb` 2026-08-28),
+  `features/deployments/static-publish/` (S3-compatible publish target at 832 lines, a 693-line
+  `verify.ts` post-publish check, `publish-run.ts`, `publish-history.ts`, `credentials.ts`,
+  `adapter.ts`), `features/deployments/dockerfile.ts` + a real repo-root `Dockerfile`/
+  `Dockerfile.dockerignore`, and admin HTTP routes `publish-site.ts`, `export-site.ts`,
+  `deployment-overview.ts`, `publish-credentials.ts`. 23 test files under
+  `features/deployments/`+`platform/export/`. All of this is **committed** (landed by 2026-08-28,
+  `git log` on the key files, no uncommitted working-tree changes in either directory) — not
+  in-progress scaffolding.
+- Confirmed real, not a stub: `git status --porcelain` on both directories is clean, and
+  `deployment-constraints.md` itself (see below) is dated *before* the exporter/publish work landed,
+  which is why its own §3 table is now stale.
+
+**What is genuinely still open, from `development/docs/deployment/deployment-constraints.md`** (the
+2026-08-13/15 debate-sourced doc, `194` lines, last touched 2026-08-27 — **now itself partly stale**:
+its §3 table row "Static exporter: Does not exist… `grep` for `StaticExporter`/`exportSite` returns
+nothing" is **false** as of current source; re-verify the rest of that table before trusting it):
+- **§4.1 — multi-workspace hosting does not exist.** One running process resolves exactly one
+  workspace at boot (`src/platform/site-dir/resolve-workspace.ts:15-21`). This is the doc's own
+  stated gate for any *hosted-SaaS* deployment product (§9) — self-host/export/publish-to-a-bucket
+  paths (what the code above actually builds) don't need it, but "click Deploy, get a URL" for a
+  non-technical user does.
+- **§9 — the product question is still unanswered**: hosted SaaS (Deploy panel nearly empty:
+  Publish/domain/status) vs self-hosted (Providers tab with credentials) serve different users, and
+  the doc says the existing stub was shaped for the wrong one. Whether the *current* `Deployment.tsx`
+  UI (Overview/StaticSite/Docker/FullSite/History tabs) resolved this question one way or just built
+  through it was not checked in this pass — worth a direct look before assuming it's settled.
+- **Not independently verified this pass**: whether the built pipeline actually succeeds end-to-end
+  against a real host (S3-compatible bucket, a live Docker build) — code existing and tests passing is
+  not the same claim as "the owner can click Deploy and get a working live site," and no live
+  deploy was attempted here (would need real credentials and is outside a todos-audit's scope).
+
+---
+
+## `content/themes/` vs `sites/` have drifted in load-bearing ways — an upgrade would silently break the live site (verified 2026-08-30)
+
+**This is the gap the project memory `[[project_tovu_upgrade_destroys_themes]]` describes from the
+other direction** (upgrading Tovu destroys live theme edits because `sites/` is gitignored and themes
+live inside the install dir) — this entry documents the CURRENT, concrete drift on `tovu-com`'s
+`basic` theme, verified with `diff -rq content/themes/static/basic sites/tovu-com/themes/static/basic`:
+`css/theme.css`, `render/pages/404.html`, `render/pages/index.html`, `render/pages/pricing.html`,
+`render/partials/footer.html`, `render/partials/nav.html`, `theme.json`, `tokens.light.json` all
+differ.
+
+Two of those differences are functionally load-bearing, not cosmetic:
+
+- **`render/partials/nav.html`** — live carries `data-embed-config='{"type":"menu",
+  "id":"menu-header-nav","variant":"tree"}'` on the header menu; tracked has the same marker
+  **without** `"variant":"tree"`. This is not stylistic: `static-render.ts:267` picks
+  `renderMenuTree` only when `marker.config.variant === "tree"`, else the flat `renderMenuLinks`
+  (`static-render.ts:168`), and `renderMenuLinks`'s own doc comment (`static-render.ts:188`) says it
+  drops every nested-menu hook "on the floor." Confirmed live: `nav.html` already carries an inline
+  comment recording this exact reasoning (added this session). **An upgrade that copies the tracked
+  theme over the live one would silently delete the Docs dropdown** (or whatever menu currently
+  relies on the tree variant) with no error — the flat renderer degrades gracefully, so nothing
+  breaks loudly.
+- **`render/partials/footer.html`** — live footer's "Product" column drops the Pricing link tracked
+  still ships, and its "Resources" column points Docs at `/documentation` (absolute path, bypassing
+  the `<name>.html`→`/<name>` rewrite) where tracked still links `docs.html`. Live already carries
+  inline comments (added this session) recording that the "Pricing removed because pricing.html was
+  unpublished" note is **no longer true** — `pricing.html` is back in `render/pages/`, listed in
+  `publishedPages`, and `/pricing` returns 200 — and that `docs.html` 404s because `docs` was never
+  added to `publishedPages`, while `/documentation` is the real, separately-published page. An
+  upgrade would restore the dead `docs.html`/absent-Pricing-caveat link shape.
+
+`sites/` is gitignored (confirmed: `git status` shows no `sites/` changes despite the diffs above), so
+**the tracked copy under `content/themes/` is what any future `tovu init`/theme-reinstall/upgrade
+path would deploy** — reverting these live fixes with no warning. No fix attempted here (out of
+scope for a todos audit); flagging so the next theme-sync or upgrade-safety pass knows this drift
+exists and isn't cosmetic.
+
+---
+
+## Footer dead links on the live site — re-verified 2026-08-30 against a running `:3000`
+
+**Corrects/narrows the version of this claim carried into this audit's dispatch brief.** Curled every
+link the rendered homepage footer actually emits (`curl :3000/`, extracted via regex, then checked
+each individually — not inferred from `theme.json` alone):
+
+| Link | Status | Why |
+|---|---|---|
+| `/download` | **404** | `download` is in `basic`'s `theme.json` `pages` list but not in `publishedPages` (`["about","blog","pricing","signin"]`) |
+| `/changelog` | **404** | same — in `pages`, not in `publishedPages` |
+| `/signup` | **404** | same — in `pages`, not in `publishedPages` |
+| `/team` | **404** | **different root cause** — not a theme page at all; it comes from the `menu-footer-nav` embedded menu, and `/team` is a **draft Page entity** in the DB (see the "HTML-format Pages render in the fallback shell" entry above, which independently found this same link). Fixing `publishedPages` will not fix this one. |
+| `/blog` | 200 | now live — `blog` **is** in `publishedPages` today (this has changed since the brief was drafted; do not assume it's still dead) |
+| `/documentation`, `/about`, `/signin`, `/contact`, `/faq`, `/terms-of-service`, `/privacy-policy` | 200 | all fine |
+
+**Root cause for the theme-allowlist ones (`download`/`changelog`/`signup`):** `basic`'s
+`theme.json.publishedPages` is an explicit allowlist separate from `pages` (the full set of `.html`
+files the theme ships) — a page can exist, render fine if hit directly... actually does not: confirmed
+by curl, an unlisted page 404s outright, it is not merely "unlinked." The footer partial links to all
+of them unconditionally regardless of `publishedPages`, so the footer is generating guaranteed 404s by
+construction. Either add `download`/`changelog`/`signup` to `publishedPages`, or stop linking pages
+that aren't published — the current combination is the bug.
+
+---
+
+## 🐛 BUG, filed 2026-08-30 — opening the assistant dock corrupts the Visitor's AI Assistant form state
+
+**Reproduced twice in a real browser** (per this audit's dispatch brief, which this entry files
+verbatim plus a source-level lead): opening the admin `AssistantDock` flips a working, saved Gemini
+key's status from `Key works — 39 models available` to `API key not valid. Please pass a valid API
+key.` plus `Not saved yet — press Save.` A page reload restores it, so nothing is actually persisted —
+but the **Save button is left enabled over a bad value**, which is the dangerous part: an operator who
+doesn't reload and just presses Save could overwrite a good stored key with garbage.
+
+**Not fully root-caused this pass** (would need a live repro session, which this audit didn't run —
+see `[[feedback_live_agent_tests_via_browser_not_cli]]`), but a concrete lead worth checking first:
+`AiAssistant.tsx`'s `VisitorCredentialForm` (`apps/admin/src/features/ai-assistant/hooks/
+use-visitor-credential-form.hooks.ts`) owns this exact string pair (`ai-assistant-i18n.ts`: `"Key
+works — {count} models available."` / `"Not saved yet — press Save."`) and has a "discovery on load"
+effect (`useEffect` keyed on `[stored?.isSet, baseUrl, protocol]`) that re-probes the provider with
+`{ ...config, apiKey: "" }` whenever `stored.isSet` flips — relying on the server substituting the
+already-saved key. Separately, `AssistantDock.hooks.tsx`'s `useLocalCliSelection` (line ~511) reads
+and, on a change, writes+broadcasts `EXECUTION_NAMESPACE = "core.execution"` via
+`publishSettingsRefresh([EXECUTION_NAMESPACE])` — the same namespace `execution-settings.ts`'s header
+comment says drives a `useSettingsSlice.refresh()` that "replaces the WHOLE in-memory value with
+whatever `loadExecutionConfig` returns" on **any** out-of-band settings-changed signal, including a
+same-tab echo. That mechanism is documented there as specifically an ADMIN-BYOK-key problem
+(`reconcileExecutionConfigRefresh`), and `execution-settings.ts`'s own header says "Settings →
+Execution mode deliberately does NOT opt in [to the stored-credential probe] — different key" from the
+Visitor's site credential — so it's not a proven match. Flagging it because it's the only shared
+mechanism found by grep in the time available (`EXECUTION_NAMESPACE`, `publishSettingsRefresh`,
+`reconcileExecutionConfigRefresh`), not because it was confirmed to fire on the Visitor form. Next
+step: reproduce with the browser devtools Network tab open on the Visitor's AI Assistant screen while
+opening the dock, and see whether a `listModels`/discovery call fires with an empty or stale key at
+the moment the dock opens.
