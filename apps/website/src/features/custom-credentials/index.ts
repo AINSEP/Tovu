@@ -33,3 +33,18 @@ export {
 } from "./store.js";
 
 export { InMemoryCustomCredentialSetRepo } from "./repo.memory.js";
+
+export {
+  ConsoleCredentialedRequestAuditLog,
+  CredentialedRequestTransportError,
+  CredentialedRequestValidationError,
+  InMemoryCredentialedRequestAuditLog,
+  makeCredentialedRequest,
+  verifyCustomCredential,
+  type CredentialedRequestAuditEntry,
+  type CredentialedRequestAuditPort,
+  type CredentialedRequestDeps,
+  type CredentialedRequestResult,
+  type CustomCredentialVerificationResult,
+  type MakeCredentialedRequestInput,
+} from "./credentialed-request.js";

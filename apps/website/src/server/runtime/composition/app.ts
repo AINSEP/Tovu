@@ -12,6 +12,8 @@ import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
 import { InMemoryCustomCredentialSetRepo } from "#src/features/custom-credentials/index";
+import { createDefaultHttpClient } from "#src/platform/http/client";
+import type { EgressPolicy } from "#src/platform/http/index";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
@@ -764,6 +766,20 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
     // `routes/types.ts`'s `customCredentialSetRepo` doc.
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
+    // `features/custom-credentials`'s two agent tools need a guarded `HttpClientPort` — see
+    // `routes/types.ts`'s `customCredentialsHttpClient` doc. `createDefaultHttpClient` performs no
+    // I/O until a request is actually sent, so building a real one here (rather than a fake) keeps
+    // this hermetic composition root's own tests exercising the real SSRF-guard/host-binding path,
+    // same identical policy shape `server/deps.ts` uses for its own instance.
+    customCredentialsHttpClient: createDefaultHttpClient({
+      allowedSchemes: ["https"],
+      denyPrivateAddresses: true,
+      devHostAllowlist: [],
+      maxRedirects: 0,
+      connectTimeoutMs: 10_000,
+      maxResponseBytes: 1_000_000,
+      maxDecompressedBytes: 1_000_000,
+    } satisfies EgressPolicy),
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
     // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
     // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is

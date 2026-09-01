@@ -914,6 +914,22 @@ export function createSqliteRouteDeps(
     mode: runtimeMode,
   });
 
+  // `features/custom-credentials`'s two agent tools (`custom_credential_verify`/
+  // `custom_credential_make_request`) need a guarded `HttpClientPort` of their own — see
+  // `routes/types.ts`'s `customCredentialsHttpClient` doc for why this is a genuinely separate
+  // instance from `mailHttpClientPolicy` above rather than a shared one. Identical policy shape:
+  // no legitimate reason to redirect a fixed-method call to an operator-typed base URL either.
+  const customCredentialsHttpClientPolicy: EgressPolicy = {
+    allowedSchemes: ["https"],
+    denyPrivateAddresses: true,
+    devHostAllowlist: [],
+    maxRedirects: 0,
+    connectTimeoutMs: 10_000,
+    maxResponseBytes: 1_000_000,
+    maxDecompressedBytes: 1_000_000,
+  };
+  const customCredentialsHttpClient = createDefaultHttpClient(customCredentialsHttpClientPolicy);
+
   // Composio connectors. The service is built BEFORE the deps object because both the routes and
   // the boot hydration below need the same instance — its provider holds the catalog cache and the
   // OAuth pending-state map, so a second instance would silently not share either.
@@ -1234,6 +1250,9 @@ export function createSqliteRouteDeps(
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
     // instance). Same instance `resolvedMailer` above was built from — not a second repo.
     customCredentialSetRepo,
+    // See `routes/types.ts`'s own doc — a genuinely separate `HttpClientPort` instance from
+    // `resolvedMailer`'s, built above.
+    customCredentialsHttpClient,
     // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
     // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
     // spread LAST, so it always wins over anything a caller's `opts` might also carry).

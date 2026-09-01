@@ -15,6 +15,7 @@ import {
   contentTypesAgentToolCatalog,
   type AgentToolDefinition,
 } from "../../features/content-types/index.js";
+import { customCredentialsAgentToolCatalog } from "../../features/custom-credentials/agent-tools.js";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
 import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
@@ -201,6 +202,11 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // `assistant_ask_choice` (2026-08-30): the production counterpart to `demo-choices` above — see
   // `ask-choice-tool.ts`'s own header.
   ...(askChoiceAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `custom-credentials` (2026-08-31): `custom_credential_verify`/`custom_credential_make_request` —
+  // the two tools that let the agent actually USE a saved Access Tokens "Add custom provider"
+  // credential (e.g. name.com, fly.io), not just save one. See
+  // `features/custom-credentials/credentialed-request.ts`'s own header.
+  ...(customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

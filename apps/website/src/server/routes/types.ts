@@ -45,6 +45,7 @@ import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
+import type { HttpClientPort } from "../../platform/http/index.js";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
 import type { ComposioConfigRepoPort } from "../../platform/connectors/composio-config-store.js";
@@ -357,6 +358,25 @@ export interface CredentialsDeps {
    * vendor-keyed model).
    */
   customCredentialSetRepo: CustomCredentialSetRepoPort;
+  /**
+   * The guarded outbound-HTTP seam (ADR-038) backing `features/custom-credentials`'s two agent
+   * tools (`custom_credential_verify`/`custom_credential_make_request`,
+   * `features/custom-credentials/tool-registrations.ts`) — an authenticated call through a saved
+   * custom credential (e.g. "name.com", "fly.io") to its own operator-typed `baseUrl`. A genuinely
+   * separate `HttpClientPort` instance from `server/runtime/composition/deps.ts`'s own local
+   * `mailHttpClientPolicy`-backed client (that one is a private local, never stored on `RouteDeps`,
+   * since only `createResolvedMailer` ever needed it) — this one is stored here because the new
+   * registry-style tool-contribution seam (`contribute<Domain>Tools()`) receives the SAME shared
+   * `RouteDeps` object for every domain, so a domain's own `ToolDeps` interface can only pick up a
+   * field that genuinely lives on this bag. Built with the identical policy shape
+   * (`allowedSchemes: ["https"], denyPrivateAddresses: true, maxRedirects: 0, connectTimeoutMs:
+   * 10_000, maxResponseBytes/maxDecompressedBytes: 1_000_000`) both composition roots already use
+   * for `mailHttpClientPolicy` — see `features/custom-credentials/credentialed-request.ts`'s own
+   * header for why every outbound call here needs the SSRF-guarded client rather than raw `fetch`
+   * (the target host is an arbitrary, operator-typed `baseUrl`, not a small set of hardcoded,
+   * reviewed provider URLs).
+   */
+  customCredentialsHttpClient: HttpClientPort;
 }
 
 /**

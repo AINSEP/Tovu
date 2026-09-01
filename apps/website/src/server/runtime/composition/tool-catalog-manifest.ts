@@ -1,6 +1,7 @@
 import { registerToolContributor } from "#src/assistant/index";
 import { contributeCommentsTools } from "#src/features/comments/tool-registrations";
 import { contributeContentTypesTools } from "#src/features/content-types/tool-registrations";
+import { contributeCustomCredentialsTools } from "#src/features/custom-credentials/tool-registrations";
 import { contributeDatabaseTools } from "#src/features/database/tool-registrations";
 import { contributeDeploymentsTools } from "#src/features/deployments/tool-registrations";
 import { contributeEntriesTools } from "#src/features/entries/tool-registrations";
@@ -157,10 +158,20 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * added because a configuration snapshot cannot prove what a published page actually renders. It
  * follows the same contributor shape as the 25 above and adds no new module edge — `server` already
  * imports `features/*` by name throughout this file.
+ *
+ * `contributeCustomCredentialsTools()` (2026-08-31) is a NEW domain, same category as
+ * `site-inspection`/`site-evidence` above rather than a member of the 25-domain rollout: it closes
+ * the "the assistant can save a custom provider credential — Access Tokens page's 'Add custom
+ * provider' rows, e.g. name.com, fly.io — but can never USE one" gap with two tools,
+ * `custom_credential_verify` and `custom_credential_make_request` (GET-only in this slice — see
+ * `features/custom-credentials/credentialed-request.ts`'s own header for why write methods are a
+ * disclosed omission). Adds no new module edge for the identical reason `site-evidence` above does
+ * not.
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
   registerToolContributor(contributeContentTypesTools());
+  registerToolContributor(contributeCustomCredentialsTools());
   registerToolContributor(contributeDatabaseTools());
   registerToolContributor(contributeDeploymentsTools());
   registerToolContributor(contributeEntriesTools());

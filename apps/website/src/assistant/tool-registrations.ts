@@ -154,6 +154,7 @@ import { listToolContributors, type ToolContributor } from "./tool-contribution-
 
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations.js";
+import type { CustomCredentialsToolDeps } from "../features/custom-credentials/tool-registrations.js";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations.js";
 import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations.js";
 import type { StaticPublishToolDeps, VendorCredentialPort } from "../features/deployments/publish-agent-tools.js";
@@ -220,6 +221,7 @@ import {
  */
 export type AssistantToolRegistryDeps = CommentsToolDeps &
   ContentTypesToolDeps &
+  CustomCredentialsToolDeps &
   DatabaseToolDeps &
   DeploymentsToolDeps &
   StaticPublishToolDeps &
