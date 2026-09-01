@@ -2,6 +2,7 @@ import {
   buildDomainRegistrations,
   indexCatalogById,
   requireInputRecord,
+  requireNoInput,
   requireString,
   requireToolPermission,
   type AgentToolSideEffect,
@@ -27,23 +28,26 @@ import {
   type CredentialedRequestOutcome,
 } from "./credentialed-request.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import type { CustomCredentialSetRepoPort } from "./types.js";
+import { listCustomCredentials } from "./store.js";
+import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
 
 /**
- * @file Wires `agent-tools.ts`'s two-tool catalog onto `credentialed-request.ts`'s domain logic —
- * the same `contribute<Domain>Tools()` shape every other domain's `tool-registrations.ts` uses (see
+ * @file Wires `agent-tools.ts`'s three-tool catalog onto `credentialed-request.ts`'s domain logic (plus
+ * `store.ts`'s existing `listCustomCredentials` for the read-back tool) — the same
+ * `contribute<Domain>Tools()` shape every other domain's `tool-registrations.ts` uses (see
  * `features/deployments/tool-registrations.ts`'s own header for the catalog/wiring split this
  * mirrors).
  *
- * `custom_credential_verify` is `custom-credentials.read`-gated: it never durably mutates anything on
- * Tovu's own side. `custom_credential_make_request` is `custom-credentials.write`-gated (2026-08-31,
- * owner override widened this tool from GET-only to all five methods — see
- * `credentialed-request.ts`'s header): it can now perform a real external mutation through the saved
- * credential, so it sits on the write permission rather than read, the same distinction the admin
- * route (`server/inbound/admin-http/routes/system/custom-credentials.ts`) already draws between
- * reading and writing this table — this is a NEW dot-namespaced permission pair, matching that
- * route's own established per-feature convention; the seeded owner's wildcard grant authorizes both
- * immediately with no seed edit required.
+ * `custom_credential_list` and `custom_credential_verify` are both `custom-credentials.read`-gated:
+ * neither durably mutates anything on Tovu's own side (`custom_credential_list` doesn't even touch an
+ * external provider — it's a pure repo read). `custom_credential_make_request` is
+ * `custom-credentials.write`-gated (2026-08-31, owner override widened this tool from GET-only to all
+ * five methods — see `credentialed-request.ts`'s header): it can now perform a real external mutation
+ * through the saved credential, so it sits on the write permission rather than read, the same
+ * distinction the admin route (`server/inbound/admin-http/routes/system/custom-credentials.ts`)
+ * already draws between reading and writing this table — this is a NEW dot-namespaced permission
+ * pair, matching that route's own established per-feature convention; the seeded owner's wildcard
+ * grant authorizes both immediately with no seed edit required.
  *
  * ## DELETE's confirmation gate (owner decision, 2026-08-31)
  *
@@ -70,7 +74,8 @@ export interface CustomCredentialsToolDeps {
   readonly clock: { nowIso(): string };
   readonly customCredentialSetRepo: CustomCredentialSetRepoPort;
   readonly siteAssistantSecretSealer: SecretSealerPort;
-  /** The guarded outbound-HTTP seam (ADR-038) this domain's two tools call through — built ONLY by
+  /** The guarded outbound-HTTP seam (ADR-038) two of this domain's three tools call through
+   *  (`custom_credential_list` is a pure repo read and never touches this) — built ONLY by
    *  a composition root (`server/runtime/composition/{deps,app}.ts`); see `credentialed-request.ts`'s
    *  own `CredentialedRequestDeps.httpClient` doc for why this file never constructs one itself. */
   readonly customCredentialsHttpClient: HttpClientPort;
@@ -98,6 +103,9 @@ const WRITE_PERMISSION = `${DOMAIN}.write`;
  * `sideEffects` declaration.
  */
 export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+  // -> listCustomCredentials: a non-decrypting repo read (store.ts's own "never touch sealer/keyring"
+  // read model). No durable Tovu-side write, no external call, no decrypt of any kind.
+  ["custom_credential_list", "none"],
   // -> resolveCustomCredentialByLabel (a decrypting read) plus one bounded outbound GET against the
   // credential's own saved base URL. No durable Tovu-side write of any kind.
   ["custom_credential_verify", "none"],
@@ -139,6 +147,18 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
   };
 
   const handlers: Record<string, ToolHandler> = {
+    // Non-decrypting read-back (added 2026-09-01) — see agent-tools.ts's own header for why this
+    // exists and why it deliberately omits `username`. `listCustomCredentials` is `store.ts`'s
+    // existing "never touch sealer/keyring" read model; this handler adds nothing beyond the
+    // permission check and the empty-input contract every NO_INPUT_SCHEMA tool in this codebase uses
+    // (e.g. `deployment_get_static_publish_capabilities`'s own handler).
+    custom_credential_list: async (ctx): Promise<{ credentials: CustomCredentialSummary[] }> => {
+      requireNoInput(ctx.input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: READ_PERMISSION, entityType: DOMAIN });
+      const credentials = await listCustomCredentials({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId });
+      return { credentials };
+    },
+
     custom_credential_verify: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const label = requireString(input, "label");

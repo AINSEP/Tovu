@@ -70,10 +70,13 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   backup_list_restore_points: "snapshot snapshots backup backups checkpoint restore points list history",
   backup_plan_restore: "restore rollback revert recover undo snapshot backup",
   backup_get_capabilities: "backup snapshot restore support capability available",
+  recovery_get_status: "backup restore status health check migration in progress warning banner problem",
+  recovery_resolve_deep_link: "restore point link verify check database timeline deep link envelope",
 
   // --- redirects ---------------------------------------------------------------------------
   redirects_create: "url urls link links redirect forward point moved old new address route vanity short",
   redirects_list: "url urls link links redirect redirects forward list existing",
+  redirects_get: "url link redirect read view details one specific existing",
   redirects_get_hits: "url link redirect hits traffic clicks visits how many people broken followed",
   redirects_update: "url link redirect change edit update destination target",
   redirects_tombstone: "url link redirect delete remove disable",
@@ -89,6 +92,11 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   identity_user_create: "add user account new person invite staff admin create",
   identity_user_list: "users accounts people staff admins who has access list",
   identity_user_update_email: "email address change update user account",
+  identity_policy_delete: "permission access rule delete remove",
+  identity_policy_list: "permission access rules list existing available what policies",
+  identity_policy_update: "permission access rule edit change update rename re-describe",
+  identity_role_delete: "role access level delete remove",
+  identity_role_rename: "role access level rename edit change name",
 
   // --- members ------------------------------------------------------------------------------
   members_list: "members subscribers customers audience people registered signed up",
@@ -104,42 +112,67 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   newsletter_list_campaigns: "email campaigns newsletters sent scheduled drafts list",
   newsletter_remove_subscription: "unsubscribe remove subscriber opt out mailing list",
   newsletter_list_send_log: "email sent delivery log history newsletter campaign who received",
+  newsletter_list_lists: "subscriber lists mailing lists available existing audience segments what lists",
+  newsletter_create_list: "subscriber list new create mailing list audience segment group",
+  newsletter_archive_list: "subscriber list archive retire remove hide stop using mailing list",
+  newsletter_create_subscription: "add subscribe someone member to a list mailing list sign up manually",
+  newsletter_resend_confirmation: "resend confirmation email opt-in link subscribe again didn't get the email",
+  newsletter_get_campaign: "email campaign read view details one specific status",
+  newsletter_update_campaign: "email campaign edit update change subject draft",
 
   // --- comments ------------------------------------------------------------------------------
   comments_list_moderation_queue: "comments waiting approval pending moderate moderation review queue unapproved held",
   comments_approve_comment: "comment approve publish allow accept moderation",
   comments_trash_comment: "comment hide remove delete trash reported abusive",
   comments_mark_comment_spam: "comment spam junk abusive reported flag",
+  comments_restore_comment: "comment undelete bring back recover unspam un-spam",
+  comments_get_settings: "comment settings configuration config current rules how comments work",
+  comments_update_settings: "comment settings configure change require approval turn on off limit rate moderation rules",
 
   // --- forms ----------------------------------------------------------------------------------
   forms_list_submissions: "form submitted submissions contact responses replies entries messages people sent enquiries",
   forms_get_submission: "form submission response reply entry message detail",
   forms_list_definitions: "forms contact form list existing built",
   forms_create_definition: "form contact form build create new fields",
+  forms_update_definition: "form edit change existing update fields recipients",
+  forms_set_definition_status: "form enable disable turn off retire deactivate activate",
 
   // --- menus / navigation ----------------------------------------------------------------------
   menus_update_menu_tree: "navigation nav menu header top link links add item items reorder site structure",
   menus_create_menu: "navigation nav menu new create header footer",
   menus_list_menus: "navigation nav menus list existing header footer",
   menus_assign_location: "navigation nav menu location slot header footer place assign",
+  menus_get_menu: "navigation nav menu read view details one specific existing item tree",
 
   // --- seo ---------------------------------------------------------------------------------------
   seo_regenerate_sitemap: "sitemap google search engine index rebuild regenerate crawl submit",
   seo_analyze_entry: "seo search results ranking google visibility not showing up indexed problems audit page",
   seo_get_entry_meta: "seo meta title description tags page preview snippet",
   seo_set_entry_overrides: "seo meta title description override page tags",
+  seo_get_settings: "seo settings current site wide defaults meta social",
+  seo_set_settings: "seo settings change update site wide defaults meta social robots",
 
   // --- taxonomy -----------------------------------------------------------------------------------
   taxonomy_assign_terms: "tag tags label labels categorize category categories assign article post topic",
   taxonomy_create_term: "tag category term topic create new label",
   taxonomy_create_taxonomy: "taxonomy category system tags group create new",
   taxonomy_list: "tags categories taxonomies topics labels list",
+  taxonomy_rename_term: "tag category term rename edit change name",
+  taxonomy_plan_merge_term: "tag category term merge combine duplicate preview before",
 
   // --- widgets -------------------------------------------------------------------------------------
   widgets_bind_region: "widget sidebar footer region area slot place put add section",
   widgets_create_instance: "widget create add new block sidebar footer",
   widgets_list_regions: "widget regions areas slots sidebar footer available",
   widgets_list_instances: "widget widgets list existing placed blocks",
+  widgets_get_instance: "widget read view details one existing current where used",
+  widgets_get_region: "widget region read view current placements existing",
+  widgets_update_instance: "widget update edit change config settings instance",
+  widgets_trash_instance: "widget delete remove trash soft delete",
+  widgets_set_region_placements: "widget region replace set whole list sidebar footer bulk update",
+  widgets_insert_embed: "widget embed insert add put inline post entry body content",
+  widgets_remove_embed: "widget embed remove delete take out inline post body",
+  widgets_reorder_embeds: "widget embed reorder rearrange change order position swap",
 
   // --- theme ---------------------------------------------------------------------------------------
   theme_write_file: "theme stylesheet css template edit change design code file overwrite replace whole file",
@@ -148,11 +181,16 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   theme_list_files: "theme files templates stylesheets css list design",
   theme_list: "theme themes design appearance skin installed",
   theme_rename_file: "theme file rename renaming move name change filename css template stylesheet",
+  theme_trash_file: "theme file delete remove trash soft delete",
+  theme_restore_trashed_file: "theme file bring back undelete recover",
 
   // --- database ------------------------------------------------------------------------------------
   database_get_health: "database health healthy status ok working check diagnose",
   database_get_schema_state: "database schema tables structure state",
   database_list_pending_migrations: "database migration migrations pending upgrade schema",
+  database_list_restore_points: "backup snapshot history available recovery points",
+  database_plan_migrate_forward: "database migration migrate upgrade schema preview plan dry run what would happen before",
+  database_query_timeline: "database history log timeline events audit trail what happened ledger",
 
   // --- content / collections --------------------------------------------------------------------------
   content_post_search: "post posts blog article articles find search title lookup",
@@ -160,16 +198,28 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   content_post_create: "post blog article write new create draft",
   content_post_update: "post blog article edit change update publish draft",
   content_post_delete: "post blog article delete remove trash",
+  content_post_get: "post page article lookup find fetch read single one by id details specific",
   collections_entry_publish: "publish live go public release draft entry post article",
   collections_entry_unpublish: "unpublish hide draft retract take down entry post",
   collections_entry_create: "entry create new record item content add",
   collections_entry_list: "entries records items content list all",
+  collections_entry_update: "entry record item content edit change save update field value",
+
+  // --- content types (custom fields / schema) -----------------------------------------------------------
+  collections_content_type_define: "content type custom fields schema model post type kind of content structure define build register new",
+  collections_content_type_deprecate: "content type retire stop using disable old outdated no longer need freeze",
+  collections_content_type_list: "content types schema models available what content kinds exist fields structure",
+  collections_content_type_reactivate: "content type bring back restore undeprecate enable again turn back on",
+  collections_content_type_tombstone: "content type delete remove permanently destroy get rid of",
+  collections_content_type_update_fields: "content type fields schema add remove change edit structure update model rename field",
 
   // --- workspace / settings ------------------------------------------------------------------------------
   workspace_get: "site name title settings workspace details info about",
   workspace_update: "site name title rename change workspace settings brand",
   settings_get_effective: "setting settings configuration config value current",
   settings_list_definitions: "setting settings configuration options available what can",
+  settings_get_raw: "setting raw value layer global workspace user default unresolved debug",
+  settings_set_ui_preference: "preference language theme accent color notification sounds personal admin ui my settings",
 
   // --- plugins -------------------------------------------------------------------------------------------
   plugins_set_enabled: "plugin plugins enable disable turn on off activate deactivate extension",
@@ -178,6 +228,32 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   // --- interactive-UI component catalog -----------------------------------------------------------------
   search_components: "component components widget widgets chart charts graph graphs table tables button buttons checkbox card cards render rendering draw drawing display visualize visualization interactive ui shadcn recharts pie bar line",
   describe_component: "component props properties schema fields interactive ui widget render rendering",
+  assistant_render_ui: "render show display draw put a chart here show me a graph draw a table build a dashboard visualize view results embed inline in chat",
+
+  // --- pages (bespoke HTML) ------------------------------------------------------------------------------
+  pages_read_html: "page html source code view read existing content current",
+  pages_write_html: "custom page html code write create new design page build a page landing page",
+
+  // --- deployments / static publish -----------------------------------------------------------------------
+  deployment_list: "deployments environments releases history staging production what has been deployed",
+  deployment_get_static_publish_capabilities: "can I publish ready deploy hosting connected status providers where github pages vercel netlify cloudflare",
+  deployment_preview_static_publish: "dry run check before deploy what would happen test",
+  deployment_execute_static_publish: "deploy push ship go live make it live publish the site hosting",
+  deployment_generate_bucket_hosting_setup: "instructions steps how to setup guide public website cloud storage host",
+  deployment_propose_custom_provider_credential: "connect add new save credential storage provider hosting account s3 bucket",
+  deployment_trigger_export: "build generate export files download self host static site",
+  deployment_get_export_status: "progress done finished check static site build",
+  deployment_get_dockerfile: "docker container read view current build file",
+  deployment_set_dockerfile: "docker container write edit update change build file",
+
+  // --- source control --------------------------------------------------------------------------------------
+  source_control_get_capabilities: "git source control connected ready can I commit repository credentials setup github gitlab bitbucket",
+  source_control_execute_commit: "push code git repository export to repo commit changes github",
+
+  // --- site inspection / evidence -----------------------------------------------------------------------
+  site_get_profile: "site overview summary snapshot everything about the site inventory status",
+  site_collect_page_evidence: "evidence audit check compliance verify rendered really does prove tracking consent",
+  fetch_published_page: "check live page visitor sees rendered output verify loads works test does it work",
 
   // --- ask the administrator a question -----------------------------------------------------------------
   assistant_ask_choice:
@@ -190,6 +266,27 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
     "screenshot screenshots screen capture picture image photo see view look looks looking visual visually appearance " +
     "layout broken cramped misaligned overlapping clipped cut off ugly render rendering rendered how does this look " +
     "what does this look like show me the screen check the ui verify visually",
+
+  // --- custom-credentials (2026-09-01) ------------------------------------------------------------------
+  // Added the same day as `custom_credential_list` itself, after `custom_credential_verify`/
+  // `custom_credential_make_request` were found to have shipped with ZERO search-keyword coverage —
+  // see `agent-tools.ts`'s own header for the incident this closes (an entire Fly.io/name.com DNS
+  // session run through raw `curl` in Bash while `custom_credential_make_request` sat unused and
+  // unfound). Phrased from what an operator or a searching model actually types, not from the
+  // domain's own nouns — includes the vendor-shaped vocabulary (DNS, registrar, hosting, deployment,
+  // third-party API) the failing session was actually thinking in.
+  custom_credential_list:
+    "credential credentials token tokens api key keys secret secrets saved connected account accounts " +
+    "provider providers registrar registrars dns domain domains hosting host deployment deploy deployments " +
+    "third-party thirdparty external outside service services vendor vendors inventory what do i have " +
+    "do i have list existing configured connections name.com flyio fly.io",
+  custom_credential_verify:
+    "verify verifying valid invalid expired revoked revoke working works work test testing check checking " +
+    "credential token api key secret still good bad broken status health healthy alive dead stale current",
+  custom_credential_make_request:
+    "call calling request requests curl wget http https api endpoint third-party thirdparty external outside " +
+    "service vendor provider dns registrar hosting deployment domain credential token use using saved fetch " +
+    "send get post put patch delete hit query invoke run execute",
 };
 
 /** Separates a tool's real description from its appended search vocabulary. Written once, used by
@@ -242,7 +339,12 @@ export function indexedDescriptionFor(
  * was indexed, so no caller of `search_tools`/`describe_tool` ever sees the search vocabulary.
  *
  * Deliberately tolerant of text that was never folded (no marker -> returned unchanged), because it
- * runs over every hit including the ~90 tools that have no keywords at all.
+ * runs over every hit including the handful of tools that have no keywords at all — as of the
+ * 2026-09-01 backfill, just the three `TOVU_ENABLE_DEMO_TOOLS`-era "Development only" demo tools
+ * (`assistant_demo_a2ui`/`assistant_demo_choices`/`assistant_demo_image`), deliberately excluded
+ * since no real operator plausibly asks for them in plain language (see this file's own header).
+ * Before that backfill it was ~90 of the then-~150 registered tools; see this change's own report
+ * for the full before/after enumeration.
  */
 export function stripSearchKeywords(indexed: string): string {
   const at = indexed.indexOf(KEYWORD_MARKER);

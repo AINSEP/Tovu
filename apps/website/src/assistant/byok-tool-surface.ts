@@ -42,6 +42,8 @@ import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../contracts/core/tool-surface-exchanges.js";
+import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
+import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 
@@ -236,9 +238,24 @@ function resolveDelegatedInput(raw: unknown): DelegatedInputResolution {
   return { ok: false, message: `'input' must be a JSON object of the tool's input fields, not ${Array.isArray(raw) ? "an array" : typeof raw}.` };
 }
 
+/**
+ * Real identity for one meta-tool call, forwarded into {@link appendToolCatalogAttempt} when
+ * `search_tools`/`describe_tool` run. Unlike the Local CLI's `withToolCatalogAudit` (whose
+ * `runId`/`principalId` are FIXED for the whole process, per that module's own doc), BYOK's
+ * `executeMetaTool` already has the real per-call `principal`/`run` — this carries them straight
+ * through rather than losing them to a placeholder. `undefined` when `createByokToolSurface` was not
+ * given a sink (e.g. a test composing a bare surface), in which case neither branch logs at all.
+ */
+type MetaToolCatalogAudit = { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string; readonly principalId: string; readonly runId: string };
+
 /** `search_tools` branch of {@link createByokToolSurface}'s `executeMetaTool` dispatcher — split out
  *  purely to keep that function's complexity under the shop ceiling; behavior is unchanged. */
-function runSearchTools(catalog: ToolCatalogQuery, registry: Pick<ToolRegistry, "list">, args: Record<string, unknown>): ByokMetaToolResult {
+function runSearchTools(
+  catalog: ToolCatalogQuery,
+  registry: Pick<ToolRegistry, "list">,
+  args: Record<string, unknown>,
+  audit: MetaToolCatalogAudit | undefined,
+): ByokMetaToolResult {
   const query = typeof args.query === "string" ? args.query.trim() : "";
   if (query.length === 0) return err("'query' is required and must be a non-empty string.");
   const rawLimit = args.limit;
@@ -249,6 +266,15 @@ function runSearchTools(catalog: ToolCatalogQuery, registry: Pick<ToolRegistry, 
       ? Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX)
       : SEARCH_LIMIT_DEFAULT;
   const hits = catalog.search(query, limit);
+  if (audit) {
+    appendToolCatalogAttempt(audit.sink, {
+      workspaceId: audit.workspaceId,
+      runId: audit.runId,
+      principalId: audit.principalId,
+      toolId: SEARCH_TOOLS_TOOL_ID,
+      detail: searchToolsAuditDetail(query, limit, hits),
+    });
+  }
   if (hits.length === 0) {
     return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list().length} tools.` });
   }
@@ -256,10 +282,19 @@ function runSearchTools(catalog: ToolCatalogQuery, registry: Pick<ToolRegistry, 
 }
 
 /** `describe_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
-function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown>): ByokMetaToolResult {
+function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown>, audit: MetaToolCatalogAudit | undefined): ByokMetaToolResult {
   const id = typeof args.id === "string" ? args.id.trim() : "";
   if (id.length === 0) return err("'id' is required and must be a non-empty string.");
   const entry = catalog.describe(id);
+  if (audit) {
+    appendToolCatalogAttempt(audit.sink, {
+      workspaceId: audit.workspaceId,
+      runId: audit.runId,
+      principalId: audit.principalId,
+      toolId: DESCRIBE_TOOL_TOOL_ID,
+      detail: describeToolAuditDetail(id, entry),
+    });
+  }
   if (!entry) return err(`No tool with id "${id}". Use search_tools to find a valid id.`);
   return ok(entry);
 }
@@ -349,7 +384,15 @@ export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerE
 
 export function createByokToolSurface(
   routeDeps: ByokToolSurfaceDeps,
-  options: { readonly surfaceExchangeStore?: SurfaceExchangeStore } = {},
+  options: {
+    readonly surfaceExchangeStore?: SurfaceExchangeStore;
+    /**
+     * Where `search_tools`/`describe_tool` calls are logged (`tool-catalog-audit.ts`). Omitted, the
+     * two meta-tools run exactly as before and are not logged — a test composing a bare surface pays
+     * nothing extra. Production (`assistant-byok.ts`) always supplies this.
+     */
+    readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
+  } = {},
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
   // `routeDeps`'s declared type (`ByokToolSurfaceDeps`, above) is every field `AssistantToolRegistryDeps`
@@ -404,8 +447,17 @@ export function createByokToolSurface(
       );
     }
 
-    if (call.name === "search_tools") return runSearchTools(catalog, registry, args);
-    if (call.name === "describe_tool") return runDescribeTool(catalog, args);
+    // Real per-call identity, unlike the Local CLI's fixed placeholder — see `MetaToolCatalogAudit`'s
+    // own doc.
+    const catalogAudit: MetaToolCatalogAudit | undefined = options.toolAttemptAudit && {
+      sink: options.toolAttemptAudit.sink,
+      workspaceId: options.toolAttemptAudit.workspaceId,
+      principalId: principal.id,
+      runId: run.id,
+    };
+
+    if (call.name === "search_tools") return runSearchTools(catalog, registry, args, catalogAudit);
+    if (call.name === "describe_tool") return runDescribeTool(catalog, args, catalogAudit);
     // execute_delegated_tool
     return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
   }

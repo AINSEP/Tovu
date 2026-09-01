@@ -17,6 +17,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
@@ -215,4 +216,46 @@ test("a model that calls a REAL tool id as the tool NAME is told how to reach it
   const result = await surface().executeMetaTool(PRINCIPAL, RUN, call("workspace_get", {}));
   assert.equal(result.isError, true);
   assert.match(result.content, /execute_delegated_tool with toolId: "workspace_get"/);
+});
+
+/**
+ * INCIDENT FIX (2026-09-01): `search_tools`/`describe_tool` never reached `ToolExecutor`, so
+ * `withToolAttemptAudit` never recorded them — an agent's `search_tools` miss on
+ * `custom_credential_verify` left no query, limit, or hit-id trail to diagnose after the fact. Unlike
+ * the Local CLI path (`tool-catalog-audit.test.ts`'s `withToolCatalogAudit`, which has no real
+ * per-call identity to record), `executeMetaTool` already has the real `principal`/`run` for every
+ * call — these tests assert that real identity, not a placeholder, lands in the row.
+ */
+test("INCIDENT FIX: a search_tools call through executeMetaTool is recorded with the caller's real principal/run and the exact query, limit, and ranked hit ids", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" } });
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace", limit: 5 }));
+  const { hits } = JSON.parse(result.content) as { hits: ReadonlyArray<{ id: string }> };
+
+  assert.equal(sink.events.length, 1);
+  const [event] = sink.events;
+  assert.equal(event.toolId, "search_tools");
+  assert.equal(event.workspaceId, "ws-meta-tool");
+  assert.equal(event.runId, RUN.id);
+  assert.equal(event.principalId, PRINCIPAL.id);
+  assert.deepEqual(JSON.parse(String(event.detail)), { query: "workspace", limit: 5, resultIds: hits.map((h) => h.id), resultCount: hits.length });
+});
+
+test("a describe_tool call through executeMetaTool is recorded with the requested id and whether it resolved", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" } });
+
+  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get" }));
+  await s.executeMetaTool(PRINCIPAL, RUN, call("describe_tool", { id: "workspace_get_but_invented" }));
+
+  assert.equal(sink.events.length, 2);
+  assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { id: "workspace_get", found: true });
+  assert.deepEqual(JSON.parse(String(sink.events[1].detail)), { id: "workspace_get_but_invented", found: false });
+});
+
+test("without a toolAttemptAudit option, search_tools/describe_tool behave exactly as before and log nothing", async () => {
+  const s = surface(); // no toolAttemptAudit — the default this file's other tests already exercise
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));
+  assert.notEqual(result.isError, true, "omitting the audit option must not change ordinary behavior");
 });

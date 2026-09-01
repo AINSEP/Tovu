@@ -63,10 +63,29 @@ import {
   type ByokToolSurfaceDeps,
 } from "#src/assistant/index";
 import { formatCustomInstructionsOverlay, resolveCustomInstructions } from "#src/assistant/custom-instructions";
+import { createInMemoryToolAttemptAuditSink } from "#src/features/tool-audit/repo.memory";
+import { SqliteToolAttemptAuditSink } from "#src/features/tool-audit/repo.sqlite";
+import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { getAuthedPrincipal, requireAdminSession } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
+import { defaultContentDbPath } from "../deps.js";
 import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import type { ServerModuleHandle } from "./types.js";
+
+/**
+ * Resolves the sink `search_tools`/`describe_tool` calls are logged to when
+ * {@link createAssistantByokModule} builds its own default `ByokToolSurface` (a caller-supplied
+ * `toolSurface` bypasses this entirely, so no test that injects one pays for a connection it does not
+ * need). Mirrors `agent-daemon-server.ts`'s identical `auditSink` construction byte-for-byte,
+ * including its `TOVU_DB=memory` branch and its reason for opening a dedicated handle rather than
+ * reusing `RouteDeps`': that type does not expose its own `ContentDb`, by the same design choice
+ * documented there.
+ */
+function resolveToolAttemptAuditSink() {
+  return process.env.TOVU_DB === "memory"
+    ? createInMemoryToolAttemptAuditSink()
+    : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
+}
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
 
@@ -319,7 +338,11 @@ export function createAssistantByokModule(
   // (instead of casting) would ripple into `app.ts`'s `createApp` signature and every test that
   // constructs a bare `RouteDeps` fixture for this module — a behavior-preserving but far wider
   // change than this narrowing pass's scope.
-  const resolvedToolSurface = toolSurface ?? createByokToolSurface(routeDeps as unknown as ByokToolSurfaceDeps);
+  const resolvedToolSurface =
+    toolSurface ??
+    createByokToolSurface(routeDeps as unknown as ByokToolSurfaceDeps, {
+      toolAttemptAudit: { sink: resolveToolAttemptAuditSink(), workspaceId: routeDeps.workspaceId },
+    });
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,

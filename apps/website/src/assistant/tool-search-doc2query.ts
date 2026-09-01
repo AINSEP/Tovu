@@ -928,4 +928,30 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "What's the discarded-write window if I roll back to this restore point?",
     "Can you show me what a restore would do without actually doing it?",
   ],
+
+  // --- custom-credentials (2026-09-01) — added alongside the TOOL_SEARCH_KEYWORDS entries above, for
+  // the same reason: `custom_credential_verify`/`custom_credential_make_request` shipped with no
+  // search coverage at all and went unfound in a real session. See `tool-search-keywords.ts`'s own
+  // entries for the full incident context.
+  custom_credential_list: [
+    "What credentials do I have saved?",
+    "Do I have an API key or token saved for name.com?",
+    "What did I save for fly.io — is there already a token for that?",
+    "What third-party accounts or providers are connected to this site?",
+    "Before I use curl for this, is there already a saved credential I should use instead?",
+  ],
+  custom_credential_verify: [
+    "Is my fly.io token still valid?",
+    "Can you check if this saved API key still works?",
+    "Has my name.com credential expired or been revoked?",
+    "Test whether this saved token is still good before I rely on it.",
+    "Why did my last request through a saved credential fail — is the credential itself the problem?",
+  ],
+  custom_credential_make_request: [
+    "Can you call the name.com API using my saved credential instead of curl?",
+    "Make a request to my fly.io account using the token I already saved.",
+    "I need to hit a third-party API with my saved credential — can you do that instead of shelling out?",
+    "Can you check my domain's DNS records using the registrar credential I saved?",
+    "Use my saved deployment provider token to make an authenticated request to their API.",
+  ],
 };

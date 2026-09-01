@@ -132,6 +132,9 @@ import {
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
   withToolAttemptAudit,
+  withToolCatalogAudit,
+  UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+  UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
   buildAssistantToolRegistrations,
 } from "#src/assistant/agent-daemon-port";
 import { createSurfaceExchangeStore } from "#src/contracts/core/tool-surface-exchanges";
@@ -469,7 +472,12 @@ const assistantPromptAugmenter: PromptAugmenter = {
       "actions keep their full content. Tovu exposes a purpose-built, " +
       "audited catalog of tools for every action that touches this site's actual content, users, " +
       "permissions, forms, database state, configuration, or on-screen rendering (drawing a chart, " +
-      "form, or card live in the admin UI). For any such request: call " +
+      "form, or card live in the admin UI) — and equally for any outbound call to an external " +
+      "service this site holds a saved credential for: DNS and registrar records, hosting and " +
+      "deployment providers, and every other third-party API reachable with a stored token. Those " +
+      "are NOT infrastructure work outside this catalog's scope; custom_credential_list, " +
+      "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
+      "is made with the site's own audited credential rather than a shell. For any such request: call " +
       "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
       "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
       "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
@@ -481,9 +489,14 @@ const assistantPromptAugmenter: PromptAugmenter = {
       "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
       "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
       "the admin login route) to perform an action a registered tool already exists for. Bash and " +
-      "file access remain available for genuinely code-level questions about how Tovu itself works, " +
-      "but are not a substitute for the tool catalog when the request is about this site's live " +
-      "data or configuration. In particular: when asked to show, draw, chart, or visualize " +
+      "file access remain available for one narrow purpose: reading Tovu's own source to answer a " +
+      "code-level question about how Tovu itself is implemented. They are not available for anything " +
+      "else — not for calling an external API (use the credentialed-request tools above), not for " +
+      "inspecting or changing this site's data or configuration, and not for reading config files to " +
+      "infer state a tool would report directly. Two tests before you run a shell command: could a " +
+      "registered tool do this, and would this command still work on a deployed Tovu with no source " +
+      "checkout and no CLI on the machine? If the answer to the first is yes, or the second is no, " +
+      "you are about to do it the wrong way — search_tools again instead. In particular: when asked to show, draw, chart, or visualize " +
       "something, that is a rendering request for the live admin UI, not a request to author a " +
       "standalone artifact — search_tools for the rendering tool (assistant_render_ui) and " +
       "search_components/describe_component for the exact chart/component id, the same way you " +
@@ -1043,7 +1056,25 @@ async function start(): Promise<void> {
   // Backs `@jini-ai/mcp`'s `search_tools`/`describe_tool` — was never mounted before 2026-07-30,
   // so both 404'd for every spawned CLI despite the registry itself being fully populated. See
   // `tool-catalog-query.ts`.
-  registerToolCatalogRoutes(app, { catalog: buildToolCatalogQuery(registry) }, adapter);
+  //
+  // Wrapped in `withToolCatalogAudit` so every call lands in the same durable `agent_tool_attempts`
+  // trail as a real tool execution — neither route ever reaches `ToolExecutor`/`withToolAttemptAudit`
+  // above, since `registerToolCatalogRoutes` is "deliberately not routed through ToolExecutor" (that
+  // route module's own doc). Fixed `runId`/`principalId` rather than the daemon's real per-run
+  // values: `toolCatalogSearchRoute`/`toolCatalogDescribeRoute`'s `handle(input, deps)` carries no
+  // per-request identity at all (v0 scope, `@jini-ai/http-kit`'s own doc) — see `tool-catalog-audit.ts`
+  // for the full disclosure.
+  registerToolCatalogRoutes(
+    app,
+    {
+      catalog: withToolCatalogAudit(buildToolCatalogQuery(registry), auditSink, {
+        workspaceId: routeDeps.workspaceId,
+        runId: UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
+        principalId: UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
+      }),
+    },
+    adapter,
+  );
 
   // Backs `@jini-ai/mcp`'s `search_components`/`describe_component` — same route-registration gap
   // `tool-catalog-query.ts`'s own history warns about, avoided here by mounting alongside it from
