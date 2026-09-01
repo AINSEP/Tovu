@@ -1,0 +1,95 @@
+{%- comment -%}
+  Fashion Modern — products (full grid). Converted from the Framer export's shop.html, which is
+  the SAME 15-product grid as home.html's "New arrivals" section, just unfiltered — this template
+  mirrors that: same `.product-grid`/`.product-card` markup as home.liquid's featured section
+  (shared CSS in styles.css), every product instead of a teaser.
+
+  Field contract (see product.liquid's header for the full documented contract — this page reads
+  the same shape per grid item):
+    product.id, product.title              — real today (SiteProduct: id/title/price/stock)
+    product.priceFormatted                 — real today (server-precomputed, `$`-formatted cents)
+    product.compareAtPriceFormatted        — NOT wired. Source design showed a struck-through
+                                              "was" price on ~10 of 15 products (a sale). Degrades
+                                              to nothing (no strikethrough shown) until a
+                                              `compareAtPrice`/`compareAtPriceFormatted` field
+                                              exists on SiteProduct.
+    product.stock                          — real today; drives the sold-out badge.
+    product.images[0].url / .alt           — NOT wired. Degrades to a plain gradient card, same
+                                              fallback Storefront's own products.liquid uses
+                                              (`aria-hidden` placeholder div) but styled to this
+                                              theme's tokens instead of left completely bare.
+{%- endcomment -%}
+<div class="announce">
+  <div class="wrap"><p>Black Friday sale — 50% off select styles</p></div>
+</div>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/">{{ site.title }}</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+    <label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label>
+    <nav class="nav-menu">
+      <ul class="nav-list">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="/products">Shop</a></li>
+        <li class="nav-item"><a class="nav-link" href="/#journal">Journal</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" style="padding-block: 2.5rem 4rem">
+  <div class="section-head">
+    <div><p class="eyebrow">Shop all</p><h2>All products</h2></div>
+  </div>
+
+  {%- if products.size == 0 -%}
+    <p class="products__empty">No products available yet — the store isn't enabled in this runtime, or nothing has been added.</p>
+  {%- else -%}
+    <ul class="product-grid">
+      {%- for product in products -%}
+        <li class="product-card">
+          <a href="/products/{{ product.id }}">
+            <div class="product-card__media">
+              {%- if product.images.size > 0 -%}
+                <img src="{{ product.images[0].url }}" alt="{{ product.images[0].alt | default: product.title }}" loading="lazy">
+              {%- else -%}
+                <span class="product-card__media-fallback" aria-hidden="true"></span>
+              {%- endif -%}
+              {%- if product.stock == 0 -%}<span class="product-card__badge product-card__badge--sold-out">Sold out</span>{%- endif -%}
+            </div>
+            <h3 class="product-card__title">{{ product.title }}</h3>
+            <p class="product-card__price">
+              <span class="product-card__price-current">{{ product.priceFormatted }}</span>
+              {%- if product.compareAtPriceFormatted -%}<span class="product-card__price-compare">{{ product.compareAtPriceFormatted }}</span>{%- endif -%}
+            </p>
+            {%- if product.stock > 0 -%}
+              <p class="product-card__stock">{{ product.stock }} in stock</p>
+            {%- else -%}
+              <p class="product-card__stock product-card__stock--out">Sold out</p>
+            {%- endif -%}
+          </a>
+        </li>
+      {%- endfor -%}
+    </ul>
+  {%- endif -%}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer__top">
+    <div class="footer__brandcol">
+      <a class="footer__brand" href="/">{{ site.title }}</a>
+      <p class="footer__blurb">A modern minimalist storefront built on Tovu — every product on this site is real, seeded/store-plugin data.</p>
+    </div>
+    <div class="footer__col">
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">All products</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; {{ site.title }}</span>
+    <span>theme: {{ theme.name }}</span>
+  </div>
+</footer>

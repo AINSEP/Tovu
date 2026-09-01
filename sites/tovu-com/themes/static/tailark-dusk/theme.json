@@ -1,0 +1,42 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "tailark-dusk",
+  "name": "Northbound",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A dark, high-contrast SaaS marketing theme with ten alternate homepage/landing layouts sharing one nav, footer, and component system (feature tabs, pricing grid, testimonial wall, FAQ). Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": [
+    "dark",
+    "light"
+  ],
+  "defaultMode": "dark",
+  "fonts": [
+    "Inter:wght@400;500;600;700",
+    "Geist+Mono:wght@400;500"
+  ],
+  "pages": [
+    "index",
+    "landing-one",
+    "landing-two",
+    "landing-three",
+    "landing-four",
+    "landing-five",
+    "landing-six",
+    "landing-seven",
+    "landing-nine",
+    "landing-ten"
+  ],
+  "templates": [
+    "blog-post.html"
+  ],
+  "slots": {
+    "nav": {
+      "source": "nav.html",
+      "honorsCurrentPage": true
+    },
+    "footer": {
+      "source": "footer.html"
+    }
+  }
+}

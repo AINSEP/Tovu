@@ -1,0 +1,13 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "basic-declarative",
+  "name": "Basic (Declarative)",
+  "version": "0.1.0",
+  "tier": "declarative",
+  "description": "A worked example: the static `basic` theme's home page and post/entry page, rebuilt as pure declarative-tier data (JSON block trees over the fixed COMPONENTS vocabulary + tokens + one CSS file, no HTML/JS). Reference only — not wired into any site.",
+  "fonts": [
+    "Geist:wght@400;500",
+    "Geist+Mono:wght@400;500"
+  ]
+}
