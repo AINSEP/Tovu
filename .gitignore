@@ -57,6 +57,12 @@ sites/*/content.db-shm
 sites/*/content.db.bak-*
 sites/*/restore-point-*.db
 sites/*/out/
+# `content.seed.db` itself IS tracked (see above), but its own WAL/shm sidecars are the same
+# open-connection artifact as content.db's own -- e.g. merely opening it read-only with
+# better-sqlite3 creates them -- and committing one against a mismatched content.seed.db would
+# corrupt reads on checkout the same way. Never meaningful content; delete on sight.
+sites/*/content.seed.db-wal
+sites/*/content.seed.db-shm
 # ADR-041 ops journals (same live-runtime-data class as content.db above, not source): the OLD
 # root-level `ops/database-journal.db` rule below predates the 2026-08-27 move of per-site runtime
 # data under `sites/<name>/`, so it never reached `sites/<name>/ops/...` and these were never
