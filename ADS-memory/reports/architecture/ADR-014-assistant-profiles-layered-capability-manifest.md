@@ -1,6 +1,6 @@
 # ADR-014: One Assistant Engine, N Profiles — a Layered Capability Manifest across Tovu / Tovu-Runner
 
-- Status: ACCEPTED
+- Status: ACCEPTED — **⚠️ §3's capability clause ("Tovu never imports Runner tools; Runner composes site tools + its own") has been SUPERSEDED (accepted 2026-08-29) by: [ADR-061](ADR-061-runner-tools-for-tovu-site-assistant.md)** grants the admin-context assistant a strictly allowlisted, non-destructive subset of `runner.*` (currently `runner.create_site` alone) via Tovu's generic external-MCP extension point. ADR-011's one-way *dependency* arrow is unaffected — no Runner code or type enters Tovu — and everything else below (the Profile model, the `contexts`/`scope`/`auth`/`effect` axes, the layered manifest, server-side enforcement) is unchanged and is what ADR-061 builds on. Read ADR-061 before treating §3's capability sentence as current.
 - Date: 2026-07-06
 - Author: Claude Opus 4.8 / Leon Aburime
 - Extends: ADR-013 (assistant, tool `surface`). Depends on ADR-011 (topologies),
