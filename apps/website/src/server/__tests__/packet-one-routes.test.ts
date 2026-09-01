@@ -679,10 +679,9 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
     themesPayload.themes.map((t) => t.id),
     [
       "basic",
+      "basic-2",
       "basic-declarative",
       "fashion-modern",
-      "fuel",
-      "gracious-timing",
       // No `mui-marketing` here on purpose. That folder was swept in by 39096e15 (the ESM root
       // flip) alongside the ARCH-001 scratch dirs, and its own manifest called it a "Test theme
       // ... experiment" that "bypasses the conformance gate rather than passing it" — so it was
@@ -690,7 +689,6 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       // `git checkout 39096e15 -- content/themes/static/mui-marketing`, and if you do, add it back
       // here: this endpoint reports EVERY discovered theme regardless of validity (see the
       // comment above), so a restored folder WILL appear and fail this exact-match assertion.
-      "portfolite",
       "storefront",
       "tailark-dusk",
       "tailark-quartz-dark",

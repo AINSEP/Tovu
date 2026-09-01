@@ -1141,7 +1141,7 @@ test("contact-form widget: baseline CSS only references design tokens that actua
   const styleMatch = html.match(/<style>([\s\S]*?)<\/style>/);
   assert.ok(styleMatch, "baseline style block must be present");
   const css = styleMatch![1];
-  // The set every `basic`/`fuel`/`basic-2` theme's tokens.json + tokens.light.json actually defines
+  // The set every `basic`/`basic-2` theme's tokens.json + tokens.light.json actually defines
   // (verified 2026-08-31) — mode-aware (dark on bare :root, light on :root[data-theme="light"]).
   const existingTokens = new Set([
     "--bg", "--surface", "--surface-2", "--fg", "--muted", "--border", "--border-strong",

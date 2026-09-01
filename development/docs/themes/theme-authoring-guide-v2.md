@@ -399,7 +399,9 @@ mid-animation screenshot bug) is design text only — no test runner in this rep
 
 Verified: `find content/themes -iname "LICENSE"` returns nothing — no theme ships a `LICENSE` file
 today, structured or otherwise. `NOTICE.md` is the one REAL provenance mechanism in use today
-(free-text prose, present on `basic`, `fuel`, `gracious-timing`, `portfolite`). `theme.json`'s real
+(free-text prose, present on `basic`/`basic-2`; `fuel`, `gracious-timing`, and `portfolite` also
+shipped one before their 2026-08-31 removal — unconfirmed-license Framer Marketplace derivatives).
+`theme.json`'s real
 `author?: string` field (`theme.ts:111-118`) is parsed and surfaced through the `theme_list`/
 `theme_get` agent tools (`src/features/theme/tool-registrations.ts:118`), but nothing branches on
 it, and it is a bare string, not the structured `authors`/`license`/`attributions` objects §5

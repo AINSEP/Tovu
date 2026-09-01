@@ -11,10 +11,12 @@ import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 /**
  * @file Canaries for EVERY static theme's EVERY page on the `data-embed-config` marker spine — the
  * sweep `post-template-render.canary.test.ts` (2026-08-10, commit `26447df`) never ran: that file
- * pins the `basic` theme's post-template path only. This file covers the other six static themes
- * (`fuel`, `gracious-timing`, `portfolite`, `tailark-dusk`, `tailark-quartz-dark`,
- * `tailark-quartz-libre`) and, within every theme including `basic`, every page under `pages/` — not
- * only the ones used as a post template.
+ * pins the `basic` theme's post-template path only. This file covers the other static themes
+ * (`tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` as of 2026-08-31 — `fuel`,
+ * `gracious-timing`, and `portfolite` were removed from the repo that day, unconfirmed-license
+ * Framer Marketplace derivatives) and, within every theme including `basic`, every page under
+ * `pages/` — not only the ones used as a post template. `STATIC_THEME_IDS` below discovers the
+ * real theme set from disk, so this list is descriptive, not something to keep in sync by hand.
  *
  * Real theme files on disk, real render pipeline (`renderStaticPage`, `renderHtmlPageBody`), same
  * reason `post-template-render.canary.test.ts`'s own header gives: a fixture only ever proves the
@@ -140,8 +142,9 @@ function resolvedElementFor(html: string, marker: EmbedMarker): string {
  * unrelated pipeline stage) rewrites an `href="foo.html"` VALUE but never touches an anchor's inner
  * text, so this is stable across the whole render pipeline unless a real substitution happened — the
  * one signal narrow enough to prove "unresolved means untouched" without also tripping on a correct,
- * unrelated href rewrite (`gracious-timing`'s own footer fallback links to sibling pages by filename,
- * which get rewritten to real routes whether or not the marker around them ever resolves). */
+ * unrelated href rewrite (the now-removed `gracious-timing` theme's own footer fallback linked to
+ * sibling pages by filename, which get rewritten to real routes whether or not the marker around
+ * them ever resolves — the same shape can recur in any theme's own fallback markup). */
 function anchorTexts(html: string): string[] {
   return [...html.matchAll(/<a[^>]*>([^<]*)<\/a>/g)].map((m) => m[1]).sort();
 }
@@ -183,9 +186,9 @@ function menuMarkerSources(theme: DiscoveredTheme): ReadonlyArray<readonly [stri
  *
  * NOT a byte-identical `marker.whole` check for the held-back branch: `rewritePageLinks` (an
  * unrelated, pre-existing pipeline stage) legitimately rewrites a bare `href="foo.html"` to
- * `href="/foo"` INSIDE a marker's own authored fallback content too, resolved or not —
- * `gracious-timing`'s own footer fallback does exactly this, so requiring byte-identical survival
- * fails on a correct, unrelated rewrite. Anchor TEXT is the narrower, accurate invariant: untouched
+ * `href="/foo"` INSIDE a marker's own authored fallback content too, resolved or not — the
+ * now-removed `gracious-timing` theme's own footer fallback did exactly this, so requiring
+ * byte-identical survival fails on a correct, unrelated rewrite. Anchor TEXT is the narrower, accurate invariant: untouched
  * by that rewrite, so unchanged text proves nothing here substituted real content, without hardcoding
  * what "unsubstituted" fabricated content might look like.
  */
