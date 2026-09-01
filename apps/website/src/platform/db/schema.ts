@@ -1152,6 +1152,26 @@ export const outboxEvents = sqliteTable(
 );
 
 /**
+ * Gated-mutation confirmation tokens (SPEC-022 durability fix). The plan->confirm->execute
+ * ceremony's single-use, time-boxed credential (`contracts/core/gated-mutations/token.ts`'s
+ * `ConfirmationTokenRecord`) — previously `InMemoryTokenStore`-only, which made the
+ * `gated-mutations` capability-inventory entry `hasDurableAdapter: false` and unconditionally
+ * failed the production-readiness gate's `PRODUCTION_CAPABILITY_NOT_DURABLE` check regardless of
+ * env vars. No `workspace_id` column: `confirmerPrincipalId`/`scopeId` already identify who/what a
+ * token is bound to, matching `ConfirmationTokenRecord`'s own shape exactly (one column per field,
+ * no denormalization).
+ */
+export const gatedMutationTokens = sqliteTable("gated_mutation_tokens", {
+  confirmationToken: text("confirmation_token").primaryKey(),
+  planHash: text("plan_hash").notNull(),
+  scopeId: text("scope_id").notNull(),
+  confirmerPrincipalId: text("confirmer_principal_id").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
+
+/**
  * Origin settings (ADR-040, ADR-046 Phase 1). One row per workspace: the verified canonical
  * origin plus its two allowlists (redirect targets, egress targets), each stored as a JSON text
  * array (small, bounded exact-match host lists — not worth a child table). `OriginSettingRepoPort`

@@ -45,6 +45,7 @@ import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { SqliteChangeSetRepo } from "#src/platform/db/sqlite/change-set-repo.sqlite";
 import { SqliteOutboxAdapter } from "#src/platform/db/sqlite/outbox-repo.sqlite";
+import { SqliteTokenStore } from "#src/platform/db/sqlite/gated-mutation-token-repo.sqlite";
 import { openDatabaseJournalDb } from "#src/platform/db/sqlite/database-journal-db";
 import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "#src/platform/db/sqlite/database-journal-repo";
 import { ensureSeoSettingDefinitions } from "#src/features/seo/index";
@@ -91,7 +92,9 @@ import { SqliteExternalMcpServerRepo } from "#src/platform/db/sqlite/external-mc
 import { createComposioConnectors } from "#src/platform/connectors/composio-service";
 import {
   LocalFsBlobStore,
+  S3BlobStore,
   SharpImageTransformer,
+  type BlobStorePort,
 } from "#src/features/media/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
 import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
@@ -201,6 +204,55 @@ export function mediaUploadsDir(): string {
   // `uploads/` was historically the one runtime directory that did not follow the database
   // automatically, and it is preserved deliberately.
   return process.env.TOVU_MEDIA_UPLOADS_DIR ?? join(siteDir(), "uploads");
+}
+
+/**
+ * Resolves the real running server's `BlobStorePort` — `LocalFsBlobStore` by default (unchanged
+ * for every existing install), or `S3BlobStore` when an operator opts in with
+ * `TOVU_MEDIA_BLOB_STORE=s3`. This is the ONE seam a deployment needs to point Tovu's media bytes
+ * at S3-compatible object storage instead of a local volume — every read/write path (`/m/...`
+ * rendition serving, admin upload/purge, static export's asset crawl) already goes through
+ * whatever `RouteDeps.blobStore` this returns, so no other file changes for this to take effect.
+ *
+ * Fails LOUD, not silently, when the opt-in is set but incomplete: an operator who typos
+ * `TOVU_MEDIA_BLOB_STORE=s3` without also setting the bucket/region/credential vars needs to see a
+ * startup error, not have their install quietly fall back to writing local files nobody expected
+ * (which would then look like "media works" until the next deploy wipes the ephemeral disk).
+ *
+ * @complexity O(1) — a handful of env reads and a branch.
+ */
+function resolveBlobStore(uploadsDir: string): BlobStorePort {
+  const backend = process.env.TOVU_MEDIA_BLOB_STORE ?? "local";
+  if (backend === "local") {
+    return new LocalFsBlobStore({ rootDir: uploadsDir });
+  }
+  if (backend !== "s3") {
+    throw new Error(`Unknown TOVU_MEDIA_BLOB_STORE '${backend}' — expected 'local' or 's3'.`);
+  }
+  // Each entry pairs the env var name with its resolved value, so a missing one can be reported
+  // by its real name below rather than reconstructed from an object key.
+  const requiredVars: Array<[name: string, value: string | undefined]> = [
+    ["TOVU_S3_BUCKET", process.env.TOVU_S3_BUCKET],
+    ["TOVU_S3_REGION", process.env.TOVU_S3_REGION],
+    ["TOVU_S3_ACCESS_KEY_ID", process.env.TOVU_S3_ACCESS_KEY_ID],
+    ["TOVU_S3_SECRET_ACCESS_KEY", process.env.TOVU_S3_SECRET_ACCESS_KEY],
+  ];
+  const missing = requiredVars.filter(([, value]) => !value).map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(`TOVU_MEDIA_BLOB_STORE=s3 requires ${requiredVars.map(([name]) => name).join(", ")} — missing: ${missing.join(", ")}.`);
+  }
+  const [, bucket] = requiredVars[0];
+  const [, region] = requiredVars[1];
+  const [, accessKeyId] = requiredVars[2];
+  const [, secretAccessKey] = requiredVars[3];
+  return new S3BlobStore({
+    bucket: bucket as string,
+    region: region as string,
+    accessKeyId: accessKeyId as string,
+    secretAccessKey: secretAccessKey as string,
+    endpoint: process.env.TOVU_S3_ENDPOINT,
+    keyPrefix: process.env.TOVU_S3_KEY_PREFIX,
+  });
 }
 
 /**
@@ -1032,7 +1084,7 @@ export function createSqliteRouteDeps(
     // style special case.
     commerceProductRepo: new SqliteCommerceProductRepo(db),
     commercePriceRepo: new SqliteCommercePriceRepo(db),
-    blobStore: new LocalFsBlobStore({ rootDir: overrides?.uploadsDir ?? mediaUploadsDir() }),
+    blobStore: resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir()),
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
     // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
@@ -1094,9 +1146,11 @@ export function createSqliteRouteDeps(
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
     // root for the first time this dispatch (Session 5's own disclosure: "a token-store-backed
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
-    // process-lifetime `GatewayDeps` (in-process `InMemoryTokenStore` — see
-    // `core/gated-mutations/composition.ts`'s file header for the disclosed TokenStorePort
-    // decision). `authorizeInstance` closes the instance-scope authorization gap
+    // process-lifetime `GatewayDeps`. `tokens: new SqliteTokenStore(db)` (SPEC-022 durability fix —
+    // see `core/gated-mutations/composition.ts`'s file header): this composition root is the real
+    // production one, so its `gated-mutations` capability must be durable, unlike `server/app.ts`'s
+    // hermetic in-memory composition which still gets the default `InMemoryTokenStore`.
+    // `authorizeInstance` closes the instance-scope authorization gap
     // (`GatewayDeps.authorizeInstance`'s doc comment): bound to `buildOwnerOnlyInstanceAuthorize`
     // over `identity.ownerPrincipalId`, the seeded owner already treated as this instance's sole
     // never-disable-able principal (SPEC-006 0.6.0).
@@ -1106,6 +1160,7 @@ export function createSqliteRouteDeps(
         idGen,
         authorize: identity.authorize,
         authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }),
+        tokens: new SqliteTokenStore(db),
       }),
     },
     commentRepo: commentsModule.commentRepo,

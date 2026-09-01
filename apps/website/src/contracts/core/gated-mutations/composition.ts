@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { AuthorizeFn, ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway.js";
 import { InMemoryTokenStore } from "./token.js";
+import type { TokenStorePort } from "./token.js";
 import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 
 /**
@@ -36,14 +37,20 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
  * request-scoped identifiers like `fromTermId`/`intoTermId` or `restorePointId`, which are only
  * known once a request arrives).
  *
- * TokenStorePort decision (disclosed, not guessed): `core/gated-mutations/token.ts`'s own doc
- * comment states a durable SQLite-backed token store "is not required by this test slice (tokens
- * are short-lived, in-process confirmation state)". ADR-041 §5 corroborates: tokens are single-use,
- * ~10 minute TTL, minted and redeemed within one server process's lifetime — a mid-ceremony process
- * restart failing an in-flight `confirm()`->`execute()` round-trip is an accepted, low-blast-radius
- * edge case (the caller re-plans/re-confirms), not a correctness gap. `InMemoryTokenStore` is
- * therefore the right choice for a single-process server; no `[CIC_DEVIATION]` from ADR-041 §5 is
- * being taken, since the ADR does not pin a specific `TokenStorePort` implementation.
+ * TokenStorePort decision (revised — SPEC-022 durability fix): `core/gated-mutations/token.ts`'s
+ * own doc comment used to argue a durable SQLite-backed token store "is not required by this test
+ * slice", reasoning that a mid-ceremony process restart failing an in-flight `confirm()`->
+ * `execute()` round-trip is an accepted, low-blast-radius edge case (the caller re-plans/
+ * re-confirms). That reasoning was about CORRECTNESS, but it left `gated-mutations` the one
+ * `classification: "production"` capability-inventory entry with `hasDurableAdapter: false` —
+ * which `production-readiness-gate.ts`'s `collectDurabilityFailures` unconditionally fails on,
+ * making `TOVU_RUNTIME_MODE=production` refuse to boot at all, regardless of env vars (verified
+ * empirically, not just by reading). `buildGatewayDeps` now accepts an optional `tokens` override;
+ * `server/deps.ts` (the real SQLite composition root) passes `SqliteTokenStore`
+ * (`platform/db/sqlite/gated-mutation-token-repo.sqlite.ts`), while `server/app.ts` (the hermetic
+ * in-memory test/dev composition, per `capability-inventory.ts`'s own file header) omits it and
+ * keeps the default `InMemoryTokenStore` — unchanged, since that composition root is in-memory
+ * everywhere by design and is never production-classified-relevant.
  *
  * Architectural role:
  * `core/gated-mutations`'s own composition helper — generic across every ceremony, holding no
@@ -59,19 +66,23 @@ import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 /** One process-lifetime `GatewayDeps` — constructed once per composition root (mirrors every
  * other singleton this codebase's `deps.ts`/`app.ts` already construct once, e.g. `formsRateLimiter`).
  * `authorizeInstance` is optional and additive (`GatewayDeps.authorizeInstance`'s own doc comment)
- * — a caller that omits it gets exactly the pre-existing three-field signature's behavior. */
+ * — a caller that omits it gets exactly the pre-existing three-field signature's behavior.
+ * `tokens` defaults to `InMemoryTokenStore` (this function's pre-existing behavior, still correct
+ * for `server/app.ts`'s hermetic in-memory composition); pass a durable `TokenStorePort` — see this
+ * file's own header — for a production composition root. */
 export function buildGatewayDeps(params: {
   clock: ClockPort;
   idGen: IdGeneratorPort;
   authorize: AuthorizeFn;
   authorizeInstance?: InstanceAuthorizeFn;
+  tokens?: TokenStorePort;
 }): GatewayDeps {
   return {
     clock: params.clock,
     idGen: params.idGen,
     authorize: params.authorize,
     authorizeInstance: params.authorizeInstance,
-    tokens: new InMemoryTokenStore(),
+    tokens: params.tokens ?? new InMemoryTokenStore(),
   };
 }
 
