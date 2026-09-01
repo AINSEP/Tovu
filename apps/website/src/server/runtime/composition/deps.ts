@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "#src/contracts/core/events/index";
 import { createObservabilityPort } from "#src/platform/observability/index";
@@ -39,6 +39,7 @@ import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
+import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
@@ -242,6 +243,32 @@ export function siteThemesDir(): string {
 }
 
 /**
+ * The read-only STOCK content seed a self-hosted container image ships for one specific site:
+ * `content/seed-sites/<site>/content.seed.db`, copied there — from the tracked
+ * `sites/<site>/content.seed.db` (`npm run seed:site`, development/scripts/seed-site.mjs) — by the
+ * Dockerfile's OWN build stage only, deliberately never by the shared `npm run build` that
+ * {@link builtInThemesDir} above also relies on: that script also produces the npm-publishable CLI
+ * package, which must ship blank starter content, not this owner's own pruned site.
+ *
+ * SEED SOURCE ONLY, same split as {@link builtInThemesDir}/{@link siteThemesDir}:
+ * `hydrateContentDbFromSeed()` copies this into {@link defaultContentDbPath} once, on a site's first
+ * boot where `content.db` does not exist yet, and never again — an existing `content.db` is
+ * production data, and overwriting it on a later redeploy is unrecoverable data loss. Living under
+ * `content/`, not `sites/`, is what lets it survive `fly.toml`'s volume mount over
+ * `/workspace/Tovu/sites`: that mount shadows the ENTIRE image `sites/` tree at runtime, so anything
+ * shipped there for a fresh volume to read would be invisible the moment the mount takes effect.
+ *
+ * The env var is `TOVU_STOCK_CONTENT_SEED_DIR`, mirroring `TOVU_STOCK_THEMES_DIR`'s own escape
+ * hatch. `siteName` defaults to this process's own site (`basename(siteDir())`) — decoupled from
+ * `TOVU_CONTENT_DB`, which can relocate `content.db` itself without changing which site's stock
+ * seed applies.
+ */
+export function builtInContentSeedDbPath(siteName: string = basename(siteDir())): string {
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
+  return join(stockRoot, siteName, "content.seed.db");
+}
+
+/**
  * Agent Plugins that ship WITH the product live in `content/agent-plugins/<pluginId>/`, copied to
  * `dist/content/agent-plugins/` at build time and resolved package-relative to this file — the exact
  * same shape as {@link builtInThemesDir} immediately above, including the product-root walk-up that
@@ -411,6 +438,21 @@ function pluginFailureThresholdOverride(
   return overrides?.pluginFailureThreshold === undefined ? {} : { failureThreshold: overrides.pluginFailureThreshold };
 }
 
+/**
+ * First-boot-only: turns a deployed container's stock `content.seed.db` into this site's live
+ * `content.db`, exactly once — same presence-not-contents gate `seedSiteThemes()` above uses for
+ * `themes/`, so a live db from any later boot is never touched (see `hydrateContentDbFromSeed()`'s
+ * own header for the full rationale). Hoisted out of `createSqliteRouteDeps` for the same reason
+ * {@link assertOverridesPairedOrAbsent} is: one branch counted once here, not inline in the
+ * composition root. A no-op whenever `overrides.db` is supplied — that caller (`boot-site-dir.ts`'s
+ * install-dir path) has already opened its own db before reaching here, so `dbPath` is never even
+ * read in that branch.
+ */
+function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSqliteRouteDepsOverrides>): void {
+  if (overrides?.db !== undefined) return;
+  hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(), dbPath });
+}
+
 export function createSqliteRouteDeps(
   dbPath: string = defaultContentDbPath(),
   overrides?: Partial<CreateSqliteRouteDepsOverrides>
@@ -425,6 +467,8 @@ export function createSqliteRouteDeps(
   // the whole ~19MB stock tree per test run.
   const resolvedThemesDir = overrides?.themesDir ?? siteThemesDir();
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
+
+  hydrateContentDbIfNeeded(dbPath, overrides);
 
   // When `overrides.db` is supplied (the install-dir `serve` path), reuse that SAME handle rather
   // than opening/migrating a second db — `bootSiteDir` has already validated, migrated, and
