@@ -46,7 +46,7 @@ export { FORM_CLASS, FORM_SLUG_ATTR };
  * since CSS class selectors match an element carrying EITHER class in its `class` attribute, not
  * just one exclusively.
  *
- * Two hazards already fixed once and preserved here (do not regress either):
+ * Three hazards already fixed once and preserved here (do not regress any of them):
  * 1. **`display` vs `[hidden]`.** A same-specificity author rule that sets `display` on an element
  *    beats the user-agent `[hidden]{display:none}` stylesheet — `:where()` zeroes *specificity*, not
  *    rule origin. Every rule below that sets `display` on a class an instance can carry `hidden` on
@@ -57,24 +57,58 @@ export { FORM_CLASS, FORM_SLUG_ATTR };
  *    `tokens.json`/`tokens.light.json` — themes are copied, not inherited, so a token added to one
  *    theme is still missing from the other seven. The set actually shared by every theme: `--bg
  *    --surface --surface-2 --fg --muted --border --border-strong --accent --accent-fg --font-display
- *    --font-body --container`. Do not reference anything outside that set.
+ *    --font-body --container`. Do not reference anything outside that set — with the ONE deliberate
+ *    exception in hazard 3 below, where the fallback chain itself guarantees a real value.
+ * 3. **No theme defines `--danger`/`--success` (2026-08-31, "error states have no color" fix).**
+ *    Validation errors and the success message rendered with no semantic color at all. Fixed with the
+ *    standard CSS custom-property fallback form, `var(--danger, <fallback>)`: a theme that ever
+ *    defines `--danger`/`--success` in its own `tokens.json` wins automatically — `var()`'s fallback
+ *    only applies when the property is unset ANYWHERE in the inherited chain, which is a cascade rule,
+ *    not a source-order one, so it doesn't matter that this `<style>` block is emitted deep in the
+ *    page body while a theme's token `:root{}` block sits in `<head>` (`static-render.ts`'s
+ *    `tokensToRootCss`). The fallback itself can't be one hardcoded hex either: a single color cannot
+ *    hit WCAG AA 4.5:1 against both this repo's near-black dark-mode surfaces (`--bg`/`--surface`/
+ *    `--surface-2` all sit at oklch L 9–15%) and its near-white light-mode ones (L ~90–96%) —
+ *    verified by converting the actual OKLCH/hex token values to WCAG relative luminance; the
+ *    luminance a color needs to clear 4.5:1 against near-black (≥0.22) and against near-white
+ *    (≤0.16) are disjoint ranges. So the fallback is itself mode-aware, via two PRIVATE custom
+ *    properties (`--tovu-form-danger-fallback`/`--tovu-form-success-fallback` — names no theme will
+ *    ever collide with) set by `:root`/`:root[data-theme="light"]`, mirroring `tokensToRootCss`'s own
+ *    dark-default/light-override convention. Measured contrast (darkest/lightest real surface each
+ *    color sits on): dark-mode red `#f87171` vs `--surface-2` (oklch 15%) = 7.12:1; light-mode red
+ *    `#b91c1c` vs `--surface-2` (`#e8ece9`, the least-light of the three light surfaces) = 5.42:1;
+ *    dark-mode green `#4ade80` vs `--surface-2` = 11.31:1; light-mode green `#166534` vs `--surface-2`
+ *    = 5.98:1. All four clear 4.5:1 with margin against every surface these classes actually render
+ *    on (`--bg`, `--surface`, `--surface-2`), in both modes. (Tailwind red-600/green-700, the more
+ *    "expected" light-mode shades, were tried first and REJECTED — 4.05:1 and 4.20:1 against
+ *    `--surface-2`, both under 4.5:1.) Every element that gets one of these colors already carries a
+ *    real text message (the field's own reason, the error summary, or `successMessage`), so color is
+ *    never the only signal — satisfies "don't rely on color alone" (WCAG SC 1.4.1) without adding an
+ *    icon glyph this baseline has no icon system to draw from.
  */
 export const FORM_BASELINE_STYLE =
   "<style>" +
+  // Private fallback-only custom properties for hazard 3 above — never referenced by a theme, only by
+  // the var(--danger, var(--tovu-form-danger-fallback)) chains below. Mirrors tokensToRootCss's own
+  // dark-default / :root[data-theme="light"]-override shape so these track the page's real color mode.
+  ":root{--tovu-form-danger-fallback:#f87171;--tovu-form-success-fallback:#4ade80;}" +
+  ":root[data-theme=\"light\"]{--tovu-form-danger-fallback:#b91c1c;--tovu-form-success-fallback:#166534;}" +
   `:where(.${FORM_CLASS}:not([hidden])){display:flex;flex-direction:column;gap:14px;max-width:480px;}` +
   ":where(.widget-form-field:not([hidden])){display:flex;flex-direction:column;gap:6px;}" +
   ":where(.widget-form-field label){font-weight:600;font-size:0.9rem;}" +
   ":where(.widget-form-field input),:where(.widget-form-field textarea){font:inherit;padding:8px 10px;" +
   "border:1px solid var(--border,#d1d5db);border-radius:6px;background:var(--surface,#fff);color:inherit;}" +
   ":where(.widget-form-field textarea){min-height:100px;resize:vertical;}" +
-  ":where(.widget-form-field-error){color:var(--fg,#111827);font-size:0.85rem;font-weight:700;}" +
+  ":where(.widget-form-field-error){color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.85rem;font-weight:700;}" +
   `:where(.${FORM_CLASS} button[type=submit]){align-self:flex-start;padding:8px 16px;` +
   "border:1px solid transparent;border-radius:6px;background:var(--accent,#111827);" +
   "color:var(--accent-fg,#fff);font-weight:600;cursor:pointer;}" +
   `:where(.${FORM_SUCCESS_CLASS}){padding:12px 14px;border-radius:6px;` +
-  "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);border-left:4px solid var(--accent,#111827);color:var(--fg,#111827);}" +
+  "background:var(--surface,#fff);border:1px solid var(--border,#d1d5db);" +
+  "border-left:4px solid var(--success,var(--tovu-form-success-fallback));color:var(--success,var(--tovu-form-success-fallback));}" +
   `:where(.${FORM_ERROR_CLASS}){padding:10px 12px;border-radius:6px;` +
-  "background:var(--surface-2,#f3f4f6);border:1px solid var(--border-strong,#9ca3af);color:var(--fg,#111827);font-size:0.9rem;font-weight:600;}" +
+  "background:var(--surface-2,#f3f4f6);border:1px solid var(--border-strong,#9ca3af);" +
+  "border-left:4px solid var(--danger,var(--tovu-form-danger-fallback));color:var(--danger,var(--tovu-form-danger-fallback));font-size:0.9rem;font-weight:600;}" +
   "</style>";
 
 /** Shared shape for {@link renderFormSuccessSlot}/{@link renderFormErrorSlot}. `slug` must already be

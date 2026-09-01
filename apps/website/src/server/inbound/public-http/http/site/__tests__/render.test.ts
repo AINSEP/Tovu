@@ -1079,7 +1079,61 @@ test("contact-form widget: baseline CSS must not force display on a hidden form 
   }
 });
 
-test("contact-form widget: baseline CSS only references design tokens that actually exist in a theme's token set (Fix 2 — --danger/--danger-bg/--success-bg/--success-fg exist in no theme's tokens.json)", () => {
+// ---------------------------------------------------------------------------
+// Fallback-chain auditing helpers for the "only references tokens that exist, or carry a
+// guaranteed fallback" test below. Matching a token by NAME (as the test used to) is not enough —
+// `var(--danger)` with no fallback at all passes a name check just as well as the correct
+// `var(--danger, var(--tovu-form-danger-fallback))` does, while silently producing a broken/default
+// value at runtime. These walk the actual `var(...)` call site(s) and confirm the fallback chain
+// bottoms out in a literal value rather than stopping at another undefined custom property.
+// ---------------------------------------------------------------------------
+
+/** Extracts the full argument list of the `var(...)` call whose opening paren sits at
+ *  `openParenIndex` in `css`, respecting paren balance so a nested `var(--x, var(--y))` fallback
+ *  doesn't truncate the outer call at its own inner `)`. Returns the text strictly between the
+ *  outer parens. */
+function varCallArgsAt(css: string, openParenIndex: number): string {
+  let depth = 0;
+  let i = openParenIndex;
+  for (; i < css.length; i++) {
+    if (css[i] === "(") depth++;
+    if (css[i] === ")") {
+      depth--;
+      if (depth === 0) break;
+    }
+  }
+  return css.slice(openParenIndex + 1, i);
+}
+
+/** Every `var(<token>...)` call site's full argument list in `css` — a stylesheet can reference the
+ *  same token more than once with different (or missing) fallbacks, so each call site is audited
+ *  independently rather than the token being checked once by name. */
+function findVarCallSites(css: string, token: string): string[] {
+  const sites: string[] = [];
+  const marker = `var(${token}`;
+  for (let i = css.indexOf(marker); i !== -1; i = css.indexOf(marker, i + 1)) {
+    sites.push(varCallArgsAt(css, i + 3)); // i+3: "var" is 3 chars, lands on the "("
+  }
+  return sites;
+}
+
+/** True when a `var(...)` call's argument list carries a fallback that itself resolves to a
+ *  literal value — either directly (`var(--danger, #f87171)`), or one level of
+ *  `var(--other-token)` indirection where `--other-token` is declared somewhere in `css` with a
+ *  literal (never another `var()`) value. Returns false when the chain never bottoms out this way:
+ *  no fallback argument at all, or a fallback that only points at another undefined token. */
+function varChainBottomsOutInLiteral(css: string, callArgs: string): boolean {
+  const commaIndex = callArgs.indexOf(",");
+  if (commaIndex === -1) return false; // no fallback argument supplied
+  const fallback = callArgs.slice(commaIndex + 1).trim();
+  if (!fallback.startsWith("var(")) return true; // a literal fallback (hex, keyword, ...)
+  const nestedArgs = varCallArgsAt(fallback, 3);
+  const nestedToken = nestedArgs.split(",")[0].trim();
+  const literalDecls = [...css.matchAll(new RegExp(`${nestedToken}:([^;]+);`, "g"))];
+  return literalDecls.length > 0 && literalDecls.every((m) => !m[1].includes("var("));
+}
+
+test("contact-form widget: baseline CSS only references design tokens that actually exist in a theme's token set, OR a token that carries its own guaranteed fallback (Fix 2 — --danger/--danger-bg/--success-bg/--success-fg exist in no theme's tokens.json; Fix 3, 2026-08-31 — --danger/--success are now used deliberately, each wrapped in a var(--x, var(--tovu-form-*-fallback)) chain whose innermost fallback is a literal hex, so an undefined token can never silently produce a broken/default value)", () => {
   const html = renderWidgetIr({
     componentId: "contact-form",
     props: { slug: "contact-us", fields: [{ id: "email", label: "Email", type: "email", required: true }], successMessage: null },
@@ -1093,10 +1147,40 @@ test("contact-form widget: baseline CSS only references design tokens that actua
     "--bg", "--surface", "--surface-2", "--fg", "--muted", "--border", "--border-strong",
     "--accent", "--accent-fg", "--font-display", "--font-body", "--container",
   ]);
+  // --danger/--success: no theme defines these, by design — a theme that ever adds one to its own
+  // tokens.json overrides the widget's hardcoded fallback automatically (var()'s fallback rule, not a
+  // source-order one). Every reference to one of these must carry a fallback chain that bottoms out
+  // in a literal — asserted below, by call site, not just by name.
+  const chainedTokens = new Set(["--danger", "--success"]);
+  // The two --tovu-form-*-fallback names are FORM_BASELINE_STYLE's own private custom properties
+  // (never a theme's to define) that supply that hardcoded, mode-aware fallback — see
+  // FORM_BASELINE_STYLE's own doc for the contrast math on why the fallback itself must vary by
+  // :root[data-theme="light"] rather than being one hex for both modes. Their own literal-ness is
+  // asserted as part of resolving chainedTokens' fallback chains below, not here.
+  const fallbackLiteralTokens = new Set(["--tovu-form-danger-fallback", "--tovu-form-success-fallback"]);
+  const deliberateFallbackTokens = new Set([...chainedTokens, ...fallbackLiteralTokens]);
   const referencedTokens = [...css.matchAll(/var\((--[a-z0-9-]+)/g)].map((m) => m[1]);
   assert.ok(referencedTokens.length > 0, "expected at least one var(--token) reference to audit");
   for (const token of referencedTokens) {
-    assert.ok(existingTokens.has(token), `token ${token} referenced in widget CSS does not exist in the theme token set`);
+    assert.ok(
+      existingTokens.has(token) || deliberateFallbackTokens.has(token),
+      `token ${token} referenced in widget CSS does not exist in the theme token set and is not a deliberate fallback-guaranteed token`
+    );
+  }
+  // Name-matching alone (above) lets a bare `var(--danger)` — no fallback, or a fallback that only
+  // points at another undefined token — slip through unnoticed, even though it silently produces a
+  // broken/default value at runtime. Walk every var(--danger.../--success...) call site's full
+  // fallback chain and assert it actually terminates in a literal.
+  for (const token of chainedTokens) {
+    const callSites = findVarCallSites(css, token);
+    assert.ok(callSites.length > 0, `expected at least one var(${token}...) call site to audit`);
+    for (const callArgs of callSites) {
+      assert.ok(
+        varChainBottomsOutInLiteral(css, callArgs),
+        `var(${callArgs}) does not terminate in a literal value — every ${token} reference must ` +
+          "carry a fallback chain that bottoms out, not a bare reference or another undefined token"
+      );
+    }
   }
 });
 
