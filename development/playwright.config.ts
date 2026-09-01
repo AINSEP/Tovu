@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -9,9 +10,22 @@ import { defineConfig, devices } from "@playwright/test";
  * keeps this from silently testing a stale theme. `reuseExistingServer` is explicitly disabled
  * in CI and left off locally too (see below) so a stale long-running dev server can never serve
  * these tests.
+ *
+ * `webServer.cwd` is set explicitly to the repo root (see `REPO_ROOT` below): Playwright spawns
+ * `webServer.command` with `cwd` defaulting to THIS config file's own directory (`development/`)
+ * when `webServer.cwd` is not set, so `node --import tsx <path>` would otherwise resolve against
+ * `development/<path>`, not the repo root — this exact trap is already documented and sidestepped
+ * the same way in `playwright.a2ui.config.ts` and every `playwright.admin*`/`playwright.composer-
+ * *.config.ts` sibling. Confirmed live 2026-08-30: without `cwd`, `npx playwright test
+ * --config=development/playwright.config.ts` failed with `ERR_MODULE_NOT_FOUND` on
+ * `development/src/index.ts` before this fix. The entrypoint path itself also had to move from
+ * `src/index.ts` to `apps/website/src/index.ts` — a second, independent break from the
+ * `restructure/apps-website-phased` move of `src/` under `apps/website/`, layered on top of the
+ * pre-existing `cwd` bug.
  */
 const PORT = 3999;
 const BASE_URL = `http://localhost:${PORT}`;
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -65,7 +79,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: `PORT=${PORT} TOVU_DB=memory node --import tsx src/index.ts`,
+    command: `PORT=${PORT} TOVU_DB=memory node --import tsx apps/website/src/index.ts`,
+    cwd: REPO_ROOT,
     url: BASE_URL,
     timeout: 30_000,
     reuseExistingServer: false,
