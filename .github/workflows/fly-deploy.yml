@@ -1,0 +1,84 @@
+name: Deploy to Fly.io
+
+# Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this
+# workflow does not touch it, enable it, or run any tests). It only builds and deploys whatever
+# is already on the triggering branch/commit via Fly's remote builder.
+#
+# ============================================================================
+# One-time manual setup — this workflow cannot do any of this for you
+# ============================================================================
+#
+# 1. Repo secret: add `FLY_API_TOKEN` at
+#        Settings -> Secrets and variables -> Actions -> New repository secret
+#    Name it exactly `FLY_API_TOKEN`. Value comes from `flyctl auth token` (or the token you
+#    already have in your shell profile) — paste only the value; never commit it anywhere, and
+#    never add a step to this file that echoes/prints it.
+#
+# 2. Volume: `fly.toml`'s `[[mounts]] source = "tovu_sites"` must exist before the first deploy,
+#    or the app boots with no persistent storage for site content, uploads, and themes:
+#        flyctl volumes create tovu_sites --region <region> -a tovu-ai-cms
+#    The name must match `fly.toml`'s `source` exactly.
+#
+# 3. Region: `fly.toml`'s `primary_region = "iad"` is an UNVERIFIED PLACEHOLDER (see that file's
+#    own header comment). Pick a real region before relying on this for anything beyond testing,
+#    and match it in the volume's `--region` above.
+#
+# 4. App secrets — set with `flyctl secrets set -a tovu-ai-cms KEY=value`, never in this file or
+#    in `fly.toml`'s committed `[env]` block. Verified directly against this repo's boot-gate
+#    code, not assumed:
+#      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (fly.toml sets
+#        TOVU_RUNTIME_MODE=production), `production-readiness-gate.ts`'s
+#        `collectUnsafeDefaultFailures` (server/runtime/boot/production-readiness-gate.ts:77-84)
+#        refuses to boot while this is unset or still equal to the literal default "tovu-dev"
+#        (index.ts:216-232, features/identity/wiring.ts:61).
+#      - ANALYTICS_ROOT_KEY_SEED    — ALSO BOOT-BLOCKING, and NOT listed in .env.example or in
+#        deploy-config.ts's own REQUIRED_SECRETS — found by reading the gate code directly rather
+#        than trusting either of those. `index.ts:229` sets `hasDevSecretPlaceholder:
+#        !process.env.ANALYTICS_ROOT_KEY_SEED`, and `hasDevSecretPlaceholder` is one of the same
+#        four checks `collectUnsafeDefaultFailures` (production-readiness-gate.ts:77-84) fails
+#        boot on. Set it to any random value before the first production deploy, e.g.:
+#        node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+#      - TOVU_INTEGRATIONS_ROOT_KEY — NOT boot-blocking (absent from the gate entirely — see
+#        deploy-config.ts:109-115), but every route needing at-rest secret encryption (visitor AI
+#        assistant provider credentials, the newsletter integration) fails closed with
+#        503 SECRET_STORE_UNCONFIGURED until it's set. Strongly recommended before first real use;
+#        generate the same way as above.
+#
+# ============================================================================
+# Trigger branch
+# ============================================================================
+# Fires on push to `main` — this repo's default branch (confirmed via `gh repo view --json
+# defaultBranchRef`), not the branch this workflow was authored on
+# (`restructure/apps-website-phased`, 1783 commits ahead of `main` with `main` zero commits ahead
+# of it). Pushes to that branch will NOT trigger this workflow until it's merged — use
+# `workflow_dispatch` (the "Run workflow" button on this workflow's Actions tab page) to deploy
+# by hand from any branch in the meantime.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+# One deploy at a time: two `flyctl deploy` runs racing each other against a single SQLite volume
+# is a real hazard, not just wasted minutes. Queue rather than cancel — a deploy cut off mid-way
+# is worse than a later push waiting its turn.
+concurrency:
+  group: fly-deploy-tovu-ai-cms
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@v1
+
+      # Fly's remote builder does the actual image build; this runner just uploads the build
+      # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
