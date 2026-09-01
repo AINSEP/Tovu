@@ -57,6 +57,14 @@ sites/*/content.db-shm
 sites/*/content.db.bak-*
 sites/*/restore-point-*.db
 sites/*/out/
+# ADR-041 ops journals (same live-runtime-data class as content.db above, not source): the OLD
+# root-level `ops/database-journal.db` rule below predates the 2026-08-27 move of per-site runtime
+# data under `sites/<name>/`, so it never reached `sites/<name>/ops/...` and these were never
+# actually excluded once sites/ started being tracked. Sidecars included for the same
+# open-WAL-corrupts-on-checkout reason as content.db's own.
+sites/*/ops/*.db
+sites/*/ops/*.db-wal
+sites/*/ops/*.db-shm
 
 # `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
 # disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be
