@@ -103,6 +103,16 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // from the day it shipped. See `mcp-ui-tool-calls-route.ask-choice.integration.test.ts` for the
   // real round trip this entry makes possible.
   "assistant_ask_choice",
+  // 2026-08-31 — `custom_credential_make_request` (`features/custom-credentials/tool-registrations.ts`)
+  // holds up the SAME held-open-exchange shape `content_post_delete`/`deployment_execute_static_publish`/
+  // `source_control_execute_commit` do, but ONLY for its DELETE method: its handler opens a
+  // `SurfaceExchangeStore` exchange and parks on the human's confirm/cancel click before sending a
+  // DELETE through a saved third-party credential — at least as consequential as a soft delete or a
+  // static publish, since the provider's own DELETE may be genuinely irreversible. GET/POST/PUT/PATCH
+  // calls to the SAME tool never open an exchange at all (owner decision — see that file's own
+  // header), so admitting the tool id here does not widen this endpoint's reach for those methods;
+  // there is simply nothing for them to redeem.
+  "custom_credential_make_request",
 ]);
 
 /**

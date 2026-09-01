@@ -129,6 +129,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         category: body.category,
         baseUrl: body.baseUrl,
         connection: body.connection,
+        ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
       });
       res.status(201).json({ credential });
     } catch (err) {
@@ -146,6 +147,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         ...(body.label !== undefined ? { label: body.label } : {}),
         ...(body.category !== undefined ? { category: body.category } : {}),
         ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
+        ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
         ...(body.connection !== undefined ? { connection: body.connection } : {}),
       });
       res.status(200).json({ credential });

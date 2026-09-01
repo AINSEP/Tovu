@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 80
+ * Tables: 81
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -340,6 +340,7 @@ export const customCredentialSets = pgTable("custom_credential_sets", {
   label: text("label").notNull(),
   category: text("category").notNull(),
   baseUrl: text("base_url").notNull(),
+  additionalHostsJson: text("additional_hosts_json"),
   sealedKeyId: text("sealed_key_id").notNull(),
   sealedCiphertext: text("sealed_ciphertext").notNull(),
   sealedNonce: text("sealed_nonce").notNull(),
@@ -554,6 +555,16 @@ export const formSubmissions = pgTable("form_submissions", {
     index("idx_form_submissions_definition").on(t.formDefinitionId, t.submittedAt),
     index("idx_form_submissions_workspace").on(t.workspaceId),
   ]);
+
+export const gatedMutationTokens = pgTable("gated_mutation_tokens", {
+  confirmationToken: text("confirmation_token").primaryKey(),
+  planHash: text("plan_hash").notNull(),
+  scopeId: text("scope_id").notNull(),
+  confirmerPrincipalId: text("confirmer_principal_id").notNull(),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  expiresAt: text("expires_at").notNull(),
+});
 
 export const identityUsers = pgTable("identity_users", {
   principalId: text("principal_id").primaryKey(),

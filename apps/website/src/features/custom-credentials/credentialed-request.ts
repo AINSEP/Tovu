@@ -1,8 +1,8 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../webhooks/index.js";
-import { CustomCredentialNotFoundError, resolveCustomCredentialByLabel } from "./store.js";
-import type { CustomCredentialSetRepoPort, CustomProviderConnectionInput } from "./types.js";
+import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
+import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
 
 /**
@@ -14,7 +14,7 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * ever turned a saved credential into a live authenticated call. This module is the second real
  * caller of that decrypting reader, and the first one built for agent use.
  *
- * Two capabilities, both GET-only in this slice:
+ * Two capabilities:
  * - {@link verifyCustomCredential} — one bounded, read-only probe against the credential's own saved
  *   base URL, classified into the SAME three-way `"valid" | "invalid" | "unreachable"` result
  *   `features/deployments/static-publish/verify.ts`'s own `classifyProviderResponse` already
@@ -29,37 +29,56 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  *   guarded `HttpClientPort` (ADR-038) instead, the same reason `platform/mail/adapters/
  *   http-api.resend.ts` and `server/runtime/boot/resolve-mailer.ts` do for the identical shape of
  *   credential.
- * - {@link makeCredentialedRequest} — an authenticated request through a saved credential. **GET
- *   only, deliberately, for this slice.** Write methods (POST/PUT/PATCH/DELETE) are a disclosed
- *   omission, not an oversight: this codebase's `core/gated-mutations` ceremony (plan/confirm/
- *   execute with a durable token) is the established pattern for an agent-triggered external mutation
- *   with real consequences (see `features/recovery/gated-hooks.ts`/`features/database/
- *   gated-hooks.ts`), and wiring a brand-new domain into that ceremony is a separate, larger piece of
- *   work this thin slice does not attempt. A GET-only credentialed request already closes the
- *   motivating gap (reading third-party state — "what domains do I own", "what is my app's current
- *   deploy status" — through a saved credential) without that larger ceremony design.
+ * - {@link makeCredentialedRequest} — an authenticated request through a saved credential. Supports
+ *   GET/POST/PUT/PATCH/DELETE, with a request body, at PARITY with what a human can already do from
+ *   the site itself (2026-08-31 owner override — an earlier revision of this module restricted this
+ *   to GET only; that restriction is gone, not a requirement to preserve). This function itself is
+ *   PURE with respect to human confirmation: it never gates anything — a DELETE it is asked to run,
+ *   it runs. The DELETE-specific in-chat confirmation lives one layer up, in
+ *   `tool-registrations.ts`'s handler (see that file's header for why), which calls this function
+ *   only once the human has confirmed. Write methods are NOT wired through `core/gated-mutations`
+ *   (the plan/confirm/execute ceremony `features/recovery/gated-hooks.ts`/`features/database/
+ *   gated-hooks.ts` use) — the owner explicitly asked for the lighter MCP-UI confirmation shape
+ *   instead for this domain, not that heavier ceremony.
  *
  * ## Security design (every point below is load-bearing, not decoration)
  *
  * **The token never reaches the model.** The agent supplies a `label` (a human-chosen display name,
- * never a secret) and, for {@link makeCredentialedRequest}, a `path`/`headers`. Neither function
+ * never a secret) and, for {@link makeCredentialedRequest}, a `url`/`headers`/`body`. Neither function
  * accepts a token, and neither ever returns one: {@link buildAuthorizationHeader}'s result is used
  * only as an outbound request header, never echoed in any return value or thrown error message (both
  * this module's own thrown errors and `store.ts`'s `resolveCustomCredentialByLabel` are checked to
  * never interpolate `connection.token`/`connection.username` into a message).
  *
  * **Per-credential host binding — the control that stops "send my fly.io token to
- * evil.example.com".** A credential's `baseUrl` is plaintext operator input, set through the Access
- * Tokens "Add custom provider" form (`store.ts`'s `validateBaseUrl`) — never through either tool
- * call here. {@link buildRequestUrl} constructs the real request URL by concatenating that saved
- * origin with a `path` {@link validateRelativePath} has already proven carries no scheme, host, or
- * `//`/backslash of its own — so the resolved URL's origin can never be anything other than the
- * credential's own saved origin, regardless of what `path` the caller supplies. This is this
- * module's own allowlist: derived from the credential's own saved state, never from tool input, the
- * same requirement `features/deployments/publish-agent-tools.ts`'s vendor-credential tools satisfy
- * via a small closed `VendorId` catalog — this table has no such catalog (`types.ts`'s own header:
- * "no fixed provider identity at all"), so the credential's own persisted `baseUrl` origin plays the
- * identical role for a table where every row is its own standalone identity.
+ * evil.example.com".** A credential's allowed origins ({@link allowedOriginsFor}: its saved `baseUrl`
+ * plus any `additionalHosts`) are plaintext operator input, set through the Access Tokens "Add custom
+ * provider" form — never through either tool call here (2026-08-31: widened from a single `baseUrl`
+ * to a SET of origins so one credential can cover a provider with more than one real API host, e.g.
+ * fly.io's `api.fly.io` GraphQL endpoint and `api.machines.dev` REST endpoint — a real functional gap
+ * the single-host design had, not merely a hypothetical one). The caller supplies a full absolute
+ * `url`; {@link resolveAllowedRequestUrl} parses it and checks its `.origin` against that set
+ * EXACTLY — no prefix/substring match, no path-based reasoning. A `url` whose origin is not on the
+ * list is refused before any network call, regardless of how plausible-looking the rest of the URL
+ * is. This is this module's own allowlist: derived from the credential's own saved state, never
+ * widened by tool input — the same requirement `features/deployments/publish-agent-tools.ts`'s
+ * vendor-credential tools satisfy via a small closed `VendorId` catalog; this table has no such fixed
+ * catalog (`types.ts`'s own header: "no fixed provider identity at all"), so the credential's own
+ * persisted origin set plays the identical role for a table where every row is its own standalone
+ * identity.
+ *
+ * Chosen over the alternative (an explicit `host` parameter, separate from `path`) because: (1) it
+ * matches how the model already understands a REST call — one URL, not a host+path pair it has to
+ * keep in sync — (2) it generalizes to N hosts with no schema change per host, and (3) the validation
+ * is simpler — parse once with the standard WHATWG `URL` parser and compare `.origin`, rather than
+ * re-deriving an origin from two separately-typed fields.
+ *
+ * **DELETE is human-gated; GET/POST/PUT/PATCH are not (2026-08-31, owner decision).** "He can already
+ * POST from the site without a ceremony" — ceremony on every write method would not match what this
+ * tool is FOR (parity with what a human can already do). DELETE is the one verb the owner named as
+ * worth pausing on ("we can gate that with MCP-UI") — see `tool-registrations.ts`'s handler for the
+ * actual gate; this module has no knowledge of it at all, deliberately, so its own contract stays
+ * "validate, resolve, send" regardless of which verb a caller above it decided to allow through.
  *
  * **SSRF/loopback/link-local/metadata protection** is NOT reimplemented here — both functions route
  * every outbound call through the injected `HttpClientPort` (ADR-038, `platform/http/client.ts`),
@@ -77,14 +96,15 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * documents for the identical shape of dependency.
  *
  * **Audit, never the secret.** Every call — success, rejection, or transport failure — records
- * exactly `{label, host, method, status, at}` via {@link CredentialedRequestAuditPort}. `status: 0`
- * means "never got a response" (DNS failure, timeout, or an `EgressPolicy` refusal), distinct from
- * any real HTTP status a provider could return. Never the token, the Authorization header, or the
- * request/response body.
+ * exactly `{label, host, method, status, bodyBytes, at}` via {@link CredentialedRequestAuditPort}.
+ * `status: 0` means "never got a response" (DNS failure, timeout, or an `EgressPolicy` refusal),
+ * distinct from any real HTTP status a provider could return. `bodyBytes` is a SIZE only — never the
+ * body itself, never the token.
  *
- * **Bounded.** {@link CREDENTIALED_REQUEST_TIMEOUT_MS} caps one call; the response-size cap
- * (`EgressPolicy.maxResponseBytes`/`maxDecompressedBytes`) is enforced one layer down, by the
- * `HttpClientPort` itself, and is set by the composition root that builds it.
+ * **Bounded.** {@link CREDENTIALED_REQUEST_TIMEOUT_MS} caps one call; {@link MAX_REQUEST_BODY_BYTES}
+ * caps the request body this tool will send; the response-size cap (`EgressPolicy.maxResponseBytes`/
+ * `maxDecompressedBytes`) is enforced one layer down, by the `HttpClientPort` itself, set by the
+ * composition root that builds it.
  *
  * Architectural role: `features/custom-credentials` domain logic (agent-tool layer). See
  * `agent-tools.ts`/`tool-registrations.ts` in this directory for the tool surface built on top.
@@ -107,10 +127,22 @@ export class CredentialedRequestTransportError extends Error {}
  *  replacement for it — see `platform/http/client.ts`'s `sendWithPolicy`. */
 const CREDENTIALED_REQUEST_TIMEOUT_MS = 10_000;
 
+/** Hard cap on a caller-supplied request body — same order of magnitude as the response-side cap
+ *  every composition root's `EgressPolicy.maxResponseBytes` uses, applied symmetrically to the
+ *  direction this module itself controls (a caller cannot make the SERVER read an unbounded
+ *  response, but it CAN try to make it SEND one; this stops that). */
+const MAX_REQUEST_BODY_BYTES = 1_000_000;
+
 /** Header names the caller may never set directly — the server injects the real credential's
  *  `Authorization` itself, and none of the other three have any legitimate reason to be
- *  caller-supplied on a request already pinned to one fixed, saved host. */
+ *  caller-supplied on a request already pinned to one of the credential's own saved hosts. */
 const FORBIDDEN_REQUEST_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "cookie", "host", "proxy-authorization"]);
+
+/** Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
+ *  union exactly, so a value that passes this check always type-checks as one `httpClient.send()`
+ *  itself accepts. */
+const SUPPORTED_METHODS: ReadonlySet<string> = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+type SupportedMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 function requireLabel(raw: unknown): string {
   if (typeof raw !== "string" || raw.trim() === "") {
@@ -119,51 +151,48 @@ function requireLabel(raw: unknown): string {
   return raw;
 }
 
-/** v1 scope decision (see this file's header) — only GET is wired. A caller-supplied method of any
- *  other value is refused with a clear reason rather than silently narrowed or ignored. */
-function validateReadOnlyMethod(raw: unknown): "GET" {
-  if (raw !== "GET") {
-    throw new CredentialedRequestValidationError(
-      "method must be 'GET' — this tool does not support write methods (POST/PUT/PATCH/DELETE) yet, see credentialed-request.ts's own header for why"
-    );
-  }
-  return raw;
-}
-
-/** `true` iff `path` carries anything that could name a different host once resolved — a leading
- *  `//` (protocol-relative), an embedded scheme (`://`), or a backslash (treated as a path/host
- *  separator by some URL parsers). Checked separately from "does it start with '/'" so each
- *  rejection in {@link validateRelativePath} gets its own precise reason.
- *
- * @complexity O(1) — three bounded string checks.
+/**
+ * @throws {CredentialedRequestValidationError} `raw` is not one of GET/POST/PUT/PATCH/DELETE.
+ * @complexity O(1).
  */
-function looksLikeCrossHostPath(path: string): boolean {
-  return path.startsWith("//") || path.includes("://") || path.includes("\\");
+function validateMethod(raw: unknown): SupportedMethod {
+  if (typeof raw !== "string" || !SUPPORTED_METHODS.has(raw)) {
+    throw new CredentialedRequestValidationError("method must be one of GET, POST, PUT, PATCH, DELETE");
+  }
+  return raw as SupportedMethod;
 }
 
 /**
- * Validates a caller-supplied `path` is safe to resolve against a credential's own saved base URL —
- * see this file's header, "Per-credential host binding", for why this function IS the security
- * boundary that stops a request from ever reaching a host other than the one saved on the
- * credential.
+ * Validates a caller-supplied absolute `url` and checks its origin against `allowedOrigins` — see
+ * this file's header, "Per-credential host binding", for why this function IS the security boundary
+ * that stops a request from ever reaching a host the credential's own saved state does not name.
  *
- * @throws {CredentialedRequestValidationError} `path` is empty, does not start with `/`, or looks
- *   like it names a different host or scheme.
- * @complexity O(1).
+ * @throws {CredentialedRequestValidationError} `url` is empty, not a valid absolute URL, does not use
+ *   http/https, embeds credentials (`user:pass@`), or resolves to an origin not in `allowedOrigins`.
+ * @complexity O(n) in `allowedOrigins.length` (one `.includes()` check).
  */
-function validateRelativePath(raw: unknown): string {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new CredentialedRequestValidationError("path must be a non-empty string");
+function resolveAllowedRequestUrl(candidate: unknown, allowedOrigins: readonly string[]): URL {
+  if (typeof candidate !== "string" || candidate.trim() === "") {
+    throw new CredentialedRequestValidationError("url must be a non-empty string");
   }
-  if (!raw.startsWith("/")) {
-    throw new CredentialedRequestValidationError("path must start with '/' — it is resolved against the credential's own saved base URL, never an absolute URL");
+  let parsed: URL;
+  try {
+    parsed = new URL(candidate);
+  } catch {
+    throw new CredentialedRequestValidationError("url must be a valid absolute URL");
   }
-  if (looksLikeCrossHostPath(raw)) {
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new CredentialedRequestValidationError("url must use http or https");
+  }
+  if (parsed.username || parsed.password) {
+    throw new CredentialedRequestValidationError("url must not embed credentials (user:pass@) — the server injects the real Authorization header itself");
+  }
+  if (!allowedOrigins.includes(parsed.origin)) {
     throw new CredentialedRequestValidationError(
-      `path '${raw}' looks like it names a different host or scheme — this tool only ever resolves a path against the credential's own saved base URL`
+      `url '${candidate}' resolves to origin '${parsed.origin}', which is not one of this credential's saved hosts (${allowedOrigins.join(", ")}) — add it to this credential in the Access Tokens form first`
     );
   }
-  return raw;
+  return parsed;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -203,17 +232,24 @@ function validateExtraHeaders(raw: unknown): Record<string, string> {
 }
 
 /**
- * Resolves the real request URL from a credential's own saved base URL plus an already-validated
- * relative `path` — see this file's header, "Per-credential host binding". Safe by construction:
- * `path` has already been proven (by {@link validateRelativePath}) to start with exactly one `/` and
- * to carry no scheme, host, `//`, or backslash of its own, so concatenating it onto the credential's
- * own origin can never land the resolved URL on a different host.
+ * Validates the optional caller-supplied request body. `undefined` degrades to "no body" for every
+ * method, including DELETE — some real APIs accept a DELETE body, and this tool does not second-guess
+ * that.
  *
- * @complexity O(1).
+ * @throws {CredentialedRequestValidationError} `raw` is not a string, or exceeds
+ *   {@link MAX_REQUEST_BODY_BYTES}.
+ * @complexity O(1) — one `Buffer.byteLength` computation.
  */
-function buildRequestUrl(baseUrl: string, path: string): URL {
-  const origin = new URL(baseUrl).origin;
-  return new URL(`${origin}${path}`);
+function validateOptionalBody(raw: unknown): string | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "string") {
+    throw new CredentialedRequestValidationError("body must be a string when provided");
+  }
+  const byteLength = Buffer.byteLength(raw, "utf8");
+  if (byteLength > MAX_REQUEST_BODY_BYTES) {
+    throw new CredentialedRequestValidationError(`body is ${byteLength} bytes, which exceeds the ${MAX_REQUEST_BODY_BYTES}-byte limit for this tool`);
+  }
+  return raw;
 }
 
 /** HTTP Basic (base64 `username:token`) when the saved connection carries a `username` — the same
@@ -232,7 +268,7 @@ function buildAuthorizationHeader(connection: CustomProviderConnectionInput): st
 }
 
 /** One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
- *  these five fields and no others. */
+ *  these six fields and no others. */
 export interface CredentialedRequestAuditEntry {
   readonly label: string;
   readonly host: string;
@@ -240,10 +276,12 @@ export interface CredentialedRequestAuditEntry {
   /** `0` means the request never got a response at all (DNS failure, timeout, or an `EgressPolicy`
    *  refusal) — distinct from any real HTTP status a provider could return. */
   readonly status: number;
+  /** Byte length of the request body sent, `0` when none — a SIZE only, never the body itself. */
+  readonly bodyBytes: number;
   readonly at: string;
 }
 
-/** Records exactly {@link CredentialedRequestAuditEntry}'s five fields — never the token, the
+/** Records exactly {@link CredentialedRequestAuditEntry}'s six fields — never the token, the
  *  Authorization header, or the request/response body. */
 export interface CredentialedRequestAuditPort {
   record(entry: CredentialedRequestAuditEntry): void;
@@ -261,7 +299,9 @@ export class ConsoleCredentialedRequestAuditLog implements CredentialedRequestAu
   constructor(private readonly log: (line: string) => void = (line) => console.log(line)) {}
 
   record(entry: CredentialedRequestAuditEntry): void {
-    this.log(`[custom-credentials] request label=${entry.label} host=${entry.host} method=${entry.method} status=${entry.status} at=${entry.at}`);
+    this.log(
+      `[custom-credentials] request label=${entry.label} host=${entry.host} method=${entry.method} status=${entry.status} bodyBytes=${entry.bodyBytes} at=${entry.at}`
+    );
   }
 }
 
@@ -287,9 +327,33 @@ export interface CredentialedRequestDeps {
   readonly audit?: CredentialedRequestAuditPort;
 }
 
+/**
+ * The non-decrypting half of credential resolution: finds the credential by label and computes its
+ * allowed-origin set (`baseUrl` + `additionalHosts`, both plaintext), WITHOUT ever touching the
+ * sealer. Used by {@link makeCredentialedRequest} itself for its own validation, and by
+ * `tool-registrations.ts`'s DELETE confirmation gate to validate the target and render the dialog
+ * BEFORE ever decrypting anything — a human's "no" should never have cost a decrypt.
+ *
+ * @throws {CustomCredentialNotFoundError} No row with this label exists in this workspace.
+ * @throws {CredentialedRequestValidationError} `url` fails {@link resolveAllowedRequestUrl}.
+ * @complexity O(n) in the workspace's own (small) credential-set count.
+ */
+export async function resolveRequestTarget(
+  deps: Pick<CredentialedRequestDeps, "repo">,
+  input: { workspaceId: UUID; label: string; url: unknown }
+): Promise<{ label: string; url: URL }> {
+  const summary = await describeCredentialByLabel({ repo: deps.repo }, { workspaceId: input.workspaceId, label: input.label });
+  if (!summary) {
+    throw new CustomCredentialNotFoundError(`no custom credential labeled '${input.label}' in this workspace`);
+  }
+  const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor(summary));
+  return { label: input.label, url };
+}
+
 /** Shared "find the credential or fail loudly" step both entry points use — never returns `null`,
  *  matching `store.ts`'s own `CustomCredentialNotFoundError` contract for a missing row (reused here
- *  keyed by label instead of id, the same conceptual "no such credential" outcome).
+ *  keyed by label instead of id, the same conceptual "no such credential" outcome). DECRYPTS —
+ *  callers that only need the allowed-origin set should use {@link resolveRequestTarget} instead.
  *
  * @throws {CustomCredentialNotFoundError} No row with this label exists in this workspace.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row exists but could not be decrypted —
@@ -299,7 +363,7 @@ export interface CredentialedRequestDeps {
 async function resolveCredentialOrThrow(
   deps: Pick<CredentialedRequestDeps, "repo" | "sealer">,
   input: { workspaceId: UUID; label: string }
-): Promise<{ baseUrl: string; connection: CustomProviderConnectionInput }> {
+): Promise<{ baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput }> {
   const resolved = await resolveCustomCredentialByLabel({ repo: deps.repo, sealer: deps.sealer }, input);
   if (!resolved) {
     throw new CustomCredentialNotFoundError(`no custom credential labeled '${input.label}' in this workspace`);
@@ -347,7 +411,9 @@ export interface CustomCredentialVerificationResult {
  * (decrypts), makes one bounded GET to its own saved base URL's root with the real Authorization
  * header, and classifies the result. Never throws on a network failure — that classifies as
  * `"unreachable"`, matching every other verification surface in this codebase (see this file's
- * header). Never returns the provider's response body.
+ * header). Never returns the provider's response body. Always probes `baseUrl` specifically (the
+ * credential's PRIMARY host), even when `additionalHosts` is non-empty — "does this credential work
+ * at all" is answered by its main host; a per-additional-host check is not this function's job.
  *
  * @throws {CustomCredentialNotFoundError} No credential with this label exists in this workspace.
  * @throws {CredentialedRequestValidationError} `input.label` is not a non-empty string.
@@ -358,7 +424,7 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
   const label = requireLabel(input.label);
   const checkedAt = deps.clock.nowIso();
   const { baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
-  const url = buildRequestUrl(baseUrl, "/");
+  const url = new URL(`${new URL(baseUrl).origin}/`);
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
 
   let status: number;
@@ -371,41 +437,60 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
     });
     status = response.status;
   } catch {
-    audit.record({ label, host: url.hostname, method: "GET", status: 0, at: checkedAt });
+    audit.record({ label, host: url.hostname, method: "GET", status: 0, bodyBytes: 0, at: checkedAt });
     return { status: "unreachable", message: `Could not reach '${label}' to verify this credential — this does not necessarily mean the credential is bad.`, checkedAt };
   }
 
-  audit.record({ label, host: url.hostname, method: "GET", status, at: checkedAt });
+  audit.record({ label, host: url.hostname, method: "GET", status, bodyBytes: 0, at: checkedAt });
   const outcome = classifyCustomCredentialStatus(status);
   return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt };
 }
 
-export interface CredentialedRequestResult {
+/** A real send — the provider answered (any HTTP status), or this tool's own transport layer
+ *  threw (see {@link CredentialedRequestTransportError}). `executed: true` is a fixed discriminant
+ *  against {@link CredentialedRequestDeclinedResult}, so a caller of the WIRING layer (which may
+ *  return either shape for a gated DELETE) can branch on one field regardless of method. */
+export interface CredentialedRequestExecutedResult {
+  readonly executed: true;
   readonly status: number;
   readonly headers: Record<string, string>;
   readonly bodyText: string;
 }
 
+/** A gated call (DELETE) that did NOT run — the human declined, or never answered in time, or the
+ *  run ended first. Never produced by {@link makeCredentialedRequest} itself (which has no gating
+ *  logic at all) — only by `tool-registrations.ts`'s handler, before it ever calls this module. */
+export interface CredentialedRequestDeclinedResult {
+  readonly executed: false;
+  readonly cancelled: boolean;
+  readonly reason?: "expired" | "abandoned";
+}
+
+export type CredentialedRequestOutcome = CredentialedRequestExecutedResult | CredentialedRequestDeclinedResult;
+
 export interface MakeCredentialedRequestInput {
   readonly workspaceId: UUID;
   readonly label: unknown;
   readonly method: unknown;
-  readonly path: unknown;
+  readonly url: unknown;
   readonly headers?: unknown;
+  readonly body?: unknown;
 }
 
 /**
- * Makes an authenticated GET request through a saved custom credential: resolves the credential
- * (decrypts), resolves the real request URL against its own saved base URL (see
- * {@link buildRequestUrl}), and sends it with the real Authorization header injected — a caller
- * never supplies or sees the token, host, or full URL.
+ * Makes an authenticated request through a saved custom credential: resolves the credential
+ * (decrypts), validates the target `url` against the credential's own allowed-origin set (see
+ * {@link resolveAllowedRequestUrl}), and sends it with the real Authorization header injected — a
+ * caller never supplies or sees the token. Supports GET/POST/PUT/PATCH/DELETE uniformly; this
+ * function itself never gates any of them — see this file's header for where DELETE's confirmation
+ * actually lives.
  *
  * Every input-shape and security-boundary rejection ({@link CredentialedRequestValidationError},
- * `label` not found) happens BEFORE any network call — a malformed or cross-host-looking `path` is
- * refused with no request ever sent, regardless of whether the named credential even exists.
+ * `label` not found) happens BEFORE any network call — a malformed or off-allowlist `url` is refused
+ * with no request ever sent, regardless of whether the named credential even exists.
  *
- * @throws {CredentialedRequestValidationError} `method` is not `'GET'`, `path` is empty/absolute/
- *   cross-host-looking, or `headers` carries a forbidden name or a non-string value.
+ * @throws {CredentialedRequestValidationError} `method`/`url`/`headers`/`body` fails validation, or
+ *   `url`'s origin is not one of the credential's saved hosts.
  * @throws {CustomCredentialNotFoundError} No credential with this label exists in this workspace.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A row exists but could not be decrypted.
  * @throws {CredentialedRequestTransportError} The request could not be sent (network failure,
@@ -414,16 +499,17 @@ export interface MakeCredentialedRequestInput {
  * @complexity O(1) beyond the credential resolution's own O(n) (see {@link resolveCredentialOrThrow})
  *   and the header validation's own O(n) in header count.
  */
-export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestResult> {
+export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
   const label = requireLabel(input.label);
-  const method = validateReadOnlyMethod(input.method);
-  const path = validateRelativePath(input.path);
+  const method = validateMethod(input.method);
   const extraHeaders = validateExtraHeaders(input.headers);
+  const body = validateOptionalBody(input.body);
   const at = deps.clock.nowIso();
 
-  const { baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
-  const url = buildRequestUrl(baseUrl, path);
+  const { additionalHosts, baseUrl, connection } = await resolveCredentialOrThrow(deps, { workspaceId: input.workspaceId, label });
+  const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
+  const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
 
   let response;
   try {
@@ -432,12 +518,13 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
       url: url.toString(),
       headers: { ...extraHeaders, Authorization: buildAuthorizationHeader(connection) },
       timeoutMs: CREDENTIALED_REQUEST_TIMEOUT_MS,
+      ...(body !== undefined ? { body } : {}),
     });
   } catch (err) {
-    audit.record({ label, host: url.hostname, method, status: 0, at });
+    audit.record({ label, host: url.hostname, method, status: 0, bodyBytes, at });
     throw new CredentialedRequestTransportError(`request to '${label}' failed: ${err instanceof Error ? err.message : String(err)}`);
   }
 
-  audit.record({ label, host: url.hostname, method, status: response.status, at });
-  return { status: response.status, headers: { ...response.headers }, bodyText: response.bodyText };
+  audit.record({ label, host: url.hostname, method, status: response.status, bodyBytes, at });
+  return { executed: true, status: response.status, headers: { ...response.headers }, bodyText: response.bodyText };
 }

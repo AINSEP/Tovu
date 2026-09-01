@@ -1,0 +1,1 @@
+ALTER TABLE `custom_credential_sets` ADD `additional_hosts_json` text;

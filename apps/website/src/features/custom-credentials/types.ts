@@ -43,6 +43,11 @@ export interface CustomCredentialSetRecord {
   readonly label: string;
   readonly category: CustomCredentialCategoryId;
   readonly baseUrl: string;
+  /** Extra allowed origins beyond `baseUrl` (e.g. fly.io needs both `api.fly.io` and
+   *  `api.machines.dev`) — see `db/schema.ts`'s `customCredentialSets.additionalHostsJson` doc.
+   *  Each entry is a normalized ORIGIN (`https://host[:port]`), never a full URL with a path.
+   *  Empty, never `null` — `store.ts`'s read path normalizes the DB's nullable column to `[]`. */
+  readonly additionalHosts: readonly string[];
   readonly sealed: SealedSecret;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
@@ -56,9 +61,20 @@ export interface CustomCredentialSummary {
   readonly label: string;
   readonly category: CustomCredentialCategoryId;
   readonly baseUrl: string;
+  readonly additionalHosts: readonly string[];
   readonly configured: true;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
+}
+
+/** Every origin this credential's token may legitimately be sent to — `baseUrl`'s own origin plus
+ *  `additionalHosts`, deduped. This IS the per-credential host allowlist
+ *  `features/custom-credentials/credentialed-request.ts` checks a request's resolved URL origin
+ *  against; derived from the credential's own saved state, never from tool input.
+ *
+ * @complexity O(n) in `additionalHosts.length`. */
+export function allowedOriginsFor(record: { readonly baseUrl: string; readonly additionalHosts: readonly string[] }): readonly string[] {
+  return [...new Set([new URL(record.baseUrl).origin, ...record.additionalHosts])];
 }
 
 /** Workspace-scoped persistence for {@link CustomCredentialSetRecord} (ADR-007 §1). `insert`

@@ -56,6 +56,11 @@ test("assistant_ask_choice is on the allowlist — it holds up the same held-ope
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("assistant_ask_choice"));
 });
 
+test("custom_credential_make_request is on the allowlist — its DELETE method holds up the same held-open-exchange shape content_post_delete does (2026-08-31)", () => {
+  assert.equal(isMcpUiToolCallAllowed("custom_credential_make_request"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
+});
+
 // ---------------------------------------------------------------------------
 // The closed-set property
 // ---------------------------------------------------------------------------
@@ -73,6 +78,7 @@ const EXPECTED_ALLOWLIST = [
   "assistant_demo_choices",
   "content_post_delete",
   "content_post_search",
+  "custom_credential_make_request",
   "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
   "source_control_execute_commit",

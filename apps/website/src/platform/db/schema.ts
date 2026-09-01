@@ -1819,8 +1819,25 @@ export const customCredentialSets = sqliteTable(
      *  portable enum CHECK across this repo's dialect-parity story — same reasoning every other
      *  string-typed id column here already accepts). */
     category: text("category").notNull(),
-    /** The vendor's API base URL (e.g. `https://api.vercel.com`) — plaintext, not a secret. */
+    /** The vendor's API base URL (e.g. `https://api.vercel.com`) — plaintext, not a secret. This is
+     *  the credential's PRIMARY allowed host; see `additionalHostsJson` below for the rest. */
     baseUrl: text("base_url").notNull(),
+    /**
+     * 2026-08-31 (owner-driven: a single fly.io credential needs BOTH `api.fly.io` (GraphQL) and
+     * `api.machines.dev` (Machines REST) — one saved `base_url` cannot cover a real provider with
+     * more than one API host). A JSON array of EXTRA origin strings this credential's token may be
+     * sent to, beyond `base_url` — e.g. `["https://api.machines.dev"]`. `NULL`/absent means "no
+     * extra hosts", not "unconfigured" — same "plain text, no Drizzle json-mode column" convention
+     * every JSON-shaped column in this schema uses (`manifest.ts`'s own `isJsonColumnName` doc);
+     * manually (de)serialized at `custom-credential-repo.sqlite.ts`'s adapter boundary. Plaintext,
+     * not sealed — same "the read model must read it without decrypting" reasoning `base_url` above
+     * already documents; a host is not a secret. This is a SECURITY column in the identical sense
+     * `external_mcp_servers.allowed_tool_names` is (`this file's own doc on that column):
+     * `features/custom-credentials/credentialed-request.ts`'s per-request host-binding check is
+     * derived from `base_url` + this column and NOTHING else — it is the full allowlist a request's
+     * resolved URL origin is checked against, never widened by tool input.
+     */
+    additionalHostsJson: text("additional_hosts_json"),
     /** `SealedSecret.keyId`. */
     sealedKeyId: text("sealed_key_id").notNull(),
     /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the serialized `{token, username?}`

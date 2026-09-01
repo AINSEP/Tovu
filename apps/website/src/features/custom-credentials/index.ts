@@ -3,6 +3,7 @@
  * `features/source-control/index.ts`).
  */
 export {
+  allowedOriginsFor,
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
   type CustomCredentialSetRecord,
@@ -21,6 +22,7 @@ export {
   CustomCredentialValidationError,
   deleteCustomCredential,
   describeCredential,
+  describeCredentialByLabel,
   isUniqueLabelViolation,
   listCustomCredentials,
   resolveCustomCredentialByLabel,
@@ -40,11 +42,15 @@ export {
   CredentialedRequestValidationError,
   InMemoryCredentialedRequestAuditLog,
   makeCredentialedRequest,
+  resolveRequestTarget,
   verifyCustomCredential,
   type CredentialedRequestAuditEntry,
   type CredentialedRequestAuditPort,
+  type CredentialedRequestDeclinedResult,
   type CredentialedRequestDeps,
-  type CredentialedRequestResult,
+  type CredentialedRequestExecutedResult,
+  type CredentialedRequestOutcome,
+  type CustomCredentialCheckStatus,
   type CustomCredentialVerificationResult,
   type MakeCredentialedRequestInput,
 } from "./credentialed-request.js";

@@ -20,6 +20,18 @@ import type { ContentDb } from "./content-db.js";
 
 type Row = typeof customCredentialSets.$inferSelect;
 
+/** `additionalHostsJson` is a nullable plain-text JSON array (`db/schema.ts`'s own doc — this schema
+ *  never uses Drizzle's `{mode:"json"}` column type), so `toRecord`/`toValues` are the one place it
+ *  is (de)serialized. `null`/empty normalizes to `[]`, matching `CustomCredentialSetRecord.
+ *  additionalHosts`'s own "empty, never null" contract. */
+function parseAdditionalHosts(json: string | null): readonly string[] {
+  return json ? (JSON.parse(json) as string[]) : [];
+}
+
+function serializeAdditionalHosts(hosts: readonly string[]): string | null {
+  return hosts.length > 0 ? JSON.stringify(hosts) : null;
+}
+
 function toRecord(row: Row): CustomCredentialSetRecord {
   return {
     workspaceId: row.workspaceId,
@@ -27,6 +39,7 @@ function toRecord(row: Row): CustomCredentialSetRecord {
     label: row.label,
     category: row.category as CustomCredentialCategoryId,
     baseUrl: row.baseUrl,
+    additionalHosts: parseAdditionalHosts(row.additionalHostsJson),
     sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -40,6 +53,7 @@ function toValues(record: CustomCredentialSetRecord) {
     label: record.label,
     category: record.category,
     baseUrl: record.baseUrl,
+    additionalHostsJson: serializeAdditionalHosts(record.additionalHosts),
     sealedKeyId: record.sealed.keyId,
     sealedCiphertext: record.sealed.ciphertext,
     sealedNonce: record.sealed.nonce,

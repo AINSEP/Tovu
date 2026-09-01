@@ -66,6 +66,7 @@ function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
     label: record.label,
     category: record.category,
     baseUrl: record.baseUrl,
+    additionalHosts: record.additionalHosts,
     configured: true,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -85,6 +86,26 @@ export interface CustomCredentialReadDeps {
  */
 export async function describeCredential(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<CustomCredentialSummary | null> {
   const record = await deps.repo.findById(input);
+  return record ? toSummary(record) : null;
+}
+
+/**
+ * The non-decrypting sibling of {@link resolveCustomCredentialByLabel}: finds a credential by its
+ * exact label and returns its read model — `baseUrl`/`additionalHosts` included, since both are
+ * plaintext columns (`db/schema.ts`'s own doc) — WITHOUT ever touching `sealer`/`keyring`. Exists so
+ * a caller that only needs to validate a request's target origin or render a confirmation dialog
+ * (`features/custom-credentials/credentialed-request.ts`'s `resolveRequestTarget`,
+ * `tool-registrations.ts`'s DELETE confirmation gate) never has to decrypt just to read two plaintext
+ * fields — the same "never touches the sealer" contract {@link describeCredential} already documents,
+ * applied to a label lookup instead of an id lookup.
+ *
+ * @complexity O(n) in the workspace's own (small) credential-set count — same `listByWorkspace` +
+ *   filter shape {@link resolveCustomCredentialByLabel} uses, since this table has no `findByLabel`
+ *   repo method (see that function's own doc for why).
+ */
+export async function describeCredentialByLabel(deps: CustomCredentialReadDeps, input: { workspaceId: UUID; label: string }): Promise<CustomCredentialSummary | null> {
+  const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
+  const record = records.find((row) => row.label === input.label);
   return record ? toSummary(record) : null;
 }
 
@@ -146,6 +167,45 @@ function validateBaseUrl(raw: unknown): string {
     throw new CustomCredentialValidationError("baseUrl must use http or https");
   }
   return raw;
+}
+
+/** One `additionalHosts` entry's own validation — split out of {@link validateAdditionalHosts} so
+ *  that function's `.map()` body stays a single call, and so each rejection names its own index. */
+function validateAdditionalHostEntry(raw: unknown, index: number): string {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new CustomCredentialValidationError(`additionalHosts[${index}] must be a non-empty string`);
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new CustomCredentialValidationError(`additionalHosts[${index}] must be a valid absolute URL`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new CustomCredentialValidationError(`additionalHosts[${index}] must use http or https`);
+  }
+  return parsed.origin;
+}
+
+/**
+ * Validates and normalizes the optional `additionalHosts` field (2026-08-31, owner-driven multi-host
+ * support — see `db/schema.ts`'s `customCredentialSets.additionalHostsJson` doc). `undefined` (the
+ * field was omitted) degrades to no extra hosts, matching every other optional field's "omitted is
+ * not an error" contract on this store. Each entry is normalized to its own ORIGIN (scheme+host+port,
+ * no path) and the result is deduped — this is what lets
+ * `features/custom-credentials/credentialed-request.ts` compare a request's resolved URL origin
+ * against this list with plain `===`/`.includes()`, never re-parsing at request time.
+ *
+ * @throws {CustomCredentialValidationError} `raw` is not an array, or any entry fails
+ *   {@link validateAdditionalHostEntry}.
+ * @complexity O(n) in the number of supplied hosts.
+ */
+function validateAdditionalHosts(raw: unknown): readonly string[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    throw new CustomCredentialValidationError("additionalHosts must be an array of absolute http/https URLs");
+  }
+  return [...new Set(raw.map((entry, index) => validateAdditionalHostEntry(entry, index)))];
 }
 
 function requireNonEmptyString(raw: unknown, field: string): string {
@@ -212,6 +272,8 @@ export interface CreateCustomCredentialInput {
   category: unknown;
   baseUrl: unknown;
   connection: unknown;
+  /** Omitted = no extra hosts beyond `baseUrl`. See `validateAdditionalHosts`'s own doc. */
+  additionalHosts?: unknown;
 }
 
 /**
@@ -229,6 +291,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
   const label = validateLabel(input.label);
   const category = validateCategory(input.category);
   const baseUrl = validateBaseUrl(input.baseUrl);
+  const additionalHosts = validateAdditionalHosts(input.additionalHosts);
   const connection = validateConnection(input.connection);
   const id = deps.idGen.newId();
   const now = deps.clock.nowIso();
@@ -240,6 +303,7 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     label,
     category,
     baseUrl,
+    additionalHosts,
     sealed,
     createdAt: now,
     updatedAt: now,
@@ -265,6 +329,10 @@ export interface UpdateCustomCredentialInput {
   category?: unknown;
   /** Omitted = leave the base URL unchanged. */
   baseUrl?: unknown;
+  /** Omitted = leave the additional hosts unchanged. Supplying a value REPLACES the whole list
+   *  (never merges) — same "full replace, not append" contract this store's other array-ish writes
+   *  don't have to disclaim only because none existed before this field. */
+  additionalHosts?: unknown;
   /** Omitted = leave the stored connection untouched — same "omitting `connection` keeps the
    *  secret" contract every sibling credential route documents. */
   connection?: unknown;
@@ -290,6 +358,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
   const category = input.category !== undefined ? validateCategory(input.category) : existing.category;
   const baseUrl = input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl;
+  const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
   const now: ISODateTime = deps.clock.nowIso();
 
   let sealed = existing.sealed;
@@ -304,6 +373,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     label,
     category,
     baseUrl,
+    additionalHosts,
     sealed,
     createdAt: existing.createdAt,
     updatedAt: now,
@@ -371,10 +441,10 @@ export interface CustomCredentialResolveDeps {
 export async function resolveCustomCredentialByLabel(
   deps: CustomCredentialResolveDeps,
   input: { workspaceId: UUID; label: string }
-): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; connection: CustomProviderConnectionInput } | null> {
+): Promise<{ id: UUID; category: CustomCredentialCategoryId; baseUrl: string; additionalHosts: readonly string[]; connection: CustomProviderConnectionInput } | null> {
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const record = records.find((row) => row.label === input.label);
   if (!record) return null;
   const connection = await decryptRecord(deps.sealer, record);
-  return { id: record.id, category: record.category, baseUrl: record.baseUrl, connection };
+  return { id: record.id, category: record.category, baseUrl: record.baseUrl, additionalHosts: record.additionalHosts, connection };
 }
