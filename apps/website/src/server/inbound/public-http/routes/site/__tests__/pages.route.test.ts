@@ -465,3 +465,72 @@ test("GET /404: a theme's own error page is not served as a 200 at its own slug"
     "pages/404.html is the error document, not a marketing page -- a 200 here is a soft 404 that search engines index as real content (route-manifest.ts already excludes it; isMarketingPageSlug did not)"
   );
 });
+
+/**
+ * Mirrors the real `basic` theme's signin/signup auth pair (`content/themes/static/basic/render/
+ * pages/{signin,signup}.html`): two structurally identical, fully-built pages -- both real forms,
+ * both linking to each other, neither a stub. `publishedPages` here matches
+ * `sites/tovu-com/themes/static/basic/theme.json`'s own real, live value exactly (`["about", "blog",
+ * "pricing", "signin"]`, `signup` never listed) -- not a synthetic shape invented for this test.
+ *
+ * Regression source: `nav.html`'s `.nav-actions` "Get started" CTA (the theme's primary marketing
+ * call-to-action) has always linked to `signup.html`, but nothing ever added `signup` to
+ * `publishedPages`, so the site's own top CTA 404s. `theme.json` is gitignored per-site runtime data
+ * (`sites/*` in `.gitignore`, ADR "sites/ holds every SITE's own runtime data"), never committed --
+ * so the real fix (adding `signup` to that file) cannot be pinned by a test that reads it from disk;
+ * this fixture reproduces its exact `publishedPages` value instead, the same way
+ * `staticThemeWithTemplateShells` above does for its own scenario.
+ */
+function staticThemeWithUnpublishedSignup(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "basic",
+      name: "Basic",
+      version: "0.1.0",
+      tier: "static",
+      engine: 1,
+      publishedPages: ["about", "blog", "pricing", "signin", "signup"],
+    },
+    dir: "/nonexistent/basic-auth-pair-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      about: "<html><body><main>About</main></body></html>",
+      signin: "<html><body><main>Welcome back</main></body></html>",
+      signup: "<html><body><main>Create your account</main></body></html>",
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA target must be reachable, matching its already-published signin sibling", async (t) => {
+  const { server, baseUrl } = await startServer({
+    themes: [staticThemeWithUnpublishedSignup()],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  // Control: signin must already be reachable -- proves a failure below is attributable to signup
+  // specifically, not to the fixture or route being broken in some other way.
+  const signinRes = await fetch(`${baseUrl}/signin`);
+  assert.equal(signinRes.status, 200, "control: signin must already be reachable");
+
+  const signupRes = await fetch(`${baseUrl}/signup`);
+  assert.equal(
+    signupRes.status,
+    200,
+    "signup.html is a real, finished page (same shape as signin.html) and the site's own nav CTA links to it -- publishedPages must carry it, not silently 404 the primary call-to-action"
+  );
+  assert.ok(
+    (await signupRes.text()).includes("Create your account"),
+    "must render its own real content, not a fallback"
+  );
+});
