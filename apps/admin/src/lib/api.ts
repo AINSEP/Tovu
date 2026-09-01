@@ -584,6 +584,11 @@ export interface AdminCustomCredentialSummary {
   readonly label: string;
   readonly category: AdminCustomCredentialCategoryId;
   readonly baseUrl: string;
+  /** Extra allowed origins beyond `baseUrl` (e.g. fly.io needs both `api.fly.io` and
+   *  `api.machines.dev`) — mirrors `src/features/custom-credentials/types.ts`'s server-side
+   *  `CustomCredentialSummary.additionalHosts` (2026-08-31 multi-host widening). Empty, never
+   *  `undefined` — the server's own read path normalizes a `null` column to `[]`. */
+  readonly additionalHosts: readonly string[];
   readonly configured: true;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -3210,17 +3215,27 @@ export const api = {
   listCustomCredentials: () => request<AdminCustomCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`),
   /** Creates one custom-provider credential. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError`
    *  with that `code`) if this workspace already has one with the same `label`. */
-  createCustomCredential: (input: { label: string; category: AdminCustomCredentialCategoryId; baseUrl: string; connection: AdminCustomConnectionInput }) =>
+  createCustomCredential: (input: {
+    label: string;
+    category: AdminCustomCredentialCategoryId;
+    baseUrl: string;
+    /** Omitted = no extra hosts beyond `baseUrl` (server-side default — see
+     *  `validateAdditionalHosts`'s own doc). */
+    additionalHosts?: readonly string[];
+    connection: AdminCustomConnectionInput;
+  }) =>
     request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  /** Updates a credential's label, category, base URL, and/or connection. Omitting `connection`
-   *  entirely — never sending it as an empty object or blank fields — is what keeps the stored
-   *  secret untouched, same contract every sibling credential update call documents. */
+  /** Updates a credential's label, category, base URL, additional hosts, and/or connection.
+   *  Omitting `connection` entirely — never sending it as an empty object or blank fields — is
+   *  what keeps the stored secret untouched, same contract every sibling credential update call
+   *  documents. Omitting `additionalHosts` leaves it unchanged; supplying it REPLACES the whole
+   *  list (never merges), matching `updateCustomCredential`'s own server-side contract. */
   updateCustomCredential: (
     id: string,
-    input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; connection?: AdminCustomConnectionInput }
+    input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; additionalHosts?: readonly string[]; connection?: AdminCustomConnectionInput }
   ) =>
     request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${id}`, {
       method: "PUT",

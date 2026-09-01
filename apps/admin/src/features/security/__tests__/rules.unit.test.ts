@@ -18,6 +18,7 @@ import {
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
+  buildAdditionalHostsInput,
   buildCustomCredentialRows,
   buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
@@ -25,7 +26,9 @@ import {
   customCredentialNameTaken,
   customCredentialReadyToSave,
   envNamesFact,
+  invalidAdditionalHostsEntries,
   isValidHttpUrl,
+  parseAdditionalHostsInput,
   maskedTailFact,
   mediaProviderLabel,
   otherCredentialMatchesQuery,
@@ -410,7 +413,7 @@ describe("classifyAccessTokenSubmitError", () => {
 /** A blank custom-provider form — every test overrides only the fields it cares about, same
  *  convention {@link blankFields} follows for the catalog providers' own form shape. */
 function blankCustomFields(overrides: Partial<CustomCredentialFormFields> = {}): CustomCredentialFormFields {
-  return { name: "", category: "general", baseUrl: "", token: "", username: "", ...overrides };
+  return { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", ...overrides };
 }
 
 function rawCustomSummary(overrides: Partial<RawCustomCredentialSummary> = {}): RawCustomCredentialSummary {
@@ -521,6 +524,62 @@ describe("customCredentialReadyToSave", () => {
 
   it("never requires a username — it stays optional", () => {
     expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "https://api.name.com", token: "tok", username: "" }))).toBe(true);
+  });
+
+  it("is ready with a valid additionalHosts entry", () => {
+    expect(
+      customCredentialReadyToSave(blankCustomFields({ name: "fly.io", baseUrl: "https://api.fly.io", token: "tok", additionalHosts: "https://api.machines.dev" }))
+    ).toBe(true);
+  });
+
+  it("is not ready when an additionalHosts entry is not a valid http(s) URL", () => {
+    expect(
+      customCredentialReadyToSave(blankCustomFields({ name: "fly.io", baseUrl: "https://api.fly.io", token: "tok", additionalHosts: "not-a-url" }))
+    ).toBe(false);
+  });
+
+  it("stays optional — a blank additionalHosts field never blocks save", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "https://api.name.com", token: "tok", additionalHosts: "" }))).toBe(true);
+  });
+});
+
+describe("parseAdditionalHostsInput", () => {
+  it("splits on newlines, trims, and drops blank entries", () => {
+    expect(parseAdditionalHostsInput("https://api.fly.io\n\n  https://api.machines.dev  \n")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+  });
+
+  it("also splits on commas, so a pasted comma-separated list works the same way", () => {
+    expect(parseAdditionalHostsInput("https://api.fly.io, https://api.machines.dev")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+  });
+
+  it("returns an empty array for a blank or whitespace-only field", () => {
+    expect(parseAdditionalHostsInput("")).toEqual([]);
+    expect(parseAdditionalHostsInput("   \n  ")).toEqual([]);
+  });
+});
+
+describe("invalidAdditionalHostsEntries", () => {
+  it("returns an empty array when every entry is a valid http(s) URL", () => {
+    expect(invalidAdditionalHostsEntries("https://api.fly.io\nhttps://api.machines.dev")).toEqual([]);
+  });
+
+  it("returns exactly the entries that fail isValidHttpUrl, leaving valid ones out", () => {
+    expect(invalidAdditionalHostsEntries("https://api.fly.io\nnot-a-url\nftp://also-bad.example.com")).toEqual(["not-a-url", "ftp://also-bad.example.com"]);
+  });
+
+  it("is empty for a blank field — this field is entirely optional", () => {
+    expect(invalidAdditionalHostsEntries("")).toEqual([]);
+  });
+});
+
+describe("buildAdditionalHostsInput", () => {
+  it("returns the parsed array when at least one entry is present", () => {
+    expect(buildAdditionalHostsInput("https://api.fly.io\nhttps://api.machines.dev")).toEqual(["https://api.fly.io", "https://api.machines.dev"]);
+  });
+
+  it("returns undefined for a blank field, so the create/update call omits it entirely", () => {
+    expect(buildAdditionalHostsInput("")).toBeUndefined();
+    expect(buildAdditionalHostsInput("   ")).toBeUndefined();
   });
 });
 

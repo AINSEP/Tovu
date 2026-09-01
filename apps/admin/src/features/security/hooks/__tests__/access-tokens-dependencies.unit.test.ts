@@ -102,6 +102,7 @@ function customCredential(overrides: Partial<AdminCustomCredentialSummary> = {})
     label: "Internal API",
     category: "general",
     baseUrl: "https://internal.example.com",
+    additionalHosts: [],
     configured: true,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",

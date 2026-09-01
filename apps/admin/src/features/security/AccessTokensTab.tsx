@@ -13,6 +13,7 @@ import {
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   customCredentialReadyToSave,
+  invalidAdditionalHostsEntries,
   isValidHttpUrl,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
@@ -648,6 +649,36 @@ function RequiredFieldMarker() {
   );
 }
 
+/** The "Additional hosts" field — split out of {@link AddCustomCredentialDialog} purely so that
+ *  function's own complexity stays under this repo's gate; the inline-error branch below adds one
+ *  more decision point to whichever function renders it, and `AddCustomCredentialDialog` already
+ *  carries a full field set's worth. */
+function AdditionalHostsField({ value, onChange, translate }: { value: string; onChange: (value: string) => void; translate: Translate }) {
+  const invalid = invalidAdditionalHostsEntries(value);
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor="security-add-custom-additional-hosts">
+        {translate("Additional hosts")}
+      </label>
+      <textarea
+        id="security-add-custom-additional-hosts"
+        rows={2}
+        value={value}
+        placeholder="https://api.machines.dev"
+        onChange={(e) => onChange(e.target.value)}
+        {...agentHandle("security-access-tokens-add-custom-additional-hosts", {
+          role: "field",
+          label: "Extra API hosts this same credential is also allowed to call, beyond the base URL",
+        })}
+      />
+      <p className="field-hint">
+        {translate("Optional — some providers use more than one API host for the same account (e.g. fly.io's api.fly.io and api.machines.dev). One per line, or comma-separated.")}
+      </p>
+      {invalid.length > 0 ? <p className="field-error">{translate("Each additional host must be a valid http:// or https:// URL.")}</p> : null}
+    </div>
+  );
+}
+
 /**
  * The "Add custom provider" form (`AccessTokensCategoryFilter`'s own button opens it) — a
  * standalone native `<dialog>`, not a per-provider `AddTokenForm` (this file's own header on why a
@@ -717,6 +748,11 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
           />
           {baseUrlInvalid ? <p className="field-error">{translate("Enter a valid http:// or https:// URL.")}</p> : null}
         </div>
+        <AdditionalHostsField
+          value={form.additionalHosts}
+          onChange={(value) => controller.setCustomAddField({ additionalHosts: value })}
+          translate={translate}
+        />
         <div className="field">
           <label className="field-label" htmlFor="security-add-custom-token">
             {translate("Access token")}

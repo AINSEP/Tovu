@@ -559,6 +559,12 @@ export interface CustomCredentialFormFields {
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
+  /** Raw textarea input for extra allowed hosts beyond `baseUrl` (e.g. fly.io needs both
+   *  `api.fly.io` and `api.machines.dev`) — one URL per line or comma-separated, operator's
+   *  choice; see {@link parseAdditionalHostsInput}. Always optional: a blank value means "no
+   *  extra hosts", matching `src/features/custom-credentials/types.ts`'s server-side
+   *  `allowedOriginsFor`/`validateAdditionalHosts` omitted-is-not-an-error contract. */
+  readonly additionalHosts: string;
   readonly token: string;
   readonly username: string;
 }
@@ -578,15 +584,40 @@ export function isValidHttpUrl(value: string): boolean {
   }
 }
 
+/** Splits {@link CustomCredentialFormFields.additionalHosts}'s raw textarea text into individual
+ *  candidate host strings — one per line OR comma-separated (operator's choice, so pasting a
+ *  provider's own docs either way just works), trimmed, with blank entries dropped. Does NOT
+ *  validate each entry as a URL — see {@link invalidAdditionalHostsEntries} for that, kept
+ *  separate so a caller that only needs the parsed list (e.g. building the wire payload) does not
+ *  pay for a validation pass it does not need.
+ *  @complexity O(n) in the raw text's own length. */
+export function parseAdditionalHostsInput(raw: string): string[] {
+  return raw
+    .split(/[\n,]/)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry !== "");
+}
+
+/** The parsed entries that fail {@link isValidHttpUrl} — surfaced as the "Additional hosts" field's
+ *  own inline `.field-error`, the same pattern `baseUrlInvalid` already uses for Base URL. An empty
+ *  field parses to zero entries and is never invalid (this field is entirely optional).
+ *  @complexity O(n) in the number of parsed entries. */
+export function invalidAdditionalHostsEntries(raw: string): string[] {
+  return parseAdditionalHostsInput(raw).filter((entry) => !isValidHttpUrl(entry));
+}
+
 /** Whether the "Add custom provider" dialog has enough typed to save — Name, a valid `http(s)`
  *  Base URL, and a non-blank Access token are all required; Category always has a value (the select
  *  defaults to one, never blank); Username stays optional (this file's own header on why it can
  *  never gate readiness the way {@link accessTokenRowReadyToSave}'s per-provider `requiredFields`
- *  do). @complexity O(1). */
+ *  do); Additional hosts stays optional too, but every entry typed (if any) must itself be a valid
+ *  `http(s)` URL — a half-typed host list should not silently save with the bad entry dropped.
+ *  @complexity O(n) in the number of typed additional-host entries. */
 export function customCredentialReadyToSave(fields: CustomCredentialFormFields): boolean {
   if (fields.name.trim() === "") return false;
   if (fields.token.trim() === "") return false;
-  return isValidHttpUrl(fields.baseUrl.trim());
+  if (!isValidHttpUrl(fields.baseUrl.trim())) return false;
+  return invalidAdditionalHostsEntries(fields.additionalHosts).length === 0;
 }
 
 /** Whether `name` collides with another saved custom credential — workspace-wide (unlike
@@ -608,6 +639,16 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
 export function buildCustomProviderConnectionInput(fields: Pick<CustomCredentialFormFields, "token" | "username">): AdminCustomConnectionInput {
   const username = fields.username.trim();
   return { token: fields.token, ...(username !== "" ? { username } : {}) };
+}
+
+/** Builds the wire `additionalHosts` value for a custom-provider create/update call —
+ *  `undefined` when the field parses to no entries, so the request omits it entirely rather than
+ *  sending `[]` (matches `buildCustomProviderConnectionInput`'s own "omit rather than send an
+ *  empty/blank value" convention, and the server's own "omitted = no extra hosts" contract).
+ *  @complexity O(n) in the raw text's own length. */
+export function buildAdditionalHostsInput(raw: string): readonly string[] | undefined {
+  const parsed = parseAdditionalHostsInput(raw);
+  return parsed.length > 0 ? parsed : undefined;
 }
 
 /** A stable id for one of the six Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for

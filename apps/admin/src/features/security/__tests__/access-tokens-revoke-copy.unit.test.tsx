@@ -70,7 +70,7 @@ function makeAccessTokens(overrides: Partial<AccessTokensController> = {}): Acce
     closeAddForm: () => {},
     setAddField: () => {},
     createToken: async () => {},
-    customAddForm: { name: "", category: "general", baseUrl: "", token: "", username: "", saving: false, error: null },
+    customAddForm: { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "", saving: false, error: null },
     setCustomAddField: () => {},
     resetCustomAddForm: () => {},
     createCustomCredential: async () => false,

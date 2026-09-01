@@ -47,10 +47,16 @@ export interface AccessTokensPort {
    *  carry `category`/`baseUrl`, which neither sibling group has at all. */
   readonly custom: {
     list(): Promise<AdminCustomCredentialsSnapshot>;
-    create(input: { label: string; category: AdminCustomCredentialCategoryId; baseUrl: string; connection: AdminCustomConnectionInput }): Promise<AdminCustomCredentialSummary>;
+    create(input: {
+      label: string;
+      category: AdminCustomCredentialCategoryId;
+      baseUrl: string;
+      additionalHosts?: readonly string[];
+      connection: AdminCustomConnectionInput;
+    }): Promise<AdminCustomCredentialSummary>;
     update(
       id: string,
-      input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; connection?: AdminCustomConnectionInput }
+      input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; additionalHosts?: readonly string[]; connection?: AdminCustomConnectionInput }
     ): Promise<AdminCustomCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
     remove(id: string): Promise<void>;

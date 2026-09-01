@@ -33,6 +33,7 @@ import {
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
+  buildAdditionalHostsInput,
   buildCustomCredentialRows,
   buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
@@ -133,11 +134,13 @@ interface CustomDraftFields {
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
+  /** Raw textarea text — see `rules.ts`'s `CustomCredentialFormFields.additionalHosts` doc. */
+  readonly additionalHosts: string;
   readonly token: string;
   readonly username: string;
 }
 function blankCustomDraft(): CustomDraftFields {
-  return { name: "", category: "general", baseUrl: "", token: "", username: "" };
+  return { name: "", category: "general", baseUrl: "", additionalHosts: "", token: "", username: "" };
 }
 
 /** The `addForms`/`existingDrafts` map key for one provider — a plain string join rather than a
@@ -197,6 +200,7 @@ export interface AccessTokenCustomAddFormState {
   readonly name: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
+  readonly additionalHosts: string;
   readonly token: string;
   readonly username: string;
   readonly saving: boolean;
@@ -570,6 +574,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
         label: fields.name.trim(),
         category: fields.category,
         baseUrl: fields.baseUrl.trim(),
+        additionalHosts: buildAdditionalHostsInput(fields.additionalHosts),
         connection: buildCustomProviderConnectionInput(fields),
       });
       setCustomCredentials((prev) => mergeRaw(prev ?? [], result, true));
