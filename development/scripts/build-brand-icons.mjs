@@ -108,6 +108,16 @@ const LINUX_SIZES = [16, 24, 32, 48, 64, 128, 256, 512];
 const PWA_SIZES = [192, 512];
 const COMPARISON_SIZES = [16, 24, 32, 48];
 
+/**
+ * Owner's call, made after looking at `candidates/comparison-sheet.png`: the full logo
+ * smudges into an unreadable blob at 16-32px, so the browser-favicon sizes at and below this
+ * threshold ship the simplified single-letter mark instead, and everything above it (including
+ * favicon.ico's 48px frame) stays the full logo. Only `web/favicon.ico` and the standalone
+ * `web/favicon-*.png` files are small enough for this to apply to — apple-touch-icon and the
+ * PWA/desktop/mobile icons are all well above it.
+ */
+const SIMPLIFIED_MARK_MAX_PX = 32;
+
 /** Decode to raw RGBA once and hand back sample accessors over it. */
 async function loadPixels(input) {
   const { data, info } = await sharp(input).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -625,12 +635,27 @@ const linuxFrames = await renderSizes(fullMaster, LINUX_SIZES);
 await Promise.all(linuxFrames.map(({ size, buffer }) => sharp(buffer).toFile(path.join(outDir, 'linux', `icon-${size}.png`))));
 log(`wrote linux/icon-{${LINUX_SIZES.join(',')}}.png`);
 
-// --- Web: favicon.ico + apple-touch-icon.png ------------------------------------------------
-const faviconFrames = await renderSizes(fullMaster, FAVICON_ICO_SIZES);
+// --- Web: favicon.ico + standalone favicon PNGs + apple-touch-icon.png ---------------------
+// Split by SIMPLIFIED_MARK_MAX_PX rather than rendering every size from one master: below the
+// threshold the source is simplifiedMaster (letter-only mark), above it fullMaster.
+const faviconSimplifiedSizes = FAVICON_ICO_SIZES.filter((size) => size <= SIMPLIFIED_MARK_MAX_PX);
+const faviconFullSizes = FAVICON_ICO_SIZES.filter((size) => size > SIMPLIFIED_MARK_MAX_PX);
+const faviconSimplifiedFrames = await renderSizes(simplifiedMaster, faviconSimplifiedSizes);
+const faviconFullFrames = await renderSizes(fullMaster, faviconFullSizes);
+const faviconFramesBySize = new Map(
+  [...faviconSimplifiedFrames, ...faviconFullFrames].map((frame) => [frame.size, frame]),
+);
+const faviconFrames = FAVICON_ICO_SIZES.map((size) => faviconFramesBySize.get(size));
 writeFileSync(path.join(outDir, 'web', 'favicon.ico'), buildIco(faviconFrames));
+for (const { size, buffer } of faviconSimplifiedFrames) {
+  writeFileSync(path.join(outDir, 'web', `favicon-${size}x${size}.png`), buffer);
+}
 const appleTouchIcon = await composeFullBleedOpaque(fullTile, 180, { r: 255, g: 255, b: 255 });
 writeFileSync(path.join(outDir, 'web', 'apple-touch-icon.png'), appleTouchIcon);
-log(`wrote web/favicon.ico (${FAVICON_ICO_SIZES.join('/')}) and web/apple-touch-icon.png (180, opaque white flatten)`);
+log(
+  `wrote web/favicon.ico (simplified: ${faviconSimplifiedSizes.join(',') || 'none'}; full: ${faviconFullSizes.join(',') || 'none'}), ` +
+    `web/favicon-{${faviconSimplifiedSizes.join(',')}}x{...}.png, and web/apple-touch-icon.png (180, opaque white flatten)`,
+);
 
 // --- PWA: any + maskable ---------------------------------------------------------------------
 const pwaFrames = await renderSizes(fullMaster, PWA_SIZES);
