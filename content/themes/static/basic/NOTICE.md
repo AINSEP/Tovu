@@ -136,3 +136,40 @@ Mobile nav fix (pre-existing bug, not introduced this pass): `.main-nav` got
 `display: none` below 640px and `main.js`'s `nav-toggle` click handler already
 toggled an `.open` class, but no `.main-nav.open` CSS rule existed anywhere — the
 "Menu" button did nothing. Added a proper dropdown-panel treatment for `.open`.
+
+## Kuinetic vendored (scroll-spy)
+
+Added a vendored copy of [kUInetic](https://kuinetic.com) (`scripts/vendor/kuinetic.all.js`,
+v0.1.4, MIT — copyright AINSEP, license text at `scripts/vendor/kuinetic-LICENSE.md`),
+fetched from `https://cdn.jsdelivr.net/npm/kuinetic/dist/kuinetic.all.js` and loaded on
+every page, same vendored-not-CDN rationale as Motion above. `kuinetic.all.js` is the
+all-in-one IIFE build: it embeds its own CSS (injected via a `<style>` tag it appends to
+`<head>` at load) and self-initializes — the tail of the bundle runs
+`window.__kuinetic = kuinetic.kuinetic({ observe: true }).start()` itself, so no init
+call was added to any template; the `<script>` tag alone is sufficient. `observe: true`
+means a live `MutationObserver` picks up `data-kui` attributes on elements added after
+load, not just what's in the initial HTML.
+
+Pulled in specifically for its `scroll-spy` effect (owner's request, for docs sidebar
+anchor navigation — not yet wired into any page by this change, just vendored and
+loaded). Declared the same way as every other kuinetic effect, via a `data-kui`
+attribute — there is no separate JS API to call. Two forms, both in
+`src/effects/scroll-mechanics/scroll-spy.ts`:
+- **Container form** — `data-kui="scroll-spy sections:<selector> target:<selector>"` on
+  a common ancestor. `sections:` and `target:` (the link(s)) are both resolved via
+  `el.querySelectorAll(...)` scoped to that ancestor, then paired up by matching each
+  section's `id` against each link's `href="#id"` hash — every section needs an `id`,
+  and every anchor link needs a matching `href="#<that id>"`, or it warns to the console
+  and skips that pair rather than failing silently. `offset-top:` (default `0px`) shifts
+  the trigger line down from the viewport top; `distance:` is ignored (warned) in this
+  form since each section measures its own height.
+- **Single form** (no `sections:` given) — one instance per section, `target:` is the
+  link(s) to mark for that one section; `distance:` (default `100vh`) sets its trigger
+  window and `offset-top:` is ignored (warned) here instead.
+
+Active state is a **boolean data attribute, not a CSS class**: it sets
+`data-kui-active="true"`/`"false"` on the section and on its paired link(s) (e.g. style
+the sidebar with `.docs-side a[data-kui-active="true"] { ... }`). The kUInetic docs site
+itself (`kuinetic.com/docs.html?doc=catalog` and `?doc=design`) 404s on the effect
+catalog and architecture pages as of this vendoring — this API was read directly out of
+the (unminified, comment-intact) `dist/kuinetic.all.js` source, not from prose docs.
