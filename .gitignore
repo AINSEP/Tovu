@@ -136,3 +136,11 @@ development/.jini-link-state.json
 # back to a local Jini checkout, but these let you restore the old manifests verbatim if that fails.
 # Machine-specific, never committed.
 development/.jini-local-backup/
+
+# Private business/fundraising material — investor lists, contact details, deal docs.
+# Already covered for `ADS-memory/docs/business/` by the `ADS-memory/*` rule above; this entry
+# guards the repo-root path too, since `docs/business/` is where it originally lived and a
+# recreated folder there would otherwise be tracked. NOTE: ignoring only stops FUTURE commits —
+# the investor list is still reachable in git history (commits 7363fd4a, 1b3bee71, baa4ea1e) and
+# requires a history rewrite before this repo can be published.
+docs/business/
