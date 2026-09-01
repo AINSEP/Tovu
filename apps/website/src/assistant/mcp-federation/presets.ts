@@ -73,7 +73,7 @@ export function listFederatedMcpPresets(): readonly FederatedMcpPreset[] {
 }
 
 /** Test-only reset of the module-level registry (mirrors `page-head.ts`'s
- * `resetPageHeadRegistryForTests`). */
+ * `resetPageHeadRegistry`, though that one is no longer test-only — see its own doc). */
 export function resetFederatedMcpPresetsForTests(): void {
   presets = [];
 }

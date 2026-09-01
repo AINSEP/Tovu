@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   foldPageHead,
   registerPageHeadContributor,
-  resetPageHeadRegistryForTests,
+  resetPageHeadRegistry,
   serializeHeadElements,
   type HeadElement,
   type PageHeadContext,
@@ -26,7 +26,7 @@ const ctx: PageHeadContext = {
 };
 
 test.beforeEach(() => {
-  resetPageHeadRegistryForTests();
+  resetPageHeadRegistry();
 });
 
 function hook(priority: number, elements: HeadElement[], opts: { throws?: boolean } = {}): PageHeadHook {
