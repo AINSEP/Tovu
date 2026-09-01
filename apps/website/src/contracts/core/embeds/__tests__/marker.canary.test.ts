@@ -115,7 +115,10 @@ test("canary: the docs sidebar keeps its tree variant AND its authored fallback 
   const html = read(pagePath("basic", "blog-sidebar-template"));
   const menu = markersOfType(html, "menu")[0];
   assert.ok(menu, "the docs template must reference a menu");
-  assert.equal(menu.config.id, "docs-themes-menu");
+  // `docs-current-page-sidebar` (2026-08-31 docs-nav restructure) — the reserved sentinel id that
+  // replaced the old fixed `docs-themes-menu` literal; see `pages.ts`'s `resolveStaticMenusForRender`
+  // for how the route layer resolves this one id to a different real menu per page.
+  assert.equal(menu.config.id, "docs-current-page-sidebar");
   assert.equal(menu.config.variant, "tree");
   // The permissive match is load-bearing: a theme marker's inner content is a real fallback shown
   // when nothing resolves. The old widgets-pipeline regex required an EMPTY div and would have

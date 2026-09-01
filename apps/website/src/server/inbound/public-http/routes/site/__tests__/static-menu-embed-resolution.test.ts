@@ -177,3 +177,117 @@ test("GET /about: a marker naming a menu id that matches nothing (bad slug AND b
   const res = await fetch(`${baseUrl}/about`);
   assert.equal(res.status, 200, "an unresolvable menu marker must degrade to the theme's own authored fallback, not 500");
 });
+
+/**
+ * Coverage for the `CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID` sentinel branch added to
+ * `resolveStaticMenusForRender` (2026-08-31 docs-nav restructure) — one shared marker id in
+ * `blog-sidebar-template.html` that must resolve to a DIFFERENT stored menu per page, at the
+ * `docs-<slug>-sidebar` convention slug, rather than the one-fixed-menu behavior every other marker
+ * id above exercises. The adversarial case that would catch this resolving to the SAME menu
+ * regardless of page (a copy-paste of the literal id into `menuId` instead of deriving per
+ * `currentPath`) is two pages that both carry the sentinel marker and each have their own distinctly
+ * labeled menu at the convention slug — this suite fetches both and asserts each response carries
+ * ONLY its own page's menu item label, never the other page's.
+ */
+const DOCS_SIDEBAR_SENTINEL_ID = "docs-current-page-sidebar";
+
+function themeWithSentinelSidebarPages(): DiscoveredTheme {
+  const sentinelMarker = `<div data-embed-config='{"type":"menu","id":"${DOCS_SIDEBAR_SENTINEL_ID}"}'></div>`;
+  return {
+    manifest: {
+      id: "static-sentinel-sidebar-test-theme",
+      name: "Static Sentinel Sidebar Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+      publishedPages: ["doc-a", "doc-b"],
+    },
+    dir: "/nonexistent/sentinel-sidebar-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      "doc-a": `<html><body>${sentinelMarker}<main>doc-a</main></body></html>`,
+      "doc-b": `<html><body>${sentinelMarker}<main>doc-b</main></body></html>`,
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+function sidebarMenuEntry(slug: string, itemLabel: string): NavMenuEntry {
+  return {
+    id: `menu-${slug}-id`,
+    workspaceId: WORKSPACE_ID,
+    slug,
+    title: slug,
+    status: "published",
+    doc: {
+      type: NAV_DOC_TYPE,
+      version: 1,
+      items: [{ id: `item-${slug}`, label: itemLabel, target: { kind: "url", href: "#section" } }],
+    },
+    locations: [],
+    updatedAt: "2026-08-31T00:00:00.000Z",
+    version: 1,
+  } as unknown as NavMenuEntry;
+}
+
+test("GET /doc-a and /doc-b: the reserved docs-sidebar sentinel resolves to a DIFFERENT menu per page, never the other page's", async (t) => {
+  const theme = themeWithSentinelSidebarPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    menuRepo: new InMemoryMenuRepo([
+      sidebarMenuEntry("docs-doc-a-sidebar", "Menu A Item"),
+      sidebarMenuEntry("docs-doc-b-sidebar", "Menu B Item"),
+    ]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const resA = await fetch(`${baseUrl}/doc-a`);
+  assert.equal(resA.status, 200);
+  const htmlA = await resA.text();
+  assert.ok(htmlA.includes("Menu A Item"), "doc-a must resolve its own sidebar menu (docs-doc-a-sidebar)");
+  assert.ok(!htmlA.includes("Menu B Item"), "doc-a must NOT resolve doc-b's sidebar menu");
+
+  const resB = await fetch(`${baseUrl}/doc-b`);
+  assert.equal(resB.status, 200);
+  const htmlB = await resB.text();
+  assert.ok(htmlB.includes("Menu B Item"), "doc-b must resolve its own sidebar menu (docs-doc-b-sidebar)");
+  assert.ok(!htmlB.includes("Menu A Item"), "doc-b must NOT resolve doc-a's sidebar menu");
+});
+
+test("GET /doc-a: the docs-sidebar sentinel degrades to the theme's authored fallback when no menu exists at the convention slug", async (t) => {
+  const theme = themeWithSentinelSidebarPages();
+  const deps = {
+    ...createRouteDeps(),
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+    // No `docs-doc-a-sidebar` menu seeded at all — same "not authored yet" case a brand-new doc page
+    // is in before anyone creates its sidebar menu.
+    menuRepo: new InMemoryMenuRepo([]),
+  };
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  const address = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/doc-a`);
+  assert.equal(res.status, 200, "an unauthored per-page sidebar menu must degrade to the fallback, not 500");
+});
