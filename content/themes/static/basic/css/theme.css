@@ -14,11 +14,17 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
-/* `height: auto` keeps aspect ratio intact for an `<img>` carrying HTML `width`/`height`
-   attributes: `max-width` alone clamps the rendered width on a narrow viewport but leaves the
-   attribute-set height pinned, stretching/squashing the image. `.post-detail-body img` below
-   already had this; every image outside the post body did not. */
-img { max-width: 100%; height: auto; display: block; }
+/* `video`/`iframe` are constrained on the same terms as `img`, not as an afterthought: all three
+   are REPLACED elements, so they size from their own intrinsic dimensions and ignore the width of
+   whatever box an author put them in. A media embed resolves to a bare `<video>` tag
+   (`widgets/html-embeds.ts`'s SELF_RENDERING_MEDIA_TAGS), so an author writing the documented
+   `<div style="max-width:600px" data-embed-config='{"type":"media",…}'>` wrapper got a correctly
+   capped 600px div containing a video that rendered at full source resolution and overflowed both
+   the wrapper and the page — horizontal scroll on every viewport. `height: auto` is what keeps the
+   aspect ratio while the width is being clamped. */
+img, video, iframe { max-width: 100%; }
+img, video { display: block; }
+img, video, iframe { height: auto; }
 a { color: inherit; text-decoration: none; }
 h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; margin: 0; letter-spacing: -0.02em; }
 p { margin: 0; color: var(--muted); }
