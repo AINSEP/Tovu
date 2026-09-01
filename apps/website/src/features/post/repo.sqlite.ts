@@ -39,13 +39,17 @@ function parseExt(rawExt: string): JsonObject | undefined {
 /**
  * SPEC-047/ADR-056 Decision 3 — `body_json` is `NULL` for an `"html"`-format row (Pages
  * vibecoding, written by `PagesHtmlDocumentStore`, never by this repo's own `save()`).
- * `PostRecord.bodyJson` stays a required `JsonObject` (unwidened) so the ~15 existing consumers of
- * `PostRecord` (search indexing, SEO excerpting, widget embeds, site rendering, `entry_refs`
- * extraction) do not all need null-handling added in this pass — none of them are reachable for an
- * `"html"` row yet (nothing routes one through `listAdminPosts`/`getPublishedPostBySlug`/etc. until
- * REQ-5's generation tool ships), so `DEFAULT_BODY_JSON` here is an inert placeholder, not a value
- * anything currently reads. `toHeadlessPost` (SPEC-047 REQ-3's discriminated union) is what actually
- * branches on `bodyFormat` and must never surface this placeholder as if it were real content.
+ * `PostRecord.bodyJson` stays a required `JsonObject` (unwidened) so `DEFAULT_BODY_JSON` fills the
+ * gap here rather than widening the type to `JsonObject | null` for every consumer. This placeholder
+ * is inert only for a consumer that branches on `bodyFormat` before trusting `bodyJson` — widget
+ * embeds and `entry_refs` extraction each have a separate `"html"`-format entry point that reads
+ * `bodyHtml` instead (see `widgets/resolver-service.ts`'s and `core/entry-refs/extractor.ts`'s own
+ * "HTML Page" sections), and search indexing here in `save()` never runs against an `"html"` row at
+ * all (that path is never called for one). SEO excerpting (`deriveExcerpt` in `features/seo/seo.ts`)
+ * used to skip that branch and read this placeholder unconditionally — every `"html"`-format entry
+ * silently got an empty derived description — until it was fixed to read `bodyHtml` the same way.
+ * `toHeadlessPost` (SPEC-047 REQ-3's discriminated union) is the reference branch; any new consumer
+ * of `bodyJson` must check `bodyFormat` the same way before trusting it.
  */
 function toRecord(row: PostRow): PostRecord {
   const ext = parseExt(row.ext);
