@@ -6,7 +6,7 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
-import { registerPageHeadContributor } from "../../inbound/public-http/http/site/page-head.js";
+import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
@@ -834,6 +834,16 @@ function startModule(mod: ServerModuleHandle): void {
 }
 
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
+  // `page-head.ts`'s `contributors` registry is a process-wide singleton, but `createApp()` is
+  // not guaranteed to run only once per process — this file's own eager `export const app =
+  // createApp();` below (a documented hazard for an unrelated import-cycle reason) means anything
+  // that merely IMPORTS this module, including `index.ts`'s real boot path, already ran this
+  // function once with `createRouteDeps()`'s hermetic, seeded, in-memory deps before the
+  // "real" call happens. Resetting here — before this invocation registers its own SEO
+  // `page.head` hook below — keeps the registry scoped to whichever `createApp()` call runs
+  // most recently, so a stale seeded hook can never keep folding into a live request's `<head>`
+  // alongside the real one. See `resetPageHeadRegistry`'s own doc for the full trace.
+  resetPageHeadRegistry();
   const app = express();
   applyDevCors(app);
   // Registered as early as possible — ahead of the serving gate below and every route module — so
