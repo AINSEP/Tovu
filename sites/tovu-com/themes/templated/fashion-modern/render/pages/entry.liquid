@@ -1,0 +1,80 @@
+{%- comment -%}
+  Fashion Modern — entry (single journal post). Required minimum alongside home.liquid (theme.ts
+  fails a theme without both); the base template every Post/Page falls through to when no more
+  specific template exists.
+
+  Converted from the Framer export's `blog_*.html` pages. Those carry real long-form prose
+  (headed sections, bullet lists) plus chrome the source invents but Tovu's post contract has no
+  field for — a "reading time" badge and a "Style Guide"/"Fashion Tips" category pill. Neither is
+  on `post` (`buildTemplateRenderData`'s post shape is `{title, slug, date, dateShort, content}`
+  only), so this template does not fabricate them; it renders exactly what's real: title, date,
+  and `post.content` (pre-rendered/pre-sanitized HTML — the one value this tier is allowed to
+  emit unescaped, via `| raw`, same convention as Storefront's own entry.liquid).
+
+  Reuses `.prose`/`.journal-teaser__list` from styles.css (shared with home.liquid's journal
+  section) so one stylesheet styles both.
+{%- endcomment -%}
+<div class="announce">
+  <div class="wrap"><p>Black Friday sale — 50% off select styles</p></div>
+</div>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/">{{ site.title }}</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+    <label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label>
+    <nav class="nav-menu">
+      <ul class="nav-list">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="/products">Shop</a></li>
+        <li class="nav-item"><a class="nav-link" href="/#journal">Journal</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap wrap--article">
+  {%- if post -%}
+    <article class="journal-entry" style="padding-block: 3rem 2rem">
+      <a class="journal-entry__back" href="/#journal">&larr; Back to journal</a>
+      <p class="journal-entry__kicker">Journal</p>
+      <h1 class="journal-entry__title">{{ post.title }}</h1>
+      <p class="journal-entry__meta"><time>{{ post.date | date: "%B %e, %Y" }}</time></p>
+      <div class="prose">{{ post.content | raw }}</div>
+    </article>
+
+    {%- assign shown = 0 -%}
+    <section class="journal-entry__more">
+      <h2 class="section-head" style="border:none;margin-bottom:1rem">More from the journal</h2>
+      <ul class="journal-teaser__list">
+        {%- for other in posts -%}
+          {%- if other.slug != post.slug -%}
+            {%- assign shown = shown | plus: 1 -%}
+            {%- if shown <= 3 -%}
+              <li><a href="/{{ other.slug }}"><span>{{ other.title }}</span><time>{{ other.dateShort }}</time></a></li>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+    </section>
+  {%- endif -%}
+</main>
+
+<footer class="site-footer" style="margin-top:3rem">
+  <div class="wrap footer__top">
+    <div class="footer__brandcol">
+      <a class="footer__brand" href="/">{{ site.title }}</a>
+      <p class="footer__blurb">A modern minimalist storefront built on Tovu.</p>
+    </div>
+    <div class="footer__col">
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">All products</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; {{ site.title }}</span>
+    <span>theme: {{ theme.name }}</span>
+  </div>
+</footer>

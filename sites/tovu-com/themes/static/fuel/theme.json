@@ -1,0 +1,39 @@
+{
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
+  "id": "fuel",
+  "name": "Ember",
+  "version": "0.1.0",
+  "tier": "static",
+  "description": "A premium creative-agency & portfolio theme — home, about, contact, portfolio index, four case-study layouts, and four blog-post layouts, sharing one nav, footer, and numbered-section-divider system. Plain HTML/CSS/JS, no build step, no template language.",
+  "modes": [
+    "light"
+  ],
+  "defaultMode": "light",
+  "fonts": [
+    "Inter:wght@400;500;600;700"
+  ],
+  "pages": [
+    "index",
+    "about",
+    "contact",
+    "portfolio",
+    "portfolio-case-study",
+    "portfolio-case-study-two",
+    "portfolio-case-study-three",
+    "portfolio-case-study-four",
+    "blog",
+    "blog-two",
+    "blog-three",
+    "blog-four"
+  ],
+  "slots": {
+    "nav": {
+      "source": "nav.html",
+      "honorsCurrentPage": true
+    },
+    "footer": {
+      "source": "footer.html"
+    }
+  }
+}

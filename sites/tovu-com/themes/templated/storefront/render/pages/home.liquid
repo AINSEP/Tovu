@@ -1,0 +1,59 @@
+{%- comment -%}
+  Storefront — home. A Shopify-style landing: hero, then a featured product
+  grid pulled straight from the store plugin's real data, then a small
+  journal teaser for regular posts (Tovu's blog content is a separate
+  system from products — this theme surfaces both).
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", tagline: "Small batch goods." %}
+
+<section class="hero">
+  <div class="wrap">
+    <p class="hero__eyebrow">NEW ARRIVALS</p>
+    <h1 class="hero__title">Made slow. Built to last.</h1>
+    <p class="hero__sub">Every product below is real, seeded data from Tovu's sample store plugin — not hardcoded into this theme.</p>
+    <a class="btn btn--primary" href="/products">Shop all products</a>
+  </div>
+</section>
+
+<section class="products">
+  <div class="wrap">
+    <h2 class="section-title">Featured</h2>
+    {%- if products.size == 0 -%}
+      <p class="products__empty">No products available — the store plugin isn't enabled in this runtime.</p>
+    {%- else -%}
+      <ul class="product-grid">
+        {%- for product in products -%}
+          <li class="product-card">
+            <a href="/products/{{ product.id }}">
+              <div class="product-card__image" aria-hidden="true"></div>
+              <h3 class="product-card__title">{{ product.title }}</h3>
+              <p class="product-card__price">{{ product.priceFormatted }}</p>
+              {%- if product.stock == 0 -%}
+                <p class="product-card__stock product-card__stock--out">Sold out</p>
+              {%- endif -%}
+            </a>
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+</section>
+
+{%- if posts.size > 0 -%}
+<section class="journal-teaser">
+  <div class="wrap">
+    <h2 class="section-title">From the journal</h2>
+    <ul class="journal-teaser__list">
+      {%- assign shown = 0 -%}
+      {%- for post in posts -%}
+        {%- assign shown = shown | plus: 1 -%}
+        {%- if shown <= 3 -%}
+          <li><a href="/{{ post.slug }}">{{ post.title }}</a></li>
+        {%- endif -%}
+      {%- endfor -%}
+    </ul>
+  </div>
+</section>
+{%- endif -%}
+
+{% render_block component: "tovu/site-footer" %}

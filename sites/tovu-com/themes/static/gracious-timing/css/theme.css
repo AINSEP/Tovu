@@ -1,0 +1,313 @@
+/* Tokens are NOT defined here — they live in tokens.json and are emitted into :root
+   by the host at render time (or by a local preview script), matching every other
+   Tovu static theme's convention. This file is mode-agnostic on purpose: it reads
+   var(--x) only. Atelier ships dark mode only — see NOTICE.md for why. */
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 500; margin: 0; letter-spacing: -0.02em; }
+p { margin: 0; color: var(--muted); }
+em.accent { font-family: var(--font-accent); font-style: italic; font-weight: 400; color: var(--fg); }
+
+.wrap { max-width: var(--container); margin: 0 auto; padding: 0 24px; }
+
+/* ---------- header / nav ---------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in oklch, var(--bg) 80%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+.site-header.scrolled { border-bottom-color: var(--border); }
+.nav-row { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+.brand { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.brand .mark {
+  width: 28px; height: 28px; border-radius: 4px; background: var(--fg); color: var(--bg);
+  display: grid; place-items: center; font-family: var(--font-accent); font-style: italic; font-size: 16px;
+}
+.main-nav { display: flex; align-items: center; gap: 30px; }
+.main-nav a { font-size: 14px; color: var(--muted); transition: color 0.15s cubic-bezier(0.4, 0, 0.2, 1); }
+.main-nav a:hover, .main-nav a[aria-current="page"] { color: var(--fg); }
+.nav-actions { display: flex; align-items: center; gap: 10px; }
+.btn.nav-toggle { display: none; }
+
+/* ---------- theme toggle ---------- */
+.theme-toggle {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 1px solid var(--border-strong); background: transparent; color: var(--fg);
+  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover { background: var(--surface); }
+.theme-toggle .icon-stack { position: relative; width: 16px; height: 16px; }
+.theme-toggle svg {
+  position: absolute; inset: 0; width: 16px; height: 16px;
+  transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theme-toggle .icon-sun { opacity: 0; transform: rotate(-90deg) scale(0.6); }
+.theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+:root[data-theme="light"] .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg) scale(1); }
+:root[data-theme="light"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(90deg) scale(0.6); }
+
+/* ---------- buttons ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 20px; border-radius: 999px; font-size: 14px; font-weight: 500;
+  border: 1px solid transparent; cursor: pointer; transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn-ghost { border-color: var(--border-strong); color: var(--fg); background: transparent; }
+.btn-ghost:hover { background: rgba(255,255,255,0.06); }
+.btn-solid { background: var(--fg); color: var(--bg); }
+.btn-solid:hover { opacity: 0.88; }
+.btn-lg { height: 46px; padding: 0 26px; font-size: 15px; }
+.btn-block { width: 100%; }
+.btn svg { width: 14px; height: 14px; }
+
+/* ---------- kicker / status pill (accent, used sparingly) ---------- */
+.kicker {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--accent); margin-bottom: 14px;
+}
+.status-pill {
+  display: inline-flex; align-items: center; gap: 8px; font: 12.5px/1 var(--font-body); color: var(--muted);
+  border: 1px solid var(--border-strong); padding: 8px 14px; border-radius: 999px;
+}
+.status-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+
+/* ---------- hero (used by home / about / contact / projects) ---------- */
+.hero { padding: 64px 0 48px; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 80px); line-height: 0.98; letter-spacing: -0.03em; max-width: 18ch; }
+.hero h1 em.accent { display: block; font-size: 1.02em; }
+.hero .lede { font-size: 17px; max-width: 44ch; margin-top: 20px; }
+.hero .cta-row { display: flex; gap: 12px; margin-top: 32px; }
+
+.hero-frame {
+  margin-top: 48px; border-radius: 40px; background: var(--surface); border: 1px solid var(--border);
+  aspect-ratio: 21/9; overflow: hidden; position: relative;
+}
+.ph-img {
+  width: 100%; height: 100%;
+  background: repeating-linear-gradient(135deg, var(--surface-2) 0 2px, transparent 2px 14px), var(--surface);
+  display: grid; place-items: center; color: var(--muted); font: 12px/1 var(--font-mono); letter-spacing: 0.04em; text-align: center;
+}
+
+/* real <img> replacements for a ph-img slot: same box (aspect-ratio/radius come from the
+   shared container class), image content fills it instead of the placeholder pattern */
+.hero-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.case-cover { object-fit: cover; width: 100%; display: block; }
+.post-card-media { object-fit: cover; width: 100%; display: block; }
+.team-portrait { aspect-ratio: 3/4; border-radius: 4px; margin-bottom: 14px; width: 100%; object-fit: cover; display: block; }
+
+/* ---------- sections ---------- */
+section.band { padding: 88px 0; border-top: 1px solid var(--border); }
+.section-head { max-width: 60ch; margin-bottom: 48px; }
+.section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
+.section-head h2 { font-size: clamp(28px, 3.6vw, 42px); letter-spacing: -0.02em; }
+.section-head h2 em.accent { display: inline; }
+.section-head p { font-size: 16px; margin-top: 12px; }
+
+/* ---------- logo carousel ---------- */
+.logo-carousel { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.logo-track { display: flex; align-items: center; gap: 64px; width: max-content; animation: logo-scroll 28s linear infinite; }
+.logo-carousel:hover .logo-track { animation-play-state: paused; }
+.logo-track .logo-ph { font: 13px/1 var(--font-mono); color: var(--muted); letter-spacing: 0.03em; white-space: nowrap; opacity: 0.7; }
+@keyframes logo-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+/* ---------- services (numbered accordion — home teaser + about full list) ---------- */
+.services-list { display: flex; flex-direction: column; border-top: 1px solid var(--border); }
+.service-row { border-bottom: 1px solid var(--border); padding: 28px 0; cursor: pointer; }
+.service-row summary { display: flex; align-items: center; gap: 24px; list-style: none; }
+.service-row summary::-webkit-details-marker { display: none; }
+.service-row .num { font: 13px/1 var(--font-mono); color: var(--muted); width: 32px; flex-shrink: 0; }
+.service-row h3 { font-size: 19px; font-weight: 500; flex: 1; }
+.service-row .chev { width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s; flex-shrink: 0; }
+.service-row[open] .chev { transform: rotate(180deg); }
+.service-row .service-body { padding: 18px 0 0 56px; max-width: 62ch; }
+.service-row .service-body p { font-size: 14.5px; margin-bottom: 12px; }
+.service-row .service-price { font: 13px/1 var(--font-mono); color: var(--fg); }
+.service-grid-simple { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.service-grid-simple .service-card { background: var(--bg); padding: 28px; }
+.service-grid-simple .num { font: 12px/1 var(--font-mono); color: var(--accent); display: block; margin-bottom: 16px; }
+.service-grid-simple h3 { font-size: 16px; font-weight: 500; margin-bottom: 8px; }
+.service-grid-simple p { font-size: 13.5px; }
+
+/* ---------- stats row ---------- */
+.stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; text-align: center; }
+.stats-row .stat strong { display: block; font-family: var(--font-display); font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.02em; }
+.stats-row .stat span { font-size: 13px; color: var(--muted); }
+
+/* ---------- process ---------- */
+.process-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.process-step { border-top: 1px solid var(--border-strong); padding-top: 20px; }
+.process-step .num { font: 13px/1 var(--font-mono); color: var(--accent); display: block; margin-bottom: 16px; }
+.process-step h3 { font-size: 17px; font-weight: 500; margin-bottom: 8px; }
+.process-step p { font-size: 13.5px; }
+
+/* ---------- awards ---------- */
+.awards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+.award-card { background: var(--bg); padding: 28px; display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.award-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.award-card p { font-size: 13px; }
+.award-card .award-org { font: 12px/1 var(--font-mono); color: var(--accent); text-align: right; flex-shrink: 0; }
+
+/* ---------- team ---------- */
+.team-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+.team-card .ph-img { aspect-ratio: 3/4; border-radius: 4px; font-size: 11px; margin-bottom: 14px; }
+.team-card h3 { font-size: 15px; font-weight: 500; margin-bottom: 2px; }
+.team-card span { font-size: 12.5px; color: var(--muted); }
+
+/* ---------- pricing ---------- */
+.pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.plan-card { background: var(--bg); padding: 36px 32px; display: flex; flex-direction: column; }
+.plan-card.featured { background: var(--surface); }
+.plan-card h3 { font-size: 16px; font-weight: 500; margin-bottom: 6px; }
+.plan-card .price { font-size: 36px; font-family: var(--font-display); font-weight: 600; letter-spacing: -0.02em; margin: 20px 0 4px; }
+.plan-card .price span { font-size: 13px; color: var(--muted); font-family: var(--font-body); font-weight: 400; }
+.plan-card .desc { font-size: 13px; margin-bottom: 24px; }
+.plan-card ul { list-style: none; margin: 24px 0 0; padding: 0; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.plan-card li { font-size: 13px; color: var(--fg); display: flex; gap: 10px; align-items: flex-start; }
+.plan-card li svg { width: 14px; height: 14px; margin-top: 2px; flex-shrink: 0; color: var(--accent); }
+
+/* ---------- testimonials ---------- */
+.testimonial-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+.testimonial-card { background: var(--bg); padding: 32px; display: flex; flex-direction: column; gap: 20px; }
+.testimonial-card p { font-size: 16px; color: var(--fg); line-height: 1.5; }
+.testimonial-card .who strong { display: block; font-size: 13.5px; color: var(--fg); font-weight: 500; }
+.testimonial-card .who span { font-size: 12.5px; }
+
+/* ---------- faq ---------- */
+.faq-list { display: flex; flex-direction: column; border-top: 1px solid var(--border); max-width: 760px; margin: 0 auto; }
+.faq-item { border-bottom: 1px solid var(--border); }
+.faq-item summary { padding: 22px 0; font-size: 15px; font-weight: 500; cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary::after { content: '+'; font-size: 20px; color: var(--muted); flex-shrink: 0; }
+.faq-item[open] summary::after { content: '\2212'; }
+.faq-item p { padding-bottom: 22px; font-size: 14px; max-width: 60ch; }
+
+/* ---------- footer ---------- */
+.site-footer { border-top: 1px solid var(--border); padding: 64px 0 40px; }
+.footer-grid { display: grid; grid-template-columns: 1.6fr repeat(3, 1fr); gap: 32px; margin-bottom: 48px; }
+.footer-col h4 { font-size: 13px; color: var(--fg); margin-bottom: 14px; font-family: var(--font-body); font-weight: 500; }
+.footer-col a { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.footer-col a:hover { color: var(--fg); }
+.footer-bottom { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 24px; }
+
+/* ---------- projects grid (index + featured teaser) ---------- */
+.project-card {
+  display: block; border-radius: 4px; background: var(--surface); border: 1px solid var(--border);
+  padding: 32px; margin-bottom: 16px; position: relative; overflow: hidden;
+}
+.project-card:hover { border-color: var(--border-strong); }
+.project-card-tags { display: flex; gap: 8px; margin-bottom: 100px; }
+.project-card .tag { font: 11px/1 var(--font-mono); letter-spacing: 0.03em; color: var(--muted); border: 1px solid var(--border-strong); padding: 5px 10px; border-radius: 999px; }
+.project-card-meta { position: absolute; top: 32px; right: 32px; text-align: right; font: 11px/1.6 var(--font-mono); color: var(--muted); }
+.project-card p.desc { font-size: 13px; margin-bottom: 8px; }
+.project-card h3 { font-size: clamp(22px, 2.6vw, 30px); font-weight: 500; letter-spacing: -0.01em; }
+
+/* ---------- case study ---------- */
+.case-hero { padding: 64px 0 40px; }
+.case-hero h1 { font-size: clamp(36px, 5vw, 60px); }
+.case-cover { aspect-ratio: 16/8; border-radius: 32px; margin: 32px 0 48px; }
+.case-context { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; margin-bottom: 56px; }
+.case-context h2 { font-size: 22px; margin-bottom: 14px; }
+.case-context p { font-size: 14.5px; margin-bottom: 12px; }
+.case-tags { display: flex; gap: 10px; margin: 24px 0; flex-wrap: wrap; }
+.case-tags .tag { font: 12px/1 var(--font-mono); color: var(--accent); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); background: color-mix(in oklch, var(--accent) 10%, transparent); padding: 6px 12px; border-radius: 999px; }
+.case-section { padding: 48px 0; border-top: 1px solid var(--border); }
+.case-section h2 { font-size: 24px; margin-bottom: 14px; max-width: 42ch; }
+.case-section p { font-size: 15px; max-width: 68ch; }
+
+/* ---------- post detail (post-template picker embed, see project.html/NOTICE.md) ----------
+   `.post-detail-header`/`.post-detail-body` are fixed class names emitted by the engine's
+   `renderWidgetPostContent` (src/server/http/site/render.ts), not this theme's own naming choice —
+   must match exactly, same convention basic/portfolite already follow. Sizing matches this theme's
+   own case-study scale (`.case-hero h1`'s clamp, `.case-section p`'s 15px/68ch) rather than basic's
+   values, so a real post reads like the rest of this theme, not a pasted-in foreign scale. */
+.post-detail { max-width: 760px; margin: 0 auto; padding: 64px 0 40px; }
+.post-detail-header { margin-bottom: 40px; }
+.post-detail-header h1 { font-size: clamp(36px, 5vw, 60px); }
+.post-detail-body { font-size: 15px; line-height: 1.7; max-width: 68ch; }
+.post-detail-body h2 { font-size: 24px; margin: 40px 0 14px; max-width: 42ch; }
+.post-detail-body h3 { font-size: 19px; margin: 32px 0 12px; }
+.post-detail-body p { margin-bottom: 14px; }
+.post-detail-body ul, .post-detail-body ol { margin: 0 0 14px 22px; }
+.post-detail-body li { margin-bottom: 6px; }
+.post-detail-body blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
+.post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+.post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
+.post-detail-body pre code { border: none; background: none; padding: 0; }
+.post-detail-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 20px 0; }
+
+/* ---------- blog ---------- */
+/* Hairlines drawn per-card (not via the container-background-peeking-through-`gap`
+   trick `.service-grid-simple`/`.awards-grid`/`.pricing-grid` use) because this grid's
+   post count isn't guaranteed to be a multiple of 3: with an incomplete last row, the
+   old technique painted the container's raw `--border` fill into the unfilled trailing
+   cell — a solid gray box with no content. Per-card borders never paint a cell that has
+   no card. */
+.blog-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--border); border-right: 0; border-bottom: 0; }
+.post-card { background: var(--bg); padding: 26px; display: flex; flex-direction: column; min-height: 0; min-width: 0; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.post-card-media { aspect-ratio: 16/10; margin-bottom: 16px; font-size: 12px; border-radius: 4px; }
+.post-card .tag { font: 11px/1 var(--font-mono); letter-spacing: 0.03em; color: var(--muted); margin-bottom: 10px; display: block; }
+.post-card h3 { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; margin-bottom: 8px; }
+.post-card p { font-size: 13.5px; margin-bottom: 16px; flex: 1; }
+.post-meta { font: 12px/1 var(--font-mono); color: var(--muted); margin-top: auto; }
+
+/* ---------- contact form ---------- */
+.contact-form { max-width: 640px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 22px; }
+.field label { font-size: 13px; color: var(--fg); font-weight: 500; }
+.field input, .field select, .field textarea {
+  height: 44px; border: none; border-bottom: 1px solid var(--border-strong); background: transparent;
+  color: var(--fg); padding: 0; font-size: 14px; font-family: var(--font-body); border-radius: 0;
+}
+.field textarea { height: 90px; padding-top: 10px; resize: vertical; }
+.field input::placeholder, .field textarea::placeholder { color: var(--muted); }
+.field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+.field select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23808080' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; background-size: 16px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 980px) {
+  .service-grid-simple, .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .process-grid { grid-template-columns: repeat(2, 1fr); }
+  .team-grid { grid-template-columns: repeat(3, 1fr); }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+  .case-context { grid-template-columns: 1fr; gap: 24px; }
+}
+@media (max-width: 860px) {
+  .awards-grid, .testimonial-grid, .pricing-grid { grid-template-columns: 1fr; }
+  .blog-grid { grid-template-columns: 1fr; border-right: 1px solid var(--border); }
+  .blog-grid .post-card { border-right: 0; }
+  .form-row { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+  .site-header { position: sticky; }
+  .main-nav {
+    display: none; position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; align-items: stretch; gap: 0;
+    background: var(--bg); border-bottom: 1px solid var(--border); padding: 4px 24px 12px;
+  }
+  .main-nav.open { display: flex; }
+  .main-nav a { padding: 12px 0; border-top: 1px solid var(--border); font-size: 15px; }
+  .btn.nav-toggle { display: inline-flex; }
+  .service-grid-simple, .stats-row, .process-grid, .team-grid { grid-template-columns: 1fr; }
+  .project-card-tags { margin-bottom: 60px; }
+}

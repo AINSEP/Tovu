@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "plugins": {
+    "site-compliance": {
+      "enabled": true,
+      "origin": "bundled",
+      "updatedAt": "2026-08-26T18:00:00.000Z",
+      "updatedBy": "owner"
+    }
+  }
+}

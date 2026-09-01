@@ -1,0 +1,298 @@
+/* basic-declarative — styles the FIXED class names the COMPONENTS registry in
+   server/http/site/render.ts emits (tovu/nav, tovu/hero, tovu/feature-grid,
+   tovu/section, tovu/cta, tovu/footer, tovu/entry-content, tovu/media-placeholder).
+   Ported from the static `basic` theme's look using the same design tokens
+   (tokens.json) — but every selector here targets the declarative component
+   output, not basic's own markup/class names, since a declarative theme has
+   no control over markup, only over how the fixed markup is styled.
+
+   Tokens are NOT defined here — theme.json's tokens.json is emitted into :root
+   by the host at render time, same convention every other Tovu theme follows. */
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; margin: 0; letter-spacing: -0.02em; }
+p { margin: 0; color: var(--muted); }
+
+.wrap { max-width: var(--container); margin: 0 auto; padding: 0 24px; }
+
+/* ---------- buttons (tovu/hero, tovu/cta, tovu/nav actions) ---------- */
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.btn--ghost { border-color: var(--border-strong); color: var(--fg); background: transparent; }
+.btn--ghost:hover { background: rgba(255,255,255,0.06); }
+.btn--primary { background: var(--fg); color: var(--bg); }
+.btn--primary:hover { opacity: 0.88; }
+
+/* ---------- sticky nav bar (tovu/nav) ---------- */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: color-mix(in oklch, var(--bg) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.nav { display: flex; align-items: center; justify-content: space-between; height: 69px; gap: 24px; }
+.brand { font-family: var(--font-display); font-size: 15px; font-weight: 500; letter-spacing: -0.01em; color: var(--fg); }
+.nav-menu { display: flex; align-items: center; gap: 20px; }
+.nav-list { display: flex; align-items: center; gap: 4px; list-style: none; margin: 0; padding: 0; }
+.nav-item { position: relative; }
+.nav-link { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--muted); padding: 8px 10px; border-radius: 8px; transition: color 0.15s; }
+.nav-link:hover { color: var(--fg); }
+.caret { width: 9px; height: 6px; transition: transform 0.15s ease; }
+.nav-item.has-children:hover .caret,
+.nav-item.has-children:focus-within .caret { transform: rotate(180deg); }
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 12rem;
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 18px 44px rgba(0,0,0,0.4);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 0.14s ease, transform 0.14s ease, visibility 0.14s;
+}
+.nav-item.has-children:hover .nav-dropdown,
+.nav-item.has-children:focus-within .nav-dropdown { opacity: 1; visibility: visible; transform: translateY(0); }
+.nav-dropdown a { display: block; padding: 9px 10px; border-radius: 8px; font-size: 13.5px; color: var(--muted); }
+.nav-dropdown a:hover { background: rgba(255,255,255,0.06); color: var(--fg); }
+.nav-cta { padding: 0 18px; font-size: 14px; }
+.nav-toggle, .nav-burger { display: none; }
+
+/* ---------- hero (tovu/hero) — centered, media stacked below (basic's layout) ---------- */
+.hero { padding: 96px 0 72px; }
+.hero__inner { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.hero__text { max-width: 640px; }
+.hero__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 12px/1 var(--font-mono);
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  background: color-mix(in oklch, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  padding: 6px 10px;
+  border-radius: 999px;
+  margin-bottom: 28px;
+}
+.hero__badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.hero__title {
+  font-size: clamp(40px, 6vw, 72px);
+  line-height: 1.02;
+  letter-spacing: -0.025em;
+  margin: 0 0 24px;
+}
+.hero__sub { font-size: 18px; max-width: 46ch; margin: 0 auto 36px; }
+.hero .actions { justify-content: center; }
+.hero__media { margin-top: 64px; width: 100%; }
+
+/* ---------- media placeholder (tovu/media-placeholder) — same checkerboard as basic's .ph-img ---------- */
+.media-ph {
+  margin: 0;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, var(--surface-2) 25%, transparent 25%) 0 0/16px 16px,
+    linear-gradient(225deg, var(--surface-2) 25%, transparent 25%) 0 0/16px 16px,
+    var(--surface);
+  color: var(--muted);
+}
+.media-ph__label { font: 12px/1 var(--font-mono); letter-spacing: 0.04em; }
+
+/* ---------- feature grid (tovu/feature-grid) — 1px-hairline bordered grid ---------- */
+.feature-grid { padding: 72px 0; border-top: 1px solid var(--border); }
+.feature-grid__head { max-width: 56ch; margin-bottom: 48px; }
+.section__title { font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -0.02em; margin: 0; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.feature { background: var(--bg); padding: 32px; }
+.feature__tag {
+  display: inline-block;
+  font: 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
+  background: color-mix(in oklch, var(--accent) 10%, transparent);
+  padding: 4px 8px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.feature__title { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; margin: 0 0 8px; }
+.feature__body { font-size: 14px; margin: 0; }
+
+/* ---------- section (tovu/section) — used here for the pull-quote ---------- */
+.section { padding: 72px 0; border-top: 1px solid var(--border); }
+.section__inner { display: grid; gap: 32px; align-items: center; }
+.section--media-right .section__inner { grid-template-columns: 1.05fr 0.95fr; }
+.section--media-left .section__inner { grid-template-columns: 0.95fr 1.05fr; }
+.section--media-left .section__text { order: 2; }
+.section--plain .section__inner { grid-template-columns: 1fr; justify-items: center; }
+.section--plain { text-align: center; }
+.eyebrow { display: block; font: 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin: 0 0 14px; }
+.section__lead {
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 400;
+  color: var(--fg);
+  max-width: 60ch;
+  margin: 0 auto 12px;
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+.section--plain .section__lead { margin-left: auto; margin-right: auto; }
+.section__text p { color: var(--muted); font-size: 14px; margin: 0 0 12px; max-width: 40ch; }
+.section--plain .section__text p { margin-left: auto; margin-right: auto; }
+.ticks { list-style: none; margin: 20px 0 0; padding: 0; display: grid; gap: 10px; }
+.ticks li { position: relative; padding-left: 24px; color: var(--fg); font-size: 14px; }
+.ticks li::before {
+  content: "";
+  position: absolute; left: 0; top: 7px;
+  width: 12px; height: 7px;
+  border-left: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(-45deg);
+}
+.section--plain .actions { justify-content: center; }
+
+/* ---------- CTA band (tovu/cta) — understated, matches basic's plain banded look ---------- */
+.cta { padding: 72px 0; border-top: 1px solid var(--border); text-align: center; }
+.cta__inner { max-width: 640px; margin: 0 auto; }
+.eyebrow--on-dark { color: var(--accent); }
+.cta__title { font-size: clamp(28px, 4vw, 42px); margin: 0 0 16px; }
+.cta__sub { font-size: 16px; margin: 0 auto 32px; max-width: 46ch; }
+.cta .actions { justify-content: center; }
+
+/* ---------- footer (tovu/footer) ---------- */
+.site-footer--rich { border-top: 1px solid var(--border); padding: 56px 0 40px; }
+.footer__top { display: grid; grid-template-columns: 1.4fr repeat(4, 1fr); gap: 32px; padding-bottom: 48px; }
+.footer__brandcol .brand { font-size: 15px; }
+.footer__blurb { margin: 16px 0 16px; max-width: 26ch; font-size: 13px; }
+.footer__socials { display: flex; gap: 8px; }
+.footer__social { font: 12px/1 var(--font-mono); color: var(--muted); border: 1px solid var(--border-strong); padding: 6px 12px; border-radius: 999px; }
+.footer__social:hover { color: var(--fg); border-color: var(--fg); }
+.footer__cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
+.footer__col h4 { font-size: 13px; font-weight: 500; color: var(--fg); margin: 0 0 14px; font-family: var(--font-body); }
+.footer__col ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.footer__col a { color: var(--muted); font-size: 13px; }
+.footer__col a:hover { color: var(--fg); }
+.footer__bottom { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 24px; }
+.footer__bottom .theme-badge { font-family: var(--font-mono); }
+
+/* ---------- single entry / reader (tovu/entry-content) ---------- */
+.wrap:has(> article.entry) { max-width: 720px; }
+.back { display: inline-block; font-size: 14px; font-weight: 500; color: var(--accent); margin: 40px 0 0; }
+article.entry { padding-bottom: 96px; }
+article.entry .entry-title { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin: 24px 0 16px; }
+article.entry > .entry-meta { font: 13px/1 var(--font-mono); color: var(--muted); }
+.prose { font-size: 17px; line-height: 1.7; margin-top: 24px; max-width: 66ch; }
+.prose p { margin: 0 0 18px; }
+.prose h2 { font-size: 26px; margin: 40px 0 16px; letter-spacing: -0.01em; }
+.prose h3 { font-size: 20px; margin: 32px 0 12px; letter-spacing: -0.01em; }
+.prose a { color: var(--accent); }
+.prose ul, .prose ol { margin: 0 0 18px 22px; }
+.prose li { margin-bottom: 6px; }
+.prose blockquote { border-left: 2px solid var(--border-strong); padding-left: 20px; margin: 24px 0; color: var(--muted); font-style: italic; }
+.prose code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+.prose pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
+.prose pre code { border: none; background: none; padding: 0; }
+.prose img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+
+/* ---------- entry list (tovu/entry-list) — unused by this port's templates, styled for completeness ---------- */
+.entry-list { padding: 72px 0; }
+.entries { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.entry-link { display: flex; align-items: baseline; gap: 16px; padding: 20px 24px; background: var(--bg); }
+.entry-link:hover { background: var(--surface); }
+.entry-index { font: 12px/1 var(--font-mono); color: var(--muted); }
+.entry-title { font-size: 16px; font-weight: 500; flex: 1; }
+.entry-meta { font: 12px/1 var(--font-mono); color: var(--muted); }
+
+/* ---------- announcement / topbar (tovu/announcement) — unused by this port's templates, styled for completeness ---------- */
+.topbar { background: var(--surface); border-bottom: 1px solid var(--border); }
+.topbar__text { margin: 0; padding: 10px 0; font-size: 13px; text-align: center; color: var(--muted); }
+.topbar__link { color: var(--accent); font-weight: 500; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 52rem) {
+  .nav-burger {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    width: 34px; height: 34px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: transparent;
+    cursor: pointer;
+  }
+  .nav-burger span { display: block; width: 16px; height: 2px; background: var(--fg); border-radius: 2px; }
+  .nav-menu {
+    position: fixed;
+    top: 69px; right: 0; bottom: 0;
+    width: min(20rem, 86vw);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    padding: 24px 20px;
+    overflow-y: auto;
+    transform: translateX(110%);
+    transition: transform 0.24s ease;
+  }
+  .nav-toggle:checked ~ .nav-menu { transform: translateX(0); }
+  .nav-list { flex-direction: column; align-items: stretch; gap: 2px; width: 100%; }
+  .nav-link { padding: 12px 10px; }
+  .nav-dropdown { position: static; opacity: 1; visibility: visible; transform: none; box-shadow: none; border: none; padding: 0 0 6px 12px; margin: 0; background: transparent; }
+  .nav-item.has-children .caret { display: none; }
+  .nav-cta { margin-top: 14px; justify-content: center; }
+  .footer__top { grid-template-columns: 1fr; gap: 32px; }
+  .footer__cols { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 48rem) {
+  .section--media-right .section__inner,
+  .section--media-left .section__inner { grid-template-columns: 1fr; }
+  .section--media-left .section__text { order: 0; }
+  .hero { padding: 56px 0 40px; }
+  .features { grid-template-columns: 1fr; }
+  .footer__cols { grid-template-columns: 1fr; }
+}

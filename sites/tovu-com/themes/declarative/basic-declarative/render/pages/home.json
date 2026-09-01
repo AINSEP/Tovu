@@ -1,0 +1,142 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "component",
+      "id": "tovu/nav",
+      "props": {
+        "brand": "Basic",
+        "items": [
+          { "label": "Pricing", "href": "/pricing" },
+          { "label": "Docs", "href": "/docs" },
+          { "label": "Blog", "href": "/blog" },
+          { "label": "Changelog", "href": "/changelog" },
+          { "label": "About", "href": "/about" },
+          { "label": "Download", "href": "/download" }
+        ],
+        "cta": { "label": "Get started", "href": "/signup" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/hero",
+      "props": {
+        "badge": "All sites live",
+        "title": "Beautiful websites, shipped in minutes",
+        "subtitle": "Basic turns a blank canvas into a polished, on-brand site — premium templates, one-click customization, and pages that stay fast without you touching a build tool.",
+        "actions": [
+          { "label": "Start building free", "href": "/signup" },
+          { "label": "Read the docs", "href": "/docs" }
+        ],
+        "media": { "label": "product screenshot — theme editor", "ratio": "16 / 8" }
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/feature-grid",
+      "props": {
+        "eyebrow": "PLATFORM",
+        "title": "Everything a premium site needs, nothing it doesn't",
+        "items": [
+          {
+            "tag": "Setup",
+            "title": "Zero-config themes",
+            "body": "Add your content and Basic detects your layout — no CSS wrangling required to get a first page live."
+          },
+          {
+            "tag": "Responsive",
+            "title": "Responsive by default",
+            "body": "Every template ships tuned desktop, tablet, and mobile layouts, so a launch never needs a separate mobile pass."
+          },
+          {
+            "tag": "History",
+            "title": "Instant version history",
+            "body": "Every edit is a snapshot. Revert a bad change in one click, no rebuild, no waiting on a fresh publish."
+          },
+          {
+            "tag": "Preview",
+            "title": "Live preview links",
+            "body": "Every draft gets a live, shareable URL — review the actual page, not just a screenshot."
+          },
+          {
+            "tag": "SEO",
+            "title": "Built-in SEO & analytics",
+            "body": "Meta tags, sitemaps, and page-view stats out of the box — the setup your launch checklist actually wants."
+          },
+          {
+            "tag": "Integrations",
+            "title": "Works with your stack",
+            "body": "Export to code, connect a custom domain, or embed anywhere — Basic plugs into the workflow you already run."
+          }
+        ]
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/section",
+      "props": {
+        "eyebrow": "FROM THE FIELD",
+        "lead": "\"We cut our site launch time from three weeks to three days, and redesigns stopped being an engineering project.\"",
+        "body": ["— Marketing lead, mid-size retail brand"]
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/cta",
+      "props": {
+        "title": "Your next site could be live in ten minutes",
+        "subtitle": "No credit card. Free tier covers up to 3 published sites.",
+        "actions": [
+          { "label": "Start building free", "href": "/signup" },
+          { "label": "See pricing", "href": "/pricing" }
+        ]
+      }
+    },
+
+    {
+      "type": "component",
+      "id": "tovu/footer",
+      "props": {
+        "brand": "Basic",
+        "blurb": "Premium themed websites, ready to launch — built for teams who'd rather publish than fight a page builder.",
+        "columns": [
+          {
+            "title": "Product",
+            "links": [
+              { "label": "Pricing", "href": "/pricing" },
+              { "label": "Download", "href": "/download" },
+              { "label": "Changelog", "href": "/changelog" }
+            ]
+          },
+          {
+            "title": "Resources",
+            "links": [
+              { "label": "Docs", "href": "/docs" },
+              { "label": "Blog", "href": "/blog" },
+              { "label": "About", "href": "/about" }
+            ]
+          },
+          {
+            "title": "Account",
+            "links": [
+              { "label": "Sign in", "href": "/signin" },
+              { "label": "Get started", "href": "/signup" }
+            ]
+          },
+          {
+            "title": "Legal",
+            "links": [
+              { "label": "Privacy", "href": "#" },
+              { "label": "Terms", "href": "#" }
+            ]
+          }
+        ],
+        "legal": "© 2026 Basic. All rights reserved."
+      }
+    }
+  ]
+}
