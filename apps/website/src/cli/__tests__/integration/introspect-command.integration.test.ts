@@ -42,8 +42,9 @@ test("tovu introspect: exits 0 and prints valid JSON describing init/serve/expor
     // "theme generate-index" (`cli/commands/theme/generate-index.ts`) and "theme normalize-build"
     // (`cli/commands/theme/normalize-build.ts`) are real, registered subcommands (`cli/program.ts`),
     // each with their own integration test file -- added to `program.ts` after this list was
-    // originally written and never reflected here.
-    ["init", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme normalize-build"],
+    // originally written and never reflected here. "deploy config" (`cli/commands/deploy-config.ts`)
+    // is the same story, added later still.
+    ["init", "serve", "export", "theme validate", "theme migrate", "theme generate-index", "theme normalize-build", "deploy config"],
     "introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help"
   );
 
@@ -67,6 +68,7 @@ test("tovu introspect --format mcp: exits 0 and prints valid MCP tool definition
     "tovu_theme_migrate",
     "tovu_theme_generate-index",
     "tovu_theme_normalize-build",
+    "tovu_deploy_config",
   ]);
 
   const serveTool = tools.find((t: { name: string }) => t.name === "tovu_serve");
