@@ -384,8 +384,9 @@ test("GET / 500s with a generic 'Site error' when an unexpected exception is thr
  * A static theme shaped like every real one that ships a shared blog-post template: `pages` holds
  * BOTH real standalone marketing pages (`about`) and content-embedding template shells
  * (`blog-post`, `page-shell`) keyed identically, with only `manifest.templates` distinguishing the
- * two (`theme.ts`'s `templates?: string[]`). Six real themes on disk are shaped this way today
- * (`basic`, `portfolite`, `gracious-timing`, and all three `tailark-*`).
+ * two (`theme.ts`'s `templates?: string[]`). Four real themes on disk are shaped this way today
+ * (`basic` and all three `tailark-*`; `portfolite` and `gracious-timing` were shaped this way too
+ * before their 2026-08-31 removal).
  */
 function staticThemeWithTemplateShells(): DiscoveredTheme {
   return {

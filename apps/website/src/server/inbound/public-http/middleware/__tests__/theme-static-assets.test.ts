@@ -260,7 +260,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   assert.equal(screenshotRes.headers.get("content-type"), "image/jpeg");
 });
 
-test("createApp(): all 7 static themes' real screenshot files still serve byte-for-byte identically (the literal 'all 7 static themes' claim, not just 'basic')", async (t) => {
+test("createApp(): all 4 static themes' real screenshot files still serve byte-for-byte identically (the literal 'all 4 static themes' claim, not just 'basic')", async (t) => {
   const server = createServer(createApp());
   server.listen(0);
   t.after(() => server.close());
@@ -273,9 +273,6 @@ test("createApp(): all 7 static themes' real screenshot files still serve byte-f
   // the two extensions (see Themes.tsx's own jpg-then-png fallback doc for why both exist).
   const staticThemeScreenshots: Array<{ id: string; file: string }> = [
     { id: "basic", file: "index.png" },
-    { id: "fuel", file: "index.jpg" },
-    { id: "gracious-timing", file: "index.png" },
-    { id: "portfolite", file: "index.png" },
     { id: "tailark-dusk", file: "index.png" },
     { id: "tailark-quartz-dark", file: "index.jpg" },
     { id: "tailark-quartz-libre", file: "index.png" },

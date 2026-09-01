@@ -18,14 +18,7 @@ import { loadTheme } from "../theme.js";
  */
 
 const STATIC_THEMES_DIR = path.resolve(import.meta.dirname, "../../../../../../content/themes/static");
-const MIGRATED_STATIC_THEME_IDS = [
-  "fuel",
-  "gracious-timing",
-  "portfolite",
-  "tailark-dusk",
-  "tailark-quartz-dark",
-  "tailark-quartz-libre",
-];
+const MIGRATED_STATIC_THEME_IDS = ["tailark-dusk", "tailark-quartz-dark", "tailark-quartz-libre"];
 
 for (const themeId of MIGRATED_STATIC_THEME_IDS) {
   test(`${themeId}: every page's stylesheet/script links resolve to real files and design tokens inject, with no asset-path warnings`, () => {

@@ -34,10 +34,10 @@
  *   - `@media (max-width: ...) { video { max-width: 100%; } }` — a rule that only applies below
  *     some breakpoint does not protect the wide-viewport case, which is exactly the case that
  *     shipped the bug (a desktop browser rendering a video at native resolution).
- *   - `.post-detail-body .youtube-embed iframe { width: 100%; height: 100%; ... }` (present in
- *     `fuel` and `portfolite` today) — a compound descendant selector scoped to one specific
- *     wrapper class, not a general `iframe` rule. It protects iframes an author places inside that
- *     one wrapper and nothing else.
+ *   - `.post-detail-body .youtube-embed iframe { width: 100%; height: 100%; ... }` (the real shape
+ *     found in the now-removed `fuel` and `portfolite` themes when this check was written) — a
+ *     compound descendant selector scoped to one specific wrapper class, not a general `iframe`
+ *     rule. It protects iframes an author places inside that one wrapper and nothing else.
  *
  * ## Scope: `src/themes/static/` only — NOT `__original-themes__`, `__marketplace__`,
  * `declarative/`, `templated/`, or `handlebars/`
@@ -71,15 +71,17 @@
  *
  * ## RED on arrival — deliberate, same posture as `check:architecture`
  *
- * `basic` was fixed; `fuel`, `gracious-timing`, `portfolite`, `tailark-dusk`,
- * `tailark-quartz-dark`, and `tailark-quartz-libre` were not — the owner explicitly chose to ship
- * this guard rather than hand-patch all six in the same session. This check FAILS today, on
- * purpose, and there is no baseline/allowlist file to launder that away (unlike
+ * `basic` was fixed; `tailark-dusk`, `tailark-quartz-dark`, and `tailark-quartz-libre` were not —
+ * the owner explicitly chose to ship this guard rather than hand-patch all of them in the same
+ * session. (`fuel`, `gracious-timing`, and `portfolite` were also unfixed at the time this check
+ * was written, but were removed from the repo entirely on 2026-08-31 — unconfirmed-license Framer
+ * Marketplace derivatives — so they no longer appear in this check's scan at all.) This check FAILS
+ * today, on purpose, and there is no baseline/allowlist file to launder that away (unlike
  * `check-architecture.baseline.json`'s ratchet, there is nothing gradual about "does this element
- * have a max-width rule" — it is binary per theme). "Done" means: each of the six gets `basic`'s
- * `img, video, iframe { max-width: 100%; }` rule (or an equivalent, theme-specific ruleset that
- * satisfies the same containment property), and this check goes green with zero code changes to
- * this file.
+ * have a max-width rule" — it is binary per theme). "Done" means: each of the three remaining gets
+ * `basic`'s `img, video, iframe { max-width: 100%; }` rule (or an equivalent, theme-specific
+ * ruleset that satisfies the same containment property), and this check goes green with zero code
+ * changes to this file.
  *
  * ## Parsing approach
  *

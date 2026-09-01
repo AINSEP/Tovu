@@ -7,9 +7,10 @@ import { deriveContentWrapperChain } from "../hooks/theme-canvas-wrapper";
  * template the theme wraps it in — see `theme-canvas-wrapper.ts`'s own file header for the live-
  * confirmed shape of what a real template's `{"type":"content"}` marker resolves to. Fixtures below
  * are trimmed straight from `src/themes/static/basic/render/pages/page-shell.html` and
- * `src/themes/static/gracious-timing/render/pages/project.html` (both real, shipped themes) so this
- * covers the two structurally different shapes that already exist on disk, not just one theme's
- * convention.
+ * `src/themes/static/gracious-timing/render/pages/project.html` (a real theme's shape at the time
+ * this test was written; `gracious-timing` itself was removed from the repo 2026-08-31,
+ * unconfirmed-license Framer Marketplace derivative) so this covers two structurally different
+ * shapes that have existed on disk, not just one theme's convention.
  */
 
 const BASIC_PAGE_SHELL = `<!doctype html>

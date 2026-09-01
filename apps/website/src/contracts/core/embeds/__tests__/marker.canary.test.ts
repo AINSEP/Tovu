@@ -57,11 +57,8 @@ test("canary: every marker in every migrated theme file parses, with zero reject
     pagePath("basic", "blog-post"),
     partialPath("basic", "nav"),
     partialPath("basic", "footer"),
-    pagePath("fuel", "index"),
     pagePath("tailark-quartz-libre", "index"),
     pagePath("tailark-quartz-libre", "blog-post"),
-    pagePath("gracious-timing", "index"),
-    pagePath("portfolite", "index"),
     pagePath("tailark-dusk", "index"),
     pagePath("tailark-quartz-dark", "index"),
   ];
@@ -87,7 +84,7 @@ test("canary: no theme still carries an attribute from the retired vocabularies"
     "data-slot-variant=",
     "data-nav-current=",
   ];
-  const files = [pagePath("basic", "index"), partialPath("basic", "nav"), pagePath("basic", "signin"), pagePath("fuel", "index")];
+  const files = [pagePath("basic", "index"), partialPath("basic", "nav"), pagePath("basic", "signin"), pagePath("tailark-dusk", "index")];
   for (const file of files) {
     // Comments legitimately mention the old names; only live markup matters, so strip comments first.
     const live = read(file).replace(/<!--[\s\S]*?-->/g, "");

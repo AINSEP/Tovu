@@ -50,7 +50,7 @@ For a `static` theme, non-home routes (`GET /:slug`) are handled one level up, i
 
 ### 1.4 The `GET /:slug` request path for a static theme (worked trace)
 
-This is the path most real theme content takes today (all 7 live themes are `static`). Order of operations in `src/server/routes/site/pages.ts:457-579`:
+This is the path most real theme content takes today (4 of the repo's 6 live themes are `static`). Order of operations in `src/server/routes/site/pages.ts:457-579`:
 
 1. Strip a trailing `.html` from the slug; reject slugs that aren't `[a-z0-9-]+` or that collide with `admin`/`api` (`pages.ts:461-466`).
 2. Run the `pre_content` redirect phase (`pages.ts:471`).
@@ -68,7 +68,7 @@ There are four theme-content tiers with live implementations, plus a fifth (`cod
 
 | Tier | Format | Executes | Themes shipped today | Directory |
 |---|---|---|---|---|
-| `static` | Complete `.html` documents + CSS + JS, no templating language | Nothing server-side; theme's own client JS runs in the browser | **7** — `basic`, `fuel`, `gracious-timing`, `portfolite`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` | `content/themes/static/<id>/` |
+| `static` | Complete `.html` documents + CSS + JS, no templating language | Nothing server-side; theme's own client JS runs in the browser | **4** — `basic`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre` (`fuel`, `gracious-timing`, and `portfolite` were removed 2026-08-31 — unconfirmed-license Framer Marketplace derivatives) | `content/themes/static/<id>/` |
 | `declarative` | JSON block tree over a fixed component registry | Nothing — pure data | **1** — `basic-declarative`, explicitly labeled `"Reference only — not wired into any site"` in its own `theme.json` description | `content/themes/declarative/<id>/` |
 | `templated` | LiquidJS templates | Sandboxed template logic, no JS (`eval`/`new Function` never used) | **1** — `storefront` | `content/themes/templated/<id>/` |
 | `handlebars` | Handlebars templates | Sandboxed template logic, same isolation posture as `templated` | **0** | `content/themes/handlebars/` (directory exists, empty) |
@@ -144,7 +144,7 @@ As of 2026-08-10 this table is down to one field — `modes`, `defaultMode`, and
 |---|---|---|---|---|
 | `pages` | string[] | every static theme | Documents which `pages/*.html` files exist | **None** — `DiscoveredTheme.pages` is populated by scanning the `pages/` directory on disk (`loadStaticTierAssets`, `theme.ts:305-339`), completely independent of this manifest array. The array can drift from the real directory contents with zero validation error. |
 
-**Verified across all 7 static themes (not inferred from a sample):** no theme's `pages` array ever lists a filename it doesn't actually ship in `pages/*.html` — the "listed but not shipped" direction never happens. The drift runs the other way, and only for two reasons:
+**Verified across all 4 static themes (not inferred from a sample):** no theme's `pages` array ever lists a filename it doesn't actually ship in `pages/*.html` — the "listed but not shipped" direction never happens. The drift runs the other way, and only for one reason:
 
 | Theme | Shipped but not listed in `pages` | Why |
 |---|---|---|
@@ -152,9 +152,8 @@ As of 2026-08-10 this table is down to one field — `modes`, `defaultMode`, and
 | `tailark-dusk` | `blog-post` | same post-template reason |
 | `tailark-quartz-dark` | `blog-post` | same post-template reason |
 | `tailark-quartz-libre` | `blog-post` | same post-template reason |
-| `fuel`, `gracious-timing`, `portfolite` | none | full agreement between `pages` and the directory |
 
-The pattern isn't even consistently applied: `basic`, `tailark-dusk`, `tailark-quartz-dark`, and `tailark-quartz-libre` all omit their own `postTemplate` file from `pages`, but `portfolite` and `gracious-timing` list theirs (`blog-post`, `project` respectively) anyway. There's no rule enforcing either convention, because nothing reads the field either way.
+The pattern is consistently applied: all 4 live static themes omit their own `postTemplate` file from `pages`. (Before their 2026-08-31 removal, `portfolite` and `gracious-timing` were the exception — they listed theirs, `blog-post`/`project` respectively, anyway.) There's no rule enforcing either convention, because nothing reads the field either way.
 
 **Practical implication:** `pages` is effectively author-facing documentation embedded in the manifest — useful for a human or an AI editing tool to get a quick inventory of a theme's pages, harmless to keep authoring for consistency with the other themes, but changing it does not change which routes actually resolve, and `DiscoveredTheme.pages` (the disk scan) is always what every render path actually reads.
 
@@ -321,23 +320,18 @@ The route layer scans every page/partial for a `data-embed-config` marker whose 
 
 **Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via a `"variant":"tree"` key in the same `data-embed-config` object — e.g. `<nav data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>` (`content/themes/static/basic/pages/blog-sidebar-template.html:32`). Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
 
-### 6.3 The nav-embed gap: not every theme wires this
+### 6.3 The nav-embed gap: historically not every theme wired this
 
-**Verified by inspecting every static theme's `nav.html` directly, not inferred from a comment:**
+**Verified by inspecting every live static theme's `nav.html` directly, not inferred from a comment — all 4 wire it:**
 
 | Theme (id / display name) | Nav uses a `{"type":"menu"}` `data-embed-config` marker? |
 |---|---|
 | `basic` / Basic | Yes |
-| `fuel` / Ember | **No — hardcoded `<a>` links, no embed marker at all** |
-| `gracious-timing` / Atelier | Yes |
-| `portfolite` / Folio | Yes |
 | `tailark-dusk` / Northbound | Yes |
 | `tailark-quartz-dark` / Onyx | Yes |
 | `tailark-quartz-libre` / Meridian | Yes |
 
-`fuel`'s `nav.html` (`content/themes/static/fuel/nav.html`) has a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere in the file. **This means: on `fuel`, editing the CMS menu in the admin UI has zero visible effect on the public nav.** Every other one of the 6 remaining static themes does wire it, so the same CMS menu edit is visible there. This is a per-theme authoring gap, not a platform limitation — nothing stops `fuel`'s `nav.html` from being edited to add the marker; it just hasn't been.
-
-*Correction to a starting assumption:* the task that produced this doc assumed `fuel`/Ember is *currently* the active theme. As of this session, the local dev database (`infra/content.db`, `presentation_settings` table) actually has `activeThemeId = "basic"` — not `fuel`. `basic` does wire the menu embed. The seed default (`src/server/seed.ts:255`, §8.1) now hardcodes `"basic"` directly, resolving without a fallback on a fresh workspace — it used to hardcode the undiscoverable `tovu-official` and rely on `resolveActiveTheme()`'s fallback (§1.2) landing on `basic` anyway. Whichever theme is active is admin-mutable at any time; don't treat "the active theme" as a fixed fact — check `presentation_settings` (or the admin UI) for ground truth. The `fuel`-hardcodes-its-nav fact itself is independent of which theme happens to be active and remains true regardless.
+Every live static theme wires the nav embed today. The one theme that didn't — `fuel`/Ember, whose `nav.html` had a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere — was removed from the repo 2026-08-31 (unconfirmed-license Framer Marketplace derivative), taking its gap with it. See §8.3 for what that gap was, kept for historical record since the underlying lesson (a theme *can* hardcode its nav and silently ignore CMS menu edits — this is a per-theme authoring gap, not a platform limitation) still applies to any future theme.
 
 ### 6.4 Generic embeds (`type="widget|form|media|post"`, any `bodyFormat: "html"` content)
 
@@ -395,11 +389,11 @@ Until 2026-08-10, `src/server/seed.ts:255` hardcoded `activeThemeId: "tovu-offic
 
 `renderMenuLinks()` (`static-render.ts:97-105`) only emits top-level menu items as flat `<a>` tags. Its own comment states the reason plainly: every static theme's nav/footer markup this session is a flat link row/column with no dropdown/submenu CSS to hook a nested render into — rendering `children` would need chrome none of these themes ship. A `ResolvedNavItem.children` array is simply dropped, silently, for every static theme. A user can build a parent/child menu structure in the CMS's menu editor and see zero visual difference from a flat menu on the public site. This is disclosed in the code comment as "a real gap, not silently papered over," but it is still true that nothing in the rendered HTML tells a visitor or an author that nesting was lost — the only signal is the comment itself.
 
-Contrast: the fully-declarative `siteNav`/`renderWidgetMenuItems` component paths (`render.ts:510-538`, `674-689`) *do* render nested children (`<ul class="nav-dropdown">` / recursive `<ul>`) — but those paths are only reachable through the `declarative`/`templated`/`handlebars` tiers' component registry or the widget `menu` type, not through any of the 7 live static themes.
+Contrast: the fully-declarative `siteNav`/`renderWidgetMenuItems` component paths (`render.ts:510-538`, `674-689`) *do* render nested children (`<ul class="nav-dropdown">` / recursive `<ul>`) — but those paths are only reachable through the `declarative`/`templated`/`handlebars` tiers' component registry or the widget `menu` type, not through any of the 4 live static themes.
 
-### 8.3 `fuel`/Ember hardcodes its nav instead of embedding the CMS menu
+### 8.3 `fuel`/Ember hardcoded its nav instead of embedding the CMS menu — moot, theme removed 2026-08-31
 
-Covered in full in §6.3. Restated here because it's easy to miss: this means CMS-side menu edits are invisible on that one theme specifically, while working correctly on the other six.
+Was covered in full in §6.3, restated here because it was easy to miss: `fuel`'s nav.html had four hand-written `<a>` tags and no `data-embed-config` marker, so CMS-side menu edits were invisible on that one theme specifically, while working correctly on every other live static theme. `fuel` was removed from the repo 2026-08-31 (unconfirmed-license Framer Marketplace derivative), so this specific gap no longer exists anywhere in the shipped theme set — kept here as a worked example, since the same class of gap can recur in any future theme that hand-writes its nav instead of using the marker.
 
 ### 8.4 No CSS sanitization exists
 
