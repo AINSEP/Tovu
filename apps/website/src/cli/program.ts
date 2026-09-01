@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { runDeployConfigCommand } from "./commands/deploy-config.js";
 import { runExportCommand } from "./commands/export.js";
 import { runInitCommand } from "./commands/init.js";
 import { runIntrospectCommand } from "./commands/introspect.js";
@@ -109,6 +110,21 @@ export function createProgram(): Command {
     .option("--json", "print the full machine-readable result instead of a human-readable summary")
     .action(async (dir: string, options: { primaryStylesheet?: string; pages?: string; json?: boolean }) => {
       await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: options.primaryStylesheet, pages: options.pages, json: options.json });
+    });
+
+  // Namespaced command group (mirrors `theme`'s own group above) — `deploy config` today, with room
+  // for sibling `deploy` subcommands later without a flat-command rename.
+  const deployProgram = program.command("deploy").description("deployment config generation commands");
+  deployProgram
+    .command("config")
+    .description(
+      "generate one platform's deploy config file from Tovu's single deployment descriptor (Dockerfile/fly.toml as source of truth) — prints to stdout, or writes to --out"
+    )
+    .option("--target <target>", "deploy platform: fly, render, or railway")
+    .option("--region <region>", "platform region (required — no default region is assumed)")
+    .option("--out <file>", "write the generated config to this file instead of stdout")
+    .action(async (options: { target?: string; region?: string; out?: string }) => {
+      await runDeployConfigCommand({ target: options.target, region: options.region, out: options.out });
     });
 
   program
