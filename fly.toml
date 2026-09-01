@@ -1,0 +1,66 @@
+# Tovu — Fly.io app config.
+#
+# This file lives at the Tovu repo root, next to `Dockerfile` and
+# `docker-compose.yml`. `@jini-ai/*` packages are consumed from the npm registry, so the image
+# builds from this checkout alone — no sibling `Jini` tree, no special build-context handling.
+# `flyctl deploy` run bare from the Tovu repo root (or via
+# `development/scripts/fly-build.sh`, which just pins the context to this repo's root
+# regardless of the caller's cwd) is enough:
+#
+#     flyctl deploy
+#
+# This file's own `[build] dockerfile = "Dockerfile"` is already correct relative to that
+# default context. A remote builder (Depot, Fly's own) works too now: flyctl uploads this
+# repo's own local build context, and that context is self-contained.
+#
+# ============================================================================
+# Fields below this line are a STARTING POINT, not a verified config.
+# ============================================================================
+# `app` matches the name already used in prior deploy attempts
+# (`tovu-ai-cms`). Everything else — region, volume name/size, machine
+# sizing — is inferred from the Dockerfile's own documented runtime
+# requirements (EXPOSE 3000, VOLUME /workspace/Tovu/sites) or left as an
+# explicit placeholder. Confirm against `flyctl config show -a tovu-ai-cms`
+# if an app by that name already exists on Fly before trusting this file, and
+# update the placeholders below rather than assuming they're right.
+
+app = "tovu-ai-cms"
+primary_region = "iad" # PLACEHOLDER — confirm the intended region.
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # Non-secret only. Real secrets (TOVU_ADMIN_PASSWORD, TOVU_ADMIN_USER,
+  # TOVU_INTEGRATIONS_ROOT_KEY — see docker-compose.yml's own comments for
+  # what each does) go through `fly secrets set`, never in this committed
+  # file.
+  TOVU_RUNTIME_MODE = "production"
+  PORT = "3000"
+
+# Persistent state: every site's content.db + WAL sidecars, uploads/,
+# themes/, ops state — everything else in the image is disposable. A missing
+# or misconfigured mount here is silent data loss on next deploy, not a
+# startup error. PLACEHOLDER volume name/size — create it first with
+# `fly volumes create tovu_sites --region <region> -a tovu-ai-cms` and match
+# the name here.
+[[mounts]]
+  source = "tovu_sites"
+  destination = "/workspace/Tovu/sites"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  # `/readyz` exists (apps/website/src/server/inbound/public-http/routes/ops/health.ts,
+  # wired via registerReadyzRoute) and is 503 until migrations/seeding finish
+  # — a truer "actually ready" signal than `/health`, which is liveness-only.
+  [[http_service.checks]]
+    grace_period = "60s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/readyz"
