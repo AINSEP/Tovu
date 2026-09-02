@@ -306,7 +306,10 @@ async function resolveCommitDecision(
     };
   }
 
-  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
+  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
+  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
+  // otherwise unrecognised value must never be read as consent for a real commit push.
+  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "";
   if (decision !== "confirm") {
     return { confirmed: false, result: { committed: false, cancelled: true, owner, repo } };
   }

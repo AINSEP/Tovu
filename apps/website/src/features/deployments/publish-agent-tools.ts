@@ -1207,7 +1207,10 @@ async function handlePublishConfirmationAnswer(answer: SurfaceMessage, ctx: Publ
     return { result: buildNoAnswerToolResult(answer.status) };
   }
 
-  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
+  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
+  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
+  // otherwise unrecognised value must never be read as consent for a live publish.
+  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "";
   if (decision !== "confirm") {
     // No outcome surface for a cancel: the confirmation's own script already reports
     // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth for a

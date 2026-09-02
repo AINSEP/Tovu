@@ -303,6 +303,68 @@ test("cancel: nothing is committed, the git adapter is never called", async () =
   assert.equal(result.cancelled, true);
 });
 
+// ---------------------------------------------------------------------------
+// 3a. Fail-closed default: a delivery that does not SAY "confirm" must never commit
+// (regression for the fail-open default that let a bare/garbled delivery through as a
+// confirm — see `resolveCommitDecision`'s own inverted default).
+// ---------------------------------------------------------------------------
+
+test("an answer with no 'decision' field at all is NOT confirm — the git adapter is never called", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: {} });
+
+  const result = (await pending) as { committed: boolean; cancelled: boolean };
+  assert.equal(result.committed, false);
+  assert.equal(result.cancelled, true);
+});
+
+test("an answer with a non-string 'decision' is NOT confirm — the git adapter is never called", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: true } });
+
+  const result = (await pending) as { committed: boolean; cancelled: boolean };
+  assert.equal(result.committed, false);
+  assert.equal(result.cancelled, true);
+});
+
+test("an answer with an empty-string 'decision' is NOT confirm — the git adapter is never called", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "" } });
+
+  const result = (await pending) as { committed: boolean; cancelled: boolean };
+  assert.equal(result.committed, false);
+  assert.equal(result.cancelled, true);
+});
+
+test("an answer with an unrecognised 'decision' string is NOT confirm — the git adapter is never called", async () => {
+  const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
+  await seedGithubCredential(deps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "source_control_execute_commit");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { provider: "github", owner: "octo", repo: "demo", commitMessage: "x" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "source_control_execute_commit", principalId: PRINCIPAL_ID, params: { decision: "yes" } });
+
+  const result = (await pending) as { committed: boolean; cancelled: boolean };
+  assert.equal(result.committed, false);
+  assert.equal(result.cancelled, true);
+});
+
 test("expired: nothing is committed, reported honestly as 'expired' not 'cancelled'", async () => {
   const { deps } = fakeDeps({ gitAdapter: neverCalledGitAdapter() });
   await seedGithubCredential(deps);

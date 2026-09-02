@@ -1496,7 +1496,14 @@ test("confirm: a full success's deploymentId is forwarded through to the tool re
   assert.equal(result.deploymentId, "dpl_456");
 });
 
-test("confirm: an answer with no explicit decision field still defaults to confirm — the handler's own fallback, not merely what the real form always sends", async () => {
+// ---------------------------------------------------------------------------
+// Fail-closed default: a delivery that does not SAY "confirm" must never publish
+// (regression — this test used to certify the OPPOSITE, a fail-open default that let a
+// bare/garbled delivery through as a confirm; see `handlePublishConfirmationAnswer`'s own
+// inverted default, and the other three domains' identical fix in this same change).
+// ---------------------------------------------------------------------------
+
+test("an answer with no explicit decision field is NOT confirm — nothing is published", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
@@ -1508,9 +1515,64 @@ test("confirm: an answer with no explicit decision field still defaults to confi
   const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
   surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: {} });
 
-  const result = (await pending) as { published: boolean; reachable: boolean };
-  assert.equal(result.published, true);
-  assert.equal(result.reachable, true);
+  const result = (await pending) as { published: boolean; cancelled: boolean };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(captured.value, null, "a missing decision must never reach the publish target");
+});
+
+test("an answer with a non-string decision is NOT confirm — nothing is published", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: true } });
+
+  const result = (await pending) as { published: boolean; cancelled: boolean };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(captured.value, null);
+});
+
+test("an answer with an empty-string decision is NOT confirm — nothing is published", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "" } });
+
+  const result = (await pending) as { published: boolean; cancelled: boolean };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(captured.value, null);
+});
+
+test("an answer with an unrecognised decision string is NOT confirm — nothing is published", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "yes" } });
+
+  const result = (await pending) as { published: boolean; cancelled: boolean };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, true);
+  assert.equal(captured.value, null);
 });
 
 test("confirm: with no buildTarget override injected, the REAL default buildJiniTarget dispatch runs and a credential missing a required s3-compatible field is still refused cleanly — no real network ever touched", async () => {

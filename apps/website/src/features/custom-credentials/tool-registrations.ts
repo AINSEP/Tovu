@@ -222,7 +222,10 @@ async function resolveMakeRequestDeleteDecision(exchange: SurfaceExchange, ui: U
     return { confirmed: false, result: { executed: false, cancelled: false, reason: answer.status } };
   }
 
-  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "confirm";
+  // Fail closed: only an explicit `decision === "confirm"` proceeds — mirrors
+  // `features/post/tool-registrations.ts`'s own `resolveDeleteDecision` fix. A missing, non-string, or
+  // otherwise unrecognised value must never be read as consent for a live outbound DELETE.
+  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "";
   if (decision !== "confirm") {
     return { confirmed: false, result: { executed: false, cancelled: true } };
   }

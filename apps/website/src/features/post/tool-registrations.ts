@@ -325,7 +325,10 @@ async function resolveDeleteDecision(
     };
   }
 
-  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "confirm";
+  // Fail closed: only an explicit `decision === "confirm"` proceeds. A missing, non-string, or
+  // otherwise unrecognised value must never be read as consent for a destructive action — see this
+  // function's own header (ADR-055 Decision 6) and the regression test this line fixes.
+  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "";
   if (decision !== "confirm") {
     return { confirmed: false, result: { deleted: false, cancelled: true, post: toPostToolView(existing) } };
   }

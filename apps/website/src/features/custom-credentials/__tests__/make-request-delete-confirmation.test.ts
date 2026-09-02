@@ -296,6 +296,68 @@ test("cancel: a declined DELETE NEVER decrypts and NEVER touches the guarded HTT
   assert.equal(httpClient.calls.length, 0, "a cancelled DELETE must never reach the guarded HTTP client");
 });
 
+// ---------------------------------------------------------------------------
+// 3a. Fail-closed default: a delivery that does not SAY "confirm" must never decrypt or send
+// (regression for the fail-open default that let a bare/garbled delivery through as a
+// confirm — see `resolveMakeRequestDeleteDecision`'s own inverted default).
+// ---------------------------------------------------------------------------
+
+test("an answer with no 'decision' field at all is NOT confirm — never decrypts, never sends", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: {} });
+
+  assert.deepEqual(await pending, { executed: false, cancelled: true });
+  assert.equal(sealer.openCalls, 0, "a missing decision must never decrypt the credential");
+  assert.equal(httpClient.calls.length, 0, "a missing decision must never reach the guarded HTTP client");
+});
+
+test("an answer with a non-string 'decision' is NOT confirm — never decrypts, never sends", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: true } });
+
+  assert.deepEqual(await pending, { executed: false, cancelled: true });
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(httpClient.calls.length, 0);
+});
+
+test("an answer with an empty-string 'decision' is NOT confirm — never decrypts, never sends", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "" } });
+
+  assert.deepEqual(await pending, { executed: false, cancelled: true });
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(httpClient.calls.length, 0);
+});
+
+test("an answer with an unrecognised 'decision' string is NOT confirm — never decrypts, never sends", async () => {
+  const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
+  await seedFlyIo(writeDeps);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { decision: "yes" } });
+
+  assert.deepEqual(await pending, { executed: false, cancelled: true });
+  assert.equal(sealer.openCalls, 0);
+  assert.equal(httpClient.calls.length, 0);
+});
+
 test("an unanswered dialog expires and reports {executed:false, cancelled:false, reason:'expired'} — never decrypts, never sends", async () => {
   const { deps, sealer, httpClient, writeDeps } = fakeRouteDeps();
   await seedFlyIo(writeDeps);

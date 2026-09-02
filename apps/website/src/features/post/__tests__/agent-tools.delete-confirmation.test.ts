@@ -354,6 +354,74 @@ test("cancel: nothing is deleted, and the SAME call reports the cancellation", a
   assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
 });
 
+// ---------------------------------------------------------------------------
+// 3a. Fail-closed default: a delivery that does not SAY "confirm" must never delete
+// (regression for the fail-open default that let a bare/garbled delivery through as a
+// confirm — see `resolveDeleteDecision`'s own inverted default).
+// ---------------------------------------------------------------------------
+
+test("an answer with no 'decision' field at all is NOT confirm — nothing is deleted", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: {} });
+
+  assert.deepEqual(await pending, {
+    deleted: false,
+    cancelled: true,
+    post: { id: "p1", kind: "post", title: "My Article", slug: "my-article", bodyJson: EMPTY_DOC, status: "published", updatedAt: NOW, version: 1 },
+  });
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null, "a missing decision must never delete");
+});
+
+test("an answer with a non-string 'decision' is NOT confirm — nothing is deleted", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: true } });
+
+  const result = (await pending) as { deleted: boolean; cancelled: boolean };
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, true);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null, "a non-string decision must never delete");
+});
+
+test("an answer with an empty-string 'decision' is NOT confirm — nothing is deleted", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "" } });
+
+  const result = (await pending) as { deleted: boolean; cancelled: boolean };
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, true);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
+});
+
+test("an answer with an unrecognised 'decision' string is NOT confirm — nothing is deleted", async () => {
+  const { deps, postRepo } = fakeRouteDeps();
+  await seedPost(postRepo);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const deleteTool = tool(buildRegistrations(deps, surfaceExchanges), "content_post_delete");
+
+  const { exchangeId, pending } = await raiseDialog(deleteTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "content_post_delete", principalId: PRINCIPAL_ID, params: { decision: "yes" } });
+
+  const result = (await pending) as { deleted: boolean; cancelled: boolean };
+  assert.equal(result.deleted, false);
+  assert.equal(result.cancelled, true);
+  assert.equal((await postRepo.findById({ workspaceId: WORKSPACE_ID, id: "p1" }))?.deletedAt ?? null, null);
+});
+
 test("an unanswered dialog expires and reports 'expired', not a hang or a throw", async () => {
   const { deps, postRepo } = fakeRouteDeps();
   await seedPost(postRepo);
