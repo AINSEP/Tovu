@@ -166,10 +166,14 @@ past a first slice. That bar applies at least as much here.
 scaffold). Framework-side integrations (LangGraph, CrewAI, Mastra, etc.) aren't relevant here — Tovu
 launches CLI agents directly, not one of those frameworks.
 
-**Stale cross-reference to fix when this lands**: Master Build Inventory §12 (below, line ~642) still
-says "ADR-013 names AG-UI as the protocol; no implementation yet" without noting ADR-049 superseded
-that choice, and without noting THIS entry now supersedes ADR-049 back toward AG-UI. Update both when
-the new ADR is written.
+**DONE 2026-09-02**: the new ADR landed (**ADR-059, Accepted 2026-08-18** —
+`ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`, canary proved out live
+with 10 real Tovu tool calls through a real browser) but the Master Build Inventory §12 cross-reference
+below was never updated to match, sitting stale for two weeks. Fixed now — see that item's own
+correction. Original note follows for history: "Stale cross-reference to fix when this lands: Master
+Build Inventory §12 (below, line ~642) still says 'ADR-013 names AG-UI as the protocol; no
+implementation yet' without noting ADR-049 superseded that choice, and without noting THIS entry now
+supersedes ADR-049 back toward AG-UI. Update both when the new ADR is written."
 
 ---
 
@@ -727,6 +731,18 @@ imagined). Conversely, the Agentic UI/AI layer (§12) and all AEO/GEO/AI-surface
 work (§22) are still almost entirely unbuilt — no CopilotKit/AG-UI/MCP code
 exists anywhere in `src/` yet, only a stub FAB.
 
+**This paragraph is a 2026-07-15 snapshot, now stale for §12 specifically (CORRECTED 2026-09-02).**
+AG-UI is implemented and Accepted: ADR-059 (2026-08-18) ships a real `@ag-ui/core`/`@ag-ui/client`/
+`@ag-ui/encoder`-backed canary transport (`apps/admin/package.json`/`package.json` list all three as
+real deps), proved live. `AssistantDock` (`apps/admin/src/components/AssistantDock/`) replaced the
+stub FAB well before that. MCP *consumption* also exists — `assistant/mcp-federation/` (9 files) +
+`assistant/external-mcp-store.ts` federate external MCP servers into the daemon's tool set; 105 files
+under `assistant/` reference MCP in some form (verified by grep, 2026-09-02). What's still genuinely
+missing, narrower than this paragraph claims: no code exposes Tovu's *own* tools/data as an MCP
+*server* to external consumers (no `@modelcontextprotocol/sdk` dependency, no `McpServer`
+construction found) — see the corrected §13 item below. §22 (AEO/GEO) is still accurately described as
+unbuilt.
+
 ### 1) Core Runtime / Kernel
 - [ ] Define final kernel responsibilities (lifecycle, DI, service registry) — no dedicated kernel/DI module exists; ADR-046 (Proposed, pending debate) partially scopes composition-root/module-status concerns
 - [x] Split core ports into module-level files (`events`, `auth`, `storage`, `search`, etc.) — de facto done: every feature/infra module now owns its own `ports.ts` (`identity/ports.ts`, `media/ports.ts`, `mail/ports.ts`, `http/ports.ts`, `core/gated-mutations/ports.ts`, etc.); `core/ports.ts` retains only the shared kernel primitives (147 lines)
@@ -842,10 +858,10 @@ exists anywhere in `src/` yet, only a stub FAB.
 - [ ] Define memory policy (session, episodic, semantic boundaries)
 - [ ] Define guardrails and human-in-the-loop checkpoints — ADR-016 (propose→review→accept/reject→revert change-sets for agentic document editing) scopes this pattern generally; not implemented as an AI guardrail system yet
 - [ ] Define AI audit trail and explainability logging
-- [ ] Define AG-UI event/state model for streaming interactions — ADR-013 names AG-UI as the protocol; no implementation yet
+- [x] Define AG-UI event/state model for streaming interactions — CORRECTED 2026-09-02, was stale (this line's own §18 cross-reference note flagged it as owed since 2026-08-18 and it never got done). **ADR-059 (Accepted 2026-08-18)** implements this: a canary `ChatTransport` translates `chat-core`'s `AgentEvent` vocabulary into real AG-UI wire events via `@ag-ui/core`/`@ag-ui/client`/`@ag-ui/encoder` (real deps, not hand-rolled), proved live against 10 real Tovu tool calls through a real browser. See `ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`.
 
 ### 13) Protocols and Integrations
-- [ ] Define MCP exposure model for tools/data — no MCP code exists in `src/`; related future planning lives in §22's "Agentic Web / Playground MCP Backlog" (also still open)
+- [ ] Define MCP exposure model for tools/data — NARROWED 2026-09-02: "no MCP code exists in `src/`" was too broad and is now false as a literal claim (`assistant/mcp-federation/`, `assistant/external-mcp-store.ts`, `assistant/mcp-ui.ts` all exist, 105 files under `assistant/` reference MCP). What's still genuinely open is narrower: no code exposes Tovu's *own* tools/data as an MCP *server* to external consumers — no `@modelcontextprotocol/sdk` dependency, no `McpServer`/`new Server()` construction found anywhere (verified by grep). What exists today is MCP *consumption* (federating external MCP servers into the daemon, ADR-context in `mcp-federation/`) and MCP *UI* rendering (`mcp-ui.ts`, MCP Apps/SEP-1865), not exposure. Related future planning lives in §22's "Agentic Web / Playground MCP Backlog" (also still open).
 - [ ] Define A2A support boundaries
 - [x] Define webhook/event subscription model for external systems — ADR-036 Integrations/webhooks (`src/webhooks`)
 - [ ] Define import/export contracts for interoperability
