@@ -1391,6 +1391,42 @@ function carryOAuthRuntimeState(
  * imported: this is the STORED shape, and it must be able to stay still while the flow module's
  * in-memory type moves.
  */
+/**
+ * Schema version of the *plaintext* inside the sealed OAuth blob.
+ *
+ * Distinct from `oauth_aad_version`, which versions how the blob is BOUND to its row and says
+ * nothing about what is inside it. Without this, a field could be added but never renamed, changed,
+ * or removed — there would be nothing to branch on at open time, and the only way out would be a
+ * migration over live credentials. Stamped at seal; a blob without it predates versioning and is
+ * upgraded on read.
+ */
+export const EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION = 1;
+
+/**
+ * The branching read for a sealed OAuth payload. A missing version is v0 (pre-versioning) and is
+ * upgraded in place; a newer version is refused rather than misread, because silently
+ * reinterpreting an unknown shape here means handing back a wrong or partial live credential.
+ *
+ * `schemaVersion` is stripped from the result: it is a wire concern, and a caller that saw it could
+ * persist it back into a payload it does not own.
+ *
+ * @throws When the payload was written by a newer build than this one understands.
+ * @complexity O(1).
+ */
+export function hydrateExternalMcpOAuthPayload(parsed: unknown): ExternalMcpSealedOAuthPayload {
+  if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const { schemaVersion, ...rest } = parsed as Record<string, unknown>;
+  const stored = typeof schemaVersion === "number" ? schemaVersion : 0;
+  if (stored > EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION) {
+    throw new Error(
+      `external MCP OAuth payload was written at schema version ${stored}, newer than this build understands (${EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION}) — upgrade rather than risk misreading a live credential`,
+    );
+  }
+  // v0 -> v1 added only the discriminator, so the upgrade is a stamp; a later version adds its own
+  // branch here rather than a backfill over live credentials.
+  return rest as ExternalMcpSealedOAuthPayload;
+}
+
 export interface ExternalMcpSealedOAuthPayload {
   readonly clientSecret?: string;
   readonly tokens?: {
@@ -1432,7 +1468,9 @@ export async function openExternalMcpOAuthPayload(
       `stored OAuth credentials could not be decrypted: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
-  return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as ExternalMcpSealedOAuthPayload) : {};
+  // Deliberately OUTSIDE the catch above: a version mismatch is not a decryption failure, and must
+  // not be swallowed by a caller that treats that error as "not connected yet".
+  return hydrateExternalMcpOAuthPayload(parsed);
 }
 
 /**
@@ -1468,7 +1506,9 @@ export async function sealExternalMcpOAuthPayload(
   if (!hasSecret) return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
   try {
     const sealedOAuth = await deps.sealer.seal({
-      plaintext: JSON.stringify(payload),
+      // The version travels INSIDE the ciphertext, so it is authenticated along with the secret and
+      // cannot be edited by anyone who can write the row.
+      plaintext: JSON.stringify({ ...payload, schemaVersion: EXTERNAL_MCP_OAUTH_PAYLOAD_VERSION }),
       key: await deps.keyring.activeKey(),
       aad: buildExternalMcpOAuthAad(identity),
     });
