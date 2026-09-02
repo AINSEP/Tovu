@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AGENT_DEFS } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 
 import { listAssistantAgents, rescanAssistantAgents } from "../agents.js";
 
@@ -61,6 +61,31 @@ test("listAssistantAgents' carriesOwnMemory exactly matches each def's own resum
       agent.carriesOwnMemory === true,
       expected,
       `agent '${def.id}'.carriesOwnMemory should be ${expected} (resumesSessionViaCli=${def.resumesSessionViaCli}, resumesSessionViaAcpLoad=${def.resumesSessionViaAcpLoad}), got ${agent.carriesOwnMemory}`,
+    );
+  }
+});
+
+/**
+ * @file Regression coverage for the "silent zero tools" bug: three defs (aider, antigravity, pi)
+ * have no `externalMcpInjection` mechanism (each documents why in its own def file — see
+ * `@jini-ai/agent-runtime`'s `runtimeSupportsExternalTools` doc), so a user who picked one of them
+ * in the chat runtime picker got an agent with zero Tovu/Jini tools and no indication why. This pins
+ * `listAssistantAgents`' `supportsTools` projection to the real `AGENT_DEFS` registry (not a
+ * hardcoded id list), matching the `carriesOwnMemory` test above, so the picker's "No tools" badge
+ * (`@jini-ai/chat`'s `AgentRuntimePicker`) tracks the def-level fact automatically instead of
+ * drifting stale.
+ */
+test("listAssistantAgents' supportsTools exactly matches each def's own runtimeSupportsExternalTools() result", async () => {
+  const agents = await listAssistantAgents();
+  assert.ok(AGENT_DEFS.length > 0, "expected at least one real def to assert against");
+  for (const def of AGENT_DEFS) {
+    const agent = agents.find((candidate) => candidate.id === def.id);
+    assert.ok(agent, `expected an agent list entry for def '${def.id}'`);
+    const expected = runtimeSupportsExternalTools(def);
+    assert.equal(
+      agent.supportsTools,
+      expected,
+      `agent '${def.id}'.supportsTools should be ${expected} (externalMcpInjection=${def.externalMcpInjection}), got ${agent.supportsTools}`,
     );
   }
 });

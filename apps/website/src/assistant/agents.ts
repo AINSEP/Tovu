@@ -18,7 +18,7 @@
  * sweep re-ran dozens of times a minute for a fact — which CLIs are installed on this machine's
  * PATH — that does not change turn to turn or even poll to poll.
  */
-import { AGENT_DEFS, resolveAgentLaunch } from "@jini-ai/agent-runtime";
+import { AGENT_DEFS, resolveAgentLaunch, runtimeSupportsExternalTools } from "@jini-ai/agent-runtime";
 import type { AgentSummary } from "@jini-ai/http-kit";
 
 /**
@@ -74,6 +74,11 @@ async function probeAssistantAgents(): Promise<AssistantAgentSummary[]> {
         supportsCustomModel: def.supportsCustomModel,
         models: def.fallbackModels,
         modelsSource: "fallback",
+        // See `runtimeSupportsExternalTools`'s own doc (`@jini-ai/agent-runtime`'s `registry.ts`):
+        // the single derivation point for "can this runtime receive Tovu/Jini tools at all,"
+        // keyed off the def's own `externalMcpInjection` declaration rather than a hardcoded
+        // runtime-id list here.
+        supportsTools: runtimeSupportsExternalTools(def),
         // See `AssistantAgentSummary.carriesOwnMemory`'s own doc — either resume mechanism means
         // the CLI itself, not this transport, owns the def's multi-turn memory.
         carriesOwnMemory: Boolean(def.resumesSessionViaCli) || Boolean(def.resumesSessionViaAcpLoad),
