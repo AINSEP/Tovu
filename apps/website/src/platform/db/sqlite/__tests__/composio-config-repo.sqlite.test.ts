@@ -26,6 +26,7 @@ function makeRecord(overrides: Partial<ComposioConfigRecord> = {}): ComposioConf
     workspaceId: WORKSPACE,
     sealed: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     keyTail: "1111",
+    aadVersion: 0,
     authConfigIds: {},
     keyGeneration: 0,
     createdAt: NOW,

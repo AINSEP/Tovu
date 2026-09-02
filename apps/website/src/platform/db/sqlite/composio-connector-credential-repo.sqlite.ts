@@ -34,6 +34,7 @@ function toRow(row: Row): ConnectorCredentialRow {
     connectorId: row.connectorId,
     accountLabel: row.accountLabel,
     sealed,
+    aadVersion: row.aadVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -60,6 +61,7 @@ export class SqliteConnectorCredentialRepo implements ConnectorCredentialRepoPor
       sealedCiphertext: row.sealed?.ciphertext ?? null,
       sealedNonce: row.sealed?.nonce ?? null,
       sealedAlg: row.sealed?.alg ?? null,
+      aadVersion: row.aadVersion,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

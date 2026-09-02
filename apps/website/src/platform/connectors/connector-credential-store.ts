@@ -6,6 +6,7 @@ import type {
 } from "@jini-ai/integrations/composio";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../features/webhooks/index.js";
+import { buildConnectorCredentialAad } from "./connector-credential-aad.js";
 
 /**
  * @file Durable, sealed storage for connected third-party ACCOUNTS — what survives an OAuth
@@ -33,6 +34,12 @@ export interface ConnectorCredentialRow {
   connectorId: string;
   accountLabel: string | null;
   sealed: SealedSecret | null;
+  /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
+   *  verification fails. `1` = sealed under `connector-credential-aad.ts`'s
+   *  `buildConnectorCredentialAad`; open MUST supply the byte-identical string. Meaningless (and
+   *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.ts`'s
+   *  `composioConnectorCredentials.aad_version` doc for the full migration story. */
+  aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -127,10 +134,11 @@ export function createSnapshotConnectorCredentialStore(
     unreported.push(outcome);
   };
 
-  const sealCredentials = async (credentials: ConnectorCredentialMaterial): Promise<SealedSecret> =>
+  const sealCredentials = async (connectorId: string, credentials: ConnectorCredentialMaterial): Promise<SealedSecret> =>
     deps.sealer.seal({
       plaintext: JSON.stringify(credentials),
       key: await deps.keyring.activeKey(),
+      aad: buildConnectorCredentialAad({ workspaceId: deps.workspaceId, connectorId }),
     });
 
   return {
@@ -153,7 +161,10 @@ export function createSnapshotConnectorCredentialStore(
           workspaceId: deps.workspaceId,
           connectorId: record.connectorId,
           accountLabel: record.accountLabel,
-          sealed: await sealCredentials(record.credentials),
+          sealed: await sealCredentials(record.connectorId, record.credentials),
+          // A fresh seal every write (never a re-wrap), so the row always ends up bound to the new
+          // aad — including a legacy (aadVersion 0) row this write just re-sealed for free.
+          aadVersion: 1,
           createdAt: existing?.createdAt ?? now,
           updatedAt: now,
         });
@@ -180,7 +191,11 @@ export function createSnapshotConnectorCredentialStore(
         if (row.sealed === null) continue;
         let credentials: ConnectorCredentialMaterial | undefined;
         try {
-          credentials = toMaterial(JSON.parse(await deps.sealer.open({ sealed: row.sealed })));
+          // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
+          // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed
+          // with NO aad and must be opened the same way, or auth-tag verification fails closed.
+          const aad = row.aadVersion === 1 ? buildConnectorCredentialAad({ workspaceId: deps.workspaceId, connectorId: row.connectorId }) : undefined;
+          credentials = toMaterial(JSON.parse(await deps.sealer.open({ sealed: row.sealed, aad })));
         } catch (err) {
           // eslint-disable-next-line no-console
           console.error(

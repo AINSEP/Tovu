@@ -2,6 +2,7 @@ import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
+import { buildMediaProviderCredentialAad } from "./aad.js";
 
 /**
  * @file Per-workspace media-generation vendor credentials — what the admin's Media → "Media
@@ -26,13 +27,20 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/in
  *
  * {@link resolveMediaProviderCredential} — added 2026-09-02 for `media-generation/tool-registrations.ts`'s
  * `media_generate_asset`, the first real decrypting reader this table has ever had. Mirrors
- * `custom-credentials/store.ts`'s own `resolveCustomCredentialByLabel` exactly: this file's header
- * USED TO say (implicitly, by never building one) "nothing in this codebase consumes the plaintext
- * key yet"; that day arrived the same way it did there. Sealed with NO `aad` — same no-AAD
- * convention this file's own `SecretSealerPort.seal`/`open` doc already establishes for this store
- * (`ports.ts`'s doc names `provider-credential-store.ts` as one of the three callers that seal with
- * no AAD), so `open` is called the same way `sealNewProviderKeys` above seals: no `aad` argument at
- * all, matching what was sealed.
+ * `custom-credentials/store.ts`'s own `resolveCustomCredentialByLabel` exactly.
+ *
+ * AAD (2026-09-02 gap closure): this table used to seal with no additional authenticated data at
+ * all (`ports.ts`'s `SecretSealerPort.seal`/`open` doc used to name this file as one of the callers
+ * that sealed with no AAD — that doc is now stale in the other direction, see its own header) — a
+ * ciphertext was transplantable between provider rows because the underlying AES key is shared
+ * app-wide. Every NEW seal now binds `aad.ts`'s `buildMediaProviderCredentialAad({workspaceId,
+ * providerId})` and marks the row `aadVersion: 1`; every `open` supplies that same aad ONLY when
+ * the row says `aadVersion === 1` — a row still at `aadVersion === 0` (every row written before this
+ * change) is opened with no `aad` at all, exactly as it was sealed, because AES-GCM auth-tag
+ * verification fails closed on any aad mismatch and this table's ciphertext is never re-stamped with
+ * a new AAD merely by reading it. `development/scripts/backfill-media-provider-credential-aad.ts`
+ * migrates existing rows to `aadVersion: 1` by opening under no aad and re-sealing the identical
+ * plaintext under the derived aad.
  */
 
 /** One provider's stored credential row. `sealed`/`keyTail` are both-null or both-set, enforced by
@@ -45,6 +53,11 @@ export interface MediaProviderCredentialRecord {
   sealed: SealedSecret | null;
   /** Last {@link KEY_TAIL_LENGTH} characters of the key. `null` iff `sealed` is `null`. */
   keyTail: string | null;
+  /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
+   *  verification fails. `1` = sealed under `aad.ts`'s `buildMediaProviderCredentialAad`; open MUST
+   *  supply the byte-identical string. Meaningless (and always `0`) when `sealed` is `null`. See
+   *  this file's own header for the full migration story. */
+  aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -230,22 +243,35 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
   }
 }
 
+/** One provider's freshly sealed key, plus the aad-version marker the seal was made under — always
+ *  `1` here, since every fresh seal binds `aad.ts`'s `buildMediaProviderCredentialAad` (this file's
+ *  own header). */
+interface FreshlySealedProviderKey {
+  sealed: SealedSecret;
+  keyTail: string;
+  aadVersion: number;
+}
+
 /** Seals every entry's NEW `apiKey` (skips a blank/absent one — an operator editing only `baseUrl`
- *  never has to re-paste a key they cannot see). Runs before any write opens — see
+ *  never has to re-paste a key they cannot see), bound to `(workspaceId, providerId)` via
+ *  `aad.ts`'s `buildMediaProviderCredentialAad`. Runs before any write opens — see
  *  {@link saveMediaProviderCredentials}'s own doc for why the ordering matters. */
 async function sealNewProviderKeys(
   deps: MediaProviderCredentialWriteDeps,
+  workspaceId: UUID,
   entries: ReadonlyArray<[string, MediaProviderCredentialInput]>
-): Promise<Map<string, { sealed: SealedSecret; keyTail: string }>> {
-  const sealedByProviderId = new Map<string, { sealed: SealedSecret; keyTail: string }>();
+): Promise<Map<string, FreshlySealedProviderKey>> {
+  const sealedByProviderId = new Map<string, FreshlySealedProviderKey>();
   for (const [providerId, entry] of entries) {
     const apiKey = entry.apiKey?.trim();
     if (!apiKey) continue;
     try {
       const activeKey = await deps.keyring.activeKey();
+      const aad = buildMediaProviderCredentialAad({ workspaceId, providerId });
       sealedByProviderId.set(providerId, {
-        sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey }),
+        sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad }),
         keyTail: apiKey.slice(-KEY_TAIL_LENGTH),
+        aadVersion: 1,
       });
     } catch (err) {
       throw new MediaProviderCredentialSecretStoreUnconfiguredError(
@@ -256,16 +282,17 @@ async function sealNewProviderKeys(
   return sealedByProviderId;
 }
 
-/** The `sealed`/`keyTail` pair is always both-null or both-set (the table's own CHECK) — resolved as
- *  ONE unit rather than field-by-field so neither can drift out of sync: a fresh seal wins, else the
- *  existing pair is kept whole, else there is none. */
+/** The `sealed`/`keyTail`/`aadVersion` triple is resolved as ONE unit rather than field-by-field so
+ *  none can drift out of sync: a fresh seal wins, else the existing triple is kept whole, else there
+ *  is none (`aadVersion` defaults to `0` — meaningless with no `sealed` value, this file's own
+ *  header). */
 function resolveSealedKeyPair(
   existing: MediaProviderCredentialRecord | undefined,
-  freshlySealed: { sealed: SealedSecret; keyTail: string } | undefined
-): { sealed: SealedSecret | null; keyTail: string | null } {
+  freshlySealed: FreshlySealedProviderKey | undefined
+): { sealed: SealedSecret | null; keyTail: string | null; aadVersion: number } {
   if (freshlySealed) return freshlySealed;
-  if (existing) return { sealed: existing.sealed, keyTail: existing.keyTail };
-  return { sealed: null, keyTail: null };
+  if (existing) return { sealed: existing.sealed, keyTail: existing.keyTail, aadVersion: existing.aadVersion };
+  return { sealed: null, keyTail: null, aadVersion: 0 };
 }
 
 /** Merges one submitted entry against its existing row (if any) into the row to write — an
@@ -276,10 +303,10 @@ function buildProviderUpsertRow(
   providerId: string,
   entry: MediaProviderCredentialInput,
   existing: MediaProviderCredentialRecord | undefined,
-  freshlySealed: { sealed: SealedSecret; keyTail: string } | undefined,
+  freshlySealed: FreshlySealedProviderKey | undefined,
   now: ISODateTime
 ): MediaProviderCredentialRecord {
-  const { sealed, keyTail } = resolveSealedKeyPair(existing, freshlySealed);
+  const { sealed, keyTail, aadVersion } = resolveSealedKeyPair(existing, freshlySealed);
   return {
     workspaceId,
     providerId,
@@ -287,6 +314,7 @@ function buildProviderUpsertRow(
     model: trimmedOrNull(entry.model),
     sealed,
     keyTail,
+    aadVersion,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -337,7 +365,7 @@ export async function saveMediaProviderCredentials(
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
-  const sealedByProviderId = await sealNewProviderKeys(deps, entries);
+  const sealedByProviderId = await sealNewProviderKeys(deps, input.workspaceId, entries);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
@@ -406,7 +434,12 @@ export async function resolveMediaProviderCredential(
 
   let apiKey: string;
   try {
-    apiKey = await deps.sealer.open({ sealed: record.sealed });
+    // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
+    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed with
+    // NO aad and must be opened the same way, or auth-tag verification fails closed. See this
+    // file's own header.
+    const aad = record.aadVersion === 1 ? buildMediaProviderCredentialAad({ workspaceId: input.workspaceId, providerId: input.providerId }) : undefined;
+    apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
   } catch (err) {
     throw new MediaProviderCredentialSecretStoreUnconfiguredError(
       `media provider credential for "${input.providerId}" could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`

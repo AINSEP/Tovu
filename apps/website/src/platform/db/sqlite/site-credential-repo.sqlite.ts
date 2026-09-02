@@ -34,6 +34,7 @@ function toRecord(row: Row): SiteAssistantCredentialRecord {
     model: row.model,
     sealed,
     masked: row.masked,
+    aadVersion: row.aadVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -62,6 +63,7 @@ export class SqliteSiteAssistantCredentialRepo implements SiteAssistantCredentia
       sealedNonce: record.sealed?.nonce ?? null,
       sealedAlg: record.sealed?.alg ?? null,
       masked: record.masked,
+      aadVersion: record.aadVersion,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };

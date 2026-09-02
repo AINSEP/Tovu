@@ -1,6 +1,7 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../features/webhooks/index.js";
+import { buildExecutionCredentialAad } from "./execution-credential-aad.js";
 
 /**
  * @file The ADMIN's own BYOK credential — one encrypted key per `(workspace, principal)`, powering
@@ -42,6 +43,12 @@ export interface AdminExecutionCredentialRecord {
   sealed: SealedSecret | null;
   /** `••••<last 4 chars>` — precomputed at write time. `null` iff `sealed` is `null`. */
   masked: string | null;
+  /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
+   *  verification fails. `1` = sealed under `execution-credential-aad.ts`'s
+   *  `buildExecutionCredentialAad`; open MUST supply the byte-identical string. Meaningless (and
+   *  always `0`) when `sealed` is `null`. Added 2026-09-02 (AAD gap closure) — see
+   *  `db/schema.ts`'s `adminExecutionCredentials.aad_version` doc for the full migration story. */
+  aadVersion: number;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -228,14 +235,18 @@ function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInp
  *  secret is unavailable. */
 async function resolveExecutionCredentialSeal(
   deps: Pick<ExecutionCredentialWriteDeps, "sealer" | "keyring">,
+  identity: { workspaceId: UUID; principalId: UUID },
   apiKey: string | undefined,
   existing: AdminExecutionCredentialRecord | null,
-): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null }> {
-  if (apiKey === undefined) return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null };
+): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null; readonly aadVersion: number }> {
+  if (apiKey === undefined) {
+    return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null, aadVersion: existing?.aadVersion ?? 0 };
+  }
   try {
     const activeKey = await deps.keyring.activeKey();
-    const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey });
-    return { sealed, masked: maskOf(apiKey) };
+    const aad = buildExecutionCredentialAad(identity);
+    const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey, aad });
+    return { sealed, masked: maskOf(apiKey), aadVersion: 1 };
   } catch (err) {
     // Any failure deriving/sealing under the current root key is treated as "the secret store is
     // unconfigured" — the realistic failure mode is a missing `TOVU_INTEGRATIONS_ROOT_KEY`, and
@@ -274,7 +285,7 @@ function mergeExecutionCredentialProviderId(explicit: string | null | undefined,
 function buildExecutionCredentialRecord(
   input: SetExecutionCredentialInput,
   existing: AdminExecutionCredentialRecord | null,
-  seal: { readonly sealed: SealedSecret | null; readonly masked: string | null },
+  seal: { readonly sealed: SealedSecret | null; readonly masked: string | null; readonly aadVersion: number },
   now: ISODateTime,
 ): AdminExecutionCredentialRecord {
   return {
@@ -287,6 +298,7 @@ function buildExecutionCredentialRecord(
     maxTokens: mergeExecutionCredentialOptionalField(input.maxTokens, existing?.maxTokens),
     sealed: seal.sealed,
     masked: seal.masked,
+    aadVersion: seal.aadVersion,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
@@ -300,7 +312,7 @@ export async function setExecutionCredential(
 
   const existing = await deps.repo.findByWorkspaceAndPrincipal(input);
   const now = deps.clock.nowIso();
-  const seal = await resolveExecutionCredentialSeal(deps, input.apiKey, existing);
+  const seal = await resolveExecutionCredentialSeal(deps, { workspaceId: input.workspaceId, principalId: input.principalId }, input.apiKey, existing);
   const record = buildExecutionCredentialRecord(input, existing, seal, now);
 
   await deps.repo.upsert(record);
@@ -360,7 +372,11 @@ export async function resolveExecutionCredential(
   if (!record || !record.sealed) return null;
 
   try {
-    const apiKey = await deps.sealer.open({ sealed: record.sealed });
+    // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
+    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed with
+    // NO aad and must be opened the same way, or auth-tag verification fails closed.
+    const aad = record.aadVersion === 1 ? buildExecutionCredentialAad({ workspaceId: input.workspaceId, principalId: input.principalId }) : undefined;
+    const apiKey = await deps.sealer.open({ sealed: record.sealed, aad });
     return {
       apiKey,
       protocol: record.protocol,

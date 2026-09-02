@@ -31,6 +31,7 @@ function makeRecord(overrides: Partial<AdminExecutionCredentialRecord> = {}): Ad
     maxTokens: null,
     sealed: null,
     masked: null,
+    aadVersion: 0,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

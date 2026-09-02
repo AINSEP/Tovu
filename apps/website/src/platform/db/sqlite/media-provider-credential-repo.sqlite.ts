@@ -56,6 +56,7 @@ function toRecord(row: Row): MediaProviderCredentialRecord {
     model: row.model,
     sealed,
     keyTail: row.keyTail,
+    aadVersion: row.aadVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -82,6 +83,7 @@ function upsertRow(writer: Writer, record: MediaProviderCredentialRecord): void 
     sealedNonce: record.sealed?.nonce ?? null,
     sealedAlg: record.sealed?.alg ?? null,
     keyTail: record.keyTail,
+    aadVersion: record.aadVersion,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };

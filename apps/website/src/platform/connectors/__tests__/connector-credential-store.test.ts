@@ -12,6 +12,7 @@ import {
   type ConnectorCredentialRepoPort,
   type ConnectorCredentialRow,
 } from "../connector-credential-store.js";
+import { buildConnectorCredentialAad } from "../connector-credential-aad.js";
 
 /**
  * @file `connector-credential-store.ts` — the serialized write queue behind connected accounts.
@@ -174,4 +175,80 @@ test("hydrate reloads what a successful write persisted", async () => {
     provider: "composio",
     token: "tok_connector-a",
   });
+});
+
+// ---------------------------------------------------------------------------
+// AAD (2026-09-02 gap closure) — `composio_connector_credentials` used to seal with no additional
+// authenticated data at all, so a ciphertext was transplantable between connector rows. New writes
+// must bind `(workspaceId, connectorId)` into the seal; existing (`aad_version = 0`) rows must keep
+// opening exactly as before so no live connected account goes dark mid-migration.
+// ---------------------------------------------------------------------------
+
+test("a freshly set credential is sealed with AAD bound to (workspaceId, connectorId) and the row is marked aadVersion 1", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  const keyring = new InMemoryKeyring();
+  const store = makeStore(repo, keyring);
+
+  store.set(makeRecord("connector-a"));
+  await store.flush();
+
+  const [row] = await repo.listByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 1);
+
+  const sealer = new AesGcmSecretSealer(keyring);
+  // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
+  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
+  const opened = await sealer.open({
+    sealed: row!.sealed!,
+    aad: buildConnectorCredentialAad({ workspaceId: WORKSPACE, connectorId: "connector-a" }),
+  });
+  assert.deepEqual(JSON.parse(opened), { provider: "composio", token: "tok_connector-a" });
+});
+
+test("a legacy row sealed with NO aad (aadVersion 0) still hydrates to its exact credentials — existing accounts are never disconnected", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const legacySealed = await sealer.seal({
+    plaintext: JSON.stringify({ provider: "composio", token: "tok_legacy" }),
+    key: await keyring.activeKey(),
+  });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    connectorId: "connector-legacy",
+    accountLabel: "legacy account",
+    sealed: legacySealed,
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const store = makeStore(repo, keyring);
+  await store.hydrate();
+  assert.deepEqual(store.get("connector-legacy")?.credentials, { provider: "composio", token: "tok_legacy" });
+});
+
+test("AAD binding: swapping one connector's ciphertext onto another connector's row fails closed (adversarial cross-row transplant) — hydrate skips it rather than surfacing a decrypt error", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  const keyring = new InMemoryKeyring();
+  const store = makeStore(repo, keyring);
+
+  store.set(makeRecord("connector-a"));
+  store.set(makeRecord("connector-b"));
+  await store.flush();
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  const rowA = rows.find((r) => r.connectorId === "connector-a")!;
+  const rowB = rows.find((r) => r.connectorId === "connector-b")!;
+
+  // Simulate an attacker (or a bad migration) with DB write access moving connector-b's ciphertext
+  // onto connector-a's row — the AAD (bound to the row's OWN connectorId) must reject this even
+  // though the AES key is shared app-wide.
+  await repo.upsert({ ...rowA, sealed: rowB.sealed });
+
+  const reader = makeStore(repo, keyring);
+  await reader.hydrate();
+  // `hydrate`'s own documented contract: an unreadable row is SKIPPED, not thrown — the connector
+  // reads as disconnected rather than taking down the whole surface.
+  assert.equal(reader.get("connector-a"), undefined, "a transplanted ciphertext must fail closed, never decrypt as connector-a's own credentials");
 });

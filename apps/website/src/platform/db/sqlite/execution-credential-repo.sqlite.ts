@@ -38,6 +38,7 @@ function toRecord(row: Row): AdminExecutionCredentialRecord {
     maxTokens: row.maxTokens,
     sealed,
     masked: row.masked,
+    aadVersion: row.aadVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -74,6 +75,7 @@ export class SqliteAdminExecutionCredentialRepo implements AdminExecutionCredent
       sealedNonce: record.sealed?.nonce ?? null,
       sealedAlg: record.sealed?.alg ?? null,
       masked: record.masked,
+      aadVersion: record.aadVersion,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };

@@ -13,6 +13,7 @@ import {
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
 } from "../site-credential-store.js";
+import { buildSiteAssistantCredentialAad } from "../site-credential-aad.js";
 
 /**
  * @file `site-credential-store.ts` — ADR-058's write-only credential contract and the runtime
@@ -267,4 +268,88 @@ test("resolveSiteAssistantApiKey returns the key, provider, baseUrl, and model t
     baseUrl: "https://generativelanguage.googleapis.com",
     model: "gemini-flash-latest",
   });
+});
+
+// ---------------------------------------------------------------------------
+// AAD (2026-09-02 gap closure) — `site_assistant_credentials` used to seal with no additional
+// authenticated data at all, so a ciphertext was transplantable between workspace rows. New writes
+// must bind `workspaceId` into the seal; existing (`aad_version = 0`) rows must keep opening exactly
+// as before so no live visitor-assistant key goes dark mid-migration.
+// ---------------------------------------------------------------------------
+
+test("a freshly saved key is sealed with AAD bound to workspaceId and the row is marked aadVersion 1", async () => {
+  const { deps, repo, sealer } = makeDeps();
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "aad-bound-key-1234" });
+
+  const row = await repo.findByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 1);
+
+  // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
+  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
+  const opened = await sealer.open({ sealed: row!.sealed!, aad: buildSiteAssistantCredentialAad({ workspaceId: WORKSPACE }) });
+  assert.equal(opened, "aad-bound-key-1234");
+});
+
+test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
+  const { deps, repo, sealer, keyring } = makeDeps();
+  const legacySealed = await sealer.seal({ plaintext: "legacy-no-aad-5678", key: await keyring.activeKey() });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    provider: "google",
+    baseUrl: null,
+    model: null,
+    sealed: legacySealed,
+    masked: "••••5678",
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
+  assert.deepEqual(resolved, { apiKey: "legacy-no-aad-5678", provider: "google", baseUrl: null, model: null });
+});
+
+test("a metadata-only edit over a legacy (aadVersion 0) row leaves the ciphertext AND its aadVersion untouched", async () => {
+  // `setSiteAssistantCredential` with no `apiKey` must carry the existing sealed value forward
+  // byte-for-byte, not merely resolve to the right plaintext — carrying the wrong `aadVersion`
+  // alongside an UNCHANGED ciphertext would make the row unopenable (the ciphertext still has no
+  // aad baked into its auth tag, but the row would now claim it does).
+  const { deps, repo, sealer, keyring } = makeDeps();
+  const legacySealed = await sealer.seal({ plaintext: "legacy-untouched-1111", key: await keyring.activeKey() });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    provider: "google",
+    baseUrl: null,
+    model: null,
+    sealed: legacySealed,
+    masked: "••••1111",
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, model: "gemini-flash-latest" });
+
+  const row = await repo.findByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 0, "aadVersion must still say legacy — the ciphertext itself was never re-sealed");
+  const resolved = await resolveSiteAssistantApiKey({ repo, sealer }, { workspaceId: WORKSPACE });
+  assert.equal(resolved?.apiKey, "legacy-untouched-1111", "the carried-forward ciphertext must still open correctly");
+});
+
+test("AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant)", async () => {
+  const { deps, repo } = makeDeps();
+  const OTHER_WORKSPACE = "workspace-2";
+  await setSiteAssistantCredential(deps, { workspaceId: WORKSPACE, apiKey: "workspace-one-key" });
+  await setSiteAssistantCredential(deps, { workspaceId: OTHER_WORKSPACE, apiKey: "workspace-two-key" });
+
+  const rowOne = await repo.findByWorkspaceId(WORKSPACE);
+  const rowTwo = await repo.findByWorkspaceId(OTHER_WORKSPACE);
+
+  // Simulate an attacker (or a bad migration) with DB write access moving workspace two's
+  // ciphertext onto workspace one's row — the AAD (bound to the row's OWN workspaceId) must reject
+  // this even though the AES key is shared app-wide.
+  await repo.upsert({ ...rowOne!, sealed: rowTwo!.sealed, masked: rowTwo!.masked });
+
+  const resolved = await resolveSiteAssistantApiKey(deps, { workspaceId: WORKSPACE });
+  assert.equal(resolved, null, "resolveSiteAssistantApiKey never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
 });

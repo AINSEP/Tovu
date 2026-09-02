@@ -4,6 +4,7 @@ import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 import type { ComposioConfig, ComposioConfigStore } from "@jini-ai/integrations/composio";
 
 import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../features/webhooks/index.js";
+import { buildComposioConfigAad } from "./composio-config-aad.js";
 
 /**
  * @file The workspace's Composio project credentials — what the admin's Settings → Connectors tab
@@ -36,6 +37,12 @@ export interface ComposioConfigRecord {
   sealed: SealedSecret | null;
   /** Last {@link KEY_TAIL_LENGTH} characters of the API key. `null` iff `sealed` is `null`. */
   keyTail: string | null;
+  /** `0` = `sealed` (when non-null) was sealed with NO aad — open with none either, or auth-tag
+   *  verification fails. `1` = sealed under `composio-config-aad.ts`'s `buildComposioConfigAad`;
+   *  open MUST supply the byte-identical string. Meaningless (and always `0`) when `sealed` is
+   *  `null`. Added 2026-09-02 (AAD gap closure) — see `db/schema.ts`'s `composioConfig.aad_version`
+   *  doc for the full migration story. */
+  aadVersion: number;
   /** Connector id → Composio auth-config id. Empty object when none are provisioned. */
   authConfigIds: Record<string, string>;
   /**
@@ -152,8 +159,16 @@ export async function readComposioConfig(
 ): Promise<ComposioConfig> {
   const record = await deps.repo.findByWorkspaceId(input.workspaceId);
   if (record === null) return { apiKey: "", authConfigIds: {} };
-  const apiKey = record.sealed === null ? "" : await deps.sealer.open({ sealed: record.sealed });
+  const apiKey = record.sealed === null ? "" : await deps.sealer.open({ sealed: record.sealed, aad: aadFor(record) });
   return { apiKey, authConfigIds: { ...record.authConfigIds } };
+}
+
+/** `aad` for `record`'s CURRENT `sealed` value — the derived string only when the row says it was
+ *  sealed under one (`aadVersion === 1`); `undefined` for a legacy row (`aadVersion === 0`, every
+ *  row written before the 2026-09-02 AAD gap closure), which must be opened with no aad at all or
+ *  auth-tag verification fails closed. See {@link ComposioConfigRecord.aadVersion}. */
+function aadFor(record: ComposioConfigRecord): string | undefined {
+  return record.aadVersion === 1 ? buildComposioConfigAad({ workspaceId: record.workspaceId }) : undefined;
 }
 
 function assertValidApiKey(apiKey: string): void {
@@ -192,7 +207,7 @@ async function isSameApiKey(input: {
   if (existing?.sealed == null) return false;
   let existingPlaintext: string;
   try {
-    existingPlaintext = await sealer.open({ sealed: existing.sealed });
+    existingPlaintext = await sealer.open({ sealed: existing.sealed, aad: aadFor(existing) });
   } catch {
     return false;
   }
@@ -235,7 +250,8 @@ export async function saveComposioApiKey(
 
   let sealed: SealedSecret;
   try {
-    sealed = await deps.sealer.seal({ plaintext: apiKey, key: await deps.keyring.activeKey() });
+    const aad = buildComposioConfigAad({ workspaceId: input.workspaceId });
+    sealed = await deps.sealer.seal({ plaintext: apiKey, key: await deps.keyring.activeKey(), aad });
   } catch (err) {
     throw new ComposioConfigSecretStoreUnconfiguredError(
       `composio credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
@@ -263,6 +279,10 @@ export async function saveComposioApiKey(
     workspaceId: input.workspaceId,
     sealed,
     keyTail,
+    // A fresh seal every save (this function's own doc: "never a re-wrap"), so the row always ends
+    // up at aadVersion 1 regardless of what it was before — including a legacy (aadVersion 0) row
+    // that a same-key re-save just upgraded for free.
+    aadVersion: 1,
     authConfigIds: keyUnchanged ? { ...(existing?.authConfigIds ?? {}) } : {},
     keyGeneration,
     createdAt: existing?.createdAt ?? now,
@@ -303,6 +323,7 @@ export async function clearComposioApiKey(
     ...existing,
     sealed: null,
     keyTail: null,
+    aadVersion: 0,
     authConfigIds: {},
     keyGeneration: existing.keyGeneration + 1,
     updatedAt: deps.clock.nowIso(),

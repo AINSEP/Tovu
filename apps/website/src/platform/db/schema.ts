@@ -1431,6 +1431,22 @@ export const siteAssistantCredentials = sqliteTable(
     /** `••••<last 4 chars>` — precomputed at write time, matching `@jini-ai/ui`'s existing
      *  `maskedKeyLabel` convention (`features/media-providers/rules.js`). */
     masked: text("masked"),
+    /**
+     * Migration `0055` (2026-09-02, AAD-gap closure). `0` = `sealed_ciphertext` was sealed with NO
+     * additional authenticated data (every row written before this migration) and MUST be opened
+     * with no `aad` either, or auth-tag verification fails; `1` = sealed under
+     * `site-credential-aad.ts`'s `buildSiteAssistantCredentialAad`, and open MUST supply the
+     * byte-identical string. Meaningless when `sealed_ciphertext` is `NULL` (no key stored) —
+     * defaults to `0` there and nothing ever reads it in that state.
+     *
+     * Exists because AAD is authenticated but never stored (`secret-sealer.aesgcm.ts`'s own header):
+     * a legacy row's ciphertext auth tag only verifies under NO aad, so open() cannot simply start
+     * passing one — it must know, per row, which lineage that row's ciphertext belongs to. New
+     * writes always seal with `aad` and set this to `1`; `development/scripts/backfill-site-
+     * assistant-credential-aad.ts` flips existing `0` rows to `1` by opening under no aad and
+     * re-sealing the same plaintext under the derived aad — see that script's own header.
+     */
+    aadVersion: integer("aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -1493,6 +1509,11 @@ export const adminExecutionCredentials = sqliteTable(
     sealedAlg: text("sealed_alg"),
     /** `••••<last 4 chars>`, precomputed at write time — same convention as ADR-058 §3. */
     masked: text("masked"),
+    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
+     *  `1`=`buildExecutionCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
+     *  above; see that column's own doc for the full reasoning this one shares verbatim. Backfilled
+     *  by `development/scripts/backfill-execution-credential-aad.ts`. */
+    aadVersion: integer("aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -1536,9 +1557,10 @@ export const adminExecutionCredentials = sqliteTable(
  * `publish-credentials/aad.ts`'s `buildPublishCredentialAad` for the one place that string format is
  * defined. This is what makes a row's ciphertext non-transplantable to a different workspace, a
  * different provider, or a different credential set even though the underlying AES key is shared
- * app-wide (Terra's 2026-08-15 finding: the two tables above, sealed with no AAD at all, do not have
- * this property — out of scope to retrofit here without touching their live rows, see this dispatch's
- * brief).
+ * app-wide (Terra's 2026-08-15 finding: at the time, the two tables above sealed with no AAD at all
+ * and did not have this property, and retrofitting them was out of scope for this table's own
+ * dispatch — that retrofit is `site_assistant_credentials.aad_version`/
+ * `admin_execution_credentials.aad_version` above, closed 2026-09-02).
  *
  * Deliberately NO `masked` column — a divergence from BOTH tables above, made on Terra's explicit
  * recommendation: label + `updatedAt` already identify a connection well enough for a human to
@@ -2017,6 +2039,11 @@ export const mediaProviderCredentials = sqliteTable(
      *  `maskedKeyLabel` as its `apiKeyTail`. Stored as the bare tail, not the `••••`-prefixed
      *  label, because that package clamps and renders the prefix itself. */
     keyTail: text("key_tail"),
+    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
+     *  `1`=`buildMediaProviderCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
+     *  documents in full; per `(workspace_id, provider_id)` row, not per workspace. Backfilled by
+     *  `development/scripts/backfill-media-provider-credential-aad.ts`. */
+    aadVersion: integer("aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -2089,6 +2116,10 @@ export const composioConfig = sqliteTable(
      * Defaulted rather than backfilled: every pre-existing row starts at 0 and is immediately valid.
      */
     keyGeneration: integer("key_generation").notNull().default(0),
+    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
+     *  `1`=`buildComposioConfigAad`-bound contract as `site_assistant_credentials.aad_version`
+     *  documents in full. Backfilled by `development/scripts/backfill-composio-config-aad.ts`. */
+    aadVersion: integer("aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -2278,6 +2309,11 @@ export const composioConnectorCredentials = sqliteTable(
     sealedNonce: text("sealed_nonce"),
     /** Always `'aes-256-gcm'` today; stored so a future algorithm change is data. */
     sealedAlg: text("sealed_alg"),
+    /** Migration `0055` (2026-09-02, AAD-gap closure) — same `0`=legacy-no-aad /
+     *  `1`=`buildConnectorCredentialAad`-bound contract as `site_assistant_credentials.aad_version`
+     *  documents in full; per `(workspace_id, connector_id)` row. Backfilled by
+     *  `development/scripts/backfill-connector-credential-aad.ts`. */
+    aadVersion: integer("aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

@@ -59,6 +59,7 @@ function toRecord(row: Row): ComposioConfigRecord {
     workspaceId: row.workspaceId,
     sealed,
     keyTail: row.keyTail,
+    aadVersion: row.aadVersion,
     authConfigIds: parseAuthConfigIds(row.authConfigIds),
     keyGeneration: row.keyGeneration,
     createdAt: row.createdAt,
@@ -92,6 +93,7 @@ export class SqliteComposioConfigRepo implements ComposioConfigRepoPort {
       sealedNonce: record.sealed?.nonce ?? null,
       sealedAlg: record.sealed?.alg ?? null,
       keyTail: record.keyTail,
+      aadVersion: record.aadVersion,
       // Stored as `null` rather than `"{}"` when empty so the common unconfigured row carries no
       // JSON at all, matching how every other optional column here reads as absent.
       authConfigIds: serializeAuthConfigIds(record.authConfigIds),

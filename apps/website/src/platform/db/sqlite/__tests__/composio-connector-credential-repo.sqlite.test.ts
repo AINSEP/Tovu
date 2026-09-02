@@ -29,6 +29,7 @@ function makeRow(overrides: Partial<ConnectorCredentialRow> = {}): ConnectorCred
     connectorId: "github",
     accountLabel: null,
     sealed: null,
+    aadVersion: 0,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

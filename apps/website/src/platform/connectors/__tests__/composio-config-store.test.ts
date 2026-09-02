@@ -17,6 +17,7 @@ import {
   saveComposioAuthConfigIds,
   type ComposioConfigView,
 } from "../composio-config-store.js";
+import { buildComposioConfigAad } from "../composio-config-aad.js";
 
 /**
  * @file `composio-config-store.ts` — the sealed Composio project key behind the admin's
@@ -477,4 +478,89 @@ test("the view shape stays assignable to Jini's PublicComposioConfig", async () 
   // `PublicComposioConfig`, this stops compiling instead of drifting silently.
   const asJiniPublic: PublicComposioConfig = view;
   assert.equal(asJiniPublic.configured, true);
+});
+
+// ---------------------------------------------------------------------------
+// AAD (2026-09-02 gap closure) — `composio_config` used to seal with no additional authenticated
+// data at all, so a ciphertext was transplantable between workspace rows. New writes must bind
+// `workspaceId` into the seal; existing (`aad_version = 0`) rows must keep opening exactly as
+// before so no live Composio project key goes dark mid-migration.
+// ---------------------------------------------------------------------------
+
+test("a freshly saved key is sealed with AAD bound to workspaceId and the row is marked aadVersion 1", async () => {
+  const deps = makeDeps();
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_AAD_BOUND_1234" });
+
+  const row = await deps.repo.findByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 1);
+
+  // Opening under the WRONG aad (the legacy no-aad shape) must fail closed.
+  await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
+  const opened = await deps.sealer.open({
+    sealed: row!.sealed!,
+    aad: buildComposioConfigAad({ workspaceId: WORKSPACE }),
+  });
+  assert.equal(opened, "comp_live_AAD_BOUND_1234");
+});
+
+test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
+  const deps = makeDeps();
+  const legacySealed = await deps.sealer.seal({ plaintext: "comp_live_LEGACY_5678", key: await deps.keyring.activeKey() });
+  await deps.repo.upsert({
+    workspaceId: WORKSPACE,
+    sealed: legacySealed,
+    keyTail: "5678",
+    authConfigIds: {},
+    keyGeneration: 0,
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const config = await readComposioConfig(deps, { workspaceId: WORKSPACE });
+  assert.equal(config.apiKey, "comp_live_LEGACY_5678");
+});
+
+test("re-pasting the SAME key over a legacy (aadVersion 0) row still recognizes it as unchanged and preserves authConfigIds", async () => {
+  // isSameApiKey must open the EXISTING row (legacy, no aad) correctly to compare — a regression
+  // here would fail closed into "treat as changed", silently discarding provisioned auth-config ids
+  // on every save until the workspace is backfilled.
+  const deps = makeDeps();
+  const legacySealed = await deps.sealer.seal({ plaintext: "comp_live_SAME_9999", key: await deps.keyring.activeKey() });
+  await deps.repo.upsert({
+    workspaceId: WORKSPACE,
+    sealed: legacySealed,
+    keyTail: "9999",
+    authConfigIds: { github: "ac_github_1" },
+    keyGeneration: 3,
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const view = await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_SAME_9999" });
+  assert.deepEqual(view, { configured: true, apiKeyTail: "9999" });
+
+  const row = await deps.repo.findByWorkspaceId(WORKSPACE);
+  assert.deepEqual(row?.authConfigIds, { github: "ac_github_1" }, "authConfigIds must survive a same-key re-save");
+  assert.equal(row?.keyGeneration, 3, "keyGeneration must not bump on a same-key re-save");
+  // The row was re-saved, so it is now upgraded to the new AAD scheme.
+  assert.equal(row?.aadVersion, 1);
+});
+
+test("AAD binding: swapping the sealed key onto a DIFFERENT workspace's row fails closed (adversarial cross-workspace transplant)", async () => {
+  const deps = makeDeps();
+  const OTHER_WORKSPACE = "workspace-2";
+  await saveComposioApiKey(deps, { workspaceId: WORKSPACE, apiKey: "comp_live_workspace_one" });
+  await saveComposioApiKey(deps, { workspaceId: OTHER_WORKSPACE, apiKey: "comp_live_workspace_two" });
+
+  const rowOne = await deps.repo.findByWorkspaceId(WORKSPACE);
+  const rowTwo = await deps.repo.findByWorkspaceId(OTHER_WORKSPACE);
+
+  // Simulate an attacker (or a bad migration) with DB write access moving workspace two's
+  // ciphertext onto workspace one's row — the AAD (bound to the row's OWN workspaceId) must reject
+  // this even though the AES key is shared app-wide.
+  await deps.repo.upsert({ ...rowOne!, sealed: rowTwo!.sealed, keyTail: rowTwo!.keyTail });
+
+  await assert.rejects(() => readComposioConfig(deps, { workspaceId: WORKSPACE }));
 });

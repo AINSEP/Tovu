@@ -23,6 +23,7 @@ function makeRecord(overrides: Partial<SiteAssistantCredentialRecord> = {}): Sit
     model: null,
     sealed: null,
     masked: null,
+    aadVersion: 0,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,

@@ -92,16 +92,27 @@ export interface KeyringPort {
  * Wrapping is always under a {@link KeyringPort} root key, so `content.db` holds only ciphertext.
  *
  * `aad` (Additional Authenticated Data, AES-GCM's own mechanism — RFC 5116 §5.1) is OPTIONAL and
- * backward compatible: every caller that predates it (`site-credential-store.ts`,
- * `execution-credential-store.ts`, `provider-credential-store.ts` — all three sealing into rows with
- * NO AAD) keeps sealing/opening exactly as before. A caller that DOES pass `aad` at seal time MUST
- * pass the byte-identical string at open time, or `open()` throws (auth-tag verification fails) —
- * this is what makes ciphertext non-transplantable across whatever scope `aad` encodes (e.g. a
- * `workspaceId + providerId + credentialSetId` binding — see
- * `features/deployments/publish-credentials/aad.ts`), without changing `SealedSecret`'s own shape:
- * AAD is authenticated but never encrypted or persisted by GCM, so a caller must always be able to
- * RE-DERIVE the same `aad` string from context at open time — it is not something to store alongside
- * the ciphertext.
+ * backward compatible: a caller that never passes it keeps sealing/opening exactly as before. A
+ * caller that DOES pass `aad` at seal time MUST pass the byte-identical string at open time, or
+ * `open()` throws (auth-tag verification fails) — this is what makes ciphertext non-transplantable
+ * across whatever scope `aad` encodes (e.g. a `workspaceId + providerId + credentialSetId` binding —
+ * see `features/deployments/publish-credentials/aad.ts`), without changing `SealedSecret`'s own
+ * shape: AAD is authenticated but never encrypted or persisted by GCM, so a caller must always be
+ * able to RE-DERIVE the same `aad` string from context at open time — it is not something to store
+ * alongside the ciphertext.
+ *
+ * As of the 2026-09-02 AAD gap closure, every credential-shaped table in this codebase seals with an
+ * aad: `site-credential-store.ts`, `execution-credential-store.ts`,
+ * `media/provider-credential-store.ts`, `connectors/composio-config-store.ts`, and
+ * `connectors/connector-credential-store.ts` (this doc used to name three of these as sealing with
+ * NO aad at all — that list was already stale by the time it named "three": it predated the last two
+ * tables entirely, and none of the five unconditionally omit `aad` any more). Each of those five now
+ * carries its own `aad_version` column (`db/schema.ts`) so a row sealed BEFORE this change (no aad)
+ * can still be opened correctly while a per-store backfill script re-seals it under the new aad — see
+ * any of those five stores' own file header for the full migration story, and
+ * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves. `aad` stays
+ * optional at the port level regardless: a future ninth or tenth table with no natural row identity
+ * to bind is still free to seal with none.
  */
 export interface SecretSealerPort {
   seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret>;

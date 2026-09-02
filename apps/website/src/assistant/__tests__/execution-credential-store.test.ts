@@ -13,6 +13,7 @@ import {
   resolveExecutionCredential,
   setExecutionCredential,
 } from "../execution-credential-store.js";
+import { buildExecutionCredentialAad } from "../execution-credential-aad.js";
 
 /**
  * @file `execution-credential-store.ts` — the ADMIN's own BYOK credential, write-only contract and
@@ -286,4 +287,66 @@ test("resolveExecutionCredential returns the key and config together on success"
     model: "claude-opus-4-8",
     maxTokens: 8192,
   });
+});
+
+// ---------------------------------------------------------------------------
+// AAD (2026-09-02 gap closure) — `admin_execution_credentials` used to seal with no additional
+// authenticated data at all, so a ciphertext was transplantable between rows (across principals in
+// the same workspace, or across workspaces for the same principal). New writes must bind
+// `(workspaceId, principalId)` into the seal; existing (`aad_version = 0`) rows must keep opening
+// exactly as before so no live BYOK key goes dark mid-migration.
+// ---------------------------------------------------------------------------
+
+test("a freshly saved key is sealed with AAD bound to (workspaceId, principalId) and the row is marked aadVersion 1", async () => {
+  const { deps, repo, sealer } = makeDeps();
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "aad-bound-key-1234" });
+
+  const row = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
+  assert.equal(row?.aadVersion, 1);
+
+  await assert.rejects(() => sealer.open({ sealed: row!.sealed! }));
+  const opened = await sealer.open({
+    sealed: row!.sealed!,
+    aad: buildExecutionCredentialAad({ workspaceId: WORKSPACE, principalId: ADMIN_A }),
+  });
+  assert.equal(opened, "aad-bound-key-1234");
+});
+
+test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
+  const { deps, repo, sealer, keyring } = makeDeps();
+  const legacySealed = await sealer.seal({ plaintext: "legacy-no-aad-5678", key: await keyring.activeKey() });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    principalId: ADMIN_A,
+    protocol: "anthropic",
+    providerId: null,
+    baseUrl: null,
+    model: null,
+    maxTokens: null,
+    sealed: legacySealed,
+    masked: "••••5678",
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const resolved = await resolveExecutionCredential({ repo, sealer }, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  assert.deepEqual(resolved, { apiKey: "legacy-no-aad-5678", protocol: "anthropic", providerId: null, baseUrl: null, model: null, maxTokens: null });
+});
+
+test("AAD binding: swapping the sealed key onto a DIFFERENT PRINCIPAL's row in the SAME workspace fails closed (adversarial cross-row transplant)", async () => {
+  const { deps, repo } = makeDeps();
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A, apiKey: "admin-a-key" });
+  await setExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_B, apiKey: "admin-b-key" });
+
+  const rowA = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_A });
+  const rowB = await repo.findByWorkspaceAndPrincipal({ workspaceId: WORKSPACE, principalId: ADMIN_B });
+
+  // Simulate an attacker (or a bad migration) with DB write access moving admin B's ciphertext onto
+  // admin A's row — the AAD (bound to the row's OWN principalId) must reject this even though the
+  // AES key is shared app-wide.
+  await repo.upsert({ ...rowA!, sealed: rowB!.sealed, masked: rowB!.masked });
+
+  const resolved = await resolveExecutionCredential(deps, { workspaceId: WORKSPACE, principalId: ADMIN_A });
+  assert.equal(resolved, null, "resolveExecutionCredential never throws — a transplanted ciphertext must resolve to null, not the wrong plaintext");
 });

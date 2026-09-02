@@ -12,6 +12,7 @@ import {
   resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
+import { buildMediaProviderCredentialAad } from "../aad.js";
 
 /**
  * @file `provider-credential-store.ts` — the whole-map-replace credential contract behind the
@@ -416,7 +417,7 @@ test("a metadata-only save cannot resurrect a key that another save rotated whil
   const openai = rows.find((row) => row.providerId === "openai");
   assert.notEqual(openai?.sealed, null);
   assert.equal(
-    await deps.sealer.open({ sealed: openai!.sealed! }),
+    (await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }))?.apiKey,
     "sk-beta-9999",
     "the stored ciphertext must be the rotated key, not the one this save read before it started"
   );
@@ -567,4 +568,75 @@ test("resolveMediaProviderCredential never includes the plaintext key anywhere i
   assert.ok(resolved);
   const occurrences = JSON.stringify(resolved).split("sk-visible-only-once-2222").length - 1;
   assert.equal(occurrences, 1, "the key must appear exactly once — in apiKey, nowhere duplicated");
+});
+
+// ---------------------------------------------------------------------------
+// AAD (2026-09-02 gap closure) — `media_provider_credentials` used to seal with no additional
+// authenticated data at all, so a ciphertext was transplantable between provider rows. New writes
+// must bind `(workspaceId, providerId)` into the seal; existing (`aad_version = 0`) rows must keep
+// opening exactly as before so no live credential goes dark mid-migration.
+// ---------------------------------------------------------------------------
+
+test("a freshly saved key is sealed with AAD bound to (workspaceId, providerId) and the row is marked aadVersion 1", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-aad-bound-1234" } },
+  });
+
+  const [row] = await repo.listByWorkspaceId(WORKSPACE);
+  assert.equal(row?.aadVersion, 1);
+
+  // Opening under the WRONG aad (the legacy no-aad shape) must fail closed — proof the seal really
+  // bound an aad, not merely that the field was set.
+  await assert.rejects(() => deps.sealer.open({ sealed: row!.sealed! }));
+  const opened = await deps.sealer.open({
+    sealed: row!.sealed!,
+    aad: buildMediaProviderCredentialAad({ workspaceId: WORKSPACE, providerId: "openai" }),
+  });
+  assert.equal(opened, "sk-aad-bound-1234");
+});
+
+test("a legacy row sealed with NO aad (aadVersion 0) still resolves to its exact plaintext — existing credentials are never bricked", async () => {
+  const { repo, deps } = makeDeps();
+  const legacySealed = await deps.sealer.seal({ plaintext: "sk-legacy-no-aad-5678", key: await deps.keyring.activeKey() });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    providerId: "openai",
+    baseUrl: null,
+    model: null,
+    sealed: legacySealed,
+    keyTail: "5678",
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.deepEqual(resolved, { apiKey: "sk-legacy-no-aad-5678", baseUrl: null, model: null });
+});
+
+test("AAD binding: swapping one provider's ciphertext onto another provider's row fails closed (adversarial cross-row transplant)", async () => {
+  const { repo, deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: {
+      openai: { apiKey: "sk-openai-real-token" },
+      grok: { apiKey: "xai-grok-real-token" },
+    },
+  });
+
+  const rows = await repo.listByWorkspaceId(WORKSPACE);
+  const openaiRow = rows.find((row) => row.providerId === "openai")!;
+  const grokRow = rows.find((row) => row.providerId === "grok")!;
+
+  // Simulate an attacker (or a bad migration) with DB write access moving grok's ciphertext onto
+  // the openai row — the AAD (bound to the row's OWN providerId) must reject this even though the
+  // AES key is shared app-wide.
+  await repo.upsert({ ...openaiRow, sealed: grokRow.sealed, keyTail: grokRow.keyTail });
+
+  await assert.rejects(
+    () => resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" }),
+    MediaProviderCredentialSecretStoreUnconfiguredError
+  );
 });
