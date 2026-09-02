@@ -10,8 +10,13 @@ desktop host (that's the sibling **`Tovu-Runner`** repo, which owns multi-site
 management, media/video generation, agent detection, and the operator chat). The
 dependency arrow only ever points **Runner → Tovu, never reverse** (ADR-011).
 
-**Status: greenfield.** Docs + the full ADR corpus are here; **there is no code
-yet.** This file is the build entry point.
+**Status: active, existing codebase.** The v1 first slice below has shipped and
+grown well past it — `apps/website`, `apps/admin`, `apps/site-chat`, and
+`packages/sdk` exist with a full git history (2,388+ commits as of 2026-09-02) and
+an active feature branch. Docs + the ADR corpus are here too, but treat this file
+as a record of *original intent* (the v1 slice, build order, and stack defaults
+below are still accurate as design decisions) — do not treat it as a from-scratch
+build entry point, and do not conclude there is nothing to port or preserve.
 
 ## Read first (in order)
 
@@ -22,8 +27,9 @@ yet.** This file is the build entry point.
 2. **`ADS-memory/docs/architecture/READING-ORDER.md`** → the 10-minute orientation path into
    `ADS-memory/docs/architecture/tovu-architecture.md` (target architecture, treat as
    aspirational not built).
-3. **`ADS-memory/reports/architecture/ADR-INDEX.md`** — the 14 accepted
-   decisions. Non-negotiable for v1: **001** (agent-native modular monolith),
+3. **`ADS-memory/reports/architecture/ADR-INDEX.md`** — 57+ entries (through
+   ADR-062 as of 2026-09-02; check the index for the current count). Non-negotiable
+   for v1: **001** (agent-native modular monolith),
    **002** (React blessed renderer), **006** (a port needs two adapters), **007**
    (`workspaceId` on everything), **010** (declarative themes by default), **011**
    (two topologies), **012** (site = folder instantiated from a template),
@@ -92,10 +98,13 @@ Desktop host, multi-site manager, media/video generation, agent detection, the
 shared (ADR-013/014): Tovu ships the **consumer** + **admin** profiles; Runner
 ships **operator**.
 
+## Housekeeping — done since this was written
+
+- `AGENTS.md` / `CLAUDE.md` are tailored to Tovu (done; no Runner-terms leftover).
+- Git is initialized and active (done; see repo history above).
+
 ## Housekeeping still to do
 
-- Tailor `AGENTS.md` / `CLAUDE.md` to Tovu (the copies still speak in Runner terms —
-  e.g. "treat `tovu/` as the active root").
-- No git in this repo yet (deliberate — initialize when you start).
-- `docs/design/admin-sections-ui-brief.md` (the per-site admin UI brief) is still in
-  Runner; it's really a Tovu doc and can be pulled over.
+- `docs/design/admin-sections-ui-brief.md` (the per-site admin UI brief) was still in
+  Runner as of this writing; it's really a Tovu doc and can be pulled over if it
+  hasn't been already — verify before acting on this line.
