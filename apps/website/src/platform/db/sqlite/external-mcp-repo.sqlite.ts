@@ -58,6 +58,8 @@ function toRecord(row: Row): ExternalMcpServerRecord {
     oauthTokenEnvName: row.oauthTokenEnvName,
     oauthRefreshLeaseUntil: row.oauthRefreshLeaseUntil,
     sealedOAuth,
+    aadVersion: row.aadVersion,
+    oauthAadVersion: row.oauthAadVersion,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -117,6 +119,8 @@ export class SqliteExternalMcpServerRepo implements ExternalMcpServerRepoPort {
       oauthSealedCiphertext: record.sealedOAuth?.ciphertext ?? null,
       oauthSealedNonce: record.sealedOAuth?.nonce ?? null,
       oauthSealedAlg: record.sealedOAuth?.alg ?? null,
+      aadVersion: record.aadVersion,
+      oauthAadVersion: record.oauthAadVersion,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
     };

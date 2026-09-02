@@ -2251,6 +2251,19 @@ export const externalMcpServers = sqliteTable(
     oauthSealedCiphertext: text("oauth_sealed_ciphertext"),
     oauthSealedNonce: text("oauth_sealed_nonce"),
     oauthSealedAlg: text("oauth_sealed_alg"),
+    /**
+     * AAD lineage of `sealed_*` (the env block). `0` = sealed before this table had AAD at all;
+     * `1` = bound to `assistant/external-mcp-aad.ts`'s `buildExternalMcpEnvAad`. Defaults to `0` so
+     * existing rows keep their meaning and stay openable through the legacy path until backfilled.
+     */
+    aadVersion: integer("aad_version").notNull().default(0),
+    /**
+     * AAD lineage of `oauth_sealed_*`, tracked SEPARATELY from `aad_version`: the two blobs are
+     * written by different flows (operator edit vs. token refresh), so one can be re-sealed under
+     * AAD while the other has not been. One shared counter would make a half-migrated row
+     * indistinguishable from a fully-migrated one and brick whichever blob it lied about.
+     */
+    oauthAadVersion: integer("oauth_aad_version").notNull().default(0),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

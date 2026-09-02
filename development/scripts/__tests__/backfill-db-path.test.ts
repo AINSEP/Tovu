@@ -23,6 +23,7 @@ const SCRIPTS = [
   "backfill-execution-credential-aad.ts",
   "backfill-media-provider-credential-aad.ts",
   "backfill-site-assistant-credential-aad.ts",
+  "backfill-external-mcp-aad.ts",
 ] as const;
 
 function runExpectingFailure(script: string, dbPath: string): { status: number | null; output: string } {

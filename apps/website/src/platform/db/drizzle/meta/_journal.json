@@ -393,6 +393,13 @@
       "when": 1788376724345,
       "tag": "0055_fearless_toro",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1788380632447,
+      "tag": "0056_redundant_killraven",
+      "breakpoints": true
     }
   ]
 }

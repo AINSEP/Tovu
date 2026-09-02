@@ -500,7 +500,7 @@ async function persistSelfConfiguration(
 ): Promise<ExternalMcpServerRecord> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
   const clientSecret = identity.clientSecret ?? existing.clientSecret;
-  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, {
+  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, record, {
     ...(clientSecret === undefined ? {} : { clientSecret }),
     ...(existing.tokens === undefined ? {} : { tokens: existing.tokens }),
   });
@@ -582,7 +582,7 @@ async function persistTokens(
   tokens: OAuthTokenSet,
 ): Promise<void> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, {
+  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, record, {
     // Read-modify-write: sealing `{ tokens }` alone would silently delete the operator's client
     // secret, and the next refresh would fail with a message about the provider rather than about us.
     ...(existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret }),
