@@ -1,0 +1,314 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { customCredentialSets, workspaces } from "../../../apps/website/src/platform/db/schema.js";
+import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
+import { buildCustomCredentialAad } from "../../../apps/website/src/features/custom-credentials/aad.js";
+
+/**
+ * @file The mandatory proof for `backfill-custom-credential-usernames.ts` (Pass 1 of the
+ * `custom_credential_sets.username` two-pass migration — see that script's own header): seal a row
+ * the OLD way (username only inside the sealed `{token, username?}` connection object, column left
+ * NULL exactly as every pre-2026-09-01 row is), run the migration, then confirm the plaintext
+ * `username` column now carries the SAME value the sealed payload has — WITHOUT the ciphertext
+ * changing by even one byte. Modeled on `backfill-vendor-credentials.test.ts`'s own real-sealer,
+ * real-subprocess approach (this file's own header), with one deliberate structural difference:
+ * that test's second case proves an abort-on-first-failure script stops without losing prior writes;
+ * this script's own dispatch requires the OPPOSITE behavior (continue past a single bad row so one
+ * rotated/wrong master secret never blocks every other credential from migrating), so this file's
+ * second case proves CONTINUATION instead of abort, and a third case proves the "no username" branch
+ * is a no-op skip, not a failure.
+ *
+ * Runs the real script as a child process (`execFileSync`) for the same reason
+ * `backfill-vendor-credentials.test.ts` gives for its own identical choice: `main()` runs
+ * unconditionally at import time, so a child process is the only way to invoke it without also
+ * inheriting this test runner's own argv/cwd.
+ *
+ * A throwaway, per-test random hex root key stands in for the real `TOVU_INTEGRATIONS_ROOT_KEY` —
+ * this file never touches the real one. `EnvOrFileKeyring`/`AesGcmSecretSealer` are constructed the
+ * exact same way `server/deps.ts`'s `siteAssistantSecretKeyring` is
+ * (`new EnvOrFileKeyring({ allowFileFallback: false })`), so this test exercises the identical
+ * key-derivation path production uses, not a stand-in double.
+ */
+
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
+const SCRIPT = path.join("development", "scripts", "backfill-custom-credential-usernames.ts");
+const NOW = "2026-09-01T00:00:00.000Z";
+const WORKSPACE = "workspace-1";
+
+function tmpDir(prefix: string): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
+  const env = { ...process.env, ...(rootKeyHex !== undefined ? { TOVU_INTEGRATIONS_ROOT_KEY: rootKeyHex } : {}) };
+  if (rootKeyHex === undefined) delete env.TOVU_INTEGRATIONS_ROOT_KEY;
+  return execFileSync("node", ["--import", "tsx", SCRIPT, "--db", dbPath, ...extraArgs], {
+    cwd: REPO_ROOT,
+    encoding: "utf8",
+    env,
+  });
+}
+
+interface SeedCredentialInput {
+  id: string;
+  label: string;
+  category: string;
+  baseUrl: string;
+  sealedCiphertext: string;
+  sealedNonce: string;
+  sealedKeyId: string;
+  sealedAlg: string;
+  username?: string | null;
+}
+
+test("backfill-custom-credential-usernames: populates the column from the sealed payload, leaves the ciphertext byte-identical, and is idempotent on re-run", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  const credId = "cred-name-com";
+  const plaintext = JSON.stringify({ token: "namecom_FIXTURE_TOKEN_AAAA1111", username: "owner@example.com" });
+  const sealed = await sealer.seal({
+    plaintext,
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: credId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  seedDb
+    .insert(customCredentialSets)
+    .values({
+      id: credId,
+      workspaceId: WORKSPACE,
+      label: "name.com",
+      category: "general",
+      baseUrl: "https://api.name.com",
+      additionalHostsJson: null,
+      username: null, // OLD-shape row: username lives only inside the sealed payload.
+      sealedKeyId: sealed.keyId,
+      sealedCiphertext: sealed.ciphertext,
+      sealedNonce: sealed.nonce,
+      sealedAlg: sealed.alg,
+      createdAt: NOW,
+      updatedAt: NOW,
+    })
+    .run();
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  // --- Dry run: needs NO root key at all and must write nothing. ---
+  const dryRunOutput = runScript(dbPath, undefined);
+  assert.match(dryRunOutput, /DRY RUN: 1 row\(s\) pending \(username NULL\), 0 already migrated, 1 total/);
+  const afterDryRun = openContentDb(dbPath);
+  const rowAfterDryRun = afterDryRun.select().from(customCredentialSets).all()[0]!;
+  assert.equal(rowAfterDryRun.username, null, "a dry run must never write");
+  assert.equal(rowAfterDryRun.sealedCiphertext, sealed.ciphertext, "a dry run must never touch the ciphertext");
+  afterDryRun.$client.close();
+
+  // --- Apply: decrypts under the row's own AAD and copies `username` onto the plaintext column. ---
+  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(applyOutput, /RESTORE POINT CAPTURED/);
+  assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${credId}`));
+  assert.match(applyOutput, /Done: 1 row\(s\) migrated, 0 already migrated, 0 skipped \(no username\), 0 failed, 1 total/);
+
+  const db = openContentDb(dbPath);
+  const row = db.select().from(customCredentialSets).all()[0]!;
+  assert.equal(row.username, "owner@example.com", "the column must carry the exact value from the sealed payload");
+
+  // --- THE MANDATORY PROOF: the ciphertext/nonce/key id/alg are byte-identical to what was sealed
+  // before this script ever ran — this script must NEVER rewrite the ciphertext. ---
+  assert.equal(row.sealedCiphertext, sealed.ciphertext, "sealed_ciphertext must be untouched");
+  assert.equal(row.sealedNonce, sealed.nonce, "sealed_nonce must be untouched");
+  assert.equal(row.sealedKeyId, sealed.keyId, "sealed_key_id must be untouched");
+  assert.equal(row.sealedAlg, sealed.alg, "sealed_alg must be untouched");
+
+  // The sealed payload must still open correctly under the SAME AAD as before (this script never
+  // re-seals) — confirms the ciphertext claim above isn't just an unchanged-string coincidence.
+  const reopened = await sealer.open({
+    sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: credId }),
+  });
+  assert.equal(reopened, plaintext);
+  db.$client.close();
+
+  // --- Idempotency: a re-run over an already-migrated database is a complete no-op — no restore
+  // point (nothing pending), and the column/ciphertext are unchanged. ---
+  const secondApplyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(secondApplyOutput, /Nothing to migrate/);
+  assert.doesNotMatch(secondApplyOutput, /RESTORE POINT CAPTURED/);
+  const afterSecondApply = openContentDb(dbPath);
+  const rowAfterSecondApply = afterSecondApply.select().from(customCredentialSets).all()[0]!;
+  assert.equal(rowAfterSecondApply.username, "owner@example.com");
+  assert.equal(rowAfterSecondApply.sealedCiphertext, sealed.ciphertext);
+  afterSecondApply.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-custom-credential-usernames: a row that fails to decrypt is skipped and counted, but its siblings still migrate — and the run exits non-zero", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-corrupt-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  // A row this test will corrupt after sealing it correctly — simulates a bit-flipped/tampered
+  // ciphertext (or one sealed under a rotated/unrelated root key) already sitting in the table,
+  // independent of anything this script does.
+  const corruptId = "cred-corrupt";
+  const corruptSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TO_BE_CORRUPTED", username: "will-never-be-read" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: corruptId }),
+  });
+  const tamperedCiphertext = Buffer.from("this-is-not-the-real-ciphertext-and-will-fail-gcm-auth-tag-check").toString("base64");
+
+  // A GOOD row, alphabetically/insertion-ordered AFTER the corrupt one — must still migrate even
+  // though the row before it in the scan failed. This is the one deliberate divergence from
+  // `backfill-vendor-credentials.ts` (which aborts the whole run on its first decrypt failure): a
+  // rotated or wrong master secret on ONE row must never block every other credential in the table.
+  const goodId = "cred-good";
+  const goodPlaintext = JSON.stringify({ token: "FIXTURE_GOOD_TOKEN", username: "good-owner" });
+  const goodSealed = await sealer.seal({
+    plaintext: goodPlaintext,
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: goodId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  const seedRow = (input: SeedCredentialInput) =>
+    seedDb
+      .insert(customCredentialSets)
+      .values({
+        id: input.id,
+        workspaceId: WORKSPACE,
+        label: input.label,
+        category: input.category,
+        baseUrl: input.baseUrl,
+        additionalHostsJson: null,
+        username: input.username ?? null,
+        sealedKeyId: input.sealedKeyId,
+        sealedCiphertext: input.sealedCiphertext,
+        sealedNonce: input.sealedNonce,
+        sealedAlg: input.sealedAlg,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+      .run();
+  seedRow({
+    id: corruptId,
+    label: "corrupt",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: corruptSealed.keyId,
+    sealedCiphertext: tamperedCiphertext,
+    sealedNonce: corruptSealed.nonce,
+    sealedAlg: corruptSealed.alg,
+  });
+  seedRow({
+    id: goodId,
+    label: "good",
+    category: "general",
+    baseUrl: "https://api.good.example.com",
+    sealedKeyId: goodSealed.keyId,
+    sealedCiphertext: goodSealed.ciphertext,
+    sealedNonce: goodSealed.nonce,
+    sealedAlg: goodSealed.alg,
+  });
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  let threw = false;
+  try {
+    runScript(dbPath, rootKeyHex, ["--apply"]);
+  } catch (err) {
+    threw = true;
+    const output = `${(err as { stdout?: string }).stdout ?? ""}`;
+    assert.match(output, new RegExp(`FAILED \\(could not decrypt\\): workspace=${WORKSPACE} id=${corruptId}`));
+    assert.match(output, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${goodId}`));
+    assert.match(output, /Done: 1 row\(s\) migrated, 0 already migrated, 0 skipped \(no username\), 1 failed, 2 total/);
+  }
+  assert.equal(threw, true, "the process must exit non-zero when any row failed to decrypt");
+
+  const db = openContentDb(dbPath);
+  const rows = db.select().from(customCredentialSets).all();
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  assert.equal(byId.get(goodId)!.username, "good-owner", "a sibling row must still migrate despite the corrupt row failing");
+  assert.equal(byId.get(corruptId)!.username, null, "a row that fails to decrypt must be left with username still NULL, never guessed at");
+  assert.equal(byId.get(corruptId)!.sealedCiphertext, tamperedCiphertext, "a failed row's (already-corrupt) ciphertext must still be left untouched, never rewritten");
+  db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-custom-credential-usernames: a sealed payload with no username is skipped, not treated as an error", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-nousername-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  const credId = "cred-no-username";
+  const plaintext = JSON.stringify({ token: "FIXTURE_TOKEN_NO_USERNAME" });
+  const sealed = await sealer.seal({
+    plaintext,
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: credId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  seedDb
+    .insert(customCredentialSets)
+    .values({
+      id: credId,
+      workspaceId: WORKSPACE,
+      label: "no-username-provider",
+      category: "general",
+      baseUrl: "https://api.example.com",
+      additionalHostsJson: null,
+      username: null,
+      sealedKeyId: sealed.keyId,
+      sealedCiphertext: sealed.ciphertext,
+      sealedNonce: sealed.nonce,
+      sealedAlg: sealed.alg,
+      createdAt: NOW,
+      updatedAt: NOW,
+    })
+    .run();
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(applyOutput, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${credId}`));
+  assert.match(applyOutput, /Done: 0 row\(s\) migrated, 0 already migrated, 1 skipped \(no username\), 0 failed, 1 total/);
+
+  const db = openContentDb(dbPath);
+  const row = db.select().from(customCredentialSets).all()[0]!;
+  assert.equal(row.username, null, "no username to backfill — the column must stay NULL, not an empty string or anything invented");
+  assert.equal(row.sealedCiphertext, sealed.ciphertext);
+  db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
