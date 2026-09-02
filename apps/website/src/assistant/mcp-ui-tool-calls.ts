@@ -121,6 +121,14 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // production from the day it shipped, since a masked token field has nowhere else to go but this
   // endpoint (the tool's own schema accepts no token at all, by design).
   "custom_credential_set_token",
+  // 2026-09-01 — `assistant_tool_failure_recovery` (`tool-failure-recovery.ts`) holds up the SAME
+  // held-open-exchange shape every entry above does: it is the generic `ToolFailureDiagnostic`
+  // consumer loop, and it opens its OWN `SurfaceExchangeStore` exchange (under this synthetic id, not
+  // a real registered tool) and parks on the human's answer before deciding whether to apply a
+  // suggested fix and retry. Not a domain tool at all — see that file's own header — but it still
+  // needs to be reachable through this same redemption path, for the identical reason every other
+  // held-open exchange does.
+  "assistant_tool_failure_recovery",
 ]);
 
 /**

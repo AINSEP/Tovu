@@ -133,6 +133,7 @@ import {
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
   withToolAttemptAudit,
+  withToolFailureRecovery,
   withToolCatalogAudit,
   UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
@@ -439,7 +440,15 @@ const auditSink =
   process.env.TOVU_DB === "memory"
     ? createInMemoryToolAttemptAuditSink()
     : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
-const toolExecutor = withToolAttemptAudit(createToolExecutor({ registry }), auditSink, { workspaceId: routeDeps.workspaceId });
+// `withToolFailureRecovery` wraps the AUDITED executor, not the bare one, so the remedy call and the
+// retry it can make (see that file's own header) each land as their own audited attempt row — the
+// opposite order (audit wrapping recovery) would collapse all three calls into the one outer
+// "completed" row `withToolAttemptAudit` records for the call the transport actually made, losing the
+// remedy tool's own durable-write attempt from the trail entirely.
+const toolExecutor = withToolFailureRecovery(
+  withToolAttemptAudit(createToolExecutor({ registry }), auditSink, { workspaceId: routeDeps.workspaceId }),
+  { surfaceExchanges, registry },
+);
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see

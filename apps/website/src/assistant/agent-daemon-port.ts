@@ -42,6 +42,7 @@ export { parseRunStartContextRef } from "./run-start-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery } from "./tool-catalog-query.js";
 export { withToolAttemptAudit } from "./tool-executor-audit.js";
+export { withToolFailureRecovery } from "./tool-failure-recovery.js";
 export {
   UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
