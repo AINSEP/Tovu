@@ -82,7 +82,13 @@ test("a Slack token is flagged", () => {
 });
 
 test("a PEM private key block is flagged regardless of surrounding content", () => {
-  const src = "-----BEGIN PRIVATE KEY-----\nMIIEv...\n-----END PRIVATE KEY-----";
+  // Assembled at runtime rather than written as a literal: a literal PEM header in this file
+  // would be a tracked credential-shaped string, so the repo-wide scan below would flag this
+  // very test and the suite could never go green. Concatenation keeps the assertion honest --
+  // `scanTextForSecrets` still receives the exact byte sequence it must detect.
+  const pemHeader = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ");
+  const pemFooter = ["-----END", "PRIVATE", "KEY-----"].join(" ");
+  const src = `${pemHeader}\nMIIEv...\n${pemFooter}`;
   const hits = scanTextForSecrets(src);
   assert.equal(hits.length, 1);
   assert.equal(hits[0].patternName, "PEM private key block");
