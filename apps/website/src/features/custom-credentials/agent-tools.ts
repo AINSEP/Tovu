@@ -5,31 +5,44 @@ import type { AgentToolSideEffect } from "@jini-ai/cms/core";
  * Tokens "Add custom provider" form leaves open: the assistant could already SEE that a custom
  * credential (e.g. "name.com", "fly.io") is saved, but had no way to actually USE one, or (until
  * `custom_credential_list` below) even discover what labels exist without a human typing them out.
- * Three tools, all wired in this directory's sibling `tool-registrations.ts`:
+ * Four tools, all wired in this directory's sibling `tool-registrations.ts`:
  *
  * - `custom_credential_list` — added 2026-09-01. Read-back for every saved custom credential: label
- *   (the exact value the other two tools' `label` field expects — call this first to chain straight
- *   into `custom_credential_verify`/`custom_credential_make_request` without asking a human to retype
- *   a name.com or fly.io label the system already has), category, baseUrl/additionalHosts, and
- *   created/updated timestamps. Built on `store.ts`'s existing non-decrypting `listCustomCredentials`
- *   read model — never touches `sealer`/`keyring`, so it cannot fail on a misconfigured master secret
- *   and, structurally, cannot leak a token: `CustomCredentialSummary` has no field capable of carrying
- *   one (see `types.ts`'s own doc). Deliberately does NOT report the connection's `username` — unlike
- *   `baseUrl`/`category`, `username` is NOT a plaintext column; it lives inside the same sealed
- *   ciphertext as the token (`types.ts`'s `CustomProviderConnectionInput`), so surfacing it would mean
- *   decrypting every row on every list call — the exact "never touch the sealer for a read model"
- *   contract this store's own header documents twice (once for itself, once for `vendor-credentials/
- *   store.ts`). A human who needs to confirm a saved username can already see it in the admin's Access
- *   Tokens edit form.
- * - `custom_credential_verify` — checks ONE saved credential against its own real provider, live,
- *   and reports valid/invalid/unreachable.
+ *   (the exact value the other three tools' `label` field expects — call this first to chain straight
+ *   into `custom_credential_verify`/`custom_credential_make_request`/`custom_credential_set_username`
+ *   without asking a human to retype a name.com or fly.io label the system already has), category,
+ *   baseUrl/additionalHosts, and created/updated timestamps. Built on `store.ts`'s existing
+ *   non-decrypting `listCustomCredentials` read model — never touches `sealer`/`keyring`, so it cannot
+ *   fail on a misconfigured master secret and, structurally, cannot leak a token:
+ *   `CustomCredentialSummary` has no field capable of carrying one (see `types.ts`'s own doc). Also
+ *   reports the credential's `username` when it has one (2026-09-01). That was NOT true when this tool
+ *   shipped: `username` used to live inside the same sealed ciphertext as the token, so surfacing it
+ *   would have meant decrypting every row on every list call — the exact "never touch the sealer for a
+ *   read model" contract this store's own header documents twice. The fix was to move the field rather
+ *   than to widen the tool: a username is an account identifier, not a secret, so it now has its own
+ *   plaintext column beside `base_url` (`db/schema.ts`'s `customCredentialSets.username`) and this tool
+ *   reads it with zero decrypts, exactly like `category`/`baseUrl`. The token remains sealed and
+ *   remains unreachable from here.
+ * - `custom_credential_verify` — checks ONE saved credential against its own real provider, live, and
+ *   reports valid/invalid/unreachable. A 401/403 ("invalid") result carries `authDiagnostic` (see
+ *   `credentialed-request.ts`'s header, "Authentication-failure diagnostics") — read it before
+ *   reporting a bare failure back to the human; see `custom_credential_set_username` below for the fix
+ *   half of that diagnosis.
  * - `custom_credential_make_request` — an authenticated GET/POST/PUT/PATCH/DELETE through a saved
  *   credential, at parity with what a human can already do from the site itself (2026-08-31 owner
  *   override — an earlier revision restricted this to GET only; see `credentialed-request.ts`'s
  *   header for the full history). DELETE is the one verb gated behind an in-chat confirmation
  *   (`tool-registrations.ts`'s handler) — the owner's own call: "the only thing we maybe should be
  *   worried about is deletion, but we can gate that with MCP-UI." GET/POST/PUT/PATCH run immediately,
- *   no ceremony, matching what a human can already do from the browser.
+ *   no ceremony, matching what a human can already do from the browser. A 401/403 executed result
+ *   ALSO carries `authDiagnostic`, for the identical reason.
+ * - `custom_credential_set_username` — added 2026-09-01, the FIX half of the diagnostic the two tools
+ *   above now carry: sets (or, with `username: null`, clears) ONLY the plaintext `username` column on
+ *   one saved credential, so the assistant can close the loop in-chat ("ask the human for the missing
+ *   username, save it, retry") instead of telling them to go edit Access Tokens by hand. Structurally
+ *   cannot accept, read, or write a token — see `tool-registrations.ts`'s
+ *   `rejectUnexpectedSetUsernameFields` for the enforcement, and that file's header for why this is the
+ *   one write tool in this domain left un-confirmed on top of DELETE.
  *
  * No schema below carries a token field of any kind: the credential's own SAVED allowed-origin
  * set (`baseUrl` plus any `additionalHosts` — set by a human through the Access Tokens form, never by
@@ -106,6 +119,20 @@ const MAKE_REQUEST_SCHEMA = {
   },
 } as const;
 
+const SET_USERNAME_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["label", "username"],
+  properties: {
+    label: { type: "string", description: LABEL_FIELD_DESCRIPTION },
+    username: {
+      type: ["string", "null"],
+      description:
+        "The account username/login to save for this credential (e.g. an email address or account handle) — an account identifier, never a secret. Pass null to explicitly clear a previously saved username. This field is REQUIRED on every call (there is no 'leave unchanged' — call this tool only when you actually mean to set or clear it). Do NOT pass a token, API key, password, or any other secret here: this tool has no field capable of accepting one, and a call naming any field other than 'label'/'username' is refused outright.",
+    },
+  },
+} as const;
+
 /**
  * This domain's fixed agent-tool catalog.
  *
@@ -123,7 +150,7 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "custom_credential_verify",
     description:
-      "Checks whether a saved API key or token still works — 'is my fly.io token still valid', 'check if this API key works', 'test my saved credential', 'has my name.com token expired'. Checks ONE saved custom provider credential (Access Tokens page → 'Add custom provider', e.g. name.com, fly.io, or any other registrar/host/deployment provider) against its own real API, live, right now: makes one bounded, read-only, authenticated GET to the credential's own saved base URL and reports 'valid' (the provider accepted it), 'invalid' (the provider rejected it — expired, revoked, or wrong scopes), or 'unreachable' (a network failure, timeout, or an ambiguous response — this does NOT mean the credential is bad, try again or check network access). Never exposes the token, and never returns the provider's response body — only the tri-state result plus a human-readable message. If you don't already know the exact saved label, call custom_credential_list first rather than guessing or asking the human to retype one. Call this before custom_credential_make_request if you are not already confident the credential works, or whenever a human asks whether a saved custom credential is still good.",
+      "Checks whether a saved API key or token still works — 'is my fly.io token still valid', 'check if this API key works', 'test my saved credential', 'has my name.com token expired'. Checks ONE saved custom provider credential (Access Tokens page → 'Add custom provider', e.g. name.com, fly.io, or any other registrar/host/deployment provider) against its own real API, live, right now: makes one bounded, read-only, authenticated GET to the credential's own saved base URL and reports 'valid' (the provider accepted it), 'invalid' (the provider rejected it — expired, revoked, or wrong scopes), or 'unreachable' (a network failure, timeout, or an ambiguous response — this does NOT mean the credential is bad, try again or check network access). An 'invalid' result ALSO carries an 'authDiagnostic' field ({schemeSent: 'Basic'|'Bearer', usernameStored: boolean, hint?}): when schemeSent is 'Bearer' and usernameStored is false, 'hint' names the one honest, narrow guess this tool can make — this provider may need HTTP Basic with a saved username, and none is saved. That is a hypothesis to try, not a diagnosis: ask the human for the username (e.g. via assistant_ask_choice), save it with custom_credential_set_username, then retry ONCE — never more, and never invent a username. When usernameStored is already true, there is no hint at all; report the failure plainly instead of guessing further. Never exposes the token, and never returns the provider's response body — only the tri-state result plus a human-readable message (and, on 'invalid', the diagnostic above). If you don't already know the exact saved label, call custom_credential_list first rather than guessing or asking the human to retype one. Call this before custom_credential_make_request if you are not already confident the credential works, or whenever a human asks whether a saved custom credential is still good.",
     sideEffects: "none",
     authorization: { permission: "custom-credentials.read" },
     inputSchema: VERIFY_SCHEMA,
@@ -131,9 +158,17 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "custom_credential_make_request",
     description:
-      "THIS IS HOW TO CALL A THIRD-PARTY API — a DNS registrar, hosting account, deployment target, or any other saved custom provider — USING A SAVED CREDENTIAL, instead of a raw shell command (curl/wget/httpie/etc). Reach for this whenever the target might have a saved credential (call custom_credential_list first if you don't already know the exact saved label); a raw curl through Bash bypasses this entirely and either fails outright or forces you to find and paste a token by hand, which this tool exists specifically to avoid. Makes an authenticated GET/POST/PUT/PATCH/DELETE request to a saved custom provider credential's own API (Access Tokens page → 'Add custom provider', e.g. name.com, fly.io — DNS records, certs, apps, machines, deployments, any endpoint that credential's saved base URL/additionalHosts cover) and returns the real response ({status, headers, bodyText}) — full parity with what a human operating this credential could already do from a terminal or the provider's own console. The server resolves the saved credential and injects its Authorization header itself — you name a label (the SAME identifier custom_credential_list returns and custom_credential_verify accepts) and a full URL (never a token), and the token never appears anywhere in this tool's input or output. The target URL's host must be one of this credential's own saved hosts; anything else is refused before any request is sent (see the 'url' field). DELETE is human-gated: this ONE call shows an interactive confirmation naming the label, resolved host, method, and path, and WAITS — it does not return until the human answers. If confirmed, the SAME call performs the DELETE and returns {executed: true, status, headers, bodyText}; if declined or unanswered it returns {executed: false, cancelled, reason?} and nothing is sent. GET/POST/PUT/PATCH return {executed: true, status, headers, bodyText} immediately, with no confirmation. Bounded: one request, a short timeout, a capped response size, and a capped request body size — do not rely on this for a large upload or download. If the label does not match a saved credential, or the url's host is not on the credential's saved list, this call is refused with a clear reason before any network request is made.",
+      "THIS IS HOW TO CALL A THIRD-PARTY API — a DNS registrar, hosting account, deployment target, or any other saved custom provider — USING A SAVED CREDENTIAL, instead of a raw shell command (curl/wget/httpie/etc). Reach for this whenever the target might have a saved credential (call custom_credential_list first if you don't already know the exact saved label); a raw curl through Bash bypasses this entirely and either fails outright or forces you to find and paste a token by hand, which this tool exists specifically to avoid. Makes an authenticated GET/POST/PUT/PATCH/DELETE request to a saved custom provider credential's own API (Access Tokens page → 'Add custom provider', e.g. name.com, fly.io — DNS records, certs, apps, machines, deployments, any endpoint that credential's saved base URL/additionalHosts cover) and returns the real response ({status, headers, bodyText}) — full parity with what a human operating this credential could already do from a terminal or the provider's own console. The server resolves the saved credential and injects its Authorization header itself — you name a label (the SAME identifier custom_credential_list returns and custom_credential_verify accepts) and a full URL (never a token), and the token never appears anywhere in this tool's input or output. The target URL's host must be one of this credential's own saved hosts; anything else is refused before any request is sent (see the 'url' field). DELETE is human-gated: this ONE call shows an interactive confirmation naming the label, resolved host, method, and path, and WAITS — it does not return until the human answers. If confirmed, the SAME call performs the DELETE and returns {executed: true, status, headers, bodyText}; if declined or unanswered it returns {executed: false, cancelled, reason?} and nothing is sent. GET/POST/PUT/PATCH return {executed: true, status, headers, bodyText} immediately, with no confirmation. A response with status 401 or 403 ALSO carries 'authDiagnostic' ({schemeSent, usernameStored, hint?}) alongside the untouched provider bodyText — read it rather than reporting a bare 401 back to the human: when schemeSent is 'Bearer' and usernameStored is false, 'hint' is the one honest, narrow guess this tool can make (this provider may need HTTP Basic with a saved username). Treat that as a hypothesis to try, never a diagnosis: ask the human for the username via assistant_ask_choice, save it with custom_credential_set_username, then retry this SAME call exactly ONCE — never invent a username, and never loop past one retry. When usernameStored is already true, there is no hint; report the failure and the provider's own bodyText plainly instead of guessing further. Bounded: one request, a short timeout, a capped response size, and a capped request body size — do not rely on this for a large upload or download. If the label does not match a saved credential, or the url's host is not on the credential's saved list, this call is refused with a clear reason before any network request is made.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "custom-credentials.write" },
     inputSchema: MAKE_REQUEST_SCHEMA,
+  },
+  {
+    name: "custom_credential_set_username",
+    description:
+      "THIS IS HOW TO FIX A SAVED CREDENTIAL THAT NEEDS A USERNAME — the self-healing repair step for the diagnostic custom_credential_verify/custom_credential_make_request return on a 401/403 (their 'authDiagnostic' field): when schemeSent is 'Bearer' and usernameStored is false, ask the human for the missing username in chat (e.g. via assistant_ask_choice — never guess or invent one), then call THIS tool with the exact answer, then retry the original custom_credential_verify/custom_credential_make_request call ONCE. Sets (or, with username: null, clears) ONLY the plaintext 'username' column on ONE saved custom credential (Access Tokens page → 'Add custom provider'), matched by its exact saved 'label' — call custom_credential_list first if you are not sure of it. This tool can NEVER accept, read, or write the credential's token: it takes exactly two fields, 'label' and 'username', and a call naming anything else (a 'token', 'connection', 'secret', or any other field) is refused outright before anything is written — there is no field on this tool capable of carrying a secret at all. The existing sealed token, if any, is left completely untouched (byte-for-byte, not merely 'still decrypts the same') — this is a metadata fix, not a credential rotation, and it never opens or re-seals the stored ciphertext. Returns the updated credential summary, same shape as custom_credential_list's own rows, with the new username reflected (or absent, if you passed null to clear it).",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "custom-credentials.write" },
+    inputSchema: SET_USERNAME_SCHEMA,
   },
 ];

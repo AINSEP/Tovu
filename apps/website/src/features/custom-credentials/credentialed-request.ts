@@ -41,6 +41,32 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  *   gated-hooks.ts` use) — the owner explicitly asked for the lighter MCP-UI confirmation shape
  *   instead for this domain, not that heavier ceremony.
  *
+ * ## Authentication-failure diagnostics (2026-09-01)
+ *
+ * The live incident this addition exists for: name.com's API accepts ONLY HTTP Basic
+ * `username:token` (confirmed live — `Bearer` gets 401, `-u "user:token"` gets 200), and
+ * {@link buildAuthorizationHeader} only ever sends Basic when the saved connection carries a
+ * `username`. A credential saved without one 401'd on every single call with no explanation, and the
+ * owner had to go hunt through the Access Tokens UI by hand to work out why. Both entry points now
+ * attach {@link AuthFailureDiagnostic} to a 401/403 outcome — {@link verifyCustomCredential}'s
+ * `"invalid"` result, and {@link makeCredentialedRequest}'s executed result for that status.
+ *
+ * The diagnostic is two STRUCTURED FACTS, always present on a 401/403 regardless of cause
+ * (`schemeSent`, `usernameStored`), plus an optional `hint` carrying the one HYPOTHESIS this module
+ * can honestly make — never a claim. That hypothesis is narrow on purpose: `schemeSent === "Bearer"`
+ * (equivalently `usernameStored === false`, since {@link buildAuthorizationHeader} sends Basic iff a
+ * username is stored) is the ONLY shape where "this provider might need a saved username" is a fair
+ * guess. A 401/403 on a credential that ALREADY has a stored username is a completely different,
+ * un-guessable problem from here — a wrong username, an expired/revoked token, missing scopes, or the
+ * provider's own policy — so `hint` is deliberately omitted in that case rather than repeating advice
+ * that has already been tried and failed; asserting "add a username" there would be actively
+ * misleading, not merely unhelpful. Neither function reinterprets or hides the provider's own
+ * response: {@link makeCredentialedRequest}'s `bodyText` is unaffected by this addition, and this
+ * diagnostic is additive alongside it, never a replacement for it. And as with every other value this
+ * module touches, the diagnostic never carries the token, the Authorization header, or any part of
+ * either — it is built from `connection.username`'s mere PRESENCE, never its value, let alone the
+ * token's.
+ *
  * ## Security design (every point below is load-bearing, not decoration)
  *
  * **The token never reaches the model.** The agent supplies a `label` (a human-chosen display name,
@@ -267,6 +293,47 @@ function buildAuthorizationHeader(connection: CustomProviderConnectionInput): st
   return `Bearer ${connection.token}`;
 }
 
+/** A 401/403 outcome's structured explanation — see this file's header, "Authentication-failure
+ *  diagnostics", for the honesty contract every field here is held to. */
+export interface AuthFailureDiagnostic {
+  /** Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
+   *  own value, only which of the two shapes it took. */
+  readonly schemeSent: "Basic" | "Bearer";
+  /** Whether this credential has a saved `username` at all — never the username's own value. */
+  readonly usernameStored: boolean;
+  /** Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
+   *  for: `schemeSent === "Bearer"` (no saved username). Absent for every other 401/403 shape — a
+   *  credential that already has a stored username hit a DIFFERENT wall this module has no way to
+   *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy), and
+   *  repeating "add a username" there would be a false lead, not merely an unhelpful one. Deliberately
+   *  hedged wording ("may"/"might") — this is a hypothesis for a human or agent to try, never an
+   *  assertion of the actual cause. */
+  readonly hint?: string;
+}
+
+/**
+ * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome from the SAME `connection` object
+ * {@link buildAuthorizationHeader} used to build the request that got rejected — so `schemeSent` is
+ * always the scheme that was actually sent, never re-derived from a different source that could drift
+ * from it.
+ *
+ * @complexity O(1).
+ */
+function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput): AuthFailureDiagnostic {
+  const usernameStored = connection.username !== undefined;
+  if (usernameStored) {
+    return { schemeSent: "Basic", usernameStored };
+  }
+  return {
+    schemeSent: "Bearer",
+    usernameStored,
+    hint:
+      "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
+      "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
+      "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.",
+  };
+}
+
 /** One audited call outcome — see this file's header, "Audit, never the secret", for exactly why
  *  these six fields and no others. */
 export interface CredentialedRequestAuditEntry {
@@ -404,6 +471,10 @@ export interface CustomCredentialVerificationResult {
   readonly status: CustomCredentialCheckStatus;
   readonly message: string;
   readonly checkedAt: string;
+  /** Present ONLY when `status === "invalid"` (an affirmative 401/403 rejection) — see this file's
+   *  header, "Authentication-failure diagnostics". Absent for `"valid"`/`"unreachable"`: neither is an
+   *  auth-scheme rejection, so there is nothing to diagnose. */
+  readonly authDiagnostic?: AuthFailureDiagnostic;
 }
 
 /**
@@ -413,7 +484,9 @@ export interface CustomCredentialVerificationResult {
  * `"unreachable"`, matching every other verification surface in this codebase (see this file's
  * header). Never returns the provider's response body. Always probes `baseUrl` specifically (the
  * credential's PRIMARY host), even when `additionalHosts` is non-empty — "does this credential work
- * at all" is answered by its main host; a per-additional-host check is not this function's job.
+ * at all" is answered by its main host; a per-additional-host check is not this function's job. An
+ * `"invalid"` (401/403) outcome carries `authDiagnostic` — see this file's header,
+ * "Authentication-failure diagnostics".
  *
  * @throws {CustomCredentialNotFoundError} No credential with this label exists in this workspace.
  * @throws {CredentialedRequestValidationError} `input.label` is not a non-empty string.
@@ -443,7 +516,8 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
 
   audit.record({ label, host: url.hostname, method: "GET", status, bodyBytes: 0, at: checkedAt });
   const outcome = classifyCustomCredentialStatus(status);
-  return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt };
+  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection) : undefined;
+  return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt, ...(authDiagnostic ? { authDiagnostic } : {}) };
 }
 
 /** A real send — the provider answered (any HTTP status), or this tool's own transport layer
@@ -455,6 +529,10 @@ export interface CredentialedRequestExecutedResult {
   readonly status: number;
   readonly headers: Record<string, string>;
   readonly bodyText: string;
+  /** Present ONLY when `status` is 401 or 403 — see this file's header, "Authentication-failure
+   *  diagnostics". Additive alongside `bodyText`, which still carries the provider's own response
+   *  body unsuppressed and unchanged; this field never replaces or reinterprets it. */
+  readonly authDiagnostic?: AuthFailureDiagnostic;
 }
 
 /** A gated call (DELETE) that did NOT run — the human declined, or never answered in time, or the
@@ -526,5 +604,12 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   }
 
   audit.record({ label, host: url.hostname, method, status: response.status, bodyBytes, at });
-  return { executed: true, status: response.status, headers: { ...response.headers }, bodyText: response.bodyText };
+  const authDiagnostic = response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection) : undefined;
+  return {
+    executed: true,
+    status: response.status,
+    headers: { ...response.headers },
+    bodyText: response.bodyText,
+    ...(authDiagnostic ? { authDiagnostic } : {}),
+  };
 }

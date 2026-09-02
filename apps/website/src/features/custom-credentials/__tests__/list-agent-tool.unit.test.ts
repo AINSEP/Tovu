@@ -73,6 +73,11 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     clock: { nowIso: () => NOW },
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
+    siteAssistantSecretKeyring: keyring,
+    idGen: (() => {
+      let n = 0;
+      return { newId: () => `deps-cred-${++n}` };
+    })(),
     customCredentialsHttpClient: new ExplodingHttpClient(),
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
@@ -139,10 +144,12 @@ test("custom_credential_list is wired to a real handler", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Correct rows, exactly the fields agent-tools.ts promises — never the secret, never `username`
+// 2. Correct rows, exactly the fields agent-tools.ts promises — never the secret. `username` IS
+// reported (2026-09-01): it moved out of the sealed blob onto its own plaintext column, so the read
+// model can carry it without opening the sealer. See `db/schema.ts`'s `customCredentialSets.username`.
 // ---------------------------------------------------------------------------
 
-test("returns every saved credential's label, category, baseUrl, additionalHosts, configured, and timestamps", async () => {
+test("returns every saved credential's label, category, baseUrl, additionalHosts, username, configured, and timestamps", async () => {
   const { deps, writeDeps } = fakeRouteDeps();
   await createCustomCredential(writeDeps, {
     workspaceId: WORKSPACE_ID,
@@ -173,6 +180,7 @@ test("returns every saved credential's label, category, baseUrl, additionalHosts
         category: "ops",
         baseUrl: "https://api.fly.io",
         additionalHosts: ["https://api.machines.dev"],
+        username: "leona",
         configured: true,
         createdAt: NOW,
         updatedAt: NOW,
@@ -230,10 +238,51 @@ test("never exposes the secret value: neither field name nor its plaintext value
   const serialized = JSON.stringify(result);
 
   assert.ok(!serialized.includes("super-secret-flyio-token-do-not-leak"), "the raw token must never appear in the output");
-  assert.ok(!serialized.includes("leona"), "the saved username must never appear either — it lives inside the same sealed blob as the token (see agent-tools.ts's header)");
-  assert.ok(!/token|sealed|username|connection/i.test(serialized), "no field even NAMED like a secret carrier should appear in the output");
+  assert.ok(!/token|sealed|connection/i.test(serialized), "no field even NAMED like a secret carrier should appear in the output");
   assert.equal(sealer.openCalls, 0, "listing must never decrypt a single row");
   assert.equal(sealer.sealCalls, 0, "listing must never seal anything either");
+});
+
+/**
+ * The read-back half of the 2026-09-01 username migration, and the reason it was worth doing: the
+ * value must arrive through the read model WITHOUT the sealer ever being opened. Asserted with a
+ * sealer whose `open()` throws outright — a handler that decrypted to find the username would fail
+ * here rather than silently pay an AEAD open per row on a cheap path.
+ */
+test("reports a saved username without ever opening the sealer", async () => {
+  const { deps, sealer, writeDeps } = fakeRouteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE_ID,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "flyio-secret-token", username: "leona@example.com" },
+  });
+
+  // Any decrypt attempt from here on is a hard failure, not a slow path.
+  sealer.open = () => {
+    throw new Error("custom_credential_list must never open the sealer to read a username");
+  };
+
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as {
+    credentials: Array<{ label: string; username?: string }>;
+  };
+
+  assert.equal(result.credentials[0]?.username, "leona@example.com");
+});
+
+test("omits `username` entirely for a credential saved without one — never an empty string", async () => {
+  const { deps, writeDeps } = fakeRouteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE_ID,
+    label: "name.com",
+    category: "hosting",
+    baseUrl: "https://api.name.com",
+    connection: { token: "namecom-secret-token" },
+  });
+
+  const result = (await call(tool(buildRegistrations(deps, createSurfaceExchangeStore()), TOOL_ID))) as { credentials: object[] };
+  assert.ok(!Object.hasOwn(result.credentials[0]!, "username"), "an absent username must be an absent key, not `username: ''`");
 });
 
 // ---------------------------------------------------------------------------

@@ -85,6 +85,11 @@ function fakeRouteDeps(options: { allow?: boolean; httpResponses?: (HttpResponse
     clock: { nowIso: () => NOW },
     customCredentialSetRepo: repo,
     siteAssistantSecretSealer: sealer,
+    siteAssistantSecretKeyring: keyring,
+    idGen: (() => {
+      let n = 0;
+      return { newId: () => `deps-cred-${++n}` };
+    })(),
     customCredentialsHttpClient: httpClient,
     customCredentialsAudit: audit,
     authorize: async (params: Record<string, unknown>) => {
