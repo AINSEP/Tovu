@@ -60,6 +60,18 @@ import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
  * second Create), not as two separate surfaces — see `OTHER_CREDENTIAL_STORES`'s own doc below.
  */
 
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `../taxonomy/rules.ts`'s
+ * `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ * `custom_credential_set_username`/`custom_credential_set_token`
+ * (`apps/website/src/features/custom-credentials/agent-tools.ts`) are agent-callable — an assistant
+ * repairing a saved credential's username after a 401 is exactly the "wrote something this screen
+ * cannot see" case `use-taxonomy.hooks.ts` first fixed for taxonomies. One resource for all three
+ * merged stores (publish/source-control/custom), matching that this is one screen with one list, per
+ * this file's own "2026-08-16 owner ruling" section above.
+ */
+export const ACCESS_TOKENS_RESOURCE = "access-tokens";
+
 /** Which credential store a row belongs to. `"custom"` (2026-08-17) is the odd one out — see
  *  {@link AccessTokenRow.category}'s own doc: it has no fixed provider catalog behind it at all, an
  *  operator-typed row IS its own provider identity. */

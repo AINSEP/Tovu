@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/lib/api";
+import { api, type AdminMedia } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
+import { MEDIA_RESOURCE } from "../rules";
 
 /**
  * @file `useMedia` — the Media grid screen's list/upload/trash/purge cycle, driven against the
@@ -102,5 +104,82 @@ describe("useMedia — injected port (no fetch stub)", () => {
     port.listMedia = () => new Promise(() => {});
     const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
     expect(result.current.media).toBeNull();
+  });
+});
+
+function fakeMedia(overrides: Partial<AdminMedia> = {}): AdminMedia {
+  return {
+    id: "m1",
+    workspaceId: "ws1",
+    title: "Photo",
+    alt: "",
+    caption: "",
+    credit: "",
+    sha256: "sha1",
+    status: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+    contentType: "image/png",
+    ...overrides,
+  };
+}
+
+/**
+ * Regression coverage for the same class of bug `use-taxonomy.hooks.ts`'s own content-refresh suite
+ * fixed first (see that file's header): today no agent tool writes media directly, but this grid
+ * subscribes anyway (`rules.ts`'s `MEDIA_RESOURCE` doc explains why) — and the bus's own "unknown
+ * scope" default means every finished assistant run reaches this subscription regardless.
+ *
+ * Driven through the REAL `lib/content-refresh-bus`, same choice `use-taxonomy.hooks.ts` makes and
+ * for the same reason: the thing worth asserting is the wiring between this hook and the bus.
+ */
+describe("useMedia — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia()] });
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+
+    // A write landing server-side outside this hook — the screen has no other way to know it happened.
+    port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
+    expect(result.current.media).toHaveLength(1);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.media).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names media, and ignores one that names only other resources", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia()] });
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+
+    port.items.push(fakeMedia({ id: "m2", title: "Second photo" }));
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.media).toHaveLength(1);
+
+    act(() => publishContentRefresh([MEDIA_RESOURCE]));
+    await waitFor(() => expect(result.current.media).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeMediaPort({ media: [fakeMedia()] });
+    const listSpy = vi.spyOn(port, "listMedia");
+    const { result, unmount } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(1));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

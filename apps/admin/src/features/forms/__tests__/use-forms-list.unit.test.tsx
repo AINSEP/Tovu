@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useFormsList } from "../hooks/use-forms-list.hooks";
 import { createFakeFormsPort } from "../hooks/forms-dependencies.hooks";
+import { FORMS_LIST_RESOURCE } from "../rules";
 import type { AdminFormDefinition } from "@/lib/api";
 
 /**
@@ -70,5 +72,61 @@ describe("useFormsList — injected port", () => {
 
     expect(result.current.forms?.[0]?.status).toBe("disabled");
     expect(result.current.rowSavingId).toBeNull();
+  });
+});
+
+/**
+ * Regression coverage for the same class of bug `use-taxonomy.hooks.ts`'s own content-refresh suite
+ * fixed first (see that file's header): `forms_create_definition`/`forms_update_definition`/
+ * `forms_set_definition_status` (`apps/website/src/features/forms/agent-tools.ts`) are agent-
+ * callable, so this list needs the same fix.
+ *
+ * Driven through the REAL `lib/content-refresh-bus`, same choice `use-taxonomy.hooks.ts` makes and
+ * for the same reason: the thing worth asserting is the wiring between this hook and the bus.
+ */
+describe("useFormsList — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const { result } = renderHook(() => useFormsList({ port, t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    // A write landing server-side outside this hook — the screen has no other way to know it happened.
+    port.forms.push(formFixture({ id: "f2", name: "Newsletter signup", slug: "newsletter" }));
+    expect(result.current.forms).toHaveLength(1);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.forms).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names forms, and ignores one that names only other resources", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const { result } = renderHook(() => useFormsList({ port, t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    port.forms.push(formFixture({ id: "f2", name: "Newsletter signup", slug: "newsletter" }));
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.forms).toHaveLength(1);
+
+    act(() => publishContentRefresh([FORMS_LIST_RESOURCE]));
+    await waitFor(() => expect(result.current.forms).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeFormsPort({ forms: [formFixture()] });
+    const listSpy = vi.spyOn(port, "listForms");
+    const { result, unmount } = renderHook(() => useFormsList({ port, t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.forms).toHaveLength(1));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

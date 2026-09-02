@@ -16,6 +16,16 @@ import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
  * popover, which is how its `page.status` conditional ended up permanently untested.
  */
 
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ * for why this is a plain colocated constant rather than a shared registry. `pages_write_html`
+ * (`apps/website/src/features/pages/agent-tools.ts`) is agent-callable, so `use-pages.hooks.ts` needs
+ * the same "an assistant write shows up without a reload" fix `use-taxonomy.hooks.ts` shipped first,
+ * for the same reason its twin needed it — see `posts/rules.ts`'s `POSTS_RESOURCE`, the reported
+ * bug's own screen (an operator asked the assistant to translate-and-publish a POST).
+ */
+export const PAGES_RESOURCE = "pages";
+
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
  *  state and navigation, and so a test can assert exactly which one a given row wires up — same
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */

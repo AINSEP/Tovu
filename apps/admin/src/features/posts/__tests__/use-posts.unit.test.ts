@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminPost } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
 import { usePosts, useWiredPosts } from "../hooks/use-posts.hooks";
+import { POSTS_RESOURCE } from "../rules";
 
 /**
  * @file `usePosts` — everything the Posts LIST screen does. No hook-level test file existed for
@@ -218,5 +220,65 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(result.current.error).toBe("quota exceeded");
     expect(result.current.creating).toBe(false);
+  });
+});
+
+/**
+ * Regression coverage for the reported bug: an operator asks the assistant to "translate the
+ * deepseek article to spanish and publish it," `content_post_create`/`content_post_update`
+ * (`apps/website/src/features/post/agent-tools.ts`) writes it, the chat reports success, and this
+ * screen — open in the same tab — kept listing only what it fetched at mount until a manual reload.
+ *
+ * Driven through the REAL `lib/content-refresh-bus`, same choice `use-taxonomy.hooks.ts`'s own
+ * content-refresh suite makes and for the same reason (see that file's header): the thing that was
+ * broken is the wiring between this hook and the bus, not either module's internals.
+ */
+describe("usePosts — content refresh bus", () => {
+  const TRANSLATED_POST: AdminPost = { ...POST, id: "p2", title: "DeepSeek y el Lightning Indexer", slug: "deepseek-y-el-lightning-indexer" };
+
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-created post appears without a reload", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+
+    // The assistant's tool call landing server-side. The screen has no way to know it happened.
+    port.posts.push(TRANSLATED_POST);
+    expect(result.current.posts).toEqual([POST]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.posts).toEqual([POST, TRANSLATED_POST]));
+  });
+
+  it("refreshes on a notification that names posts, and ignores one that names only other resources", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+
+    port.posts.push(TRANSLATED_POST);
+
+    // A narrowed notification about somebody else's resource must not cost this screen a refetch.
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.posts).toEqual([POST]);
+
+    act(() => publishContentRefresh([POSTS_RESOURCE]));
+    await waitFor(() => expect(result.current.posts).toEqual([POST, TRANSLATED_POST]));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const listSpy = vi.spyOn(port, "listPosts");
+    const { result, unmount } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

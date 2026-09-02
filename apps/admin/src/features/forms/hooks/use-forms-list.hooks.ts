@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { AdminFormDefinition } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
-import { KEYS, formsListError } from "../rules";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { FORMS_LIST_RESOURCE, KEYS, formsListError } from "../rules";
 import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -39,6 +40,12 @@ import type { FormsPort } from "./forms-port.hooks";
  * accordingly, not preserved. `rowSavingId` stays local `useState` rather than reading off the
  * mutation directly — one shared `useFetchMutation` object has no per-call "which row" of its own,
  * the exact case this migration's own dispatch brief calls out as the intended `useState` out.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass, see that hook's own header):
+ * `forms_create_definition`/`forms_update_definition`/`forms_set_definition_status`
+ * (`apps/website/src/features/forms/agent-tools.ts`) are agent-callable, so this list re-invalidates
+ * `KEYS.list` on an out-of-band content-refresh notification the same way `use-taxonomy.hooks.ts`
+ * does for its own resource.
  */
 
 export interface FormsListController {
@@ -56,6 +63,11 @@ export interface FormsListController {
 export function useFormsList(deps: { port: FormsPort; t: (key: string) => string }): FormsListController {
   const { port, t } = deps;
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listForms() });
+  const invalidate = useInvalidate();
+  // Stable identity — see `use-media.hooks.ts`'s identical `invalidateList` for why an inline arrow
+  // here would resubscribe `useContentRefreshSubscription` on every render for no benefit.
+  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  useContentRefreshSubscription(FORMS_LIST_RESOURCE, invalidateList);
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
 
   const toggleMutation = useFetchMutation({

@@ -1,9 +1,10 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import type { AdminMedia } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
-import { KEYS, findEditingItem, readFileAsBase64, visibleMediaError } from "../rules";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { KEYS, MEDIA_RESOURCE, findEditingItem, readFileAsBase64, visibleMediaError } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
 import type { MediaPort } from "./media-port.hooks";
@@ -52,6 +53,10 @@ import type { MediaPort } from "./media-port.hooks";
  * a later, unrelated success. `pendingPurge`/`rowSavingId` stay local `useState` per this migration's
  * own dispatch brief (`media` has per-row action state — a shared mutation object cannot carry
  * "which row" on its own).
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * re-invalidates `KEYS.list` on an out-of-band content-refresh notification, the same one-line
+ * adoption `use-taxonomy.hooks.ts` hand-wrote before this shared hook existed to wrap it.
  */
 
 export interface MediaDependencies {
@@ -107,6 +112,12 @@ export interface MediaController {
  */
 export function useMedia({ port, locale, t }: MediaDependencies): MediaController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listMedia() });
+  const invalidate = useInvalidate();
+  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
+  // unsubscribe/resubscribe on every render — `KEYS.list` is a module-level constant, so the only
+  // thing this closure ever needs is `invalidate`, itself already stable per `useInvalidate`'s doc.
+  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  useContentRefreshSubscription(MEDIA_RESOURCE, invalidateList);
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);

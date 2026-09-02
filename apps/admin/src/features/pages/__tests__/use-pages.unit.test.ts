@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
+import { PAGES_RESOURCE } from "../rules";
 
 /**
  * @file `usePages` — everything the Pages LIST screen does, extracted so it is reachable from
@@ -319,5 +321,65 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
     expect(result.current.error).toBe("quota exceeded");
     expect(result.current.creating).toBe(false);
+  });
+});
+
+/**
+ * Regression coverage, this screen's own copy of `use-posts.unit.test.ts`'s "content refresh bus"
+ * suite (Posts/Pages are twin screens — see that file's header for the reported bug this fixes).
+ * `pages_write_html` (`apps/website/src/features/pages/agent-tools.ts`) is the agent tool that used
+ * to leave this list stale.
+ *
+ * Driven through the REAL `lib/content-refresh-bus`, same choice `use-taxonomy.hooks.ts`'s own suite
+ * makes and for the same reason: the thing that was broken is the wiring between this hook and the
+ * bus, not either module's internals.
+ */
+describe("usePages — content refresh bus", () => {
+  const NEW_PAGE = { ...PAGE, id: "pg2", title: "About", slug: "about" };
+
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-written page appears without a reload", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
+
+    // The assistant's tool call landing server-side. The screen has no way to know it happened.
+    port.pages.push(NEW_PAGE);
+    expect(result.current.pages).toEqual([PAGE]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
+  });
+
+  it("refreshes on a notification that names pages, and ignores one that names only other resources", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
+
+    port.pages.push(NEW_PAGE);
+
+    // A narrowed notification about somebody else's resource must not cost this screen a refetch.
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.pages).toEqual([PAGE]);
+
+    act(() => publishContentRefresh([PAGES_RESOURCE]));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE, NEW_PAGE]));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const listSpy = vi.spyOn(port, "listPages");
+    const { result, unmount } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
+    await waitFor(() => expect(result.current.pages).toEqual([PAGE]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

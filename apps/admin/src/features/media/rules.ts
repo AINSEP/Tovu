@@ -22,6 +22,18 @@ export const KEYS = {
   list: ["media"] as QueryKey,
 };
 
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ * for why this is a plain colocated constant rather than a shared registry, and
+ * `use-content-refresh-subscription.hooks.ts` for the hook that reads it. No agent tool writes media
+ * today (`apps/website/src/features` has no `media/agent-tools.ts`), but the grid still subscribes:
+ * the bus's own "unknown scope, refresh everything" default (`contentRefreshApplies`'s `null` case)
+ * means every finished assistant run already notifies this resource whether or not the run touched
+ * it, and wiring it now is a one-line, zero-risk way for this screen to inherit a future media tool's
+ * writes automatically instead of needing a fourth staleness bug fixed later.
+ */
+export const MEDIA_RESOURCE = "media";
+
 /** @complexity Time/space: O(1). */
 export function describeApiError(e: unknown, fallback: string): string {
   if (e instanceof ApiError) return e.message || fallback;

@@ -27,6 +27,15 @@ import type { QueryKey } from "../../lib/fetch-query";
  * nesting keeps `KEYS.list`'s invalidation from ever touching an open `KEYS.form(id)`/
  * `KEYS.submissionDetail(...)` read, regardless of what `id` happens to be.
  */
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ * for why this is a plain colocated constant rather than a shared registry. `forms_create_definition`/
+ * `forms_update_definition`/`forms_set_definition_status` (`apps/website/src/features/forms/agent-
+ * tools.ts`) are agent-callable, so `FormsList.tsx` needs the same "an assistant write shows up
+ * without a reload" fix `use-taxonomy.hooks.ts` shipped first.
+ */
+export const FORMS_LIST_RESOURCE = "forms";
+
 export const KEYS = {
   list: ["forms", "list"] as QueryKey,
   form: (id: string): QueryKey => ["forms", "detail", id],

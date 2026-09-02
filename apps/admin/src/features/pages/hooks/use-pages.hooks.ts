@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { PAGES_DICT } from "../pages-i18n";
+import { PAGES_RESOURCE } from "../rules";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -65,6 +67,16 @@ export interface PagesDependencies {
   locale: string;
 }
 
+/**
+ * `load`'s extraction below (staleness-bug generalization pass, see
+ * `use-content-refresh-subscription.hooks.ts`'s own header): pulled out of the mount effect into a
+ * `useCallback` so the same function can also be handed to `useContentRefreshSubscription`, which
+ * re-runs it whenever `pages_write_html` (`apps/website/src/features/pages/agent-tools.ts`) writes a
+ * page from an assistant run this screen otherwise has no way to learn about — the same fix
+ * `use-posts.hooks.ts` (this screen's twin) needed for the reported bug. `setPages` on success rather
+ * than resetting to `null` first, unchanged from before this pass, keeps the table rendered across a
+ * background refresh instead of flashing back to a loading state on every agent write.
+ */
 export function usePages(deps: PagesDependencies): PagesController {
   const { port, navigate, t, locale } = deps;
   const [pages, setPages] = useState<AdminPost[] | null>(null);
@@ -78,16 +90,22 @@ export function usePages(deps: PagesDependencies): PagesController {
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     port
       .listPages()
       .then((r) => setPages(r.posts.map((entry) => entry.post)))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load pages"));
     // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
     // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-    // nothing about when the effect re-runs.
+    // nothing about when this callback's identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useContentRefreshSubscription(PAGES_RESOURCE, load);
 
   async function createPage() {
     setCreating(true);

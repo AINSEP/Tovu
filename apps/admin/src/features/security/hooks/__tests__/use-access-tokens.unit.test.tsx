@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import type { AdminCustomCredentialSummary, AdminPublishCredentialSummary } from "@/lib/api";
 import { useAccessTokens } from "../use-access-tokens.hooks";
 import { createFakeAccessTokensPort } from "../access-tokens-dependencies.hooks";
+import { ACCESS_TOKENS_RESOURCE } from "../../rules";
 import type { AccessTokenExistingRowState, AccessTokenProviderGroupState } from "../use-access-tokens.hooks";
 
 /**
@@ -220,5 +222,74 @@ describe("useAccessTokens: replaceToken on a custom row — username-only save (
     await act(() => result.current.replaceToken(target));
 
     expect(updateCalled).toBe(false);
+  });
+});
+
+/**
+ * Regression coverage for the same class of bug `use-taxonomy.hooks.ts`'s own content-refresh suite
+ * fixed first (see that file's header): `custom_credential_set_username`/`custom_credential_set_token`
+ * (`apps/website/src/features/custom-credentials/agent-tools.ts`) are agent-callable, so an assistant
+ * repairing a saved credential's username after a 401 used to leave this screen showing the stale
+ * value until a manual reload.
+ *
+ * `port.custom.list` is reassigned mid-test (this fake's own per-call override shape, not a mutable
+ * seed array like `createFakePostsListPort`'s) to stand in for the write landing server-side, mirroring
+ * `use-media.hooks.unit.test.tsx`'s identical `port.listMedia = () => new Promise(() => {})` reuse of
+ * the same fake for a second scripted response. Driven through the REAL `lib/content-refresh-bus`,
+ * same choice `use-taxonomy.hooks.ts` makes and for the same reason.
+ */
+describe("useAccessTokens — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads all three stores when a content refresh fires, so an assistant-written credential shows up without a reload", async () => {
+    const port = createFakeAccessTokensPort({
+      custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    expect(result.current.totalCount).toBe(1);
+
+    // The assistant's tool call landing server-side. The screen has no way to know it happened.
+    port.custom.list = () =>
+      Promise.resolve({ credentials: [customCredential(), customCredential({ id: "custom-2", label: "Second host" })] });
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.totalCount).toBe(2));
+  });
+
+  it("refreshes on a notification that names access-tokens, and ignores one that names only other resources", async () => {
+    const port = createFakeAccessTokensPort({
+      custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    expect(result.current.totalCount).toBe(1);
+
+    port.custom.list = () =>
+      Promise.resolve({ credentials: [customCredential(), customCredential({ id: "custom-2", label: "Second host" })] });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.totalCount).toBe(1);
+
+    act(() => publishContentRefresh([ACCESS_TOKENS_RESOURCE]));
+    await waitFor(() => expect(result.current.totalCount).toBe(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeAccessTokensPort({
+      custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
+    });
+    const listSpy = vi.spyOn(port.custom, "list");
+    const { result, unmount } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

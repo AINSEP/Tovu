@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   describeApiError,
@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import {
   t as defaultT,
@@ -21,6 +22,7 @@ import {
   accessTokensLoadErrorMessage,
 } from "../security-i18n";
 import {
+  ACCESS_TOKENS_RESOURCE,
   ACCESS_TOKEN_PROVIDERS,
   accessTokenCategoryMatches,
   accessTokenNameTaken,
@@ -341,6 +343,35 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     customSeededRef.current = true;
     setCustomCredentials(customQuery.data.credentials);
   }, [customQuery.status, customQuery.data]);
+
+  /**
+   * Re-reads all three stores directly, bypassing `useFetchQuery`'s cache — an out-of-band write
+   * (today `custom_credential_set_username`/`custom_credential_set_token`,
+   * `apps/website/src/features/custom-credentials/agent-tools.ts`) has nothing to invalidate that
+   * this hook would ever re-read: `publishQuery`/`sourceControlQuery`/`customQuery` only ever feed
+   * the ONE-TIME seed effects above (`publishSeededRef` et al.), and every subsequent read this hook
+   * shows the operator comes from `publishCredentials`/`sourceControlCredentials`/`customCredentials`
+   * local state instead — the same reason `removeToken`/`makeDefault` already call
+   * `port.*.list()`/`refetchStore` directly rather than `invalidate()`ing a query nothing re-seeds
+   * from. Safe to overwrite unconditionally, unlike `use-settings-slice.hooks.ts`'s guarded
+   * `refresh()`: a row's `existingDrafts`/`existingBusy` entry is keyed by row id in its OWN state,
+   * not carried on the row itself, so replacing the row list here cannot clobber an operator's
+   * in-progress edit or in-flight save the way overwriting a settings tab's single edited `value`
+   * could.
+   */
+  const reloadAllStores = useCallback(async () => {
+    const [publish, sourceControl, custom] = await Promise.all([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
+    setPublishCredentials(publish.credentials);
+    setSourceControlCredentials(sourceControl.credentials);
+    setCustomCredentials(custom.credentials);
+  }, [port]);
+
+  // Stable identity — see `use-media.hooks.ts`'s identical `invalidateList` note for why an inline
+  // arrow here would resubscribe `useContentRefreshSubscription` on every render for no benefit.
+  const triggerReload = useCallback(() => {
+    void reloadAllStores();
+  }, [reloadAllStores]);
+  useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
 
   const loadError = accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale);
 

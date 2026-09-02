@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { POSTS_RESOURCE } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
@@ -30,6 +32,17 @@ import type { PostsListPort } from "./posts-list-port.hooks";
  * `posts-list-*` (not `posts-*`) to avoid colliding with `use-post-editor.hooks.ts`'s own
  * `post-editor-port.hooks.ts` — this is a deliberately separate hook for a deliberately separate
  * screen, per that file's own header.
+ *
+ * `load` (staleness-bug generalization pass — see `use-content-refresh-subscription.hooks.ts`'s own
+ * header): pulled out of the mount effect into a `useCallback` so the same function can also be
+ * handed to `useContentRefreshSubscription`, which re-runs it whenever `content_post_create`/
+ * `_update`/`_delete` (`apps/website/src/features/post/agent-tools.ts`) write a post from an
+ * assistant run this screen otherwise has no way to learn about — the exact bug this pass was
+ * dispatched to fix, reported against this exact screen (an operator asked the assistant to
+ * translate-and-publish a post; the write landed, this list did not move until a manual reload).
+ * `setPosts` on success rather than resetting to `null` first, unchanged from before this pass, is
+ * what keeps the table rendered across a background refresh instead of flashing back to a loading
+ * state on every agent write.
  */
 
 export interface PostsController {
@@ -65,16 +78,22 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     port
       .listPosts()
       .then((r) => setPosts(r.posts.map((entry) => entry.post)))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load posts"));
     // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
     // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-    // nothing about when the effect re-runs.
+    // nothing about when this callback's identity changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [port]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useContentRefreshSubscription(POSTS_RESOURCE, load);
 
   async function createPost() {
     setCreating(true);

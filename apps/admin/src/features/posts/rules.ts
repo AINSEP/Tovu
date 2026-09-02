@@ -18,6 +18,15 @@ import { POSTS_DICT } from "./posts-i18n";
  * popover, which is how a `post.status` conditional ends up permanently untested.
  */
 
+/**
+ * This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ * for why this is a plain colocated constant rather than a shared registry. `content_post_create`/
+ * `_update`/`_delete` (`apps/website/src/features/post/agent-tools.ts`) are agent-callable, so
+ * `use-posts.hooks.ts` needs the same "an assistant write shows up without a reload" fix
+ * `use-taxonomy.hooks.ts` shipped first — this is the bug this whole pass was dispatched to fix.
+ */
+export const POSTS_RESOURCE = "posts";
+
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
  *  state and navigation, and so a test can assert exactly which one a given row wires up. */
 export interface PostRowMenuHandlers {
