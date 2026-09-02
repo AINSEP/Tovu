@@ -47,6 +47,7 @@
     "check:inventory": "tsx development/scripts/check-capability-inventory.ts",
     "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
     "check:seal-aad": "tsx apps/website/src/features/webhooks/seal-aad-invariant.ts",
+    "check:secret-scan": "tsx apps/website/src/features/webhooks/secret-scan-guard.ts",
     "check:admin-complexity-drift": "tsx development/scripts/check-admin-complexity-drift.ts",
     "check:src-complexity-drift": "tsx development/scripts/check-src-complexity-drift.ts",
     "check:coverage-integrity": "tsx development/scripts/check-coverage-integrity.ts",
