@@ -1,4 +1,5 @@
 import type { AgentToolSideEffect } from "@jini-ai/cms/core";
+import { IMAGE_MODELS, findProvider } from "@jini-ai/integrations/media-providers/catalog";
 
 /**
  * @file Agent-tool catalog for `features/media-generation` — closes the "I cannot generate images,
@@ -8,18 +9,19 @@ import type { AgentToolSideEffect } from "@jini-ai/cms/core";
  * (`@jini-ai/integrations/media-providers`'s multi-vendor dispatch engine) already existed and was
  * imported nowhere under `apps/` — this catalog is the first caller.
  *
- * ONE tool, `media_generate_asset`. OpenAI-only in this slice (2026-09-02 dispatch scope): every
- * other vendor the dispatch engine supports (Grok, NanoBanana, ElevenLabs, ...) is a real, separate
- * capability this catalog deliberately does not claim yet — adding a second provider is a second,
- * independently-scoped tool-catalog change, not a hidden default this tool falls back to. The
- * three model ids below are exactly OpenAI's registered image models
- * (`@jini-ai/integrations/media-providers`'s `IMAGE_MODELS`, filtered to `provider: 'openai'`) —
- * duplicated here as a fixed enum (not imported) for the same reason `media/agent-tools.ts` inlines
- * its own MIME allowlist into its schema: a published JSON Schema must be a static literal, not a
- * value computed at import time from a catalogue that could grow to include non-OpenAI ids this
- * tool must never silently accept.
+ * ONE tool, `media_generate_asset`. Provider-agnostic as of the 2026-09-02 follow-up dispatch: the
+ * first landed slice was OpenAI-only, which turned out to be unusable on machines with no OpenAI
+ * credential and a different vendor's key instead (this one has `GEMINI_API_KEY`, no
+ * `OPENAI_API_KEY`) — see `tool-registrations.ts`'s module doc for the credential-resolution half of
+ * that fix. This file's half: `model` now accepts one id from every vendor the catalogue itself
+ * marks real (see {@link IMAGE_MODEL_IDS}), not a fixed 3-entry OpenAI literal.
  *
- * Architectural role: `features/media-generation` domain declaration. No dependencies.
+ * Architectural role: `features/media-generation` domain declaration — no dependency on any other
+ * Tovu feature module. Its one external import, `@jini-ai/integrations/media-providers/catalog`, is
+ * that package's deliberately dependency-free reference-data subpath (no `node:*`/`undici` imports —
+ * see that subpath's own module doc): reference data, not I/O, so importing it does not compromise
+ * this file's standalone-domain-declaration role the way importing the dispatch engine
+ * (`tool-registrations.ts`'s heavier import) would.
  */
 
 /** Local declaration, not shared — same "duplicate the tiny type, never share across
@@ -34,17 +36,36 @@ export interface AgentToolDefinition {
 }
 
 /**
- * OpenAI's registered image models (`@jini-ai/integrations/media-providers`'s `IMAGE_MODELS`,
- * `provider: 'openai'` rows only) — see this file's header for why this is a fixed literal rather
- * than computed from the catalogue at import time. Exported (not module-private) so
- * `tool-registrations.ts` can validate `model` at the handler level against the SAME set the
- * published schema's `enum` names — the schema's `enum` is descriptive only (the kernel "neither
- * parses nor validates" a tool's schema, per `@jini-ai/core`'s own `ToolDescriptor.inputSchema` doc,
- * the same caveat `custom-credentials/tool-registrations.ts`'s own allowlist checks document), so a
- * caller-supplied `model` outside this set must be rejected in the handler, not merely described
- * here.
+ * Every catalogued image model whose vendor the catalogue itself marks `integrated` (a real vendor,
+ * not a planned/placeholder entry — see `MediaProvider.integrated`'s own doc in
+ * `@jini-ai/integrations/media-providers`). Computed at import time from `IMAGE_MODELS`, the SAME
+ * catalogue the dispatch engine itself validates `model` against (`engine.ts`'s own
+ * `findMediaModel`/`modelsForSurface`) — replaces this file's old `OPENAI_IMAGE_MODELS`, a fixed
+ * 3-entry literal that made every non-OpenAI vendor (including this machine's actually-configured
+ * one, Nano Banana / `nanobanana`) unreachable through this tool no matter what credential existed.
+ * Exported (not module-private) so `tool-registrations.ts` can validate `model` at the handler level
+ * against the SAME set the published schema's `enum` names — the schema's `enum` is descriptive only
+ * (the kernel "neither parses nor validates" a tool's schema, per `@jini-ai/core`'s own
+ * `ToolDescriptor.inputSchema` doc), so a caller-supplied `model` outside this set must be rejected in
+ * the handler, not merely described here.
+ *
+ * NOT a perfect proxy for "will definitely generate a real image": the dispatch engine's own
+ * vendor-adapter registry (`dispatch/vendor-registry.ts`'s `mediaVendorRegistry`, which this
+ * dependency-free file deliberately does not import — see this file's own header) currently has a
+ * real adapter registered for only 9 of the providers `integrated: true` covers here
+ * (`openai`/`nanobanana`/`grok`/`volcengine`/`imagerouter`/`senseaudio`/`openrouter`/`custom-image`/
+ * `aihubmix`). Two providers included by this filter (`fal`, `leonardo`) are catalogue-`integrated:
+ * true` but have no adapter registered yet — selecting one of their models reaches the dispatch
+ * engine's own clean `no renderer configured for provider "..." ... pass allowStubFallback: true`
+ * error at generation time rather than a real image, exactly the failure `allowStubFallback` (see
+ * `GENERATE_SCHEMA`) exists to soften. Every OTHER excluded provider
+ * (`bfl`/`replicate`/`google`/`kling`/`midjourney`/`comfyui`/`suno`/`udio`) is `integrated: false` in
+ * the catalogue itself — genuinely unwired anywhere in this codebase — so excluding those is reading
+ * the catalogue's own signal, not a guess.
  */
-export const OPENAI_IMAGE_MODELS = ["gpt-image-2", "gpt-image-1.5", "dall-e-3"] as const;
+export const IMAGE_MODEL_IDS: readonly string[] = IMAGE_MODELS.filter(
+  (model) => findProvider(model.provider)?.integrated === true
+).map((model) => model.id);
 
 const GENERATE_SCHEMA = {
   type: "object",
@@ -58,10 +79,24 @@ const GENERATE_SCHEMA = {
     },
     model: {
       type: "string",
-      enum: [...OPENAI_IMAGE_MODELS],
+      enum: [...IMAGE_MODEL_IDS],
       description:
-        "Which OpenAI image model to use. Defaults to 'gpt-image-2' (4K, native multimodal) when omitted. " +
-        "'gpt-image-1.5' is 4x faster; 'dall-e-3' is the older, classic model. Only these three are supported — no other vendor is wired up yet.",
+        "Which image model to use — picking a model also picks its vendor; there is no separate provider field. " +
+        "Defaults to 'gpt-image-2' (OpenAI) when omitted. Other options include 'gemini-3.1-flash-image-preview' " +
+        "(Nano Banana / Google Gemini) and 'grok-imagine-image' (xAI Grok), across every registered vendor. Which " +
+        "ones actually work depends on which vendor has a credential configured for this workspace (Admin -> Media " +
+        "-> 'Media providers') or set as an environment variable on this install — an unconfigured vendor fails " +
+        "with a clear message rather than silently substituting a different one.",
+    },
+    allowStubFallback: {
+      type: "boolean",
+      description:
+        "Opt-in escape hatch, default false. When true, and the selected model's vendor has no real integration " +
+        "wired up in this build yet (a small remainder of the catalog the engine itself decides, not a fixed list " +
+        "here), a deterministic PLACEHOLDER image is returned instead of failing outright, and the returned " +
+        "media's `placeholder` field is set to true. Never used silently when this is false/omitted — a vendor " +
+        "with no real integration fails with a clear error instead. Does NOT paper over a missing/invalid " +
+        "credential for a vendor that DOES have a real integration — that still fails with a normal error either way.",
     },
     alt: { type: "string", description: "Optional accessibility alt text for the uploaded asset." },
     caption: { type: "string", description: "Optional display caption for the uploaded asset." },
@@ -78,7 +113,7 @@ export const mediaGenerationAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "media_generate_asset",
     description:
-      "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Uses the workspace's saved OpenAI media-provider credential (Admin → Media → 'Media providers' tab) to generate one image from `prompt`, then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl) is the SAME shape media_upload_asset/media_list_assets return, so the same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Only OpenAI is supported in this build ('gpt-image-2' default, or 'gpt-image-1.5'/'dall-e-3' — see the `model` field); no other vendor is wired up. If no OpenAI credential is configured yet, this tool fails with a clear message pointing at the Media providers tab rather than a raw API error — tell the human to add one there, do not retry. Costs real money per call (a paid third-party API) — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
+      "THIS IS HOW TO GENERATE A NEW IMAGE FROM A TEXT PROMPT — the assistant's own image generator, not a saved custom credential and not a raw API call. Call this whenever asked to create, generate, draw, design, or make an image (a logo, a hero banner, an illustration, a placeholder photo, ...) rather than uploading an existing file. Generates one image from `prompt` using whichever vendor the `model` field selects (see that field's own description — every registered vendor is supported, not just OpenAI), then uploads the result into the media library exactly like media_upload_asset would — the returned `media` object (id, title, alt, caption, credit, sha256, status, version, publicUrl, placeholder) is the SAME shape media_upload_asset/media_list_assets return plus one extra field: `placeholder` is true only on the rare deterministic-stub fallback (see the `allowStubFallback` field), false for a real generation. The same `id` can immediately be used with media_update_metadata/media_trash_asset, and `publicUrl` (when present) is a real URL usable to embed the image in a post/page right away. Credentials are resolved per-vendor: a saved one from Admin -> Media -> 'Media providers' first, an environment variable second. A vendor with neither configured fails with a clear message pointing at the Media providers tab rather than a raw API error — tell the human to add one there, do not retry. Costs real money per call for a real (non-placeholder) generation — do not call speculatively or in a loop; generate once per request unless explicitly asked to try again.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "media.upload" },
     inputSchema: GENERATE_SCHEMA,

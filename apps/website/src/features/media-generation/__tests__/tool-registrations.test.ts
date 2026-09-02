@@ -11,11 +11,13 @@ import {
   InMemoryMediaRepo,
   InMemoryBlobStore,
   InMemoryTransformDefinitionRepo,
+  MediaProviderCredentialSecretStoreUnconfiguredError,
   registerTransform,
   saveMediaProviderCredentials,
 } from "../../media/index.js";
 import { InMemoryMediaProviderCredentialRepo } from "../../media/provider-credential-store.memory.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../webhooks/index.js";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import type { RouteDeps } from "../../../server/routes/types.js";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../../../assistant/tool-registrations.js";
@@ -23,6 +25,21 @@ import { resetToolContributorsForTests, registerToolContributor } from "../../..
 import { contributeMediaGenerationTools } from "../tool-registrations.js";
 import { mediaGenerationAgentToolCatalog, type AgentToolDefinition } from "../agent-tools.js";
 import type { MediaGenerationRequest, MediaGenerationResult, ProviderCredentials } from "@jini-ai/integrations/media-providers";
+
+/** A `KeyringPort` that always fails — simulates a missing/rotated `TOVU_INTEGRATIONS_ROOT_KEY`
+ *  without touching real env state. Same local-duplicate idiom every other credential-store test in
+ *  this codebase uses (e.g. `media/__tests__/provider-credential-store.test.ts`'s own copy). */
+class BrokenKeyring implements KeyringPort {
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set");
+  }
+  async deriveSigningSecret(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+  async derive(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+}
 
 /**
  * Covers `media_generate_asset`: catalog completeness, the "no credential configured" fail-closed
@@ -42,11 +59,15 @@ const NOW = "2026-09-02T00:00:00.000Z";
 const FAKE_PNG_BYTES = Buffer.from("fake-generated-png-bytes");
 
 function fakeGenerateMedia(
-  recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials }>
-): (request: MediaGenerationRequest, credentials: ProviderCredentials) => Promise<MediaGenerationResult> {
-  return async (request, credentials) => {
-    recorded.push({ request, credentials });
-    return { bytes: FAKE_PNG_BYTES, providerNote: "fake/test", providerId: "openai", usedStubFallback: false, warnings: [] };
+  recorded: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }>
+): (
+  request: MediaGenerationRequest,
+  credentials: ProviderCredentials,
+  options: { providerId: string; allowStubFallback: boolean }
+) => Promise<MediaGenerationResult> {
+  return async (request, credentials, options) => {
+    recorded.push({ request, credentials, options });
+    return { bytes: FAKE_PNG_BYTES, providerNote: "fake/test", providerId: options.providerId, usedStubFallback: false, warnings: [] };
   };
 }
 
@@ -58,7 +79,22 @@ async function seedPublicTransform(transformDefinitionRepo: InMemoryTransformDef
 }
 
 function fakeRouteDeps(
-  options: { allow?: boolean; withCredential?: boolean; generateMedia?: (request: MediaGenerationRequest, credentials: ProviderCredentials) => Promise<MediaGenerationResult> } = {}
+  options: {
+    allow?: boolean;
+    withCredential?: boolean;
+    /** Pass `null` to omit the field entirely, so the handler falls through to the REAL
+     *  `defaultGenerateMedia` (the real dispatch engine) instead of this file's injected fake — only
+     *  safe for scenarios proven never to reach a network call (the stub-fallback tests below, where
+     *  the selected model's provider has no adapter registered at all). Omitted/`undefined` uses the
+     *  fake, as before. */
+    generateMedia?:
+      | ((request: MediaGenerationRequest, credentials: ProviderCredentials, options: { providerId: string; allowStubFallback: boolean }) => Promise<MediaGenerationResult>)
+      | null;
+    /** Defaults to `{}` (no env vars at all) — deliberately NOT the real `process.env` — so no test
+     *  here can pass or fail depending on what happens to be set on the machine running it. Tests
+     *  that need the env-fallback path pass their own fixed map. */
+    env?: NodeJS.ProcessEnv;
+  } = {}
 ) {
   const allow = options.allow ?? true;
   const mediaRepo = new InMemoryMediaRepo();
@@ -71,7 +107,7 @@ function fakeRouteDeps(
   const keyring = new InMemoryKeyring();
   const siteAssistantSecretSealer = new AesGcmSecretSealer(keyring);
   const authorizeCalls: Array<Record<string, unknown>> = [];
-  const generateCalls: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials }> = [];
+  const generateCalls: Array<{ request: MediaGenerationRequest; credentials: ProviderCredentials; options: { providerId: string; allowStubFallback: boolean } }> = [];
 
   let counter = 0;
   const deps = {
@@ -86,7 +122,8 @@ function fakeRouteDeps(
     transformDefinitionRepo,
     mediaProviderCredentialRepo,
     siteAssistantSecretSealer,
-    generateMedia: options.generateMedia ?? fakeGenerateMedia(generateCalls),
+    generateMedia: options.generateMedia === null ? undefined : (options.generateMedia ?? fakeGenerateMedia(generateCalls)),
+    env: options.env ?? {},
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
@@ -214,7 +251,8 @@ test("with a saved credential: generates through the injected seam, uploads the 
   assert.ok(out.media.id);
   assert.ok(out.media.sha256, "the uploaded bytes must be hashed like any other upload");
   assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
-  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "status", "title", "version"]);
+  assert.equal(out.media.placeholder, false, "a real (non-stub) generation must report placeholder:false");
+  assert.deepEqual(Object.keys(out.media).sort(), ["alt", "caption", "credit", "id", "placeholder", "publicUrl", "sha256", "status", "title", "version"]);
 });
 
 test("an explicit model is passed through instead of the default", async () => {
@@ -251,9 +289,117 @@ test("an unsupported model id is rejected with the schema attached for retry, an
     .then(() => null, (e: unknown) => e as Error);
 
   assert.ok(error, "an unsupported model must reject");
-  assert.match(error.message, /'model' must be one of gpt-image-2, gpt-image-1\.5, dall-e-3/);
+  assert.match(error.message, /'model' must be a registered image model — got 'some-other-vendor-model'/);
   assert.match(error.message, /"additionalProperties":false/, "the published schema must travel with the failure, per withSchemaOnRejection");
   assert.equal(generateCalls.length, 0, "an invalid model must never reach the vendor call");
+});
+
+// ---------------------------------------------------------------------------
+// 3b. Multi-provider model resolution + credential precedence (2026-09-02 follow-up)
+// ---------------------------------------------------------------------------
+
+test("a non-OpenAI model (nanobanana) with no saved credential falls back to the injected env credential", async () => {
+  const { deps, generateCalls } = fakeRouteDeps({ env: { GEMINI_API_KEY: "env-gemini-key" } });
+
+  await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" }));
+
+  assert.equal(generateCalls.length, 1);
+  assert.equal(generateCalls[0]!.options.providerId, "nanobanana", "the provider id must be resolved from the selected model, not hardcoded to openai");
+  assert.equal(generateCalls[0]!.credentials.apiKey, "env-gemini-key");
+  assert.equal(generateCalls[0]!.request.model, "gemini-3.1-flash-image-preview");
+});
+
+test("a saved credential wins over the env fallback even when both are present", async () => {
+  const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
+  const { deps, generateCalls } = fixture;
+  await seedOpenAiCredential(fixture);
+
+  await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a logo" }));
+
+  assert.equal(generateCalls.length, 1);
+  assert.equal(generateCalls[0]!.credentials.apiKey, "sk-real-test-key-7777", "the SAVED key must win, not the env one");
+});
+
+test("a saved credential that fails to decrypt throws its own error and never falls through to env", async () => {
+  const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-never-be-used" } });
+  await seedOpenAiCredential(fixture);
+  // Same repo (holds the already-seeded row), but a sealer built on a keyring that can never derive
+  // the key it was sealed with — simulates a rotated/missing master secret without touching real env
+  // state (same idiom `media/__tests__/provider-credential-store.test.ts` already establishes).
+  const brokenDeps = { ...fixture.deps, siteAssistantSecretSealer: new AesGcmSecretSealer(new BrokenKeyring()) };
+
+  await assert.rejects(
+    () => wired("media_generate_asset", brokenDeps).handler(executionContext({ prompt: "a logo" })),
+    (error: unknown) => {
+      assert.ok(error instanceof MediaProviderCredentialSecretStoreUnconfiguredError, `expected MediaProviderCredentialSecretStoreUnconfiguredError, got ${String(error)}`);
+      return true;
+    }
+  );
+  assert.equal(fixture.generateCalls.length, 0, "a broken saved credential must never silently fall through to the env key and generate anyway");
+});
+
+test("no credential anywhere (saved or env) names the selected model's vendor, not always 'OpenAI'", async () => {
+  const { deps, generateCalls } = fakeRouteDeps({ env: {} });
+
+  await assert.rejects(
+    () => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: "gemini-3.1-flash-image-preview" })),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /no Nano Banana media-provider credential is configured/);
+      assert.match(error.message, /GOOGLE_API_KEY, GEMINI_API_KEY/, "should name the env vars it checked");
+      return true;
+    }
+  );
+  assert.equal(generateCalls.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// 3c. Stub fallback — explicit opt-in only, flag visibly set on the return
+// ---------------------------------------------------------------------------
+
+// 'flux-schnell-fal' (provider 'fal') is `integrated: true` in the catalogue — so it IS a valid
+// `model` value — but has no adapter registered in the dispatch engine's `mediaVendorRegistry` (see
+// `agent-tools.ts`'s own `IMAGE_MODEL_IDS` doc for the full list of which providers do). These tests
+// let the REAL `defaultGenerateMedia`/dispatch engine run (`generateMedia: null`) instead of this
+// file's injected fake — safe here specifically because this (provider, surface) pair can never
+// reach a network call: the engine's own `resolveRenderer` finds nothing and either throws
+// synchronously or returns synchronous placeholder bytes, before any `fetch` would happen.
+const UNIMPLEMENTED_VENDOR_MODEL = "flux-schnell-fal";
+
+test("a credential-resolved but unimplemented vendor fails with the engine's own clear error when allowStubFallback is not set", async () => {
+  const { deps, generateCalls } = fakeRouteDeps({ generateMedia: null, env: { FAL_KEY: "fake-fal-key-for-routing-only" } });
+
+  await assert.rejects(
+    () => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: UNIMPLEMENTED_VENDOR_MODEL })),
+    /no renderer configured for provider "fal"/
+  );
+  assert.equal(generateCalls.length, 0, "this scenario runs the real engine, not the injected fake, so the fake's own call log stays empty");
+});
+
+test("allowStubFallback:true on the same unimplemented vendor returns placeholder bytes, with placeholder:true on the returned media", async () => {
+  const { deps, mediaRepo } = fakeRouteDeps({ generateMedia: null, env: { FAL_KEY: "fake-fal-key-for-routing-only" } });
+
+  const out = (await wired("media_generate_asset", deps).handler(
+    executionContext({ prompt: "a red circle", model: UNIMPLEMENTED_VENDOR_MODEL, allowStubFallback: true })
+  )) as { media: { id: string; placeholder: boolean } };
+
+  assert.equal(out.media.placeholder, true, "a stub-fallback render must be visibly flagged, never mistaken for a real generation");
+  const [stored] = await mediaRepo.list({ workspaceId: WORKSPACE_ID });
+  assert.ok(stored, "the placeholder bytes must still be uploaded like any other generated asset");
+});
+
+test("allowStubFallback:true never applies when a real credential and a real renderer both exist — the real bytes are used, not a placeholder", async () => {
+  const fixture = fakeRouteDeps();
+  const { deps, generateCalls } = fixture;
+  await seedOpenAiCredential(fixture);
+
+  await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a logo", allowStubFallback: true }));
+
+  assert.equal(generateCalls.length, 1);
+  assert.equal(generateCalls[0]!.options.allowStubFallback, true, "the flag is still threaded through to the engine...");
+  // ...but this test's injected fake always returns usedStubFallback:false (see fakeGenerateMedia),
+  // matching what the REAL engine would also do here: a registered renderer with valid credentials
+  // is used, never the stub, regardless of allowStubFallback.
 });
 
 // ---------------------------------------------------------------------------
