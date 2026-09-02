@@ -1,18 +1,21 @@
 # ============================================================================
-# INERT IN THIS REPO. Verified 2026-09-02 — this workflow has never run once.
+# THIS IS THE DEPLOY WORKFLOW. Corrected 2026-09-02.
 #
-# It is not on this repository's default branch, so GitHub 404s it and
-# `workflow_dispatch` cannot fire it; its only other trigger is `push: [main]`.
-# Production (`tovu.fly.dev`) is really deployed by the "Deploy to Fly.io" workflow in
-# the SEPARATE PUBLIC MIRROR REPO `github.com/leonaburime-ucla/Tovu`, branch `main`
-# (five successful runs on 2026-09-01, e.g. run 33526793825, 5m11s).
-# For any deploy question use `gh ... --repo leonaburime-ucla/Tovu`; `gh` from this
-# checkout answers about the private working repo instead and looks like a hard block.
+# An earlier banner here called this file inert. That was true when this repo and the
+# public deploy mirror `github.com/leonaburime-ucla/Tovu` had disjoint histories: the
+# mirror carried its own copy and this one never ran. As of 2026-09-02 the mirror was
+# force-updated from this tree, so THIS file is now what deploys production.
 #
-# The app name in the comments below (`tovu-ai-cms`) does not resolve. Live app is `tovu`.
-# See the matching banner in `fly.toml`.
+# Consequence worth remembering: that force-push silently overwrote fixes that existed
+# only on the mirror -- the `packages/sdk` build step and `TOVU_BUILD_SHA` in the
+# Dockerfile, and both `--build-arg` flags on the deploy line below. Two deploys failed
+# before that was spotted. Before any future history replacement, diff MODIFIED files
+# against the mirror, not just added/deleted ones.
+#
+# Deploys still only run from the mirror, on its `main`. Query them with
+# `gh ... --repo leonaburime-ucla/Tovu`; plain `gh` in this checkout answers about the
+# private working repo, whose Actions are billing-blocked.
 # ============================================================================
-
 name: Deploy to Fly.io
 
 # Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this
@@ -94,6 +97,10 @@ jobs:
 
       # Fly's remote builder does the actual image build; this runner just uploads the build
       # context and polls status, so no local Docker/BuildKit setup is needed on the runner.
-      - run: flyctl deploy --remote-only
+      # --build-arg TOVU_BUILD_SHA: the build context sent to Fly's remote builder excludes `.git`,
+      #   so `emit-dist-package-json.mjs` cannot read the commit itself. Without this the runtime
+      #   manifest records no provenance.
+      # --build-arg TOVU_INSTALL_BROWSER=0: skips the ~150MB headless Chromium download.
+      - run: flyctl deploy --remote-only --build-arg TOVU_BUILD_SHA=${{ github.sha }} --build-arg TOVU_INSTALL_BROWSER=0
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

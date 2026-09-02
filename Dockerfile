@@ -48,6 +48,21 @@ RUN npm install
 RUN npm --prefix apps/admin install && npm --prefix apps/admin run build
 RUN npm --prefix apps/site-chat install && npm --prefix apps/site-chat run build
 
+# `packages/sdk` is a real npm workspace (root `npm install` above already linked and installed
+# its deps), but its own `dist/` is gitignored like every other build output, so it never reaches
+# this image already-built the way `apps/admin`/`apps/site-chat` bring their own `dist` in via
+# their install+build lines above. `apps/website/src` imports `@tovu/sdk` as a real (non-type-only)
+# module in several places, so without this the `npm run build` step below fails module resolution
+# with `Cannot find module '@tovu/sdk'`.
+RUN npm run build --workspace=packages/sdk
+
+# `emit-dist-package-json.mjs` (part of `npm run build` below) records the building commit's SHA
+# in `dist/runtime-manifest.json` for provenance (ADR-020 5). It normally reads that from `git
+# rev-parse HEAD`, but this stage's `.git` is excluded by `Dockerfile.dockerignore`, so there is no
+# repo to ask. `fly-deploy.yml` passes the real commit through as this build arg.
+ARG TOVU_BUILD_SHA
+ENV TOVU_BUILD_SHA=${TOVU_BUILD_SHA}
+
 # `tsc` plus the asset copies. Stock DATA (templates, themes, agent-plugins, public) is copied
 # from `content/` to `dist/content/`; drizzle migrations stay under `dist/src/db/`. Each copy
 # `rm -rf`s its own target first, so a file deleted from source cannot survive into the image.
