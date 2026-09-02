@@ -18,13 +18,13 @@ test("seal then open round-trips the plaintext exactly", async () => {
   const sealer = new AesGcmSecretSealer(keyring);
   const activeKey = await keyring.activeKey();
 
-  const sealed = await sealer.seal({ plaintext: "AIzaSyCUytI-PiFmjdyaQA_tvetXb4Id4RXMuPw", key: activeKey });
+  const sealed = await sealer.seal({ plaintext: "not-a-real-credential-just-fixture-plaintext", key: activeKey });
   assert.equal(sealed.alg, "aes-256-gcm");
   assert.equal(sealed.keyId, activeKey.keyId);
-  assert.notEqual(sealed.ciphertext, "AIzaSyCUytI-PiFmjdyaQA_tvetXb4Id4RXMuPw");
+  assert.notEqual(sealed.ciphertext, "not-a-real-credential-just-fixture-plaintext");
 
   const opened = await sealer.open({ sealed });
-  assert.equal(opened, "AIzaSyCUytI-PiFmjdyaQA_tvetXb4Id4RXMuPw");
+  assert.equal(opened, "not-a-real-credential-just-fixture-plaintext");
 });
 
 test("two seals of the same plaintext produce different ciphertext and nonce (fresh IV every call)", async () => {

@@ -91,6 +91,35 @@ export function deriveDistImports(rootPkgImports, rootDir) {
   );
 }
 
+
+/**
+ * Resolves the commit SHA recorded in `runtime-manifest.json`. `git rev-parse HEAD` only works
+ * when a `.git` directory is present, which the Docker build stage deliberately excludes
+ * (`Dockerfile.dockerignore`'s `.git` line) -- so CI passes it in as `TOVU_BUILD_SHA` (see
+ * `fly-deploy.yml`, forwarded into the image via the Dockerfile's matching `ARG`/`ENV`) and this
+ * prefers that over shelling out to git. Local dev builds never set the env var, so they fall
+ * through to `git rev-parse HEAD` exactly as before. If neither is available, the SHA degrades to
+ * `"unknown"` LOUDLY (a warning on stderr) rather than either crashing the build or writing that
+ * placeholder into the manifest with no trace of why -- the field is a provenance guarantee
+ * (ADR-020 5), so a reader must be able to tell the difference between "verified" and "unknown".
+ */
+function resolveTovuSha(repoRoot) {
+  const envSha = process.env.TOVU_BUILD_SHA;
+  if (envSha) {
+    return envSha.trim();
+  }
+  try {
+    return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  } catch (err) {
+    console.warn(
+      `WARNING: could not resolve tovuSha for runtime-manifest.json -- no TOVU_BUILD_SHA env var, ` +
+        `and \`git rev-parse HEAD\` failed (${err.message.trim().split("\n")[0]}). Writing "unknown".`,
+    );
+    return "unknown";
+  }
+}
+
+
 function main() {
   const repoRoot = path.resolve(import.meta.dirname, "..", "..");
   const rootPkgPath = path.join(repoRoot, "package.json");
@@ -138,7 +167,7 @@ function main() {
     throw new Error(`Could not parse a ">=<major>." minimum from ${rootPkgPath}'s engines.node (${rootPkg.engines?.node}).`);
   }
 
-  const tovuSha = execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoRoot, encoding: "utf8" }).trim();
+  const tovuSha = resolveTovuSha(repoRoot);
 
   /** Bumped only when the manifest's own shape changes in a way a consumer must branch on. */
   const RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
