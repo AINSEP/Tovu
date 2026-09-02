@@ -76,6 +76,7 @@ test("custom_credential_make_request is on the allowlist — its DELETE method h
 const EXPECTED_ALLOWLIST = [
   "assistant_ask_choice",
   "assistant_demo_choices",
+  "assistant_tool_failure_recovery",
   "content_post_delete",
   "content_post_search",
   "custom_credential_make_request",

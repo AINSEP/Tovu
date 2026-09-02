@@ -151,6 +151,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
+    "custom-credentials",
     "database",
     "deployments",
     "entries",
