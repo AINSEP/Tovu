@@ -17,8 +17,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
+
+import { SURFACE_EXCHANGE_ID_PARAM } from "../../contracts/core/tool-surface-exchanges.js";
 import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
 import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
+import { TOOL_FAILURE_RECOVERY_TOOL_ID } from "../tool-failure-recovery.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
@@ -288,4 +293,288 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
   assert.equal(requested.runId, RUN.id);
   assert.equal(requested.principalId, PRINCIPAL.id);
   assert.equal(final.phase, "unknown-tool", "ToolExecutor.execute throws 'unknown tool' for an id it does not know");
+});
+
+// ---------------------------------------------------------------------------
+// INCIDENT FIX (2026-09-02): the ask -> apply -> retry-once tool-failure-recovery loop
+// (`tool-failure-recovery.ts`) was wired into the Local CLI path's executor
+// (`agent-daemon-server.ts:448-450`) but never into this file's — `execute_delegated_tool`'s real
+// executor was built bare/audit-only, so a BYOK-mode diagnostic (`{hint, remedyToolId}`, e.g. from
+// `custom_credential_verify`) reached the model as a dead-end failure instead of the self-healing
+// loop the Local CLI path already gets. `withToolFailureRecovery`'s own correctness (the structural
+// one-cycle guard, every BAIL/SILENCE/DECLINE shape) is certified directly in
+// `tool-failure-recovery.test.ts` — these tests are deliberately narrower: they exist to prove this
+// file's COMPOSITION reaches that loop at all, in the right order relative to the audit decorator,
+// through the real `createByokToolSurface`-built registry/executor rather than a fake stand-in.
+// ---------------------------------------------------------------------------
+
+/** A minimal, always-allow `ToolRegistration` for a fake tool this section registers directly on
+ *  `surface.registry` (the real `@jini-ai/core` registry `createByokToolSurface` builds and exposes)
+ *  — the same technique `tool-registrations.contracts.test.ts` uses to probe registry mechanics
+ *  without needing a full domain deps bag. `handler` is supplied per-test. */
+function fakeAllowedRegistration(id: string, handler: (ctx: ToolExecutionContext) => Promise<unknown>, inputSchema?: unknown): ToolRegistration {
+  return {
+    descriptor: { id, inputSchema },
+    policy: { authorize: () => "allow" },
+    handler,
+  };
+}
+
+/** Pulls the exchange id out of an emitted mcp-ui recovery surface — mirrors
+ *  `tool-failure-recovery.test.ts`'s own `exchangeIdFromSurface`, duplicated here (not imported)
+ *  because that helper is private to its own test file. */
+function exchangeIdFromSurface(emittedSurface: unknown): string {
+  const html = (emittedSurface as { payload: { resource: UIResource } }).payload.resource.resource.text as string;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the recovery surface must carry its exchange id");
+  return match[1]!;
+}
+
+const RECOVERY_REMEDY_SCHEMA = { type: "object", required: ["value"], properties: { value: { type: "string", description: "The value to fix" } } };
+
+test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry, and the FINAL result is the retry's own — not the diagnostic", async () => {
+  const s = surface(); // bare — no toolAttemptAudit — proving recovery does not depend on that option
+  let originalCallCount = 0;
+  let remedyInputSeen: unknown;
+
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_original", async () => {
+      originalCallCount += 1;
+      if (originalCallCount === 1) return { executed: false, hint: "needs a value", remedyToolId: "fake_recoverable_remedy" };
+      return { fixed: true };
+    }),
+  );
+  s.registry.register(
+    fakeAllowedRegistration(
+      "fake_recoverable_remedy",
+      async (ctx) => {
+        remedyInputSeen = ctx.input;
+        return { saved: true };
+      },
+      RECOVERY_REMEDY_SCHEMA,
+    ),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+
+  const pending = s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_original", input: {} }),
+    undefined,
+    emitSurface,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(emitted.length, 1, "expected the recovery surface to be raised exactly once before the call settles");
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+
+  const delivered = s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "the-fix" } });
+  assert.deepEqual(delivered, { ok: true }, "the recovery exchange must be reachable off the SAME surfaceExchanges store this surface exposes");
+
+  const result = await pending;
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(JSON.parse(result.content), { fixed: true }, "the final result must be the RETRY's own output, not the original diagnostic");
+  assert.equal(originalCallCount, 2, "the original tool must run exactly twice: the failing call, then the retry — never more");
+  assert.deepEqual(remedyInputSeen, { value: "the-fix" }, "the human's answer must reach the remedy tool's own input");
+});
+
+test("WIRING: a successful first call is never retried and raises no recovery surface", async () => {
+  const s = surface();
+  let callCount = 0;
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_success", async () => {
+      callCount += 1;
+      return { fixed: true };
+    }),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+  const result = await s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_success", input: {} }),
+    undefined,
+    emitSurface,
+  );
+
+  assert.deepEqual(JSON.parse(result.content), { fixed: true });
+  assert.equal(callCount, 1, "a call that never carries a diagnostic must run exactly once");
+  assert.equal(emitted.length, 0, "no recovery surface should ever be raised for a hint-free result");
+});
+
+test("WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again", async () => {
+  const s = surface();
+  let originalCallCount = 0;
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_original_double", async () => {
+      originalCallCount += 1;
+      if (originalCallCount === 1) return { hint: "first problem", remedyToolId: "fake_recoverable_remedy_double" };
+      // The retry's own output ALSO looks diagnostic-shaped — this must not trigger a second ask.
+      return { hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" };
+    }),
+  );
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_remedy_double", async () => ({ saved: true }), RECOVERY_REMEDY_SCHEMA),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+  const pending = s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_original_double", input: {} }),
+    undefined,
+    emitSurface,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.equal(emitted.length, 1, "exactly one recovery surface for the FIRST diagnostic");
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+
+  const result = await pending;
+  assert.deepEqual(
+    JSON.parse(result.content),
+    { hint: "second problem", remedyToolId: "fake_recoverable_remedy_double" },
+    "the retry's own diagnostic-shaped output must reach the model untouched — no second cycle",
+  );
+  assert.equal(emitted.length, 1, "still exactly one surface ever — no retry storm");
+  assert.equal(originalCallCount, 2, "the original tool ran exactly twice: the failing call and the one retry");
+});
+
+test("WIRING: declining the recovery surface returns the ORIGINAL failure untouched, and the remedy tool is never called", async () => {
+  const s = surface();
+  let originalCallCount = 0;
+  let remedyCallCount = 0;
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_decline", async () => {
+      originalCallCount += 1;
+      return { executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" };
+    }),
+  );
+  s.registry.register(
+    fakeAllowedRegistration(
+      "fake_recoverable_decline_remedy",
+      async () => {
+        remedyCallCount += 1;
+        return { saved: true };
+      },
+      RECOVERY_REMEDY_SCHEMA,
+    ),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+  const pending = s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_decline", input: {} }),
+    undefined,
+    emitSurface,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { __dismissed: true } });
+
+  const result = await pending;
+  assert.deepEqual(
+    JSON.parse(result.content),
+    { executed: false, status: 401, hint: "needs a value", remedyToolId: "fake_recoverable_decline_remedy" },
+    "a decline must hand back the exact original diagnostic, verbatim",
+  );
+  assert.equal(originalCallCount, 1, "declining must never trigger a retry");
+  assert.equal(remedyCallCount, 0, "declining must never call the remedy tool");
+});
+
+test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result returns it untouched instead of hanging", async () => {
+  const s = surface();
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_headless", async () => ({ hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" })),
+  );
+
+  // No emitSurface passed — the synthetic/headless caller shape this loop's own doc says must never guess.
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "fake_recoverable_headless", input: {} }));
+
+  assert.deepEqual(JSON.parse(result.content), { hint: "needs a value", remedyToolId: "fake_recoverable_headless_remedy" });
+  assert.equal(s.surfaceExchanges.size(), 0, "no exchange should be left open with no channel to answer through");
+});
+
+test("WIRING: the failed retry still returns a coherent, exact error to the model", async () => {
+  const s = surface();
+  let originalCallCount = 0;
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_retry_fails", async () => {
+      originalCallCount += 1;
+      if (originalCallCount === 1) return { hint: "needs a value", remedyToolId: "fake_recoverable_retry_fails_remedy" };
+      throw new Error("still broken after the fix");
+    }),
+  );
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_retry_fails_remedy", async () => ({ saved: true }), RECOVERY_REMEDY_SCHEMA),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+  const pending = s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_retry_fails", input: {} }),
+    undefined,
+    emitSurface,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+
+  const result = await pending;
+  assert.equal(result.isError, true);
+  assert.equal(result.content, "still broken after the fix", "the retry's own failure message must reach the model verbatim, not be swallowed");
+});
+
+test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-recovery-audit" } });
+  let originalCallCount = 0;
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_audited", async () => {
+      originalCallCount += 1;
+      if (originalCallCount === 1) return { hint: "needs a value", remedyToolId: "fake_recoverable_audited_remedy" };
+      return { fixed: true };
+    }),
+  );
+  s.registry.register(
+    fakeAllowedRegistration("fake_recoverable_audited_remedy", async () => ({ saved: true }), RECOVERY_REMEDY_SCHEMA),
+  );
+
+  const emitted: unknown[] = [];
+  const emitSurface: SurfaceEmitter = async (emission) => void emitted.push(emission);
+  const pending = s.executeMetaTool(
+    PRINCIPAL,
+    RUN,
+    call("execute_delegated_tool", { toolId: "fake_recoverable_audited", input: {} }),
+    undefined,
+    emitSurface,
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  s.surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: { value: "fix-1" } });
+  await pending;
+
+  // 3 real `inner.execute` calls (original, remedy, retry) x 2 audit rows each (requested + final phase).
+  assert.equal(sink.events.length, 6, "expected 6 audit rows: requested+completed for each of the original call, the remedy call, and the retry");
+  const toolIdSequence = sink.events.map((e) => `${e.toolId}:${e.phase}`);
+  assert.deepEqual(toolIdSequence, [
+    "fake_recoverable_audited:requested",
+    "fake_recoverable_audited:completed",
+    "fake_recoverable_audited_remedy:requested",
+    "fake_recoverable_audited_remedy:completed",
+    "fake_recoverable_audited:requested",
+    "fake_recoverable_audited:completed",
+  ]);
 });

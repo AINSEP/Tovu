@@ -47,6 +47,7 @@ import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetai
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
 import { withToolAttemptAudit } from "./tool-executor-audit.js";
+import { withToolFailureRecovery } from "./tool-failure-recovery.js";
 
 /** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
  *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight
@@ -437,9 +438,21 @@ export function createByokToolSurface(
   // with. Bare (unwrapped) only when the caller supplied no `toolAttemptAudit` sink, matching that
   // option's own documented "neither half is logged" contract.
   const rawExecutor = createToolExecutor({ registry });
-  const executor = options.toolAttemptAudit
+  const auditedExecutor = options.toolAttemptAudit
     ? withToolAttemptAudit(rawExecutor, options.toolAttemptAudit.sink, { workspaceId: options.toolAttemptAudit.workspaceId })
     : rawExecutor;
+  // `withToolFailureRecovery` (the generic ask -> apply -> retry-once loop over a `{hint,
+  // remedyToolId}` diagnostic — see that file's own header) wraps the AUDITED executor, not the bare
+  // one, matching `agent-daemon-server.ts:448-450`'s identical ordering: the remedy call and the
+  // retry are each their own audited attempt, not lost inside one outer "completed" row. Unlike the
+  // audit wrap above, this one is NOT conditional on anything the caller supplies — `surfaceExchanges`
+  // and `registry` are both unconditional local consts already built by this function (immediately
+  // above), never options a caller could omit, so there is no "bare executor" degradation case for
+  // this half the way there is for audit. Before 2026-09-02 this executor was built without this
+  // wrap at all, so a BYOK-mode diagnostic (e.g. from `custom_credential_verify`) reached the model
+  // as a dead-end failure instead of the same self-healing loop the Local CLI path already had — see
+  // `byok-tool-surface.test.ts`'s matching WIRING tests.
+  const executor = withToolFailureRecovery(auditedExecutor, { surfaceExchanges, registry });
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
