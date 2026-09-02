@@ -801,7 +801,10 @@ registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 // gap was the fallback silently serving the same stale cache `POST /api/agents/rescan` exists to
 // bypass). `rescanAssistantAgents` is the one path that actually forces a fresh PATH probe.
 registerAgentRoutes(app, { listAgents: listAssistantAgents, rescanAgents: rescanAssistantAgents }, adapter);
-registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal }, adapter);
+// `toolRegistry` is what lets a `requireReadOnly` call be CHECKED. Without it the read-only
+// gateway does not weaken to a pass-through -- it fails closed and refuses every call -- so
+// omitting it silently disables the gateway rather than silently widening it.
+registerDelegatedToolRoutes(app, { lifecycle, toolExecutor, resolvePrincipal, toolRegistry: registry }, adapter);
 // The MCP-UI callback endpoint. Two shapes reach it: an exchange delivery, where a form's OR
 // content_post_delete's answer resolves an agent tool call still waiting on it (ADR-055 Decision 1
 // for forms, Decision 2 for the destructive delete), and the legacy confirmation redemption shape
