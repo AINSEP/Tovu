@@ -259,3 +259,33 @@ test("without a toolAttemptAudit option, search_tools/describe_tool behave exact
   const result = await s.executeMetaTool(PRINCIPAL, RUN, call("search_tools", { query: "workspace" }));
   assert.notEqual(result.isError, true, "omitting the audit option must not change ordinary behavior");
 });
+
+/**
+ * INCIDENT FIX (2026-09-02): the fix above (2026-09-01) covers `search_tools`/`describe_tool` only —
+ * `executor` itself (the thing `execute_delegated_tool` actually calls, one line below the
+ * `catalogAudit` dispatch) was built bare (`createToolExecutor({ registry })`, no
+ * `withToolAttemptAudit`), so every REAL tool a BYOK-mode model ran — `custom_credential_list`,
+ * `custom_credential_verify`, `custom_credential_set_token`, all of them — left no durable trail at
+ * all, while the search that found them logged fine. Live-reproduced against the admin chat
+ * (Google Gemini / BYOK): the assistant genuinely listed and verified two saved credentials, but
+ * `agent_tool_attempts` held only the `search_tools`/`describe_tool` rows for that run, nothing for
+ * either credential call. `withToolAttemptAudit` (`tool-executor-audit.ts`) is the exact mechanism
+ * `agent-daemon-server.ts` already wraps its own executor with for this reason; this closes the
+ * matching gap on the BYOK composition site.
+ */
+test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is durably recorded — not just the search that found it", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const s = createByokToolSurface(fakeRouteDeps(), { toolAttemptAudit: { sink, workspaceId: "ws-meta-tool" } });
+
+  const result = await s.executeMetaTool(PRINCIPAL, RUN, call("execute_delegated_tool", { toolId: "definitely_not_a_real_tool", input: {} }));
+  assert.equal(result.isError, true, "sanity: still the same recoverable-error behavior, unchanged by adding audit");
+
+  assert.equal(sink.events.length, 2, "expected a 'requested' row before delegating and a final-phase row after");
+  const [requested, final] = sink.events;
+  assert.equal(requested.toolId, "definitely_not_a_real_tool");
+  assert.equal(requested.phase, "requested");
+  assert.equal(requested.workspaceId, "ws-meta-tool");
+  assert.equal(requested.runId, RUN.id);
+  assert.equal(requested.principalId, PRINCIPAL.id);
+  assert.equal(final.phase, "unknown-tool", "ToolExecutor.execute throws 'unknown tool' for an id it does not know");
+});

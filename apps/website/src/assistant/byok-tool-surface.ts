@@ -46,6 +46,7 @@ import type { ToolAttemptAuditSink } from "../features/tool-audit/types.js";
 import { appendToolCatalogAttempt, DESCRIBE_TOOL_TOOL_ID, describeToolAuditDetail, SEARCH_TOOLS_TOOL_ID, searchToolsAuditDetail } from "./tool-catalog-audit.js";
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
+import { withToolAttemptAudit } from "./tool-executor-audit.js";
 
 /** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
  *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight
@@ -387,9 +388,17 @@ export function createByokToolSurface(
   options: {
     readonly surfaceExchangeStore?: SurfaceExchangeStore;
     /**
-     * Where `search_tools`/`describe_tool` calls are logged (`tool-catalog-audit.ts`). Omitted, the
-     * two meta-tools run exactly as before and are not logged — a test composing a bare surface pays
-     * nothing extra. Production (`assistant-byok.ts`) always supplies this.
+     * Where every tool-execution attempt is logged, for BOTH halves of this surface: the two
+     * meta-tools (`search_tools`/`describe_tool`, via `tool-catalog-audit.ts`'s own
+     * `appendToolCatalogAttempt` — a single "completed"-phase row per call, there being no
+     * two-phase lifecycle for a catalog read) AND every real tool `execute_delegated_tool` resolves
+     * to (via `withToolAttemptAudit` wrapping `executor` below — the same `requested`-then-final-phase
+     * decorator `agent-daemon-server.ts` wraps its own executor with). Before 2026-09-02 this option
+     * only reached the first half: a BYOK-mode `custom_credential_verify` or any other real tool call
+     * left no durable trail at all, even though the search that found it did — see
+     * `byok-tool-surface.test.ts`'s matching INCIDENT FIX test. Omitted, neither half is logged — a
+     * test composing a bare surface pays nothing extra. Production (`assistant-byok.ts`) always
+     * supplies this.
      */
     readonly toolAttemptAudit?: { readonly sink: ToolAttemptAuditSink; readonly workspaceId: string };
   } = {},
@@ -422,7 +431,15 @@ export function createByokToolSurface(
     registry.register(registration);
   }
 
-  const executor = createToolExecutor({ registry });
+  // `execute_delegated_tool` is what actually reaches this — every real tool a BYOK-mode model
+  // calls, `custom_credential_verify` included — so it gets the same durable audit trail the Local
+  // CLI path's own executor construction (`agent-daemon-server.ts`) already wraps its executor
+  // with. Bare (unwrapped) only when the caller supplied no `toolAttemptAudit` sink, matching that
+  // option's own documented "neither half is logged" contract.
+  const rawExecutor = createToolExecutor({ registry });
+  const executor = options.toolAttemptAudit
+    ? withToolAttemptAudit(rawExecutor, options.toolAttemptAudit.sink, { workspaceId: options.toolAttemptAudit.workspaceId })
+    : rawExecutor;
   // Seeded once here, from the same `registry` the executor resolves against, so a tool the model
   // can FIND is by construction a tool it can RUN — `buildToolCatalogQuery`'s own module doc names
   // that non-drift property as the reason it takes the registry rather than a separate catalog.
