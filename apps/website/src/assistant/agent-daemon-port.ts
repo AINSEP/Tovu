@@ -43,6 +43,8 @@ export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery } from "./tool-catalog-query.js";
 export { withToolAttemptAudit } from "./tool-executor-audit.js";
 export { withToolFailureRecovery } from "./tool-failure-recovery.js";
+export { constrainPrincipalToReadOnlyTools, withReadOnlyToolConstraint } from "./read-only-tool-constraint.js";
+export { createAssistantToolExecutor } from "./tool-executor-stack.js";
 export {
   UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,

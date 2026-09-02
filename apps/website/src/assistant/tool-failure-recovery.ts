@@ -10,6 +10,7 @@ import {
   type SurfaceExchange,
   type SurfaceExchangeStore,
 } from "../contracts/core/tool-surface-exchanges.js";
+import { readOnlyRemedyRefusalMessage, refuseNonReadOnlyDispatch } from "./read-only-tool-constraint.js";
 
 /**
  * @file The CONSUMER of `contracts/core/tool-failure-diagnostics.ts`'s `ToolFailureDiagnostic`
@@ -85,6 +86,16 @@ import {
  *
  * - Never suppresses the original failure: every early return hands back `result` — the exact object
  *   `inner.execute` produced for the original call, provider body and status included — untouched.
+ *   The one return that is not byte-identical still carries that exact `output`: a remedy refused
+ *   because this execution is read-only-constrained adds an `error` explaining that the recovery was
+ *   not attempted (see `read-only-tool-constraint.ts`), because returning the original silently would
+ *   be its own lie — "nothing was written" and "nothing was ever going to be tried" are different
+ *   facts, and the caller can only act on the second one if it is told.
+ * - Never runs a remedy that writes on behalf of a caller that asked for reads only. The dispatch
+ *   below would be refused by `withReadOnlyToolConstraint` in any case — that gate is the
+ *   enforcement, and it sits innermost precisely so it does not depend on this file remembering —
+ *   but this loop asks the same single question first so no human is ever prompted for an answer
+ *   that would then be thrown away.
  * - Never invents an answer: a declined, dismissed, expired, or blank response to the recovery surface
  *   is treated as "do not proceed," not as licence to guess.
  * - Never adds cost to the overwhelmingly common no-hint case: the scan is one bounded, pure walk of
@@ -340,6 +351,15 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
       if (!diagnostic) return result;
       // No channel to ask through (a headless/synthetic caller) — never guess, never suppress.
       if (!emitSurface) return result;
+
+      // A read-only execution may not be recovered by a remedy that writes. `withReadOnlyToolConstraint`
+      // would refuse the dispatch below regardless — it is the enforcement, and it does not depend on
+      // this line — but a refusal discovered THERE arrives only after a human has already been asked to
+      // fill in a form whose answer is then thrown away. Asking the same question here, from the same
+      // single decision function, means the human is never asked, and the caller gets a refusal that
+      // says what happened instead of an unexplained "nothing changed".
+      const readOnlyRefusal = refuseNonReadOnlyDispatch({ principal, toolId: diagnostic.remedyToolId, registry: deps.registry });
+      if (readOnlyRefusal !== null) return { ...result, error: readOnlyRemedyRefusalMessage(readOnlyRefusal) };
 
       const descriptor = deps.registry.list().find((d) => d.id === diagnostic.remedyToolId);
       const plan = planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput: input });

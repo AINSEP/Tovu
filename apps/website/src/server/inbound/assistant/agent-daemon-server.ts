@@ -62,7 +62,7 @@ import express from "express";
 
 import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
-import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle, createToolExecutor } from "@jini-ai/daemon";
+import { createAgentExecutor, createInMemoryEventLog, createRunLifecycle } from "@jini-ai/daemon";
 // From `@jini-ai/agent-runtime`, which owns the seam — not `@jini-ai/daemon`, which only accepts
 // one as an option. The ambient shim this repo used to carry declared it on `daemon`, and being a
 // shim it made that wrong claim typecheck cleanly.
@@ -132,8 +132,8 @@ import {
   parseRunStartContextRef,
   buildComponentCatalogQuery,
   buildToolCatalogQuery,
-  withToolAttemptAudit,
-  withToolFailureRecovery,
+  constrainPrincipalToReadOnlyTools,
+  createAssistantToolExecutor,
   withToolCatalogAudit,
   UNSCOPED_TOOL_CATALOG_ROUTE_PRINCIPAL_ID,
   UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID,
@@ -440,15 +440,10 @@ const auditSink =
   process.env.TOVU_DB === "memory"
     ? createInMemoryToolAttemptAuditSink()
     : new SqliteToolAttemptAuditSink(openContentDb(defaultContentDbPath()));
-// `withToolFailureRecovery` wraps the AUDITED executor, not the bare one, so the remedy call and the
-// retry it can make (see that file's own header) each land as their own audited attempt row — the
-// opposite order (audit wrapping recovery) would collapse all three calls into the one outer
-// "completed" row `withToolAttemptAudit` records for the call the transport actually made, losing the
-// remedy tool's own durable-write attempt from the trail entirely.
-const toolExecutor = withToolFailureRecovery(
-  withToolAttemptAudit(createToolExecutor({ registry }), auditSink, { workspaceId: routeDeps.workspaceId }),
-  { surfaceExchanges, registry },
-);
+// The decorator order — and in particular why the read-only gate is innermost — lives in
+// `tool-executor-stack.ts` alongside the composition itself, so it is exercisable by a test that does
+// not have to boot this whole module.
+const toolExecutor = createAssistantToolExecutor({ registry, auditSink, surfaceExchanges, workspaceId: routeDeps.workspaceId });
 
 /**
  * The admin Instructions tab's system-prompt seam (`core.instructions.custom`) — see
@@ -759,11 +754,18 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 };
 
 /** Fails closed: an untracked `runId` throws rather than fabricating a principal — see
- * `src/server/modules/assistant.ts`'s identical guard for the full rationale. */
+ * `src/server/modules/assistant.ts`'s identical guard for the full rationale.
+ *
+ * A `requireReadOnly` request (the wire flag `@jini-ai/mcp`'s `execute_readonly_delegated_tool`
+ * sets, and which `@jini-ai/http-kit` hands to this host-owned resolver verbatim) resolves to an
+ * ATTENUATED principal instead of the tracked one. That is what carries the constraint past this
+ * route and into the execution itself, where `withReadOnlyToolConstraint` enforces it on every
+ * dispatch rather than only on the id the caller named — the route's own check answers for that one
+ * id, and a decorator can dispatch another. See `read-only-tool-constraint.ts`. */
 const resolvePrincipal = (request: DelegatedToolExecuteRequest): Principal => {
   const principal = principalByRunId.get(request.runId);
   if (!principal) throw new Error(`no principal is tracked for run "${request.runId}"`);
-  return principal;
+  return request.requireReadOnly === true ? constrainPrincipalToReadOnlyTools(principal) : principal;
 };
 
 const app = express();
