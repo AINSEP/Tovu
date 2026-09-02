@@ -13,7 +13,12 @@ import {
 import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
-import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../contracts/core/tool-surface-exchanges.js";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../contracts/core/tool-surface-exchanges.js";
+// `SurfaceEmission` itself is `@jini-ai/core`'s own type (`tool-surface-exchanges.ts` re-exports the
+// functions that use it, but not the type) — imported directly here so `handleSetTokenAnswer` below
+// can name its `askThenReport`-shaped return type explicitly, mirroring `features/deployments/
+// publish-agent-tools.ts`'s identical import for the same reason.
+import type { SurfaceEmission } from "@jini-ai/core";
 import type { HttpClientPort } from "../../platform/http/index.js";
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import type { ToolContributor } from "#src/assistant/index";
@@ -27,6 +32,7 @@ import {
   type CredentialedRequestDeps,
   type CredentialedRequestOutcome,
 } from "./credentialed-request.js";
+import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
 import { CustomCredentialNotFoundError, CustomCredentialValidationError, describeCredentialByLabel, listCustomCredentials, updateCustomCredential } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
@@ -93,6 +99,41 @@ import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./typ
  * and — the property that makes skipping confirmation defensible — refusing any call that carries a
  * field other than `label`/`username` at all, so there is no way to even ATTEMPT smuggling a token
  * through this tool (see `rejectUnexpectedSetUsernameFields`'s own doc).
+ *
+ * ## `custom_credential_set_token` — an MCP-UI surface for the SECRET itself (2026-09-01)
+ *
+ * The principle this tool holds up is narrower, and stricter, than "an agent must never write a
+ * token": it is "a token must never pass through the model's context" at all, in either direction. A
+ * human typing a token into ordinary chat text already violates that — it lands in `ai_chat_messages`
+ * in plaintext, in the model's own context (so, the provider), and in the CLI's session history, which
+ * is exactly why every rotation elsewhere in this app ends with "now go rotate it". This tool is the
+ * escape from that: `custom_credential_set_token`'s own input schema (`SET_TOKEN_SCHEMA`,
+ * `agent-tools.ts`) carries only `label` — no field on it could carry a token even if the model tried —
+ * and its handler opens the SAME held-open `SurfaceExchangeStore` exchange mechanism the DELETE gate
+ * above uses, but to show a masked FORM rather than a confirm/cancel dialog
+ * (`custom-credential-set-token-ui.ts`'s `buildSetTokenFormResource`). The human's keystrokes travel
+ * browser -> `mcp-ui-tool-calls-route.ts` -> `SurfaceExchangeStore` -> `handleSetTokenAnswer` below,
+ * entirely inside this process, and never through the spawned agent CLI's stdio — so they never reach
+ * the model, the chat transcript, or (see `describeInput`, `assistant/tool-executor-audit.ts`) even
+ * the durable audit trail, which records only the ORIGINAL call's input KEY NAMES (`label`), never any
+ * value.
+ *
+ * Driven by `askThenReport`, not `askOnce` — the identical reason `deployment_execute_static_publish`
+ * (`features/deployments/publish-agent-tools.ts`) already made this switch: for a held-open exchange,
+ * the form's own `tools/call` round trip resolves the instant `mcp-ui-tool-calls-route.ts` DELIVERS the
+ * submission to this parked call (`202 {delivered:true}`), long before `updateCustomCredential` has
+ * even run. `askThenReport`'s second send (`buildSetTokenOutcomeResource`, reusing the form's own
+ * `ui://` URI) is what corrects "Done." into the real outcome once the seal actually finishes.
+ *
+ * `WRITE`-gated like `custom_credential_set_username`, and — the same defensible-to-skip-confirmation
+ * property that tool's own doc names — this handler refuses any call carrying a field other than
+ * `label` (`rejectUnexpectedSetTokenFields`), so there is no schema-level OR handler-level path for a
+ * token to ride in on the model-issued call itself; the only place a token can ever enter is the
+ * rendered form. Unlike `assistant_ask_choice`/`deployment_execute_static_publish`, this handler has NO
+ * fallback second-call path when `ctx.emitSurface` is absent: it fails closed instead (mirroring the
+ * DELETE gate's own posture), because that fallback shape is exactly a fresh MODEL-ISSUED tool call
+ * carrying the human's answer as its input — the one shape this whole design exists to make impossible
+ * for a secret.
  */
 
 export interface CustomCredentialsToolDeps {
@@ -160,6 +201,12 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
   // supports: no token field reachable, no re-seal, no external call at all (see this file's header,
   // "custom_credential_set_username", for the full reasoning this classification is drawn from).
   ["custom_credential_set_username", "mutates-durable-state"],
+  // -> updateCustomCredential's connection-replacing path, via the human's own form submission: a
+  // genuine Tovu-side DURABLE WRITE (a fresh sealed ciphertext) — the model-issued call itself performs
+  // no write at all (it only opens the exchange and waits), but the classification here describes what
+  // THIS TOOL ID can cause to happen, same convention every other entry in this map uses. No external
+  // call, ever — see this file's header, "custom_credential_set_token", for the full reasoning.
+  ["custom_credential_set_token", "mutates-durable-state"],
 ]);
 
 /**
@@ -235,6 +282,130 @@ function requireUsernameOrClearSentinel(input: Record<string, unknown>): string 
   return input.username;
 }
 
+/** The exact keys `custom_credential_set_token` accepts on the MODEL-ISSUED call — `label`, nothing
+ *  else, ever. `SET_TOKEN_SCHEMA` (`agent-tools.ts`) already has no `token` property to fill in, but
+ *  `additionalProperties: false` is descriptive only (same caveat `SET_USERNAME_ALLOWED_FIELDS`'s own
+ *  doc gives) — this is the layer that is actually enforced. */
+const SET_TOKEN_ALLOWED_FIELDS: ReadonlySet<string> = new Set(["label"]);
+
+/**
+ * Refuses a `custom_credential_set_token` call carrying any field other than `label` — the ONLY
+ * gate standing between "the model can never supply a token to this tool" and a future edit that adds
+ * a second property to its schema without also widening this check. There is no legitimate reason for
+ * this call to ever carry anything else: the token itself can only ever arrive later, through the
+ * rendered form's own submission, which this function never sees (it validates the ORIGINAL call that
+ * opens the exchange, before any form exists).
+ *
+ * @throws {CustomCredentialValidationError} `input` carries a key other than `label`.
+ * @complexity O(n) in the number of supplied input keys.
+ */
+function rejectUnexpectedSetTokenFields(input: Record<string, unknown>): void {
+  const unexpected = Object.keys(input).filter((key) => !SET_TOKEN_ALLOWED_FIELDS.has(key));
+  if (unexpected.length > 0) {
+    throw new CustomCredentialValidationError(
+      `custom_credential_set_token accepts only 'label' — refusing unexpected field(s): ${unexpected.join(", ")}. ` +
+        "The token itself can only be supplied by a human, through the form this tool renders — never by this call."
+    );
+  }
+}
+
+/** `custom_credential_set_token`'s ENTIRE agent-facing result shape — deliberately boolean-plus-reason
+ *  and nothing richer, so there is no field this type could ever be widened to carry the submitted
+ *  token in (contrast `CustomCredentialSummary`, which `custom_credential_set_username` safely returns
+ *  in full because none of its fields are secret). */
+type SetTokenResult = { saved: true } | { saved: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "error"; message?: string };
+
+/** Every dependency {@link handleSetTokenAnswer} needs to seal the submitted token and report the
+ *  outcome — bundled so `custom_credential_set_token`'s own `askThenReport` call passes one object
+ *  rather than the handler's whole closure, same shape `features/deployments/publish-agent-tools.ts`'s
+ *  `PublishConfirmationContext` uses for the identical reason. */
+interface SetTokenAnswerContext {
+  readonly routeDeps: CustomCredentialsToolDeps;
+  readonly existing: CustomCredentialSummary;
+  readonly label: string;
+  readonly exchange: SurfaceExchange;
+}
+
+/**
+ * `custom_credential_set_token`'s `askThenReport` answer handling — extracted to a top-level function
+ * so its own complexity is measured independently of the handler that opens the exchange and builds
+ * the form, same reasoning `handlePublishConfirmationAnswer`
+ * (`features/deployments/publish-agent-tools.ts`) gives for its own extraction.
+ *
+ * `askThenReport`, not `askOnce`: a submitted form's `tools/call` resolves the instant
+ * `mcp-ui-tool-calls-route.ts` DELIVERS it to this parked call, before `updateCustomCredential` below
+ * has even run — see `custom-credential-set-token-ui.ts`'s header for the full defect this avoids. Each
+ * non-success branch that sends an `outcome` does so because the confirmation-turned-form's own script
+ * would otherwise leave a bare "Done." on screen for work that has not actually happened yet; the
+ * cancel/no-answer branches send none, because the form's own script already reports "Dismissed."/an
+ * expiry locally the moment this call resolves, and that IS the truth for those two cases (nothing
+ * asynchronous happens afterward that could still fail) — identical reasoning
+ * `handlePublishConfirmationAnswer`'s own cancel branch documents.
+ *
+ * The token itself lives in a single local `const` for the width of this function and is never
+ * assigned to any field this function returns, logged, or otherwise retained — the property
+ * `agent-tools.ts`'s own catalog description promises the model.
+ *
+ * @complexity O(1) plus one `updateCustomCredential` call (validate, seal, write).
+ */
+async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerContext): Promise<{ result: SetTokenResult; outcome?: SurfaceEmission }> {
+  const { routeDeps, existing, label, exchange } = ctx;
+
+  if (answer.status !== "received") {
+    return { result: { saved: false, reason: answer.status } };
+  }
+  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
+    return { result: { saved: false, reason: "cancelled" } };
+  }
+
+  const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
+  if (token.trim() === "") {
+    const message = "Token cannot be blank. Nothing was saved.";
+    return {
+      result: { saved: false, reason: "invalid", message },
+      outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
+    };
+  }
+
+  try {
+    await updateCustomCredential(
+      {
+        repo: routeDeps.customCredentialSetRepo,
+        sealer: routeDeps.siteAssistantSecretSealer,
+        keyring: routeDeps.siteAssistantSecretKeyring,
+        clock: routeDeps.clock,
+        idGen: routeDeps.idGen,
+      },
+      {
+        workspaceId: routeDeps.workspaceId,
+        id: existing.id,
+        // Carries the EXISTING username forward into the fresh connection. Replacing `connection`
+        // WITHOUT it would silently CLEAR a saved username — `store.ts`'s own `updateCustomCredential`
+        // doc: "replacing the connection replaces the username ... including clearing it, when the new
+        // connection omits one". A token-only fix must never have that side effect, so this is the one
+        // place this handler reads `existing.username` at all.
+        connection: { token, ...(existing.username !== undefined ? { username: existing.username } : {}) },
+      }
+    );
+  } catch (err) {
+    // `err.message` only, never echoed alongside anything else — matches `store.ts`'s own error
+    // classes, none of which ever embed a field VALUE (see e.g. `CustomCredentialValidationError`'s
+    // and `CustomCredentialSecretStoreUnconfiguredError`'s own construction sites: names and reasons,
+    // never a token).
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      result: { saved: false, reason: "error", message },
+      outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "failure", message }) } },
+    };
+  }
+
+  const message = `Token for '${label}' saved.`;
+  return {
+    result: { saved: true },
+    outcome: { channel: "mcp-ui", payload: { resource: buildSetTokenOutcomeResource({ exchangeId: exchange.id, label, state: "success", message }) } },
+  };
+}
+
 export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentialsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const requestDeps: CredentialedRequestDeps = {
     repo: routeDeps.customCredentialSetRepo,
@@ -298,6 +469,54 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         },
         { workspaceId: routeDeps.workspaceId, id: existing.id, username }
       );
+    },
+
+    // An MCP-UI surface for the SECRET itself — see this file's header, "custom_credential_set_token",
+    // for the full mechanism and why it holds up "a token must never pass through the model's
+    // context" rather than merely "an agent must never write one". Shape validation
+    // (`rejectUnexpectedSetTokenFields`) and the label->id resolution both run BEFORE any exchange is
+    // opened, same ordering `custom_credential_make_request`'s DELETE gate below uses: a malformed or
+    // unresolvable call must never raise a dialog for a human to see. WRITE-gated, same permission
+    // `custom_credential_set_username`/`custom_credential_make_request` use.
+    custom_credential_set_token: async (ctx): Promise<SetTokenResult> => {
+      const input = requireInputRecord(ctx.input);
+      rejectUnexpectedSetTokenFields(input);
+      const label = requireString(input, "label");
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+
+      // Non-decrypting label->id resolution — same lookup `custom_credential_set_username` above uses,
+      // and for the identical reason: a bad label should never cost a decrypt. `existing.username` is
+      // also read here (never a decrypt — it is a plaintext column) so `handleSetTokenAnswer` can carry
+      // it forward into the fresh connection without a second lookup after the human answers.
+      const existing = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
+      if (!existing) {
+        throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);
+      }
+
+      // Fail closed rather than degrade — and, unlike every OTHER gated tool in this codebase, there is
+      // deliberately no fallback second-call shape for this one even in principle: that shape is a
+      // fresh MODEL-ISSUED tool call carrying the human's answer as its own input, which is exactly the
+      // path this tool exists to make impossible for a secret. See this file's header.
+      if (!ctx.emitSurface) {
+        throw new Error(
+          "custom_credential_set_token: this execution context has no interactive confirmation channel " +
+            "(no emitSurface), so a token cannot be collected here. Nothing was changed."
+        );
+      }
+
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: SET_TOKEN_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const ui = buildSetTokenFormResource({ label, exchangeId: exchange.id });
+
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      try {
+        // `askThenReport`, not `askOnce` — see `handleSetTokenAnswer`'s own header for the full defect
+        // this closes and why the handler is a separate top-level function rather than inlined here.
+        const answerContext: SetTokenAnswerContext = { routeDeps, existing, label, exchange };
+        return await askThenReport<SetTokenResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleSetTokenAnswer(answer, answerContext));
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
     },
 
     // GET/POST/PUT/PATCH run immediately (no ceremony — parity with the site). DELETE opens an

@@ -113,6 +113,14 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // header), so admitting the tool id here does not widen this endpoint's reach for those methods;
   // there is simply nothing for them to redeem.
   "custom_credential_make_request",
+  // 2026-09-01 — `custom_credential_set_token` (`features/custom-credentials/tool-registrations.ts`)
+  // holds up the SAME held-open-exchange shape every entry above does: its handler opens a
+  // `SurfaceExchangeStore` exchange and parks on the human's form submission before sealing a fresh
+  // token. Omitting it here would repeat the exact gap `assistant_ask_choice`'s own comment above
+  // describes — the form would render correctly and every submission would 403, unusable in
+  // production from the day it shipped, since a masked token field has nowhere else to go but this
+  // endpoint (the tool's own schema accepts no token at all, by design).
+  "custom_credential_set_token",
 ]);
 
 /**

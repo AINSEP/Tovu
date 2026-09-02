@@ -79,6 +79,7 @@ const EXPECTED_ALLOWLIST = [
   "content_post_delete",
   "content_post_search",
   "custom_credential_make_request",
+  "custom_credential_set_token",
   "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
   "source_control_execute_commit",

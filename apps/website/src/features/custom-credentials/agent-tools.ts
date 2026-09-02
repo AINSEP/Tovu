@@ -5,7 +5,7 @@ import type { AgentToolSideEffect } from "@jini-ai/cms/core";
  * Tokens "Add custom provider" form leaves open: the assistant could already SEE that a custom
  * credential (e.g. "name.com", "fly.io") is saved, but had no way to actually USE one, or (until
  * `custom_credential_list` below) even discover what labels exist without a human typing them out.
- * Four tools, all wired in this directory's sibling `tool-registrations.ts`:
+ * Five tools, all wired in this directory's sibling `tool-registrations.ts`:
  *
  * - `custom_credential_list` — added 2026-09-01. Read-back for every saved custom credential: label
  *   (the exact value the other three tools' `label` field expects — call this first to chain straight
@@ -43,6 +43,18 @@ import type { AgentToolSideEffect } from "@jini-ai/cms/core";
  *   cannot accept, read, or write a token — see `tool-registrations.ts`'s
  *   `rejectUnexpectedSetUsernameFields` for the enforcement, and that file's header for why this is the
  *   one write tool in this domain left un-confirmed on top of DELETE.
+ * - `custom_credential_set_token` — added 2026-09-01, an MCP-UI surface for setting or rotating a
+ *   saved credential's TOKEN itself, holding up the governing rule this whole domain now follows: not
+ *   "an agent must never write a token" but "a token must never pass through the model's context". The
+ *   model supplies only `label` — its input schema has no token-shaped field at all (see
+ *   `SET_TOKEN_SCHEMA` below) — and the handler opens an interactive form the HUMAN types the token
+ *   into directly; that keystroke travels browser -> `mcp-ui-tool-calls-route.ts` ->
+ *   `SurfaceExchangeStore` -> the parked handler, and is sealed via `store.ts`'s existing
+ *   `updateCustomCredential({..., connection})`, never touching the spawned agent CLI's stdio and
+ *   therefore never reaching the model, the chat transcript, or `agent_tool_attempts`' audit detail.
+ *   The tool's own result is value-free by construction (`{saved: true}` or `{saved: false, reason}`)
+ *   — see `tool-registrations.ts`'s `handleSetTokenAnswer` and `custom-credential-set-token-ui.ts`'s
+ *   header for the full mechanism, including why it uses `askThenReport` rather than `askOnce`.
  *
  * No schema below carries a token field of any kind: the credential's own SAVED allowed-origin
  * set (`baseUrl` plus any `additionalHosts` — set by a human through the Access Tokens form, never by
@@ -133,6 +145,20 @@ const SET_USERNAME_SCHEMA = {
   },
 } as const;
 
+/** `custom_credential_set_token`'s ENTIRE input shape — `label` only. There is no `token` property to
+ *  fill in, mistakenly or otherwise: the schema itself is the first of two independent enforcement
+ *  layers (`tool-registrations.ts`'s `rejectUnexpectedSetTokenFields` is the second, since a JSON
+ *  Schema's `additionalProperties: false` is descriptive only — the kernel neither parses nor
+ *  validates a tool's schema, per `@jini-ai/core`'s own `ToolDescriptor.inputSchema` doc). */
+const SET_TOKEN_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["label"],
+  properties: {
+    label: { type: "string", description: LABEL_FIELD_DESCRIPTION },
+  },
+} as const;
+
 /**
  * This domain's fixed agent-tool catalog.
  *
@@ -170,5 +196,13 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: "custom-credentials.write" },
     inputSchema: SET_USERNAME_SCHEMA,
+  },
+  {
+    name: "custom_credential_set_token",
+    description:
+      "THIS IS HOW TO SET OR ROTATE A SAVED CREDENTIAL'S TOKEN — in chat, without the human going to the Access Tokens page, and WITHOUT the token ever passing through you. Call this when a saved custom credential (Access Tokens page → 'Add custom provider') needs a new or first token: a rotated fly.io/name.com/etc key, a token that expired, or filling in one that was never set. You supply ONLY the exact saved 'label' (call custom_credential_list first if unsure) — this tool has no field capable of accepting a token, and a call naming anything else is refused outright. Calling it shows the human an interactive form with a masked input; they type the token directly into it, and it is sealed on the server the instant they submit — it is never sent to you, never appears in this tool's result, and never enters the chat transcript. THIS ONE CALL raises that form and WAITS — it does not return until the human submits or cancels, or the form times out; there is no second call to make and no token to invent, guess, or pass yourself. If they submit a token, it is saved and this call returns {saved: true}. If they cancel, it returns {saved: false, reason: 'cancelled'}. If nobody answers before the form expires (or the run ends first), it returns {saved: false, reason: 'expired'|'abandoned'}. A blank submission is refused and returns {saved: false, reason: 'invalid'} with nothing changed. Any other failure (e.g. the server's secret store is unconfigured) returns {saved: false, reason: 'error', message} with an actionable message — never the token, never a raw error dump. The credential's existing saved username, if any, is left exactly as it was; use custom_credential_set_username separately to change that. Never echoes, logs, or otherwise reveals the token you asked to have set — treat every result from this tool as proof only of whether the save happened, nothing more.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "custom-credentials.write" },
+    inputSchema: SET_TOKEN_SCHEMA,
   },
 ];
