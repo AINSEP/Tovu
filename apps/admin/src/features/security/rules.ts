@@ -327,6 +327,12 @@ export interface AccessTokenRow {
   readonly category?: AccessTokenRowCategoryId;
   /** Set only for `kind: "custom"` rows — the API base URL the operator typed at creation. */
   readonly baseUrl?: string;
+  /** Set only for `kind: "custom"` rows that actually have a saved username — the account login the
+   *  operator typed at creation, carried on the row so the edit form can PREFILL it. Absent (never
+   *  `""`) otherwise. Before 2026-09-01 this could not exist at any price: `username` lived inside
+   *  the row's sealed ciphertext, the list route never decrypts, so every edit form rendered a saved
+   *  username as blank and the operator had to retype it. It is a plaintext column now. */
+  readonly username?: string;
 }
 
 /**
@@ -360,6 +366,8 @@ export interface RawCustomCredentialSummary {
   readonly label: string;
   readonly category: AccessTokenRowCategoryId;
   readonly baseUrl: string;
+  /** Absent when the credential has no saved username — see {@link AccessTokenRow.username}. */
+  readonly username?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -370,8 +378,8 @@ export interface RawCustomCredentialSummary {
  * lookup): `providerId` is set to the row's OWN `id` (unique by construction — see
  * {@link AccessTokenRow.providerId}'s doc on the `AccessTokenProviderRef` grouping-key contract this
  * satisfies trivially, one row per "provider"), `isDefault` is always `false` (no default concept
- * applies — see `types.ts`'s own header on this table's server side), and `category`/`baseUrl`
- * carry straight through as the row's own plaintext fields.
+ * applies — see `types.ts`'s own header on this table's server side), and `category`/`baseUrl`/
+ * `username` carry straight through as the row's own plaintext fields.
  * @complexity O(n) in this workspace's own (small) custom-credential count.
  */
 export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
@@ -384,6 +392,9 @@ export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSumm
     isDefault: false,
     category: raw.category,
     baseUrl: raw.baseUrl,
+    // Spread conditionally so a credential without a username has no key at all, matching the
+    // server's own "absent, never empty string" contract end to end.
+    ...(raw.username !== undefined ? { username: raw.username } : {}),
     createdAt: raw.createdAt,
     updatedAt: raw.updatedAt,
   }));
@@ -632,6 +643,38 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
   return rows.some((row) => row.kind === "custom" && row.id !== excludeId && row.name.trim().toLowerCase() === trimmed);
 }
 
+/**
+ * {@link accessTokenReplaceReadyToSave}'s counterpart for a saved CUSTOM credential row — a separate
+ * function rather than a widening of that shared one, because the two gates diverge on a case the
+ * shared one must never allow: a bare, no-token Username edit. For the seven catalog providers,
+ * `fields.username` only exists to satisfy Bitbucket's `requiredFields` alongside a FRESH token
+ * (`replaceToken`'s own header note: `row.username` is always `undefined` for a non-custom row, so
+ * there is no persisted value a lone Username edit could even be a change FROM); folding a
+ * bare-username check into the shared gate would make a stray character typed into that field on a
+ * rename-only Save incorrectly enable a `PUT` with nothing else to send. A custom row is the opposite:
+ * `AccessTokenRow.username` (2026-09-01) is a REAL persisted, independently-editable fact, and
+ * `use-access-tokens.hooks.ts`'s `replaceCustomCredential` needs a Save button that lights up for
+ * "operator only fixed the username" the exact way it already does for "operator only renamed it" —
+ * the live incident this whole field exists for (a saved credential with a wrong/missing username,
+ * token already correct).
+ *
+ * Same three-way shape as {@link accessTokenReplaceReadyToSave} otherwise: nothing typed/changed →
+ * not ready. A name change, a username change (typed OR cleared — see
+ * {@link buildCustomCredentialUpdatePatch}'s own doc for how a cleared field becomes the server's
+ * `null` clear sentinel), or both, with no token → ready. A new token → always ready; unlike the
+ * catalog gate there is no `info.requiredFields` completeness check left to run here, since a custom
+ * row's synthetic info (`accessTokenRowProviderInfo`) declares none.
+ *
+ * @complexity O(1).
+ */
+export function customCredentialReplaceReadyToSave(fields: AccessTokenFormFields, currentName: string, currentUsername: string | undefined): boolean {
+  if (fields.name.trim() === "") return false;
+  if (fields.token.trim() !== "") return true;
+  const nameChanged = fields.name.trim() !== currentName.trim();
+  const usernameChanged = fields.username.trim() !== (currentUsername ?? "").trim();
+  return nameChanged || usernameChanged;
+}
+
 /** Builds the wire connection input for a custom-provider create/update call — just
  *  `{token, username?}`, no provider dispatch (this table has none — see `types.ts`'s own header on
  *  the server side). `username` is omitted entirely when blank, never sent as `""` (mirrors every
@@ -639,6 +682,37 @@ export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name:
 export function buildCustomProviderConnectionInput(fields: Pick<CustomCredentialFormFields, "token" | "username">): AdminCustomConnectionInput {
   const username = fields.username.trim();
   return { token: fields.token, ...(username !== "" ? { username } : {}) };
+}
+
+/**
+ * {@link buildAccessTokenUpdatePatch}'s counterpart for a saved CUSTOM credential row — same "send
+ * only what actually changed" shape, plus the one field a custom row's Replace form can now change
+ * independently of a token retype: `username` (2026-09-01). `label`/`connection` inclusion follows
+ * the shared builder's own rules verbatim (see that function's doc). `username` is included whenever
+ * the draft's trimmed value differs from what this row currently has saved — a non-blank value sends
+ * the new string, a blank value sends the server's documented clear sentinel (`null`, NOT `""` — see
+ * `store.ts`'s `UpdateCustomCredentialInput.username` doc server-side for why a blank string is
+ * rejected rather than treated as either "clear" or "leave alone"). Included even when `hasToken` is
+ * also true and `connection` therefore already carries its own `username` member: the server's own
+ * precedence rule makes the top-level field win in that case, and since both are built from the same
+ * `fields.username` here, they always agree — see `store.ts`'s `updateCustomCredential` doc for the
+ * full precedence writeup.
+ *
+ * @complexity O(1).
+ */
+export function buildCustomCredentialUpdatePatch(
+  fields: AccessTokenFormFields,
+  nameChanged: boolean,
+  hasToken: boolean,
+  currentUsername: string | undefined
+): { label?: string; connection?: AdminCustomConnectionInput; username?: string | null } {
+  const trimmedUsername = fields.username.trim();
+  const usernameChanged = trimmedUsername !== (currentUsername ?? "").trim();
+  return {
+    ...(nameChanged ? { label: fields.name.trim() } : {}),
+    ...(hasToken ? { connection: buildCustomProviderConnectionInput(fields) } : {}),
+    ...(usernameChanged ? { username: trimmedUsername === "" ? null : trimmedUsername } : {}),
+  };
 }
 
 /** Builds the wire `additionalHosts` value for a custom-provider create/update call —

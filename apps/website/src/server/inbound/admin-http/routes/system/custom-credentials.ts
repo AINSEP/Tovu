@@ -149,6 +149,12 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
         ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
         ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
         ...(body.connection !== undefined ? { connection: body.connection } : {}),
+        // Independent of `connection` (2026-09-01) — `body.username` travels through even on a
+        // request that carries no `connection` at all. `null` (an explicit clear) survives this
+        // check exactly like a string does; only an actually-absent JSON key reads as `undefined`
+        // and gets skipped, same "omitted key vs. present null" distinction `store.ts`'s own
+        // `UpdateCustomCredentialInput.username` doc relies on.
+        ...(body.username !== undefined ? { username: body.username } : {}),
       });
       res.status(200).json({ credential });
     } catch (err) {

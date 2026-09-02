@@ -56,7 +56,16 @@ export interface AccessTokensPort {
     }): Promise<AdminCustomCredentialSummary>;
     update(
       id: string,
-      input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; additionalHosts?: readonly string[]; connection?: AdminCustomConnectionInput }
+      input: {
+        label?: string;
+        category?: AdminCustomCredentialCategoryId;
+        baseUrl?: string;
+        additionalHosts?: readonly string[];
+        /** Independent of `connection` — see `lib/api.ts`'s `updateCustomCredential` doc for the
+         *  omit/`null`/string tri-state and the server-side precedence when both are sent. */
+        username?: string | null;
+        connection?: AdminCustomConnectionInput;
+      }
     ): Promise<AdminCustomCredentialSummary>;
     /** Idempotent — deleting an id that is already gone still resolves. */
     remove(id: string): Promise<void>;

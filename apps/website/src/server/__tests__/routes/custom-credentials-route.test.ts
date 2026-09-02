@@ -144,6 +144,57 @@ test("custom-credentials: full CRUD round trip — create, list, update (blank c
   assert.deepEqual(listAfterDelete.credentials, []);
 });
 
+test("custom-credentials: PUT can update `username` alone, and clear it with `null` — the wire-level proof this route passes both through independently of `connection`", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      label: "name.com",
+      category: "general",
+      baseUrl: "https://api.name.com",
+      connection: { token: "sk_secret_token" },
+    }),
+  });
+  assert.equal(created.status, 201);
+  const { credential } = await created.json();
+  assert.equal("username" in credential, false); // created with no username
+
+  // username-only PUT — no `connection` in the body at all.
+  const usernameOnly = await fetch(`${base}/${credential.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ username: "leonaburime@gmail.com" }),
+  });
+  assert.equal(usernameOnly.status, 200);
+  const { credential: withUsername } = await usernameOnly.json();
+  assert.equal(withUsername.username, "leonaburime@gmail.com");
+  assert.equal(withUsername.baseUrl, "https://api.name.com"); // untouched
+
+  // `username: null` clears it — again with no `connection` in the body.
+  const cleared = await fetch(`${base}/${credential.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ username: null }),
+  });
+  assert.equal(cleared.status, 200);
+  const { credential: withoutUsername } = await cleared.json();
+  assert.equal("username" in withoutUsername, false);
+
+  // A blank string is rejected as VALIDATION, not accepted as a silent clear or no-op.
+  const blank = await fetch(`${base}/${credential.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ username: "" }),
+  });
+  assert.equal(blank.status, 400);
+  assert.equal((await blank.json()).error, "VALIDATION");
+});
+
 test("custom-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);

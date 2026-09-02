@@ -28,7 +28,13 @@ export const CUSTOM_CREDENTIAL_CATEGORIES: readonly CustomCredentialCategoryId[]
 /** The secret half of a custom credential — sealed as one ciphertext blob (this table's own
  *  connection object), same one-ciphertext-per-row discipline every sibling credential table here
  *  documents. `baseUrl`/`category`/`label` are NOT part of this object — they are plaintext columns
- *  (see `db/schema.ts`'s own doc for why), so they never round-trip through the sealer. */
+ *  (see `db/schema.ts`'s own doc for why), so they never round-trip through the sealer.
+ *
+ *  `username` is the one field here that is NOT a secret: it is an account identifier, and since
+ *  2026-09-01 its authoritative home is the plaintext `custom_credential_sets.username` column. It
+ *  stays on this input type because that is the shape a caller (and the admin form) supplies a
+ *  connection in, and it is still sealed alongside the token until the migration's Pass 2 stops
+ *  doing so — see `db/schema.ts`'s `customCredentialSets.username` doc for the two-pass plan. */
 export interface CustomProviderConnectionInput {
   readonly token: string;
   readonly username?: string;
@@ -48,20 +54,28 @@ export interface CustomCredentialSetRecord {
    *  Each entry is a normalized ORIGIN (`https://host[:port]`), never a full URL with a path.
    *  Empty, never `null` — `store.ts`'s read path normalizes the DB's nullable column to `[]`. */
   readonly additionalHosts: readonly string[];
+  /** The credential's account login, plaintext (`db/schema.ts`'s `customCredentialSets.username`).
+   *  `undefined` means the credential has no username — the DB's `NULL` normalizes to `undefined`
+   *  here rather than `""`, so "absent" stays one value instead of two. */
+  readonly username?: string;
   readonly sealed: SealedSecret;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
 
 /** The read model every route in this feature returns — see `store.ts`'s `toSummary`. NEVER
- *  contains `sealed`, a token, or a username — enforced by construction: this type has no field
- *  capable of carrying one. */
+ *  contains `sealed` or a token — enforced by construction: this type has no field capable of
+ *  carrying one. It DOES carry `username` as of 2026-09-01: that field stopped being part of the
+ *  secret when it moved onto its own plaintext column, and the whole point of moving it was that
+ *  the read model can return it without the sealer being opened. */
 export interface CustomCredentialSummary {
   readonly id: UUID;
   readonly label: string;
   readonly category: CustomCredentialCategoryId;
   readonly baseUrl: string;
   readonly additionalHosts: readonly string[];
+  /** Omitted entirely (never `""`) when the credential has no saved username. */
+  readonly username?: string;
   readonly configured: true;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;

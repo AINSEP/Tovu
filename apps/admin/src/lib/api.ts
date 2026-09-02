@@ -589,6 +589,11 @@ export interface AdminCustomCredentialSummary {
    *  `CustomCredentialSummary.additionalHosts` (2026-08-31 multi-host widening). Empty, never
    *  `undefined` — the server's own read path normalizes a `null` column to `[]`. */
   readonly additionalHosts: readonly string[];
+  /** The credential's saved account login, when it has one — mirrors the server's
+   *  `CustomCredentialSummary.username` (2026-09-01, when the field moved out of the sealed blob
+   *  onto its own plaintext column). Absent, never `""`, for a credential without one. This is what
+   *  lets the Access Tokens edit form prefill a saved username instead of rendering it blank. */
+  readonly username?: string;
   readonly configured: true;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -3228,14 +3233,26 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  /** Updates a credential's label, category, base URL, additional hosts, and/or connection.
-   *  Omitting `connection` entirely — never sending it as an empty object or blank fields — is
-   *  what keeps the stored secret untouched, same contract every sibling credential update call
-   *  documents. Omitting `additionalHosts` leaves it unchanged; supplying it REPLACES the whole
-   *  list (never merges), matching `updateCustomCredential`'s own server-side contract. */
+  /** Updates a credential's label, category, base URL, additional hosts, username, and/or
+   *  connection. Omitting `connection` entirely — never sending it as an empty object or blank
+   *  fields — is what keeps the stored secret untouched, same contract every sibling credential
+   *  update call documents. Omitting `additionalHosts` leaves it unchanged; supplying it REPLACES
+   *  the whole list (never merges), matching `updateCustomCredential`'s own server-side contract.
+   *  `username` is independent of `connection` (2026-09-01, `store.ts`'s own precedence doc): omit
+   *  it to leave the saved username exactly as `connection` (if sent) would otherwise set it, send
+   *  `null` to clear it, or a non-empty string to set it — with NO token retype required either
+   *  way. When both `username` and `connection` are sent in the same call, `username` wins for what
+   *  gets stored in the plaintext column (server-side precedence, not a client-side rule). */
   updateCustomCredential: (
     id: string,
-    input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; additionalHosts?: readonly string[]; connection?: AdminCustomConnectionInput }
+    input: {
+      label?: string;
+      category?: AdminCustomCredentialCategoryId;
+      baseUrl?: string;
+      additionalHosts?: readonly string[];
+      username?: string | null;
+      connection?: AdminCustomConnectionInput;
+    }
   ) =>
     request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${id}`, {
       method: "PUT",

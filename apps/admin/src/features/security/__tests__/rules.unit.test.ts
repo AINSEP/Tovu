@@ -20,11 +20,13 @@ import {
   buildAccessTokenUpdatePatch,
   buildAdditionalHostsInput,
   buildCustomCredentialRows,
+  buildCustomCredentialUpdatePatch,
   buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
   connectedAsFact,
   customCredentialNameTaken,
   customCredentialReadyToSave,
+  customCredentialReplaceReadyToSave,
   envNamesFact,
   invalidAdditionalHostsEntries,
   isValidHttpUrl,
@@ -624,5 +626,66 @@ describe("buildCustomProviderConnectionInput", () => {
   it("omits a blank username entirely, never sends an empty string", () => {
     expect(buildCustomProviderConnectionInput({ token: "tok", username: "" })).toEqual({ token: "tok" });
     expect(buildCustomProviderConnectionInput({ token: "tok", username: "   " })).toEqual({ token: "tok" });
+  });
+});
+
+/** A blank custom-row `AccessTokenFormFields` — the Replace-flow counterpart of {@link blankFields}
+ *  for a `kind: "custom"` row (no catalog `providerId` to default to). */
+function blankCustomRowFields(overrides: Partial<AccessTokenFormFields> = {}): AccessTokenFormFields {
+  return { ref: { kind: "custom", providerId: "custom-1" }, name: "", token: "", accountId: "", username: "", ...overrides };
+}
+
+describe("customCredentialReplaceReadyToSave (2026-09-01 owner-reported bug: username-only save)", () => {
+  it("is not ready with everything blank/unchanged — nothing to send", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "" }), "name.com", "old-user")).toBe(false);
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user" }), "name.com", "old-user")).toBe(false);
+  });
+
+  it("is ready for a rename-only save, same as the shared catalog gate", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "New Name", username: "old-user" }), "name.com", "old-user")).toBe(true);
+  });
+
+  it("is ready for a USERNAME-ONLY save — the exact case the shared catalog gate cannot allow", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), "name.com", "old-user")).toBe(true);
+  });
+
+  it("is ready for clearing a saved username alone (typed blank, was previously set)", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "" }), "name.com", "old-user")).toBe(true);
+  });
+
+  it("is ready whenever a new token is typed, regardless of name/username", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "old-user", token: "tok" }), "name.com", "old-user")).toBe(true);
+  });
+
+  it("treats an undefined saved username the same as an empty one (a row that never had one)", () => {
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "" }), "name.com", undefined)).toBe(false);
+    expect(customCredentialReplaceReadyToSave(blankCustomRowFields({ name: "name.com", username: "new-user" }), "name.com", undefined)).toBe(true);
+  });
+});
+
+describe("buildCustomCredentialUpdatePatch", () => {
+  it("sends a username-only patch when only the username changed, no token typed", () => {
+    const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "name.com", username: "new-user" }), false, false, "old-user");
+    expect(patch).toEqual({ username: "new-user" });
+  });
+
+  it("sends `username: null` — never `\"\"` — when a saved username is cleared", () => {
+    const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "name.com", username: "" }), false, false, "old-user");
+    expect(patch).toEqual({ username: null });
+  });
+
+  it("omits `username` entirely when it did not change", () => {
+    const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "New Name", username: "old-user" }), true, false, "old-user");
+    expect(patch).toEqual({ label: "New Name" });
+  });
+
+  it("includes `username` alongside `connection` when both changed together, matching the server's own top-level-wins precedence", () => {
+    const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "name.com", username: "new-user", token: "tok" }), false, true, "old-user");
+    expect(patch).toEqual({ connection: { token: "tok", username: "new-user" }, username: "new-user" });
+  });
+
+  it("sends label, connection, and username together when all three changed", () => {
+    const patch = buildCustomCredentialUpdatePatch(blankCustomRowFields({ name: "New Name", username: "new-user", token: "tok" }), true, true, "old-user");
+    expect(patch).toEqual({ label: "New Name", connection: { token: "tok", username: "new-user" }, username: "new-user" });
   });
 });

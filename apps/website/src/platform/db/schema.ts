@@ -1798,9 +1798,12 @@ export const sourceControlCredentialSets = sqliteTable(
  * group/filter/link without decrypting" reasoning `AccessTokenProviderInfo.category`/`tokenPageUrl`
  * already rely on for the page's seven built-in providers — the admin list route never decrypts
  * (mirrors `listSourceControlCredentials`'s own "never touches the sealer" contract), so anything
- * the list/filter UI needs to read must already be plaintext on the row. `token`/`username` are
- * the only two fields sealed together as one ciphertext blob (this table's own connection object),
- * same one-ciphertext-per-row discipline every sibling credential table here documents.
+ * the list/filter UI needs to read must already be plaintext on the row. `token` is the only
+ * genuinely secret field, sealed as this table's own one connection-object ciphertext, same
+ * one-ciphertext-per-row discipline every sibling credential table here documents. `username` used
+ * to be sealed alongside it and is now its own plaintext column (2026-09-01) — see that column's
+ * own doc below for why an account identifier never belonged inside the ciphertext, and for the
+ * two-pass migration that is still mid-flight (it is written to BOTH places until Pass 2 lands).
  */
 export const customCredentialSets = sqliteTable(
   "custom_credential_sets",
@@ -1838,6 +1841,29 @@ export const customCredentialSets = sqliteTable(
      * resolved URL origin is checked against, never widened by tool input.
      */
     additionalHostsJson: text("additional_hosts_json"),
+    /**
+     * 2026-09-01 (owner-driven). The credential's own account login — the optional second half of
+     * `{token, username?}` for a provider whose API authenticates a PAIR rather than a bare bearer
+     * token. Plaintext, deliberately: a username is an account IDENTIFIER, not a secret, and it is
+     * already rendered on screen in the Access Tokens edit form. Same "held in the clear because a
+     * decrypt-on-read would put an AEAD open on a cheap path" reasoning
+     * `vendorCredentialSets.accountLabel` and `publishCredentialSets.accountLabel` above each
+     * document for their own column — and this table's own `category`/`base_url` doc above already
+     * establishes the governing rule: the admin list route and `custom_credential_list` never
+     * decrypt, so anything the read model must return has to be plaintext on the row.
+     *
+     * Before this column, `username` lived INSIDE `sealed_ciphertext` beside the token, which cost
+     * two real bugs: the admin edit form rendered a saved username as blank on every load (it had no
+     * non-decrypting source to read it from), and `custom_credential_list` had to omit it entirely.
+     *
+     * `NULL` means "this credential has no username", not "not yet migrated" — the two are
+     * indistinguishable on the row by design, and nothing branches on the difference. Existing rows
+     * are populated by `development/scripts/backfill-custom-credential-usernames.ts` (Pass 1), which
+     * decrypts each row once and copies the value out WITHOUT rewriting the ciphertext; until a
+     * later Pass 2 stops sealing it, `username` is written to BOTH this column and the sealed
+     * connection object, so every existing decrypting reader keeps working unchanged.
+     */
+    username: text("username"),
     /** `SealedSecret.keyId`. */
     sealedKeyId: text("sealed_key_id").notNull(),
     /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the serialized `{token, username?}`

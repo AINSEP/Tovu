@@ -32,6 +32,9 @@ function serializeAdditionalHosts(hosts: readonly string[]): string | null {
   return hosts.length > 0 ? JSON.stringify(hosts) : null;
 }
 
+/** `username` is a nullable plaintext column (`db/schema.ts`'s own doc). SQL's `NULL` and the domain
+ *  type's `undefined` are normalized to each other in exactly these two functions, so no caller ever
+ *  has to distinguish "no username" from "null username" — see `CustomCredentialSetRecord.username`. */
 function toRecord(row: Row): CustomCredentialSetRecord {
   return {
     workspaceId: row.workspaceId,
@@ -40,6 +43,7 @@ function toRecord(row: Row): CustomCredentialSetRecord {
     category: row.category as CustomCredentialCategoryId,
     baseUrl: row.baseUrl,
     additionalHosts: parseAdditionalHosts(row.additionalHostsJson),
+    ...(row.username !== null ? { username: row.username } : {}),
     sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
@@ -54,6 +58,10 @@ function toValues(record: CustomCredentialSetRecord) {
     category: record.category,
     baseUrl: record.baseUrl,
     additionalHostsJson: serializeAdditionalHosts(record.additionalHosts),
+    // Explicitly `null`, never `undefined` — `update()` below is a full-row replace, and Drizzle
+    // OMITS an `undefined` value from the generated `SET` clause, which would silently preserve a
+    // stale username on a row whose connection was just replaced without one.
+    username: record.username ?? null,
     sealedKeyId: record.sealed.keyId,
     sealedCiphertext: record.sealed.ciphertext,
     sealedNonce: record.sealed.nonce,

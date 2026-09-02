@@ -60,6 +60,10 @@ export class CustomCredentialSecretStoreUnconfiguredError extends Error {}
 
 export class CustomCredentialNotFoundError extends Error {}
 
+/** `username` is spread in conditionally rather than assigned as a possibly-`undefined` property so
+ *  a credential without one has NO `username` key at all — "absent" stays a single representation
+ *  all the way out to the admin JSON and `custom_credential_list`, instead of becoming a second,
+ *  falsy-but-present value every consumer would have to remember to treat as absent. */
 function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
   return {
     id: record.id,
@@ -67,6 +71,7 @@ function toSummary(record: CustomCredentialSetRecord): CustomCredentialSummary {
     category: record.category,
     baseUrl: record.baseUrl,
     additionalHosts: record.additionalHosts,
+    ...(record.username !== undefined ? { username: record.username } : {}),
     configured: true,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
@@ -224,6 +229,29 @@ function optionalString(raw: unknown, field: string): string | undefined {
 }
 
 /**
+ * Validates {@link UpdateCustomCredentialInput.username} — a THREE-way field, unlike
+ * {@link optionalString}'s two-way "omitted or a non-empty string": this function is only ever
+ * called once the caller has already checked `raw !== undefined` (omitted = leave the column alone,
+ * a case this function never sees), so the two values left to distinguish are "clear it" and "set
+ * it". `null` is the deliberate clear sentinel — chosen specifically because a blank string could not
+ * serve double duty as both "leave alone" (the `optionalString` convention every other field on this
+ * store already trained a caller to expect from a falsy value) and "clear" without one of those two
+ * meanings silently winning over the other; `updateCustomCredential`'s own doc has the full
+ * precedence writeup. A blank string is therefore still rejected here, same as everywhere else on
+ * this store — it is neither of this field's two valid non-omitted values, not a quiet no-op.
+ *
+ * @throws {CustomCredentialValidationError} `raw` is present, not `null`, and not a non-empty string.
+ * @complexity O(1).
+ */
+function validateUsernamePatch(raw: unknown): string | undefined {
+  if (raw === null) return undefined;
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new CustomCredentialValidationError("'username' must be a non-empty string, or null to clear it");
+  }
+  return raw;
+}
+
+/**
  * Validates a caller-supplied `connection` — just `{token, username?}`, no provider dispatch (see
  * this file's own header). Never throws a raw shape error — every rejection is a
  * {@link CustomCredentialValidationError}.
@@ -304,6 +332,10 @@ export async function createCustomCredential(deps: CustomCredentialWriteDeps, in
     category,
     baseUrl,
     additionalHosts,
+    // Written to the plaintext column AND left inside the sealed connection object above — see
+    // `db/schema.ts`'s `customCredentialSets.username` doc: the column is the read model's source,
+    // the sealed copy keeps every existing decrypting reader working until the migration's Pass 2.
+    ...(connection.username !== undefined ? { username: connection.username } : {}),
     sealed,
     createdAt: now,
     updatedAt: now,
@@ -336,6 +368,21 @@ export interface UpdateCustomCredentialInput {
   /** Omitted = leave the stored connection untouched — same "omitting `connection` keeps the
    *  secret" contract every sibling credential route documents. */
   connection?: unknown;
+  /**
+   * Independent, top-level control over the plaintext `username` column — added 2026-09-01 so an
+   * operator can fix a saved credential's username (the name.com incident this field exists for: the
+   * saved row had no username, so every request 401'd, and the only correct value was already known —
+   * re-pasting the token to say so was pure friction) WITHOUT retyping the token. Before this field
+   * existed, `username` only ever changed as a side effect of a full `connection` replacement (see
+   * {@link connection}'s own doc) — correct when username lived inside the sealed blob, no longer
+   * necessary now that it is its own column (`db/schema.ts`'s `customCredentialSets.username` doc).
+   *
+   * Three states, validated by {@link validateUsernamePatch}: omitted (`undefined`) leaves the column
+   * exactly as `connection` (if supplied) would otherwise have set it; `null` explicitly clears it;
+   * any other value must be a non-empty string. See `updateCustomCredential`'s own doc for the
+   * precedence rule when this field AND `connection` are both supplied in the same call.
+   */
+  username?: unknown;
 }
 
 /**
@@ -347,6 +394,21 @@ export interface UpdateCustomCredentialInput {
  *   different row.
  * @throws {CustomCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
  *   master secret is unavailable.
+ *
+ * ## `username`/`connection` precedence (2026-09-01)
+ *
+ * These two fields can each independently touch the `username` column, so a call supplying BOTH
+ * needs one documented winner: the top-level {@link UpdateCustomCredentialInput.username} field
+ * ALWAYS wins for what the column ends up holding. It is the more specific, explicit "set (or clear)
+ * the username" signal a caller can send on its own with no token in hand at all; `connection`'s own
+ * `username` member only ever arrives bundled with a token replacement, so treating it as the
+ * decisive value would make an operator's explicit, standalone edit losable by an unrelated,
+ * incidental field on a DIFFERENT input. Note this can leave the plaintext column and the sealed
+ * copy's own embedded username disagreeing — that is an accepted, pre-existing divergence, not a new
+ * inconsistency this introduces: `resolveCustomCredentialByLabel`'s own doc already establishes the
+ * column as authoritative over the sealed copy for every reader, precisely so a future gap between
+ * the two is never a correctness problem, only ever a fact about which write path touched last.
+ *
  * @complexity O(1) — one read, at most one seal, one update.
  */
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
@@ -361,10 +423,25 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
   const now: ISODateTime = deps.clock.nowIso();
 
+  // `username` tracks the CONNECTION, not the row: replacing the connection replaces the username
+  // (including clearing it, when the new connection omits one — the two are one credential, and a
+  // rotation that dropped the username while the old one lingered in the column would be a lie).
+  // Omitting `connection` entirely leaves both the ciphertext and the username exactly as they were,
+  // matching this store's documented "omitting `connection` keeps the secret" contract.
   let sealed = existing.sealed;
+  let username = existing.username;
   if (input.connection !== undefined) {
     const connection = validateConnection(input.connection);
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection });
+    username = connection.username;
+  }
+  // Applied AFTER `connection` so it can override whatever the block above just computed — see this
+  // function's own doc for the full precedence writeup. Left as a no-op (not even revalidated) when
+  // omitted, so a caller that never mentions `username` keeps exactly what `connection` decided (or
+  // `existing.username`, if `connection` was omitted too) — the untouched-unless-asked contract every
+  // other optional field on this store already has.
+  if (input.username !== undefined) {
+    username = validateUsernamePatch(input.username);
   }
 
   const record: CustomCredentialSetRecord = {
@@ -374,6 +451,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     category,
     baseUrl,
     additionalHosts,
+    ...(username !== undefined ? { username } : {}),
     sealed,
     createdAt: existing.createdAt,
     updatedAt: now,
@@ -445,6 +523,12 @@ export async function resolveCustomCredentialByLabel(
   const records = await deps.repo.listByWorkspace({ workspaceId: input.workspaceId });
   const record = records.find((row) => row.label === input.label);
   if (!record) return null;
-  const connection = await decryptRecord(deps.sealer, record);
+  const decrypted = await decryptRecord(deps.sealer, record);
+  // The plaintext column WINS over the sealed copy when both are present — it is the authoritative
+  // home as of 2026-09-01 and the only one a write can update on its own. The sealed copy is the
+  // fallback purely for rows the Pass 1 backfill has not reached yet (or could not decrypt), so this
+  // resolver keeps returning the right username on a half-migrated database, in either direction.
+  const username = record.username ?? decrypted.username;
+  const connection: CustomProviderConnectionInput = { token: decrypted.token, ...(username !== undefined ? { username } : {}) };
   return { id: record.id, category: record.category, baseUrl: record.baseUrl, additionalHosts: record.additionalHosts, connection };
 }

@@ -35,10 +35,12 @@ import {
   buildAccessTokenUpdatePatch,
   buildAdditionalHostsInput,
   buildCustomCredentialRows,
+  buildCustomCredentialUpdatePatch,
   buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
   customCredentialNameTaken,
   customCredentialReadyToSave,
+  customCredentialReplaceReadyToSave,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenKind,
@@ -161,11 +163,13 @@ export interface AccessTokenExistingRowState {
   readonly error: string | null;
 }
 /** Merges one saved row with its own draft/busy state — defaults name to the row's current display
- *  name (Replace's "current Name pre-filled" behavior) and every other field blank, same "never read
- *  a secret back" posture every credential form in this app already has.
+ *  name (Replace's "current Name pre-filled" behavior) and username to the row's own saved username
+ *  (2026-09-01: a custom row's `username` is now a plaintext read-model field, {@link
+ *  AccessTokenRow.username}'s own doc), with Token/Account left blank, same "never read a secret
+ *  back" posture every credential form in this app already has.
  *  @complexity O(1). */
 function existingRowState(row: AccessTokenRow, draft: DraftFields | undefined, busy: BusyState | undefined): AccessTokenExistingRowState {
-  const d = draft ?? { ...blankDraft(), name: row.name };
+  const d = draft ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
   const b = busy ?? IDLE;
   return { row, name: d.name, token: d.token, accountId: d.accountId, username: d.username, saving: b.saving, error: b.error };
 }
@@ -372,31 +376,35 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     else setSourceControlCredentials((await port.sourceControl.list()).credentials);
   }
 
-  /** Seeds a row's FIRST draft update from the persisted row (name included), not a blank draft —
-   *  fixes a HIGH audit finding (2026-08-19 Codex sol bug/architecture audit): the previous
-   *  `prev[rowId] ?? blankDraft()` fallback seeded `name: ""` whenever Token/Account/Username was
-   *  the first field touched, so the very next render displayed a cleared Name field and disabled
+  /** Seeds a row's FIRST draft update from the persisted row (name AND username included), not a
+   *  blank draft — fixes a HIGH audit finding (2026-08-19 Codex sol bug/architecture audit): the
+   *  previous `prev[rowId] ?? blankDraft()` fallback seeded `name: ""` whenever Token/Account/Username
+   *  was the first field touched, so the very next render displayed a cleared Name field and disabled
    *  Save until the user retyped it — see {@link existingRowState}'s own analogous, already-correct
-   *  fallback (`row.name`), which this now matches. @complexity O(1). */
+   *  fallback (`row.name`), which this now matches. Username joined this same fallback on 2026-09-01:
+   *  once a custom row can carry a saved {@link AccessTokenRow.username}, touching Token first (before
+   *  ever touching Username) would otherwise blank a saved username out of the draft the identical way
+   *  it used to blank Name. @complexity O(1). */
   function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
     setExistingDrafts((prev) => {
       const existing = prev[rowId];
       if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
-      const persistedName = rows?.find((r) => r.id === rowId)?.name ?? "";
-      return { ...prev, [rowId]: { ...blankDraft(), name: persistedName, ...patch } };
+      const persistedRow = rows?.find((r) => r.id === rowId);
+      return { ...prev, [rowId]: { ...blankDraft(), name: persistedRow?.name ?? "", username: persistedRow?.username ?? "", ...patch } };
     });
   }
 
   /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
    *  shape to build (no `ref`-keyed catalog lookup, no `accountId`), so it reuses only what genuinely
-   *  applies: {@link accessTokenReplaceReadyToSave}'s readiness rule (rename-alone-is-ready, or a new
-   *  token) and {@link customCredentialNameTaken}'s workspace-wide duplicate check (see that
-   *  function's own doc for why it is NOT {@link accessTokenNameTaken}). Split out purely to keep
-   *  {@link replaceToken} itself under this repo's complexity gate. */
+   *  applies: {@link customCredentialReplaceReadyToSave}'s readiness rule (rename-alone, username-alone,
+   *  or either together is ready, same as a new token — see that function's own doc for why this is
+   *  NOT {@link accessTokenReplaceReadyToSave}) and {@link customCredentialNameTaken}'s workspace-wide
+   *  duplicate check (see that function's own doc for why it is NOT {@link accessTokenNameTaken}).
+   *  Split out purely to keep {@link replaceToken} itself under this repo's complexity gate. */
   async function replaceCustomCredential(row: AccessTokenRow): Promise<void> {
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name };
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
     const fields: AccessTokenFormFields = { ref: { kind: "custom", providerId: row.providerId }, ...draft };
-    if (!accessTokenReplaceReadyToSave(fields, row.name)) return;
+    if (!customCredentialReplaceReadyToSave(fields, row.name, row.username)) return;
     if (customCredentialNameTaken(rows ?? [], fields.name, row.id)) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenDuplicateNameMessage(locale, fields.name.trim(), t("this workspace")) } }));
       return;
@@ -405,12 +413,16 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     const nameChanged = fields.name.trim() !== row.name.trim();
     const hasToken = fields.token.trim() !== "";
     try {
-      const result = await port.custom.update(row.id, {
-        ...(nameChanged ? { label: fields.name.trim() } : {}),
-        ...(hasToken ? { connection: buildCustomProviderConnectionInput(fields) } : {}),
-      });
+      const result = await port.custom.update(row.id, buildCustomCredentialUpdatePatch(fields, nameChanged, hasToken, row.username));
       setCustomCredentials((prev) => mergeRaw(prev ?? [], result, false));
-      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim() } }));
+      // Reset to `result.username`, not `fields.username` or blank — `result` is the server's own
+      // post-write state, so it is correct whether the operator typed a new username, left it blank
+      // to PRESERVE the one already saved (`buildCustomProviderConnectionInput` omits a blank
+      // username from the payload rather than sending `""` — see this file's own header), or this
+      // save carried no `connection` at all (a rename-only patch). Seeding from `fields.username`
+      // instead would show a stale value whenever the omit-to-preserve path fired; seeding blank
+      // would resurrect the exact "saved username reads as empty" bug this file exists to fix.
+      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: result.username ?? "" } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, t("this workspace"), fields.name) } }));
@@ -420,7 +432,12 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   async function replaceToken(row: AccessTokenRow): Promise<void> {
     if (row.kind === "custom") return replaceCustomCredential(row);
     const ref: AccessTokenProviderRef = { kind: row.kind, providerId: row.providerId };
-    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name };
+    // `row.username` is always undefined here (it is only ever set for `kind: "custom"` rows — see
+    // AccessTokenRow.username's own doc), so this is a no-op today. Kept for symmetry with
+    // replaceCustomCredential's identical fallback, so a future publish/source-control provider that
+    // grows a saved username inherits the correct prefill automatically instead of silently reading
+    // blank the same way custom rows used to.
+    const draft = existingDrafts[row.id] ?? { ...blankDraft(), name: row.name, username: row.username ?? "" };
     const fields: AccessTokenFormFields = { ref, ...draft };
     if (!accessTokenReplaceReadyToSave(fields, row.name)) return;
     const providerLabel = accessTokenProviderInfo(ref).label;
@@ -435,7 +452,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
       const patch = buildAccessTokenUpdatePatch(fields, nameChanged, hasToken);
       const result = await writeCredential(port, row.kind, { type: "update", id: row.id }, patch);
       mergeCredential(row.kind, result, false);
-      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim() } }));
+      // Same symmetry note as this function's draft fallback above: `result` (a publish/source-control
+      // summary) never carries a `username` fact, so `row.username ?? ""` — not `result.username` —
+      // is the only value available, and it is always "" today for these two kinds.
+      setExistingDrafts((prev) => ({ ...prev, [row.id]: { ...blankDraft(), name: fields.name.trim(), username: row.username ?? "" } }));
       setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
     } catch (err) {
       setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenSubmitErrorMessage(err, t, locale, providerLabel, fields.name) } }));

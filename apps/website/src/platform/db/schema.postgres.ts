@@ -341,6 +341,7 @@ export const customCredentialSets = pgTable("custom_credential_sets", {
   category: text("category").notNull(),
   baseUrl: text("base_url").notNull(),
   additionalHostsJson: text("additional_hosts_json"),
+  username: text("username"),
   sealedKeyId: text("sealed_key_id").notNull(),
   sealedCiphertext: text("sealed_ciphertext").notNull(),
   sealedNonce: text("sealed_nonce").notNull(),
