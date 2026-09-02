@@ -970,7 +970,6 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    Layout (flex/gap) stays, since that's this context's own, not shared with the primitive. */
 .login-card label { display: flex; flex-direction: column; gap: 0.3rem; font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .login-error { color: var(--danger); font-size: 0.85rem; }
-.login-hint { font-size: 0.75rem; color: var(--faint); text-align: center; }
 
 /* Layout */
 .admin-layout { display: flex; height: 100vh; overflow: hidden; }

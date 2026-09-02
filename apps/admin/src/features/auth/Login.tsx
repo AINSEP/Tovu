@@ -35,7 +35,6 @@ export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
         </label>
         {error ? <div className="login-error">{error}</div> : null}
         <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-        <p className="login-hint">local dev default: admin / tovu-dev</p>
       </form>
     </div>
   );
