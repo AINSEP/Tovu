@@ -23,6 +23,16 @@ import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/in
  * Neither function ever returns key material. The response carries only `apiKeyConfigured` and
  * `apiKeyTail`, which is the "markers" half of the two-kinds-of-present distinction
  * `@jini-ai/ui`'s `types.ts` documents.
+ *
+ * {@link resolveMediaProviderCredential} — added 2026-09-02 for `media-generation/tool-registrations.ts`'s
+ * `media_generate_asset`, the first real decrypting reader this table has ever had. Mirrors
+ * `custom-credentials/store.ts`'s own `resolveCustomCredentialByLabel` exactly: this file's header
+ * USED TO say (implicitly, by never building one) "nothing in this codebase consumes the plaintext
+ * key yet"; that day arrived the same way it did there. Sealed with NO `aad` — same no-AAD
+ * convention this file's own `SecretSealerPort.seal`/`open` doc already establishes for this store
+ * (`ports.ts`'s doc names `provider-credential-store.ts` as one of the three callers that seal with
+ * no AAD), so `open` is called the same way `sealNewProviderKeys` above seals: no `aad` argument at
+ * all, matching what was sealed.
  */
 
 /** One provider's stored credential row. `sealed`/`keyTail` are both-null or both-set, enforced by
@@ -354,4 +364,53 @@ export async function saveMediaProviderCredentials(
   };
 
   return toMap(await deps.repo.replaceWorkspace({ workspaceId: input.workspaceId, plan }));
+}
+
+export interface MediaProviderCredentialResolveDeps {
+  repo: MediaProviderCredentialRepoPort;
+  sealer: SecretSealerPort;
+}
+
+/** One provider's decrypted, USABLE credential — never logged, never returned from a tool result;
+ *  see {@link resolveMediaProviderCredential}'s own doc for the one caller this exists for. */
+export interface ResolvedMediaProviderCredential {
+  apiKey: string;
+  baseUrl: string | null;
+  model: string | null;
+}
+
+/**
+ * The ONLY decrypting read this table has. Finds the workspace's saved credential for `providerId`
+ * (an engine-canonical id from `@jini-ai/integrations/media-providers` — same catalogue
+ * {@link KNOWN_PROVIDER_IDS} is frozen from) and decrypts it.
+ *
+ * Returns `null`, never throws, for either "not configured at all" (no row) or "configured with no
+ * key yet" (`sealed === null` — `MediaProviderCredentialRecord`'s own doc: "a row may legitimately
+ * hold only `baseUrl`/`model` with no key yet"). Both are the same ordinary, expected state for an
+ * optional integration a caller should handle with a clear "nothing saved yet" message, not treat as
+ * exceptional — matching `resolveCustomCredentialByLabel`'s identical "not found is not an error"
+ * contract for the sibling table.
+ *
+ * @throws {MediaProviderCredentialSecretStoreUnconfiguredError} A row with a sealed key exists but
+ *   `sealer.open()` failed — the master secret is missing/rotated, or the stored row is corrupted.
+ * @complexity O(n) in the workspace's own (small, catalogue-bounded) provider-credential row count,
+ *   plus one decrypt when a key is present.
+ */
+export async function resolveMediaProviderCredential(
+  deps: MediaProviderCredentialResolveDeps,
+  input: { workspaceId: UUID; providerId: string }
+): Promise<ResolvedMediaProviderCredential | null> {
+  const records = await deps.repo.listByWorkspaceId(input.workspaceId);
+  const record = records.find((row) => row.providerId === input.providerId);
+  if (!record || record.sealed === null) return null;
+
+  let apiKey: string;
+  try {
+    apiKey = await deps.sealer.open({ sealed: record.sealed });
+  } catch (err) {
+    throw new MediaProviderCredentialSecretStoreUnconfiguredError(
+      `media provider credential for "${input.providerId}" could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+  return { apiKey, baseUrl: record.baseUrl, model: record.model };
 }

@@ -431,6 +431,13 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "I want to soft-delete this photo.",
     "What happens if I try to trash an image that's already trashed?",
   ],
+  media_generate_asset: [
+    "Can you generate an image of a red bicycle for me?",
+    "I need a logo — can you create one with AI?",
+    "Generate a hero banner image for the homepage.",
+    "Draw me an illustration of a mountain landscape.",
+    "Can you make an AI image and add it to the media library?",
+  ],
   members_list: [
     "Who are our site members right now?",
     "Can you show me pending, active, and disabled members?",

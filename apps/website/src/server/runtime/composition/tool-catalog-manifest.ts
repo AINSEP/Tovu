@@ -16,6 +16,7 @@ import { contributeFormsTools } from "#src/features/forms/tool-registrations";
 import { contributeIdentityTools } from "#src/features/identity/tool-registrations";
 import { contributeWebhooksTools } from "#src/features/webhooks/tool-registrations";
 import { contributeMediaTools } from "#src/features/media/tool-registrations";
+import { contributeMediaGenerationTools } from "#src/features/media-generation/tool-registrations";
 import { contributeMembersTools } from "#src/features/members/tool-registrations";
 import { contributeMenusTools } from "#src/features/navigation/tool-registrations";
 import { contributeNewsletterTools } from "#src/features/newsletter/tool-registrations";
@@ -167,6 +168,20 @@ import { contributeWidgetsTools } from "#src/features/widgets/tool-registrations
  * `features/custom-credentials/credentialed-request.ts`'s own header for why write methods are a
  * disclosed omission). Adds no new module edge for the identical reason `site-evidence` above does
  * not.
+ *
+ * `contributeMediaGenerationTools()` (2026-09-02) is likewise a NEW domain, not a 5th entry on
+ * `media`'s existing catalog: it closes the "the assistant can upload an image but cannot GENERATE
+ * one" gap with one tool, `media_generate_asset` — wiring `@jini-ai/integrations/media-providers`'s
+ * multi-vendor dispatch engine (previously imported nowhere under `apps/`) to the workspace's saved
+ * OpenAI media-provider credential (`features/media/provider-credential-store.ts`) and uploading the
+ * result through the same `uploadMedia` service `media_upload_asset` uses. OpenAI-only in this slice
+ * — see `features/media-generation/agent-tools.ts`'s own header for why every other vendor the
+ * engine supports is a disclosed, separately-scoped omission, not a hidden default. Kept as its own
+ * domain rather than a `media` catalog addition specifically because `media`'s 4-tool catalog is
+ * `@jini-ai/cms`-owned (shared across every host of that package, with its own "wire the ENTIRE
+ * catalog" tripwire test), while this tool's whole pipeline is host-specific glue — the same
+ * reasoning that already justified `custom-credentials`/`site-inspection`/`site-evidence` as their
+ * own standalone domains.
  */
 export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeCommentsTools());
@@ -179,6 +194,7 @@ export function installFirstPartyToolContributors(): void {
   registerToolContributor(contributeIdentityTools());
   registerToolContributor(contributeWebhooksTools());
   registerToolContributor(contributeMediaTools());
+  registerToolContributor(contributeMediaGenerationTools());
   registerToolContributor(contributeMembersTools());
   registerToolContributor(contributeMenusTools());
   registerToolContributor(contributeNewsletterTools());

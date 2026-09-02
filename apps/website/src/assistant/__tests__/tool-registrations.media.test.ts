@@ -21,8 +21,11 @@ import {
   type AgentToolDefinition,
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
+  InMemoryMediaContentTypeStore,
   InMemoryMediaRepo,
   InMemoryBlobStore,
+  InMemoryTransformDefinitionRepo,
+  registerTransform,
 } from "../../features/media/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
 import {
@@ -48,12 +51,36 @@ const NOW = "2026-07-29T00:00:00.000Z";
 const ONE_PIXEL_PNG_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
+/**
+ * Registers the one core transform `publicUrl` resolution needs before it can resolve any asset's
+ * URL — same boot-time registration `features/media/bootstrap.ts`'s `ensureCoreMediaTransform`
+ * performs in the real running server. Deliberately NOT called from inside `fakeRouteDeps` itself
+ * (which is synchronous, and every `InMemoryTransformDefinitionRepo` method is `Promise`-returning
+ * even though it does no real I/O) — a fire-and-forget call there would race the seed against
+ * whatever the calling test does next, with no guaranteed happens-before relationship. Callers that
+ * need a real (non-`null`) `publicUrl` `await` this explicitly, after `fakeRouteDeps` but before the
+ * upload/list call whose result they assert on; every other test in this file is unaffected and
+ * keeps calling `fakeRouteDeps` unchanged.
+ */
+async function seedPublicTransform(deps: RouteDeps): Promise<void> {
+  await registerTransform({
+    deps: {
+      transformRepo: (deps as unknown as { transformDefinitionRepo: InMemoryTransformDefinitionRepo }).transformDefinitionRepo,
+      idGen: { newId: () => "transform-public-v1" },
+      clock: { nowIso: () => NOW },
+    },
+    input: { workspaceId: WORKSPACE_ID, name: "public", params: { format: "webp" }, owner: "core" },
+  });
+}
+
 function fakeRouteDeps(options: { allow?: boolean } = {}) {
   const allow = options.allow ?? true;
   const mediaRepo = new InMemoryMediaRepo();
   const assetBlobRepo = new InMemoryAssetBlobRepo();
   const assetRenditionRepo = new InMemoryAssetRenditionRepo();
   const blobStore = new InMemoryBlobStore();
+  const mediaContentTypeStore = new InMemoryMediaContentTypeStore();
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo();
   const authorizeCalls: Array<Record<string, unknown>> = [];
 
   let counter = 0;
@@ -65,13 +92,15 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     assetBlobRepo,
     assetRenditionRepo,
     blobStore,
+    mediaContentTypeStore,
+    transformDefinitionRepo,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
   };
 
-  return { deps: deps as unknown as RouteDeps, mediaRepo, authorizeCalls };
+  return { deps: deps as unknown as RouteDeps, mediaRepo, mediaContentTypeStore, authorizeCalls };
 }
 
 function executionContext(input: Record<string, unknown>): ToolExecutionContext {
@@ -190,11 +219,78 @@ test("a tool result is an explicit model-facing view: workspaceId/timestamps dro
   const media = (await wired("media_list_assets", deps).handler(executionContext({}))) as { media: Array<Record<string, unknown>> };
   const found = media.media.find((m) => m.id === id);
   assert.ok(found);
-  assert.deepEqual(Object.keys(found).sort(), ["alt", "caption", "credit", "id", "sha256", "status", "title", "version"]);
+  assert.deepEqual(Object.keys(found).sort(), ["alt", "caption", "credit", "id", "publicUrl", "sha256", "status", "title", "version"]);
   assert.equal("workspaceId" in found, false, "the agent is already scoped to one workspace it cannot change");
   assert.equal("createdAt" in found, false);
   assert.equal("updatedAt" in found, false);
   assert.equal(found.status, "active");
+  // No "public" transform was registered for this fixture (see `seedPublicTransform`'s own doc) —
+  // `publicUrl` must degrade to `null`, never throw or silently omit the field.
+  assert.equal(found.publicUrl, null);
+});
+
+// ---------------------------------------------------------------------------
+// 3a. publicUrl — the real /m/... resolution, on both media_list_assets and media_upload_asset
+// ---------------------------------------------------------------------------
+
+test("media_upload_asset's publicUrl is the ADR-027 §4 public-transform URL for an image asset", async () => {
+  const { deps } = fakeRouteDeps();
+  await seedPublicTransform(deps);
+  const out = (await wired("media_upload_asset", deps).handler(
+    executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
+  )) as { media: { id: string; publicUrl: string | null } };
+  assert.equal(out.media.publicUrl, `/m/${out.media.id}/public.v1/image.webp`);
+});
+
+test("media_list_assets' publicUrl matches media_upload_asset's for the same asset, resolved in one batch", async () => {
+  const { deps } = fakeRouteDeps();
+  await seedPublicTransform(deps);
+  const uploaded = (await wired("media_upload_asset", deps).handler(
+    executionContext({ filename: "logo.png", contentType: "image/png", dataBase64: ONE_PIXEL_PNG_BASE64 }),
+  )) as { media: { id: string; publicUrl: string | null } };
+
+  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+    media: Array<{ id: string; publicUrl: string | null }>;
+  };
+  const found = listed.media.find((m) => m.id === uploaded.media.id);
+  assert.ok(found);
+  assert.equal(found.publicUrl, uploaded.media.publicUrl);
+});
+
+test("media_list_assets' publicUrl is the byte-passthrough /original URL for a video asset, resolved from the content-type store", async () => {
+  const { deps, mediaContentTypeStore } = fakeRouteDeps();
+  await seedPublicTransform(deps);
+  const uploaded = (await wired("media_upload_asset", deps).handler(
+    executionContext({ filename: "clip.mp4", contentType: "video/mp4", dataBase64: ONE_PIXEL_PNG_BASE64 }),
+  )) as { media: { id: string; sha256: string } };
+
+  // The content-type store records the SNIFFED type, not the client's declared upload string — this
+  // upload's actual bytes are a PNG (`ONE_PIXEL_PNG_BASE64`), so the fixture records the type
+  // directly rather than relying on a real video-byte sniff, mirroring `routes/admin/media/upload.ts`'s
+  // own "record what the bytes actually are" write, just supplied by the test instead of a sniffer.
+  await mediaContentTypeStore.set({ workspaceId: WORKSPACE_ID, sha256: uploaded.media.sha256, contentType: "video/mp4" });
+
+  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+    media: Array<{ id: string; publicUrl: string | null }>;
+  };
+  const found = listed.media.find((m) => m.id === uploaded.media.id);
+  assert.ok(found);
+  assert.equal(found.publicUrl, `/m/${uploaded.media.id}/original`);
+});
+
+test("a trashed asset's publicUrl is null, never a link a visitor would 404 on", async () => {
+  const { deps } = fakeRouteDeps();
+  await seedPublicTransform(deps);
+  const { id } = await seedAsset(deps);
+  await wired("media_trash_asset", deps).handler(executionContext({ mediaId: id }));
+
+  const listed = (await wired("media_list_assets", deps).handler(executionContext({}))) as {
+    media: Array<{ id: string; publicUrl: string | null; status: string }>;
+  };
+  const found = listed.media.find((m) => m.id === id);
+  assert.ok(found);
+  assert.equal(found.status, "trashed");
+  assert.equal(found.publicUrl, null);
 });
 
 test("media_trash_asset is a status flip, and is the ONLY delete-adjacent tool", async () => {

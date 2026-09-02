@@ -122,11 +122,16 @@ export {
 export type { MediaContentTypeStorePort } from "./content-type-store.js";
 export { InMemoryMediaContentTypeStore } from "./content-type-store.js";
 
-export type { MediaProviderCredentialRepoPort } from "./provider-credential-store.js";
+export type {
+  MediaProviderCredentialRepoPort,
+  MediaProviderCredentialResolveDeps,
+  ResolvedMediaProviderCredential,
+} from "./provider-credential-store.js";
 export {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
+  resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "./provider-credential-store.js";
 

@@ -148,6 +148,15 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // `site_collect_page_evidence`, wired through the standard `contributeSiteEvidenceTools()` shape
   // with its own `agent-tools.ts` catalog â€” an ordinary domain, just one that did not exist when
   // the rollout was counted.
+  //
+  // "media-generation" (2026-09-02) is likewise NOT a 5th entry on `media`'s own 4-tool catalog: it
+  // is a genuinely NEW first-party domain (`features/media-generation`), added to close the "the
+  // assistant can upload an image but cannot GENERATE one" gap with one tool,
+  // `media_generate_asset`. Kept separate from `media` specifically because `media`'s catalog is
+  // `@jini-ai/cms`-owned (shared across every host of that package, with its own "wire the ENTIRE
+  // catalog" tripwire test), while this tool's whole pipeline â€” Tovu's saved-credential store, the
+  // vendor dispatch engine, Tovu's own ADR-027 URL contract â€” is host-specific glue, the same
+  // category `custom-credentials`/`site-inspection`/`site-evidence` above already established.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -159,6 +168,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "identity",
     "integrations",
     "media",
+    "media-generation",
     "members",
     "menus",
     "newsletter",

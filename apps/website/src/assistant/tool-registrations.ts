@@ -188,6 +188,7 @@ import type { FormsToolDeps } from "../features/forms/tool-registrations.js";
 import type { IdentityToolDeps } from "../features/identity/tool-registrations.js";
 import type { IntegrationsToolDeps } from "../features/webhooks/tool-registrations.js";
 import type { MediaToolDeps } from "../features/media/tool-registrations.js";
+import type { MediaGenerationToolDeps } from "../features/media-generation/tool-registrations.js";
 import type { MembersToolDeps } from "../features/members/tool-registrations.js";
 import type { MenusToolDeps } from "../features/navigation/tool-registrations.js";
 import type { NewsletterToolDeps } from "../features/newsletter/tool-registrations.js";
@@ -240,6 +241,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   IdentityToolDeps &
   IntegrationsToolDeps &
   MediaToolDeps &
+  MediaGenerationToolDeps &
   MembersToolDeps &
   MenusToolDeps &
   NewsletterToolDeps &

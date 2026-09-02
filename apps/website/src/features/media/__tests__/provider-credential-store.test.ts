@@ -9,6 +9,7 @@ import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
+  resolveMediaProviderCredential,
   saveMediaProviderCredentials,
 } from "../provider-credential-store.js";
 
@@ -494,4 +495,76 @@ test("the in-memory adapter stages its writes: a planner that throws leaves stor
   assert.deepEqual(await getMediaProviderCredentials({ repo }, { workspaceId: WORKSPACE }), {
     openai: { apiKeyConfigured: true, apiKeyTail: "1111" },
   });
+});
+
+// ---------------------------------------------------------------------------
+// resolveMediaProviderCredential — the one decrypting reader, added 2026-09-02 for
+// media-generation/tool-registrations.ts's media_generate_asset.
+// ---------------------------------------------------------------------------
+
+test("resolveMediaProviderCredential decrypts a saved key back to its exact original plaintext", async () => {
+  const { deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-real-secret-9999", baseUrl: "https://api.openai.com/v1", model: "gpt-image-2" } },
+  });
+
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+
+  assert.deepEqual(resolved, { apiKey: "sk-real-secret-9999", baseUrl: "https://api.openai.com/v1", model: "gpt-image-2" });
+});
+
+test("resolveMediaProviderCredential returns null for a provider with no saved row at all", async () => {
+  const { deps } = makeDeps();
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.equal(resolved, null);
+});
+
+test("resolveMediaProviderCredential returns null (not an error) for a row saved with baseUrl/model but no key yet", async () => {
+  const { deps } = makeDeps();
+  // No `apiKey` field at all — a row that only ever set baseUrl/model, the documented "configured
+  // with no key yet" state (`MediaProviderCredentialRecord.sealed`/`.keyTail` doc: "a row may
+  // legitimately hold only baseUrl/model with no key yet").
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { baseUrl: "https://api.openai.com/v1" } },
+  });
+
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.equal(resolved, null, "no sealed key means nothing to decrypt — this must not throw or fabricate a key");
+});
+
+test("resolveMediaProviderCredential fails closed with MediaProviderCredentialSecretStoreUnconfiguredError when the master secret is unavailable at decrypt time", async () => {
+  const repo = new InMemoryMediaProviderCredentialRepo();
+  const workingKeyring = new InMemoryKeyring();
+  const workingSealer = new AesGcmSecretSealer(workingKeyring);
+  await saveMediaProviderCredentials(
+    { repo, keyring: workingKeyring, sealer: workingSealer, clock },
+    { workspaceId: WORKSPACE, providers: { openai: { apiKey: "sk-will-fail-to-open" } } }
+  );
+
+  // Same row, but resolved through a sealer backed by a broken keyring — mirrors this suite's own
+  // "a missing master secret fails closed" fixture for the write path, applied to the read path.
+  const brokenSealer = new AesGcmSecretSealer(new BrokenKeyring());
+  await assert.rejects(
+    () => resolveMediaProviderCredential({ repo, sealer: brokenSealer }, { workspaceId: WORKSPACE, providerId: "openai" }),
+    (err: unknown) => {
+      assert.ok(err instanceof MediaProviderCredentialSecretStoreUnconfiguredError);
+      assert.match((err as Error).message, /openai/);
+      assert.equal((err as Error).message.includes("sk-will-fail-to-open"), false, "the plaintext key must never appear in an error message");
+      return true;
+    }
+  );
+});
+
+test("resolveMediaProviderCredential never includes the plaintext key anywhere in a JSON-serialized result other than the intended apiKey field", async () => {
+  const { deps } = makeDeps();
+  await saveMediaProviderCredentials(deps, {
+    workspaceId: WORKSPACE,
+    providers: { openai: { apiKey: "sk-visible-only-once-2222" } },
+  });
+  const resolved = await resolveMediaProviderCredential(deps, { workspaceId: WORKSPACE, providerId: "openai" });
+  assert.ok(resolved);
+  const occurrences = JSON.stringify(resolved).split("sk-visible-only-once-2222").length - 1;
+  assert.equal(occurrences, 1, "the key must appear exactly once — in apiKey, nowhere duplicated");
 });
