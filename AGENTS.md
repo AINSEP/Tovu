@@ -25,7 +25,8 @@ repo became its own root. **None of those three paths has existed for some time.
 here was being told to read files that are not there, and at least one external peer model had to
 caveat its entire first answer because of it. The content itself was never missing, only misfiled.
 There is no repo-wide module-layout document; module layout lives in each domain's own
-`apps/website/src/<domain>/INFO.md` (25 of them) and is not an Always-Consult item.
+`apps/website/src/<domain>/INFO.md` (26 of them as of 2026-09-02, was 25 — recount with
+`find apps/website/src -iname INFO.md | wc -l`) and is not an Always-Consult item.
 
 ## Audit Scope
 
@@ -56,11 +57,16 @@ duplication/dead-code numbers 5-7x before; verify before acting on any of them.
 Applies to every unattended run launched against this repository: `RemoteTrigger`, scheduled
 routines, any agent working with no human watching. Every rule here has already cost a real run.
 
-**1. Set up before reading a single source file.** This repo declares ~10 dependencies as
-`file:../Jini/packages/*`, so the Jini checkout must sit beside it named **exactly** `Jini`. And
-Jini's `dist/` is gitignored — a fresh clone has no build output, so every `@jini-ai/*` import
-resolves to nothing. Run `pnpm install && pnpm -r build` in Jini first. Then record a **green
-baseline on the unmodified tree**, so a setup failure is never mistaken for your own breakage.
+**1. Set up before reading a single source file.** CORRECTED 2026-09-02 — the rule below is stale
+and no longer applies. As of `daa74a65` (2026-08-31, "consume @jini-ai packages from npm instead of
+file: links"), every `@jini-ai/*` dependency in `package.json`, `apps/admin/package.json`, and
+`apps/site-chat/package.json` is an ordinary npm-registry semver range (`^0.3.x`) — verified resolving
+to `https://registry.npmjs.org/@jini-ai/...` in `package-lock.json`. A plain `npm install` at the repo
+root is enough; there is no need for a sibling `Jini` checkout or a `pnpm -r build` step to make
+`@jini-ai/*` imports resolve. (The old `file:../Jini/packages/*` shape survives only as a historical
+artifact at `development/.jini-local-backup/package.json`, not the active manifest.) Still record a
+**green baseline on the unmodified tree** before making changes, so a setup failure is never mistaken
+for your own breakage.
 
 **2. Commit and push every 5–10 minutes, or per logical unit — whichever comes first.** Never
 batch a job into one commit at the end. `wip:` prefixes are fine; history can be squashed, lost

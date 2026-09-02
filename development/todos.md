@@ -735,7 +735,7 @@ exists anywhere in `src/` yet, only a stub FAB.
 - [ ] Add feature flag system (runtime + env + workspace scope)
 - [x] Add capability/permission policy engine primitives — ADR-021 (`identity/authorize.ts`, `permissions.ts`, `grant-service.ts`)
 - [ ] Add module loader contract (for plugins/themes/providers) — Tier-1 declarative plugin data-modules are built (ADR-023, `features/plugins/data-module.ts`/`snapshot.ts`); a general load/init/stop lifecycle contract for Tier-2/3 code plugins is scoped by ADR-024 but not built
-- [ ] Add architecture boundary enforcement (lint/import rules) — no eslint/dependency-cruiser config in the repo; see §24's still-open dependency-cruiser/knip evaluation items
+- [x] Add architecture boundary enforcement (lint/import rules) — CORRECTED 2026-09-02: this line and §24's dependency-cruiser item were both stale. `eslint.config.mjs` (429 lines) and `.dependency-cruiser.mjs` (674 lines) both exist at repo root and are wired via `check:boundaries`/`check:architecture` in `package.json` (verified directly — files read, scripts grepped). The gate reports RED as measured, which is a failing-gate fact, not a missing-config one; knip specifically (§24) is still genuinely unadopted (no `knip.*` config, no `package.json` reference).
 - [ ] Add core observability hooks (metrics/log/tracing abstractions) — no metrics/tracing port exists; ADR-046 (Proposed) touches boot readiness/module-status exposure, not full observability
 
 ### 2) Eventing / Hybrid Sync + Async
@@ -864,7 +864,7 @@ exists anywhere in `src/` yet, only a stub FAB.
 
 ### 15) DevEx / Tooling / CI
 - [ ] Standardize project scripts (dev/build/typecheck/test/lint) — dev/build/typecheck/test/db:generate scripts exist in `package.json`; no lint script
-- [ ] Add lint + formatter + architecture lint — no eslint/prettier config in the repo
+- [ ] Add formatter — no prettier config in the repo (CORRECTED 2026-09-02: this line's "no eslint" half was false — `eslint.config.mjs`, 429 lines, exists and is in active use; see item 1's correction above for the architecture-lint half)
 - [ ] Add commit/PR conventions — no CONTRIBUTING.md/commit-convention doc in the repo itself
 - [ ] Add CI pipeline with required gates — no `.github/workflows/` in the repo
 - [x] Add local dev bootstrap docs — `START-HERE.md` + `npm run setup` (note: `START-HERE.md` itself is now stale — it claims "there is no code yet" — but the doc exists and is the intended bootstrap entry point; refreshing it is outside this reconciliation's scope)
@@ -1202,7 +1202,7 @@ Source: competitor-analysis session. See `claude-tovu-competitor-findings.md`, `
 Goal: evaluate/adopt tooling that keeps the codebase modular, maintainable, and flexible (enforces the ports/adapters + spec-first constraints). Ties into existing items 1) "architecture boundary enforcement" and 15) "architecture lint".
 
 Recommended starting five (highest ROI):
-- [ ] Evaluate **dependency-cruiser** — enforce "core never imports adapters" as CI-failing rules (makes the inward-dependency rule real)
+- [x] Evaluate **dependency-cruiser** — adopted (CORRECTED 2026-09-02, was stale): `.dependency-cruiser.mjs` (674 lines) enforces boundary rules including the inward "core never imports adapters" rule, run via `check:boundaries` in `package.json`; the wider `check:architecture` gate currently reports RED as measured, but the config and enforcement exist.
 - [ ] Evaluate **knip** — find unused files/exports/deps across the workspace (keeps plugin-heavy platform lean)
 - [ ] Evaluate **Zod** at all boundaries — runtime validation + single source of truth for types (fits SQLite JSON-text ↔ jsonb strategy) — not adopted; relates to §10's still-open request-validation item
 - [ ] Evaluate **ArchUnitTS / ts-arch** — architecture rules as unit tests (fits spec-first / M3 test-contract framework)
@@ -1458,6 +1458,13 @@ built now.
 | External MCP servers | `src/platform/db/sqlite/external-mcp-repo.sqlite.ts` |
 | Media provider credentials | `src/platform/db/sqlite/media-provider-credential-repo.sqlite.ts` |
 | Source control (in flight this session) | `source_control_credential_sets` |
+
+**Table is stale as a current count (CORRECTED 2026-09-02):** two more sealed-credential stores
+landed 2026-08-28, after this table was written — `platform/db/sqlite/vendor-credential-repo.sqlite.ts`
+(`features/vendor-credentials/store.ts`) and `platform/db/sqlite/custom-credential-repo.sqlite.ts`
+(`features/custom-credentials/store.ts`), both first committed in `708e81b2`. The real current total
+is **ten**, not eight (verified by grepping every `deps.sealer.seal(` call site outside tests). Keep
+this table's shape and 2026-08-15 snapshot for history, but do not quote "eight" as today's count.
 
 And five admin screens already accept a token: `features/settings/SettingsUi.tsx`,
 `features/settings/ComposioKeyField.tsx`, `features/ai-assistant/AiAssistant.tsx` (BYOK),

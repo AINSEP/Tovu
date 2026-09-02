@@ -101,8 +101,8 @@ export interface KeyringPort {
  * able to RE-DERIVE the same `aad` string from context at open time — it is not something to store
  * alongside the ciphertext.
  *
- * As of the 2026-09-02 AAD gap closure, every credential-shaped table in this codebase seals with an
- * aad: `site-credential-store.ts`, `execution-credential-store.ts`,
+ * As of the 2026-09-02 AAD gap closure, five previously-unauthenticated credential-shaped tables now
+ * seal with an aad: `site-credential-store.ts`, `execution-credential-store.ts`,
  * `media/provider-credential-store.ts`, `connectors/composio-config-store.ts`, and
  * `connectors/connector-credential-store.ts` (this doc used to name three of these as sealing with
  * NO aad at all — that list was already stale by the time it named "three": it predated the last two
@@ -110,9 +110,18 @@ export interface KeyringPort {
  * carries its own `aad_version` column (`db/schema.ts`) so a row sealed BEFORE this change (no aad)
  * can still be opened correctly while a per-store backfill script re-seals it under the new aad — see
  * any of those five stores' own file header for the full migration story, and
- * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves. `aad` stays
- * optional at the port level regardless: a future ninth or tenth table with no natural row identity
- * to bind is still free to seal with none.
+ * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves.
+ *
+ * This is NOT "every credential-shaped table in this codebase" — that overstates what the 2026-09-02
+ * change did. Four more stores already sealed with an aad before that change and were never in its
+ * scope: `vendor-credentials/store.ts`, `custom-credentials/store.ts`, `source-control/store.ts`, and
+ * `deployments/publish-credentials/store.ts` (see each file's own `sealConnection()`), which puts the
+ * real current total at nine stores passing `aad` at seal time, not five. And
+ * `assistant/external-mcp-store.ts` — the `external_mcp_servers` table — still seals with NO aad on
+ * either of its two call sites as of this writing: `deps.sealer.seal(...)` at
+ * `external-mcp-store.ts:1272` (server env) and `:1421` (OAuth payload); it was never touched by the
+ * AAD gap closure. `aad` stays optional at the port level regardless: a table with no natural row
+ * identity to bind is still free to seal with none.
  */
 export interface SecretSealerPort {
   seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret>;
