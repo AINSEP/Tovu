@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { TOVU_BUNDLED_AGENT_PLUGINS } from "../agent-plugin-catalog";
 import {
@@ -7,12 +8,17 @@ import {
   getBundledAgentPluginSourceFiles,
 } from "../agent-plugin-source-catalog";
 
-// The real package Tovu now reads from -- no local fork to drift out of sync with. Matches
-// `agent-plugin-source-catalog.ts`'s own import root (see that file for why its imports reach in
-// by relative path rather than through the package's `exports` map).
+// Tovu's own vendored copy, not a live read of the sibling Jini checkout: a relative path out to
+// `../../../Jini/...` only resolved on a machine that happens to have that checkout next to this
+// one, which broke the very first standalone build (see `agent-plugin-source-catalog.ts`'s own
+// header for the incident and the regeneration procedure). Resolved from this file's own location
+// (not `process.cwd()`, which only equals `apps/admin` when Vitest happens to be invoked from
+// there) so this test passes regardless of the runner's working directory.
 const PLUGIN_ROOT = path.resolve(
-  process.cwd(),
-  "../../../Jini/packages/agent-plugins/ui-ux-design",
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "bundled",
+  "ui-ux-design",
 );
 const SKILLS_ROOT = path.join(PLUGIN_ROOT, "skills");
 const ALLOWED_MANIFEST_FIELDS = new Set([

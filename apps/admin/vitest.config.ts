@@ -51,18 +51,6 @@ export default defineConfig({
       "@tovu/theme-layout": path.resolve(__dirname, "../website/src/features/theme/theme-layout.ts"),
     },
   },
-  server: {
-    // Mirrors `vite.config.ts`'s `server.fs.allow` (same comment there explains why: the
-    // `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and Vite resolves
-    // symlinks to their real path before checking `fs.allow`). This config never carried that
-    // entry because nothing under test needed to read a `@jini-ai/*` package's own on-disk assets
-    // — `agent-plugin-source-catalog.ts`'s 44 `?raw` imports of the `ui-ux-design` plugin are the
-    // first case that does, and without this Vitest denies the read with "Denied ID" rather than
-    // a normal resolution error. Those imports are RELATIVE paths into the sibling Jini checkout
-    // (`../../../../../../Jini/packages/agent-plugins/ui-ux-design/...`), not `@jini-ai/agent-plugins`
-    // specifiers — which is exactly why `fs.allow` is what governs them and not Vite's resolver.
-    fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini")] },
-  },
   test: {
     environment: "jsdom",
     environmentOptions: {

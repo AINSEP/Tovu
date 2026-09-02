@@ -1,47 +1,47 @@
-import pluginManifestSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/plugin.json?raw";
-import frontendAccessibilitySkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/frontend-accessibility/SKILL.md?raw";
-import gstackDesignSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/SKILL.md?raw";
-import gstackDesignReferencesConsultationSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/references/consultation.md?raw";
-import gstackDesignReferencesHtmlSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/references/html.md?raw";
-import gstackDesignReferencesReviewSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/references/review.md?raw";
-import gstackDesignReferencesShotgunSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/references/shotgun.md?raw";
-import gstackDesignReferencesUpstreamNotesSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/gstack-design/references/upstream-notes.md?raw";
-import interfaceDesignOriginalSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/ORIGINAL.md?raw";
-import interfaceDesignSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/SKILL.md?raw";
-import interfaceDesignReferencesCommandsAuditSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/commands/audit.md?raw";
-import interfaceDesignReferencesCommandsCritiqueSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/commands/critique.md?raw";
-import interfaceDesignReferencesCommandsExtractSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/commands/extract.md?raw";
-import interfaceDesignReferencesCommandsInitSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/commands/init.md?raw";
-import interfaceDesignReferencesCommandsStatusSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/commands/status.md?raw";
-import interfaceDesignReferencesExamplesSystemPrecisionSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/examples/system-precision.md?raw";
-import interfaceDesignReferencesExamplesSystemWarmthSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/examples/system-warmth.md?raw";
-import interfaceDesignReferencesSystemTemplateSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/interface-design/references/system-template.md?raw";
-import shadcnUiReadmeSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/README.md?raw";
-import shadcnUiSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/SKILL.md?raw";
-import shadcnUiExamplesAuthLayoutSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/auth-layout.tsx?raw";
-import shadcnUiExamplesDataTableSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/data-table.tsx?raw";
-import shadcnUiExamplesFormPatternSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx?raw";
-import shadcnUiResourcesComponentCatalogSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/resources/component-catalog.md?raw";
-import shadcnUiResourcesCustomizationGuideSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/resources/customization-guide.md?raw";
-import shadcnUiResourcesMigrationGuideSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/resources/migration-guide.md?raw";
-import shadcnUiResourcesSetupGuideSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/resources/setup-guide.md?raw";
-import shadcnUiScriptsVerifySetupSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/shadcn-ui/scripts/verify-setup.sh?raw";
-import uiUxDesignSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/SKILL.md?raw";
-import uiUxDesignReferencesBrandAndVoiceSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/brand-and-voice.md?raw";
-import uiUxDesignReferencesComponentsAndStatesSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/components-and-states.md?raw";
-import uiUxDesignReferencesDelightAndMotionSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/delight-and-motion.md?raw";
-import uiUxDesignReferencesFoundationsSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/foundations.md?raw";
-import uiUxDesignReferencesInclusiveAiImagerySource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/inclusive-ai-imagery.md?raw";
-import uiUxDesignReferencesKoleJainUiuxConceptsSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/kole-jain-uiux-concepts.md?raw";
-import uiUxDesignReferencesOpenaiFrontendSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/openai-frontend-skill.md?raw";
-import uiUxDesignReferencesPremiumUiSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/premium-ui.md?raw";
-import uiUxDesignReferencesResearchAndValidationSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/research-and-validation.md?raw";
-import uiUxDesignReferencesSamCrawfordPremiumWebsitesSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/sam-crawford-premium-websites.md?raw";
-import uiUxDesignReferencesSelfMadeWebDesignerCoreSkillsSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/self-made-web-designer-core-skills.md?raw";
-import uiUxDesignReferencesVisualStorytellingSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/ui-ux-design/references/visual-storytelling.md?raw";
-import vercelWebDesignGuidelinesSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/vercel-web-design-guidelines/SKILL.md?raw";
-import webComplianceSkillSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/web-compliance/SKILL.md?raw";
-import webComplianceReferencesAuditEvidenceSource from "../../../../../../Jini/packages/agent-plugins/ui-ux-design/skills/web-compliance/references/audit-evidence.md?raw";
+import pluginManifestSource from "./bundled/ui-ux-design/plugin.json?raw";
+import frontendAccessibilitySkillSource from "./bundled/ui-ux-design/skills/frontend-accessibility/SKILL.md?raw";
+import gstackDesignSkillSource from "./bundled/ui-ux-design/skills/gstack-design/SKILL.md?raw";
+import gstackDesignReferencesConsultationSource from "./bundled/ui-ux-design/skills/gstack-design/references/consultation.md?raw";
+import gstackDesignReferencesHtmlSource from "./bundled/ui-ux-design/skills/gstack-design/references/html.md?raw";
+import gstackDesignReferencesReviewSource from "./bundled/ui-ux-design/skills/gstack-design/references/review.md?raw";
+import gstackDesignReferencesShotgunSource from "./bundled/ui-ux-design/skills/gstack-design/references/shotgun.md?raw";
+import gstackDesignReferencesUpstreamNotesSource from "./bundled/ui-ux-design/skills/gstack-design/references/upstream-notes.md?raw";
+import interfaceDesignOriginalSource from "./bundled/ui-ux-design/skills/interface-design/ORIGINAL.md?raw";
+import interfaceDesignSkillSource from "./bundled/ui-ux-design/skills/interface-design/SKILL.md?raw";
+import interfaceDesignReferencesCommandsAuditSource from "./bundled/ui-ux-design/skills/interface-design/references/commands/audit.md?raw";
+import interfaceDesignReferencesCommandsCritiqueSource from "./bundled/ui-ux-design/skills/interface-design/references/commands/critique.md?raw";
+import interfaceDesignReferencesCommandsExtractSource from "./bundled/ui-ux-design/skills/interface-design/references/commands/extract.md?raw";
+import interfaceDesignReferencesCommandsInitSource from "./bundled/ui-ux-design/skills/interface-design/references/commands/init.md?raw";
+import interfaceDesignReferencesCommandsStatusSource from "./bundled/ui-ux-design/skills/interface-design/references/commands/status.md?raw";
+import interfaceDesignReferencesExamplesSystemPrecisionSource from "./bundled/ui-ux-design/skills/interface-design/references/examples/system-precision.md?raw";
+import interfaceDesignReferencesExamplesSystemWarmthSource from "./bundled/ui-ux-design/skills/interface-design/references/examples/system-warmth.md?raw";
+import interfaceDesignReferencesSystemTemplateSource from "./bundled/ui-ux-design/skills/interface-design/references/system-template.md?raw";
+import shadcnUiReadmeSource from "./bundled/ui-ux-design/skills/shadcn-ui/README.md?raw";
+import shadcnUiSkillSource from "./bundled/ui-ux-design/skills/shadcn-ui/SKILL.md?raw";
+import shadcnUiExamplesAuthLayoutSource from "./bundled/ui-ux-design/skills/shadcn-ui/examples/auth-layout.tsx?raw";
+import shadcnUiExamplesDataTableSource from "./bundled/ui-ux-design/skills/shadcn-ui/examples/data-table.tsx?raw";
+import shadcnUiExamplesFormPatternSource from "./bundled/ui-ux-design/skills/shadcn-ui/examples/form-pattern.tsx?raw";
+import shadcnUiResourcesComponentCatalogSource from "./bundled/ui-ux-design/skills/shadcn-ui/resources/component-catalog.md?raw";
+import shadcnUiResourcesCustomizationGuideSource from "./bundled/ui-ux-design/skills/shadcn-ui/resources/customization-guide.md?raw";
+import shadcnUiResourcesMigrationGuideSource from "./bundled/ui-ux-design/skills/shadcn-ui/resources/migration-guide.md?raw";
+import shadcnUiResourcesSetupGuideSource from "./bundled/ui-ux-design/skills/shadcn-ui/resources/setup-guide.md?raw";
+import shadcnUiScriptsVerifySetupSource from "./bundled/ui-ux-design/skills/shadcn-ui/scripts/verify-setup.sh?raw";
+import uiUxDesignSkillSource from "./bundled/ui-ux-design/skills/ui-ux-design/SKILL.md?raw";
+import uiUxDesignReferencesBrandAndVoiceSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/brand-and-voice.md?raw";
+import uiUxDesignReferencesComponentsAndStatesSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/components-and-states.md?raw";
+import uiUxDesignReferencesDelightAndMotionSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/delight-and-motion.md?raw";
+import uiUxDesignReferencesFoundationsSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/foundations.md?raw";
+import uiUxDesignReferencesInclusiveAiImagerySource from "./bundled/ui-ux-design/skills/ui-ux-design/references/inclusive-ai-imagery.md?raw";
+import uiUxDesignReferencesKoleJainUiuxConceptsSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/kole-jain-uiux-concepts.md?raw";
+import uiUxDesignReferencesOpenaiFrontendSkillSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/openai-frontend-skill.md?raw";
+import uiUxDesignReferencesPremiumUiSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/premium-ui.md?raw";
+import uiUxDesignReferencesResearchAndValidationSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/research-and-validation.md?raw";
+import uiUxDesignReferencesSamCrawfordPremiumWebsitesSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/sam-crawford-premium-websites.md?raw";
+import uiUxDesignReferencesSelfMadeWebDesignerCoreSkillsSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/self-made-web-designer-core-skills.md?raw";
+import uiUxDesignReferencesVisualStorytellingSource from "./bundled/ui-ux-design/skills/ui-ux-design/references/visual-storytelling.md?raw";
+import vercelWebDesignGuidelinesSkillSource from "./bundled/ui-ux-design/skills/vercel-web-design-guidelines/SKILL.md?raw";
+import webComplianceSkillSource from "./bundled/ui-ux-design/skills/web-compliance/SKILL.md?raw";
+import webComplianceReferencesAuditEvidenceSource from "./bundled/ui-ux-design/skills/web-compliance/references/audit-evidence.md?raw";
 
 export interface BundledAgentPluginSourceFile {
   readonly relativePath: string;
@@ -64,6 +64,34 @@ export interface BundledAgentPluginSourceFile {
  * `web-compliance`) are listed here, not just the one this catalog used to carry alone -- Tovu
  * displays the whole plugin its `plugin.json` manifest actually describes, including the 3
  * `shadcn-ui/examples/*.tsx` files and 1 `shadcn-ui/scripts/*.sh` file that aren't markdown.
+ *
+ * ---------------------------------------------------------------------------
+ * `./bundled/ui-ux-design/` is a vendored copy, not a live reach into Jini
+ * ---------------------------------------------------------------------------
+ * These 44 imports used to be RELATIVE paths straight into a sibling `Jini/` checkout
+ * (`../../../../../../Jini/packages/agent-plugins/ui-ux-design/...`), which only resolved on a
+ * machine that happened to have that checkout at that exact location -- Tovu's first-ever
+ * standalone Fly build failed on exactly this. `@jini-ai/agent-plugins` is not a fix: its
+ * `package.json` declares `./ui-ux-design/*` in its `exports` map, but the package itself has
+ * never been published (`npm view @jini-ai/agent-plugins` 404s, unlike e.g. `@jini-ai/core`), so
+ * importing through it would only trade one unresolvable path for another.
+ *
+ * `./bundled/ui-ux-design/` is a plain, checked-in copy of the same 44 files, made byte-identical
+ * to Jini's `packages/agent-plugins/ui-ux-design/` at vendor time. It intentionally does NOT live
+ * under `content/agent-plugins/` (where `site-compliance` lives): that directory is walked by
+ * `seedBundledAgentPlugins()` on the server and installs-and-activates-inactive whatever it finds
+ * there as a real, executable Agent Plugin -- this package is meant to stay "catalogued, not
+ * executed" (`agent-plugin-catalog.ts`'s own `availability` field), so it lives under this app's
+ * own `src/` instead, where nothing on the server side ever looks. It also is NOT part of this
+ * app's TypeScript program or lint scope (`tsconfig.json`'s `exclude`, `eslint.config.mjs`'s
+ * top-level `ignores`) -- its `.tsx` files are inert reference text this modal displays as a
+ * string, not real source Tovu compiles or executes, and they reference dependencies (shadcn/ui
+ * primitives, `@tanstack/react-table`) this project deliberately does not have.
+ *
+ * To refresh after an upstream change: re-copy each file this module imports from Jini's
+ * `packages/agent-plugins/ui-ux-design/` into the matching path under `./bundled/ui-ux-design/`
+ * here, byte-for-byte, and update `AgentPluginBundle.unit.test.ts`'s `EXPECTED_SKILLS`/
+ * `SKILLS_WITHOUT_FRONTMATTER` if the shape changed. Never hand-edit a vendored file directly.
  */
 export const UI_UX_DESIGN_SOURCE_FILES: readonly BundledAgentPluginSourceFile[] = [
   { relativePath: "plugin.json", content: pluginManifestSource },

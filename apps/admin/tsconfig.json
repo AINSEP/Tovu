@@ -16,5 +16,9 @@
       "@tovu/theme-layout": ["../website/src/features/theme/theme-layout.ts"]
     }
   },
-  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts"]
+  "include": ["src", "vite.config.ts", "../website/src/contracts/headless/**/*.ts", "../website/src/features/theme/theme-layout.ts"],
+  "exclude": [
+    "node_modules",
+    "src/features/plugins/bundled"
+  ]
 }
