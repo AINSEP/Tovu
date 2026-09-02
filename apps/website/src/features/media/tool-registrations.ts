@@ -59,9 +59,29 @@
  * `resolvePublicUrls` is exported so `features/media-generation/tool-registrations.ts` can resolve
  * `media_generate_asset`'s own response through the exact same logic (a batch of one) instead of a
  * second, drifting implementation.
+ *
+ * ## Content-type recording (2026-09-02, media-pipeline defect batch)
+ *
+ * Until this fix, `media_upload_asset` was the ONE write path into `media`/`asset_blobs` that never
+ * recorded a content type anywhere — line 53-54 above already documents that the HTTP admin upload
+ * route and `media_generate_asset` both did; `media_upload_asset` silently did not, because it is
+ * wired straight from `@jini-ai/cms/media`'s generic `buildMediaRegistrations`, which has no
+ * knowledge of this host's `mediaContentTypeStore` port at all. A real asset uploaded through this
+ * tool got a permanently `content_type`-less `asset_blobs` row, which 500'd the very next request for
+ * its `/m/...` public rendition (this route's own image-transform path never reads that column, but
+ * an operator-facing symptom traced back here regardless — see the dispatch notes for the full
+ * chain). `@jini-ai/cms/media`'s `buildMediaRegistrations` gained a second OPTIONAL hook alongside
+ * `resolvePublicUrls` for exactly this — `MediaToolDeps.recordUploadContentType`, called once right
+ * after `media_upload_asset`'s own `uploadMedia()` succeeds, given the raw uploaded bytes (never the
+ * caller's declared `contentType` string — see that hook's own doc in `@jini-ai/cms/media` for why).
+ * {@link buildRecordUploadContentType} is this host's real implementation: sniff the bytes
+ * (`sniffContentType`), record the sniffed value through the SAME `mediaContentTypeStore.set` the
+ * other two paths already call. A rejection from this hook propagates out of the tool call rather
+ * than reporting a false success — an upload whose bytes were saved but whose type failed to record
+ * is a real failure, not one to paper over.
  */
 import type { ToolContributor } from "#src/assistant/index";
-import { buildMediaRegistrations, mediaDerivedRisk, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
+import { buildMediaRegistrations, mediaDerivedRisk, sniffContentType, type MediaRecord, type MediaToolDeps, type TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 import type { AssistantSurfaceDeps } from "../../contracts/core/tool-surface-exchanges.js";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";
@@ -76,14 +96,18 @@ export { buildMediaRegistrations, mediaDerivedRisk, type MediaToolDeps };
  *  `custom-credentials/agent-tools.ts`'s header for the same reasoning applied elsewhere). */
 const EXT_BY_TRANSFORM_FORMAT: Record<string, string> = { jpeg: "jpg", png: "png", webp: "webp", gif: "gif" };
 
-/** The exact deps {@link resolveMediaPublicUrls} needs beyond `MediaToolDeps`'s own fields — both
- *  OPTIONAL so a test double (or a future host reusing `buildMediaRegistrationsForTovu` without
- *  wiring these) degrades to `publicUrl: null` for every asset rather than throwing; see that
- *  function's own doc. `RouteDeps` (this host's real composition-root deps bag) always supplies both
- *  in production — `mediaContentTypeStore`/`transformDefinitionRepo` are established `RouteDeps`
- *  fields (`server/routes/types.ts`), not new wiring this file introduces. */
+/** The exact deps {@link resolveMediaPublicUrls} (read: `getMany`) and {@link buildMediaRegistrationsForTovu}'s
+ *  `recordUploadContentType` wiring (write: `set` — see this file's header, "Content-type recording")
+ *  need beyond `MediaToolDeps`'s own fields — both OPTIONAL so a test double (or a future host reusing
+ *  `buildMediaRegistrationsForTovu` without wiring these) degrades to `publicUrl: null`/no recording
+ *  for every asset rather than throwing; see those functions' own docs. `RouteDeps` (this host's real
+ *  composition-root deps bag) always supplies both in production — `mediaContentTypeStore`/
+ *  `transformDefinitionRepo` are established `RouteDeps` fields (`server/routes/types.ts`), not new
+ *  wiring this file introduces. `mediaContentTypeStore` is `Pick`-narrowed to only the two methods
+ *  this file actually calls, not the whole `MediaContentTypeStorePort`, so a caller passing a
+ *  purpose-built double for either half never needs to fake the other. */
 export interface MediaPublicUrlDeps {
-  mediaContentTypeStore?: Pick<MediaContentTypeStorePort, "getMany">;
+  mediaContentTypeStore?: Pick<MediaContentTypeStorePort, "getMany" | "set">;
   transformDefinitionRepo?: TransformDefinitionRepoPort;
 }
 
@@ -143,15 +167,50 @@ export async function resolveMediaPublicUrls(
 }
 
 /**
- * `buildMediaRegistrations` wired with this host's real `resolvePublicUrls` implementation
- * ({@link resolveMediaPublicUrls}) — this is what `contributeMediaTools` below registers, in place of
- * passing `buildMediaRegistrations` straight through.
+ * `media_upload_asset`'s real `recordUploadContentType` implementation for this host — sniffs the
+ * REAL type from the uploaded bytes (`sniffContentType`) and records it via `mediaContentTypeStore`,
+ * the SAME store/method the HTTP admin upload route and `media_generate_asset`
+ * (`features/media-generation/tool-registrations.ts`) already write through. Never the caller's
+ * declared `contentType` string: recording that instead would let an operator's "Images"/"Videos"
+ * tab, and this host's own `/m/...` public rendition route, disagree with what the bytes actually
+ * are — the exact "an attacker/careless-caller-controlled `contentType` header is trusted" gap
+ * `uploadMedia`'s own header (`@jini-ai/cms/media`) already discloses for the upload-validation step,
+ * and `content-type-store.ts`'s header states as this store's own invariant.
+ *
+ * `undefined` when `routeDeps.mediaContentTypeStore` is not wired (mirrors {@link resolveMediaPublicUrls}'s
+ * identical degrade-soft contract): `buildMediaRegistrations`'s hook is OPTIONAL, so an upload still
+ * succeeds with no type recorded, exactly the pre-fix behavior, rather than throwing for a caller
+ * that hasn't opted in.
+ *
+ * @complexity O(bytes.length) once, bounded by `sniffContentType`'s own fixed-window magic-byte
+ *   scan (see that function's own doc) — not proportional to the upload size cap.
+ */
+function buildRecordUploadContentType(
+  routeDeps: MediaToolDeps & MediaPublicUrlDeps
+): ((params: { media: MediaRecord; bytes: Uint8Array }) => Promise<void>) | undefined {
+  const store = routeDeps.mediaContentTypeStore;
+  if (!store) return undefined;
+  return async ({ media, bytes }) => {
+    const contentType = sniffContentType(bytes);
+    await store.set({ workspaceId: routeDeps.workspaceId, sha256: media.source.sha256, contentType });
+  };
+}
+
+/**
+ * `buildMediaRegistrations` wired with this host's real `resolvePublicUrls`
+ * ({@link resolveMediaPublicUrls}) and `recordUploadContentType`
+ * ({@link buildRecordUploadContentType}) implementations — this is what `contributeMediaTools` below
+ * registers, in place of passing `buildMediaRegistrations` straight through.
  */
 function buildMediaRegistrationsForTovu(
   routeDeps: MediaToolDeps & MediaPublicUrlDeps,
   _surfaces: AssistantSurfaceDeps
 ): ToolRegistration[] {
-  return buildMediaRegistrations({ ...routeDeps, resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets) });
+  return buildMediaRegistrations({
+    ...routeDeps,
+    resolvePublicUrls: (assets) => resolveMediaPublicUrls(routeDeps, assets),
+    recordUploadContentType: buildRecordUploadContentType(routeDeps),
+  });
 }
 
 /**

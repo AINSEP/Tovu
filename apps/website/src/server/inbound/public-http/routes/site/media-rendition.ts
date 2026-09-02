@@ -1,4 +1,4 @@
-import { ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
+import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
 import type { MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
@@ -106,6 +106,16 @@ export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
         // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
         // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
         res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
+        return;
+      }
+      if (err instanceof ImageSourceCorruptError) {
+        // The asset and transform are both valid, but the STORED bytes cannot actually be
+        // decoded/re-encoded by the pixel pipeline (a corrupt or codec-rejected blob — see that
+        // error's own doc for how bytes can pass this package's upload allowlist and its
+        // magic-byte sniff while still failing here). A data condition on this one asset, not a
+        // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
+        // the stored blob must not stay masked by a long-lived negative cache entry).
+        res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
         return;
       }
       res.status(500).json({ error: "internal error" });

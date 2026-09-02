@@ -309,6 +309,17 @@ test("a non-OpenAI model (nanobanana) with no saved credential falls back to the
   assert.equal(generateCalls[0]!.request.model, "gemini-3.1-flash-image-preview");
 });
 
+test("no model specified, no OpenAI credential anywhere, but a different vendor's env credential IS set: the default resolves to a model that vendor can actually generate with, not a hardcoded OpenAI id that always fails here", async () => {
+  const { deps, generateCalls } = fakeRouteDeps({ env: { GEMINI_API_KEY: "env-gemini-key" } });
+
+  await wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle" }));
+
+  assert.equal(generateCalls.length, 1, "must not reject with 'no OpenAI credential configured' when a different vendor is actually usable");
+  assert.equal(generateCalls[0]!.options.providerId, "nanobanana", "default must resolve to the one provider with an actual credential, not stay hardcoded to openai");
+  assert.equal(generateCalls[0]!.request.model, "gemini-3.1-flash-image-preview");
+  assert.equal(generateCalls[0]!.credentials.apiKey, "env-gemini-key");
+});
+
 test("a saved credential wins over the env fallback even when both are present", async () => {
   const fixture = fakeRouteDeps({ env: { OPENAI_API_KEY: "env-key-must-be-ignored" } });
   const { deps, generateCalls } = fixture;

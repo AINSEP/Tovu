@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
-import { registerTransform, uploadMedia, trashMedia } from "../../features/media/index.js";
+import { registerTransform, uploadMedia, trashMedia, ImageSourceCorruptError } from "../../features/media/index.js";
 
 /**
  * @file Route-level tests for the new public, unauthenticated
@@ -140,6 +140,31 @@ test("media rendition route: a trashed asset's rendition responds 410 no-store, 
     const afterTrash = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/a.png`);
     assert.equal(afterTrash.status, 410);
     assert.equal(afterTrash.headers.get("cache-control"), "no-store");
+  });
+});
+
+test("media rendition route: a source blob the pixel pipeline cannot decode is a 422 no-store, never an opaque 500 (Defect 3 regression)", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "looks-like-an-image-but-is-not-decodable", "corrupt.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+
+    // Real defect: `sharp` accepted bytes that pass this package's own magic-byte sniff and the
+    // upload allowlist, then rejected them at decode/re-encode time with `Input buffer has corrupt
+    // header: ...`. Simulated here via the injected `imageTransformer` seam (the default test
+    // composition root uses `InMemoryImageTransformer`, which never really decodes anything) rather
+    // than depending on a real malformed image round-tripping through `sharp` in this route-level
+    // test — `image-transformer.sharp.test.ts` already covers the real decoder's own failure mode.
+    deps.imageTransformer = {
+      transform: async () => {
+        throw new ImageSourceCorruptError("the source image could not be decoded/re-encoded (target format 'webp'): simulated decode failure");
+      },
+    };
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/x.webp`);
+    assert.equal(res.status, 422);
+    assert.equal(res.headers.get("cache-control"), "no-store");
+    const body = (await res.json()) as { error: string };
+    assert.equal(body.error, "source image could not be processed");
   });
 });
 

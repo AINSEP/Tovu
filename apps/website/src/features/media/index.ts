@@ -110,7 +110,7 @@ export {
 export type { ImageTransformerPort, TransformImageInput, TransformImageOutput } from "@jini-ai/cms/media";
 export { InMemoryImageTransformer } from "@jini-ai/cms/media";
 
-export { SharpImageTransformer, ImageTransformUnavailableError } from "@jini-ai/cms/media";
+export { SharpImageTransformer, ImageTransformUnavailableError, ImageSourceCorruptError } from "@jini-ai/cms/media";
 
 export { sniffContentType, type SniffedContentType } from "@jini-ai/cms/media";
 

@@ -123,10 +123,14 @@ export interface MediaGenerationToolDeps {
   env?: NodeJS.ProcessEnv;
 }
 
-/** `media_generate_asset`'s default model when `model` is omitted — OpenAI's current flagship image
- *  model (`@jini-ai/integrations/media-providers`'s `IMAGE_MODELS`, `default: true`). Still OpenAI:
- *  only the DEFAULT changed meaning (from "the only option" to "the fallback when the caller has no
- *  preference"), not the choice of default itself. */
+/** The catalog's own `default: true` image model (`@jini-ai/integrations/media-providers`'s
+ *  `IMAGE_MODELS`) — OpenAI's current flagship. NOT what `media_generate_asset` actually resolves
+ *  to when `model` is omitted (see {@link resolveDefaultImageModel} for that, credential-aware,
+ *  logic): this constant is now only the LAST-RESORT fallback used when no provider anywhere has a
+ *  resolvable credential (2026-09-02 follow-up dispatch — the first landed slice left this constant
+ *  as the unconditional default, which meant an omitted `model` always failed on a machine/workspace
+ *  with no OpenAI credential even when a different vendor's key WAS configured; see this dispatch's
+ *  own investigation notes). */
 const DEFAULT_MODEL = "gpt-image-2";
 
 /** {@link MediaGenerationToolDeps.generateMedia}'s real, production implementation — a fresh engine
@@ -170,6 +174,38 @@ async function resolveCredentialForProvider(routeDeps: MediaGenerationToolDeps, 
   }
   const fromEnv = resolveProviderCredentialsFromEnv(providerId, routeDeps.env ?? process.env);
   return fromEnv.apiKey ? fromEnv : null;
+}
+
+/**
+ * Resolves which image model to use as the DEFAULT when the caller omits `model` — the first
+ * catalog model (in {@link IMAGE_MODEL_IDS} order) whose provider actually has a REACHABLE
+ * credential (saved row first, then env — same precedence {@link resolveCredentialForProvider}
+ * itself applies), not simply the catalog's `default: true` entry regardless of whether anything
+ * can actually generate with it. `IMAGE_MODEL_IDS` already starts with that `default: true` entry
+ * (`gpt-image-2`/openai), so this still resolves to it whenever OpenAI's own credential is the one
+ * that succeeds — unchanged from before this function existed. Falls back to
+ * {@link DEFAULT_MODEL} only when NO provider anywhere has a resolvable credential; the caller then
+ * gets the same "no credential configured" rejection as always, just for whichever provider was
+ * actually tried rather than a provider hardcoded independent of what this workspace has configured.
+ *
+ * Each DISTINCT provider is checked at most once ({@link checkedProviders}) rather than once per
+ * model — `IMAGE_MODEL_IDS` spans ~20 distinct providers, so re-checking a provider that already
+ * failed (or already won) for each of its other models would be wasted, catalog-bounded I/O.
+ *
+ * @complexity O(P) credential lookups, P = the number of distinct providers among
+ *   `IMAGE_MODEL_IDS` — a fixed, catalog-bounded count, never caller-controlled.
+ */
+async function resolveDefaultImageModel(routeDeps: MediaGenerationToolDeps): Promise<string> {
+  const checkedProviders = new Set<string>();
+  for (const modelId of IMAGE_MODEL_IDS) {
+    // Non-null: every id in IMAGE_MODEL_IDS is derived from IMAGE_MODELS itself (agent-tools.ts).
+    const providerId = findMediaModel(modelId)!.provider;
+    if (checkedProviders.has(providerId)) continue;
+    checkedProviders.add(providerId);
+    const credential = await resolveCredentialForProvider(routeDeps, providerId);
+    if (credential) return modelId;
+  }
+  return DEFAULT_MODEL;
 }
 
 const CATALOG_BY_ID = indexCatalogById(mediaGenerationAgentToolCatalog);
@@ -217,15 +253,17 @@ export class MediaGenerationValidationError extends Error {}
 /**
  * Validates the optional `model` field against the published, catalog-derived enum — the
  * handler-level enforcement the published schema's own `enum` cannot itself guarantee (see
- * `agent-tools.ts`'s `IMAGE_MODEL_IDS` doc for why). `undefined` defaults to {@link DEFAULT_MODEL},
- * matching the catalog description's own documented default.
+ * `agent-tools.ts`'s `IMAGE_MODEL_IDS` doc for why). `undefined` resolves through
+ * {@link resolveDefaultImageModel} — a credential-aware default, not unconditionally
+ * {@link DEFAULT_MODEL} — see that function's own doc for why.
  *
  * @throws {MediaGenerationValidationError} `raw` is present but not one of `IMAGE_MODEL_IDS`.
- * @complexity O(n) in `IMAGE_MODEL_IDS.length` (a fixed, catalog-bounded set) — a simple membership
- *   check, not worth a Set for a list this size.
+ * @complexity O(n) in `IMAGE_MODEL_IDS.length` for the explicit-model branch (a fixed,
+ *   catalog-bounded set — a simple membership check, not worth a Set for a list this size); see
+ *   {@link resolveDefaultImageModel}'s own complexity note for the omitted-`model` branch.
  */
-function requireImageModel(raw: string | undefined): string {
-  if (raw === undefined) return DEFAULT_MODEL;
+async function requireImageModel(raw: string | undefined, routeDeps: MediaGenerationToolDeps): Promise<string> {
+  if (raw === undefined) return resolveDefaultImageModel(routeDeps);
   if (!IMAGE_MODEL_IDS.includes(raw)) {
     throw new MediaGenerationValidationError(
       `'model' must be a registered image model — got '${raw}'. See this tool's own schema for the full list of ${IMAGE_MODEL_IDS.length} supported ids across every configured vendor.`
@@ -288,7 +326,7 @@ export function buildMediaGenerationRegistrations(routeDeps: MediaGenerationTool
       return withSchemaOnRejection(
         { toolId: "media_generate_asset", catalog: CATALOG_BY_ID, isShapeRejection: (error) => error instanceof MediaGenerationValidationError },
         async () => {
-          const model = requireImageModel(optionalString(input, "model"));
+          const model = await requireImageModel(optionalString(input, "model"), routeDeps);
           const allowStubFallback = optionalBoolean(input, "allowStubFallback") ?? false;
           // Guaranteed non-null: `model` was just validated against `IMAGE_MODEL_IDS`, itself
           // derived from this same catalogue (`agent-tools.ts`'s own doc for both).
