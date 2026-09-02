@@ -1,5 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
+import type { ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
@@ -66,6 +67,16 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * module touches, the diagnostic never carries the token, the Authorization header, or any part of
  * either — it is built from `connection.username`'s mere PRESENCE, never its value, let alone the
  * token's.
+ *
+ * {@link AuthFailureDiagnostic} is an INSTANCE of the general `ToolFailureDiagnostic` contract
+ * (`contracts/core/tool-failure-diagnostics.ts`, 2026-09-01 second pass) rather than a parallel shape
+ * that happens to look similar: it `extends` that interface, and its `hint` is that contract's own
+ * hedged-hypothesis-plus-remedy field, unchanged in wording and behavior from the paragraph above. The
+ * one thing this pass actually ADDS is `remedyToolId` — that contract's facet 4, "whether a registered
+ * tool can supply it" — which names `custom_credential_set_username` exactly when `hint` fires, so a
+ * generic ask-fix-retry loop can find the fix tool from the diagnostic itself instead of a human
+ * having to already know it exists. See that file's own header for the full four-facet contract and
+ * the one-cycle guard `remedyToolId` (a bare pointer, never a callback) is designed to preserve.
  *
  * ## Security design (every point below is load-bearing, not decoration)
  *
@@ -293,13 +304,23 @@ function buildAuthorizationHeader(connection: CustomProviderConnectionInput): st
   return `Bearer ${connection.token}`;
 }
 
+/** The already-registered tool that can supply the one missing piece of state
+ *  {@link buildAuthFailureDiagnostic}'s hint ever names — a saved username. Kept here as this
+ *  module's own literal (`agent-tools.ts` has no exported id constant, only inline string literals
+ *  for each tool's own `name`) and cross-checked against it by
+ *  `__tests__/auth-failure-diagnostic.unit.test.ts`. */
+const SET_USERNAME_TOOL_ID = "custom_credential_set_username";
+
 /** A 401/403 outcome's structured explanation — see this file's header, "Authentication-failure
- *  diagnostics", for the honesty contract every field here is held to. */
-export interface AuthFailureDiagnostic {
+ *  diagnostics", for the honesty contract every field here is held to, and for why this interface
+ *  `extends` the general {@link ToolFailureDiagnostic} contract rather than merely resembling it. */
+export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
   /** Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
-   *  own value, only which of the two shapes it took. */
+   *  own value, only which of the two shapes it took. This module's own "what failed" fact (facet 1
+   *  of the general contract — see that file's header for why facts are not modeled there). */
   readonly schemeSent: "Basic" | "Bearer";
-  /** Whether this credential has a saved `username` at all — never the username's own value. */
+  /** Whether this credential has a saved `username` at all — never the username's own value. This
+   *  module's other "what failed" fact. */
   readonly usernameStored: boolean;
   /** Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
    *  for: `schemeSent === "Bearer"` (no saved username). Absent for every other 401/403 shape — a
@@ -309,6 +330,10 @@ export interface AuthFailureDiagnostic {
    *  hedged wording ("may"/"might") — this is a hypothesis for a human or agent to try, never an
    *  assertion of the actual cause. */
   readonly hint?: string;
+  /** Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
+   *  that can save the missing username `hint` describes. A pointer only — this module never calls
+   *  it; see the general contract's own doc, "The one-cycle guard". */
+  readonly remedyToolId?: string;
 }
 
 /**
@@ -331,6 +356,7 @@ function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput): 
       "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
       "authenticate a token against an account username via HTTP Basic) may reject a Bearer-only request " +
       "for that reason — this credential has no username saved. If that's the cause, saving one may fix it.",
+    remedyToolId: SET_USERNAME_TOOL_ID,
   };
 }
 

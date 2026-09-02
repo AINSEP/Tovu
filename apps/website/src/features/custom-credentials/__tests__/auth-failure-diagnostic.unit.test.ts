@@ -7,6 +7,7 @@ import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
 import { createCustomCredential, type CustomCredentialWriteDeps } from "../store.js";
 import { makeCredentialedRequest, verifyCustomCredential, type CredentialedRequestDeps } from "../credentialed-request.js";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platform/http/index.js";
+import type { ToolFailureDiagnostic } from "../../../contracts/core/tool-failure-diagnostics.js";
 
 /**
  * @file The 401/403 authentication-failure diagnostic (2026-09-01) — the fix for the live name.com
@@ -18,6 +19,12 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "../../../platfor
  * when a username IS already stored (a 401 with a stored username is a different, unguessable
  * problem — a wrong username, an expired token, missing scopes — and suggesting "add a username" for
  * that case would be actively misleading).
+ *
+ * Also certifies (2026-09-01, second pass) that `AuthFailureDiagnostic` is now a genuine INSTANCE of
+ * the general `ToolFailureDiagnostic` contract (`contracts/core/tool-failure-diagnostics.ts`), not a
+ * parallel shape: `remedyToolId` — facet 4 of that contract, "whether a registered tool can supply
+ * it" — names `custom_credential_set_username` exactly when `hint` fires, and is absent whenever
+ * `hint` is (the two travel as a pair, never separately).
  */
 
 const WORKSPACE = "ws-1";
@@ -153,6 +160,42 @@ test("makeCredentialedRequest: a 404 (not an auth failure) carries no authDiagno
   assert.equal("authDiagnostic" in result, false);
 });
 
+test("makeCredentialedRequest: the Bearer+no-username hint carries remedyToolId pointing at the tool that can fix it (facet 4 of the general contract)", async () => {
+  const writeDeps = await seedWithoutUsername();
+  const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
+
+  assert.equal(result.authDiagnostic!.remedyToolId, "custom_credential_set_username");
+});
+
+test("makeCredentialedRequest: a stored-username 401 carries no remedyToolId — it travels only alongside hint, never alone", async () => {
+  const writeDeps = await seedWithUsername();
+  const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
+
+  assert.equal(result.authDiagnostic!.hint, undefined);
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined);
+});
+
+test("makeCredentialedRequest: authDiagnostic is a genuine instance of the general ToolFailureDiagnostic contract, not a parallel shape", async () => {
+  const writeDeps = await seedWithoutUsername();
+  const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
+
+  // Read through the GENERAL contract's own type — if `AuthFailureDiagnostic` were only a parallel
+  // shape (same field names, no real `extends`), this assignment would still compile by accident;
+  // what it CANNOT fake is agreement on the runtime values, asserted below against the same object.
+  const asGeneralContract: ToolFailureDiagnostic = result.authDiagnostic!;
+  assert.equal(asGeneralContract.hint, result.authDiagnostic!.hint);
+  assert.equal(asGeneralContract.remedyToolId, result.authDiagnostic!.remedyToolId);
+});
+
 test("makeCredentialedRequest: the authDiagnostic never carries the token, in any field, serialized", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
@@ -181,6 +224,7 @@ test("verifyCustomCredential: an 'invalid' (401) result with no stored username 
   assert.equal(result.authDiagnostic!.schemeSent, "Bearer");
   assert.equal(result.authDiagnostic!.usernameStored, false);
   assert.ok(result.authDiagnostic!.hint);
+  assert.equal(result.authDiagnostic!.remedyToolId, "custom_credential_set_username");
 });
 
 test("verifyCustomCredential: an 'invalid' (401) result WITH a stored username carries no hint", async () => {
@@ -192,6 +236,7 @@ test("verifyCustomCredential: an 'invalid' (401) result WITH a stored username c
 
   assert.equal(result.authDiagnostic?.usernameStored, true);
   assert.equal(result.authDiagnostic?.hint, undefined);
+  assert.equal(result.authDiagnostic?.remedyToolId, undefined);
 });
 
 test("verifyCustomCredential: a 'valid' (200) result carries no authDiagnostic at all", async () => {
