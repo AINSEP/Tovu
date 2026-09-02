@@ -49,20 +49,22 @@ test("external-mcp AAD: builders bind BOTH primary-key columns, not just the wor
 
 test("external-mcp OAuth blob: opens under its OWN (workspace, server) identity", async () => {
   const identity = { workspaceId: WORKSPACE, serverId: SERVER_A };
-  const sealed = await sealExternalMcpOAuthPayload(deps, identity, {
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, identity, {
     clientSecret: "cs-server-a",
     tokens: { accessToken: "at-server-a", refreshToken: "rt-server-a" },
   });
-  assert.notEqual(sealed, null);
+  assert.notEqual(sealedOAuth, null);
+  // The seal hands back the version with the ciphertext, so the row can never fall out of step.
+  assert.equal(oauthAadVersion, 1);
 
-  const opened = await openExternalMcpOAuthPayload(sealer, { ...identity, sealedOAuth: sealed, oauthAadVersion: 1 });
+  const opened = await openExternalMcpOAuthPayload(sealer, { ...identity, sealedOAuth, oauthAadVersion });
 
   assert.equal(opened.clientSecret, "cs-server-a");
   assert.equal(opened.tokens?.accessToken, "at-server-a");
 });
 
 test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (the vulnerability)", async () => {
-  const sealed = await sealExternalMcpOAuthPayload(
+  const { sealedOAuth: sealed } = await sealExternalMcpOAuthPayload(
     deps,
     { workspaceId: WORKSPACE, serverId: SERVER_A },
     { clientSecret: "cs-server-a", tokens: { accessToken: "at-server-a" } },
@@ -88,7 +90,7 @@ test("external-mcp OAuth blob: CROSS-SERVER ciphertext transplant is rejected (t
 });
 
 test("external-mcp OAuth blob: CROSS-WORKSPACE transplant is rejected", async () => {
-  const sealed = await sealExternalMcpOAuthPayload(
+  const { sealedOAuth: sealed } = await sealExternalMcpOAuthPayload(
     deps,
     { workspaceId: WORKSPACE, serverId: SERVER_A },
     { clientSecret: "cs-server-a" },

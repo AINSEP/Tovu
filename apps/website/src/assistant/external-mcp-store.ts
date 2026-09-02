@@ -1445,19 +1445,34 @@ export async function openExternalMcpOAuthPayload(
  * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available.
  * @complexity O(1) — one seal.
  */
+/**
+ * A sealed OAuth blob together with the AAD lineage it was sealed under.
+ *
+ * These are returned as ONE value on purpose. `open` decides whether to pass AAD by reading the
+ * row's version, so a writer that stores the ciphertext while carrying the row's old version
+ * forward leaves the blob permanently unopenable — silently, until the next read. Handing back a
+ * bare `SealedSecret` made that the caller's job to remember, and three separate writers had to
+ * remember it. This makes it impossible to take one without the other.
+ */
+export interface SealedExternalMcpOAuth {
+  readonly sealedOAuth: SealedSecret | null;
+  readonly oauthAadVersion: number;
+}
+
 export async function sealExternalMcpOAuthPayload(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
   identity: ExternalMcpAadIdentity,
   payload: ExternalMcpSealedOAuthPayload,
-): Promise<SealedSecret | null> {
+): Promise<SealedExternalMcpOAuth> {
   const hasSecret = (payload.clientSecret !== undefined && payload.clientSecret !== "") || payload.tokens !== undefined;
-  if (!hasSecret) return null;
+  if (!hasSecret) return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
   try {
-    return await deps.sealer.seal({
+    const sealedOAuth = await deps.sealer.seal({
       plaintext: JSON.stringify(payload),
       key: await deps.keyring.activeKey(),
       aad: buildExternalMcpOAuthAad(identity),
     });
+    return { sealedOAuth, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
   } catch (err) {
     throw new ExternalMcpSecretStoreUnconfiguredError(
       `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
@@ -1479,10 +1494,12 @@ async function resolveSealedOAuthBlob(
   identity: ExternalMcpAadIdentity,
   clientSecret: string | undefined,
   carryToken: ExternalMcpServerRecord | null,
-): Promise<SealedSecret | null> {
+): Promise<SealedExternalMcpOAuth> {
   // Nothing to preserve and nothing to write: skip the keyring entirely rather than seal an empty
   // object, which is what keeps a `none`/`static_env` row's OAuth blob genuinely absent.
-  if (carryToken === null && (clientSecret === undefined || clientSecret === "")) return null;
+  if (carryToken === null && (clientSecret === undefined || clientSecret === "")) {
+    return { sealedOAuth: null, oauthAadVersion: EXTERNAL_MCP_AAD_VERSION };
+  }
 
   const existingPayload = carryToken === null ? {} : await openExternalMcpOAuthPayload(deps.sealer, carryToken);
   const next: ExternalMcpSealedOAuthPayload = {
@@ -1552,7 +1569,12 @@ export async function saveExternalMcpServer(
   const runtime = carryOAuthRuntimeState(authMode, oauthFields, existing);
   const aadIdentity: ExternalMcpAadIdentity = { workspaceId: input.workspaceId, serverId };
   const { sealedEnv, envNames, aadVersion } = await resolveExternalMcpSealedEnv(deps, aadIdentity, input.env, existing);
-  const sealedOAuth = await resolveSealedOAuthBlob(deps, aadIdentity, oauthFields.clientSecret, runtime.keepToken ? existing : null);
+  const { sealedOAuth, oauthAadVersion } = await resolveSealedOAuthBlob(
+    deps,
+    aadIdentity,
+    oauthFields.clientSecret,
+    runtime.keepToken ? existing : null,
+  );
 
   const now = deps.clock.nowIso();
   const writeGrantAttribution = resolveWriteGrantAttribution(input, writeAllowedToolNames, existing, now);
@@ -1583,9 +1605,7 @@ export async function saveExternalMcpServer(
     oauthRefreshLeaseUntil: runtime.oauthRefreshLeaseUntil,
     sealedOAuth,
     aadVersion,
-    // `resolveSealedOAuthBlob` always re-seals when it returns a blob, so a non-null result is
-    // always at the current lineage.
-    oauthAadVersion: EXTERNAL_MCP_AAD_VERSION,
+    oauthAadVersion,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

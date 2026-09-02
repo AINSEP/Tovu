@@ -500,7 +500,7 @@ async function persistSelfConfiguration(
 ): Promise<ExternalMcpServerRecord> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
   const clientSecret = identity.clientSecret ?? existing.clientSecret;
-  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, record, {
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, record, {
     ...(clientSecret === undefined ? {} : { clientSecret }),
     ...(existing.tokens === undefined ? {} : { tokens: existing.tokens }),
   });
@@ -511,6 +511,8 @@ async function persistSelfConfiguration(
     oauthEndpointsJson: JSON.stringify(identity.endpoints),
     oauthScopesJson: JSON.stringify(identity.scopes),
     sealedOAuth,
+    // Carried from the seal, never from `...record` — the spread holds the row's OLD version.
+    oauthAadVersion,
     updatedAt: deps.clock.nowIso(),
   };
   await deps.repo.upsert(next);
@@ -582,7 +584,7 @@ async function persistTokens(
   tokens: OAuthTokenSet,
 ): Promise<void> {
   const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-  const sealedOAuth = await sealExternalMcpOAuthPayload(deps, record, {
+  const { sealedOAuth, oauthAadVersion } = await sealExternalMcpOAuthPayload(deps, record, {
     // Read-modify-write: sealing `{ tokens }` alone would silently delete the operator's client
     // secret, and the next refresh would fail with a message about the provider rather than about us.
     ...(existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret }),
@@ -601,6 +603,8 @@ async function persistTokens(
     oauthExpiresAt: tokens.expiresAt,
     oauthRefreshLeaseUntil: null,
     sealedOAuth,
+    // Carried from the seal, never from `...record` — the spread holds the row's OLD version.
+    oauthAadVersion,
     updatedAt: deps.clock.nowIso(),
   });
 }
