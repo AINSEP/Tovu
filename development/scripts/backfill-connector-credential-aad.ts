@@ -28,6 +28,8 @@
  */
 import path from "node:path";
 
+import { resolveExistingDbPath } from "./backfill-db-path.js";
+
 import { and, eq } from "drizzle-orm";
 
 import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
@@ -142,7 +144,10 @@ export async function runConnectorCredentialAadBackfill(
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates and
+  // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  const db = openContentDb(dbPath);
   const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const sealer = new AesGcmSecretSealer(keyring);
 
@@ -158,7 +163,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-connector-credential-aad" });
   console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 

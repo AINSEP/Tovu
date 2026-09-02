@@ -61,6 +61,8 @@
  */
 import path from "node:path";
 
+import { resolveExistingDbPath } from "./backfill-db-path.js";
+
 import { and, eq } from "drizzle-orm";
 
 import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
@@ -186,7 +188,10 @@ export async function runMediaProviderCredentialAadBackfill(
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates and
+  // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  const db = openContentDb(dbPath);
   // Constructed unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually
   // called — a dry run below never calls either, so a dry run needs no `TOVU_INTEGRATIONS_ROOT_KEY`.
   const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
@@ -204,7 +209,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-media-provider-credential-aad" });
   console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 
