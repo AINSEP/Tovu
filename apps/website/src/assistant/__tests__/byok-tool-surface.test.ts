@@ -306,6 +306,13 @@ test("INCIDENT FIX: an execute_delegated_tool call through executeMetaTool is du
 // `tool-failure-recovery.test.ts` — these tests are deliberately narrower: they exist to prove this
 // file's COMPOSITION reaches that loop at all, in the right order relative to the audit decorator,
 // through the real `createByokToolSurface`-built registry/executor rather than a fake stand-in.
+//
+// NOT covered here, deliberately: `search_tools`/`describe_tool`. Both bypass `executor` entirely —
+// `runSearchTools`/`runDescribeTool` (this file's own dispatch) call `appendToolCatalogAttempt`
+// directly and never reach `ToolExecutor.execute` — so `withToolFailureRecovery` structurally cannot
+// apply to either. That is expected, not a gap: neither tool's output is a handler result a real
+// domain tool could carry a `{hint, remedyToolId}` diagnostic on. Only `execute_delegated_tool`,
+// which resolves to a real registered tool's real handler output, can ever trigger this loop.
 // ---------------------------------------------------------------------------
 
 /** A minimal, always-allow `ToolRegistration` for a fake tool this section registers directly on
@@ -332,7 +339,7 @@ function exchangeIdFromSurface(emittedSurface: unknown): string {
 
 const RECOVERY_REMEDY_SCHEMA = { type: "object", required: ["value"], properties: { value: { type: "string", description: "The value to fix" } } };
 
-test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry, and the FINAL result is the retry's own — not the diagnostic", async () => {
+test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through ask -> apply -> retry with NO toolAttemptAudit sink present — the un-audited composition path also works, not just the audited one", async () => {
   const s = surface(); // bare — no toolAttemptAudit — proving recovery does not depend on that option
   let originalCallCount = 0;
   let remedyInputSeen: unknown;
@@ -378,6 +385,7 @@ test("WIRING: a diagnostic-carrying execute_delegated_tool result goes through a
   assert.deepEqual(JSON.parse(result.content), { fixed: true }, "the final result must be the RETRY's own output, not the original diagnostic");
   assert.equal(originalCallCount, 2, "the original tool must run exactly twice: the failing call, then the retry — never more");
   assert.deepEqual(remedyInputSeen, { value: "the-fix" }, "the human's answer must reach the remedy tool's own input");
+  assert.equal(s.surfaceExchanges.size(), 0, "the exchange must be closed once resolved — with no sink involved, nothing here depends on toolAttemptAudit at all");
 });
 
 test("WIRING: a successful first call is never retried and raises no recovery surface", async () => {
@@ -403,6 +411,7 @@ test("WIRING: a successful first call is never retried and raises no recovery su
   assert.deepEqual(JSON.parse(result.content), { fixed: true });
   assert.equal(callCount, 1, "a call that never carries a diagnostic must run exactly once");
   assert.equal(emitted.length, 0, "no recovery surface should ever be raised for a hint-free result");
+  assert.equal(s.surfaceExchanges.size(), 0, "the happy path must never open a recovery exchange at all — not just resolve one quickly");
 });
 
 test("WIRING: no second recovery cycle — a retry whose OWN result also carries a fresh hint+remedyToolId is returned as-is, not looped on again", async () => {
@@ -503,7 +512,7 @@ test("WIRING: a headless call (no emitSurface) with a diagnostic-carrying result
   assert.equal(s.surfaceExchanges.size(), 0, "no exchange should be left open with no channel to answer through");
 });
 
-test("WIRING: the failed retry still returns a coherent, exact error to the model", async () => {
+test("WIRING: the failed retry still returns a coherent, exact error to the model — and does NOT recursively re-enter recovery", async () => {
   const s = surface();
   let originalCallCount = 0;
   s.registry.register(
@@ -534,6 +543,13 @@ test("WIRING: the failed retry still returns a coherent, exact error to the mode
   const result = await pending;
   assert.equal(result.isError, true);
   assert.equal(result.content, "still broken after the fix", "the retry's own failure message must reach the model verbatim, not be swallowed");
+  // The single most important assertion in this file: a retry that ITSELF fails must never trigger a
+  // second ask -> apply -> retry cycle. Proven structurally by call/surface counts, not just by the
+  // final content — a recursive re-entry here would show up as a 3rd `originalCallCount` or a 2nd
+  // emitted surface even though the model-facing error text above would look identical either way.
+  assert.equal(originalCallCount, 2, "the original tool must run at most twice — the failing call and the ONE retry — never a third time");
+  assert.equal(emitted.length, 1, "no second recovery surface may ever be raised, even though the retry itself failed");
+  assert.equal(s.surfaceExchanges.size(), 0, "no exchange may be left open after the retry settles, successfully or not");
 });
 
 test("WIRING: recovery composes OUTSIDE audit — original, remedy, and retry are each their own audited attempt (2 rows apiece), none lost or duplicated", async () => {
