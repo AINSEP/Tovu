@@ -30,6 +30,9 @@ function makeRecord(overrides: Partial<CustomCredentialSetRecord> = {}): CustomC
     label: "name.com",
     category: "hosting",
     baseUrl: "https://api.name.com",
+    // `[]`, never omitted — `CustomCredentialSetRecord.additionalHosts`'s own contract is "empty,
+    // never null/undefined" (types.ts), so a fixture that skips this field is not a valid record.
+    additionalHosts: [],
     sealed: { keyId: "k1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     createdAt: NOW,
     updatedAt: NOW,
@@ -60,6 +63,40 @@ test("insert then findById round-trips a record exactly", async () => {
   await repo.insert(record);
 
   assert.deepEqual(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), record);
+});
+
+test("insert then findById round-trips a non-empty additionalHosts array", async () => {
+  const repo = makeRepo();
+  const record = makeRecord({ additionalHosts: ["https://api.machines.dev", "https://fly.io"] });
+
+  await repo.insert(record);
+
+  assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.additionalHosts, [
+    "https://api.machines.dev",
+    "https://fly.io",
+  ]);
+});
+
+test("insert then findById round-trips an empty additionalHosts array back to []", async () => {
+  const repo = makeRepo();
+  await repo.insert(makeRecord({ additionalHosts: [] }));
+
+  assert.deepEqual((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.additionalHosts, []);
+});
+
+test("insert then findById round-trips a saved username", async () => {
+  const repo = makeRepo();
+  await repo.insert(makeRecord({ username: "deploy-bot" }));
+
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.username, "deploy-bot");
+});
+
+test("insert then findById omits `username` entirely (not `undefined`, not `\"\"`) when none was saved", async () => {
+  const repo = makeRepo();
+  await repo.insert(makeRecord());
+
+  const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
+  assert.equal(found && "username" in found, false);
 });
 
 test("insert rejects a duplicate label within the same workspace (raw UNIQUE violation, not swallowed)", async () => {
