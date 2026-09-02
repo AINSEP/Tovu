@@ -1,3 +1,18 @@
+# ============================================================================
+# INERT IN THIS REPO. Verified 2026-09-02 — this workflow has never run once.
+#
+# It is not on this repository's default branch, so GitHub 404s it and
+# `workflow_dispatch` cannot fire it; its only other trigger is `push: [main]`.
+# Production (`tovu.fly.dev`) is really deployed by the "Deploy to Fly.io" workflow in
+# the SEPARATE PUBLIC MIRROR REPO `github.com/leonaburime-ucla/Tovu`, branch `main`
+# (five successful runs on 2026-09-01, e.g. run 33526793825, 5m11s).
+# For any deploy question use `gh ... --repo leonaburime-ucla/Tovu`; `gh` from this
+# checkout answers about the private working repo instead and looks like a hard block.
+#
+# The app name in the comments below (`tovu-ai-cms`) does not resolve. Live app is `tovu`.
+# See the matching banner in `fly.toml`.
+# ============================================================================
+
 name: Deploy to Fly.io
 
 # Deploy-only workflow — deliberately separate from `ci.yml` (which is currently disabled; this
