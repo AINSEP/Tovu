@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import { describeApiError, type AdminWebhookSubscription } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT } from "../integrations-i18n";
-import { KEYS, parseTopics, visibleIntegrationsError } from "../rules";
+import { KEYS, WEBHOOKS_RESOURCE, parseTopics, visibleIntegrationsError } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";
 import type { IntegrationsPort } from "./integrations-port.hooks";
 
@@ -39,6 +40,14 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  * is called. `error` (the page-level banner) DOES need it, mirroring `redirects/rules.ts`'s
  * `clearOtherWriteErrors`: toggle/delete are two independent mutations sharing that one channel, so
  * a stale failure from one must not survive past the start of the other.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * re-invalidates `KEYS.list` on an out-of-band content-refresh notification — today an assistant
+ * run that called `webhooks_create_subscription`/`webhooks_pause_subscription`/
+ * `webhooks_delete_subscription` (`apps/website/src/features/webhooks/agent-tools.ts`) — the same
+ * one-line adoption `use-media.hooks.ts` uses. The create form's `label`/`targetUrl`/`topics` local
+ * state is untouched by an invalidate (it only replaces `list.data`), so an in-progress "new
+ * subscription" draft survives a background refresh.
  */
 
 export interface IntegrationsController {
@@ -73,6 +82,14 @@ export interface IntegrationsController {
 
 export function useIntegrations(port: IntegrationsPort, t: (key: string) => string, locale: string): IntegrationsController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listIntegrationSubscriptions() });
+
+  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
+  // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
+  // note.
+  const invalidate = useInvalidate();
+  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  useContentRefreshSubscription(WEBHOOKS_RESOURCE, invalidateList);
+
   const [formOpen, setFormOpen] = useState(false);
   const [label, setLabel] = useState("");
   const [targetUrl, setTargetUrl] = useState("");

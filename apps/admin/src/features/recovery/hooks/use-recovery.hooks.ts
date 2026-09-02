@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "@/lib/api";
-import { parseDeepLinkEnvelope } from "../rules";
+import { RECOVERY_RESOURCE, parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t } from "../recovery-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
@@ -32,6 +33,15 @@ import type { RecoveryPort } from "./recovery-port.hooks";
  * than reaching `lib/api` directly, so a test can describe load/deep-link outcomes against
  * `createFakeRecoveryPort` instead of stubbing global `fetch`. `useWiredRecovery` below is the
  * zero-argument pair `Recovery.tsx` actually mounts.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * `load` is pulled into a `useCallback` so it can also be handed to that hook, which re-runs it
+ * whenever `backup_create_restore_point` (`apps/website/src/features/database/agent-tools.ts`)
+ * mints a restore point this screen's `points` also lists, from an assistant run this screen
+ * otherwise has no way to learn about — see `rules.ts`'s `RECOVERY_RESOURCE` for the full mapping.
+ * `selected` is untouched by a reload (it is set once, either by the deep-link effect below or by
+ * an operator's own row click, and never re-derived from `points` afterward), so a background
+ * refresh cannot yank the operator out of an in-progress `RestoreFlow`.
  */
 
 export interface RecoveryController {
@@ -71,12 +81,13 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
 
-  // `port`/`t`/`locale` intentionally omitted — mount-once by design, matching this file's
-  // sibling `useEffect` below. Previously written as `useEffect(load, [])` (a named function
-  // reference), which dodges `exhaustive-deps`'s static analysis by accident of syntax rather
-  // than stating the omission explicitly — inlined here so the omission reads as deliberate.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design; port/t/locale intentionally omitted, matching the sibling effect below.
-  useEffect(() => {
+  // `t`/`locale` intentionally omitted from this callback's own deps — same pre-existing gap
+  // `use-page-editor.hooks.ts` documents (this effect only ever ran off `[]`/`[port]` even when
+  // `locale` came from `useAdminLocale()` directly). Pulled into a `useCallback` (staleness-bug
+  // generalization pass — see `use-content-refresh-subscription.hooks.ts`'s own header) so it can
+  // also be handed to that hook below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const load = useCallback(() => {
     setError(null);
     Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
       .then(([statusResult, pointsResult]) => {
@@ -84,7 +95,15 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
         setPoints(pointsResult.items);
       })
       .catch((e) => setError(describeApiError(e, t(locale, "failed to load Recovery"))));
+  }, [port]);
+
+  // Mount-once by design, matching this file's sibling `useEffect` below.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-once by design.
+  useEffect(() => {
+    load();
   }, []);
+
+  useContentRefreshSubscription(RECOVERY_RESOURCE, load);
 
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
   // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope

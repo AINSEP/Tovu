@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useIntegrations } from "../hooks/use-integrations.hooks";
 import { createFakeIntegrationsPort } from "../hooks/integrations-dependencies.hooks";
+import { WEBHOOKS_RESOURCE } from "../rules";
 import type { AdminWebhookSubscription } from "@/lib/api";
 
 /**
@@ -147,5 +149,53 @@ describe("useIntegrations — injected t/locale are genuinely returned, not buil
     expect(result.current.t("Integrations")).toBe("TRANSLATED[Integrations]");
     expect(result.current.t).toBe(distinctiveT);
     expect(result.current.locale).toBe("fr");
+  });
+});
+
+describe("useIntegrations — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-created webhook subscription appears without a reload", async () => {
+    const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
+
+    // The assistant's `webhooks_create_subscription` call landing server-side — the screen has no
+    // other way to know it happened.
+    port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
+    expect(result.current.subscriptions).toHaveLength(1);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names webhooks, and ignores one that names only other resources", async () => {
+    const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
+
+    port.subscriptions.push(subscriptionFixture({ id: "sub2", label: "Agent-made" }));
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.subscriptions).toHaveLength(1);
+
+    act(() => publishContentRefresh([WEBHOOKS_RESOURCE]));
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
+    const listSpy = vi.spyOn(port, "listIntegrationSubscriptions");
+    const { result, unmount } = renderHook(() => useIntegrations(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

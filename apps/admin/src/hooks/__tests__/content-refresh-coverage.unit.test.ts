@@ -47,6 +47,23 @@ const WIRED_HOOKS: readonly string[] = [
   "features/media/hooks/use-media.hooks.ts",
   "features/forms/hooks/use-forms-list.hooks.ts",
   "features/security/hooks/use-access-tokens.hooks.ts",
+  // Coverage-extension pass (see this file's own header "Extending coverage" note): Comments,
+  // Database, Deployments, Redirects, Members, Widgets, Webhooks (admin's "integrations" feature),
+  // and Recovery. Comments Settings, Deployment's Dockerfile tab, SEO (both screens), Themes, Theme
+  // Explore, and Recovery's own restore-flow wizard were deliberately left OUT of this list — each
+  // either has no agent-writable field this hook exposes, or carries an editable draft/uncontrolled
+  // form a bus-driven reload would clobber. See each excluded hook's own file header (or, for ones
+  // never touched at all, `rules.ts`'s resource-constant doc in the sibling feature) for the specific
+  // reason.
+  "features/redirects/hooks/use-redirects.hooks.ts",
+  "features/comments/hooks/use-comment-queue.hooks.ts",
+  "features/database/hooks/use-restore-points-section.hooks.ts",
+  "features/deployment/hooks/use-static-export.hooks.ts",
+  "features/members/hooks/use-members.hooks.ts",
+  "features/widgets/hooks/use-widgets-library.hooks.ts",
+  "features/widgets/hooks/use-widget-regions.hooks.ts",
+  "features/integrations/hooks/use-integrations.hooks.ts",
+  "features/recovery/hooks/use-recovery.hooks.ts",
 ];
 
 /** Matches a call to either the shared hook, or `subscribeToContentRefresh` directly — taxonomy

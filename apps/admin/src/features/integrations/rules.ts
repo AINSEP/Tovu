@@ -27,6 +27,16 @@ export const KEYS = {
   deliveries: (subscriptionId: string): QueryKey => ["integration-deliveries", subscriptionId],
 };
 
+/** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `webhooks_create_subscription`/`webhooks_pause_subscription`/
+ *  `webhooks_delete_subscription` (`apps/website/src/features/webhooks/agent-tools.ts` — the
+ *  website domain is named "webhooks", this admin feature is named "integrations"; both name the
+ *  same `WebhookSubscriptionRecord` resource). No sibling constant for the deliveries log
+ *  (`use-integration-deliveries.hooks.ts`): no Webhooks agent tool writes a delivery row — deliveries
+ *  are recorded only by the outbound delivery worker itself, which nothing in this catalog drives. */
+export const WEBHOOKS_RESOURCE = "webhooks";
+
 /** Parses the comma-separated topics field into a trimmed, blank-free list.
  *
  * @complexity Time: O(n) in the length of `raw`; space: O(k) for the k resulting topics.

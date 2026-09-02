@@ -19,6 +19,19 @@ import {
  * (see `integrations/rules.ts`, `recovery/rules.ts`).
  */
 
+/** The Static Site tab's export-status name on `lib/content-refresh-bus.ts` — see
+ *  `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than
+ *  a shared registry. Agent-writable via `deployment_trigger_export`
+ *  (`apps/website/src/features/deployments/agent-tools.ts`), which starts a run this tab polls.
+ *  `use-static-export.hooks.ts`'s own header explains why the refresh is a bespoke re-fetch rather
+ *  than the usual `useInvalidate()` one-liner — `run` seeds once and is never re-derived from the
+ *  query afterward. There is deliberately NO sibling constant for `use-dockerfile-source.hooks.ts`:
+ *  that tab holds a live, editable `draft` protected by its own etag/412-conflict machinery
+ *  (`deployment_set_dockerfile` is the exact write that machinery exists to detect), and a
+ *  bus-driven reload would either be inert against its one-shot seed guard or reintroduce the
+ *  draft-clobber risk that guard prevents — see that hook's own file header. */
+export const DEPLOYMENT_EXPORT_RESOURCE = "deployment-export";
+
 /** One row in the Full Site tab's provider list. `name` is a proper noun and is never translated
  *  (matches how a webhook's own `label` or a connector's own name renders verbatim elsewhere in
  *  this app); `descriptionKey` and `costKey` are looked up in `deployment-i18n`. `status` is always

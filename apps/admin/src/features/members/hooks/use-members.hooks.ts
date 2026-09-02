@@ -1,8 +1,9 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import type { AdminMember } from "@/lib/api";
-import { describeApiError, emptyRowState, type RowActionState } from "../rules";
+import { MEMBERS_RESOURCE, describeApiError, emptyRowState, type RowActionState } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t } from "../members-i18n";
 import { defaultMembersPort } from "./members-dependencies.hooks";
 import type { MembersPort } from "./members-port.hooks";
@@ -29,6 +30,12 @@ import type { Translate } from "@/lib/dictionary-translator";
  * which takes `locale` directly) on the return value adds no new fetch — `Members.tsx` used to call
  * `useAdminLocale()` a second time and rebuild its own `translateMembers(locale, key)` closure,
  * entirely redundant with the resolution this hook was already doing internally.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * `load` is pulled into a `useCallback` so it can also be handed to that hook, which re-runs it
+ * whenever `members_disable` (`apps/website/src/features/members/agent-tools.ts`) changes a
+ * member's status from an assistant run this screen otherwise has no way to learn about. No draft
+ * to protect — every row's own edit state is per-action busy/error tracking, not typed text.
  */
 
 export interface MembersDependencies {
@@ -85,16 +92,22 @@ export function useMembers({ port }: MembersDependencies): MembersController {
   // Redirects.tsx/Users.tsx already made). `null` when the dialog is closed.
   const [confirmingDisable, setConfirmingDisable] = useState<AdminMember | null>(null);
 
-  function load() {
+  const load = useCallback(() => {
     port
       .listMembers()
       .then((r) => setMembers(r.members))
       .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load members")));
-  }
+    // `port`/`locale` are added — see `use-page-editor.hooks.ts`'s identical note: function-scoped
+    // values ESLint's exhaustive-deps rule can see, referentially stable in production, so this
+    // changes nothing about when this callback's identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
+
+  useContentRefreshSubscription(MEMBERS_RESOURCE, load);
 
   function stateFor(id: string): RowActionState {
     return rowState[id] ?? emptyRowState();

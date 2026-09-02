@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "@/lib/api";
-import { describeReferencingLocations } from "../rules";
+import { WIDGETS_LIBRARY_RESOURCE, describeReferencingLocations } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
@@ -34,6 +35,12 @@ import type { WidgetsPort } from "./widgets-port.hooks";
  * screen passes the raw string on to `widgetTypeLabel` (`../rules.ts`), same "row-menu/label
  * builder is a different, out-of-scope thing" precedent `use-pages.hooks.ts` cites for
  * `pageRowMenuItems`.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * `load` is pulled into a `useCallback` so it can also be handed to that hook, which re-runs it
+ * whenever `widgets_create_instance`/`widgets_update_instance`/`widgets_trash_instance`
+ * (`apps/website/src/features/widgets/agent-tools.ts`) writes a widget instance from an assistant
+ * run this screen otherwise has no way to learn about.
  */
 
 export interface WidgetsLibraryDependencies {
@@ -82,7 +89,7 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
   const [pendingForcePurge, setPendingForcePurge] = useState<{ widget: AdminWidget; summary: string } | null>(null);
   const [forcePurging, setForcePurging] = useState(false);
 
-  function load() {
+  const load = useCallback(() => {
     port
       .listWidgets({ includeInactive: true })
       .then((r) => {
@@ -97,9 +104,14 @@ export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencie
         setSkippedCount(r.skippedCount ?? 0);
       })
       .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widgets"))));
-  }
+    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
+    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
+    // nothing about when this callback's identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
 
-  useEffect(load, [port]);
+  useEffect(load, [load]);
+  useContentRefreshSubscription(WIDGETS_LIBRARY_RESOURCE, load);
 
   /** REQ-42/`ui.spec.md` §4.2: the first purge attempt is always `force: false` — only on a
    * `WidgetReferencedError` 409 (naming every referencing location) does a `force: true` retry

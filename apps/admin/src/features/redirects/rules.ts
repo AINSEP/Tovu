@@ -24,6 +24,13 @@ export const KEYS = {
   hits: (redirectId: string): QueryKey => ["redirects", redirectId, "hits"],
 };
 
+/** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s `TAXONOMY_RESOURCE`
+ *  for why this is a plain colocated constant rather than a shared registry. Agent-writable via
+ *  `redirects_create`/`redirects_update`/`redirects_tombstone` (`apps/website/src/features/redirects/
+ *  agent-tools.ts`) — `redirects_import` is excluded from that catalog entirely, but the three wired
+ *  single-row writes are enough to make this list go stale the same way Posts/Media did. */
+export const REDIRECTS_RESOURCE = "redirects";
+
 /**
  * The status a "Disable"/"Enable" row action moves a rule TO — the inverse of its current status.
  *

@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminComment } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeCommentQueuePort } from "../hooks/comment-queue-dependencies.hooks";
 import { useCommentQueue } from "../hooks/use-comment-queue.hooks";
+import { COMMENTS_QUEUE_RESOURCE } from "../rules";
 
 /**
  * @file `useCommentQueue` — new coverage added alongside the `useWiredX` conversion
@@ -138,5 +140,54 @@ describe("useCommentQueue", () => {
     });
 
     expect(port.purgeCalls).toEqual([]);
+  });
+});
+
+describe("useCommentQueue — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the queue when a content refresh fires, so an assistant moderation action appears without a reload", async () => {
+    const items = [COMMENT];
+    const port = createFakeCommentQueuePort({ items });
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([COMMENT]));
+
+    // The assistant's `comments_approve_comment` call landing server-side — the screen has no other
+    // way to know it happened.
+    items.push({ ...COMMENT, id: "c2" });
+    expect(result.current.items).toEqual([COMMENT]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names comments-queue, and ignores one that names only other resources", async () => {
+    const items = [COMMENT];
+    const port = createFakeCommentQueuePort({ items });
+    const { result } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).toEqual([COMMENT]));
+
+    items.push({ ...COMMENT, id: "c2" });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.items).toEqual([COMMENT]);
+
+    act(() => publishContentRefresh([COMMENTS_QUEUE_RESOURCE]));
+    await waitFor(() => expect(result.current.items).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeCommentQueuePort({ items: [COMMENT] });
+    const { result, unmount } = renderHook(() => useCommentQueue({ port, locale: "en" }), { wrapper });
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+
+    const callsWhileMounted = port.listCalls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(port.listCalls).toHaveLength(callsWhileMounted);
   });
 });

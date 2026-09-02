@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeRedirectsPort } from "../hooks/redirects-dependencies.hooks";
 import { useRedirects, useWiredRedirects } from "../hooks/use-redirects.hooks";
+import { REDIRECTS_RESOURCE } from "../rules";
 
 /**
  * @file `useRedirects` — the Redirects list screen's three independent writes (create/toggle/
@@ -378,6 +380,54 @@ describe("useRedirects — injected port (no fetch stub)", () => {
     const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
     expect(result.current.redirects).toBeUndefined();
     expect(result.current.listStatus).toBe("loading");
+  });
+});
+
+describe("useRedirects — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-created redirect appears without a reload", async () => {
+    const port = createFakeRedirectsPort({ redirects: [RULE] });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE]));
+
+    // The assistant's `redirects_create` call landing server-side — the screen has no other way to
+    // know it happened.
+    port.rules.push({ ...RULE, id: "r2", fromPattern: "/agent-made" });
+    expect(result.current.redirects).toEqual([RULE]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.redirects).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names redirects, and ignores one that names only other resources", async () => {
+    const port = createFakeRedirectsPort({ redirects: [RULE] });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE]));
+
+    port.rules.push({ ...RULE, id: "r2", fromPattern: "/agent-made" });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.redirects).toEqual([RULE]);
+
+    act(() => publishContentRefresh([REDIRECTS_RESOURCE]));
+    await waitFor(() => expect(result.current.redirects).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeRedirectsPort({ redirects: [RULE] });
+    const listSpy = vi.spyOn(port, "listRedirects");
+    const { result, unmount } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });
 

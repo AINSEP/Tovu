@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { describeApiError, type AdminWidgetRegionBinding } from "@/lib/api";
 import { navigate as realNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
+import { WIDGETS_REGIONS_RESOURCE } from "../rules";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
@@ -26,6 +28,11 @@ import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
  * `deps.t` (standing i18n rule, 2026-08-11 — see `use-widgets-library.hooks.ts`'s identical note):
  * injected so `WidgetRegions.tsx` sources its UI copy from this hook instead of its own
  * `useAdminLocale()`/`WIDGETS_DICT` import.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * `load` is pulled into a `useCallback` so it can also be handed to that hook, which re-runs it
+ * whenever `widgets_bind_region` (`apps/website/src/features/widgets/agent-tools.ts`) binds a new
+ * region from an assistant run this screen otherwise has no way to learn about.
  */
 
 export interface WidgetRegionsDependencies {
@@ -53,14 +60,19 @@ export function useWidgetRegions({ port, locale, navigate, t }: WidgetRegionsDep
   const [newRegionKey, setNewRegionKey] = useState("");
   const [binding, setBinding] = useState(false);
 
-  function load() {
+  const load = useCallback(() => {
     port
       .listWidgetRegions()
       .then((r) => setRegions(r.regions))
       .catch((e) => setError(describeApiError(e, translate(locale, "failed to load regions"))));
-  }
+    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
+    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
+    // nothing about when this callback's identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
 
-  useEffect(load, [port]);
+  useEffect(load, [load]);
+  useContentRefreshSubscription(WIDGETS_REGIONS_RESOURCE, load);
 
   async function bind() {
     const regionKey = newRegionKey.trim();

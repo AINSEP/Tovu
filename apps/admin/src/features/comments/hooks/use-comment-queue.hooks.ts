@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "@/lib/api";
 import { useFetchQuery, useInvalidate } from "@/lib/fetch-query";
-import { KEYS, describeModerationError, emptyRowState, type RowActionState } from "../rules";
+import { COMMENTS_QUEUE_RESOURCE, KEYS, describeModerationError, emptyRowState, type RowActionState } from "../rules";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t } from "../comments-i18n";
 import { defaultCommentQueuePort } from "./comment-queue-dependencies.hooks";
 import type { CommentQueuePort } from "./comment-queue-port.hooks";
@@ -41,6 +42,14 @@ import type { CommentQueuePort } from "./comment-queue-port.hooks";
  * `port.moderateComment`/`port.purgeComment` directly (not through `useFetchMutation`) and use
  * `useInvalidate()` to refresh the queue on success — see `reloadAfterAction`'s own comment for why
  * that invalidates `KEYS.queueRoot` (every status) rather than just the current filter.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * a moderation action from the assistant (an operator asks it to approve/spam/trash/restore a
+ * comment) now invalidates `KEYS.queueRoot` the same way this hook's own `reloadAfterAction` does,
+ * instead of leaving the queue showing a comment in its pre-write status until a manual reload. No
+ * draft to protect here — every row's own edit state (`rowState`) is per-action busy/error tracking,
+ * not typed text a background refresh could clobber, unlike `use-comment-settings.hooks.ts`'s
+ * uncontrolled form (deliberately NOT given this same subscription — see that hook's own header).
  */
 
 export interface CommentQueueController {
@@ -73,6 +82,14 @@ export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueCon
   const { port, locale } = deps;
   const [status, setStatus] = useState<CommentStatus>("pending");
   const invalidate = useInvalidate();
+
+  // Out-of-band writes — a moderation action from an assistant run (`comments_approve_comment` et
+  // al., `apps/website/src/features/comments/agent-tools.ts`) — invalidate every status's cache the
+  // same way `reloadAfterAction` below does for an operator's own action. Stable identity (not an
+  // inline arrow) so `useContentRefreshSubscription`'s own effect does not unsubscribe/resubscribe
+  // on every render — see `use-media.hooks.ts`'s identical `invalidateList` note.
+  const invalidateQueue = useCallback(() => invalidate(KEYS.queueRoot), [invalidate]);
+  useContentRefreshSubscription(COMMENTS_QUEUE_RESOURCE, invalidateQueue);
 
   const firstPage = useFetchQuery({ key: KEYS.queue(status), fetch: () => port.listCommentsQueue({ status }) });
 

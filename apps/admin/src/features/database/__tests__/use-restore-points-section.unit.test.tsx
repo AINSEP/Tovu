@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRestorePoint } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useRestorePointsSection, useWiredRestorePointsSection } from "../hooks/use-restore-points-section.hooks";
 import { createFakeRestorePointsSectionPort } from "../hooks/restore-points-section-dependencies.hooks";
+import { DATABASE_RESTORE_POINTS_RESOURCE } from "../rules";
 
 /**
  * @file `useRestorePointsSection` (the Database screen's restore-point list + create action).
@@ -211,5 +213,59 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
     });
 
     await waitFor(() => expect(result.current.error).toBe("boom from fake"));
+  });
+});
+
+describe("useRestorePointsSection — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-created restore point appears without a reload", async () => {
+    // `vi.spyOn` overriding the NEXT call, not a direct `port.points.push` — the fake's
+    // `listDatabaseRestorePoints` returns its live `points` array by reference (no defensive copy),
+    // so mutating it in place would make `result.current.points` (itself the same array reference,
+    // held from an earlier render) show the pushed row immediately, before any refetch — a false
+    // positive that would pass even if the subscription below did nothing.
+    const port = createFakeRestorePointsSectionPort({ points: [POINT] });
+    const listSpy = vi.spyOn(port, "listDatabaseRestorePoints");
+    const { result } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    // The assistant's `backup_create_restore_point` call landing server-side — the screen has no
+    // other way to know it happened.
+    listSpy.mockResolvedValueOnce({ items: [POINT, { ...POINT, id: "rp2" }] });
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names database-restore-points, and ignores one that names only other resources", async () => {
+    const port = createFakeRestorePointsSectionPort({ points: [POINT] });
+    const listSpy = vi.spyOn(port, "listDatabaseRestorePoints");
+    const { result } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    listSpy.mockResolvedValue({ items: [POINT, { ...POINT, id: "rp2" }] });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.points).toEqual([POINT]);
+
+    act(() => publishContentRefresh([DATABASE_RESTORE_POINTS_RESOURCE]));
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeRestorePointsSectionPort({ points: [POINT] });
+    const listSpy = vi.spyOn(port, "listDatabaseRestorePoints");
+    const { result, unmount } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

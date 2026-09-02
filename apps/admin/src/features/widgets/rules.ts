@@ -10,6 +10,23 @@ import { WIDGETS_DICT, t as translate } from "./widgets-i18n";
  * feature: the decisions live in one importable, directly testable module with no React in it.
  */
 
+/** The Widgets library screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `widgets_create_instance`/`widgets_update_instance`/`widgets_trash_instance`
+ *  (`apps/website/src/features/widgets/agent-tools.ts`), each of which changes a row this screen
+ *  lists. */
+export const WIDGETS_LIBRARY_RESOURCE = "widgets-library";
+
+/** The Widget Regions screen's own name on the same bus — a separate constant because it is a
+ *  separate screen backed by a separate read (`listWidgetRegions`, not `listWidgets`). Agent-
+ *  writable via `widgets_bind_region`, which adds a row this screen lists. The per-region PLACEMENT
+ *  edits (`widgets_set_region_placements`/`widgets_insert_embed`/`widgets_remove_embed`/
+ *  `widgets_reorder_embeds`) land on `WidgetRegionEditor` instead — a single-region editor with its
+ *  own `baseVersion`-guarded save, the same "an open editor gets optimistic-concurrency, not a bus
+ *  subscription" precedent `use-dockerfile-source.hooks.ts` and `use-post-editor.hooks.ts` already
+ *  establish — so it is deliberately NOT wired here. */
+export const WIDGETS_REGIONS_RESOURCE = "widgets-regions";
+
 /** The five closed v1 widget types (`WIDGET_TYPE_OPTIONS`, REQ-09) as a lookup set — used to catch
  *  a garbage `?type=` query param on `/widgets/new` before it reaches a live editor shell. */
 const KNOWN_WIDGET_TYPES = new Set<string>(WIDGET_TYPE_OPTIONS.map((o) => o.value));

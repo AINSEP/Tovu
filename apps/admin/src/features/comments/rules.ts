@@ -39,6 +39,21 @@ export const KEYS = {
   settings: ["comments", "settings"] as QueryKey,
 };
 
+/** The moderation queue's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `comments_approve_comment`/`comments_mark_comment_spam`/
+ *  `comments_trash_comment`/`comments_restore_comment` (`apps/website/src/features/comments/
+ *  agent-tools.ts`), all of which move a comment between statuses this queue lists.
+ *
+ *  There is deliberately NO sibling `COMMENTS_SETTINGS_RESOURCE`: `use-comment-settings.hooks.ts`'s
+ *  own header records a real, already-fixed lost-update bug (TM-TOVU-2026-08-12-A) whose fix is a
+ *  ONE-SHOT seed guard that refuses to re-seed `settings` from any later successful load, including
+ *  this bus's own out-of-band notification. Wiring that hook to the bus would either do nothing
+ *  (the guard blocks it) or, if the guard were bypassed instead, reintroduce the exact silent
+ *  revert the guard exists to prevent — so `comments_update_settings` stays unwired to this bus on
+ *  purpose. See that hook's own file header for the full incident record. */
+export const COMMENTS_QUEUE_RESOURCE = "comments-queue";
+
 /** Per-row moderation-action state (Approve/Spam/Trash/Restore/Purge share one `busy` flag — only
  *  one action per row at a time). */
 export interface RowActionState {

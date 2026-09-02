@@ -34,6 +34,18 @@ export const KEYS = {
   ],
 };
 
+/** The restore-points list's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `backup_create_restore_point` (`apps/website/src/features/database/
+ *  agent-tools.ts`), which mints a new row this section lists. `database_execute_migrate_forward`
+ *  (the domain's only other durable write) is never agent-callable at all — see that catalog's own
+ *  header — so it needs no resource constant here. No sibling constant for `schemaState`/`timeline`:
+ *  neither has an agent-writable source (schema state only changes via a real migration run, which
+ *  no agent tool can execute; the timeline is a pure read of the same ledger a restore-point create
+ *  also writes to, but re-querying it on every unrelated assistant run for a filtered, paginated
+ *  view a human is actively scrolling is a worse trade than leaving it on its existing reload). */
+export const DATABASE_RESTORE_POINTS_RESOURCE = "database-restore-points";
+
 /** How loudly the Database screen's drift warning presents itself. Maps onto the two `.notice`
  *  variants `styles.css` already ships (`.notice.error` / `.notice.warning`) — no new CSS. */
 export type SchemaStateWarningTone = "error" | "warning";

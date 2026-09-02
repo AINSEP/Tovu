@@ -1,7 +1,10 @@
+import { useCallback } from "react";
+
 import { describeApiError, type AdminRestorePoint } from "@/lib/api";
-import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
-import { KEYS } from "../rules";
+import { useFetchMutation, useFetchQuery, useInvalidate } from "@/lib/fetch-query";
+import { DATABASE_RESTORE_POINTS_RESOURCE, KEYS } from "../rules";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t } from "../database-i18n";
 import { defaultRestorePointsSectionPort } from "./restore-points-section-dependencies.hooks";
 import type { RestorePointsSectionPort } from "./restore-points-section-port.hooks";
@@ -26,6 +29,12 @@ import type { RestorePointsSectionPort } from "./restore-points-section-port.hoo
  * port.hooks.ts` — rather than reaching `lib/api` directly, so a test can describe list/create
  * outcomes against `createFakeRestorePointsSectionPort` instead of stubbing global `fetch`.
  * `useWiredRestorePointsSection` below is the zero-argument pair `Database.tsx` actually mounts.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * re-invalidates `KEYS.restorePoints` on an out-of-band content-refresh notification — today an
+ * assistant run that called `backup_create_restore_point` — the same one-line adoption
+ * `use-media.hooks.ts` uses. No draft to protect: this section has no editable field, only a list
+ * and a no-argument create action.
  */
 
 export interface RestorePointsSectionController {
@@ -53,6 +62,13 @@ export function useRestorePointsSection(deps: RestorePointsSectionDependencies):
   const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const list = useFetchQuery({ key: KEYS.restorePoints, fetch: () => port.listDatabaseRestorePoints() });
+
+  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
+  // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
+  // note.
+  const invalidate = useInvalidate();
+  const invalidateRestorePoints = useCallback(() => invalidate(KEYS.restorePoints), [invalidate]);
+  useContentRefreshSubscription(DATABASE_RESTORE_POINTS_RESOURCE, invalidateRestorePoints);
 
   const createMutation = useFetchMutation({
     // No capabilities-read route exists yet to learn `costClass` ahead of time (design-spec.md

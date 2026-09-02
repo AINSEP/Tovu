@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidgetRegionBinding } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeWidgetRegionsPort } from "../hooks/widget-regions-dependencies.hooks";
 import { useWidgetRegions } from "../hooks/use-widget-regions.hooks";
+import { WIDGETS_REGIONS_RESOURCE } from "../rules";
 
 /**
  * @file `useWidgetRegions` driven against the injected `WidgetRegionsPort`, no `fetch` stub and no
@@ -59,5 +61,53 @@ describe("useWidgetRegions — injected port (no fetch stub, no api spy)", () =>
     port.listWidgetRegions = () => new Promise(() => {});
     const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
     expect(result.current.regions).toBeNull();
+  });
+});
+
+describe("useWidgetRegions — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the regions when a content refresh fires, so an assistant-bound region appears without a reload", async () => {
+    const port = createFakeWidgetRegionsPort({ regions: [REGION] });
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
+    await waitFor(() => expect(result.current.regions).toEqual([REGION]));
+
+    // The assistant's `widgets_bind_region` call landing server-side — the screen has no other way
+    // to know it happened.
+    port.regions.push({ ...REGION, regionKey: "sidebar", areaEntryId: "area-2" });
+    expect(result.current.regions).toEqual([REGION]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.regions).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names widgets-regions, and ignores one that names only other resources", async () => {
+    const port = createFakeWidgetRegionsPort({ regions: [REGION] });
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
+    await waitFor(() => expect(result.current.regions).toEqual([REGION]));
+
+    port.regions.push({ ...REGION, regionKey: "sidebar", areaEntryId: "area-2" });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.regions).toEqual([REGION]);
+
+    act(() => publishContentRefresh([WIDGETS_REGIONS_RESOURCE]));
+    await waitFor(() => expect(result.current.regions).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeWidgetRegionsPort({ regions: [REGION] });
+    const listSpy = vi.spyOn(port, "listWidgetRegions");
+    const { result, unmount } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
+    await waitFor(() => expect(result.current.regions).toEqual([REGION]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

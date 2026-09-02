@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminExportRunSnapshot } from "@/lib/api";
 import { useFetchQuery } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT, exportLoadErrorMessage, exportPollErrorMessage, exportTriggerErrorMessage } from "../deployment-i18n";
+import { DEPLOYMENT_EXPORT_RESOURCE } from "../rules";
 import type { Translate } from "@/lib/dictionary-translator";
 import { defaultStaticExportPort } from "./static-export-dependencies.hooks";
 import type { StaticExportPort } from "./static-export-port.hooks";
@@ -27,6 +29,23 @@ import type { StaticExportPort } from "./static-export-port.hooks";
  * refuses to overwrite a non-empty output directory, and surfacing that refusal honestly (rather
  * than working around it here) is the point: see `StaticSiteTab.tsx`'s own reason text for the
  * checkbox.
+ *
+ * ## `useContentRefreshSubscription` — a bespoke reload, not the usual one-liner
+ *
+ * Staleness-bug generalization pass (see that hook's own header): an assistant run that called
+ * `deployment_trigger_export` (`apps/website/src/features/deployments/agent-tools.ts`) from a
+ * DIFFERENT tab/session should not leave this tab showing "Not started" indefinitely. This can't be
+ * the usual `useInvalidate()` one-liner (`use-media.hooks.ts`'s shape) because `run` is not read
+ * from `query.data` after the FIRST load — `seededRef` above deliberately blocks a later background
+ * refetch of the SAME `useFetchQuery` from re-seeding it, so invalidating that query would silently
+ * do nothing. Instead, {@link refreshRun} calls `port.getSiteExportStatus()` directly and sets
+ * `run` from the response, bypassing the query entirely — the same "reach past the query, call the
+ * port directly" shape `use-access-tokens.hooks.ts`'s own `reloadAllStores` uses for the identical
+ * reason. This is safe unconditionally, unlike a re-seed of `use-dockerfile-source.hooks.ts`'s
+ * `draft`: `run` is a pure status snapshot the operator only ever VIEWS, never types into, so there
+ * is no in-progress edit a background refresh could clobber. If the fresh status comes back
+ * `"running"`, the poll effect below picks it up on its own next render (it re-arms whenever
+ * `isRunning` flips true) — this function does not need to start polling itself.
  */
 export interface StaticExportController {
   /** The current/most recent run this hook knows about — `undefined` until the first status read
@@ -106,6 +125,27 @@ export function useStaticExport(port: StaticExportPort, t: Translate, locale: st
   }, [query.status, query.data]);
 
   const loadError = query.error ? exportLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
+
+  // See this file's header for why this bypasses the query/`seededRef` entirely rather than being
+  // the usual `useInvalidate()` one-liner. A failed background refresh is swallowed rather than
+  // surfaced through `loadError`/`triggerError` — this is a best-effort catch-up read, not a load or
+  // trigger the operator directly asked for, and the visible `run` simply stays what it was.
+  const refreshRun = useCallback(async () => {
+    try {
+      const status = await port.getSiteExportStatus();
+      setRun(status);
+    } catch {
+      // best-effort; see comment above
+    }
+  }, [port]);
+  // `useContentRefreshSubscription`'s `onRefresh` is a synchronous `() => void` — wrapping rather
+  // than passing `refreshRun` directly, mirroring `use-access-tokens.hooks.ts`'s identical
+  // `reloadAllStores`/`triggerReload` split, so the subscription never hands the bus a dangling
+  // Promise.
+  const triggerRefresh = useCallback(() => {
+    void refreshRun();
+  }, [refreshRun]);
+  useContentRefreshSubscription(DEPLOYMENT_EXPORT_RESOURCE, triggerRefresh);
 
   // Counts CONSECUTIVE poll failures for the `POLL_FAILURE_LIMIT` bound below — a ref, not state,
   // because it is read and written only from inside the poll loop's own effect and must never itself

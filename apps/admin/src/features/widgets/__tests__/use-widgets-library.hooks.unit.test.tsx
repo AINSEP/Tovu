@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, type AdminWidget } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
 import { useWidgetsLibrary } from "../hooks/use-widgets-library.hooks";
+import { WIDGETS_LIBRARY_RESOURCE } from "../rules";
 
 /**
  * @file `useWidgetsLibrary` driven against the injected `WidgetsPort`, no `fetch` stub.
@@ -64,5 +66,53 @@ describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
     port.listWidgets = () => new Promise(() => {});
     const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     expect(result.current.widgets).toBeNull();
+  });
+});
+
+describe("useWidgetsLibrary — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the library when a content refresh fires, so an assistant-created widget appears without a reload", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toEqual([WIDGET]));
+
+    // The assistant's `widgets_create_instance` call landing server-side — the screen has no other
+    // way to know it happened.
+    port.widgets.push({ ...WIDGET, id: "w2", slug: "hero-2" });
+    expect(result.current.widgets).toEqual([WIDGET]);
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names widgets-library, and ignores one that names only other resources", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toEqual([WIDGET]));
+
+    port.widgets.push({ ...WIDGET, id: "w2", slug: "hero-2" });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.widgets).toEqual([WIDGET]);
+
+    act(() => publishContentRefresh([WIDGETS_LIBRARY_RESOURCE]));
+    await waitFor(() => expect(result.current.widgets).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeWidgetsPort({ widgets: [WIDGET] });
+    const listSpy = vi.spyOn(port, "listWidgets");
+    const { result, unmount } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
+    await waitFor(() => expect(result.current.widgets).toEqual([WIDGET]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

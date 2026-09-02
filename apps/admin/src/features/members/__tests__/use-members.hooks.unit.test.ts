@@ -1,7 +1,11 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useWiredMembers } from "../hooks/use-members.hooks";
+import type { AdminMember } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
+import { createFakeMembersPort } from "../hooks/members-dependencies.hooks";
+import { useMembers, useWiredMembers } from "../hooks/use-members.hooks";
+import { MEMBERS_RESOURCE } from "../rules";
 
 /**
  * @file `useMembers`'s own `t`/`locale` fields (2026-08-11, standing i18n rule — see this hook's
@@ -46,5 +50,73 @@ describe("useMembers — t/locale reflect the resolved locale", () => {
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Members")).toBe("Miembros");
+  });
+});
+
+const MEMBER: AdminMember = {
+  id: "m1",
+  workspaceId: "w1",
+  email: "alice@example.com",
+  name: "Alice",
+  status: "active",
+  createdAt: "2026-08-01T00:00:00.000Z",
+  updatedAt: "2026-08-01T00:00:00.000Z",
+  version: 1,
+};
+
+/**
+ * `useMembers` still calls `useAdminLocale()` internally (unlike `usePosts`'s injected `navigate`,
+ * `MembersDependencies` carries only `port` — see this hook's own file header), so even the
+ * injected-port path below needs `fetch` stubbed for the locale settings read; the member list
+ * itself never touches it.
+ */
+describe("useMembers — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the list when a content refresh fires, so an assistant-disabled member appears without a reload", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    // The assistant's `members_disable` call landing server-side — the screen has no other way to
+    // know it happened.
+    port.members[0] = { ...MEMBER, status: "disabled" };
+    expect(result.current.members?.[0]?.status).toBe("active");
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.members?.[0]?.status).toBe("disabled"));
+  });
+
+  it("refreshes on a notification that names members, and ignores one that names only other resources", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+    const { result } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    port.members[0] = { ...MEMBER, status: "disabled" };
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.members?.[0]?.status).toBe("active");
+
+    act(() => publishContentRefresh([MEMBERS_RESOURCE]));
+    await waitFor(() => expect(result.current.members?.[0]?.status).toBe("disabled"));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
+    const port = createFakeMembersPort({ members: [MEMBER] });
+    const listSpy = vi.spyOn(port, "listMembers");
+    const { result, unmount } = renderHook(() => useMembers({ port }));
+    await waitFor(() => expect(result.current.members).toEqual([MEMBER]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

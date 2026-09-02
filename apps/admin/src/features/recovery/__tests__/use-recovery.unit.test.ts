@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRecoveryStatus, AdminRestorePoint } from "@/lib/api";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useRecovery, useWiredRecovery } from "../hooks/use-recovery.hooks";
 import { createFakeRecoveryPort } from "../hooks/recovery-dependencies.hooks";
+import { RECOVERY_RESOURCE } from "../rules";
 
 /**
  * @file `useRecovery` — the Recovery screen's status/points load plus deep-link re-resolution
@@ -246,5 +248,60 @@ describe("injected port (2026-08-14, Orc-BASH pass)", () => {
     expect(port.deepLinkCalls).toHaveLength(1);
     expect(port.deepLinkCalls[0]).toMatchObject({ restorePointId: "rp1" });
     sessionStorage.clear();
+  });
+});
+
+describe("useRecovery — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads status/points when a content refresh fires, so a Database-minted restore point appears without a reload", async () => {
+    // `vi.spyOn` overriding the NEXT call, not a direct array push into the seed options — the fake
+    // reads its `points` option by reference on every call with no defensive copy, so mutating it
+    // in place would make `result.current.points` (the same array reference, held from an earlier
+    // render) show the pushed row immediately, before any refetch — a false positive that would
+    // pass even if the subscription below did nothing.
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    // Database's `backup_create_restore_point` call landing server-side — this screen reads the
+    // same restore-points table through a different endpoint and has no other way to know it
+    // happened.
+    listSpy.mockResolvedValueOnce({ items: [POINT, { ...POINT, id: "rp2" }] });
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+  });
+
+  it("refreshes on a notification that names recovery, and ignores one that names only other resources", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
+    const { result } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    listSpy.mockResolvedValue({ items: [POINT, { ...POINT, id: "rp2" }] });
+
+    act(() => publishContentRefresh(["taxonomy"]));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(result.current.points).toEqual([POINT]);
+
+    act(() => publishContentRefresh([RECOVERY_RESOURCE]));
+    await waitFor(() => expect(result.current.points).toHaveLength(2));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeRecoveryPort({ status: STATUS, points: [POINT] });
+    const listSpy = vi.spyOn(port, "listRecoveryRestorePoints");
+    const { result, unmount } = renderHook(() => useRecovery({ port }));
+    await waitFor(() => expect(result.current.points).toEqual([POINT]));
+
+    const callsWhileMounted = listSpy.mock.calls.length;
+    unmount();
+    act(() => publishContentRefresh());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

@@ -2,8 +2,10 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "@/lib/fetch-query";
+import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { useStaticExport } from "../use-static-export.hooks";
 import { createFakeStaticExportPort } from "../static-export-dependencies.hooks";
+import { DEPLOYMENT_EXPORT_RESOURCE } from "../../rules";
 import type { AdminExportRunSnapshot } from "@/lib/api";
 
 /**
@@ -279,5 +281,71 @@ describe("useStaticExport — poll loop", () => {
       await vi.advanceTimersByTimeAsync(6000);
     });
     expect(getSiteExportStatus.mock.calls.length).toBe(callsAtBound);
+  });
+});
+
+/**
+ * `useStaticExport`'s own bespoke reload — see that hook's file header for why this is NOT the
+ * usual `useInvalidate()` one-liner: `run` seeds once from `useFetchQuery` and is never re-derived
+ * from it again (`seededRef` blocks that), so the subscription instead re-fetches the status
+ * directly through the port and calls `setRun` with the response.
+ */
+describe("useStaticExport — content refresh bus", () => {
+  afterEach(() => resetContentRefreshBus());
+
+  it("re-reads the status when a content refresh fires, so a run started from ANOTHER tab appears without a reload", async () => {
+    let current: AdminExportRunSnapshot = IDLE_RUN;
+    const port = createFakeStaticExportPort(() => Promise.resolve(current));
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
+
+    // A DIFFERENT tab/session called `deployment_trigger_export` — this hook's own `seededRef` means
+    // its `useFetchQuery` bootstrap read would never notice on its own.
+    current = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    expect(result.current.run).toEqual(IDLE_RUN);
+
+    await act(async () => {
+      publishContentRefresh();
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(result.current.run?.status).toBe("running"));
+  });
+
+  it("refreshes on a notification that names deployment-export, and ignores one that names only other resources", async () => {
+    let current: AdminExportRunSnapshot = IDLE_RUN;
+    const port = createFakeStaticExportPort(() => Promise.resolve(current));
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
+
+    current = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+
+    await act(async () => {
+      publishContentRefresh(["taxonomy"]);
+      await Promise.resolve();
+    });
+    expect(result.current.run?.status).toBe("idle");
+
+    await act(async () => {
+      publishContentRefresh([DEPLOYMENT_EXPORT_RESOURCE]);
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(result.current.run?.status).toBe("running"));
+  });
+
+  it("stops re-reading once unmounted", async () => {
+    const port = createFakeStaticExportPort(IDLE_RUN);
+    const statusSpy = vi.spyOn(port, "getSiteExportStatus");
+    const { result, unmount } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).toEqual(IDLE_RUN));
+
+    const callsWhileMounted = statusSpy.mock.calls.length;
+    unmount();
+    await act(async () => {
+      publishContentRefresh();
+      await Promise.resolve();
+    });
+
+    expect(statusSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
 });

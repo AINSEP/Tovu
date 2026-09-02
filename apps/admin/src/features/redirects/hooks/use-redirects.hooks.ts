@@ -1,10 +1,19 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { AdminRedirect } from "@/lib/api";
-import { useFetchMutation, useFetchQuery, type QueryStatus } from "@/lib/fetch-query";
+import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
+import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import { t as defaultT } from "../redirects-i18n";
-import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, nextRedirectStatus, visibleRedirectsError } from "../rules";
+import {
+  KEYS,
+  REDIRECTS_RESOURCE,
+  buildCreateRedirectPayload,
+  firstWriteError,
+  isAnyWritePending,
+  nextRedirectStatus,
+  visibleRedirectsError,
+} from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
@@ -36,6 +45,13 @@ import type { Translate } from "@/lib/dictionary-translator";
  * `redirectRowMenuItems` (`rules.ts`) and `actionsForRedirectLabel`/`deleteRedirectBody`
  * (`redirects-i18n.tsx`), all three of which take `(locale, ...)` directly — same reasoning as
  * `use-integrations.hooks.ts`'s identical `t`+`locale` case.
+ *
+ * `useContentRefreshSubscription` (staleness-bug generalization pass — see that hook's own header):
+ * re-invalidates `KEYS.list` on an out-of-band content-refresh notification, the same one-line
+ * adoption `use-media.hooks.ts` uses. This list has no editable draft of its own (the create form is
+ * a one-shot `FormData` submit, not a live diff baseline the way `use-comment-settings.hooks.ts`'s
+ * uncontrolled form is), so a background invalidate here carries none of that hook's lost-update
+ * risk.
  */
 
 export interface RedirectsController {
@@ -70,6 +86,13 @@ export interface RedirectsController {
 
 export function useRedirects(port: RedirectsPort, t: Translate, locale: string): RedirectsController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listRedirects() });
+
+  // Stable identity (not an inline arrow) so `useContentRefreshSubscription`'s own effect does not
+  // unsubscribe/resubscribe on every render — see `use-media.hooks.ts`'s identical `invalidateList`
+  // note.
+  const invalidate = useInvalidate();
+  const invalidateList = useCallback(() => invalidate(KEYS.list), [invalidate]);
+  useContentRefreshSubscription(REDIRECTS_RESOURCE, invalidateList);
 
   // Each write names the cache it affects rather than calling a loader; the
   // list refetches because it is mounted under that key, not because this

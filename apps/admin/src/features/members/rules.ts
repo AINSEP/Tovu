@@ -13,6 +13,13 @@ import { t } from "./members-i18n";
  * `member.status !== "disabled"`).
  */
 
+/** This screen's name on `lib/content-refresh-bus.ts` — see `taxonomy/rules.ts`'s
+ *  `TAXONOMY_RESOURCE` for why this is a plain colocated constant rather than a shared registry.
+ *  Agent-writable via `members_disable` (`apps/website/src/features/members/agent-tools.ts`), which
+ *  flips a member's status this list renders. `members_request_magic_link` mutates durable state too
+ *  but changes nothing this screen displays, so it needs no separate justification here. */
+export const MEMBERS_RESOURCE = "members";
+
 /** Per-row in-flight/result state for the two row actions (Disable, Resend sign-in link). */
 export interface RowActionState {
   disabling: boolean;
