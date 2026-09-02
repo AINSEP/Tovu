@@ -4,6 +4,7 @@ import {
   type ChatPaneAgent,
   type ChatPaneAgentSelection,
   type ChatPaneRuntimeAccess,
+  type ChatPaneWorkingDirectoryAccess,
   type ComposerDiscoveryOutcome,
   type ComposerDiscoverySelection,
   type FrontendSessionBridge,
@@ -17,6 +18,7 @@ import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settin
 import { publishContentRefresh } from "@/lib/content-refresh-bus";
 import { createTovuAssistantTransport } from "@/lib/assistant-transport";
 import { isAgUiTransportEnabled } from "@/lib/assistant-transport-ag-ui";
+import { createBrowserWorkingDirectoryAccess } from "@/lib/browser-working-directory-access";
 import { useWiredAssistantChats, type UseAssistantChats } from "@/hooks/use-assistant-chats.hooks";
 import { useWiredAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import {
@@ -882,6 +884,27 @@ export function useRuntimeAccess(): ChatPaneRuntimeAccess {
   );
 }
 
+/**
+ * Builds the composer's native working-directory access — see
+ * `@/lib/browser-working-directory-access`'s module doc for the File System Access API details
+ * and its known folder-NAME-not-path limitation. Injectable per `INFO.md`'s Components rule 3
+ * (this is a browser API, `window.showDirectoryPicker`) — defaulted to the real hook on
+ * `AssistantDockProps`.
+ *
+ * Memoized for the same reason `useAttachmentUploader` above is: the returned object's identity
+ * feeds `ChatPane`'s own `workingDirectoryAccess`-changed effect
+ * (`useChatPaneWorkingDirectory.hooks.ts`), so a new object on every render would re-run that
+ * effect's directory validation on every render too.
+ *
+ * @returns The memoized access object, or `undefined` on a browser with no native picker (Safari,
+ * Firefox) — `ChatPane` falls back to its own text-input popover when this is `undefined`.
+ * @example
+ * const workingDirectoryAccess = useWorkingDirectoryAccess();
+ */
+export function useWorkingDirectoryAccess(): ChatPaneWorkingDirectoryAccess | undefined {
+  return useMemo(() => createBrowserWorkingDirectoryAccess(), []);
+}
+
 export interface ResolveComposerDiscoveryOutcomeDeps {
   readonly capabilities: ComposerCapabilityProjection;
   readonly navigate: (path: string) => void;
@@ -1334,4 +1357,10 @@ export function useAttachmentUploaderSeam(
 
 export function useRuntimeAccessSeam(override: typeof useRuntimeAccess | undefined): ChatPaneRuntimeAccess {
   return (override ?? useRuntimeAccess)();
+}
+
+export function useWorkingDirectoryAccessSeam(
+  override: typeof useWorkingDirectoryAccess | undefined,
+): ChatPaneWorkingDirectoryAccess | undefined {
+  return (override ?? useWorkingDirectoryAccess)();
 }

@@ -45,6 +45,8 @@ import {
   useRuntimeAccess,
   useRuntimeAccessSeam,
   useSelectedAgentPlugins,
+  useWorkingDirectoryAccess,
+  useWorkingDirectoryAccessSeam,
 } from "./hooks/AssistantDock.hooks";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
@@ -286,6 +288,13 @@ export interface AssistantDockProps {
    * a fake bypasses entirely.
    */
   useRuntimeAccess?: typeof useRuntimeAccess;
+  /**
+   * Injectable seam for the composer's native working-directory picker — see
+   * {@link useWorkingDirectoryAccess}. Defaults to the real hook: it calls the browser's own
+   * `window.showDirectoryPicker`, which a fake bypasses entirely so a test can drive the picked
+   * value without a real File System Access API (jsdom has none).
+   */
+  useWorkingDirectoryAccess?: typeof useWorkingDirectoryAccess;
 }
 
 /**
@@ -337,6 +346,7 @@ export function AssistantDock({
   useAssistantTransport: useAssistantTransportOverride,
   useAttachmentUploader: useAttachmentUploaderOverride,
   useRuntimeAccess: useRuntimeAccessOverride,
+  useWorkingDirectoryAccess: useWorkingDirectoryAccessOverride,
 }: AssistantDockProps) {
   const agentBridge = resolveAgentBridge(agentBridgeProp);
   // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
@@ -356,6 +366,7 @@ export function AssistantDock({
   const transport = useAssistantTransportSeam(useAssistantTransportOverride, { executionConfigRef });
   const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
   const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  const workingDirectoryAccess = useWorkingDirectoryAccessSeam(useWorkingDirectoryAccessOverride);
   const chats = useChatsSeam(useChats);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
@@ -541,12 +552,27 @@ export function AssistantDock({
         // `imagePaths` option name and Jini's `image-prompt-delivery.ts` prompt copy still say
         // "image" for what may be any file — a recorded Jini-side follow-up, not a gap a picker
         // filter could fix anyway.
-        // Purely a label — `workingDirectoryAccess` (native folder picker) is intentionally
-        // omitted, and the daemon's real `cwd` (`agent-daemon-server.ts`'s
-        // `process.env.TOVU_AGENT_CWD ?? process.cwd()`) isn't round-tripped back to the client
-        // today, so this can't reflect that exact value; it's not load-bearing for execution
-        // either way (confirmed: `cwd` is resolved daemon-side per run, never from this prop).
-        // Matches Jini's own reference app's approach — a static, host-chosen label.
+        // `workingDirectoryAccess` (native folder picker, `@/lib/browser-working-directory-access`)
+        // wires the composer's folder-icon button to the real OS directory chooser
+        // (`window.showDirectoryPicker`) on a browser that implements it (Chrome/Edge).
+        // `workingDirectoryControlPlacement="composer"` is what keeps that button living NEXT TO
+        // the "+" button, in the composer's own action row, rather than `ChatPane` falling back to
+        // its richer below-composer `WorkingDirPicker` (that below-composer layout is still what
+        // `ChatPane` renders by default for a host that doesn't pass this prop — e.g. Jini's
+        // reference-web example, which relies on the default unchanged). `undefined`
+        // `workingDirectoryAccess` on every other browser (Safari, Firefox have no such API) falls
+        // back to `ChatPane`/`Composer`'s own text-input popover regardless of this prop's value —
+        // see that hook's own doc for the capability check. Either path only ever surfaces a folder
+        // NAME (browsers withhold the real path from a picked `FileSystemDirectoryHandle`, and the
+        // popover fallback was always free-text) — `initialWorkingDirectory="Tovu"` is that same
+        // kind of display label, not a resolved path. The daemon's real `cwd`
+        // (`agent-daemon-server.ts`'s `process.env.TOVU_AGENT_CWD ?? process.cwd()`) still isn't
+        // round-tripped to or from the client either way, so this remains NOT load-bearing for
+        // execution (confirmed: `cwd` is resolved daemon-side per run, never from this prop) — a
+        // real folder picker here re-labels the chat, it does not yet move the agent. That
+        // round-trip is a separate, larger change.
+        workingDirectoryAccess={workingDirectoryAccess}
+        workingDirectoryControlPlacement="composer"
         initialWorkingDirectory="Tovu"
         // suggestions={[
         //   "Summarise what content types this site defines.",

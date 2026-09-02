@@ -964,9 +964,37 @@
   gap: 8px;
   margin: 10px 12px;
   padding: 0 10px;
+  /* Same fill as the composer textarea (`--jini-chat-subtle`, which resolves to this same
+     `--surface-2` on `.admin-chat-dock .jini-chat-pane` above) — the owner wants the two to read
+     as one system rather than a white search box sitting inside a white panel next to a grey
+     composer. */
+  background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 8px;
   color: var(--faint);
+  transition: border-color 120ms ease;
+}
+
+/*
+ * Focus ring, not just a border-color swap on the wrapper above — same two-part shape the
+ * composer's own fix (`.admin-chat-dock .jini-chat-pane .jini-composer:focus-within` /
+ * `.jini-composer-input:focus` a few hundred lines up) already uses, for the same reason: this is
+ * a bare `<input>` too, so `styles.css`'s global WCAG 2.1 SC 1.4.11 rule
+ * (`input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px var(--primary-ring) }`,
+ * unscoped, `styles.css` line ~289) matches it and painted the accent-coloured ring the owner saw
+ * as "light red/pink" — `--primary-ring` is `--primary` (the burnt-orange accent) at low alpha,
+ * which desaturates to a dusty pink on the search box's own light fill. `box-shadow` never
+ * cascades from a parent, so suppressing it anywhere other than on the `<input>` itself (as the
+ * composer fix's own comment found the hard way) would not reach it.
+ *
+ * Suppressing the ring outright would leave focus with no visible state change at all — an
+ * accessibility regression the composer fix deliberately avoided by stepping the WRAPPER's own
+ * border a stop darker instead, and this reuses that exact idiom (`.jini-conv-new:hover` a few
+ * rules up already steps `--border` to `--border-strong` the same way) rather than inventing a
+ * second focus language for this one control.
+ */
+.jini-conv-search:focus-within {
+  border-color: var(--border-strong);
 }
 
 .jini-conv-search input {
@@ -979,6 +1007,11 @@
   font: inherit;
   font-size: 13px;
   color: var(--fg);
+}
+
+.jini-conv-search input:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 /* Native affordance removed: it sits inside our bordered wrapper and renders as a second,
