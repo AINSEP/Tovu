@@ -33,7 +33,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -186,6 +186,29 @@ function vacuumAndVerify(db) {
   checkpointAndVerify(db);
 }
 
+/**
+ * Cross-checks the seed's remaining `asset_blobs.storage_key`s against `<site>/uploads/` on disk —
+ * every key must have a corresponding file, or this script would publish a seed that ships real
+ * `media`/`asset_blobs` ROWS with no way to ever get their BYTES (the exact production incident
+ * this check exists to prevent: `content.seed.db` ships regardless of whether `uploads/` has the
+ * matching file, since neither table is in `PRUNE_TABLES`, but the Dockerfile's build stage only
+ * ships whatever `uploads/` actually contains — see that file's own comment at the `uploads/`
+ * extraction step). Read-only against `liveDir` — never writes there, mirrors this script's own
+ * "never touch the live tree" rule for `liveDbPath`.
+ *
+ * Exported (2026-09-02) — `development/scripts/__tests__/seed-site.unit.test.ts` imports this
+ * directly, mirroring `generate-seed-content.ts`'s `generate()`/`assertNoUndefinedProperties`
+ * precedent for a pure, side-effect-free function pulled out specifically to be unit-testable
+ * without running this script's real live-db-copying `main()` as an import side effect (see the
+ * `main()` guard at the bottom of this file).
+ *
+ * @returns every `storage_key` with no matching file — empty means consistent.
+ */
+export function findMissingSeedBlobs(db, liveDir) {
+  const rows = db.prepare(`SELECT storage_key FROM asset_blobs`).all();
+  return rows.map((row) => row.storage_key).filter((storageKey) => !fs.existsSync(path.join(liveDir, "uploads", storageKey)));
+}
+
 /** Atomically publishes the finished scratch copy to `seedDbPath` (write-then-rename, same dir/fs). */
 function publishSeed(scratchDbPath, seedDbPath) {
   const tmpPath = `${seedDbPath}.tmp-${randomBytes(4).toString("hex")}`;
@@ -226,6 +249,19 @@ function main() {
       const scrubbedLoginTimestamps = scrubPii(db);
       vacuumAndVerify(db);
 
+      // Rows and bytes ship together or not at all — fail LOUD, before `publishSeed` ever runs, so
+      // a broken seed is never written to `content.seed.db` in the first place. See
+      // `findMissingSeedBlobs`'s own doc for the incident this prevents.
+      const missingBlobs = findMissingSeedBlobs(db, liveDir);
+      if (missingBlobs.length > 0) {
+        throw new Error(
+          `seed-site: ${missingBlobs.length} asset_blobs row(s) reference a storage_key with no file under ` +
+            `${path.join(liveDir, "uploads")} — refusing to publish a seed that would ship media rows with ` +
+            "permanently missing bytes. Missing:\n" +
+            missingBlobs.map((key) => `  - ${key}`).join("\n")
+        );
+      }
+
       const seedSize = fs.statSync(scratchDbPath).size;
       publishSeed(scratchDbPath, seedDbPath);
 
@@ -238,6 +274,7 @@ function main() {
           .join(", ")}`
       );
       console.log(`  scrubbed: identity_users.last_login_at nulled on ${scrubbedLoginTimestamps} row(s)`);
+      console.log(`  blobs:    every asset_blobs.storage_key has a matching file under ${path.join(liveDir, "uploads")}`);
     } finally {
       db.close();
     }
@@ -248,4 +285,14 @@ function main() {
   assertLiveDbUntouched(liveDbPath, liveStatBefore);
 }
 
-main();
+// Only run when invoked directly, never as a side effect of import — mirrors
+// generate-seed-content.ts's own guard, for the same reason: `findMissingSeedBlobs` above is also
+// imported directly by this script's unit test, which must never copy/prune/publish the real live
+// site db as a side effect of importing a pure function. `process.argv[1]` guarded rather than
+// passed to `pathToFileURL` unconditionally: it is `undefined` under some non-CLI module-load paths
+// (e.g. a plain `-e`/`--input-type=module` eval used to probe this file's exports), and
+// `pathToFileURL(undefined)` throws — which would break every consumer that merely imports this
+// module, not just direct CLI invocation.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}

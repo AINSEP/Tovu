@@ -62,6 +62,11 @@ import type {
   MediaRepoPort,
   TransformDefinitionRepoPort,
 } from "../../features/media/index.js";
+// Composition-root-only boot effect, deliberately imported straight from its own file rather than
+// through the `features/media` barrel — same precedent `deps.ts` already follows for
+// `ensureCoreMediaTransform` (not barrel-exported either): this type has no reason to be part of
+// this host's wider public media surface.
+import type { HydrateBlobStoreFromSeedResult } from "../../features/media/hydrate-blob-store-from-seed.js";
 import type { OriginRegistryPort } from "../../features/origin/index.js";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../features/redirects/index.js";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../features/forms/index.js";
@@ -216,6 +221,19 @@ export interface MediaDeps {
    */
   transformDefinitionRepo: TransformDefinitionRepoPort;
   imageTransformer: ImageTransformerPort;
+  /**
+   * Fire-and-forget, same shape as `IdentityDeps.identityReady`: resolves once
+   * `hydrateBlobStoreFromSeed()` (`features/media/hydrate-blob-store-from-seed.ts`) has finished
+   * topping up `blobStore` with any stock seed blob it was missing — the fix for the production
+   * incident where `content.seed.db` shipped real `media`/`asset_blobs` rows but no deploy path
+   * ever shipped the bytes those rows' `storage_key`s point at. Optional (unlike `identityReady`):
+   * only `server/deps.ts`'s real SQLite composition wires this — the in-memory hermetic composition
+   * (`server/app.ts`'s `createRouteDeps()`) has no seed payload to hydrate from and leaves it unset,
+   * exactly as `mediaTransformReady` is left un-exposed there for the same reason. No route gates on
+   * this; it exists so a boot-integration test can await deterministic completion instead of racing
+   * a fire-and-forget background copy.
+   */
+  blobHydrationReady?: Promise<HydrateBlobStoreFromSeedResult | undefined>;
 }
 
 /**

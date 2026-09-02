@@ -40,6 +40,7 @@ import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/in
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
 import { openContentDb, type ContentDb } from "#src/platform/db/sqlite/content-db";
 import { hydrateContentDbFromSeed } from "#src/platform/db/sqlite/hydrate-content-db-from-seed";
+import { hydrateBlobStoreFromSeed } from "#src/features/media/hydrate-blob-store-from-seed";
 import { resolveWorkspace } from "#src/platform/site-dir/resolve-workspace";
 import { resolveSiteRoot } from "#src/platform/site-dir/index";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
@@ -318,6 +319,22 @@ export function siteThemesDir(): string {
 export function builtInContentSeedDbPath(siteName: string = basename(siteDir())): string {
   const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
   return join(stockRoot, siteName, "content.seed.db");
+}
+
+/**
+ * The read-only STOCK upload payload a self-hosted container image ships for one specific site:
+ * `content/seed-sites/<site>/uploads/`, the sibling the Dockerfile's build stage now stages
+ * alongside `content.seed.db` (see that file's comment at the extraction loop). Same stock root as
+ * {@link builtInContentSeedDbPath} — deliberately not a second env var: the two are always shipped
+ * together, at the same physical location, as one seed payload for one site.
+ *
+ * SOURCE ONLY, consumed by `hydrateBlobStoreFromSeed()` — see that function's own header for why it
+ * tops up the live `blobStore` one content-addressed key at a time rather than copying this
+ * directory wholesale the way {@link builtInThemesDir}/`seedSiteThemes()` copy `themes/`.
+ */
+export function builtInSeedUploadsDir(siteName: string = basename(siteDir())): string {
+  const stockRoot = process.env.TOVU_STOCK_CONTENT_SEED_DIR ?? join(resolveProductRoot(), "content", "seed-sites");
+  return join(stockRoot, siteName, "uploads");
 }
 
 /**
@@ -744,6 +761,29 @@ export function createSqliteRouteDeps(
     });
   void mediaTransformReady;
 
+  // Fills in stock blob BYTES for `media`/`asset_blobs` rows this site inherited from
+  // `content.seed.db` (see `hydrate-blob-store-from-seed.ts`'s own header for the incident this
+  // closes). Hoisted here — rather than left inline down with the other media fields below — for
+  // the same reason `transformDefinitionRepo` above is: this call and the returned
+  // `RouteDeps.blobStore` field must share the SAME instance, not two independent adapters over the
+  // same backing store. Fired independently, NOT chained after `commentsReady`/`mediaTransformReady`
+  // above: unlike those two, this touches no SQLite connection at all — it only reads the seed
+  // payload off disk and calls `blobStore.exists`/`put` — so it carries none of the shared-
+  // connection hazard the rest of this function's `Ready` chain exists to avoid. Exposed on
+  // `RouteDeps` (unlike `mediaTransformReady`) purely so a boot-integration test can await
+  // deterministic completion instead of racing a fire-and-forget background copy; no route or
+  // caller needs to gate on it — `hydrateBlobStoreFromSeed`'s own per-key gate makes every run after
+  // the first an all-`skipped` no-op.
+  const blobStore = resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir());
+  const blobHydrationReady = hydrateBlobStoreFromSeed({
+    seedUploadsDir: builtInSeedUploadsDir(),
+    blobStore,
+  }).catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error(`hydrateBlobStoreFromSeed failed at boot: ${(err as Error).message}`);
+    return undefined;
+  });
+
   // SPEC-009 (Redirects, ADR-PIPE-009) — FIRST-TIME composition-root wiring of `origin`'s
   // OriginRegistry and `routing`'s registration functions, mirroring `server/app.ts`'s identical
   // wiring. `redirects` DOES get its real `SqliteRedirectRepo` here (unlike the in-memory-only
@@ -1100,7 +1140,10 @@ export function createSqliteRouteDeps(
     // style special case.
     commerceProductRepo: new SqliteCommerceProductRepo(db),
     commercePriceRepo: new SqliteCommercePriceRepo(db),
-    blobStore: resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir()),
+    blobStore,
+    // Boot-time blob hydration readiness — see the `blobHydrationReady` construction above (hoisted
+    // alongside `blobStore` itself) for why this is fired independently and exposed here.
+    blobHydrationReady,
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
     // `server/app.ts`'s hermetic-test composition, which uses the deterministic in-memory
