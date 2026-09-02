@@ -99,6 +99,7 @@ import {
   shouldClearSessionOnFailedResume,
 } from "./agent-session-resume.js";
 import { createLiveRunTracker } from "./agent-run-concurrency.js";
+import { buildBaseSystemOverlay, resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
 import { registerFederationAdmissionsRoute } from "./federation-admissions-route.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { installUnhandledRejectionGuard } from "../../runtime/boot/process-error-guards.js";
@@ -278,6 +279,15 @@ installUnhandledRejectionGuard();
  */
 const ATTACHMENT_UPLOAD_DIRECTORY =
   process.env.TOVU_CHAT_ATTACHMENTS_DIR ?? path.join(path.dirname(defaultContentDbPath()), "uploads", "chat-attachments");
+
+/**
+ * Opt-in-only diagnostic gate for the base system overlay's Bash-prohibition instrument — see
+ * `assistant-system-overlay.ts`'s `resolveBashProhibitionEnabled` for the full rationale (why this
+ * exists, why it defaults OFF, and why it is not a security control). Read once here, at module
+ * scope like `ATTACHMENT_UPLOAD_DIRECTORY` above, rather than per-call inside `systemOverlay()`:
+ * this is a boot-time operator choice, not a per-run condition.
+ */
+const bashProhibitionEnabled = resolveBashProhibitionEnabled();
 
 /**
  * A spawned agent CLI has no TTY to answer an interactive permission prompt, so "restricted"
@@ -463,57 +473,10 @@ const assistantPromptAugmenter: PromptAugmenter = {
   contextKinds: () => [],
   augmentUserRequest: ({ basePrompt }) => basePrompt,
   systemOverlay: () => {
-    const baseOverlay =
-      "You are answering a live administrator's request through Tovu's own admin chat assistant, " +
-      "not doing general development work on the Tovu codebase. Keep replies short and direct: " +
-      "lead with the answer, skip preamble and skip restating the request. Use headers, lists, or " +
-      "tables only when they carry real structure. Give full detail when asked, and never trade " +
-      "correctness for brevity — error text, failing output, and confirmations for destructive " +
-      "actions keep their full content. Tovu exposes a purpose-built, " +
-      "audited catalog of tools for every action that touches this site's actual content, users, " +
-      "permissions, forms, database state, configuration, or on-screen rendering (drawing a chart, " +
-      "form, or card live in the admin UI) — and equally for any outbound call to an external " +
-      "service this site holds a saved credential for: DNS and registrar records, hosting and " +
-      "deployment providers, and every other third-party API reachable with a stored token. Those " +
-      "are NOT infrastructure work outside this catalog's scope; custom_credential_list, " +
-      "custom_credential_verify and custom_credential_make_request exist precisely so such a call " +
-      "is made with the site's own audited credential rather than a shell. For any such request: call " +
-      "search_tools FIRST — phrasing the query as a description of what the tool DOES, the way its " +
-      "own documentation would read (name the thing acted on plus the action, with likely synonyms), " +
-      "rather than as terse keywords — then describe_tool on the top 1-3 candidates, then " +
-      "execute_delegated_tool to perform the action. If none of the returned candidates fit, search " +
-      "again with a higher limit (up to 25) or different phrasing before concluding no tool exists: " +
-      "on a 130-case blind set the right tool is in the default top 10 98% of the time and in the " +
-      "top 20 100% of the time, so a near-miss is almost always ranked just below the cutoff rather " +
-      "than absent. Do this before reaching for Bash, curl, or " +
-      "direct SQLite/database access — those bypass this site's authorization, risk-classification, " +
-      "and audit-log guarantees entirely. Never authenticate as an administrator yourself (e.g. via " +
-      "the admin login route) to perform an action a registered tool already exists for. Bash and " +
-      "file access remain available for one narrow purpose: reading Tovu's own source to answer a " +
-      "code-level question about how Tovu itself is implemented. They are not available for anything " +
-      "else — not for calling an external API (use the credentialed-request tools above), not for " +
-      "inspecting or changing this site's data or configuration, and not for reading config files to " +
-      "infer state a tool would report directly. Two tests before you run a shell command: could a " +
-      "registered tool do this, and would this command still work on a deployed Tovu with no source " +
-      "checkout and no CLI on the machine? If the answer to the first is yes, or the second is no, " +
-      "you are about to do it the wrong way — search_tools again instead. In particular: when asked to show, draw, chart, or visualize " +
-      "something, that is a rendering request for the live admin UI, not a request to author a " +
-      "standalone artifact — search_tools for the rendering tool (assistant_render_ui) and " +
-      "search_components/describe_component for the exact chart/component id, the same way you " +
-      "would look up any other tool here — and if you ever forget those two exact names, " +
-      "search_tools/describe_tool/execute_delegated_tool can find and run them too, the same as any " +
-      "other registered tool. Do not reach for a general-purpose charting/dataviz skill " +
-      "or write a static HTML file as a substitute; those produce a file on disk nobody asked for " +
-      "instead of something the administrator actually sees. When you need a decision, a " +
-      "confirmation, or a choice between options from the administrator — especially before any " +
-      "action that writes, overwrites, or changes what the live site serves — ask through an " +
-      "interactive surface, not by describing the options in prose and waiting: an administrator " +
-      "reading a paragraph has no reliable way to notice a question was buried in it, so \"say the " +
-      "word and I'll do it\" prose is the failure this replaces, not a courtesy. Call " +
-      "assistant_ask_choice with your own title and options (a single choice, a multi-select, or " +
-      "both) — it blocks until they answer; if you ever forget that exact name, " +
-      "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
-      "other registered tool.";
+    // Base overlay text lives in `assistant-system-overlay.ts` now — see that file's own doc for
+    // why this had to move (direct unit-testability without booting this whole daemon process) and
+    // `bashProhibitionEnabled`'s doc above for the one thing about it that is conditional.
+    const baseOverlay = buildBaseSystemOverlay(bashProhibitionEnabled);
     // Appended, not replaced: the tool-catalog protocol above is load-bearing for every run
     // regardless of what an operator writes in the Instructions tab, and an operator's custom text
     // should not be able to silently drop it. `readOverlay()` is `null` for an unset/cleared tab
