@@ -1,4 +1,5 @@
-import type { DataTableSortDirection, DataTableSortState, RowMenuItem } from "@jini-ai/admin/react";
+import type { DataTableSortDirection, DataTableSortState } from "@jini-ai/admin/core";
+import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
