@@ -319,6 +319,34 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   });
   assert.equal(reorderRes.status, 200, await reorderRes.clone().text());
 
+  const wrongWsRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/entries/${hostId}/widget-embeds`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 3, orderedWidgetEntryIds: [w2.id, w1.id] }),
+  });
+  assert.equal(wrongWsRes.status, 404);
+
+  const badBodyRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: "not-a-number", orderedWidgetEntryIds: [w2.id] }),
+  });
+  assert.equal(badBodyRes.status, 400);
+
+  const badIdsRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 3, orderedWidgetEntryIds: [""] }),
+  });
+  assert.equal(badIdsRes.status, 400);
+
+  const errRes = await fetch(`${baseUrl}${BASE}/entries/non-existent-host/widget-embeds`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 3, orderedWidgetEntryIds: [w2.id, w1.id] }),
+  });
+  assert.equal(errRes.status, 404);
+
   const removeRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
     method: "DELETE",
     headers: { "content-type": "application/json", cookie },
