@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
-import { scanTextForSecrets, scanRepoForSecrets, isAllowlisted } from "../secret-scan-guard.js";
+import {
+  scanTextForSecrets,
+  scanRepoForSecrets,
+  scanGitHistoryForSecrets,
+  isAllowlisted,
+} from "../secret-scan-guard.js";
 
 /**
  * @file Two things, matching `seal-aad-invariant.test.ts`'s own split (see that file for why):
@@ -138,4 +147,46 @@ test("ALLOWLIST SCOPING: a DIFFERENT value matching the same allowlisted (file, 
     ),
     false,
   );
+});
+
+/**
+ * @file (continued) Closes a second gap from the same 2026-09-03 Codex adversarial review:
+ * `scanRepoForSecrets` only ever looked at the current tip. A secret committed and later removed
+ * in a subsequent commit was still fully recoverable via `git log`/`git show`, yet the guard
+ * reported clean. `scanGitHistoryForSecrets` walks every blob reachable from any local branch/tag,
+ * not just the tip, closing that gap.
+ */
+
+test("HISTORY SCANNING: a secret committed then removed in a later commit is still caught, even though the current tip is clean", () => {
+  const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "secret-scan-guard-history-test-"));
+  try {
+    const git = (...args: string[]) => execFileSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+    git("init", "-q");
+    git("config", "user.email", "test@example.com");
+    git("config", "user.name", "Test");
+
+    const secretFile = path.join(tmpRepo, "leaked-credential.txt");
+    const realLengthGithubPat = `ghp_${"a".repeat(36)}`; // real 36-char classic-PAT length after ghp_
+
+    fs.writeFileSync(secretFile, `token = "${realLengthGithubPat}"\n`);
+    git("add", "leaked-credential.txt");
+    git("commit", "-q", "-m", "add credential");
+
+    fs.writeFileSync(secretFile, `token = "revoked-and-removed"\n`);
+    git("add", "leaked-credential.txt");
+    git("commit", "-q", "-m", "remove credential");
+
+    // The current tip is genuinely clean: the secret is gone from the working tree.
+    const tipContent = fs.readFileSync(secretFile, "utf8");
+    assert.equal(tipContent.includes(realLengthGithubPat), false);
+
+    // But it is still fully recoverable from history, and this must catch it.
+    const historyViolations = scanGitHistoryForSecrets({ repoRoot: tmpRepo });
+    assert.deepEqual(
+      historyViolations.map((v) => ({ file: v.file, patternName: v.patternName })),
+      [{ file: "leaked-credential.txt", patternName: "GitHub personal access token (classic, ghp_)" }],
+    );
+  } finally {
+    fs.rmSync(tmpRepo, { recursive: true, force: true });
+  }
 });

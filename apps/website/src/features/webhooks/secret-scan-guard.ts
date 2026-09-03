@@ -57,6 +57,17 @@ import { pathToFileURL } from "node:url";
  * the SAME pattern later added to that same file, since its matched text won't equal the
  * allowlisted value.
  *
+ * ## History scanning
+ * `scanRepoForSecrets` only ever looked at the current tip — a credential committed and later
+ * removed in a subsequent commit was still fully recoverable from `git log`/`git show`, yet the
+ * check reported clean. `scanGitHistoryForSecrets` closes that gap: it walks every blob object
+ * reachable from any local branch or tag (`git rev-list --objects --all`), deduped by blob SHA
+ * (a content hash, so identical file content across commits/paths is scanned exactly once), and
+ * applies the same patterns/skip-list/allowlist. `main()` runs both and fails if either finds an
+ * un-allowlisted hit. This does NOT rewrite or remove anything from history — a real hit still
+ * requires the separate, human-approved history-rewrite step the file's Usage note already calls
+ * out for the tip case.
+ *
  * Usage: npx tsx apps/website/src/features/webhooks/secret-scan-guard.ts
  * Exit codes: 0 = no un-allowlisted credential-shaped string found in any tracked file. 1 = at
  *             least one was found.
@@ -228,25 +239,149 @@ export function scanRepoForSecrets(): SecretScanViolation[] {
   return violations;
 }
 
-function main(): void {
-  const violations = scanRepoForSecrets();
+interface HistoricalBlob {
+  readonly sha: string;
+  /** Repo-root-relative path this blob was found under (its first-seen path — a blob can appear
+   *  under multiple paths/commits; content, not path, is what's deduped on). */
+  readonly path: string;
+}
 
-  if (violations.length === 0) {
-    console.log("check:secret-scan — OK: no credential-shaped string found in any tracked file.");
+/** Every blob object reachable from any local branch or tag, deduped by blob SHA (a content hash,
+ *  so identical file content is scanned exactly once regardless of how many commits or paths
+ *  reference it). See file header's History scanning section. */
+function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
+  const objectsOut = execFileSync("git", ["rev-list", "--objects", "--all"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+
+  const pathBySha = new Map<string, string>();
+  for (const line of objectsOut.split("\n")) {
+    if (!line) continue;
+    const spaceIdx = line.indexOf(" ");
+    if (spaceIdx === -1) continue; // commit objects are listed with no path suffix
+    const sha = line.slice(0, spaceIdx);
+    const relPath = line.slice(spaceIdx + 1);
+    if (relPath && !pathBySha.has(sha)) pathBySha.set(sha, relPath);
+  }
+  if (pathBySha.size === 0) return [];
+
+  // rev-list --objects also lists tree objects (with a path); filter to blobs only.
+  const shas = [...pathBySha.keys()];
+  const typeCheckOut = execFileSync("git", ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
+    cwd: repoRoot,
+    input: shas.join("\n") + "\n",
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+
+  const blobs: HistoricalBlob[] = [];
+  for (const line of typeCheckOut.split("\n")) {
+    if (!line) continue;
+    const [sha, type] = line.split(" ");
+    if (type === "blob") blobs.push({ sha, path: pathBySha.get(sha)! });
+  }
+  return blobs;
+}
+
+/** Reads every listed blob's content in one `git cat-file --batch` pass, latin1-decoded (same
+ *  binary-preserving technique `scanRepoForSecrets` uses; see file header). Keyed by blob SHA. */
+function readBlobContents(repoRoot: string, shas: readonly string[]): Map<string, string> {
+  const contents = new Map<string, string>();
+  if (shas.length === 0) return contents;
+
+  const out = execFileSync("git", ["cat-file", "--batch"], {
+    cwd: repoRoot,
+    input: shas.join("\n") + "\n",
+    encoding: "latin1",
+    maxBuffer: 512 * 1024 * 1024,
+  });
+
+  let offset = 0;
+  while (offset < out.length) {
+    const headerEnd = out.indexOf("\n", offset);
+    if (headerEnd === -1) break;
+    const parts = out.slice(offset, headerEnd).split(" ");
+    if (parts.length < 3) break; // malformed/unexpected batch record; stop rather than misparse
+    const [sha, , sizeStr] = parts;
+    const size = Number(sizeStr);
+    const contentStart = headerEnd + 1;
+    contents.set(sha, out.slice(contentStart, contentStart + size));
+    offset = contentStart + size + 1; // +1 for the trailing newline git appends after each record
+  }
+  return contents;
+}
+
+// A single NUL character, built via fromCharCode rather than an inline escape literal so this
+// file's own source never embeds a raw control byte.
+const NUL_CHAR = String.fromCharCode(0);
+
+/** History scan: every blob ever committed to any local branch/tag, not just the current tip.
+ *  Closes the gap where a secret committed then removed in a later commit is still fully
+ *  recoverable from `git log`/`git show` while `scanRepoForSecrets` (tip-only) reports clean.
+ *  `repoRoot` defaults to this repo but is overridable so tests can point it at a throwaway repo
+ *  instead of mutating real history. */
+export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
+  const repoRoot = options?.repoRoot ?? REPO_ROOT;
+  const violations: SecretScanViolation[] = [];
+
+  const blobs = listHistoricalBlobs(repoRoot).filter(
+    (b) => !SKIP_EXTENSIONS.has(path.extname(b.path).toLowerCase()),
+  );
+  const contents = readBlobContents(repoRoot, blobs.map((b) => b.sha));
+
+  for (const { path: relPath, sha } of blobs) {
+    const text = contents.get(sha);
+    if (text === undefined || text.length > MAX_SCAN_BYTES) continue;
+
+    const isBinary = text.slice(0, 8000).includes(NUL_CHAR);
+
+    for (const hit of scanTextForSecrets(text)) {
+      if (isAllowlisted(relPath, hit.patternName, hit.value)) continue;
+      violations.push({
+        file: relPath,
+        patternName: hit.patternName,
+        line: isBinary ? "binary" : lineNumberAt(text, hit.index),
+      });
+    }
+  }
+  return violations;
+}
+
+function main(): void {
+  const tipViolations = scanRepoForSecrets();
+  const historyViolations = scanGitHistoryForSecrets();
+
+  if (tipViolations.length === 0 && historyViolations.length === 0) {
+    console.log(
+      "check:secret-scan — OK: no credential-shaped string found in any tracked file or git history.",
+    );
     return;
   }
 
-  console.error(`check:secret-scan — ${violations.length} credential-shaped string(s) found in tracked files:`);
-  for (const v of violations) {
-    console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+  if (tipViolations.length > 0) {
+    console.error(`check:secret-scan — ${tipViolations.length} credential-shaped string(s) found in tracked files:`);
+    for (const v of tipViolations) {
+      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+    }
+  }
+  if (historyViolations.length > 0) {
+    console.error(
+      `check:secret-scan — ${historyViolations.length} credential-shaped string(s) found in git history ` +
+        "(not necessarily present in the current tree):",
+    );
+    for (const v of historyViolations) {
+      console.error(`  - ${v.file}:${v.line} [${v.patternName}]`);
+    }
   }
   console.error(
-    "\nA credential-shaped string was found in a tracked file. If it is real: revoke/rotate it " +
-      "immediately, then remove it from the file (a history rewrite is a separate, human-approved " +
-      "step — this check cannot and does not do that). If it is a fixture that legitimately needs " +
-      "this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in secret-scan-guard.ts " +
-      "with a reason, or — preferably — shorten/mutate the fixture so it no longer matches a real " +
-      "credential's exact length.",
+    "\nA credential-shaped string was found. If it is real: revoke/rotate it immediately. If it was " +
+      "found only in git history and is already dead (revoked/rotated), or is a fixture that " +
+      "legitimately needs this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in " +
+      "secret-scan-guard.ts with a reason, or — preferably — shorten/mutate the fixture so it no " +
+      "longer matches a real credential's exact length. A history rewrite to purge a real committed " +
+      "secret is a separate, human-approved step — this check cannot and does not do that.",
   );
   process.exit(1);
 }
