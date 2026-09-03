@@ -6,7 +6,16 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
+import {
+  postRowMenuItems,
+  sortPosts,
+  nextPostSortState,
+  postSortCaretGlyph,
+  lexicalPostSortButtonLabel,
+  updatedSortHeaderLabel,
+  DEFAULT_POST_SORT,
+  type PostSortState,
+} from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
@@ -67,7 +76,11 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // UNLESS a test needs to observe it. `Posts.tsx` is the file everyone else copies this pattern
   // from (this file's own `PostsProps` doc comment) — this is the canonical example of the
   // exception, not an oversight to "finish" later.
-  const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>("newest");
+  //
+  // 2026-09-02: generalized from a single Updated-only direction to `PostSortState`, which also
+  // names the active column — Title/Slug/Status became sortable too (`rules.ts`'s multi-column sort
+  // block), and only one column is ever active at a time.
+  const [sort, setSort] = useState<PostSortState>(DEFAULT_POST_SORT);
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
@@ -78,8 +91,8 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
 
   // Sorted once so both `rows` and the per-row RowMenu handles below walk the SAME order — post ids
   // are stable and unique, so they disambiguate one row's menu from another's regardless of which
-  // way `updatedSort` is currently facing.
-  const sortedPosts = sortPostsByUpdated(posts, updatedSort);
+  // column/direction `sort` is currently facing.
+  const sortedPosts = sortPosts(posts, sort);
   const rowMenuHandles = buildAgentListHandles(
     "posts-row",
     sortedPosts.map((post) => post.id),
@@ -112,10 +125,39 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           </div>
         }
         columns={[
-          { key: "title", header: t("Title"), cell: (post) => <a href={`/admin/posts/${post.slug}`}>{post.title}</a> },
+          {
+            key: "title",
+            // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02): a
+            // plain button toggling `sort` — `DataTable`'s `<th>` doesn't expose an `aria-sort` prop
+            // (see its own file header: "no sorting" was a deliberate scope cut for that shared
+            // component), so the accessible state lives on each button's own `aria-label` instead,
+            // not just the ▲/▼/⇅ glyph, which is `aria-hidden`.
+            header: (
+              <button
+                type="button"
+                className="sortable-column-header"
+                onClick={() => setSort((s) => nextPostSortState(s, "title"))}
+                aria-label={lexicalPostSortButtonLabel("Title", "title", sort)}
+              >
+                {t("Title")}
+                <span aria-hidden="true">{postSortCaretGlyph("title", sort)}</span>
+              </button>
+            ),
+            cell: (post) => <a href={`/admin/posts/${post.slug}`}>{post.title}</a>,
+          },
           {
             key: "slug",
-            header: "Slug",
+            header: (
+              <button
+                type="button"
+                className="sortable-column-header"
+                onClick={() => setSort((s) => nextPostSortState(s, "slug"))}
+                aria-label={lexicalPostSortButtonLabel("Slug", "slug", sort)}
+              >
+                Slug
+                <span aria-hidden="true">{postSortCaretGlyph("slug", sort)}</span>
+              </button>
+            ),
             cell: (post) => (
               <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
                 /{post.slug}
@@ -124,26 +166,30 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           },
           {
             key: "status",
-            header: t("Status"),
-            cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
-          },
-          {
-            key: "updated",
-            // Sortable header (2026-08-10): a plain button toggling `updatedSort` between newest-
-            // and oldest-first, defaulting to newest — `DataTable`'s `<th>` doesn't expose an
-            // `aria-sort` prop (see its own file header: "no sorting" was a deliberate scope cut for
-            // that shared component), so the accessible state lives on this button's own
-            // `aria-label` instead (`updatedSortButtonLabel`), not just the ▲/▼ glyph, which is
-            // `aria-hidden`.
             header: (
               <button
                 type="button"
                 className="sortable-column-header"
-                onClick={() => setUpdatedSort((d) => (d === "newest" ? "oldest" : "newest"))}
-                aria-label={updatedSortButtonLabel(updatedSort)}
+                onClick={() => setSort((s) => nextPostSortState(s, "status"))}
+                aria-label={lexicalPostSortButtonLabel("Status", "status", sort)}
+              >
+                {t("Status")}
+                <span aria-hidden="true">{postSortCaretGlyph("status", sort)}</span>
+              </button>
+            ),
+            cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
+          },
+          {
+            key: "updated",
+            header: (
+              <button
+                type="button"
+                className="sortable-column-header"
+                onClick={() => setSort((s) => nextPostSortState(s, "updated"))}
+                aria-label={updatedSortHeaderLabel(sort)}
               >
                 {t("Updated")}
-                <span aria-hidden="true">{updatedSort === "newest" ? " ▼" : " ▲"}</span>
+                <span aria-hidden="true">{postSortCaretGlyph("updated", sort)}</span>
               </button>
             ),
             cell: (post) => formatTimestamp(post.updatedAt),

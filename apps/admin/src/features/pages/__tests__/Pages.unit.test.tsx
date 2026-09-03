@@ -152,6 +152,64 @@ describe("populated table", () => {
   });
 });
 
+describe("Title/Slug/Status column sort (2026-09-02)", () => {
+  const alpha = { ...PAGE, id: "pg-alpha", title: "Alpha Page", slug: "alpha-page", status: "published" as const };
+  const bravo = { ...PAGE, id: "pg-bravo", title: "Bravo Page", slug: "bravo-page", status: "draft" as const };
+
+  function rowOrder(): string[] {
+    return screen.getAllByRole("row").slice(1).map((row) => row.textContent ?? "");
+  }
+
+  it("an unsorted column's header still reads as clickable via its own aria-label, before any click", () => {
+    renderWith({ pages: [alpha, bravo] });
+    expect(screen.getByRole("button", { name: /not sorted by title\. activate to sort ascending/i })).toBeInTheDocument();
+  });
+
+  it("clicking Title sorts ascending and cancels the default Updated sort", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by title/i }));
+    expect(rowOrder()[0]).toContain("Alpha Page");
+    expect(screen.getByRole("button", { name: /sorted by title, ascending\. activate to sort descending/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /not sorted by updated date/i })).toBeInTheDocument();
+  });
+
+  it("clicking Title again toggles to descending", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [bravo, alpha] });
+    const titleHeader = () => screen.getByRole("button", { name: /sort.*title/i });
+    await user.click(titleHeader());
+    await user.click(titleHeader());
+    expect(rowOrder()[0]).toContain("Bravo Page");
+    expect(screen.getByRole("button", { name: /sorted by title, descending/i })).toBeInTheDocument();
+  });
+
+  it("clicking Slug sorts ascending by slug", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by slug/i }));
+    expect(rowOrder()[0]).toContain("Alpha Page");
+  });
+
+  it("clicking Status sorts draft before published (ascending)", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [alpha, bravo] });
+    await user.click(screen.getByRole("button", { name: /not sorted by status/i }));
+    expect(rowOrder()[0]).toContain("Bravo Page"); // draft
+    expect(rowOrder()[1]).toContain("Alpha Page"); // published
+  });
+
+  it("clicking Slug after Title cancels Title's active sort — only one column active at a time", async () => {
+    const user = userEvent.setup();
+    renderWith({ pages: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by title/i }));
+    expect(screen.getByRole("button", { name: /sorted by title/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /not sorted by slug/i }));
+    expect(screen.getByRole("button", { name: /not sorted by title/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sorted by slug, ascending/i })).toBeInTheDocument();
+  });
+});
+
 describe("New Page action", () => {
   it("disables the button and shows 'Creating…' while creating is true", () => {
     renderWith({ creating: true });

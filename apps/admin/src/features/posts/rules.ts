@@ -255,6 +255,164 @@ export function updatedSortButtonLabel(direction: PostUpdatedSortDirection): str
     : "Sorted by updated date, oldest first. Activate to sort newest first.";
 }
 
+// ---------------------------------------------------------------------------
+// Multi-column sort (2026-09-02) — Title/Slug/Status join Updated as sortable columns, one active
+// column at a time (owner did not ask for multi-column sort). Everything above this block
+// (`PostUpdatedSortDirection`, `sortPostsByUpdated`, `updatedSortButtonLabel`) is the pre-existing
+// Updated-only feature and stays exactly as it was — this section EXTENDS it rather than replacing
+// it, reusing all three as-is from `sortPosts`/`updatedSortHeaderLabel` below.
+// ---------------------------------------------------------------------------
+
+/** The four Posts list columns with click-to-sort behavior. */
+export type PostSortColumn = "title" | "slug" | "status" | "updated";
+
+/** Ascending/descending — the direction for the three lexicographic columns (Title, Slug, Status),
+ *  compared with `localeCompare`. Kept distinct from {@link PostUpdatedSortDirection} ("newest"/
+ *  "oldest"): that pre-existing type names its two ends semantically because "newest first" reads
+ *  better than "descending" for a date column, but Title/Slug/Status don't have an equally natural
+ *  semantic name — sorting them "ascending" already IS the semantic name. */
+export type PostSortDirection = "asc" | "desc";
+
+/** The Posts list's full sort state — exactly one column drives the sort at a time. `updated` still
+ *  sorts via {@link sortPostsByUpdated}'s own "newest"/"oldest" vocabulary internally (see
+ *  {@link sortPosts}); `direction` here is the generic asc/desc every column's header button and
+ *  caret key off of, with `"desc"` mapped to "newest first" so the default below reproduces the
+ *  pre-existing Updated-only default exactly. */
+export interface PostSortState {
+  column: PostSortColumn;
+  direction: PostSortDirection;
+}
+
+/** The Posts list's default sort on first load — unchanged from the pre-existing behavior (Updated,
+ *  newest first) now that Title/Slug/Status are sortable too, so adding them does not itself change
+ *  what an operator sees before ever clicking a header. */
+export const DEFAULT_POST_SORT: PostSortState = { column: "updated", direction: "desc" };
+
+/**
+ * The three lexicographic column comparators, added alongside the pre-existing
+ * `sortPostsByUpdated`. `status` is exactly `"draft" | "published"` (`post.ts`), so plain
+ * alphabetical order already equals domain order — no custom rank table needed.
+ *
+ * @complexity Time: O(n log n) in `posts.length` (a single `Array#sort`); space: O(n) for the copy
+ * — the input is never mutated, matching `sortPostsByUpdated`.
+ */
+export function sortPostsByTitle(posts: readonly AdminPost[], direction: PostSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...posts].sort((a, b) => sign * a.title.localeCompare(b.title));
+}
+
+/** @complexity Same as {@link sortPostsByTitle}, compared on `slug` instead of `title`. */
+export function sortPostsBySlug(posts: readonly AdminPost[], direction: PostSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...posts].sort((a, b) => sign * a.slug.localeCompare(b.slug));
+}
+
+/** @complexity Same as {@link sortPostsByTitle}, compared on `status` instead of `title`. */
+export function sortPostsByStatus(posts: readonly AdminPost[], direction: PostSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...posts].sort((a, b) => sign * a.status.localeCompare(b.status));
+}
+
+/**
+ * Applies whichever column {@link PostSortState} currently names — the single dispatch point
+ * `Posts.tsx` calls instead of switching on `sort.column` itself, so a new sortable column is one
+ * new `case` here rather than a change at the render call site. `"updated"` translates the generic
+ * `direction` into `sortPostsByUpdated`'s own "newest"/"oldest" vocabulary (`"desc"` = newest first)
+ * rather than duplicating that comparator's logic here.
+ *
+ * The `default` falls back to returning a shallow copy unsorted rather than throwing — defensive
+ * against a value outside `PostSortColumn` reaching here (e.g. `PostSortState` round-tripped through
+ * an untyped boundary), matching this module's existing "never throw on a malformed shape" posture
+ * (see `titleNodeText`/`withTitleNode` above). `PostSortColumn`'s own type keeps this unreachable
+ * from any caller that stays within the type system.
+ *
+ * @complexity Delegates to the named column's own comparator — see each for its own complexity.
+ */
+export function sortPosts(posts: readonly AdminPost[], sort: PostSortState): AdminPost[] {
+  switch (sort.column) {
+    case "title":
+      return sortPostsByTitle(posts, sort.direction);
+    case "slug":
+      return sortPostsBySlug(posts, sort.direction);
+    case "status":
+      return sortPostsByStatus(posts, sort.direction);
+    case "updated":
+      return sortPostsByUpdated(posts, sort.direction === "desc" ? "newest" : "oldest");
+    default:
+      return [...posts];
+  }
+}
+
+/**
+ * The header-click transition: activating the CURRENTLY active column's header toggles its
+ * direction; activating any other column's header makes THAT column active at its default
+ * direction, cancelling whatever was active before — the owner did not ask for multi-column sort,
+ * so only one column is ever active.
+ *
+ * Default direction on switching to a new column is always its "first" end: ascending for the
+ * three lexicographic columns, `"desc"` (newest-first once {@link sortPosts} translates it) for
+ * Updated — unchanged from that column's pre-existing default — so a fresh click on any header has
+ * one predictable meaning regardless of which column was active before.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function nextPostSortState(current: PostSortState, clickedColumn: PostSortColumn): PostSortState {
+  if (current.column === clickedColumn) {
+    return { column: clickedColumn, direction: current.direction === "asc" ? "desc" : "asc" };
+  }
+  return { column: clickedColumn, direction: clickedColumn === "updated" ? "desc" : "asc" };
+}
+
+/** The caret glyph for a sortable column header — `aria-hidden`; the real accessible state lives on
+ *  the button's own `aria-label` (see the label functions below, and `Posts.tsx`'s column defs).
+ *  `"⇅"` — a neutral, ALWAYS-visible both-direction glyph — when `column` isn't the active sort, so
+ *  an unsorted column still visibly reads as clickable rather than only revealing that fact after
+ *  the first click; `"▲"`/`"▼"` once it is (leading space matches the pre-existing Updated glyph's
+ *  own spacing convention). */
+export function postSortCaretGlyph(column: PostSortColumn, sort: PostSortState): string {
+  if (sort.column !== column) return " ⇅";
+  return sort.direction === "asc" ? " ▲" : " ▼";
+}
+
+/**
+ * Same accessible-name contract as `updatedSortButtonLabel` above (states the CURRENT sort state on
+ * this column, and what activating the button does next), generalized to the three lexicographic
+ * columns added in this pass. Unlike `updatedSortButtonLabel`, this also covers "not currently the
+ * active column" — a case that function never needed, since before this pass Updated was always
+ * active.
+ *
+ * `columnName` is a fixed English label supplied by the caller (`Posts.tsx`), not the translated
+ * header text — matching `updatedSortButtonLabel`'s own precedent of hardcoded English regardless of
+ * admin locale (see this file's i18n note on that function; aria-label copy in this codebase is not
+ * run through `POSTS_DICT`).
+ *
+ * @complexity Time/space: O(1).
+ */
+export function lexicalPostSortButtonLabel(columnName: string, column: PostSortColumn, sort: PostSortState): string {
+  if (sort.column !== column) {
+    return `Not sorted by ${columnName}. Activate to sort ascending.`;
+  }
+  return sort.direction === "asc"
+    ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
+    : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
+}
+
+/**
+ * The Updated column header's accessible name for every sort state, including "not currently the
+ * active column" — a case `updatedSortButtonLabel` alone doesn't cover, since that pre-existing
+ * function assumed Updated was always active (true before this pass; no longer, now that clicking
+ * Title/Slug/Status can move the sort away from it). Delegates to `updatedSortButtonLabel` for the
+ * "is active" half so that function's own wording (and its existing tests) stay authoritative.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function updatedSortHeaderLabel(sort: PostSortState): string {
+  if (sort.column !== "updated") {
+    return "Not sorted by updated date. Activate to sort newest first.";
+  }
+  return updatedSortButtonLabel(sort.direction === "desc" ? "newest" : "oldest");
+}
+
 /**
  * Drag-and-drop image support for a URL dragged in from elsewhere (e.g. an image dragged out of
  * another browser tab) — the dropped resource's own URI is inserted as a legacy `src`-only image

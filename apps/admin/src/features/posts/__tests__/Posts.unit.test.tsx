@@ -134,6 +134,65 @@ describe("Updated column sort (2026-08-10)", () => {
   });
 });
 
+describe("Title/Slug/Status column sort (2026-09-02)", () => {
+  const alpha = { ...POST, id: "p-alpha", title: "Alpha Post", slug: "alpha-post", status: "published" as const };
+  const bravo = { ...POST, id: "p-bravo", title: "Bravo Post", slug: "bravo-post", status: "draft" as const };
+
+  function rowOrder(): string[] {
+    return screen.getAllByRole("row").slice(1).map((row) => row.textContent ?? "");
+  }
+
+  it("an unsorted column's header still reads as clickable via its own aria-label, before any click", () => {
+    renderWith({ posts: [alpha, bravo] });
+    expect(screen.getByRole("button", { name: /not sorted by title\. activate to sort ascending/i })).toBeInTheDocument();
+  });
+
+  it("clicking Title sorts ascending and cancels the default Updated sort", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by title/i }));
+    expect(rowOrder()[0]).toContain("Alpha Post");
+    expect(screen.getByRole("button", { name: /sorted by title, ascending\. activate to sort descending/i })).toBeInTheDocument();
+    // Updated's header no longer claims to be the active sort.
+    expect(screen.getByRole("button", { name: /not sorted by updated date/i })).toBeInTheDocument();
+  });
+
+  it("clicking Title again toggles to descending", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [bravo, alpha] });
+    const titleHeader = () => screen.getByRole("button", { name: /sort.*title/i });
+    await user.click(titleHeader());
+    await user.click(titleHeader());
+    expect(rowOrder()[0]).toContain("Bravo Post");
+    expect(screen.getByRole("button", { name: /sorted by title, descending/i })).toBeInTheDocument();
+  });
+
+  it("clicking Slug sorts ascending by slug", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by slug/i }));
+    expect(rowOrder()[0]).toContain("Alpha Post");
+  });
+
+  it("clicking Status sorts draft before published (ascending)", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [alpha, bravo] });
+    await user.click(screen.getByRole("button", { name: /not sorted by status/i }));
+    expect(rowOrder()[0]).toContain("Bravo Post"); // draft
+    expect(rowOrder()[1]).toContain("Alpha Post"); // published
+  });
+
+  it("clicking Slug after Title cancels Title's active sort — only one column active at a time", async () => {
+    const user = userEvent.setup();
+    renderWith({ posts: [bravo, alpha] });
+    await user.click(screen.getByRole("button", { name: /not sorted by title/i }));
+    expect(screen.getByRole("button", { name: /sorted by title/i })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /not sorted by slug/i }));
+    expect(screen.getByRole("button", { name: /not sorted by title/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /sorted by slug, ascending/i })).toBeInTheDocument();
+  });
+});
+
 describe("New Post action", () => {
   it("disables the button and shows 'Creating…' while creating is true", () => {
     renderWith({ creating: true });

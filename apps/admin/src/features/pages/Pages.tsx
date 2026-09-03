@@ -6,7 +6,16 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
-import { pageRowMenuItems } from "./rules";
+import {
+  pageRowMenuItems,
+  sortPages,
+  nextPageSortState,
+  pageSortCaretGlyph,
+  lexicalPageSortButtonLabel,
+  updatedSortHeaderLabel,
+  DEFAULT_PAGE_SORT,
+  type PageSortState,
+} from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
 import { resolvePagesTabFromUrl, writePagesTabToUrl, type PagesTabId } from "./hooks/pages-tab-url.hooks";
@@ -113,12 +122,15 @@ export function Pages(props: PagesProps) {
   // behind it — stays LOCAL rather than moving into `use-pages.hooks.ts`, unlike every other piece
   // of state on this screen. The line to draw: async/API/data state always moves into the hook;
   // view-only chrome (active tab, expanded/collapsed, dialog open, sort direction) stays here
-  // UNLESS a test needs to observe it — see `Posts.tsx`'s identical `updatedSort`, the canonical
+  // UNLESS a test needs to observe it — see `Posts.tsx`'s identical `sort` state, the canonical
   // example this mirrors. Initialized from `?tab=` (`resolvePagesTabFromUrl`) rather than a fixed
   // `"mine"`, so a deep link opens directly on the right tab; read once, matching `useState`'s own
   // lazy-initializer contract — this must NOT re-resolve on every render, or a later in-page
   // `writePagesTabToUrl` call would immediately fight with it.
   const [activeTab, setActiveTab] = useState<PagesTabId>(() => resolvePagesTabFromUrl());
+  // Same "My Pages" sort state as `Posts.tsx`'s `sort` (2026-09-02, multi-column sort pass) — one
+  // active column at a time, local chrome state per the same owner ruling above.
+  const [sort, setSort] = useState<PageSortState>(DEFAULT_PAGE_SORT);
 
   function selectTab(id: PagesTabId) {
     setActiveTab(id);
@@ -161,7 +173,7 @@ export function Pages(props: PagesProps) {
         <>
           {error ? <div className="notice error">{error}</div> : null}
           <DataTable
-            rows={pages}
+            rows={sortPages(pages, sort)}
             rowKey={(page) => page.id}
             empty={
               <div className="card">
@@ -172,10 +184,38 @@ export function Pages(props: PagesProps) {
               </div>
             }
             columns={[
-              { key: "title", header: t("Title"), cell: (page) => <a href={`/admin/pages/${page.slug}`}>{page.title}</a> },
+              {
+                key: "title",
+                // Sortable headers (2026-09-02, ported from `Posts.tsx`'s identical block): a plain
+                // button toggling `sort` — `DataTable`'s `<th>` doesn't expose an `aria-sort` prop
+                // (see its own file header), so the accessible state lives on each button's own
+                // `aria-label`, not just the ▲/▼/⇅ glyph, which is `aria-hidden`.
+                header: (
+                  <button
+                    type="button"
+                    className="sortable-column-header"
+                    onClick={() => setSort((s) => nextPageSortState(s, "title"))}
+                    aria-label={lexicalPageSortButtonLabel("Title", "title", sort)}
+                  >
+                    {t("Title")}
+                    <span aria-hidden="true">{pageSortCaretGlyph("title", sort)}</span>
+                  </button>
+                ),
+                cell: (page) => <a href={`/admin/pages/${page.slug}`}>{page.title}</a>,
+              },
               {
                 key: "slug",
-                header: "Slug",
+                header: (
+                  <button
+                    type="button"
+                    className="sortable-column-header"
+                    onClick={() => setSort((s) => nextPageSortState(s, "slug"))}
+                    aria-label={lexicalPageSortButtonLabel("Slug", "slug", sort)}
+                  >
+                    Slug
+                    <span aria-hidden="true">{pageSortCaretGlyph("slug", sort)}</span>
+                  </button>
+                ),
                 cell: (page) => (
                   <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
                     /{page.slug}
@@ -184,10 +224,34 @@ export function Pages(props: PagesProps) {
               },
               {
                 key: "status",
-                header: t("Status"),
+                header: (
+                  <button
+                    type="button"
+                    className="sortable-column-header"
+                    onClick={() => setSort((s) => nextPageSortState(s, "status"))}
+                    aria-label={lexicalPageSortButtonLabel("Status", "status", sort)}
+                  >
+                    {t("Status")}
+                    <span aria-hidden="true">{pageSortCaretGlyph("status", sort)}</span>
+                  </button>
+                ),
                 cell: (page) => <span className={`status status-${page.status}`}>{page.status}</span>,
               },
-              { key: "updated", header: t("Updated"), cell: (page) => formatTimestamp(page.updatedAt) },
+              {
+                key: "updated",
+                header: (
+                  <button
+                    type="button"
+                    className="sortable-column-header"
+                    onClick={() => setSort((s) => nextPageSortState(s, "updated"))}
+                    aria-label={updatedSortHeaderLabel(sort)}
+                  >
+                    {t("Updated")}
+                    <span aria-hidden="true">{pageSortCaretGlyph("updated", sort)}</span>
+                  </button>
+                ),
+                cell: (page) => formatTimestamp(page.updatedAt),
+              },
               {
                 key: "actions",
                 header: t("More"),

@@ -159,3 +159,171 @@ export function pageSaveSuccessMessage(t: (locale: string, key: string) => strin
     ? t(locale, "Saved")
     : t(locale, "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet.");
 }
+
+// ---------------------------------------------------------------------------
+// Multi-column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own multi-column sort block
+// exactly, same "twin screens" convention as the rest of this file (this file's own header). "My
+// Pages" had no sort code at all before this pass, so every export below is new; the shape (types,
+// function names swapped Post->Page, the same "updated" newest/oldest wording) is copied from Posts
+// rather than invented independently, so an operator sees identical sort behavior on both screens.
+// ---------------------------------------------------------------------------
+
+/** Which end of `updatedAt` the Pages list's "Updated" column header sorts toward — same two-value
+ *  shape as `posts/rules.ts`'s `PostUpdatedSortDirection`, kept as its own type per this file's
+ *  existing "mirror, don't share" convention (see `PageRowMenuHandlers` above). */
+export type PageUpdatedSortDirection = "newest" | "oldest";
+
+/**
+ * The Pages list's own "Updated" comparator — same `Date.parse` approach as `posts/rules.ts`'s
+ * `sortPostsByUpdated` (a text column carries no schema guarantee against a future non-`Z`
+ * UTC-offset value, which string-sorts wrong against `Z`-form values).
+ *
+ * @complexity Time: O(n log n) in `pages.length` (a single `Array#sort`); space: O(n) for the copy —
+ * the input is never mutated.
+ */
+export function sortPagesByUpdated(pages: readonly AdminPost[], direction: PageUpdatedSortDirection): AdminPost[] {
+  const sign = direction === "newest" ? -1 : 1;
+  return [...pages].sort((a, b) => sign * (Date.parse(a.updatedAt) - Date.parse(b.updatedAt)));
+}
+
+/**
+ * The Updated column header button's accessible name when it IS the active sort — states the
+ * current direction and what activating the button does next, mirroring `posts/rules.ts`'s
+ * `updatedSortButtonLabel` verbatim.
+ */
+export function updatedSortButtonLabel(direction: PageUpdatedSortDirection): string {
+  return direction === "newest"
+    ? "Sorted by updated date, newest first. Activate to sort oldest first."
+    : "Sorted by updated date, oldest first. Activate to sort newest first.";
+}
+
+/** The four Pages list columns with click-to-sort behavior. */
+export type PageSortColumn = "title" | "slug" | "status" | "updated";
+
+/** Ascending/descending — the direction for the three lexicographic columns (Title, Slug, Status).
+ *  See `posts/rules.ts`'s `PostSortDirection` for why this stays distinct from
+ *  {@link PageUpdatedSortDirection}. */
+export type PageSortDirection = "asc" | "desc";
+
+/** The Pages list's full sort state — exactly one column drives the sort at a time. `updated` still
+ *  sorts via {@link sortPagesByUpdated}'s own "newest"/"oldest" vocabulary internally (see
+ *  {@link sortPages}); `"desc"` maps to "newest first" so the default below reads as newest-first,
+ *  matching `posts/rules.ts`'s own default. */
+export interface PageSortState {
+  column: PageSortColumn;
+  direction: PageSortDirection;
+}
+
+/** The Pages list's default sort on first load — Updated, newest first, matching `posts/rules.ts`'s
+ *  own `DEFAULT_POST_SORT` so switching between the two screens shows a consistent starting order. */
+export const DEFAULT_PAGE_SORT: PageSortState = { column: "updated", direction: "desc" };
+
+/**
+ * The three lexicographic column comparators. `status` is exactly `"draft" | "published"`
+ * (`post.ts`), so plain alphabetical order already equals domain order — no custom rank table
+ * needed.
+ *
+ * @complexity Time: O(n log n) in `pages.length`; space: O(n) for the copy — never mutates the input.
+ */
+export function sortPagesByTitle(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...pages].sort((a, b) => sign * a.title.localeCompare(b.title));
+}
+
+/** @complexity Same as {@link sortPagesByTitle}, compared on `slug` instead of `title`. */
+export function sortPagesBySlug(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...pages].sort((a, b) => sign * a.slug.localeCompare(b.slug));
+}
+
+/** @complexity Same as {@link sortPagesByTitle}, compared on `status` instead of `title`. */
+export function sortPagesByStatus(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
+  const sign = direction === "asc" ? 1 : -1;
+  return [...pages].sort((a, b) => sign * a.status.localeCompare(b.status));
+}
+
+/**
+ * Applies whichever column {@link PageSortState} currently names — the single dispatch point
+ * `Pages.tsx` calls instead of switching on `sort.column` itself. `"updated"` translates the generic
+ * `direction` into `sortPagesByUpdated`'s own "newest"/"oldest" vocabulary (`"desc"` = newest first).
+ *
+ * The `default` falls back to returning a shallow copy unsorted rather than throwing — same
+ * defensive posture `posts/rules.ts`'s `sortPosts` takes, unreachable from any caller that stays
+ * within `PageSortColumn`'s own type.
+ *
+ * @complexity Delegates to the named column's own comparator — see each for its own complexity.
+ */
+export function sortPages(pages: readonly AdminPost[], sort: PageSortState): AdminPost[] {
+  switch (sort.column) {
+    case "title":
+      return sortPagesByTitle(pages, sort.direction);
+    case "slug":
+      return sortPagesBySlug(pages, sort.direction);
+    case "status":
+      return sortPagesByStatus(pages, sort.direction);
+    case "updated":
+      return sortPagesByUpdated(pages, sort.direction === "desc" ? "newest" : "oldest");
+    default:
+      return [...pages];
+  }
+}
+
+/**
+ * The header-click transition: activating the CURRENTLY active column's header toggles its
+ * direction; activating any other column's header makes THAT column active at its default
+ * direction, cancelling whatever was active before — only one column is ever active. Default
+ * direction on switching to a new column is always its "first" end: ascending for the three
+ * lexicographic columns, `"desc"` (newest-first) for Updated.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function nextPageSortState(current: PageSortState, clickedColumn: PageSortColumn): PageSortState {
+  if (current.column === clickedColumn) {
+    return { column: clickedColumn, direction: current.direction === "asc" ? "desc" : "asc" };
+  }
+  return { column: clickedColumn, direction: clickedColumn === "updated" ? "desc" : "asc" };
+}
+
+/** The caret glyph for a sortable column header — `aria-hidden`; the real accessible state lives on
+ *  the button's own `aria-label` (see the label functions below, and `Pages.tsx`'s column defs).
+ *  `"⇅"` — a neutral, ALWAYS-visible both-direction glyph — when `column` isn't the active sort, so
+ *  an unsorted column still visibly reads as clickable rather than only revealing that fact after
+ *  the first click; `"▲"`/`"▼"` once it is. */
+export function pageSortCaretGlyph(column: PageSortColumn, sort: PageSortState): string {
+  if (sort.column !== column) return " ⇅";
+  return sort.direction === "asc" ? " ▲" : " ▼";
+}
+
+/**
+ * Same accessible-name contract as `updatedSortButtonLabel` above (states the CURRENT sort state on
+ * this column, and what activating the button does next), generalized to the three lexicographic
+ * columns. Unlike `updatedSortButtonLabel`, this also covers "not currently the active column".
+ *
+ * `columnName` is a fixed English label supplied by the caller (`Pages.tsx`), not the translated
+ * header text — matching `updatedSortButtonLabel`'s own precedent of hardcoded English regardless of
+ * admin locale.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function lexicalPageSortButtonLabel(columnName: string, column: PageSortColumn, sort: PageSortState): string {
+  if (sort.column !== column) {
+    return `Not sorted by ${columnName}. Activate to sort ascending.`;
+  }
+  return sort.direction === "asc"
+    ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
+    : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
+}
+
+/**
+ * The Updated column header's accessible name for every sort state, including "not currently the
+ * active column". Delegates to `updatedSortButtonLabel` for the "is active" half so that function's
+ * own wording stays authoritative in one place.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function updatedSortHeaderLabel(sort: PageSortState): string {
+  if (sort.column !== "updated") {
+    return "Not sorted by updated date. Activate to sort newest first.";
+  }
+  return updatedSortButtonLabel(sort.direction === "desc" ? "newest" : "oldest");
+}
