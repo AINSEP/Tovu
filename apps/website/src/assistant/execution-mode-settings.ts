@@ -80,7 +80,8 @@ type ExecutionSettingKey =
   | "byok.model"
   | "byok.maxTokens"
   | "localCli.agentId"
-  | "localCli.model";
+  | "localCli.model"
+  | "localCli.reasoning";
 
 /** Narrows the shared spec's open `key: string` to this namespace's own key
  *  union, so a typo here is a compile error rather than a definition
@@ -89,7 +90,7 @@ interface ExecutionDefinitionSpec extends SettingDefinitionSpec {
   key: ExecutionSettingKey;
 }
 
-/** The 8 registered `core.execution.*` definitions. No `byok.apiKey` — see
+/** The 9 registered `core.execution.*` definitions. No `byok.apiKey` — see
  *  this file's header. Scope is the shared default (workspace): one operator's
  *  endpoint choice doesn't silently become every workspace's. */
 const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
@@ -137,6 +138,18 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   // full map needs either a scalar-per-agent scheme (unbounded keys) or an
   // ADR-PIPE-008 amendment; neither belongs in this pass.
   { key: "localCli.model", schema: { type: "string" }, defaultValue: "" },
+  // The reasoning-effort level for the SELECTED agent only, mirroring
+  // `localCli.model` above field for field — same scalar shape, same `""`
+  // default, and the same "the per-agent map is not persisted as a map"
+  // consequence, for exactly the reasons that comment gives. `""` is "no
+  // explicit effort", which is what the CLI's own default already means.
+  //
+  // Only the flag-based runtimes write here (`claude --effort`, codex's
+  // `-c model_reasoning_effort=`). A runtime that encodes effort inside its
+  // model id (`RuntimeAgentDef.reasoningInModelId`; antigravity) never does:
+  // its effort is already part of `localCli.model`, and a second copy here
+  // would be a second place for the same choice to disagree with itself.
+  { key: "localCli.reasoning", schema: { type: "string" }, defaultValue: "" },
 ];
 
 /**
@@ -169,13 +182,13 @@ export interface EnsureExecutionSettingDefinitionsInput {
 }
 
 /**
- * Idempotently registers the 8 `core.execution.*` definitions. Safe to call on
+ * Idempotently registers the 9 `core.execution.*` definitions. Safe to call on
  * every boot. The skip-if-registered loop, the `ownerKind: "core"` /
  * `workspaceId: null` namespace-fence handling, and the boot-trust shim all
  * live in `features/settings/ensure-definitions.ts` — this module owns only
  * the definition list above.
  *
- * @complexity O(1) — 8 definitions, each a skip-if-registered check plus at
+ * @complexity O(1) — 9 definitions, each a skip-if-registered check plus at
  * most one `registerDefinitions` call.
  * @overallScore 100
  */

@@ -92,6 +92,7 @@ import {
   resetLocalAgentDetectionCache,
   saveAdminExecutionCredential,
   saveExecutionConfig,
+  selectedLocalCliReasoning,
 } from "../execution-settings";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
@@ -305,6 +306,64 @@ describe("buildLocalCliConfigFromLedger", () => {
     const byKey = new Map<string, unknown>([["localCli.agentId", "claude"]]);
     expect(buildLocalCliConfigFromLedger(byKey)).toEqual({ agentId: "claude" });
   });
+
+  // The reasoning-effort pick round-trips exactly like the model pick: one scalar for the
+  // SELECTED agent, keyed back into the per-agent map `@jini-ai/ui` reads. Without this the
+  // effort control rendered, accepted a click, and lost it on reload.
+  it("returns the selected agent keyed into reasoningByAgentId when a reasoning value is stored", () => {
+    const byKey = new Map<string, unknown>([
+      ["localCli.agentId", "claude"],
+      ["localCli.model", "claude-opus-5"],
+      ["localCli.reasoning", "high"],
+    ]);
+    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+      agentId: "claude",
+      modelByAgentId: { claude: "claude-opus-5" },
+      reasoningByAgentId: { claude: "high" },
+    });
+  });
+
+  it("omits reasoningByAgentId when an agent is selected but has no reasoning recorded", () => {
+    const byKey = new Map<string, unknown>([
+      ["localCli.agentId", "claude"],
+      ["localCli.model", "claude-opus-5"],
+    ]);
+    expect(buildLocalCliConfigFromLedger(byKey)).toEqual({
+      agentId: "claude",
+      modelByAgentId: { claude: "claude-opus-5" },
+    });
+  });
+
+  // A reasoning value with no agent selected has nothing to key it under, so it is dropped
+  // rather than attached to whichever agent is picked next.
+  it("omits reasoningByAgentId when no agent is selected at all", () => {
+    expect(buildLocalCliConfigFromLedger(new Map<string, unknown>([["localCli.reasoning", "high"]]))).toEqual({
+      agentId: null,
+    });
+  });
+});
+
+describe("selectedLocalCliReasoning", () => {
+  it("returns the selected agent's own reasoning pick", () => {
+    expect(
+      selectedLocalCliReasoning({
+        ...DEFAULT_EXECUTION_CONFIG,
+        localCli: { agentId: "claude", reasoningByAgentId: { claude: "max", codex: "low" } },
+      }),
+    ).toBe("max");
+  });
+
+  it("returns '' when no agent is picked, or the picked agent has no reasoning entry", () => {
+    expect(
+      selectedLocalCliReasoning({
+        ...DEFAULT_EXECUTION_CONFIG,
+        localCli: { agentId: null, reasoningByAgentId: { claude: "max" } },
+      }),
+    ).toBe("");
+    expect(
+      selectedLocalCliReasoning({ ...DEFAULT_EXECUTION_CONFIG, localCli: { agentId: "codex" } }),
+    ).toBe("");
+  });
 });
 
 describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only credential boundary", () => {
@@ -398,6 +457,47 @@ describe("saveExecutionConfig — the ADR-028 §6 boundary, and the write-only c
     await saveExecutionConfig(next, previous);
 
     expect(setSetting).toHaveBeenCalledWith(expect.objectContaining({ key: "localCli.model", valueJson: "" }));
+  });
+
+  it("writes the selected local CLI agent's own reasoning effort when it changes", async () => {
+    const previous: ExecutionConfig = {
+      ...DEFAULT_EXECUTION_CONFIG,
+      localCli: { agentId: "claude", reasoningByAgentId: { claude: "medium" } },
+    };
+    const next: ExecutionConfig = {
+      ...previous,
+      localCli: { agentId: "claude", reasoningByAgentId: { claude: "max" } },
+    };
+    await saveExecutionConfig(next, previous);
+
+    expect(setSetting).toHaveBeenCalledWith(
+      expect.objectContaining({ key: "localCli.reasoning", valueJson: "max" }),
+    );
+  });
+
+  // Reverting to "no explicit effort" has to be persisted as such, for the same reason the model
+  // write is unconditional: an omitted key would leave the old value in the ledger, silently
+  // un-reverting on reload.
+  it("the selected agent's reasoning falls back to '' when its entry is gone", async () => {
+    const previous: ExecutionConfig = {
+      ...DEFAULT_EXECUTION_CONFIG,
+      localCli: { agentId: "claude", reasoningByAgentId: { claude: "max" } },
+    };
+    const next: ExecutionConfig = { ...previous, localCli: { agentId: "claude" } };
+    await saveExecutionConfig(next, previous);
+
+    expect(setSetting).toHaveBeenCalledWith(expect.objectContaining({ key: "localCli.reasoning", valueJson: "" }));
+  });
+
+  it("does not write localCli.reasoning when only an unrelated field changed", async () => {
+    const previous: ExecutionConfig = {
+      ...DEFAULT_EXECUTION_CONFIG,
+      localCli: { agentId: "claude", reasoningByAgentId: { claude: "max" } },
+    };
+    const next: ExecutionConfig = { ...previous, byok: { ...previous.byok, model: "gpt-5.5" } };
+    await saveExecutionConfig(next, previous);
+
+    expect(setSetting).not.toHaveBeenCalledWith(expect.objectContaining({ key: "localCli.reasoning" }));
   });
 
   it("writes nothing at all when nothing changed", async () => {

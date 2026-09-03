@@ -18,8 +18,22 @@ import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
  * `diagnostics` is still not forwarded — the tab has no affordance for the
  * fix-actions they describe, so it would be dead weight on the wire rather
  * than data the client can use.
+ *
+ * Both reasoning-effort fields were the same omission a second time, found
+ * 2026-09-02 and fixed here. `LocalCliAgentCard` has rendered a "Reasoning
+ * effort" control for any agent reporting `reasoningOptions` since it was
+ * ported, and `claude`/`codex` have declared those options for just as long —
+ * but this projection dropped them, so the control was unreachable in Tovu for
+ * every runtime, with nothing failing anywhere to say so.
+ * `reasoningInModelId` is the second shape (a runtime whose effort rides as a
+ * suffix on the model id, antigravity being the only declarer); the card
+ * derives its per-base-model levels from `models`, which this projection
+ * already carries, so the vocabulary is all it additionally needs.
+ *
+ * Exported for `__tests__/detect-agents-projection.test.ts`, which pins both
+ * fields so the next narrowing fails there rather than silently in the UI.
  */
-function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
+export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   id: string;
   label: string;
   installed: boolean;
@@ -27,6 +41,8 @@ function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
   path?: string;
   models?: Array<{ id: string; label: string }>;
   modelsSource?: "live" | "fallback";
+  reasoningOptions?: Array<{ id: string; label: string }>;
+  reasoningInModelId?: { levels: Array<{ id: string; label: string }> };
   authStatus?: "ok" | "missing" | "unknown";
   authMessage?: string;
 } {
@@ -40,6 +56,16 @@ function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
       ? { models: agent.models.map((model) => ({ id: model.id, label: model.label })) }
       : {}),
     ...(agent.modelsSource ? { modelsSource: agent.modelsSource } : {}),
+    ...(agent.reasoningOptions?.length
+      ? { reasoningOptions: agent.reasoningOptions.map((option) => ({ id: option.id, label: option.label })) }
+      : {}),
+    ...(agent.reasoningInModelId?.levels.length
+      ? {
+          reasoningInModelId: {
+            levels: agent.reasoningInModelId.levels.map((level) => ({ id: level.id, label: level.label })),
+          },
+        }
+      : {}),
     ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
     // Auth guidance is operator-facing text from the adapter ("run `x login`"),
     // not provider output, so it carries no credential material.

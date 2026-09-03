@@ -88,6 +88,7 @@ const KEYS = {
   maxTokens: "byok.maxTokens",
   localCliAgentId: "localCli.agentId",
   localCliModel: "localCli.model",
+  localCliReasoning: "localCli.reasoning",
 } as const;
 
 /** Mirrors `assistant/execution-mode-settings.ts`'s identical sentinel —
@@ -343,6 +344,7 @@ export function buildByokConfigFromLedger(byKey: Map<string, unknown>, defaults:
 export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): ExecutionConfig["localCli"] {
   const agentId = asString(byKey.get(KEYS.localCliAgentId), "").trim();
   const model = asString(byKey.get(KEYS.localCliModel), "").trim();
+  const reasoning = asString(byKey.get(KEYS.localCliReasoning), "").trim();
   return {
     // `""` is the ledger's "nothing picked yet" (a non-null default is
     // required — see `execution-mode-settings.ts`), which `@jini-ai/ui`
@@ -351,6 +353,14 @@ export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): Exec
     // Only the SELECTED agent's model round-trips through the ledger; see
     // the `localCli.model` definition for why the per-agent map does not.
     ...(agentId && model ? { modelByAgentId: { [agentId]: model } } : {}),
+    // The reasoning-effort pick mirrors the model pick exactly — same
+    // one-scalar-for-the-selected-agent shape, same per-agent map on the
+    // `@jini-ai/ui` side, and the same consequence spelled out in the
+    // `localCli.model` definition (a reload restores the selected agent's
+    // effort, not every agent's). Both are gated on `agentId` for the same
+    // reason: a value with no agent to key it under would otherwise attach
+    // to whichever agent is picked next.
+    ...(agentId && reasoning ? { reasoningByAgentId: { [agentId]: reasoning } } : {}),
   };
 }
 
@@ -399,6 +409,21 @@ export function selectedLocalCliModel(config: ExecutionConfig): string {
   return config.localCli.modelByAgentId?.[agentId] ?? "";
 }
 
+/** The reasoning effort of whichever agent is currently selected — the mirror of
+ *  {@link selectedLocalCliModel}, and the one value the ledger persists out of
+ *  `LocalCliConfig.reasoningByAgentId`. Returns `""` when no agent is picked or that agent has no
+ *  explicit effort, which is exactly the registered default.
+ *
+ *  Only meaningful for a runtime whose CLI takes effort as its OWN flag (`claude --effort`,
+ *  codex's `-c model_reasoning_effort=`). A runtime that encodes effort inside the model id
+ *  (`reasoningInModelId`; antigravity) never writes here at all — its effort is already part of
+ *  `localCli.model`, and storing it twice would create two places to disagree. */
+export function selectedLocalCliReasoning(config: ExecutionConfig): string {
+  const agentId = config.localCli.agentId;
+  if (!agentId) return "";
+  return config.localCli.reasoningByAgentId?.[agentId] ?? "";
+}
+
 /** Field-level diff so a keystroke in one input writes one revision, not six
  *  — and so the API key never appears in this list at all (see this file's
  *  header, item 2). */
@@ -430,6 +455,11 @@ function changedLedgerEntries(
       key: KEYS.localCliModel,
       valueJson: selectedLocalCliModel(next),
       changed: selectedLocalCliModel(next) !== selectedLocalCliModel(previous),
+    },
+    {
+      key: KEYS.localCliReasoning,
+      valueJson: selectedLocalCliReasoning(next),
+      changed: selectedLocalCliReasoning(next) !== selectedLocalCliReasoning(previous),
     },
   ];
   return pairs.filter((pair) => pair.changed).map(({ key, valueJson }) => ({ key, valueJson }));
