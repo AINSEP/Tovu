@@ -19,7 +19,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { ApiKeyRepoPort, ApiKeySecretHasherPort } from "../../features/identity/api-key-types.js";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post/index.js";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort, PostRecord } from "../../features/post/index.js";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
 import type { AgentSessionStore } from "../../assistant/persistence/agent-session-store.js";
@@ -1343,6 +1343,31 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * rather than remove it.
    */
   resolveStorefrontProducts: () => Promise<SiteProduct[]>;
+  /**
+   * The same `resolveActiveThemeId` (`features/presentation/active-theme-id.ts`) the live public
+   * routes resolve the active theme with, injected here for `platform/export/route-manifest.ts` to
+   * reuse — mirroring `resolveStorefrontProducts`/`createSiteApp` immediately above, but for a
+   * different reason: `resolveActiveThemeId` has no `server/**`-only type to avoid (unlike
+   * `SiteProduct`), the issue is purely module direction. `route-manifest.ts` lives under
+   * `platform/`, a foundation-layer module `features/presentation` itself depends on (via
+   * `platform/db`); a direct import the other way would close a `platform <-> features/presentation`
+   * runtime cycle (`check:architecture` module-cycle regression, 2026-09-03). NULLARY, closed over
+   * the same `const routeDeps` binding `createSiteApp`/`resolveStorefrontProducts` already close
+   * over — `resolveActiveThemeId`'s own `ActiveThemeIdResolutionDeps` (`presentationRepo`/
+   * `workspaceId`) is a subset of `RouteDeps`, so `routeDeps` satisfies it with no cast.
+   */
+  resolveActiveThemeId: () => Promise<string>;
+  /**
+   * The same `listPublishedPosts` (`features/post/post.ts`) the live public routes render
+   * posts/pages with, injected here for `platform/export/route-manifest.ts` to reuse — same
+   * module-direction reason as `resolveActiveThemeId` immediately above:  `features/post` depends on
+   * `platform` (via `platform/db`, `platform/routing`), so `route-manifest.ts` importing it directly
+   * would close a `platform <-> features/post` runtime cycle. NULLARY, closed over the same `const
+   * routeDeps` binding; `listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: {
+   * workspaceId: routeDeps.workspaceId } })` is bound once at each composition root rather than
+   * re-threading `postRepo`/`workspaceId` as two more `RouteManifestDeps` reads at the call site.
+   */
+  listPublishedPosts: () => Promise<{ posts: PostRecord[] }>;
   /**
    * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
    * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s

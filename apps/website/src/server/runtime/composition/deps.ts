@@ -11,7 +11,7 @@ import { resolveProductRoot } from "#src/platform/site-dir/product-root";
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
 import { resolveStorefrontProducts } from "../../inbound/public-http/routes/site/products.js";
-import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
+import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { SqliteDeploymentsReadRepo } from "#src/features/deployments/index";
 import { SqlitePublishCredentialSetRepo } from "#src/platform/db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "#src/platform/db/sqlite/publish-history-repo.sqlite";
@@ -34,7 +34,7 @@ import {
   ensurePublicAssistantSettingDefinitions,
   ensureExecutionSettingDefinitions,
 } from "#src/assistant/index";
-import { SqlitePresentationSettingsRepo } from "#src/features/presentation/index";
+import { SqlitePresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import { SqliteSettingsRepo } from "#src/features/settings/repo.sqlite";
 import { discoverAllBuiltInThemes, seedSiteThemes } from "#src/features/theme/index";
 import { SqliteWorkspaceRepo } from "#src/features/workspace/index";
@@ -1270,6 +1270,12 @@ export function createSqliteRouteDeps(
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion, same reasoning, same
     // TEST GOTCHA.
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
+    // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs and
+    // `server/app.ts`'s identical binding. Same nullary-closure-over-`routeDeps` shape as
+    // `resolveStorefrontProducts` immediately above.
+    resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
+    listPublishedPosts: () =>
+      listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).

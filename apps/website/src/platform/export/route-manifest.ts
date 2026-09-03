@@ -2,11 +2,9 @@ import { randomUUID } from "node:crypto";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import { listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "#src/features/redirects/index";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
@@ -17,24 +15,25 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  * Reuses the SAME selection logic the real public routes render with — rather than re-deriving
  * "which theme is active" or "which products are live" a second time, so a manifest built from
  * independent logic could never silently drift from what the routes it is describing actually do.
- * Two different mechanisms as of 2026-08-16 (export<->server decoupling, edge 2 — see
- * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`), chosen per-function rather than
- * uniformly, because the two cases are not actually the same shape:
- * - `resolveActiveThemeId`/`resolveActiveTheme` are pure `(deps) => value` queries with zero
- *   `req`/`res`/routing coupling, so they moved to feature-owned homes and are imported directly,
- *   same as any other feature-owned function — but NOT the same home: `resolveActiveThemeId` has
- *   zero theme-data dependency (only reads presentation settings), so it lives in
- *   `#src/features/presentation/index` (`active-theme-id.ts`); `resolveActiveTheme` genuinely needs
- *   theme data, so it lives in `#src/features/theme/index` (`active-theme.ts`). Splitting them
- *   (rather than one combined file, since every real call site uses both together) avoided a
- *   measured `check:architecture` largest-SCC regression a combined home would have caused — see
- *   `active-theme.ts`'s own file header for the trace.
- * - `resolveStorefrontProducts` stays in `server/routes/site/products.ts` — its return type
- *   (`SiteProduct`, `server/http/site/render.ts`) is deliberately off-limits to `features/commerce`
- *   (see `storefront.ts`'s own file header), so moving it would violate that existing boundary
- *   instead of respecting it. Reused via `RouteDeps.resolveStorefrontProducts` injection instead
- *   (`deps.resolveStorefrontProducts(deps)` below) — the same shape `runExportSite`/`createSiteApp`
- *   already establish on this same type.
+ *
+ * Every one of `resolveActiveThemeId`/`listPublishedPosts`/`resolveStorefrontProducts` is reached
+ * through `RouteManifestDeps` injection (`deps.resolveActiveThemeId()`/`deps.listPublishedPosts()`/
+ * `deps.resolveStorefrontProducts()` below), not a direct import, and all three are bound to the
+ * real implementation at the composition root (`server/runtime/composition/app.ts`/`deps.ts`) —
+ * mirroring `runExportSite`/`createSiteApp`'s existing precedent on the same `RouteDeps` type. This
+ * file lives under `platform/` (Tier-2, foundation-layer), while `resolveActiveThemeId` and
+ * `listPublishedPosts` are owned by `features/presentation` and `features/post` respectively;
+ * calling either directly from here would make `platform` reach back up into a feature that itself
+ * depends on `platform` (via `platform/db`, `platform/routing`), closing a runtime module cycle
+ * (`check:architecture` flagged `features/post <-> platform` and `features/presentation <->
+ * platform`, SCC 0 -> 3). `resolveStorefrontProducts` was already injected for an unrelated reason
+ * (its return type is deliberately off-limits to `features/commerce`, see `storefront.ts`'s own
+ * file header) — the other two now take the identical shape for the module-boundary reason above,
+ * per the established Option-A structural-injection technique (see
+ * `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md` for the
+ * same technique applied to a different `features/post` cycle).
+ * `resolveActiveTheme`/`isStandaloneThemePage` stay as direct imports from `#src/features/theme/index`
+ * — `features/theme` does not depend on `platform` at runtime, so that edge closes no cycle.
  *
  * The one non-obvious piece of domain knowledge this file owns: a static theme's `pages/*.html`
  * folder (`DiscoveredTheme.pages`, `features/theme/theme.ts`) holds BOTH real standalone pages
@@ -82,6 +81,12 @@ export interface RouteManifestDeps {
   readonly presentationRepo: PresentationSettingsRepoPort;
   readonly themes: DiscoveredTheme[];
   readonly redirectRepo: RedirectRepoPort;
+  /** The same `resolveActiveThemeId` (`features/presentation/active-theme-id.ts`) the live routes
+   *  resolve the active theme with, injected rather than imported directly — see file header. */
+  readonly resolveActiveThemeId: () => Promise<string>;
+  /** The same `listPublishedPosts` (`features/post/post.ts`) the live routes render posts/pages
+   *  with, injected rather than imported directly — see file header. */
+  readonly listPublishedPosts: () => Promise<{ posts: PostRecord[] }>;
   readonly resolveStorefrontProducts: () => Promise<RouteManifestProduct[]>;
 }
 
@@ -269,10 +274,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     },
   ];
 
-  const [activeThemeId, { posts }] = await Promise.all([
-    resolveActiveThemeId(deps),
-    listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-  ]);
+  const [activeThemeId, { posts }] = await Promise.all([deps.resolveActiveThemeId(), deps.listPublishedPosts()]);
 
   const theme = resolveActiveTheme(deps, activeThemeId);
   // Slugs claimed by a theme-owned static page THIS pass are tracked inside `resolveThemeAndPostRoutes`

@@ -7,7 +7,7 @@ import { createNoopObservabilityPort } from "#src/platform/observability/index";
 import { InMemoryChangeSetRepo } from "#src/contracts/core/commands/index";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "#src/features/seo/index";
 import { registerPageHeadContributor, resetPageHeadRegistry } from "../../inbound/public-http/http/site/page-head.js";
-import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "#src/features/post/index";
+import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry, listPublishedPosts } from "#src/features/post/index";
 import { InMemoryDeploymentsReadRepo } from "#src/features/deployments/index";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "#src/features/deployments/publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "#src/features/deployments/static-publish/index";
@@ -35,7 +35,7 @@ import {
 // (`.dependency-cruiser.mjs`'s `COMPOSITION_ROOTS`), exempt from `no-deep-imports:assistant` for
 // exactly this reason — the same exemption `express.static`'s `/agent-icons` mount below relies on.
 import { registerMcpUiSandboxProxyRoute } from "#src/assistant/mcp-ui-sandbox-proxy-route";
-import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import { InMemoryPresentationSettingsRepo, resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   InMemorySettingsRepo,
   ensureSettingsUiTabDefinitions,
@@ -736,6 +736,14 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-20 (RouteDeps-narrowing pass 2) — same nullary-closure conversion as `createSiteApp`
     // immediately above, same reasoning, same TEST GOTCHA.
     resolveStorefrontProducts: () => resolveStorefrontProducts(routeDeps),
+    // 2026-09-03 — see `routes/types.ts`'s `resolveActiveThemeId`/`listPublishedPosts` docs: closes
+    // the `platform <-> features/presentation`/`platform <-> features/post` module cycles
+    // `check:architecture` flagged (`platform/export/route-manifest.ts` no longer imports either
+    // function directly). Same nullary-closure-over-`routeDeps` shape as `resolveStorefrontProducts`
+    // immediately above.
+    resolveActiveThemeId: () => resolveActiveThemeId(routeDeps),
+    listPublishedPosts: () =>
+      listPublishedPosts({ deps: { repo: routeDeps.postRepo }, input: { workspaceId: routeDeps.workspaceId } }),
     // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
     // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so
