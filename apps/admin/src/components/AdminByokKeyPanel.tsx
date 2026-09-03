@@ -1,5 +1,9 @@
 import { agentHandle, type AgentElementRole } from "@jini-ai/agentic";
-import type { AdminByokSaveState, AdminExecutionCredentialController } from "../hooks/use-admin-execution-credential.hooks";
+import {
+  resolveByokFooterStatusLine,
+  type AdminByokSaveState,
+  type AdminExecutionCredentialController,
+} from "../hooks/use-admin-execution-credential.hooks";
 
 /**
  * @file The three small pieces `SettingsUi.tsx`'s Execution tab and `AiAssistant.tsx`'s
@@ -92,21 +96,6 @@ export interface AdminByokKeyFooterProps {
   /** Publishes the "Save key" button as agent-addressable via `agentHandle()` (`@jini-ai/agentic`).
    *  Omit to leave it untagged. */
   agentHandle?: string;
-}
-
-/**
- * The footer's status line, as a single string (or `null` to render nothing) — the four
- * mutually-exclusive `saveState.status` checks that used to sit directly in
- * `AdminByokKeyFooter`'s JSX, pulled out as a top-level pure function per this pass's extraction
- * rule (§2 of the complexity-ceiling brief). `isStored` takes the already-narrowed boolean rather
- * than the full `stored` record, so this function has no dependency on `AdminExecutionCredential`'s
- * shape beyond the one field it reads.
- */
-export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"], isStored: boolean): string | null {
-  if (status === "saving") return "Saving…";
-  if (status === "saved") return "Saved to the server, encrypted.";
-  if (status === "idle") return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
-  return null;
 }
 
 /**

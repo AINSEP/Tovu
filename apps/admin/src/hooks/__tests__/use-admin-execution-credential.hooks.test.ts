@@ -53,7 +53,11 @@ vi.mock("../../lib/api", async (importOriginal) => {
   };
 });
 
-import { useAdminExecutionCredential, useWiredAdminExecutionCredential } from "../use-admin-execution-credential.hooks";
+import {
+  resolveByokFooterStatusLine,
+  useAdminExecutionCredential,
+  useWiredAdminExecutionCredential,
+} from "../use-admin-execution-credential.hooks";
 import { createFakeAdminExecutionCredentialPort } from "../admin-execution-credential-dependencies.hooks";
 
 const LEGACY_STORAGE_KEY = "tovu:execution-credentials:v1";
@@ -530,5 +534,30 @@ describe("useAdminExecutionCredential — the two buttons write disjoint patches
 
     expect(result.current.settingsSaveState).toEqual({ status: "error", message: "boom" });
     expect(result.current.saveState).toEqual({ status: "idle" });
+  });
+});
+
+// Moved from `components/__tests__/AdminByokKeyPanel.unit.test.tsx` alongside
+// `resolveByokFooterStatusLine` itself (2026-09-03 relocation pass, moving derived-logic
+// computations out of `.tsx` files and into their hooks) — `AdminByokKeyFooter`'s own render tests
+// in that file already pin the same four cases end-to-end; this exercises the status/isStored
+// combinations without a render at all.
+describe("resolveByokFooterStatusLine", () => {
+  it("reports 'Saving…' while saving, regardless of isStored", () => {
+    expect(resolveByokFooterStatusLine("saving", false)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine("saving", true)).toBe("Saving…");
+  });
+
+  it("reports the saved confirmation once saved", () => {
+    expect(resolveByokFooterStatusLine("saved", false)).toBe("Saved to the server, encrypted.");
+  });
+
+  it("distinguishes 'stored' from 'never stored' while idle", () => {
+    expect(resolveByokFooterStatusLine("idle", true)).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+    expect(resolveByokFooterStatusLine("idle", false)).toBe("Paste your key, then press Save key.");
+  });
+
+  it("returns null on error — the footer renders the error via a separate element", () => {
+    expect(resolveByokFooterStatusLine("error", false)).toBeNull();
   });
 });
