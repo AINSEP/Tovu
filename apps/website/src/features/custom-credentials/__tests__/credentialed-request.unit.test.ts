@@ -892,6 +892,67 @@ test("makeCredentialedRequest: strips response headers reflecting basic-auth cre
   assert.ok(!JSON.stringify(result.headers).includes(basicAuthPayload));
 });
 
+test("makeCredentialedRequest: strips a response header that echoes ONLY the bare base64 Basic-auth payload, with no 'Basic ' scheme prefix at all", async () => {
+  // Regression test for the redaction hole 922f2ef6 left open: the previous test above proves the
+  // FULL "Basic <payload>" header value and the raw token alone are both caught, but the bare
+  // base64 payload — neither wrapped in "Basic " nor equal to the raw token — was not itself listed
+  // as a secret, so an endpoint reflecting just that payload leaked it straight through.
+  const writeDeps = await seedNameComAndFlyIo();
+  const basicAuthPayload = Buffer.from("namecom-user:namecom-secret-token").toString("base64");
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {
+        "X-Echoed-Payload-Only": basicAuthPayload,
+        "X-Safe-Header": "safe",
+      },
+      bodyText: "ok",
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "name.com",
+    method: "GET",
+    url: "https://api.name.com/v4/domains",
+  });
+
+  assert.equal(result.headers["X-Safe-Header"], "safe");
+  assert.equal(result.headers["X-Echoed-Payload-Only"], undefined);
+  assert.ok(!JSON.stringify(result.headers).includes(basicAuthPayload));
+});
+
+test("makeCredentialedRequest: a response header is redacted when it merely EMBEDS a secret inside a larger value — substring match, not exact equality", async () => {
+  // Pins the match semantics `redactResponseHeaders` actually implements (`value.includes(secret)`).
+  // "X-Debug-Echo" below is not EQUAL to either responseSecrets entry — it embeds the full injected
+  // Authorization value inside a larger diagnostic string. Under exact-equality matching this header
+  // would pass through unredacted (leaking the token); this test would then fail because
+  // `X-Debug-Echo` would be defined instead of undefined.
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Echo": "request-id=r1; sent-auth=Bearer flyio-secret-token; region=us-east",
+      },
+      bodyText: "ok",
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    method: "GET",
+    url: "https://api.fly.io/v1/apps",
+  });
+
+  assert.equal(result.headers["Content-Type"], "application/json");
+  assert.equal(result.headers["X-Debug-Echo"], undefined);
+});
+
 test("makeCredentialedRequest: strips the injected token from the response BODY too, while leaving the rest of the body intact", async () => {
   const writeDeps = await seedNameComAndFlyIo();
   const httpClient = new FakeHttpClient([
@@ -926,7 +987,16 @@ test("makeCredentialedRequest: a pathologically short credential token withholds
   const httpClient = new FakeHttpClient([
     {
       status: 200,
-      headers: { "X-Safe-Header": "safe-value" },
+      // "banana" genuinely overlaps the secret alphabet — it contains both an 'a' and a 'b', the two
+      // characters that make up the 2-character token "ab" — but never contains "ab" as a substring
+      // (b-a-n-a-n-a has no adjacent "a" then "b"). This is deliberately NOT the previous
+      // "safe-value", which shares no characters with "ab" at all: that made the assertion below
+      // vacuous, since it would pass identically whether `redactResponseHeaders` matched substrings
+      // correctly or was broken in a way that never redacted anything. "banana" would be WRONGLY
+      // stripped by an over-matching implementation (e.g. one that redacts on the secret's individual
+      // characters rather than the "ab" substring), so this assertion actually exercises the match
+      // logic instead of merely restating a value nothing here could ever touch.
+      headers: { "X-Safe-Header": "banana" },
       bodyText: '{"count":12,"items":["abacus","table"]}',
     },
   ]);
@@ -943,8 +1013,10 @@ test("makeCredentialedRequest: a pathologically short credential token withholds
   // in place — too ambiguous to redact safely, so the whole body is withheld instead of mangled.
   assert.equal(result.bodyText, "[body withheld: credential too short to redact safely]");
   assert.ok(!result.bodyText.includes('"count"'), "the raw body must not leak through unredacted either");
-  // Headers are unaffected by the short-token body policy — they redact by exact-name/exact-value
-  // match, which has no partial-mangling failure mode regardless of secret length.
-  assert.equal(result.headers["X-Safe-Header"], "safe-value");
+  // Headers are unaffected by the short-token BODY policy (no length floor applies to header
+  // redaction — see credentialed-request.ts's file header, "The token never reaches the model") —
+  // they redact by SUBSTRING match against `responseSecrets`, same as every other header test in this
+  // file; "banana" contains no secret substring, so it is expected to survive untouched.
+  assert.equal(result.headers["X-Safe-Header"], "banana");
 });
 

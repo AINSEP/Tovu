@@ -109,12 +109,16 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * never interpolate `connection.token`/`connection.username` into a message). This also covers the
  * PROVIDER's own response, not just this module's: {@link makeCredentialedRequest} sends the
  * response through {@link redactResponseHeaders}/{@link resolveRedactedResponseBody} before returning
- * it, so a reflecting/echo endpoint that hands the injected `Authorization` (or the raw token) back in
- * a response header or body cannot leak it back through the model that way either.
+ * it, so a reflecting/echo endpoint that hands back the injected `Authorization` value, the raw
+ * token, or — for a Basic-auth connection — the bare base64 `username:token` payload on its own (no
+ * `Basic ` scheme prefix; 2026-09-03 addition — see {@link buildBasicAuthPayload}) cannot leak it
+ * back through the model that way either, in a response header OR body.
  * `Authorization`/`Proxy-Authorization`/`Set-Cookie`/`Cookie` response headers are always stripped
- * outright regardless of value or secret length; every other header passes through unless it contains
- * the exact injected `Authorization` value or the raw token, in which case the whole header is
- * dropped — dropping a header has no partial-mangling failure mode, so headers apply no length floor.
+ * outright regardless of value or secret length; every other header passes through unless its value
+ * CONTAINS one of those secret values as a SUBSTRING — not exact equality; a header that merely
+ * embeds a secret inside a larger value (e.g. a diagnostic string like `"sent-auth=Bearer <token>;
+ * region=us-east"`) is still dropped in full — in which case the whole header is dropped — dropping
+ * a header has no partial-mangling failure mode, so headers apply no length floor.
  * The body is different: a substring-scrub can only work in place, so a token shorter than
  * {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} is too ambiguous to scrub safely (it could match
  * ordinary legitimate content by coincidence) and the ENTIRE body is withheld with
@@ -253,11 +257,13 @@ const BODY_WITHHELD_SHORT_TOKEN_MARKER = "[body withheld: credential too short t
 
 /**
  * Strips every response header this module must never hand back to the model: the always-forbidden
- * names in {@link FORBIDDEN_RESPONSE_HEADER_NAMES}, plus any header whose value contains one of
- * `secrets` verbatim — the shape a reflecting/echo endpoint takes when it hands the request's own
- * `Authorization` value, or the credential's raw token, back in a response header. A header with no
- * secret material passes through unchanged; see this file's header, "The token never reaches the
- * model".
+ * names in {@link FORBIDDEN_RESPONSE_HEADER_NAMES}, plus any header whose value CONTAINS one of
+ * `secrets` as a substring — SUBSTRING match, not exact equality, so a header that merely embeds a
+ * secret inside a larger value (a diagnostic/debug string, say) is dropped too, not only a header
+ * value that equals a secret verbatim. This is the shape a reflecting/echo endpoint takes when it
+ * hands the request's own `Authorization` value, or the credential's raw token, back in a response
+ * header. A header with no secret material passes through unchanged; see this file's header, "The
+ * token never reaches the model".
  *
  * @complexity O(n * m): n response headers, each checked against m (small, fixed) secrets.
  */
@@ -420,10 +426,25 @@ function validateOptionalBody(raw: unknown): string | undefined {
  */
 function buildAuthorizationHeader(connection: CustomProviderConnectionInput): string {
   if (connection.username) {
-    const credentials = `${connection.username}:${connection.token}`;
-    return `Basic ${Buffer.from(credentials, "utf8").toString("base64")}`;
+    return `Basic ${buildBasicAuthPayload(connection.username, connection.token)}`;
   }
   return `Bearer ${connection.token}`;
+}
+
+/** The bare base64 payload {@link buildAuthorizationHeader} wraps in `Basic <payload>` for a
+ *  username-bearing connection — split out (2026-09-03) so a caller that must redact the PAYLOAD
+ *  itself, separately from the full `Basic <payload>` header string (see
+ *  {@link makeCredentialedRequest}'s `responseSecrets`), derives it from this exact same encoding
+ *  instead of duplicating — and risking drift from — the logic {@link buildAuthorizationHeader}
+ *  already has. A reflecting/echo endpoint that hands back only this bare payload, with no `Basic `
+ *  scheme prefix, is a real leak shape this split closes: before this addition, `responseSecrets`
+ *  only ever contained the FULL header value and the raw token, neither of which the bare payload is
+ *  a substring match against.
+ *
+ * @complexity O(1).
+ */
+function buildBasicAuthPayload(username: string, token: string): string {
+  return Buffer.from(`${username}:${token}`, "utf8").toString("base64");
 }
 
 /** The already-registered tool that can supply the one missing piece of state
@@ -748,10 +769,19 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
   const authorizationHeader = buildAuthorizationHeader(connection);
   // Everything a reflecting/echo endpoint could hand back that must never reach the model — the
-  // exact Authorization value this call sent, and the credential's own raw token (covers a Basic
-  // scheme's base64 payload being echoed, and a bare token appearing on its own). See this file's
-  // header, "The token never reaches the model".
-  const responseSecrets: readonly string[] = [authorizationHeader, connection.token];
+  // exact Authorization value this call sent, the credential's own raw token, and — for a Basic-auth
+  // connection (one with a saved `username`) — the bare base64 `username:token` payload ON ITS OWN,
+  // with no "Basic " scheme prefix. That third value is NOT a substring of either of the first two:
+  // it is a substring of `authorizationHeader` only when the "Basic " prefix is also present, and it
+  // is not `connection.token` at all (it is the base64 encoding of `username:token` together) — so
+  // without listing it explicitly, an endpoint that echoes just the bare payload back would slip
+  // past both {@link redactResponseHeaders} and {@link resolveRedactedResponseBody} undetected. See
+  // this file's header, "The token never reaches the model", and {@link buildBasicAuthPayload}'s own
+  // doc for why this is derived rather than duplicated. Every entry here is matched as a SUBSTRING
+  // (see {@link redactResponseHeaders}), never by exact equality.
+  const responseSecrets: readonly string[] = connection.username
+    ? [authorizationHeader, connection.token, buildBasicAuthPayload(connection.username, connection.token)]
+    : [authorizationHeader, connection.token];
 
   let response;
   try {
