@@ -1,6 +1,10 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import { ALLOWED_THEME_IDS, type PresentationSettingsRepoPort } from "../presentation/index.js";
+import {
+  ALLOWED_THEME_IDS,
+  type PresentationSettingsRecord,
+  type PresentationSettingsRepoPort,
+} from "../presentation/index.js";
 import {
   type SettingsRepoPort,
   resolveDefinitionRaw,
@@ -159,6 +163,54 @@ async function ensureThemeDefinitions(deps: MigrateLegacyPresentationSettingsDep
   }
 }
 
+/** The `core.presentation.activeThemeId` default to register when no legacy row supplies one yet. */
+function resolveFallbackDefaultThemeId(
+  rows: readonly PresentationSettingsRecord[],
+  deps: MigrateLegacyPresentationSettingsDeps
+): string {
+  return rows[0]?.activeThemeId ?? (deps.availableThemeIds ?? ALLOWED_THEME_IDS)[0];
+}
+
+type MigrateRowOutcome = "migrated" | "skipped" | "failed";
+
+/**
+ * Migrates ONE legacy row — extracted so {@link migrateLegacyPresentationSettings}'s own loop is
+ * pure tallying. Skip-if-unchanged and catch-log-continue are this function's contract, not the
+ * caller's (W-003/C-008 — see this file's header).
+ */
+async function migrateOneLegacyRow(
+  deps: MigrateLegacyPresentationSettingsDeps,
+  coreSettingId: UUID,
+  row: PresentationSettingsRecord
+): Promise<MigrateRowOutcome> {
+  try {
+    const currentGlobal = await deps.settingsRepo.getGlobalValue(coreSettingId);
+    if (currentGlobal && currentGlobal.state === "set" && currentGlobal.valueJson === row.activeThemeId) {
+      return "skipped";
+    }
+
+    await set({
+      deps: writeServiceDeps(deps),
+      input: {
+        namespace: CORE_NAMESPACE,
+        key: CORE_KEY,
+        scope: "global",
+        value: row.activeThemeId,
+        callerPrincipalId: deps.systemPrincipalId,
+      },
+    });
+    return "migrated";
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `migrateLegacyPresentationSettings: failed to migrate workspace '${row.workspaceId}': ${
+        (err as Error).message
+      }`
+    );
+    return "failed";
+  }
+}
+
 /**
  * REQ-08/AC-14 — reads every `presentation_settings` row and migrates its
  * `activeThemeId` into `core.presentation.activeThemeId` (global scope)
@@ -174,9 +226,7 @@ export async function migrateLegacyPresentationSettings(
   const rows = await deps.presentationRepo.listAll();
 
   await ensureThemeDefinitions(deps);
-
-  const fallbackDefault = rows[0]?.activeThemeId ?? (deps.availableThemeIds ?? ALLOWED_THEME_IDS)[0];
-  await ensureCoreDefinition(deps, fallbackDefault);
+  await ensureCoreDefinition(deps, resolveFallbackDefaultThemeId(rows, deps));
 
   const coreDefinition = await resolveDefinitionRaw(
     { repo: deps.settingsRepo },
@@ -193,33 +243,10 @@ export async function migrateLegacyPresentationSettings(
   const failedWorkspaceIds: UUID[] = [];
 
   for (const row of rows) {
-    try {
-      const currentGlobal = await deps.settingsRepo.getGlobalValue(coreDefinition.settingId);
-      if (currentGlobal && currentGlobal.state === "set" && currentGlobal.valueJson === row.activeThemeId) {
-        skippedCount++;
-        continue;
-      }
-
-      await set({
-        deps: writeServiceDeps(deps),
-        input: {
-          namespace: CORE_NAMESPACE,
-          key: CORE_KEY,
-          scope: "global",
-          value: row.activeThemeId,
-          callerPrincipalId: deps.systemPrincipalId,
-        },
-      });
-      migratedCount++;
-    } catch (err) {
-      failedWorkspaceIds.push(row.workspaceId);
-      // eslint-disable-next-line no-console
-      console.error(
-        `migrateLegacyPresentationSettings: failed to migrate workspace '${row.workspaceId}': ${
-          (err as Error).message
-        }`
-      );
-    }
+    const outcome = await migrateOneLegacyRow(deps, coreDefinition.settingId, row);
+    if (outcome === "migrated") migratedCount++;
+    else if (outcome === "skipped") skippedCount++;
+    else failedWorkspaceIds.push(row.workspaceId);
   }
 
   return { migratedCount, skippedCount, failedWorkspaceIds };

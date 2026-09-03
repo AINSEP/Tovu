@@ -8,7 +8,7 @@ import {
   type PresentationSettingsRecord,
 } from "../../presentation/index.js";
 import { migrateLegacyPresentationSettings } from "../migration.js";
-import { InMemorySettingsRepo, getEffective } from "@jini-ai/cms/settings";
+import { InMemorySettingsRepo, getEffective, type SettingValueRecord } from "@jini-ai/cms/settings";
 
 /**
  * @file T030 — failing-first tests for `migrateLegacyPresentationSettings`
@@ -153,4 +153,38 @@ test("migrateLegacyPresentationSettings: with no legacy rows, registers the core
   });
   assert.ok(definition);
   assert.equal(definition!.defaultValue, ALLOWED_THEME_IDS[0]);
+});
+
+/** An `InMemorySettingsRepo` whose `saveGlobalValue` throws for one designated value — models a
+ *  real backend write failure (e.g. a DB constraint violation) for exactly one legacy row's write,
+ *  without disturbing every other row's. */
+class FailingOnceSettingsRepo extends InMemorySettingsRepo {
+  constructor(private readonly failingValue: string) {
+    super();
+  }
+  override async saveGlobalValue(record: SettingValueRecord): Promise<void> {
+    if (record.valueJson === this.failingValue) {
+      throw new Error("simulated write failure");
+    }
+    await super.saveGlobalValue(record);
+  }
+}
+
+test("migrateLegacyPresentationSettings: one row's write failure is recorded in failedWorkspaceIds and does not block the other rows from migrating", async () => {
+  const goodRow: PresentationSettingsRecord = {
+    workspaceId: "workspace-good",
+    activeThemeId: "atlas",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+  };
+  const badRow: PresentationSettingsRecord = {
+    workspaceId: "workspace-bad",
+    activeThemeId: "this-write-fails",
+    updatedAt: "2026-06-01T00:00:00.000Z",
+  };
+  const deps = { ...makeDeps([goodRow, badRow]), settingsRepo: new FailingOnceSettingsRepo("this-write-fails") };
+
+  const result = await migrateLegacyPresentationSettings(deps);
+
+  assert.equal(result.migratedCount, 1);
+  assert.deepEqual(result.failedWorkspaceIds, ["workspace-bad"]);
 });

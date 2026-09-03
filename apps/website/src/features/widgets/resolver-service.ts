@@ -528,6 +528,114 @@ function isPlausibleMediaRefId(value: string): boolean {
  * transform lookup entirely, so the per-ref cost never exceeds the pre-existing image path's.
  * @overallScore 100
  */
+/** One resolved `MediaRepoPort.findById` row — inferred rather than imported since this file has no
+ *  standing `MediaRecord` import (see `resolveMediaPublicUrls`'s own file for why `media/`'s public
+ *  types stay narrow at each import site). */
+type ResolvedMediaRecord = NonNullable<Awaited<ReturnType<MediaRepoPort["findById"]>>>;
+
+/** Shape-narrows a media ref into a usable `{assetId, transformName}` pair, or `undefined` when the
+ *  ref's `id`/`variant` fails {@link isPlausibleMediaRefId}'s check — split out of
+ *  {@link resolveOneMediaEmbed} so that function's own branch count stays proportional to "which
+ *  resolution step failed", not also this shape check. */
+function parseMediaEmbedRef(
+  ref: PageHtmlEmbedRef,
+  context: WidgetResolveContext
+): { assetId: string; transformName: string } | undefined {
+  const assetId = ref.id;
+  const transformName = ref.variant ?? CORE_PUBLIC_TRANSFORM_NAME;
+  if (assetId === null || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) {
+    console.warn(
+      '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"variant" in data-embed-config',
+      { workspaceId: context.workspaceId }
+    );
+    return undefined;
+  }
+  return { assetId, transformName };
+}
+
+/** Builds the non-video (image-transform) IR for a resolved asset — the transform lookup + prop
+ *  assembly {@link resolveOneMediaEmbed} defers to once it knows the asset isn't a video. `undefined`
+ *  when `transformName` names no registered transform. */
+async function buildMediaImageIr(
+  assetId: string,
+  transformName: string,
+  transformRepo: TransformDefinitionRepoPort,
+  record: ResolvedMediaRecord,
+  context: WidgetResolveContext
+): Promise<WidgetRenderIR | undefined> {
+  const definition = await getLatestTransformDefinition({
+    deps: { transformRepo },
+    input: { workspaceId: context.workspaceId, name: transformName },
+  });
+  if (!definition) {
+    console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — transform not registered', {
+      workspaceId: context.workspaceId,
+      assetId,
+      transformName,
+    });
+    return undefined;
+  }
+  return {
+    componentId: "media-image",
+    props: {
+      assetId,
+      transformName,
+      version: definition.version,
+      alt: record.alt,
+      width: record.width,
+      height: record.height,
+      cssClass: record.cssClass,
+    },
+  };
+}
+
+/** One media ref's resolved id + IR, or `undefined` when it could not be resolved — extracted so
+ *  {@link resolveMediaTypeEmbeds}'s own `Promise.all` callback is a thin per-ref dispatch, never the
+ *  decision itself. `mediaRepo`/`transformRepo` are passed non-optional here: the caller has already
+ *  guarded their absence before ever constructing this per-ref work. */
+async function resolveOneMediaEmbed(
+  ref: PageHtmlEmbedRef,
+  mediaRepo: MediaRepoPort,
+  transformRepo: TransformDefinitionRepoPort,
+  mediaContentTypeStore: MediaContentTypeStorePort | undefined,
+  context: WidgetResolveContext
+): Promise<{ assetId: string; ir: WidgetRenderIR } | undefined> {
+  const parsed = parseMediaEmbedRef(ref, context);
+  if (!parsed) return undefined;
+  const { assetId, transformName } = parsed;
+
+  const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
+  if (!record) {
+    console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset', {
+      workspaceId: context.workspaceId,
+      assetId,
+    });
+    return undefined;
+  }
+
+  const contentType = mediaContentTypeStore
+    ? (await mediaContentTypeStore.getMany({ workspaceId: context.workspaceId, sha256s: [record.source.sha256] })).get(
+        record.source.sha256
+      )
+    : undefined;
+  if (contentType?.startsWith("video/")) {
+    // Video needs no transform lookup at all: `render.ts`'s video branch points straight at
+    // `/m/{assetId}/original` (the byte-passthrough route — see that route's own doc for why
+    // video can't go through the image-transform pipeline below), so `transformName`/`version`
+    // would be unused props for this IR.
+    return {
+      assetId,
+      ir: {
+        componentId: "media-image",
+        props: { assetId, contentType, alt: record.alt, width: record.width, height: record.height, cssClass: record.cssClass },
+      },
+    };
+  }
+
+  const ir = await buildMediaImageIr(assetId, transformName, transformRepo, record, context);
+  return ir ? { assetId, ir } : undefined;
+}
+
 async function resolveMediaTypeEmbeds(
   refs: readonly PageHtmlEmbedRef[],
   deps: ResolveHtmlPageEmbedsDeps,
@@ -545,71 +653,12 @@ async function resolveMediaTypeEmbeds(
     return resolved;
   }
 
-  await Promise.all(
-    refs.map(async (ref) => {
-      const assetId = ref.id;
-      const transformName = ref.variant ?? CORE_PUBLIC_TRANSFORM_NAME;
-      if (assetId === null || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) {
-        console.warn(
-          '[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — missing or invalid "id"/"variant" in data-embed-config',
-          { workspaceId: context.workspaceId }
-        );
-        return;
-      }
-
-      const record = await mediaRepo.findById({ workspaceId: context.workspaceId, id: assetId });
-      if (!record) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — no such asset', {
-          workspaceId: context.workspaceId,
-          assetId,
-        });
-        return;
-      }
-
-      const contentType = mediaContentTypeStore
-        ? (await mediaContentTypeStore.getMany({ workspaceId: context.workspaceId, sha256s: [record.source.sha256] })).get(
-            record.source.sha256
-          )
-        : undefined;
-      if (contentType?.startsWith("video/")) {
-        // Video needs no transform lookup at all: `render.ts`'s video branch points straight at
-        // `/m/{assetId}/original` (the byte-passthrough route — see that route's own doc for why
-        // video can't go through the image-transform pipeline below), so `transformName`/`version`
-        // would be unused props for this IR.
-        resolved.set(assetId, {
-          componentId: "media-image",
-          props: { assetId, contentType, alt: record.alt, width: record.width, height: record.height, cssClass: record.cssClass },
-        });
-        return;
-      }
-
-      const definition = await getLatestTransformDefinition({
-        deps: { transformRepo },
-        input: { workspaceId: context.workspaceId, name: transformName },
-      });
-      if (!definition) {
-        console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "media" reference — transform not registered', {
-          workspaceId: context.workspaceId,
-          assetId,
-          transformName,
-        });
-        return;
-      }
-
-      resolved.set(assetId, {
-        componentId: "media-image",
-        props: {
-          assetId,
-          transformName,
-          version: definition.version,
-          alt: record.alt,
-          width: record.width,
-          height: record.height,
-          cssClass: record.cssClass,
-        },
-      });
-    })
+  const entries = await Promise.all(
+    refs.map((ref) => resolveOneMediaEmbed(ref, mediaRepo, transformRepo, mediaContentTypeStore, context))
   );
+  for (const entry of entries) {
+    if (entry) resolved.set(entry.assetId, entry.ir);
+  }
 
   return resolved;
 }

@@ -252,3 +252,69 @@ test("hydrateBlobStoreFromSeed: REGRESSION — a concurrent production write lan
     );
   });
 });
+
+/** A `BlobStorePort` double whose `putIfAbsent()` throws for one specific storage key — models a
+ *  real backend failure (e.g. `S3BlobStore` hitting a transient write error) mid-run, distinct from
+ *  the "malformed path" failure mode covered above. */
+class ThrowingBlobStore extends InMemoryBlobStore {
+  constructor(private readonly failingStorageKey: string) {
+    super();
+  }
+
+  override async putIfAbsent(input: PutBlobInput): Promise<{ storageKey: string; written: boolean }> {
+    const storageKey = computeBlobStorageKey(input);
+    if (storageKey === this.failingStorageKey) {
+      throw new Error("simulated backend failure");
+    }
+    return super.putIfAbsent(input);
+  }
+}
+
+test("hydrateBlobStoreFromSeed: a putIfAbsent failure for one file is reported, not thrown, and does not block a valid sibling", async () => {
+  await withTempDir(async (dir) => {
+    const workspaceId = `ws-${randomUUID()}`;
+    const goodBytes = new TextEncoder().encode("this one writes fine");
+    const badBytes = new TextEncoder().encode("this one's store write fails");
+    const seededGood = await writeSeedBlob(dir, { workspaceId, bytes: goodBytes });
+    const seededBad = await writeSeedBlob(dir, { workspaceId, bytes: badBytes });
+
+    const store = new ThrowingBlobStore(seededBad.storageKey);
+    const result = await hydrateBlobStoreFromSeed({ seedUploadsDir: dir, blobStore: store });
+
+    assert.equal(result.status, "partial");
+    assert.equal(result.copied, 1);
+    assert.equal(result.failed.length, 1);
+    const [failure] = result.failed;
+    assert.ok(failure);
+    assert.match(failure.relativePath, new RegExp(`${seededBad.sha256}$`));
+    assert.match(failure.error, /simulated backend failure/);
+    assert.deepEqual(
+      Buffer.from(await store.get({ storageKey: seededGood.storageKey })),
+      Buffer.from(goodBytes),
+      "one file's store failure must not block a valid sibling from being copied"
+    );
+  });
+});
+
+/** A `BlobStorePort` double whose `putIfAbsent()` rejects with a non-`Error` value (a bare string) —
+ *  covers the `String(err)` arm of `resolveOneSeedBlob`'s `err instanceof Error ? ... : String(err)`
+ *  branch, distinct from {@link ThrowingBlobStore}'s real-`Error` rejection above. */
+class NonErrorThrowingBlobStore extends InMemoryBlobStore {
+  override async putIfAbsent(_input: PutBlobInput): Promise<{ storageKey: string; written: boolean }> {
+    throw "simulated non-Error rejection";
+  }
+}
+
+test("hydrateBlobStoreFromSeed: a putIfAbsent rejection with a non-Error value is still reported, not thrown", async () => {
+  await withTempDir(async (dir) => {
+    const workspaceId = `ws-${randomUUID()}`;
+    await writeSeedBlob(dir, { workspaceId, bytes: new TextEncoder().encode("bytes") });
+
+    const store = new NonErrorThrowingBlobStore();
+    const result = await hydrateBlobStoreFromSeed({ seedUploadsDir: dir, blobStore: store });
+
+    assert.equal(result.status, "partial");
+    assert.equal(result.failed.length, 1);
+    assert.equal(result.failed[0]?.error, "simulated non-Error rejection");
+  });
+});

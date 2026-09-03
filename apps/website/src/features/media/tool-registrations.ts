@@ -112,6 +112,23 @@ export interface MediaPublicUrlDeps {
 }
 
 /**
+ * One asset's resolved URL — the per-asset decision {@link resolveMediaPublicUrls} extracts so its
+ * own batch loop is pure assembly. `null` covers "no registered 'public' core transform yet" (boot
+ * has not run `ensureCoreMediaTransform`, or this is a test double with no transform registered).
+ */
+function resolveOneAssetPublicUrl(
+  asset: MediaRecord,
+  contentTypes: ReadonlyMap<string, string>,
+  latest: Awaited<ReturnType<typeof getLatestTransformDefinition>>
+): string | null {
+  const contentType = contentTypes.get(asset.source.sha256);
+  if (contentType?.startsWith("video/")) return `/m/${asset.id}/original`;
+  if (!latest) return null;
+  const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
+  return `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v${latest.version}/image.${ext}`;
+}
+
+/**
  * Batch-resolves each of `assets`' `/m/...` public URL — the real implementation behind
  * `MediaToolDeps.resolvePublicUrls` for this host. See this file's header for the full contract
  * (image vs. video, the no-backfill disclosed scope adjustment, why this lives here and not in a
@@ -134,9 +151,10 @@ export async function resolveMediaPublicUrls(
     return result;
   }
 
-  const active = assets.filter((asset) => asset.status !== "trashed");
+  const active: MediaRecord[] = [];
   for (const asset of assets) {
     if (asset.status === "trashed") result.set(asset.id, null);
+    else active.push(asset);
   }
   if (active.length === 0) return result;
 
@@ -149,19 +167,7 @@ export async function resolveMediaPublicUrls(
   });
 
   for (const asset of active) {
-    const contentType = contentTypes.get(asset.source.sha256);
-    if (contentType?.startsWith("video/")) {
-      result.set(asset.id, `/m/${asset.id}/original`);
-      continue;
-    }
-    if (!latest) {
-      // Boot never ran `ensureCoreMediaTransform` (or this is a test double with no transform
-      // registered) — no "public" transform to point at yet.
-      result.set(asset.id, null);
-      continue;
-    }
-    const ext = EXT_BY_TRANSFORM_FORMAT[latest.params.format] ?? latest.params.format;
-    result.set(asset.id, `/m/${asset.id}/${CORE_PUBLIC_TRANSFORM_NAME}.v${latest.version}/image.${ext}`);
+    result.set(asset.id, resolveOneAssetPublicUrl(asset, contentTypes, latest));
   }
   return result;
 }

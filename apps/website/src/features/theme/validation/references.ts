@@ -38,21 +38,14 @@ function collectDeclaredSources(entry: unknown): string[] {
   return sources;
 }
 
-/**
- * Check every declared source path in a `partials` (or `renderer.pages`) map against real files on
- * disk, and flag any two different logical ids that declare the identical source path.
- *
- * @param required.fieldName - Only used to name the field in issue messages (`"partials"` or
- * `"renderer.pages"`) — this function's logic is identical for both, so it is not duplicated per field.
- * @complexity O(e) in the map's own (small, bounded) entry count.
- */
-export function checkDeclaredReferences(
-  required: { themeDir: string; fieldName: string; entries: unknown },
-  _optional: Record<string, never> = {}
-): ThemeValidationIssue[] {
-  const { themeDir, fieldName, entries } = required;
-  if (!isObject(entries)) return [];
-
+/** Checks every declared source in `entries` against disk, and tallies which logical ids point at
+ *  each source (input to {@link checkDuplicateSources} below). Split out of
+ *  {@link checkDeclaredReferences} to keep that function's own nesting to one loop. */
+function checkMissingFilesAndCollectOwners(
+  themeDir: string,
+  fieldName: string,
+  entries: Record<string, unknown>
+): { issues: ThemeValidationIssue[]; sourceOwners: Map<string, string[]> } {
   const issues: ThemeValidationIssue[] = [];
   const sourceOwners = new Map<string, string[]>();
 
@@ -68,7 +61,13 @@ export function checkDeclaredReferences(
       sourceOwners.set(source, [...(sourceOwners.get(source) ?? []), id]);
     }
   }
+  return { issues, sourceOwners };
+}
 
+/** Flags any source path declared by more than one logical id — a copy-paste manifest bug (this
+ *  file's own header). */
+function checkDuplicateSources(fieldName: string, sourceOwners: ReadonlyMap<string, string[]>): ThemeValidationIssue[] {
+  const issues: ThemeValidationIssue[] = [];
   for (const [source, owners] of sourceOwners) {
     if (owners.length > 1) {
       issues.push({
@@ -78,6 +77,24 @@ export function checkDeclaredReferences(
       });
     }
   }
-
   return issues;
+}
+
+/**
+ * Check every declared source path in a `partials` (or `renderer.pages`) map against real files on
+ * disk, and flag any two different logical ids that declare the identical source path.
+ *
+ * @param required.fieldName - Only used to name the field in issue messages (`"partials"` or
+ * `"renderer.pages"`) — this function's logic is identical for both, so it is not duplicated per field.
+ * @complexity O(e) in the map's own (small, bounded) entry count.
+ */
+export function checkDeclaredReferences(
+  required: { themeDir: string; fieldName: string; entries: unknown },
+  _optional: Record<string, never> = {}
+): ThemeValidationIssue[] {
+  const { themeDir, fieldName, entries } = required;
+  if (!isObject(entries)) return [];
+
+  const { issues, sourceOwners } = checkMissingFilesAndCollectOwners(themeDir, fieldName, entries);
+  return [...issues, ...checkDuplicateSources(fieldName, sourceOwners)];
 }

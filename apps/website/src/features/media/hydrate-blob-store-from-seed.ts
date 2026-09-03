@@ -141,6 +141,54 @@ async function listSeedBlobRelativePaths(root: string, dir: string = root): Prom
   return results;
 }
 
+/** One seed file's resolution — extracted so {@link hydrateBlobStoreFromSeed}'s own loop is pure
+ *  tallying, never a decision. See that function's own doc, and this file's header, for the per-key
+ *  `putIfAbsent` gate this implements. */
+type SeedBlobOutcome =
+  | { readonly kind: "copied" }
+  | { readonly kind: "skipped" }
+  | { readonly kind: "failed"; readonly failure: HydrateBlobStoreFromSeedFailure };
+
+/**
+ * Resolves ONE seed file: shape-check its path, then read + `putIfAbsent` its bytes.
+ * @throws Never — every failure mode (bad path shape, unreadable file, store write failure) is
+ *   reported as a `"failed"` outcome instead, matching {@link hydrateBlobStoreFromSeed}'s own
+ *   "never fail the whole run over one bad seed file" contract.
+ */
+async function resolveOneSeedBlob(
+  seedUploadsDir: string,
+  blobStore: Pick<BlobStorePort, "putIfAbsent">,
+  relativePath: string
+): Promise<SeedBlobOutcome> {
+  const match = SEED_BLOB_PATH_PATTERN.exec(relativePath);
+  if (!match) {
+    return {
+      kind: "failed",
+      failure: {
+        relativePath,
+        error: "does not match the expected ws/{workspaceId}/blobs/{shard}/{sha256} shape",
+      },
+    };
+  }
+  const [, workspaceId, sha256] = match;
+
+  try {
+    const bytes = await readFile(join(seedUploadsDir, relativePath));
+    // Single atomic call — see this file's header for why a separate `exists()` check first
+    // would reopen the exact TOCTOU gap this function used to have.
+    const { written } = await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
+    return written ? { kind: "copied" } : { kind: "skipped" };
+  } catch (err) {
+    return { kind: "failed", failure: { relativePath, error: err instanceof Error ? err.message : String(err) } };
+  }
+}
+
+/** Derives the run-level status from the tallies — see {@link HydrateBlobStoreFromSeedStatus}'s own doc. */
+function computeHydrateStatus(copied: number, failedCount: number): HydrateBlobStoreFromSeedStatus {
+  if (failedCount > 0) return "partial";
+  return copied > 0 ? "seeded" : "already-present";
+}
+
 /**
  * Tops up the live blob store with any stock seed blob it is missing, one content-addressed key at
  * a time. See this file's header for why the gate is per-key rather than per-directory, and why the
@@ -171,32 +219,11 @@ export async function hydrateBlobStoreFromSeed(
   const failed: HydrateBlobStoreFromSeedFailure[] = [];
 
   for (const relativePath of relativePaths) {
-    const match = SEED_BLOB_PATH_PATTERN.exec(relativePath);
-    if (!match) {
-      failed.push({
-        relativePath,
-        error: "does not match the expected ws/{workspaceId}/blobs/{shard}/{sha256} shape",
-      });
-      continue;
-    }
-    const [, workspaceId, sha256] = match;
-
-    try {
-      const bytes = await readFile(join(seedUploadsDir, relativePath));
-      // Single atomic call — see this file's header for why a separate `exists()` check first
-      // would reopen the exact TOCTOU gap this function used to have.
-      const { written } = await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
-      if (written) {
-        copied++;
-      } else {
-        skipped++;
-      }
-    } catch (err) {
-      failed.push({ relativePath, error: err instanceof Error ? err.message : String(err) });
-    }
+    const outcome = await resolveOneSeedBlob(seedUploadsDir, blobStore, relativePath);
+    if (outcome.kind === "copied") copied++;
+    else if (outcome.kind === "skipped") skipped++;
+    else failed.push(outcome.failure);
   }
 
-  const status: HydrateBlobStoreFromSeedStatus =
-    failed.length > 0 ? "partial" : copied > 0 ? "seeded" : "already-present";
-  return { status, copied, skipped, failed };
+  return { status: computeHydrateStatus(copied, failed.length), copied, skipped, failed };
 }

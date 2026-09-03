@@ -224,23 +224,35 @@ function menuItemClasses(item: StaticMenuItem, depth: number): string {
     .join(" ");
 }
 
+/** The item's icon/label/description markup, shared by both the linkable and inert renderings of
+ *  {@link menuItemBody}. `icon`/`description` render as child spans so a theme can style or ignore
+ *  them without this renderer having to know an icon set. */
+function menuItemInnerHtml(item: StaticMenuItem): string {
+  const label = escapeHtml(item.label);
+  const icon = item.attrs?.icon ? `<span class="menu-item-icon" data-icon="${escapeHtml(item.attrs.icon)}"></span>` : "";
+  const description = item.attrs?.description
+    ? `<span class="menu-item-desc">${escapeHtml(item.attrs.description)}</span>`
+    : "";
+  return `${icon}${label}${description}`;
+}
+
+/** The `<a>` tag's own attribute suffix (`aria-current`/`rel`/`target`) for a linkable item. */
+function menuItemLinkAttrs(item: StaticMenuItem): string {
+  const current = item.isCurrent ? ' aria-current="page"' : "";
+  const rel = item.attrs?.rel ? ` rel="${escapeHtml(item.attrs.rel)}"` : "";
+  const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
+  return `${current}${rel}${target}`;
+}
+
 /**
  * The item's own label markup — an `<a>` when it resolves, an inert `<span>` when it does not.
  * `icon`/`description` render as child spans so a theme can style or ignore them without this
  * renderer having to know an icon set.
  */
 function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
-  const label = escapeHtml(item.label);
-  const icon = item.attrs?.icon ? `<span class="menu-item-icon" data-icon="${escapeHtml(item.attrs.icon)}"></span>` : "";
-  const description = item.attrs?.description
-    ? `<span class="menu-item-desc">${escapeHtml(item.attrs.description)}</span>`
-    : "";
-  const inner = `${icon}${label}${description}`;
+  const inner = menuItemInnerHtml(item);
   if (!linkable) return `<span class="menu-item-label">${inner}</span>`;
-  const current = item.isCurrent ? ' aria-current="page"' : "";
-  const rel = item.attrs?.rel ? ` rel="${escapeHtml(item.attrs.rel)}"` : "";
-  const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
-  return `<a href="${escapeHtml(item.href as string)}"${current}${rel}${target}>${inner}</a>`;
+  return `<a href="${escapeHtml(item.href as string)}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
 /** One `<li>`, or `""` when the item is neither linkable nor a branch worth keeping for its children. */
