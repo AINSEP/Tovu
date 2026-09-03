@@ -51,8 +51,9 @@ export interface JsonRpcResponse {
 export class McpProtocolError extends Error {}
 
 /**
- * A `McpProtocolError` specifically caused by the remote rejecting the request's authorization
- * (HTTP 401/403 today — see `adapter.http.ts`'s `assertOkStatus`). Kept as a distinguishable
+ * A `McpProtocolError` specifically caused by the remote's token having expired or been revoked
+ * (HTTP 401 today — see `adapter.http.ts`'s `assertOkStatus`; a 403 is a scope/permission refusal,
+ * not this). Kept as a distinguishable
  * subtype, rather than a generic `McpProtocolError` a caller would have to pattern-match on message
  * text, so a layer that DOES know what "authorization" means for one connection (an OAuth-backed
  * row, at `assistant/external-mcp-oauth.ts`) can react to it — without this module, which is

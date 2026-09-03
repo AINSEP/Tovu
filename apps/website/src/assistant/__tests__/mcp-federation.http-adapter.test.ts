@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { type CapturedHttpRequest, ScriptedMcpHttpExchange, type ScriptedHttpReply } from "../mcp-federation/adapter.memory.js";
 import { connectMcpHttpSession, createFetchMcpHttpExchange } from "../mcp-federation/adapter.http.js";
+import { McpAuthFailedError, McpProtocolError } from "../mcp-federation/mcp-protocol.js";
 import type { McpHttpLaunchSpec } from "../mcp-federation/ports.js";
 
 /**
@@ -266,13 +267,19 @@ test("a 401 names the real cause — the authorization expired — and points at
   );
 });
 
-test("a 403 is treated the same as a 401, since both mean the credential no longer works", async () => {
+test("a 403 is reported as a protocol error, NOT an authorization failure — a scoped token is not a stale one", async () => {
   const exchange = new ScriptedMcpHttpExchange({
     respond: (request) => (request.message?.method === "tools/list" ? { status: 403, body: "" } : politeServer()(request)),
   });
   const session = await connect(exchange);
 
-  await assert.rejects(session.listTools(), /with 403 — its authorization has expired or been revoked/);
+  await assert.rejects(
+    session.listTools(),
+    (error: unknown) =>
+      error instanceof McpProtocolError &&
+      !(error instanceof McpAuthFailedError) &&
+      error.message === "mcp-federation: the server answered 'tools/list' with HTTP 403",
+  );
 });
 
 test("a 500 is reported as a status, NOT as an authorization problem", async () => {

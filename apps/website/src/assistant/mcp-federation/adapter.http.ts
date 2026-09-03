@@ -230,17 +230,23 @@ class McpHttpSession implements McpSessionPort {
 /**
  * Turns a non-2xx into a message an operator can act on.
  *
- * 401/403 are called out by name, and by TYPE (`McpAuthFailedError`), because they are the ones
- * with a specific cause and a specific fix: the connection's OAuth token has expired or been
- * revoked, and the row needs reconnecting. `external-mcp-store.ts` already reports that state at
- * boot; this is the same finding arrived at from the other direction, when a token that was valid
- * at boot stops being valid mid-session — this module has no OAuth knowledge of its own, so it only
- * distinguishes the failure; `mcp-federation/registrations.ts`'s `onAuthFailed` hook is what a
- * caller that DOES know what "reconnect" means reacts to it with.
+ * Only 401 is called out by name, and by TYPE (`McpAuthFailedError`): it is the one status with a
+ * specific cause and a specific fix — the connection's OAuth token has expired or been revoked, and
+ * the row needs reconnecting. `external-mcp-store.ts` already reports that state at boot; this is
+ * the same finding arrived at from the other direction, when a token that was valid at boot stops
+ * being valid mid-session — this module has no OAuth knowledge of its own, so it only distinguishes
+ * the failure; `mcp-federation/registrations.ts`'s `onAuthFailed` hook is what a caller that DOES
+ * know what "reconnect" means reacts to it with.
+ *
+ * 403 is deliberately NOT treated the same: it means the token was accepted but the server refused
+ * this particular request anyway (an out-of-scope tool, an unauthorized action) — a fact about this
+ * call, not about the token's validity. Reporting it as `McpAuthFailedError` would make
+ * `onAuthFailed` clear an otherwise-good token and force a needless reauth. It falls through to the
+ * generic branch below, same as any other non-2xx whose cause is not "the token expired".
  */
 function assertOkStatus(method: string, response: McpHttpResponse): void {
   if (response.status >= 200 && response.status < 300) return;
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     throw new McpAuthFailedError(
       `mcp-federation: the server refused '${method}' with ${response.status} — its authorization has expired or been revoked, reconnect it in Settings → External MCP`,
     );
