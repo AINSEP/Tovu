@@ -115,16 +115,27 @@ test("makeCredentialedRequest: a 401 with Bearer sent and no username stored car
   assert.match(result.authDiagnostic!.hint!, /may|might|could/i);
 });
 
-test("makeCredentialedRequest: a 403 with Bearer sent and no username stored also carries the diagnostic (not just 401)", async () => {
+test("makeCredentialedRequest: a 403 with Bearer sent and no username stored still reports the two structured facts (not just 401)", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 403, headers: {}, bodyText: "forbidden" }]);
   const deps = makeDeps(httpClient, writeDeps);
 
   const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
 
-  assert.equal(result.authDiagnostic?.schemeSent, "Bearer");
-  assert.equal(result.authDiagnostic?.usernameStored, false);
-  assert.ok(result.authDiagnostic?.hint);
+  assert.ok(result.authDiagnostic, "the structured facts must still be present on a 403");
+  assert.equal(result.authDiagnostic!.schemeSent, "Bearer");
+  assert.equal(result.authDiagnostic!.usernameStored, false);
+});
+
+test("makeCredentialedRequest: a 403 with Bearer sent and no username stored carries NO hint — the live GitHub incident this fix addresses (2026-09-03). A saved GitHub PAT with full scopes 403'd because the outbound request carried no User-Agent header, not because of the auth scheme; the old logic offered the Basic-auth hint on ANY 401-or-403 and sent the owner down a dead-end repair path (asked for and saved a GitHub username; the retry still 403'd). 403 Forbidden covers causes unrelated to auth scheme in general — scopes, provider policy, a missing standard header — so this module now offers the scheme hypothesis only for a 401 (see credentialed-request.ts's header, '401 vs 403').", async () => {
+  const writeDeps = await seedWithoutUsername();
+  const httpClient = new FakeHttpClient([{ status: 403, headers: {}, bodyText: "forbidden" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "name.com", method: "GET", url: "https://api.name.com/v4/domains" });
+
+  assert.equal(result.authDiagnostic!.hint, undefined, "a 403 must never suggest the Basic-auth/username hypothesis — that cause is unproven and was confirmed wrong for GitHub");
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined, "remedyToolId travels only alongside hint, never alone");
 });
 
 test("makeCredentialedRequest: a 401 on a credential that ALREADY has a stored username reports the facts but no hint — a different, unguessable cause", async () => {
@@ -237,6 +248,21 @@ test("verifyCustomCredential: an 'invalid' (401) result WITH a stored username c
   assert.equal(result.authDiagnostic?.usernameStored, true);
   assert.equal(result.authDiagnostic?.hint, undefined);
   assert.equal(result.authDiagnostic?.remedyToolId, undefined);
+});
+
+test("verifyCustomCredential: an 'invalid' (403) result with no stored username carries the structured facts but NO hint — the same GitHub-incident fix as makeCredentialedRequest's own 403 case", async () => {
+  const writeDeps = await seedWithoutUsername();
+  const httpClient = new FakeHttpClient([{ status: 403, headers: {}, bodyText: "forbidden" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await verifyCustomCredential(deps, { workspaceId: WORKSPACE, label: "name.com" });
+
+  assert.equal(result.status, "invalid");
+  assert.ok(result.authDiagnostic, "the structured facts must still be present on a 403");
+  assert.equal(result.authDiagnostic!.schemeSent, "Bearer");
+  assert.equal(result.authDiagnostic!.usernameStored, false);
+  assert.equal(result.authDiagnostic!.hint, undefined, "403 must never suggest the Basic-auth hypothesis");
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined);
 });
 
 test("verifyCustomCredential: a 'valid' (200) result carries no authDiagnostic at all", async () => {

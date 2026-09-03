@@ -57,16 +57,37 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * can honestly make — never a claim. That hypothesis is narrow on purpose: `schemeSent === "Bearer"`
  * (equivalently `usernameStored === false`, since {@link buildAuthorizationHeader} sends Basic iff a
  * username is stored) is the ONLY shape where "this provider might need a saved username" is a fair
- * guess. A 401/403 on a credential that ALREADY has a stored username is a completely different,
- * un-guessable problem from here — a wrong username, an expired/revoked token, missing scopes, or the
- * provider's own policy — so `hint` is deliberately omitted in that case rather than repeating advice
- * that has already been tried and failed; asserting "add a username" there would be actively
- * misleading, not merely unhelpful. Neither function reinterprets or hides the provider's own
- * response: {@link makeCredentialedRequest}'s `bodyText` is unaffected by this addition, and this
- * diagnostic is additive alongside it, never a replacement for it. And as with every other value this
- * module touches, the diagnostic never carries the token, the Authorization header, or any part of
- * either — it is built from `connection.username`'s mere PRESENCE, never its value, let alone the
- * token's.
+ * guess — and even then, ONLY on a 401. A 401/403 on a credential that ALREADY has a stored username
+ * is a completely different, un-guessable problem from here — a wrong username, an expired/revoked
+ * token, missing scopes, or the provider's own policy — so `hint` is deliberately omitted in that
+ * case rather than repeating advice that has already been tried and failed; asserting "add a
+ * username" there would be actively misleading, not merely unhelpful.
+ *
+ * **401 vs 403 (2026-09-03 — the GitHub incident this addition fixes).** The scheme-swap hypothesis
+ * above shipped for status 401 and 403 alike, on the reasoning that both are "the provider rejected
+ * this credential." That reasoning does not hold: HTTP's own split is that 401 Unauthorized means
+ * authentication itself failed (a fair place to hypothesize about the auth SCHEME), while 403
+ * Forbidden means the request was understood and often even authenticated but refused for a reason
+ * that has nothing to do with which scheme was sent — insufficient token scopes, provider policy, or
+ * (the live incident) a request the provider's edge rejected before auth was ever evaluated because
+ * it carried no `User-Agent` header at all (now fixed at the source — see `platform/http/client.ts`'s
+ * `DEFAULT_USER_AGENT`). A saved GitHub PAT with full scopes, sent as `Bearer` with no stored
+ * username, 403'd for that header reason alone; this module's old logic saw "Bearer, no username,
+ * 401-or-403" and offered the Basic-auth hypothesis anyway, which was simply wrong for GitHub and
+ * sent the owner down a dead-end repair path (asked for and saved a GitHub username; the retry still
+ * 403'd, because the scheme was never the problem). {@link buildAuthFailureDiagnostic} now offers the
+ * scheme hypothesis ONLY for a 401 — status is a structural, general HTTP distinction, never a named
+ * provider or hostname, so this does not rot the way a `hostname === "api.github.com"` special case
+ * would: it generalizes to any provider whose 403 has a cause unrelated to auth scheme, not just
+ * GitHub's. A 403 still reports the two structured facts (never hides them) but carries no `hint` —
+ * the module has no honest hypothesis to offer there, matching the same "omit rather than mislead"
+ * discipline the stored-username case already used.
+ *
+ * Neither function reinterprets or hides the provider's own response: {@link makeCredentialedRequest}'s
+ * `bodyText` is unaffected by this addition, and this diagnostic is additive alongside it, never a
+ * replacement for it. And as with every other value this module touches, the diagnostic never
+ * carries the token, the Authorization header, or any part of either — it is built from
+ * `connection.username`'s mere PRESENCE, never its value, let alone the token's.
  *
  * {@link AuthFailureDiagnostic} is an INSTANCE of the general `ToolFailureDiagnostic` contract
  * (`contracts/core/tool-failure-diagnostics.ts`, 2026-09-01 second pass) rather than a parallel shape
@@ -186,7 +207,15 @@ const MAX_REQUEST_BODY_BYTES = 1_000_000;
 
 /** Header names the caller may never set directly — the server injects the real credential's
  *  `Authorization` itself, and none of the other three have any legitimate reason to be
- *  caller-supplied on a request already pinned to one of the credential's own saved hosts. */
+ *  caller-supplied on a request already pinned to one of the credential's own saved hosts.
+ *  `User-Agent` is deliberately NOT in this set (2026-09-03 decision): unlike these four, it carries
+ *  no secret and has no bearing on the per-credential host binding (this file's header, "Per-credential
+ *  host binding") or any other security boundary this module enforces — it is exactly the header a
+ *  human already controls for free when calling the same API with `curl -A`, and this tool's own
+ *  stated goal is parity with what a human operating this credential could already do (this file's
+ *  header, `makeCredentialedRequest`'s own bullet). A caller that supplies its own `User-Agent` here
+ *  reaches `deps.httpClient.send()` unmodified, and `platform/http/client.ts`'s default (see its own
+ *  `DEFAULT_USER_AGENT` doc) never overrides an already-present one. */
 const FORBIDDEN_REQUEST_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "cookie", "host", "proxy-authorization"]);
 
 /** Response header names that must never reach the model, regardless of value — the credential's
@@ -416,12 +445,15 @@ export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
    *  module's other "what failed" fact. */
   readonly usernameStored: boolean;
   /** Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
-   *  for: `schemeSent === "Bearer"` (no saved username). Absent for every other 401/403 shape — a
-   *  credential that already has a stored username hit a DIFFERENT wall this module has no way to
-   *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy), and
-   *  repeating "add a username" there would be a false lead, not merely an unhelpful one. Deliberately
-   *  hedged wording ("may"/"might") — this is a hypothesis for a human or agent to try, never an
-   *  assertion of the actual cause. */
+   *  for: a 401 with `schemeSent === "Bearer"` (no saved username). Absent for every other
+   *  401/403 shape — a credential that already has a stored username hit a DIFFERENT wall this
+   *  module has no way to diagnose (wrong username, expired/revoked token, missing scopes, provider
+   *  policy), and repeating "add a username" there would be a false lead, not merely an unhelpful
+   *  one. Also absent on a 403 REGARDLESS of scheme/username (2026-09-03): 403 Forbidden covers
+   *  causes that have nothing to do with auth scheme (scopes, policy, a missing standard header),
+   *  and offering the scheme hypothesis there was confirmed live-wrong for GitHub — see this file's
+   *  header, "401 vs 403". Deliberately hedged wording ("may"/"might") when present — this is a
+   *  hypothesis for a human or agent to try, never an assertion of the actual cause. */
   readonly hint?: string;
   /** Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
    *  that can save the missing username `hint` describes. A pointer only — this module never calls
@@ -433,17 +465,24 @@ export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
  * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome from the SAME `connection` object
  * {@link buildAuthorizationHeader} used to build the request that got rejected — so `schemeSent` is
  * always the scheme that was actually sent, never re-derived from a different source that could drift
- * from it.
+ * from it. The two structured facts (`schemeSent`, `usernameStored`) are always returned; `hint` +
+ * `remedyToolId` are added only for the one case this module can honestly diagnose: a 401 sent as
+ * Bearer with no saved username. See this file's header, "401 vs 403", for why `status` gates the
+ * hint at all and why a 403 never gets one, regardless of scheme.
  *
  * @complexity O(1).
  */
-function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput): AuthFailureDiagnostic {
+function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, status: 401 | 403): AuthFailureDiagnostic {
   const usernameStored = connection.username !== undefined;
-  if (usernameStored) {
-    return { schemeSent: "Basic", usernameStored };
+  const schemeSent = usernameStored ? "Basic" : "Bearer";
+  if (usernameStored || status !== 401) {
+    // Either a different, un-guessable failure (a username IS already saved), or a 403 — Forbidden
+    // covers causes unrelated to auth scheme (scopes, provider policy, a missing standard header),
+    // so offering the scheme hypothesis here would be a false lead, not a hedge.
+    return { schemeSent, usernameStored };
   }
   return {
-    schemeSent: "Bearer",
+    schemeSent,
     usernameStored,
     hint:
       "This request was sent with a Bearer token and no saved username. Some providers (e.g. ones that " +
@@ -635,7 +674,7 @@ export async function verifyCustomCredential(deps: CredentialedRequestDeps, inpu
 
   audit.record({ label, host: url.hostname, method: "GET", status, bodyBytes: 0, at: checkedAt });
   const outcome = classifyCustomCredentialStatus(status);
-  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection) : undefined;
+  const authDiagnostic = outcome === "invalid" ? buildAuthFailureDiagnostic(connection, status as 401 | 403) : undefined;
   return { status: outcome, message: buildVerificationMessage(label, status, outcome), checkedAt, ...(authDiagnostic ? { authDiagnostic } : {}) };
 }
 
@@ -729,7 +768,8 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   }
 
   audit.record({ label, host: url.hostname, method, status: response.status, bodyBytes, at });
-  const authDiagnostic = response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection) : undefined;
+  const authDiagnostic =
+    response.status === 401 || response.status === 403 ? buildAuthFailureDiagnostic(connection, response.status) : undefined;
   return {
     executed: true,
     status: response.status,

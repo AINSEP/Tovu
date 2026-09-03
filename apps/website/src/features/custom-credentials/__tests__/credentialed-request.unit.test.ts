@@ -472,6 +472,24 @@ test("makeCredentialedRequest: POST/PUT/PATCH each send the given body exactly t
   }
 });
 
+test("makeCredentialedRequest: a caller-supplied User-Agent header is NOT forbidden — it reaches the guarded client unchanged (2026-09-03 decision: parity with what a human can already do via curl -A, no bearing on the host-binding security boundary)", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "name.com",
+    method: "GET",
+    url: "https://api.name.com/v4/domains",
+    headers: { "User-Agent": "MyOwnAgent/3.1" },
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(httpClient.calls.length, 1);
+  assert.equal(httpClient.calls[0]!.headers["User-Agent"], "MyOwnAgent/3.1");
+});
+
 test("makeCredentialedRequest: DELETE itself runs immediately with no confirmation — this module has no gating logic; that lives one layer up", async () => {
   const writeDeps = await seedNameComAndFlyIo();
   const httpClient = new FakeHttpClient([{ status: 204, headers: {}, bodyText: "" }]);

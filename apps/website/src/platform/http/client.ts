@@ -13,8 +13,9 @@ import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
  * `createHttpClient({ transport, policy })` is the ONLY way to obtain a `HttpClientPort` — there is
  * no unguarded path. Every request goes through: scheme + credentials-in-URL rejection, DNS
  * resolution, address-family-complete private/loopback/link-local/reserved classification
- * (IPv4-mapped-IPv6 normalized first), peer pinning, and — on any redirect — full re-verification
- * of the new target plus auth-header stripping on cross-origin hops.
+ * (IPv4-mapped-IPv6 normalized first), peer pinning, a default `User-Agent` when the caller sent
+ * none (2026-09-03 — see {@link DEFAULT_USER_AGENT}'s own doc), and — on any redirect — full
+ * re-verification of the new target plus auth-header stripping on cross-origin hops.
  *
  * How it relates to the project:
  * - Wraps `./transport.fetch.ts`'s `FetchHttpTransportAdapter` (or any other
@@ -68,6 +69,40 @@ function classifyIpv6(ip: string): AddressClass {
 
 /** Response/request header names stripped when a redirect crosses origins. */
 const SENSITIVE_HEADERS = new Set(["authorization", "cookie"]);
+
+/**
+ * Sent as the outbound `User-Agent` on every request that does not already carry one. Some
+ * providers (confirmed live: GitHub's REST API) reject an otherwise-valid, fully-authenticated
+ * request with a bare 403 when no `User-Agent` is present at all — see
+ * `features/custom-credentials/credentialed-request.ts`'s own header for the incident this fixes.
+ * A stable, honest product identifier — never a browser's or another tool's own UA string. Not
+ * sourced from `package.json`'s live version: this file is the single seam every outbound request
+ * in the app funnels through, and adding a filesystem/module read here — whose relative path would
+ * also need to keep resolving correctly through the Docker build's own dist layout — is a cost this
+ * one-line header does not justify. Bump this literal by hand alongside `package.json`'s version.
+ */
+const DEFAULT_USER_AGENT = "Tovu/0.1.0";
+
+/** True when `headers` already sets `User-Agent` under any casing — HTTP header names are
+ *  case-insensitive, so a caller that supplies its own (any casing) must never be overridden. */
+function hasUserAgentHeader(headers: Readonly<Record<string, string>>): boolean {
+  return Object.keys(headers).some((key) => key.toLowerCase() === "user-agent");
+}
+
+/**
+ * Adds {@link DEFAULT_USER_AGENT} to `headers` unless the caller already set one (any casing) —
+ * applied once, at this module's single public entry point (`createHttpClient(...).send`), so
+ * every consumer that reaches a real provider through this seam (custom-credentials, the Resend
+ * mailer, comment spam checks, webhook delivery, deploy/lipay plugins) gets a non-empty
+ * `User-Agent` with no per-consumer change required, and a caller's own explicit choice is always
+ * preserved untouched.
+ *
+ * @complexity O(n) in `headers`' own (small) key count.
+ */
+function withDefaultUserAgent(headers: Readonly<Record<string, string>>): Record<string, string> {
+  if (hasUserAgentHeader(headers)) return { ...headers };
+  return { ...headers, "User-Agent": DEFAULT_USER_AGENT };
+}
 
 function isCrossOrigin(a: URL, b: URL): boolean {
   return a.protocol !== b.protocol || a.hostname !== b.hostname || a.port !== b.port;
@@ -189,7 +224,8 @@ export const createHttpClient: CreateHttpClient = (
   const { transport, policy } = required;
   return {
     async send(request: HttpRequest): Promise<HttpResponse> {
-      return sendWithPolicy(transport, policy, request, 0);
+      const requestWithUserAgent: HttpRequest = { ...request, headers: withDefaultUserAgent(request.headers) };
+      return sendWithPolicy(transport, policy, requestWithUserAgent, 0);
     },
   };
 };

@@ -167,3 +167,49 @@ test("rejects a target URL carrying embedded credentials", async () => {
 
   await assert.rejects(() => client.send(makeRequest({ url: "https://user:pass@example.com/" })));
 });
+
+// -------------------------------------------------------------------------------------------
+// Default User-Agent (2026-09-03) — GitHub rejects every request with no `User-Agent` header
+// with a bare 403; this seam is the ONE place a default is added so every consumer (custom
+// credentials, the Resend mailer, comment spam checks, webhook delivery, deploy/lipay plugins)
+// gets one automatically. See `features/custom-credentials/credentialed-request.ts`'s header,
+// "Authentication-failure diagnostics" / "401 vs 403", for the live incident this fixes.
+// -------------------------------------------------------------------------------------------
+
+test("adds a non-empty default User-Agent when the caller sends none", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(makeRequest({ url: "https://example.com/", headers: {} }));
+
+  const sentHeaders = transport.calls[0].req.headers;
+  assert.ok(sentHeaders["User-Agent"], "expected a non-empty User-Agent to be added");
+  assert.equal(typeof sentHeaders["User-Agent"], "string");
+});
+
+test("never overrides a caller-supplied User-Agent, regardless of header-name casing", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(
+    makeRequest({ url: "https://example.com/", headers: { "user-agent": "MyOwnClient/2.0" } })
+  );
+
+  const sentHeaders = transport.calls[0].req.headers;
+  assert.equal(sentHeaders["user-agent"], "MyOwnClient/2.0");
+  assert.equal(sentHeaders["User-Agent"], undefined, "must not add a second, differently-cased header");
+});
+
+test("the default User-Agent survives a cross-origin redirect (not a sensitive header)", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://8.8.8.8/next" }, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "final" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(makeRequest({ url: "https://example.com/", headers: {} }));
+
+  assert.equal(transport.calls.length, 2);
+  assert.ok(transport.calls[0].req.headers["User-Agent"]);
+  assert.equal(transport.calls[1].req.headers["User-Agent"], transport.calls[0].req.headers["User-Agent"]);
+});
