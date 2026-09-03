@@ -83,6 +83,71 @@ function assertValidEmail(email: string): string {
 }
 
 /**
+ * Resolves the member a sign-in request is for: the existing row, or a freshly-created `pending`
+ * one when none exists (see file-header gap (1): pre-creates so the magic-link token's required
+ * `memberId` FK is always valid at creation time). Returns `null` for a disabled member — the
+ * caller's signal to skip issuing a token/mail while still returning the constant
+ * `{ delivered: true }` response (see {@link requestSignInLink}'s own doc).
+ *
+ * @complexity O(1) — one lookup, at most one save.
+ */
+async function resolveOrCreateSignInMember(required: {
+  deps: MembersWriteServiceDeps;
+  workspaceId: string;
+  email: string;
+  nowIso: string;
+}): Promise<MemberRecord | null> {
+  const { deps, workspaceId, email, nowIso } = required;
+  const existing = await deps.members.findByEmail({ workspaceId, email });
+  if (existing) {
+    return existing.status === "disabled" ? null : existing;
+  }
+
+  const member: MemberRecord = {
+    id: deps.ids.newId(),
+    workspaceId,
+    email,
+    status: "pending",
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    version: 1,
+  };
+  await deps.members.save(member);
+  return member;
+}
+
+/**
+ * Resolves the absolute sign-in link path via the verified origin (ADR-PIPE-013 Decision §3),
+ * falling back to `relativePath` on any unverified-origin failure — INV-06: a missing/unverified
+ * origin must never fail the call or change the caller-facing response, only degrade the link's
+ * shape. The gap is surfaced only as an observability signal (workspaceId only — never the email or
+ * raw token, both out of scope for this function).
+ *
+ * @complexity O(1) — at most one `canonicalOrigin` call.
+ */
+async function resolveSignInLinkPath(required: {
+  deps: MembersWriteServiceDeps;
+  workspaceId: string;
+  relativePath: string;
+}): Promise<string> {
+  const { deps, workspaceId, relativePath } = required;
+  if (!deps.origin) return relativePath;
+
+  try {
+    const origin = await deps.origin.canonicalOrigin({ workspaceId });
+    const portSuffix = origin.port ? `:${origin.port}` : "";
+    const basePath = origin.basePath ?? "";
+    return `${origin.scheme}://${origin.host}${portSuffix}${basePath}${relativePath}`;
+  } catch (err) {
+    if (!(err instanceof OriginNotVerifiedError)) throw err;
+    console.warn(
+      `[members] requestSignInLink: no verified origin for workspaceId=${workspaceId}, falling back to a relative sign-in link`
+    );
+    return relativePath;
+  }
+}
+
+/**
  * Begin passwordless sign-in/up: mint a hashed, short-TTL magic-link token and
  * mail the raw token embedded in a link. Always resolves `{ delivered: true }`
  * regardless of whether the email is registered, already disabled, or the
@@ -101,27 +166,11 @@ async function requestSignInLink(required: {
   const email = assertValidEmail(input.email);
   const nowIso = deps.clock.nowIso();
 
-  let member = await deps.members.findByEmail({ workspaceId: input.workspaceId, email });
-
-  // Disabled members cannot sign in; still return the constant `{ delivered: true }`
-  // response (see doc above) and skip issuing a token / sending mail.
-  if (member && member.status === "disabled") {
-    return { delivered: true };
-  }
-
+  const member = await resolveOrCreateSignInMember({ deps, workspaceId: input.workspaceId, email, nowIso });
   if (!member) {
-    // See file-header gap (1): pre-create a `pending` member so the magic-link
-    // token's required `memberId` FK is always valid at creation time.
-    member = {
-      id: deps.ids.newId(),
-      workspaceId: input.workspaceId,
-      email,
-      status: "pending",
-      createdAt: nowIso,
-      updatedAt: nowIso,
-      version: 1,
-    };
-    await deps.members.save(member);
+    // Disabled members cannot sign in; still return the constant `{ delivered: true }`
+    // response (see doc above) and skip issuing a token / sending mail.
+    return { delivered: true };
   }
 
   const rawToken = newRawToken();
@@ -143,29 +192,12 @@ async function requestSignInLink(required: {
   // is an optional dep (see `ports.ts`'s doc): no composition root wires a
   // real instance in yet, so an absent dep is treated identically to
   // `OriginNotVerifiedError` (silent relative-path fallback, no warning log —
-  // that's a repo-wiring gap, not an operator misconfiguration to flag).
+  // that's a repo-wiring gap, not an operator misconfiguration to flag). See
+  // `resolveSignInLinkPath` for the fallback logic itself.
   const relativePath = `/auth/magic?token=${rawToken}${
     input.redirectPath ? `&redirect=${encodeURIComponent(input.redirectPath)}` : ""
   }`;
-  let linkPath = relativePath;
-  if (deps.origin) {
-    try {
-      const origin = await deps.origin.canonicalOrigin({ workspaceId: input.workspaceId });
-      const portSuffix = origin.port ? `:${origin.port}` : "";
-      const basePath = origin.basePath ?? "";
-      linkPath = `${origin.scheme}://${origin.host}${portSuffix}${basePath}${relativePath}`;
-    } catch (err) {
-      if (!(err instanceof OriginNotVerifiedError)) throw err;
-      // INV-06: a missing/unverified origin must never fail the call or
-      // change the caller-facing response — fall back to the relative link,
-      // and surface the gap only as an observability signal (workspaceId
-      // only — never the email or the raw token, both in scope elsewhere in
-      // this function).
-      console.warn(
-        `[members] requestSignInLink: no verified origin for workspaceId=${input.workspaceId}, falling back to a relative sign-in link`
-      );
-    }
-  }
+  const linkPath = await resolveSignInLinkPath({ deps, workspaceId: input.workspaceId, relativePath });
 
   const message: OutboundEmail = {
     workspaceId: input.workspaceId,

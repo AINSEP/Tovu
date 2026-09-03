@@ -111,6 +111,77 @@ test("decide: an unknown/unparseable visibility value fails closed with no tease
   assert.equal(decision.reason, "unknown_visibility");
 });
 
+/**
+ * Truth table for `decide()` — enumerates every (visibility, member-state) combination this
+ * function's `access.tierIds: ["tier-gold"]` fixture can produce, and asserts each cell against
+ * what the fail-closed contract SHOULD produce (ADR-021 §8 lineage doc in `access-resolver.ts`),
+ * not against whatever the implementation currently returns. Written per the batch-D refactor
+ * brief's explicit instruction to check for a combination that falls through to allow (an
+ * under-restrictive cell) or wrongly denies an entitled member (an over-restrictive cell).
+ */
+test("decide: truth table over every (visibility, member-state) combination", () => {
+  const resolver = new DefaultMemberAccessResolver({
+    sessions: new InMemoryMemberSessionRepo(),
+    subscriptions: new InMemoryMemberSubscriptionRepo(),
+    tiers: new InMemoryMemberTierRepo(),
+  });
+
+  const REQUIRED_TIER_ACCESS: MemberContentAccess = { visibility: "tiers", tierIds: ["tier-gold"] };
+  const UNKNOWN_ACCESS = { visibility: "vip-secret-club" } as unknown as MemberContentAccess;
+
+  const anonymous = anonymousContext();
+  const authFreeNoTiers = authenticatedContext([], false);
+  const authPaid = authenticatedContext([], true);
+  const authWithRequiredTier = authenticatedContext(["tier-gold"], false);
+  const authWithOtherTier = authenticatedContext(["tier-silver"], false);
+
+  interface Row {
+    label: string;
+    access: MemberContentAccess;
+    context: MemberContext;
+    allowed: boolean;
+    reason: string;
+    teaser: boolean;
+  }
+
+  const rows: Row[] = [
+    // visibility: "public" — always allowed, regardless of member state.
+    { label: "public + anonymous", access: { visibility: "public" }, context: anonymous, allowed: true, reason: "public", teaser: false },
+    { label: "public + authenticated free", access: { visibility: "public" }, context: authFreeNoTiers, allowed: true, reason: "public", teaser: false },
+    { label: "public + authenticated paid", access: { visibility: "public" }, context: authPaid, allowed: true, reason: "public", teaser: false },
+
+    // visibility: "members" — any authenticated member, paid or not; anonymous denied.
+    { label: "members + anonymous", access: { visibility: "members" }, context: anonymous, allowed: false, reason: "sign_in_required", teaser: true },
+    { label: "members + authenticated free", access: { visibility: "members" }, context: authFreeNoTiers, allowed: true, reason: "entitled", teaser: false },
+    { label: "members + authenticated paid", access: { visibility: "members" }, context: authPaid, allowed: true, reason: "entitled", teaser: false },
+
+    // visibility: "paid" — only an authenticated + isPaid member; anonymous vs. free member get
+    // different denial reasons (an enumeration-safe distinction, both still deny).
+    { label: "paid + anonymous", access: { visibility: "paid" }, context: anonymous, allowed: false, reason: "sign_in_required", teaser: true },
+    { label: "paid + authenticated free (not paid)", access: { visibility: "paid" }, context: authFreeNoTiers, allowed: false, reason: "upgrade_required", teaser: true },
+    { label: "paid + authenticated paid", access: { visibility: "paid" }, context: authPaid, allowed: true, reason: "entitled", teaser: false },
+
+    // visibility: "tiers" (tierIds: ["tier-gold"]) — only an authenticated member holding the
+    // required tier; anonymous, no-tier, and wrong-tier members must all deny.
+    { label: "tiers + anonymous", access: REQUIRED_TIER_ACCESS, context: anonymous, allowed: false, reason: "sign_in_required", teaser: true },
+    { label: "tiers + authenticated, no tiers", access: REQUIRED_TIER_ACCESS, context: authFreeNoTiers, allowed: false, reason: "upgrade_required", teaser: true },
+    { label: "tiers + authenticated, wrong tier", access: REQUIRED_TIER_ACCESS, context: authWithOtherTier, allowed: false, reason: "upgrade_required", teaser: true },
+    { label: "tiers + authenticated, required tier", access: REQUIRED_TIER_ACCESS, context: authWithRequiredTier, allowed: true, reason: "entitled", teaser: false },
+
+    // visibility: unknown/unparseable — fails closed for every member state, no teaser (a teaser
+    // would leak that gated content exists behind an entitlement the reader can never resolve).
+    { label: "unknown + anonymous", access: UNKNOWN_ACCESS, context: anonymous, allowed: false, reason: "unknown_visibility", teaser: false },
+    { label: "unknown + authenticated paid + required tier", access: UNKNOWN_ACCESS, context: authWithRequiredTier, allowed: false, reason: "unknown_visibility", teaser: false },
+  ];
+
+  for (const row of rows) {
+    const decision = resolver.decide({ access: row.access, context: row.context });
+    assert.equal(decision.allowed, row.allowed, `${row.label}: allowed`);
+    assert.equal(decision.reason, row.reason, `${row.label}: reason`);
+    assert.equal(decision.teaser, row.teaser, `${row.label}: teaser`);
+  }
+});
+
 test("resolveContext returns the anonymous context when no session token is supplied", async () => {
   const resolver = new DefaultMemberAccessResolver({
     sessions: new InMemoryMemberSessionRepo(),

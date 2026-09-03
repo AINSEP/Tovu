@@ -434,6 +434,21 @@ export async function revokeApiKey(required: {
   return { apiKey: revoked };
 }
 
+/** True iff `candidate` is still usable: not revoked, not expired, and bound to an `active`
+ *  `kind='api_key'` principal — the checks {@link authenticateApiKey} runs AFTER verification, so
+ *  they never short-circuit ahead of the constant-time comparison (see that function's own doc). */
+function isCandidateStillUsable(
+  candidate: ApiKeyRecord,
+  principal: PrincipalRecord | null,
+  nowIso: string
+): principal is PrincipalRecord {
+  if (candidate.revokedAt) return false;
+  // Compared as instants, not as strings — a row written before `readOptionalExpiry` canonicalized
+  // expiries, or by a future writer, must not be mis-ordered by its offset notation.
+  if (candidate.expiresAt && Date.parse(candidate.expiresAt) <= Date.parse(nowIso)) return false;
+  return principal?.status === "active" && principal.kind === "api_key";
+}
+
 /**
  * Resolve a presented raw key to its principal, applying every fail-closed check. The Bearer-auth
  * counterpart of `@jini-ai/cms/identity`'s `validateSession`, and deliberately the same shape: it
@@ -471,16 +486,11 @@ export async function authenticateApiKey(required: {
   if (!matches) return null;
 
   const now = deps.clock.nowIso();
-  if (candidate.revokedAt) return null;
-  // Compared as instants, not as strings — a row written before `readOptionalExpiry` canonicalized
-  // expiries, or by a future writer, must not be mis-ordered by its offset notation.
-  if (candidate.expiresAt && Date.parse(candidate.expiresAt) <= Date.parse(now)) return null;
-
   const principal = await deps.repos.principals.findById({
     workspaceId: input.workspaceId,
     id: candidate.principalId,
   });
-  if (principal?.status !== "active" || principal.kind !== "api_key") return null;
+  if (!isCandidateStillUsable(candidate, principal, now)) return null;
 
   await deps.apiKeys.save({ ...candidate, lastUsedAt: now });
 

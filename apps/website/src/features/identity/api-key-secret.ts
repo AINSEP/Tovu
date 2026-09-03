@@ -128,23 +128,45 @@ interface ParsedDigest {
   digest: Buffer;
 }
 
+/** True iff `N`/`r`/`p` are all integers — the shape scrypt's own parameters must have before
+ *  they are safe to bounds-check at all. */
+function isIntegerTriple(N: number, r: number, p: number): boolean {
+  return Number.isInteger(N) && Number.isInteger(r) && Number.isInteger(p);
+}
+
+/** True iff `N`/`r`/`p` are within the bounds a legitimately-written digest can have: strictly
+ *  positive (`N` additionally > 1, scrypt's own requirement), and under the memory ceiling. Refuses
+ *  to spend unbounded memory on parameters read out of a row (a hand-edited or hostile `key_hash`
+ *  must not become a denial-of-service knob) — `128 * N * r` is scrypt's own footprint. */
+function isWithinScryptBounds(N: number, r: number, p: number): boolean {
+  if (N <= 1 || r <= 0 || p <= 0) return false;
+  return 128 * N * r <= SCRYPT_MAXMEM;
+}
+
+/** Parses and validates the three numeric scrypt cost parameters embedded in a stored hash.
+ *  Returns `null` for anything non-integer, non-positive, or exceeding the memory ceiling. */
+function parseStoredHashParams(rawN: string, rawR: string, rawP: string): ParsedDigest["params"] | null {
+  const N = Number(rawN);
+  const r = Number(rawR);
+  const p = Number(rawP);
+  if (!isIntegerTriple(N, r, p)) return null;
+  if (!isWithinScryptBounds(N, r, p)) return null;
+  return { N, r, p };
+}
+
 /** Split a stored `scrypt$...` string. Returns `null` for anything this file did not write. */
 function parseStoredHash(storedHash: string): ParsedDigest | null {
   const parts = storedHash.split("$");
   if (parts.length !== 6 || parts[0] !== "scrypt") return null;
 
-  const [N, r, p] = [Number(parts[1]), Number(parts[2]), Number(parts[3])];
-  if (!Number.isInteger(N) || !Number.isInteger(r) || !Number.isInteger(p)) return null;
-  if (N <= 1 || r <= 0 || p <= 0) return null;
-  // Refuse to spend unbounded memory on parameters read out of a row (a hand-edited or hostile
-  // `key_hash` must not become a denial-of-service knob). 128 * N * r is scrypt's own footprint.
-  if (128 * N * r > SCRYPT_MAXMEM) return null;
+  const params = parseStoredHashParams(parts[1], parts[2], parts[3]);
+  if (!params) return null;
 
   const salt = Buffer.from(parts[4], "base64url");
   const digest = Buffer.from(parts[5], "base64url");
   if (salt.length === 0 || digest.length === 0) return null;
 
-  return { params: { N, r, p }, salt, digest };
+  return { params, salt, digest };
 }
 
 /**

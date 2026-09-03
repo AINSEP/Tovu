@@ -421,59 +421,87 @@ export interface UpdateCustomCredentialInput {
  * @complexity O(1) — one read, at most one seal, one update, plus one extra decrypt+seal on a
  *   standalone username clear.
  */
-export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  if (!existing) {
-    throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
-  }
+/** The four "keep existing unless a new value was supplied" scalar fields `updateCustomCredential`
+ *  can patch — validates each supplied value, otherwise keeps `existing`'s as-is. Extracted so the
+ *  orchestrator's own body reads as pure sequencing. */
+function resolveUpdatedScalarFields(
+  existing: CustomCredentialSetRecord,
+  input: UpdateCustomCredentialInput
+): Pick<CustomCredentialSetRecord, "label" | "category" | "baseUrl" | "additionalHosts"> {
+  return {
+    label: input.label !== undefined ? validateLabel(input.label) : existing.label,
+    category: input.category !== undefined ? validateCategory(input.category) : existing.category,
+    baseUrl: input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl,
+    additionalHosts: input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts,
+  };
+}
 
-  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
-  const category = input.category !== undefined ? validateCategory(input.category) : existing.category;
-  const baseUrl = input.baseUrl !== undefined ? validateBaseUrl(input.baseUrl) : existing.baseUrl;
-  const additionalHosts = input.additionalHosts !== undefined ? validateAdditionalHosts(input.additionalHosts) : existing.additionalHosts;
-  const now: ISODateTime = deps.clock.nowIso();
-
-  // `username` tracks the CONNECTION, not the row: replacing the connection replaces the username
-  // (including clearing it, when the new connection omits one — the two are one credential, and a
-  // rotation that dropped the username while the old one lingered in the column would be a lie).
-  // Omitting `connection` entirely leaves both the ciphertext and the username exactly as they were,
-  // matching this store's documented "omitting `connection` keeps the secret" contract.
+/**
+ * Resolves the `sealed`/`username` pair for an update, applying the documented precedence (see
+ * {@link updateCustomCredential}'s own doc for the full writeup):
+ *
+ * `username` tracks the CONNECTION, not the row: replacing the connection replaces the username
+ * (including clearing it, when the new connection omits one — the two are one credential, and a
+ * rotation that dropped the username while the old one lingered in the column would be a lie).
+ * Omitting `connection` entirely leaves both the ciphertext and the username exactly as they were,
+ * matching this store's documented "omitting `connection` keeps the secret" contract.
+ *
+ * The top-level `username` field is then applied AFTER `connection` so it can override whatever the
+ * block above just computed. Left as a no-op (not even revalidated) when omitted, so a caller that
+ * never mentions `username` keeps exactly what `connection` decided (or `existing.username`, if
+ * `connection` was omitted too) — the untouched-unless-asked contract every other optional field on
+ * this store already has.
+ *
+ * An explicit clear (`username: null`) with no `connection` replacement additionally re-seals with
+ * the existing token and no username: skipping that would leave `sealed` still carrying the OLD
+ * username inside the ciphertext, and `resolveCustomCredentialByLabel` falls back to that embedded
+ * value whenever the plaintext column is `undefined` (its own doc explains why: half-migrated rows)
+ * — so without this reseal the clear would silently resurrect on the next decrypting read. Not
+ * needed for the "set a new value" case: the column always wins over the sealed copy once it holds
+ * a real value, so that divergence never surfaces to a reader (see `update-username.unit.test.ts`'s
+ * byte-identical assertion for that case, which this function must not disturb).
+ *
+ * @complexity O(1) — at most one seal, plus one extra decrypt+seal on a standalone username clear.
+ */
+async function resolveSealedAndUsername(
+  deps: CustomCredentialWriteDeps,
+  input: UpdateCustomCredentialInput,
+  existing: CustomCredentialSetRecord
+): Promise<{ sealed: CustomCredentialSetRecord["sealed"]; username: string | undefined }> {
   let sealed = existing.sealed;
   let username = existing.username;
+
   if (input.connection !== undefined) {
     const connection = validateConnection(input.connection);
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection });
     username = connection.username;
   }
-  // Applied AFTER `connection` so it can override whatever the block above just computed — see this
-  // function's own doc for the full precedence writeup. Left as a no-op (not even revalidated) when
-  // omitted, so a caller that never mentions `username` keeps exactly what `connection` decided (or
-  // `existing.username`, if `connection` was omitted too) — the untouched-unless-asked contract every
-  // other optional field on this store already has.
+
   if (input.username !== undefined) {
     username = validateUsernamePatch(input.username);
-    // An explicit clear (`username: null`) with no `connection` replacement leaves `sealed` as
-    // `existing.sealed` above — still carrying the OLD username inside the ciphertext.
-    // `resolveCustomCredentialByLabel` falls back to that embedded value whenever the plaintext
-    // column is `undefined` (its own doc explains why: half-migrated rows), so without this reseal
-    // the clear would silently resurrect on the next decrypting read. Re-seal with the existing
-    // token and no username so the ciphertext stops carrying it too. Not needed for the "set a new
-    // value" case: the column always wins over the sealed copy once it holds a real value, so that
-    // divergence never surfaces to a reader (see `update-username.unit.test.ts`'s byte-identical
-    // assertion for that case, which this branch must not disturb).
     if (username === undefined && input.connection === undefined) {
       const oldConnection = await decryptRecord(deps.sealer, existing);
       sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection: { token: oldConnection.token } });
     }
   }
 
+  return { sealed, username };
+}
+
+export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!existing) {
+    throw new CustomCredentialNotFoundError(`no custom credential '${input.id}' in this workspace`);
+  }
+
+  const scalarFields = resolveUpdatedScalarFields(existing, input);
+  const now: ISODateTime = deps.clock.nowIso();
+  const { sealed, username } = await resolveSealedAndUsername(deps, input, existing);
+
   const record: CustomCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id: input.id,
-    label,
-    category,
-    baseUrl,
-    additionalHosts,
+    ...scalarFields,
     ...(username !== undefined ? { username } : {}),
     sealed,
     createdAt: existing.createdAt,
@@ -484,7 +512,7 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
     await deps.repo.update(record);
   } catch (err) {
     if (isUniqueLabelViolation(err)) {
-      throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${label}' already exists in this workspace`);
+      throw new CustomCredentialDuplicateLabelError(`a custom credential labeled '${scalarFields.label}' already exists in this workspace`);
     }
     throw err;
   }

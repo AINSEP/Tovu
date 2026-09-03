@@ -51,34 +51,54 @@ export interface DefaultCredentialHit {
   readonly line: number;
 }
 
+/** Directory (or file) names never worth walking into or scanning: build output, dependencies,
+ *  and test sources. Test sources are excluded because they are not reachable from the Vite entry
+ *  point and so never enter the browser bundle a logged-out visitor can fetch. This is the one
+ *  content-scope exclusion, and it is a statement about what ships, not a convenience:
+ *  `api-request-unreachable.unit.test.ts` legitimately authenticates with the default to exercise
+ *  an unreachable-API path. A test that renders the credential into a COMPONENT would still be
+ *  caught, because the component itself is scanned. */
+const SKIPPED_ENTRY_NAMES = new Set(["node_modules", "dist", ".vite", "__tests__"]);
+
+/** True iff `entry` is a scannable source file this check must inspect. */
+function isScannableFile(entry: string): boolean {
+  return SCANNED_EXTENSIONS.has(path.extname(entry)) && !/\.(test|spec)\.[jt]sx?$/.test(entry);
+}
+
+/** `readdirSync`, or `[]` for a directory that cannot be listed (missing, not a directory,
+ *  permission denied) — a walk that hits an unreadable directory should skip it, not throw. */
+function readDirEntries(dir: string): string[] {
+  try {
+    return readdirSync(dir);
+  } catch {
+    return [];
+  }
+}
+
+/** `true`/`false`/`null` for "is a directory" / "is a file" / "could not stat" (deleted between
+ *  listing and stat, a broken symlink, or a permission error) — `null` tells the caller to skip the
+ *  entry entirely rather than mis-scan it as either shape. */
+function statIsDirectory(fullPath: string): boolean | null {
+  try {
+    return statSync(fullPath).isDirectory();
+  } catch {
+    return null;
+  }
+}
+
 /** Recursively lists scannable files under `dir`, skipping build output and dependencies. */
 function listFiles(dir: string): string[] {
   const out: string[] = [];
-  let entries: string[];
-  try {
-    entries = readdirSync(dir);
-  } catch {
-    return out;
-  }
-  for (const entry of entries) {
-    if (entry === "node_modules" || entry === "dist" || entry === ".vite") continue;
-    // Test sources are excluded because they are not reachable from the Vite entry point and so
-    // never enter the browser bundle a logged-out visitor can fetch. This is the one exclusion,
-    // and it is a statement about what ships, not a convenience: `api-request-unreachable.unit
-    // .test.ts` legitimately authenticates with the default to exercise an unreachable-API path.
-    // A test that renders the credential into a COMPONENT would still be caught, because the
-    // component itself is scanned.
-    if (entry === "__tests__") continue;
+  for (const entry of readDirEntries(dir)) {
+    if (SKIPPED_ENTRY_NAMES.has(entry)) continue;
+
     const full = path.join(dir, entry);
-    let isDir = false;
-    try {
-      isDir = statSync(full).isDirectory();
-    } catch {
-      continue;
-    }
+    const isDir = statIsDirectory(full);
+    if (isDir === null) continue;
+
     if (isDir) {
       out.push(...listFiles(full));
-    } else if (SCANNED_EXTENSIONS.has(path.extname(entry)) && !/\.(test|spec)\.[jt]sx?$/.test(entry)) {
+    } else if (isScannableFile(entry)) {
       out.push(full);
     }
   }

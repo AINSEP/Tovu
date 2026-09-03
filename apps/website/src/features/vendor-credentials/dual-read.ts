@@ -112,6 +112,14 @@ function invertProviderToVendorMap<ProviderId extends string>(forward: Record<Pr
 const VENDOR_TO_PUBLISH_PROVIDER = invertProviderToVendorMap<PublishProviderId>(PUBLISH_PROVIDER_TO_VENDOR);
 const VENDOR_TO_SOURCE_CONTROL_PROVIDER = invertProviderToVendorMap<SourceControlProviderId>(SOURCE_CONTROL_PROVIDER_TO_VENDOR);
 
+/** Spreads `{[key]: value}` only when `value` is defined — the same "absent stays absent, never a
+ *  present-but-undefined key" contract every optional field these two mappers produce already keeps
+ *  (mirrors `store.ts`'s own `toSummary` username spread). Extracted so the per-vendor mappers below
+ *  read as one object literal each, not an inline ternary per optional field. */
+function withDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } {
+  return value !== undefined ? ({ [key]: value } as { [P in K]?: V }) : {};
+}
+
 /**
  * `PublishConnectionInput` -> `VendorConnectionInput`. The two types are field-for-field identical
  * per vendor except the discriminant key (`providerId` vs `vendorId`) and, for `github-pages`/
@@ -130,15 +138,15 @@ function publishConnectionToVendorConnection(connection: PublishConnectionInput)
     case "github-pages":
       return { vendorId: "github", token: connection.token };
     case "vercel":
-      return { vendorId: "vercel", token: connection.token, ...(connection.teamId !== undefined ? { teamId: connection.teamId } : {}) };
+      return { vendorId: "vercel", token: connection.token, ...withDefined("teamId", connection.teamId) };
     case "netlify":
-      return { vendorId: "netlify", token: connection.token, ...(connection.siteId !== undefined ? { siteId: connection.siteId } : {}) };
+      return { vendorId: "netlify", token: connection.token, ...withDefined("siteId", connection.siteId) };
     case "cloudflare-pages":
       return {
         vendorId: "cloudflare",
         token: connection.token,
         accountId: connection.accountId,
-        ...(connection.projectName !== undefined ? { projectName: connection.projectName } : {}),
+        ...withDefined("projectName", connection.projectName),
       };
     case "s3-compatible":
       return {
@@ -148,7 +156,7 @@ function publishConnectionToVendorConnection(connection: PublishConnectionInput)
         accessKeyId: connection.accessKeyId,
         secretAccessKey: connection.secretAccessKey,
         publicUrl: connection.publicUrl,
-        ...(connection.endpoint !== undefined ? { endpoint: connection.endpoint } : {}),
+        ...withDefined("endpoint", connection.endpoint),
       };
   }
 }

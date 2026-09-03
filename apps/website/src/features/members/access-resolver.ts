@@ -119,6 +119,10 @@ export class DefaultMemberAccessResolver implements MemberAccessResolver {
    * fail-closed on any visibility value outside the known union (ADR-021 §8
    * lineage) — an unparseable/unknown value denies with no teaser.
    *
+   * Dispatches to one per-visibility decision function below (extracted so this
+   * function stays pure sequencing — each branch's logic, including its own
+   * `@complexity`, lives with its own decision).
+   *
    * @complexity O(t), t = `access.tierIds?.length` (small, editorial data).
    */
   decide(required: { access: MemberContentAccess; context: MemberContext }): MemberAccessDecision {
@@ -126,47 +130,71 @@ export class DefaultMemberAccessResolver implements MemberAccessResolver {
 
     switch (access.visibility) {
       case "public":
-        return { allowed: true, visibility: "public", reason: "public", teaser: false };
-
+        return decidePublicAccess();
       case "members":
-        if (context.isAuthenticated) {
-          return { allowed: true, visibility: "members", reason: "entitled", teaser: false };
-        }
-        return { allowed: false, visibility: "members", reason: "sign_in_required", teaser: true };
-
+        return decideMembersAccess(context);
       case "paid":
-        if (context.isAuthenticated && context.isPaid) {
-          return { allowed: true, visibility: "paid", reason: "entitled", teaser: false };
-        }
-        return {
-          allowed: false,
-          visibility: "paid",
-          reason: context.isAuthenticated ? "upgrade_required" : "sign_in_required",
-          teaser: true,
-        };
-
-      case "tiers": {
-        const requiredTierIds = access.tierIds ?? [];
-        const isEntitled = requiredTierIds.some((tierId) => context.activeTierIds.includes(tierId));
-        if (context.isAuthenticated && isEntitled) {
-          return { allowed: true, visibility: "tiers", reason: "entitled", teaser: false };
-        }
-        return {
-          allowed: false,
-          visibility: "tiers",
-          reason: context.isAuthenticated ? "upgrade_required" : "sign_in_required",
-          teaser: true,
-        };
-      }
-
+        return decidePaidAccess(context);
+      case "tiers":
+        return decideTiersAccess(access, context);
       default:
-        // Fail-closed: any value outside the known union denies, no teaser.
-        return {
-          allowed: false,
-          visibility: access.visibility,
-          reason: "unknown_visibility",
-          teaser: false,
-        };
+        return decideUnknownVisibilityAccess(access.visibility);
     }
   }
+}
+
+/** `visibility: "public"` always allows, with no context to consult.
+ *  @complexity O(1). */
+function decidePublicAccess(): MemberAccessDecision {
+  return { allowed: true, visibility: "public", reason: "public", teaser: false };
+}
+
+/** `visibility: "members"` allows any authenticated member regardless of paid status.
+ *  @complexity O(1). */
+function decideMembersAccess(context: MemberContext): MemberAccessDecision {
+  if (context.isAuthenticated) {
+    return { allowed: true, visibility: "members", reason: "entitled", teaser: false };
+  }
+  return { allowed: false, visibility: "members", reason: "sign_in_required", teaser: true };
+}
+
+/** `visibility: "paid"` allows only an authenticated member with an active paid subscription.
+ *  @complexity O(1). */
+function decidePaidAccess(context: MemberContext): MemberAccessDecision {
+  if (context.isAuthenticated && context.isPaid) {
+    return { allowed: true, visibility: "paid", reason: "entitled", teaser: false };
+  }
+  return {
+    allowed: false,
+    visibility: "paid",
+    reason: context.isAuthenticated ? "upgrade_required" : "sign_in_required",
+    teaser: true,
+  };
+}
+
+/** `visibility: "tiers"` allows an authenticated member holding at least one of `access.tierIds`.
+ *  @complexity O(t), t = `access.tierIds?.length` (small, editorial data). */
+function decideTiersAccess(access: MemberContentAccess, context: MemberContext): MemberAccessDecision {
+  const requiredTierIds = access.tierIds ?? [];
+  const isEntitled = requiredTierIds.some((tierId) => context.activeTierIds.includes(tierId));
+  if (context.isAuthenticated && isEntitled) {
+    return { allowed: true, visibility: "tiers", reason: "entitled", teaser: false };
+  }
+  return {
+    allowed: false,
+    visibility: "tiers",
+    reason: context.isAuthenticated ? "upgrade_required" : "sign_in_required",
+    teaser: true,
+  };
+}
+
+/** Fail-closed: any value outside the known `MemberContentVisibility` union denies, no teaser.
+ *  @complexity O(1). */
+function decideUnknownVisibilityAccess(visibility: MemberContentVisibility): MemberAccessDecision {
+  return {
+    allowed: false,
+    visibility,
+    reason: "unknown_visibility",
+    teaser: false,
+  };
 }
