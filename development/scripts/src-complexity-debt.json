@@ -330,56 +330,6 @@
     },
     {
       "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/assistant/detect-agents.ts",
-      "reason": "Function 'toExecutionTabAgent' has a complexity of 12. Maximum allowed is 9."
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/forms/delete-submission.ts",
-      "reason": "Async arrow function has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/forms/get-submission.ts",
-      "reason": "Async arrow function has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/pages/create.ts",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts",
-      "reason": "Async arrow function has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/plugins/uninstall.ts",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 11 to the 9 allowed."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/posts/create.ts",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/site/profile.ts",
-      "reason": "Function 'parseSections' has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/site/profile.ts",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 14 to the 9 allowed."
-    },
-    {
-      "rule": "complexity",
-      "file": "apps/website/src/server/inbound/admin-http/routes/system/custom-credentials.ts",
-      "reason": "Async arrow function has a complexity of 10. Maximum allowed is 9."
-    },
-    {
-      "rule": "complexity",
       "file": "apps/website/src/server/inbound/assistant/agent-daemon-server.ts",
       "reason": "Async arrow function has a complexity of 11. Maximum allowed is 9."
     },
@@ -403,5 +353,6 @@
       "file": "apps/website/src/server/runtime/composition/deps.ts",
       "reason": "Function 'createSqliteRouteDeps' has a complexity of 11. Maximum allowed is 9."
     }
-  ]
+  ],
+  "_comment_2026-09-03_cleared": "Cleared 10 admin-http/routes entries on 2026-09-03 after commits 503d2fb0 (cognitive: site/profile.ts, plugins/uninstall.ts, pages/create.ts, posts/create.ts) and 6d6ac28a (cyclomatic: assistant/detect-agents.ts, forms/delete-submission.ts, forms/get-submission.ts, system/custom-credentials.ts) refactored all of them under the 9/9 ceiling. Verified by this script's own findViolations() reporting them as no-longer-reproducing. tool-registrations.ts entries deliberately LEFT IN PLACE: handleCreateAnswer drifted 16->17 cyclomatic and 18->19 cognitive under f0783b49 the same day, so its baseline numbers are now stale in the WRONG direction and it needs a real refactor, not a rebaseline."
 }
