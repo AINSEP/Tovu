@@ -61,7 +61,7 @@ import path from "node:path";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
-const SRC_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src") : path.resolve(process.argv[dirFlagIndex + 1]);
+const SRC_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "apps", "website", "src") : path.resolve(process.argv[dirFlagIndex + 1]);
 
 /** One entry per Jini chokepoint family. `functions` are the exact exported write-function names
  * that require `outbox`; `bridge` is the one adapter call that legitimately produces a value for

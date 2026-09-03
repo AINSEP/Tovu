@@ -8,6 +8,8 @@ import {
   classifyRepoRelativeString,
   collectRepoSegments,
   collectSweepTargets,
+  dropLeadingParentSegments,
+  extractPathJoinSegments,
   extractRelativeImportSpecifiers,
   extractStringLiterals,
   findingKey,
@@ -47,16 +49,39 @@ import {
  * `drizzle.config.ts` got in 7fb47f55. Pass two — `list-server-test-files.ts`, the ONE entry this
  * guard was originally commissioned around, once the owner decided which tests CI should run was no
  * longer an open question. Both passes repoint each `src/...` string to `apps/website/src/...` with
- * no threshold, baseline, or scope changes beyond the path itself. Their register entries below are
- * removed as no-longer-broken; the remaining 21 references across 9 files are unchanged and still the
- * owner's call. Fixing `check-route-coverage-diff.ts`'s two git pathspecs also required repointing
- * `route-coverage-lib.ts`'s `isMeasurableRouteFile` (same `src/server/routes/...` dead prefix, one
- * function away) — that instance was invisible to this sweep because both its literals end in `/`
- * (the `trailing-separator` skip rule), so it was never one of the 35 and has no register entry to
- * remove. That rule unconditionally exempted every trailing-`/` literal instead of just the
- * ambiguous single-segment ones; see `classifyRepoRelativeString`'s `NORMALIZED_SKIP_RULES` comment
- * and the `historical:` tests below for the fix that closes the general escape, not just this one
- * already-fixed instance.
+ * no threshold, baseline, or scope changes beyond the path itself. Fixing `check-route-coverage-diff.ts`'s
+ * two git pathspecs also required repointing `route-coverage-lib.ts`'s `isMeasurableRouteFile` (same
+ * `src/server/routes/...` dead prefix, one function away) — that instance was invisible to this sweep
+ * because both its literals end in `/` (the `trailing-separator` skip rule), so it was never one of
+ * the 35 and has no register entry to remove. That rule unconditionally exempted every trailing-`/`
+ * literal instead of just the ambiguous single-segment ones; see `classifyRepoRelativeString`'s
+ * `NORMALIZED_SKIP_RULES` comment and the `historical:` tests below for the fix that closes the
+ * general escape, not just this one already-fixed instance.
+ *
+ * 2026-09-03 (CI gate wiring audit, task 2): a CI-gate-wiring pass needed five crashing `check:*`
+ * scripts repointed — `check-inventory`, `check-embed-marker-drift`, `check-outbox-bridge`,
+ * `check-openapi-contract`, `check-openapi-secret-leaks` (the last two share
+ * `development/scripts/lib/tovu-test-server.ts`'s import). Three of those five ARE this register's
+ * entries for `check-capability-inventory.ts`, `check-embed-marker-drift.ts`, and
+ * `lib/tovu-test-server.ts` — this sweep found them on 2026-09-02 and they were deliberately parked
+ * here as "the owner's call, not a mechanical repair" (each entry's rationale said so explicitly).
+ * That call was made this session; fixing them is exactly the mechanical repoint the register said it
+ * was. Their entries are removed below as no-longer-broken, same as the two prior passes.
+ *
+ * The other two — `check-outbox-bridge.ts`'s `path.join(REPO_ROOT, "src")` and
+ * `check-capability-inventory.ts`'s own `path.resolve(import.meta.dirname, "..", "..", "src",
+ * "server")` — were NOT in this register at all, and the reason is a real gap, not an oversight in
+ * the ledger: neither is a relative import (class 1) or a single hardcoded path string (class 2).
+ * Both build a path from several separate string ARGUMENTS to `path.join`/`path.resolve`, and every
+ * individual argument (`"src"`, `"server"`) has no `/` of its own, so class 2's `no-path-separator`
+ * skip rule discarded each one without ever seeing they were joined together. This sweep could not
+ * have found them before this commit added class 3 (`extractPathJoinSegments` +
+ * `dropLeadingParentSegments`, see their doc comments in `lib/dead-path-sweep.ts`) specifically to
+ * close that hole. Both instances are already fixed as of this commit, so class 3 reports zero live
+ * findings against today's tree — its `historical:` tests below prove it would have caught the
+ * pre-fix shape.
+ *
+ * The remaining 18 references across 6 files are unchanged and still the owner's call.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
@@ -137,24 +162,6 @@ const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEn
       "the true dead target is development/src/platform/db/schema.ts — absent under either base.",
     ["src/platform/db/schema.ts"]
   ),
-  ...known(
-    "development/scripts/check-capability-inventory.ts",
-    `${UNRUN_ONE_SHOT} This one IS a check: script, so its failure mode is a crash rather than a ` +
-      "silent pass — but ci.yml's continue-on-error swallows the crash.",
-    ["../../src/server/runtime/configuration/capability-inventory.js"]
-  ),
-  ...known(
-    "development/scripts/check-embed-marker-drift.ts",
-    `${UNRUN_ONE_SHOT} Same crash-not-silence shape as check-capability-inventory.ts.`,
-    ["../../src/contracts/core/embeds/marker.js"]
-  ),
-  ...known(
-    "development/scripts/lib/tovu-test-server.ts",
-    "the shared harness behind check-openapi-contract.ts and check-openapi-secret-leaks.ts — both of " +
-      "those gates crash on import today. Fixing it means booting the real app from a check script, " +
-      "which needs verification this task is not scoped to do.",
-    ["../../../src/server/runtime/composition/app.js"]
-  ),
 };
 
 // ---------------------------------------------------------------------------
@@ -192,8 +199,8 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 21 references remaining after the 2026-09-02 five-file fix — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 21);
+test("known-broken register is exactly the 18 references remaining after the 2026-09-03 gate-repoint pass — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 18);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {
@@ -252,6 +259,21 @@ const ROUTE_COVERAGE_LIB_BEFORE_678B6464 = `export function isMeasurableRouteFil
   if (base === "deps.ts" || base === "execution-deps.ts" || base === "types.ts") return false;
   return true;
 }
+`;
+
+/** The pre-2026-09-03 form of `check-outbox-bridge.ts`'s `SRC_DIR` line (this task's own diff —
+ *  see `ADS-memory/reports/2026-09-03-ci-gate-wiring-audit.md`) — `path.join(REPO_ROOT, "src")`
+ *  crashed the scan with `ENOENT: no such file or directory, scandir '.../src'` after the restructure.
+ *  Unlike the fixtures above, this one was NEVER in `KNOWN_BROKEN_PENDING_OWNER_DECISION`: `"src"` is
+ *  a single argument with no `/` of its own, so class 2's `no-path-separator` rule discarded it and
+ *  class 1 doesn't apply (it isn't an import). Invisible to this sweep until class 3 (below). */
+const CHECK_OUTBOX_BRIDGE_BEFORE_20260903 = `const SRC_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src") : path.resolve(process.argv[dirFlagIndex + 1]);
+`;
+
+/** The pre-2026-09-03 form of `check-capability-inventory.ts`'s `SERVER_DIR` line — same shape and
+ *  same reason it was never in the register: `"src"`/`"server"` are separate arguments, neither
+ *  containing a `/`. */
+const CHECK_CAPABILITY_INVENTORY_SERVER_DIR_BEFORE_20260903 = `const SERVER_DIR = path.resolve(import.meta.dirname, "..", "..", "src", "server");
 `;
 
 test("historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead", () => {
@@ -327,6 +349,105 @@ test("historical: the current route-coverage-lib.ts prefixes resolve, so the che
   ]);
   for (const p of paths) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 678b6464`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// class 3: path.join()/path.resolve() call extraction (2026-09-03)
+// ---------------------------------------------------------------------------
+
+test("extractPathJoinSegments finds the trailing string-literal run and ignores the non-literal base", () => {
+  const source = `const SERVER_DIR = path.resolve(import.meta.dirname, "..", "..", "src", "server");`;
+  const found = extractPathJoinSegments(source);
+
+  assert.deepEqual(
+    found.map((c) => c.segments),
+    [["..", "..", "src", "server"]]
+  );
+  assert.equal(found[0]!.line, 1);
+});
+
+test("extractPathJoinSegments stops the trailing run at the first non-literal argument, however many literals came before it", () => {
+  const source = `path.join(REPO_ROOT, someVar, "src", "server");`;
+  const found = extractPathJoinSegments(source);
+
+  // "src"/"server" come AFTER someVar, so they are still the trailing run; someVar itself is not a
+  // literal and is excluded, and REPO_ROOT (the base) never enters the run at all.
+  assert.deepEqual(
+    found.map((c) => c.segments),
+    [["src", "server"]]
+  );
+});
+
+test("extractPathJoinSegments finds nothing when no argument is a trailing string literal", () => {
+  const source = `path.join(REPO_ROOT, someVar);`;
+  assert.deepEqual(extractPathJoinSegments(source), []);
+});
+
+test("extractPathJoinSegments ignores calls other than path.join/path.resolve", () => {
+  const source = `otherThing.join(REPO_ROOT, "src", "server");`;
+  assert.deepEqual(extractPathJoinSegments(source), []);
+});
+
+test("dropLeadingParentSegments strips only the leading .. run, keeping a .. that appears later", () => {
+  assert.deepEqual(dropLeadingParentSegments(["..", "..", "src", "server"]), ["src", "server"]);
+  assert.deepEqual(dropLeadingParentSegments(["src", "..", "server"]), ["src", "..", "server"]);
+  assert.deepEqual(dropLeadingParentSegments(["src"]), ["src"]);
+});
+
+test("known limitation: a SINGLE meaningful segment in a path.join/resolve call — the pre-2026-09-03 check-outbox-bridge.ts SRC_DIR shape — is still invisible to every class, on purpose", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+
+  // classes 1 (imports) and 2 (hardcoded strings) see nothing: "src" alone has no "/".
+  assert.deepEqual(extractRelativeImportSpecifiers(CHECK_OUTBOX_BRIDGE_BEFORE_20260903), []);
+  assert.deepEqual(repoRelativePathsIn(CHECK_OUTBOX_BRIDGE_BEFORE_20260903, segments), []);
+
+  // class 3 extracts the call's trailing literal run, but a single meaningful segment ("src") stays
+  // exactly as ambiguous as a bare string literal — the same precision-over-recall reason class 2
+  // never treats a bare "src" as a path (`no-path-separator`; `path.join(x, "dist")`, `path.join(x,
+  // "node_modules")` etc. are common and legitimate, and neither is a repo-root-relative reference).
+  // This IS a real gap this task's fix did not close: check-outbox-bridge.ts's SRC_DIR bug is fixed in
+  // the source (verified by actually running `check:outbox-bridge`, see this task's report), but a
+  // sweep re-run today would NOT have caught the pre-fix single-segment shape on its own — only the
+  // two-segment `check-capability-inventory.ts` SERVER_DIR shape (next test) is within class 3's
+  // detection boundary. Disclosed here rather than silently left unproven.
+  const [candidate] = extractPathJoinSegments(CHECK_OUTBOX_BRIDGE_BEFORE_20260903);
+  assert.ok(candidate, "expected one path.join call");
+  assert.deepEqual(dropLeadingParentSegments(candidate.segments), ["src"]);
+});
+
+test("historical [direct]: the pre-2026-09-03 SRC_DIR/SERVER_DIR shapes resolve to nothing under REPO_ROOT", () => {
+  // check-outbox-bridge.ts's SRC_DIR was a SINGLE meaningful segment ("src"), which classifyRepoRelativeString
+  // itself never runs on for class 3 (sweepOneFile requires 2+ meaningful segments — see its own
+  // comment). Its deadness was real, but caught operationally (see check-outbox-bridge.log in this
+  // task's report) rather than by this specific unit boundary. SERVER_DIR is the two-segment case class
+  // 3 actually classifies:
+  const [candidate] = extractPathJoinSegments(CHECK_CAPABILITY_INVENTORY_SERVER_DIR_BEFORE_20260903);
+  assert.ok(candidate);
+  const meaningful = dropLeadingParentSegments(candidate.segments);
+  assert.deepEqual(meaningful, ["src", "server"]);
+
+  const classified = classifyRepoRelativeString(meaningful.join("/"), { knownRepoSegments: collectRepoSegments(REPO_ROOT) });
+  assert.deepEqual(classified, { kind: "repo-relative-path", repoRelative: "src/server" });
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist("src/server"))), false, "src/server unexpectedly exists");
+});
+
+test("historical: the current check-outbox-bridge.ts and check-capability-inventory.ts path.join/path.resolve calls resolve, so the checks above are not trivially true", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  const outboxSource = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/check-outbox-bridge.ts"), "utf8");
+  const inventorySource = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/check-capability-inventory.ts"), "utf8");
+
+  for (const source of [outboxSource, inventorySource]) {
+    for (const candidate of extractPathJoinSegments(source)) {
+      const meaningful = dropLeadingParentSegments(candidate.segments);
+      if (meaningful.length < 2) continue;
+      const classified = classifyRepoRelativeString(meaningful.join("/"), { knownRepoSegments: segments });
+      if (classified.kind !== "repo-relative-path") continue;
+      assert.ok(
+        fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(classified.repoRelative))),
+        `${classified.repoRelative} should exist after this task's repoint`
+      );
+    }
   }
 });
 

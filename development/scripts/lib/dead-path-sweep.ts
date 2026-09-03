@@ -152,7 +152,7 @@ function lineOf(source: string, offset: number): number {
 // Reference extraction
 // ---------------------------------------------------------------------------
 
-export type ReferenceKind = "relative-import" | "repo-relative-string";
+export type ReferenceKind = "relative-import" | "repo-relative-string" | "path-join-call";
 
 export interface PathReference {
   /** repo-relative, forward-slash path of the file the reference was written in */
@@ -309,6 +309,146 @@ export function extractStringLiterals(source: string): readonly { value: string;
   return tokenizeStringLiterals(source)
     .filter((t) => !t.isTemplate)
     .map((t) => ({ value: t.value, line: t.line }));
+}
+
+// ---------------------------------------------------------------------------
+// path.join()/path.resolve() call extraction (class 3: computed multi-argument paths)
+// ---------------------------------------------------------------------------
+
+export interface PathJoinCandidate {
+  /** the trailing string-literal arguments, in call order, e.g. `["..", "..", "src", "server"]`
+   *  for `path.resolve(import.meta.dirname, "..", "..", "src", "server")` */
+  readonly segments: readonly string[];
+  /** 1-based line the call starts on */
+  readonly line: number;
+}
+
+const PATH_JOIN_CALL = /\bpath\.(?:join|resolve)\s*\(/g;
+
+/**
+ * Finds `path.join(...)`/`path.resolve(...)` calls and returns each one's TRAILING run of pure
+ * string-literal arguments.
+ *
+ * This is the gap classes 1 and 2 both miss, found auditing this file against 2026-09-03's
+ * `check-outbox-bridge.ts`/`check-capability-inventory.ts` fixes: `path.join(REPO_ROOT, "src")` and
+ * `path.resolve(import.meta.dirname, "..", "..", "src", "server")` were both invisible to this sweep
+ * — each individual segment string (`"src"`, `"server"`) has no `/` of its own, so class 2's
+ * `no-path-separator` skip rule (correct for a genuinely bare word like a directory-name filter)
+ * discarded every one of them without ever seeing they were arguments to the SAME call, joined into
+ * one real multi-segment path at runtime. Neither instance had a register entry — they were not
+ * known-and-tolerated debt, they were structurally unreachable by the classifier that would have
+ * found them.
+ *
+ * Only the TRAILING literal run is used. The leading argument(s) — almost always a computed base
+ * (`import.meta.dirname`, `REPO_ROOT`) — cannot be resolved statically and is not needed to be: the
+ * literal segments layered on top of it are what encode the restructure-sensitive part of the path,
+ * exactly as class 2 already resolves a hardcoded string against the (also unverifiable-by-this-tool)
+ * CWD. A non-literal argument BEFORE the trailing run (a ternary, a variable, another call) simply
+ * ends the run at that point; this sweep does not attempt to evaluate it.
+ *
+ * @param source raw file text
+ * @returns one entry per path.join/path.resolve call whose trailing arguments include at least one
+ *          string literal, in source order
+ * @complexity O(n) in source length.
+ */
+export function extractPathJoinSegments(source: string): readonly PathJoinCandidate[] {
+  const code = stripComments(source);
+  const out: PathJoinCandidate[] = [];
+
+  for (const match of code.matchAll(PATH_JOIN_CALL)) {
+    const openParen = match.index! + match[0].length - 1;
+    const args = splitCallArguments(code, openParen);
+    if (!args) continue;
+
+    const trailingLiterals: string[] = [];
+    for (let i = args.length - 1; i >= 0; i--) {
+      const literal = asStringLiteral(args[i]!);
+      if (literal === null) break;
+      trailingLiterals.unshift(literal);
+    }
+    if (trailingLiterals.length === 0) continue;
+
+    out.push({ segments: trailingLiterals, line: lineOf(code, match.index!) });
+  }
+
+  return out;
+}
+
+/**
+ * Splits the argument list of a call whose `(` is at `openParen` into its top-level,
+ * comma-separated argument texts (trimmed), respecting nested parens/brackets/braces and quoted
+ * strings so a comma or paren inside a string or nested call does not split early.
+ *
+ * @returns argument texts in call order, or `null` if the call is never closed (malformed/truncated
+ *          input — declines to guess rather than report a bogus argument list)
+ * @complexity O(n) in the text scanned.
+ */
+function splitCallArguments(code: string, openParen: number): readonly string[] | null {
+  const args: string[] = [];
+  let depth = 1;
+  let start = openParen + 1;
+  let i = start;
+  let quote: '"' | "'" | "`" | null = null;
+
+  while (i < code.length && depth > 0) {
+    const c = code[i];
+    if (quote) {
+      if (c === "\\") i += 2;
+      else {
+        if (c === quote) quote = null;
+        i++;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      quote = c;
+      i++;
+      continue;
+    }
+    if (c === "(" || c === "[" || c === "{") {
+      depth++;
+      i++;
+      continue;
+    }
+    if (c === ")" || c === "]" || c === "}") {
+      depth--;
+      if (depth === 0) break;
+      i++;
+      continue;
+    }
+    if (c === "," && depth === 1) {
+      args.push(code.slice(start, i).trim());
+      start = i + 1;
+      i++;
+      continue;
+    }
+    i++;
+  }
+  if (depth !== 0) return null;
+  const last = code.slice(start, i).trim();
+  if (last.length > 0) args.push(last);
+  return args;
+}
+
+/** `'x'`/`"x"` -> `x`, or `null` if `arg` is not ENTIRELY a single quoted string literal (an
+ *  identifier, member expression, template literal, or nested call) — a conservative test, since a
+ *  false "yes" here would let a computed value silently pass as a directory-tree literal. */
+function asStringLiteral(arg: string): string | null {
+  if (arg.length < 2) return null;
+  const quote = arg[0];
+  if ((quote !== '"' && quote !== "'") || arg[arg.length - 1] !== quote) return null;
+  const inner = arg.slice(1, -1);
+  if (inner.includes(quote) || inner.includes("\n")) return null;
+  return inner;
+}
+
+/** Drops a leading run of `".."` segments — parent-directory traversal that resolves relative to
+ *  whatever the call's non-literal base argument was, and carries no restructure-sensitive
+ *  information of its own. */
+export function dropLeadingParentSegments(segments: readonly string[]): readonly string[] {
+  let i = 0;
+  while (i < segments.length && segments[i] === "..") i++;
+  return segments.slice(i);
 }
 
 // ---------------------------------------------------------------------------
@@ -557,12 +697,15 @@ export function sweepFiles(options: SweepOptions): readonly DeadPathFinding[] {
 }
 
 /**
- * Both reference classes for a single file.
+ * All three reference classes for a single file: relative imports, hardcoded repo-relative
+ * strings, and (2026-09-03) the trailing literal segments of `path.join`/`path.resolve` calls.
  *
  * @param repoRoot absolute repository root
  * @param file repo-relative path of the file to read
  * @param segments the derived repo-segment set
- * @param scanStrings whether class-2 hardcoded path strings should be collected for this file
+ * @param scanStrings whether class-2/class-3 hardcoded path references should be collected for
+ *        this file (same rationale for both: a test file's fixture data is not a real reference —
+ *        see `shouldScanStringsIn`)
  * @returns the dead references found, in the order they were checked
  * @complexity O(n) in file size, plus one `existsSync` per candidate target.
  */
@@ -598,6 +741,17 @@ function sweepOneFile(
     const required = pathThatMustExist(classified.repoRelative);
     if (fs.existsSync(path.join(repoRoot, required))) continue;
     findings.push({ file, line, kind: "repo-relative-string", specifier: value, attempted: [required] });
+  }
+
+  for (const { segments: rawSegments, line } of extractPathJoinSegments(source)) {
+    const meaningful = dropLeadingParentSegments(rawSegments);
+    if (meaningful.length < 2) continue; // one bare segment is as ambiguous as a bare string literal
+    const joined = meaningful.join("/");
+    const classified = classifyRepoRelativeString(joined, { knownRepoSegments: segments, ownImportSpecifiers });
+    if (classified.kind !== "repo-relative-path") continue;
+    const required = pathThatMustExist(classified.repoRelative);
+    if (fs.existsSync(path.join(repoRoot, required))) continue;
+    findings.push({ file, line, kind: "path-join-call", specifier: joined, attempted: [required] });
   }
 
   return findings;

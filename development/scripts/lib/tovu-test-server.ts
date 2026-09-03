@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
-import { createApp, createRouteDeps } from "../../../src/server/runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../../../apps/website/src/server/runtime/composition/app.js";
 
 export type TovuRouteDeps = ReturnType<typeof createRouteDeps>;
 

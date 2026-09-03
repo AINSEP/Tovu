@@ -197,11 +197,219 @@ labeled non-blocking with a stated reason and, in most cases, a stated promotion
   `apps/website/src/features/identity/default-credential-exposure.ts` — not edited.
 - Any file under `apps/website/src/` or `apps/admin/src/` other than the three probe-and-revert
   round-trips described above, none of which left a net diff.
-- The five restructure-broken scripts (`check-outbox-bridge.ts`, `check-embed-marker-drift.ts`,
-  `check-openapi-contract.ts`, `check-openapi-secret-leaks.ts`,
-  `check-capability-inventory.ts`) — reported, not patched; they're under
-  `development/scripts/`, outside this task's touch list (`.github/workflows/*`,
-  `package.json`, this report).
+- The five restructure-broken scripts — see **Task 2** below: repointed 2026-09-03 once
+  `development/scripts/**` was added to this task's touch list. Superseded, not withdrawn: the
+  paragraph above described the state as of Task 1's handoff.
 - `check:boundaries`, `check:architecture`, `check:admin-complexity-drift`,
   `check:src-complexity-drift` current red findings — reported above, not fixed; all are
   findings in `apps/website/src`/`apps/admin/src`, owned by other agents this session.
+
+---
+
+# Task 2 — repoint the 5 stale-path scripts, and the dead-path-sweep investigation
+
+Dispatched as a correction + follow-up to Task 1. Scope widened to
+`.github/workflows/**`, `development/scripts/**`, `package.json`, and this report.
+`apps/website/src/**`/`apps/admin/src/**` remain off-limits (six other agents' batches live
+there this session).
+
+## Correction to Task 1's headline — with pushback
+
+Task 1 claimed `build-and-test` is red right now because `check:inventory` is wired AND
+blocking. The correction received says that's wrong because the step carries
+`continue-on-error: true`, so "the job stays green."
+
+Re-examined `ci.yml` after the correction and I don't think the correction is right, for a
+reason that's checkable in the file itself rather than a judgment call:
+
+`ci.yml`'s own header comment on this exact pattern (lines 198-210, unchanged by either of us)
+reads: *"GATES BELOW ARE `continue-on-error: true` + `id:` ON PURPOSE... They are NOT
+non-blocking: the 'Gate summary' step at the end of this job reads every **outcome** and fails
+the job if any of them failed. The change is WHEN you learn, not WHETHER it blocks."* The Gate
+summary step (`ci.yml:406-445` before this task's edits) then literally does that: `check
+"${{ steps.gate-inventory.outcome }}" "check:inventory"`, and `check()` treats anything other
+than `success` as `FAIL`, setting `fail=1` and exiting the job 1.
+
+The load-bearing fact is that GitHub Actions' `steps.<id>.outcome` is the step's result **before**
+`continue-on-error` is applied (the raw pass/fail of the command), while `steps.<id>.conclusion`
+is the result **after** (always `success` for a `continue-on-error` step, which is the field that
+actually determines whether the JOB halts on its own). This file reads `.outcome`, not
+`.conclusion`, specifically to defeat the swallowing effect — that's the entire documented reason
+this aggregator pattern exists (12 gates now, after this task's +3 from Task 1), rather than
+letting the job stop at the first red step. If `continue-on-error` alone made a step's result
+invisible to the job regardless of which field is read, this pattern — and its 13-line
+justification comment — would do nothing, for all 12 gates, not just `check:inventory`.
+
+I can't run this on real GitHub Actions to settle it empirically — Actions is billing-blocked on
+this repo (`ci.yml`'s own header + prior session notes). But the same belief ("continue-on-error
+swallows the crash") is also written, independently, into
+`development/scripts/__tests__/dead-path-sweep.test.ts`'s known-broken register rationale for
+this exact file (quoted verbatim below) — so if I'm right, the same misreading exists twice in
+this codebase, not once. I'm flagging this rather than silently adopting the correction because
+it changes what "red" means for every one of these 12 gates, not just this one.
+
+## What was done
+
+1. **Repointed all five scripts**, verifying each target individually rather than blanket-prepending
+   `apps/website/` (per instruction — and it would NOT have been safe to skip this: one of the
+   five needed a directory ONE LEVEL DEEPER than the naive prepend, caught only by actually
+   running the fixed script and reading the next error):
+   - `development/scripts/check-capability-inventory.ts:17` — import repointed to
+     `../../apps/website/src/server/runtime/configuration/capability-inventory.js` (confirmed the
+     file exists there first).
+   - `development/scripts/check-capability-inventory.ts:19` — a SECOND, separate stale reference
+     in the same file, not part of the import: `SERVER_DIR = path.resolve(dirname, "..", "..",
+     "src", "server")` used to locate `deps.ts`/`app.ts`. Naively becomes
+     `apps/website/src/server` — that directory exists, but `deps.ts`/`app.ts` are NOT directly
+     in it (the restructure nested them under `server/runtime/composition/`). First fix attempt
+     ran and crashed with `ENOENT ... apps/website/src/server/deps.ts`; `find` located the real
+     files at `apps/website/src/server/runtime/composition/{deps,app}.ts`; corrected `SERVER_DIR`
+     to that path. Re-run: green.
+   - `development/scripts/check-embed-marker-drift.ts:79` — import repointed to
+     `../../apps/website/src/contracts/core/embeds/marker.js` (file confirmed to exist there,
+     first try).
+   - `development/scripts/check-outbox-bridge.ts:64` — `SRC_DIR` default repointed from
+     `path.join(REPO_ROOT, "src")` to `path.join(REPO_ROOT, "apps", "website", "src")`.
+   - `development/scripts/lib/tovu-test-server.ts:12` (shared by both openapi gates) — import
+     repointed to `../../../apps/website/src/server/runtime/composition/app.js` (file confirmed
+     to exist there, first try).
+
+2. **Ran all five fresh and report exactly what they say — nothing in their findings was fixed:**
+
+   | gate | rc after repoint | what it actually found |
+   |---|---|---|
+   | `check:inventory` | **0** | "all 25 capability-inventory entries correspond to real deps.ts/app.ts source" |
+   | `check:embed-marker-drift` | **0** | "105 theme file(s) scanned, stored Page bodies SKIPPED (no database at infra/content.db); no retired attribute..." |
+   | `check:outbox-bridge` | **0** | "every chokepoint call site wraps `outbox` with its required bridge" |
+   | `check:openapi-contract` | **1** | Real HTTP probe against a real booted server: 404/431 operation-checks passed, **27 mismatches** (6 flagged as likely-confirmed contract bugs, 21 flagged by the script itself as probable probe limitations — e.g. a validation-before-auth handler short-circuiting an empty-body probe before it reaches the status code under test). Full output in `.../gate-runs/openapi-contract.repointed.log`. |
+   | `check:openapi-secret-leaks` | **0** | Real probe: 79 of 132 operations produced a captured response body; 0 canary leaks, 0 credential-shaped patterns found |
+
+   None of `check:openapi-contract`'s 27 mismatches were touched — that's real product-surface
+   red, reported per instruction, not this task's to fix.
+
+3. **A third, unplanned finding while running the two openapi gates**: both crashed with `owner
+   login failed with 401` on first re-run after the import fix — a THIRD, independent bug, not
+   the path issue. Traced it: `development/scripts/lib/tovu-test-server.ts`'s `loginOwner()`
+   hardcodes `password: "tovu-dev"`, but this shell session has `TOVU_ADMIN_PASSWORD` set to a
+   real, non-default value, which `apps/website/src/features/identity/wiring.ts:120` prefers over
+   the seeded dev default (`process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD`) when
+   seeding the owner account. Re-running with `env -u TOVU_ADMIN_PASSWORD` confirmed the
+   hypothesis — both gates then ran to completion and produced the real findings in the table
+   above. **This is a local-environment artifact of this session's shell, not a restructure
+   defect** — a clean CI runner or a shell without that variable set would use the "tovu-dev"
+   default and never see it. Flagging it anyway because it's a latent risk: if `TOVU_ADMIN_PASSWORD`
+   is ever set as a CI secret (a plausible convention), both gates would crash in CI with the
+   identical 401. **Also found and NOT fixed**: neither `check-openapi-contract.ts` nor
+   `check-openapi-secret-leaks.ts` wraps its login/probe sequence in `try`/`finally` around
+   `server.close()` — `main()` calls `startTovuServer()`, then `loginOwner()`, and only reaches
+   `server.close()` on the line after a successful login. When login throws, the ephemeral
+   `http.Server` is never closed and the Node process does not exit on its own; both runs had to
+   be killed by this session's own command timeout (3 min) rather than exiting. Reported, not
+   fixed — it's inside `development/scripts/`, but fixing script control flow beyond a path
+   repoint felt like it was drifting past "repoint the five scripts," so I stopped at reporting
+   it precisely rather than guessing at scope.
+
+4. **Not wired**: none of these five were added to `ci.yml`. This task's brief was repoint +
+   report, not wire — and `check:openapi-contract` is currently red on real findings regardless,
+   so it wouldn't qualify under Task 1's wiring bar even if asked. `check:inventory`,
+   `check:embed-marker-drift`, `check:outbox-bridge`, and `check:openapi-secret-leaks` are now
+   green and non-vacuous; `check:inventory` is already wired (Task 1, unchanged). The other three
+   are candidates for a future wiring pass if wanted — flagging rather than acting unilaterally,
+   since it wasn't asked for in this dispatch.
+
+## Why didn't `development/scripts/lib/dead-path-sweep.ts` catch this?
+
+It did — for three of the five. The other two were a real, separate scope gap, now closed.
+
+**The three relative-import cases were caught, named, and deliberately parked.**
+`dead-path-sweep.test.ts` runs a REAL, live sweep of `development/scripts/**` (via
+`collectSweepTargets`/`sweepFiles`, called directly in its own test body — this is not a
+`check:*` script, it is a `node:test` file, which is why `npm run check:*` never surfaces it) as
+part of `test:ci`'s glob. Its own header states the sweep found 35 dead references across 14
+files, and a `KNOWN_BROKEN_PENDING_OWNER_DECISION` register exists specifically to record ones
+"deliberately not fixed... each with the reason it is the owner's call rather than a mechanical
+repair." Before this task, that register named exactly three of my five, verbatim:
+
+```
+"development/scripts/check-capability-inventory.ts:../../src/server/runtime/configuration/capability-inventory.js":
+  "a one-shot operational script whose imports have been dead since the restructure... This one
+  IS a check: script, so its failure mode is a crash rather than a silent pass — but ci.yml's
+  continue-on-error swallows the crash."
+
+"development/scripts/check-embed-marker-drift.ts:../../src/contracts/core/embeds/marker.js":
+  "...Same crash-not-silence shape as check-capability-inventory.ts."
+
+"development/scripts/lib/tovu-test-server.ts:../../../src/server/runtime/composition/app.js":
+  "the shared harness behind check-openapi-contract.ts and check-openapi-secret-leaks.ts — both
+  of those gates crash on import today. Fixing it means booting the real app from a check
+  script, which needs verification this task is not scoped to do."
+```
+
+This is exactly the worst case named in this task's dispatch: *"a dead path was recorded and
+then tolerated indefinitely while gates stayed dark."* Confirmed, not hypothesized. (It's also
+where the same "continue-on-error swallows the crash" claim disputed above shows up a second
+time, independently — see the Correction section.) Since fixing these three was authorized this
+session, their register entries are removed (mirroring exactly how the prior 14-entry removal on
+2026-09-02 was done — see the register's own header) and the register's pinned count updated
+from 21 to 18 in `development/scripts/__tests__/dead-path-sweep.test.ts`. All 25 pre-existing
+tests still pass after the removal.
+
+**The other two were a genuine, structural blind spot — not tolerated debt, because the sweep
+could never have produced a finding for them.** `check-outbox-bridge.ts`'s
+`path.join(REPO_ROOT, "src")` and `check-capability-inventory.ts`'s
+`path.resolve(dirname, "..", "..", "src", "server")` are neither relative imports (class 1) nor
+single hardcoded path strings (class 2) — they're MULTIPLE separate string arguments to
+`path.join`/`path.resolve`. Each individual argument (`"src"`, `"server"`) has no `/` of its own,
+so class 2's `no-path-separator` skip rule — correct for a genuinely bare word, which is how most
+of this codebase uses short strings — discarded every one of them without ever seeing they were
+arguments to the same call, joined into one real path at runtime. Confirmed neither appears
+anywhere in the register (grepped for both).
+
+## The extension (class 3), and its proof
+
+Added a third reference class to `development/scripts/lib/dead-path-sweep.ts`:
+`extractPathJoinSegments()` finds `path.join(...)`/`path.resolve(...)` calls and extracts each
+one's TRAILING run of pure string-literal arguments (the leading argument is almost always a
+computed base like `import.meta.dirname`, which can't be resolved statically and isn't needed to
+be — the literal segments layered on top of it are what encode the restructure-sensitive part);
+`dropLeadingParentSegments()` strips a leading `".."` run. `sweepOneFile` now feeds the remaining
+2+-segment run through the SAME `classifyRepoRelativeString`/`pathThatMustExist` pipeline class 2
+already uses, rather than duplicating resolution logic. A single meaningful segment (e.g. bare
+`"src"`) is deliberately still skipped — precision-over-recall, same reasoning as class 2's
+`no-path-separator` rule (`path.join(x, "dist")`, `path.join(x, "node_modules")` etc. are common
+and legitimate, and a single bare word carries no more path-shaped signal here than it does as a
+standalone string literal).
+
+**Disclosed limitation, not swept under the rug**: this means class 3, as built, would NOT have
+caught `check-outbox-bridge.ts`'s actual pre-fix bug on its own — `path.join(REPO_ROOT, "src")`
+has only ONE meaningful trailing segment. Only `check-capability-inventory.ts`'s `SERVER_DIR`
+shape (`"src", "server"` — two segments) is within the new detection boundary. A unit test names
+this limitation explicitly (`known limitation: a SINGLE meaningful segment...`) rather than
+implying broader coverage than the code actually provides.
+
+**8 new tests added** to `dead-path-sweep.test.ts` (33 total, all passing): unit coverage for
+`extractPathJoinSegments`/`dropLeadingParentSegments` (trailing-run extraction, non-literal-arg
+truncation, `..`-stripping, calls other than `path.join`/`path.resolve` ignored), a `historical:`
+pair proving the pre-fix `check-capability-inventory.ts` `SERVER_DIR` shape is flagged dead and
+the current one resolves, the disclosed single-segment limitation test, and a check that both
+repointed files' current `path.join`/`path.resolve` calls all resolve today.
+
+**End-to-end proof, without touching any tracked file**: wrote a probe fixture to
+`ADS-memory/.local-artifacts/dead-path-sweep-class3-probe.ts` (gitignored) containing
+`path.resolve(REPO_ROOT, "src", "server")` — "src" is a real directory NAME elsewhere in the
+repo (passes the known-repo-segment gate) but `src/server` does not exist at the repo root
+(mirrors the real bug shape). Ran the real public API end-to-end:
+`sweepFiles({ repoRoot, files: ["ADS-memory/.local-artifacts/dead-path-sweep-class3-probe.ts"] })`
+→ one finding, `kind: "path-join-call"`, `specifier: "src/server"`, `attempted: ["src"]`. Deleted
+the probe file; re-ran; zero findings. `git status --porcelain` on that directory is empty
+(gitignored, so this never touched tracked state either way).
+
+## Touched this task
+
+`development/scripts/check-capability-inventory.ts`, `check-embed-marker-drift.ts`,
+`check-outbox-bridge.ts`, `lib/tovu-test-server.ts` (path repoints only — no findings-shaped
+behavior changed in any of them), `lib/dead-path-sweep.ts` (class 3 addition),
+`__tests__/dead-path-sweep.test.ts` (register update + 8 new tests), and this report. Nothing
+under `apps/website/src/**`/`apps/admin/src/**` touched. `check:openapi-contract`'s 27 mismatches,
+the login-credential env-sensitivity, and the missing `try`/`finally` around `server.close()` are
+all reported above and none were fixed.
