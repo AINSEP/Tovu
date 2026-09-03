@@ -21,6 +21,7 @@ import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
 import { useWiredVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
+import { navigate } from "../../lib/router";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -906,9 +907,15 @@ export interface AiAssistantProps {
    * same reason — this is the screen with the most independent state in the app.
    */
   useAiAssistantHook?: typeof useWiredAiAssistant;
+  /**
+   * The `?tab=` query value from `panels.tsx`'s `ai-assistant` route (`URLSearchParams.get` returns
+   * `null` when the param is absent). Drives which tab the inline shell opens on — same seam and same
+   * `requestedTabId` reasoning as `SettingsUi.tsx`'s own `tabId` prop.
+   */
+  tabId?: string | null;
 }
 
-export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssistantProps = {}) {
+export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }: AiAssistantProps = {}) {
   const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
 
   /**
@@ -1029,6 +1036,24 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
     },
   ];
 
+  /**
+   * The tab the inline shell should actually open on, or `undefined` to leave it uncontrolled —
+   * same computation, and same reason, as `SettingsUi.tsx`'s own `requestedTabId`: `tabId` can be
+   * `null` (no `?tab=` at all, the common case) or an id that matches none of the three tabs above
+   * (typo, stale link), and either one must fall back to the shell's own default rather than being
+   * passed straight through as `activeTabId`, whose controlled/uncontrolled switch is `!== undefined`,
+   * not truthiness.
+   */
+  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
+
+  /**
+   * Keeps `?tab=` in sync as the operator switches tabs — same `replace`-not-push shape and same
+   * "fires even before any `?tab=` is present" behaviour as `SettingsUi.tsx`'s own `handleTabChange`.
+   */
+  const handleTabChange = (nextTabId: string) => {
+    navigate(`/ai-assistant?tab=${nextTabId}`, { replace: true });
+  };
+
   return (
     <div className="page">
       <div className="page-header">
@@ -1076,6 +1101,8 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
             presentation="inline"
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}
+            activeTabId={requestedTabId}
+            onActiveTabIdChange={handleTabChange}
           />
         </div>
       </I18nProvider>

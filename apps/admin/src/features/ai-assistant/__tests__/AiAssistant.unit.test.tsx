@@ -28,6 +28,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // `handleTabChange` drives real `history.replaceState` via `lib/router`'s `navigate()` — reset
+  // between tests so one test's tab click can't leak a `?tab=` into the next (same convention
+  // `SettingsUi.unit.test.tsx`'s own `?tab=` describe block uses).
+  window.history.replaceState(null, "", "/");
 });
 
 /** Serves GET from `state`, and applies a successful PUT to it — a stand-in for the real route's
@@ -35,7 +39,16 @@ afterEach(() => {
  * server truth rather than local optimism. */
 function serveSettings(initial: { publicEnabled: boolean }, options: { failWrites?: boolean } = {}) {
   const state = { ...initial };
-  fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => {
+  fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    // The Admin tab's `AdminExecutionMode` fires this on mount to populate its CLI list
+    // (`useExecutionTab`'s auto-detect effect). It needs an actual array — `sortDetectedAgents`
+    // (`@jini-ai/ui`) spreads its `agents` argument, so falling through to this function's generic
+    // `{ data: state }` response below (an object, not an array) throws "agents is not iterable"
+    // as an unhandled rejection. `[]` is a legitimate "detection ran, found nothing" answer and
+    // this suite has no assertions about which CLIs are listed, only about which tab shows.
+    if (String(url).includes("/assistant/execution/detect-agents")) {
+      return jsonResponse({ data: [] });
+    }
     if (init?.method === "PUT") {
       if (options.failWrites) {
         return jsonResponse({ error: "internal error", code: "INTERNAL_ERROR" }, 500);
@@ -194,6 +207,51 @@ describe("the not-yet-built roadmap accordion", () => {
     await openRoadmapTab();
 
     expect(screen.getByText(/without a cost ceiling/i)).toBeInTheDocument();
+  });
+});
+
+describe("?tab= deep linking", () => {
+  // Same `tabId` seam and same `requestedTabId`/`handleTabChange` shape as
+  // `SettingsUi.unit.test.tsx`'s own "?tab= deep linking" block — mirrored here rather than
+  // reinvented, per the owner's "follow the existing convention" instruction.
+
+  it("opens directly on the tab named by the tabId prop", async () => {
+    serveSettings({ publicEnabled: false });
+    render(<AiAssistant tabId="admin" />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/show the ai assistant on the admin site/i)).toBeInTheDocument(),
+    );
+    expect(screen.queryByLabelText(/enable the ai assistant on the public site/i)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the default tab for an id that names no real tab, instead of blanking the panel", async () => {
+    // The regression this guards: `URLSearchParams.get` also returns `null` for a missing `?tab=`,
+    // and `SettingsDialogShell`'s controlled/uncontrolled switch is `activeTabId !== undefined` —
+    // passing an unrecognized id straight through would render a controlled-but-matchless tab and
+    // show no panel at all, not the default (visitor) tab.
+    serveSettings({ publicEnabled: false });
+    render(<AiAssistant tabId="not-a-real-tab" />);
+
+    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+  });
+
+  it("defaults to the visitor tab when no tabId is supplied at all", async () => {
+    serveSettings({ publicEnabled: false });
+    render(<AiAssistant />);
+
+    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+  });
+
+  it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
+    serveSettings({ publicEnabled: false });
+    const user = userEvent.setup();
+    render(<AiAssistant />);
+    await waitFor(() => expect(theSwitch()).toBeInTheDocument());
+
+    await user.click(screen.getByTestId("settings-dialog-nav-admin"));
+
+    expect(window.location.search).toBe("?tab=admin");
   });
 });
 

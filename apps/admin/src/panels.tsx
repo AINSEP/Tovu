@@ -106,7 +106,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "ai-assistant",
-    render: () => <AiAssistant />,
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
+    // (see `AiAssistant`'s `tabId` prop) — same `?tab=` deep-linking convention as `settings`'s and
+    // `deployment`'s own entries elsewhere in this file.
+    render: (ctx) => <AiAssistant tabId={ctx.query.get("tab")} />,
     nav: {
       // Sits in the ungrouped top row directly under Overview rather than in "Design & System",
       // because the control it owns is an incident switch: the operator reaching for it is

@@ -74,7 +74,6 @@ describe("ADMIN_PANELS — manifest shape", () => {
  *  (+ optionally fixed extra props) — the two-thirds majority the team-lead's framing predicted. */
 const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?: Record<string, unknown> }> = [
   { id: "dashboard", component: Dashboard },
-  { id: "ai-assistant", component: AiAssistant },
   { id: "taxonomy", component: Taxonomy },
   { id: "users", component: Users },
   { id: "authentication", component: Authentication },
@@ -117,6 +116,7 @@ describe.each(SIMPLE_PANELS)("panel '$id'", ({ id, component, extraProps }) => {
 /** Panels whose `render` reads `ctx.query.get("tab")` straight into a `tabId` prop, with no switch. */
 const TAB_THREADED_PANELS: ReadonlyArray<[id: string, component: unknown]> = [
   ["media", Media],
+  ["ai-assistant", AiAssistant],
   ["deployment", Deployment],
   ["source-control", SourceControl],
   ["access-tokens", Security],
