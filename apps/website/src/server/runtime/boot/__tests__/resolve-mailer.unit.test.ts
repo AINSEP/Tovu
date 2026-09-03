@@ -10,6 +10,7 @@ import {
 } from "#src/features/custom-credentials/index";
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import type { SmtpMailPayload, SmtpTransport } from "#src/platform/mail/index";
+import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "#src/features/custom-credentials/index";
 import {
   createResolvedMailer,
   parseSmtpEndpoint,
@@ -38,6 +39,32 @@ class FakeHttpClient implements HttpClientPort {
 class NeverCalledSmtpTransport implements SmtpTransport {
   async sendMail(): Promise<{ messageId: string }> {
     throw new Error("must not be called in this test");
+  }
+}
+
+/** Wraps a real repo but delays `listByWorkspace` (the one call `resolveCustomCredentialByLabel`
+ *  awaits) so a test can call `mailer.send()` while the boot-time credential lookup is still
+ *  in flight, reproducing the startup-race window this file's header documents. */
+class DelayedListRepo implements CustomCredentialSetRepoPort {
+  constructor(
+    private readonly inner: CustomCredentialSetRepoPort,
+    private readonly delayMs: number
+  ) {}
+  insert(record: CustomCredentialSetRecord): Promise<void> {
+    return this.inner.insert(record);
+  }
+  update(record: CustomCredentialSetRecord): Promise<void> {
+    return this.inner.update(record);
+  }
+  findById(input: { workspaceId: string; id: string }): Promise<CustomCredentialSetRecord | null> {
+    return this.inner.findById(input);
+  }
+  async listByWorkspace(input: { workspaceId: string }): Promise<CustomCredentialSetRecord[]> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    return this.inner.listByWorkspace(input);
+  }
+  delete(input: { workspaceId: string; id: string }): Promise<void> {
+    return this.inner.delete(input);
   }
 }
 
@@ -290,4 +317,45 @@ test("mailer.send()/sendBatch() delegate through capabilities() consistently bef
 
   await ready;
   assert.equal(mailer.capabilities().driver, "console");
+});
+
+test("send() called during the boot-time credential-resolution window must not report success unless the message actually reached the resolved adapter", async () => {
+  // A real, working hosted-API credential IS configured — but `listByWorkspace` (the read
+  // `resolveCustomCredentialByLabel` awaits) is delayed, so `mailer.send()` below is called
+  // while `current` is still the `ConsoleMailerAdapter` fallback. Before the fix, `send()`
+  // delegated to whatever `current` was AT CALL TIME instead of waiting for resolution, so this
+  // send was silently logged to the console (never reaching the fake HTTP client) while still
+  // reporting `{ ok: true }` — the exact "reports success, never delivered" bug this test guards.
+  const credentialDeps = makeCredentialWriteDeps();
+  await createCustomCredential(credentialDeps, {
+    workspaceId: WORKSPACE,
+    label: MAIL_HTTP_API_CREDENTIAL_LABEL,
+    category: "ops",
+    baseUrl: "https://api.resend.com",
+    connection: { token: "re_live_key" },
+  });
+  const httpClient = new FakeHttpClient();
+  const warnings: string[] = [];
+  const deps = makeResolveDeps(
+    {
+      customCredentialRepo: new DelayedListRepo(credentialDeps.repo, 20),
+      sealer: credentialDeps.sealer,
+      httpClient,
+    },
+    warnings
+  );
+  const { mailer, ready } = createResolvedMailer(deps);
+
+  const result = await mailer.send(
+    { workspaceId: WORKSPACE, to: { email: "a@example.com" }, from: { email: "b@example.com" }, subject: "hi", text: "hi" },
+    { idempotencyKey: "k1", workspaceId: WORKSPACE, sourceContext: { module: "test" } }
+  );
+  await ready;
+
+  assert.equal(result.ok, true);
+  assert.equal(
+    httpClient.calls.length,
+    1,
+    "the message must actually reach the resolved (real) adapter, not be swallowed by the Console fallback while still reporting success"
+  );
 });

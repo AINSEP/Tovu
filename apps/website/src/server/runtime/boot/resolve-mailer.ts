@@ -63,11 +63,15 @@ import {
  * {@link createResolvedMailer} returns a `MailerPort` that starts as `ConsoleMailerAdapter` and
  * swaps itself to the resolved real adapter on a background promise — the exact "construct
  * synchronously, hydrate asynchronously" shape `server/runtime/composition/deps.ts`'s own
- * `composioConnectors.refresh()` already uses for an equally credential-gated capability. A `send()`
- * call in the first few milliseconds after boot (before local SQLite read + AES-GCM decrypt
- * finish — routinely sub-millisecond) could theoretically still see the Console fallback even when
- * a real credential IS configured; this is the same disclosed, accepted race `composioConnectors`
- * already carries, not a new risk class introduced here.
+ * `composioConnectors.refresh()` already uses for an equally credential-gated capability.
+ * `capabilities()` stays synchronous and can still reflect the pre-swap (`console`) adapter for a
+ * caller that checks it in the first few milliseconds after boot, before the local SQLite read +
+ * AES-GCM decrypt finish (routinely sub-millisecond) — the same disclosed race `composioConnectors`
+ * already carries. `send()`/`sendBatch()` do NOT share that race: both await the background
+ * resolution before delegating, so a send made during that window is held until resolution
+ * settles and then reaches whichever adapter actually won (real credential or, only once
+ * genuinely unconfigured/undecryptable, Console) — it can no longer report success for a message
+ * a real, just-not-yet-loaded credential would have delivered.
  */
 
 /** Custom-credential category (`features/custom-credentials/types.ts`'s closed set) mail
@@ -212,10 +216,25 @@ export function createResolvedMailer(deps: ResolveMailerDeps): ResolvedMailer {
     );
   })();
 
+  // `send`/`sendBatch` await `ready` before delegating — a call made during the resolution
+  // window must not be silently handled by the (still-current) `ConsoleMailerAdapter` while
+  // reporting success for a message that a real, just-not-yet-loaded credential would have
+  // actually delivered. `.catch(() => {})`: `ready` never rejects in practice (every internal
+  // failure is already caught by `attemptTier`), but `MailerPort.send`/`sendBatch` must never
+  // throw across the boundary (ADR-024 §3), so a hypothetical throw from an injected `warn` is
+  // swallowed here rather than propagating. `capabilities()` stays synchronous and can still
+  // reflect the pre-swap adapter for a caller that checks it before `ready` settles — same
+  // disclosed startup-race window as before, just no longer able to produce a false success.
   const mailer: MailerPort = {
     capabilities: () => current.capabilities(),
-    send: (message, opts) => current.send(message, opts),
-    sendBatch: (messages, opts) => current.sendBatch(messages, opts),
+    send: async (message, opts) => {
+      await ready.catch(() => {});
+      return current.send(message, opts);
+    },
+    sendBatch: async (messages, opts) => {
+      await ready.catch(() => {});
+      return current.sendBatch(messages, opts);
+    },
   };
   return { mailer, ready };
 }
