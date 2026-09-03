@@ -12,6 +12,7 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
 import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
 import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import { McpAuthFailedError } from "../mcp-federation/mcp-protocol.js";
 import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import {
   registerFederatedMcpPreset,
@@ -179,6 +180,79 @@ test("a gate that passes lets the call through unchanged, and is asked about THI
 
   assert.deepEqual(asked, ["supabase"]);
   assert.deepEqual(order, ["remote:list_tables"]);
+});
+
+// ---------------------------------------------------------------------------
+// onAuthFailed — a token valid at CONNECT time (so the gate above lets the call through) can still
+// die mid-session, since there is no periodic refresh. Discovered only when the live call itself
+// rejects with `McpAuthFailedError` — this is what stops THAT failure reading like a generic,
+// retry-worthy transport error.
+// ---------------------------------------------------------------------------
+
+test("with no onAuthFailed configured, a live auth failure propagates unchanged", async () => {
+  const { deps } = fakeDeps();
+  const session = new InMemoryMcpSession({
+    tools: REMOTE_TOOLS,
+    onCall: () => {
+      throw new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
+    },
+  });
+  const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await assert.rejects(
+    () => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})),
+    (error: unknown) => error instanceof McpAuthFailedError,
+  );
+});
+
+test("onAuthFailed runs on a live McpAuthFailedError, naming the connection, and its thrown result replaces the propagated error", async () => {
+  const seen: Array<{ connectionId: string; error: unknown }> = [];
+  const base = fakeDeps();
+  const translated = new Error("supabase is disconnected: its authorization expired or was revoked. Do not retry this tool.");
+  const deps = {
+    ...base.deps,
+    onAuthFailed: async (connectionId: string, error: McpAuthFailedError): Promise<never> => {
+      seen.push({ connectionId, error });
+      throw translated;
+    },
+  };
+  const session = new InMemoryMcpSession({
+    tools: REMOTE_TOOLS,
+    onCall: () => {
+      throw new McpAuthFailedError("mcp-federation: the server refused 'tools/call' with 401");
+    },
+  });
+  const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await assert.rejects(() => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})), (error: unknown) => error === translated);
+
+  assert.equal(seen.length, 1);
+  assert.equal(seen[0]?.connectionId, "supabase");
+  assert.ok(seen[0]?.error instanceof McpAuthFailedError);
+});
+
+test("onAuthFailed does NOT run for an ordinary transport failure — only an auth failure is durable", async () => {
+  const seen: string[] = [];
+  const base = fakeDeps();
+  const deps = {
+    ...base.deps,
+    onAuthFailed: async (connectionId: string): Promise<never> => {
+      seen.push(connectionId);
+      throw new Error("must not be reached");
+    },
+  };
+  const ordinary = new Error("mcp-federation: the request timed out after 1000ms");
+  const session = new InMemoryMcpSession({
+    tools: REMOTE_TOOLS,
+    onCall: () => {
+      throw ordinary;
+    },
+  });
+  const { registrations } = await federateSession({ session, config: CONFIG, deps, nativeToolIds: new Set() });
+
+  await assert.rejects(() => registrationFor(registrations, "mcp__supabase__list_tables").handler(toolContext({})), (error: unknown) => error === ordinary);
+
+  assert.deepEqual(seen, [], "a transient transport fault must not be treated as a durable auth failure");
 });
 
 // ---------------------------------------------------------------------------

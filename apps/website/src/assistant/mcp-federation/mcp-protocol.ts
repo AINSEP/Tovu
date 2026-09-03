@@ -50,6 +50,16 @@ export interface JsonRpcResponse {
  *  went wrong" when it logs. */
 export class McpProtocolError extends Error {}
 
+/**
+ * A `McpProtocolError` specifically caused by the remote rejecting the request's authorization
+ * (HTTP 401/403 today — see `adapter.http.ts`'s `assertOkStatus`). Kept as a distinguishable
+ * subtype, rather than a generic `McpProtocolError` a caller would have to pattern-match on message
+ * text, so a layer that DOES know what "authorization" means for one connection (an OAuth-backed
+ * row, at `assistant/external-mcp-oauth.ts`) can react to it — without this module, which is
+ * transport-independent protocol plumbing, knowing anything about OAuth.
+ */
+export class McpAuthFailedError extends McpProtocolError {}
+
 /** The server's half of a completed handshake. Untrusted, like everything else it sends — recorded
  *  for diagnostics and audit, never acted on. */
 export interface McpServerIdentity {

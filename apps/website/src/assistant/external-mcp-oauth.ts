@@ -249,6 +249,22 @@ export interface ExternalMcpOAuthService {
   >;
   /** Clears the stored token and returns the connection to `disconnected`. */
   disconnect(input: { serverId: string }): Promise<void>;
+  /**
+   * Reacts to a live federated call failing because the remote rejected our authorization (HTTP
+   * 401/403), discovered mid-session rather than at boot — wired as
+   * `mcp-federation/registrations.ts`'s `FederationDeps.onAuthFailed`.
+   *
+   * For an OAuth-authenticated row this records `needs_reauth` durably, the same state
+   * `tokenResolver.resolveAccessToken` reaches at boot, so the NEXT call is refused cheaply by
+   * `createExternalMcpConnectionGate`'s row read instead of reaching the network again — and
+   * replaces the transport-shaped error with the same terminal, non-retryable
+   * {@link ExternalMcpReauthRequiredError} that path already throws.
+   *
+   * A row that is not OAuth-authenticated (or no longer exists) has no reauth state to record;
+   * `error` propagates unchanged.
+   * @throws Always — either the original `error`, or {@link ExternalMcpReauthRequiredError}.
+   */
+  reportAuthFailure(serverId: string, error: Error): Promise<never>;
   /** The port `readEnabledExternalMcpConfigs` takes, wired to this service's refresher. */
   readonly tokenResolver: ExternalMcpOAuthTokenResolverPort;
 }
@@ -814,6 +830,19 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
     async disconnect(input) {
       deps.devices.delete(input.serverId);
       await setOAuthStatus(deps, input.serverId, "disconnected", { clearToken: true });
+    },
+
+    async reportAuthFailure(serverId, error) {
+      const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
+      // A preset connection, a `static_env` row, or one already deleted has no reauth state this
+      // service owns — see `createExternalMcpConnectionGate`'s identical passthrough.
+      if (!record || resolveExternalMcpAuthMode(record) !== "oauth") throw error;
+      // Idempotent: a call that arrives after `tokenResolver` already discovered the same dead
+      // grant must not re-clear an already-cleared token or bump `updatedAt` needlessly.
+      if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") {
+        await setOAuthStatus(deps, serverId, "needs_reauth", { clearToken: true });
+      }
+      throw new ExternalMcpReauthRequiredError({ serverId, label: record.label });
     },
 
     tokenResolver: {

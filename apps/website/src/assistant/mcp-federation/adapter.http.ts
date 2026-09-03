@@ -3,6 +3,7 @@ import {
   CLIENT_PROTOCOL_VERSION,
   drainToolsList,
   type JsonRpcResponse,
+  McpAuthFailedError,
   McpProtocolError,
   parseCallToolResult,
   parseInitializeResult,
@@ -229,15 +230,18 @@ class McpHttpSession implements McpSessionPort {
 /**
  * Turns a non-2xx into a message an operator can act on.
  *
- * 401/403 are called out by name because they are the ones with a specific cause and a specific
- * fix: the connection's OAuth token has expired or been revoked, and the row needs reconnecting.
- * `external-mcp-store.ts` already reports that state at boot; this is the same finding arrived at
- * from the other direction, when a token that was valid at boot stops being valid mid-session.
+ * 401/403 are called out by name, and by TYPE (`McpAuthFailedError`), because they are the ones
+ * with a specific cause and a specific fix: the connection's OAuth token has expired or been
+ * revoked, and the row needs reconnecting. `external-mcp-store.ts` already reports that state at
+ * boot; this is the same finding arrived at from the other direction, when a token that was valid
+ * at boot stops being valid mid-session — this module has no OAuth knowledge of its own, so it only
+ * distinguishes the failure; `mcp-federation/registrations.ts`'s `onAuthFailed` hook is what a
+ * caller that DOES know what "reconnect" means reacts to it with.
  */
 function assertOkStatus(method: string, response: McpHttpResponse): void {
   if (response.status >= 200 && response.status < 300) return;
   if (response.status === 401 || response.status === 403) {
-    throw new McpProtocolError(
+    throw new McpAuthFailedError(
       `mcp-federation: the server refused '${method}' with ${response.status} — its authorization has expired or been revoked, reconnect it in Settings → External MCP`,
     );
   }

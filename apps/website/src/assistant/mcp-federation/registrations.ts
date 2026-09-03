@@ -4,7 +4,8 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports.js";
+import { McpAuthFailedError } from "./mcp-protocol.js";
+import type { FederatedMcpConnectionConfig, McpSessionPort, RemoteToolResult } from "./ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
@@ -78,6 +79,20 @@ export interface FederationDeps {
    * model in words not to retry.
    */
   readonly assertConnectionUsable?: (connectionId: string) => void | Promise<void>;
+  /**
+   * Called when a live call throws {@link McpAuthFailedError} — the remote itself rejected our
+   * authorization (HTTP 401/403), discovered mid-session rather than at boot. Optional; when absent,
+   * the `McpAuthFailedError` propagates unchanged, which is a `McpProtocolError` and reads to a
+   * model like any other transient transport fault (see `assertConnectionUsable` above for why that
+   * shape invites a retry loop).
+   *
+   * A composition root that KNOWS what "authorization" means for this connection (an OAuth-backed
+   * row, today — `assistant/external-mcp-oauth.ts`) wires this to record the durable state — so
+   * `assertConnectionUsable`'s cheap row read catches the NEXT call instead of this module reaching
+   * the network again — and to throw the same terminal, non-retryable error that path already uses.
+   * Always throws; this module does not decide what replaces the original error.
+   */
+  readonly onAuthFailed?: (connectionId: string, error: McpAuthFailedError) => Promise<never>;
 }
 
 export interface FederatedRegistrationResult {
@@ -131,13 +146,24 @@ export function buildFederatedMcpRegistrations(params: {
         entityId: config.connectionId,
       });
 
-      const result = await session.callTool({
-        // The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
-        // remote must never see, or be able to depend on, Tovu's naming.
-        name: tool.remoteName,
-        arguments: normalizeArguments(ctx.input),
-        signal: ctx.signal,
-      });
+      let result: RemoteToolResult;
+      try {
+        result = await session.callTool({
+          // The REMOTE name, not the namespaced id — namespacing exists for Tovu's registry, and a
+          // remote must never see, or be able to depend on, Tovu's naming.
+          name: tool.remoteName,
+          arguments: normalizeArguments(ctx.input),
+          signal: ctx.signal,
+        });
+      } catch (error) {
+        // A token valid at boot can die mid-session; nothing here re-probes it proactively (no
+        // periodic refresh exists), so this is where that discovery actually happens. Handed to
+        // `onAuthFailed` so the SAME durable state and terminal, non-retryable error this file's
+        // `assertConnectionUsable` doc already promises apply here too — not just to a connection
+        // already known dead at the call's start.
+        if (error instanceof McpAuthFailedError && deps.onAuthFailed) await deps.onAuthFailed(config.connectionId, error);
+        throw error;
+      }
 
       // R7's media carve-out (trust.ts): image blocks are pulled out of `result.content` BEFORE the
       // untrusted-data envelope is built, so they reach the model through the daemon's typed

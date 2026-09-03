@@ -401,6 +401,90 @@ test("an OAuth row read by a process with no token resolver is reported rather t
   assert.equal(failures[0]?.reason, "it has not been authorized yet (status 'disconnected') — connect it in Settings → External MCP");
 });
 
+// ---------------------------------------------------------------------------
+// reportAuthFailure — discovering a dead grant MID-SESSION, from a live 401/403, rather than at the
+// boot-time refresh `tokenResolver.resolveAccessToken` already covers. Wired as
+// `mcp-federation/registrations.ts`'s `FederationDeps.onAuthFailed`.
+// ---------------------------------------------------------------------------
+
+test("reportAuthFailure marks needs_reauth, preserves the client secret, and surfaces the same terminal error tokenResolver throws", async () => {
+  const { repo, sealer, service } = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+  });
+  await connect(service);
+
+  // What `adapter.http.ts` actually throws when the remote rejects a live call — the token was
+  // valid at boot, so `tokenResolver` never ran again; there is no periodic refresh (see 4c).
+  const liveAuthFailure = new Error(
+    "mcp-federation: the server refused 'tools/call' with 401 — its authorization has expired or been revoked, reconnect it in Settings → External MCP",
+  );
+
+  let caught: unknown;
+  try {
+    await service.reportAuthFailure(SERVER, liveAuthFailure);
+  } catch (error) {
+    caught = error;
+  }
+
+  assert.ok(caught instanceof ExternalMcpReauthRequiredError);
+  assert.equal(caught.retryable, false);
+  assert.match(caught.message, /Do not retry this tool\.$/);
+
+  const row = await readRow(repo);
+  assert.equal(row.oauthStatus, "needs_reauth");
+  const payload = await openExternalMcpOAuthPayload(sealer, row);
+  assert.equal(payload.tokens, undefined, "the now-known-dead token must not stay on the row");
+  assert.equal(payload.clientSecret, "s3cr3t", "the client secret must survive a live auth failure too, not just a refresh-time one");
+});
+
+test("reportAuthFailure is idempotent against a connection already needs_reauth — it does not re-clear or re-timestamp the row", async () => {
+  const { repo, clock, service } = await makeHarness({
+    script: [
+      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { status: 400, json: { error: "invalid_grant" } },
+    ],
+  });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+  const rowAfterFirstMark = await readRow(repo);
+  assert.equal(rowAfterFirstMark.oauthStatus, "needs_reauth");
+
+  clock.advance(5_000); // a later live call discovering the SAME already-durable state
+
+  await assert.rejects(
+    () => service.reportAuthFailure(SERVER, new Error("boom")),
+    (error: unknown) => error instanceof ExternalMcpReauthRequiredError,
+  );
+
+  const rowAfterSecondCall = await readRow(repo);
+  assert.equal(
+    rowAfterSecondCall.updatedAt,
+    rowAfterFirstMark.updatedAt,
+    "an already-durable state must not be rewritten on every subsequent discovery",
+  );
+});
+
+test("reportAuthFailure passes a non-OAuth connection's error through unchanged — there is no reauth state to record", async () => {
+  const { repo, sealer, keyring, clock, service } = await makeHarness();
+  await saveExternalMcpServer(
+    { repo, sealer, keyring, clock },
+    {
+      workspaceId: WORKSPACE,
+      serverId: "plain",
+      transport: "stdio",
+      authMode: "static_env",
+      enabled: true,
+      command: "npx",
+      args: "-y plain-mcp",
+      allowedToolNames: "",
+    },
+  );
+  const original = new Error("mcp-federation: the server answered 'tools/call' with HTTP 500");
+
+  await assert.rejects(() => service.reportAuthFailure("plain", original), (error: unknown) => error === original);
+});
+
 test("disconnect clears the token, preserves the client secret, and returns the row to disconnected", async () => {
   const { repo, sealer, service } = await makeHarness({
     script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],

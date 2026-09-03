@@ -940,6 +940,11 @@ async function start(): Promise<void> {
         workspaceId: routeDeps.workspaceId,
         repo: routeDeps.externalMcpServerRepo,
       }),
+      // The gate above only catches a connection ALREADY known dead. A token valid at boot can
+      // still die mid-session — there is no periodic refresh — so this is what discovers that: on a
+      // live 401/403 it records `needs_reauth` (so the gate catches the NEXT call cheaply) and
+      // replaces the transport-shaped error with the same terminal message the gate throws.
+      onAuthFailed: (connectionId, error) => externalMcpOAuth.reportAuthFailure(connectionId, error),
     },
     extraConnections: await resolveStoredExternalMcpConnections(),
   });
