@@ -254,7 +254,7 @@ test("a refresh reseals the token WITHOUT losing the client secret sharing its b
 });
 
 test("a provider answering invalid_grant transitions to needs_reauth, clears the token, and surfaces a non-retryable error", async () => {
-  const { repo, clock, service } = await makeHarness({
+  const { repo, sealer, clock, service } = await makeHarness({
     script: [
       { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
       { status: 400, json: { error: "invalid_grant" } },
@@ -283,8 +283,32 @@ test("a provider answering invalid_grant transitions to needs_reauth, clears the
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "needs_reauth");
-  assert.equal(row.sealedOAuth, null, "a known-dead credential must not stay on the row");
   assert.equal(row.oauthExpiresAt, null);
+  const payload = await openExternalMcpOAuthPayload(sealer, row);
+  assert.equal(payload.tokens, undefined, "a known-dead credential must not stay on the row");
+  assert.equal(payload.clientSecret, "s3cr3t", "the client secret sharing the blob must survive the clear");
+});
+
+test("markNeedsReauth clears the token but PRESERVES the client secret sharing its blob", async () => {
+  // For a dynamically-registered (RFC 7591) client the operator never saw this secret, so losing it
+  // here means the row can never be re-authorized again — only deleted and recreated from scratch.
+  const { repo, sealer, clock, service } = await makeHarness({
+    script: [
+      { json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } },
+      { status: 400, json: { error: "invalid_grant" } },
+    ],
+  });
+  await connect(service);
+  clock.advance(60 * 60 * 1000);
+
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+
+  const row = await readRow(repo);
+  assert.equal(row.oauthStatus, "needs_reauth");
+  assert.ok(row.sealedOAuth !== null, "the client secret must not be wiped along with the dead token");
+  const payload = await openExternalMcpOAuthPayload(sealer, row);
+  assert.equal(payload.clientSecret, "s3cr3t");
+  assert.equal(payload.tokens, undefined);
 });
 
 test("needs_reauth is DURABLE — a second call does not re-probe the provider", async () => {
@@ -377,8 +401,8 @@ test("an OAuth row read by a process with no token resolver is reported rather t
   assert.equal(failures[0]?.reason, "it has not been authorized yet (status 'disconnected') — connect it in Settings → External MCP");
 });
 
-test("disconnect clears the token and returns the row to disconnected", async () => {
-  const { repo, service } = await makeHarness({
+test("disconnect clears the token, preserves the client secret, and returns the row to disconnected", async () => {
+  const { repo, sealer, service } = await makeHarness({
     script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
   });
   const started = await service.beginConnect({ serverId: SERVER, redirectUri: REDIRECT_URI });
@@ -389,8 +413,10 @@ test("disconnect clears the token and returns the row to disconnected", async ()
 
   const row = await readRow(repo);
   assert.equal(row.oauthStatus, "disconnected");
-  assert.equal(row.sealedOAuth, null);
   assert.equal(row.oauthExpiresAt, null);
+  const payload = await openExternalMcpOAuthPayload(sealer, row);
+  assert.equal(payload.tokens, undefined);
+  assert.equal(payload.clientSecret, "s3cr3t", "disconnecting must not destroy a client secret the operator may never see again");
 });
 
 test("the device grant returns a user code and verification URL, and never exposes the device code", async () => {

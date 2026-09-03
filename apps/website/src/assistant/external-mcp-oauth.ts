@@ -618,10 +618,33 @@ async function setOAuthStatus(
 ): Promise<void> {
   const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!record) return;
+
+  // Read-modify-write, the same rule `persistTokens` follows: `sealedOAuth` holds
+  // `{ clientSecret?, tokens? }` TOGETHER, so nulling it wholesale on a token clear would delete an
+  // operator's client secret along with the dead token. For a dynamically-registered (RFC 7591)
+  // client the operator never saw that secret, so losing it here means the row can never be
+  // re-authorized — only deleted and recreated.
+  let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
+  if (options.clearToken === true) {
+    const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
+    cleared = await sealExternalMcpOAuthPayload(
+      deps,
+      record,
+      existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
+    );
+  }
+
   await deps.repo.upsert({
     ...record,
     oauthStatus: status,
-    ...(options.clearToken === true ? { sealedOAuth: null, oauthExpiresAt: null } : {}),
+    ...(cleared === null
+      ? {}
+      : {
+          sealedOAuth: cleared.sealedOAuth,
+          oauthExpiresAt: null,
+          // Carried from the seal, never from `...record` — same reason `persistTokens` does this.
+          oauthAadVersion: cleared.oauthAadVersion,
+        }),
     oauthRefreshLeaseUntil: null,
     updatedAt: deps.clock.nowIso(),
   });
