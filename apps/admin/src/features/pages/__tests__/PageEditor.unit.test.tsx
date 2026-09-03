@@ -78,17 +78,8 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setHtml: vi.fn(),
     draftHtml: html,
     setDraftHtml: vi.fn(),
-    view: "visual",
+    view: "preview",
     setView: vi.fn(),
-    // Merged Visual tab (2026-09-02): edit mode is the DEFAULT, so this fake mirrors the real hook's
-    // own default rather than the older two-tab world's "preview first". Every assertion below about
-    // the iframe preview therefore passes `editing: false` explicitly, which also makes each of those
-    // tests state which half of the merged tab it is about.
-    editing: true,
-    setEditing: vi.fn(),
-    themeMode: "dark",
-    setThemeMode: vi.fn(),
-    t: (key: string) => key,
     device: "desktop",
     setDevice: vi.fn(),
     // Callback ref — `usePageEditor`'s real `frameRef` is `setFrameNode`, not a `RefObject` (see
@@ -106,14 +97,9 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     // restating that logic. A test proving the seam itself overrides this with a value the real `api`
     // could never produce (see "the preview iframe's src comes from the injected controller" below).
     templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
-    // PENDING by default since the tab merge (2026-09-02), which is a change of test harness, not of
-    // product behavior. The merged Visual tab defaults to edit mode, so a bare `renderEditor()` now
-    // takes the canvas branch — and `InteractiveHtmlEditor` mounts a real GrapesJS editor, which
-    // jsdom cannot host (see the note in the view-toggle block below: it throws from inside
-    // `grapesjs.mjs` after the test has finished). `pending` renders the "Loading the theme's
-    // styles…" notice instead, which leaves the header, the title/slug row and the whole toolbar —
-    // everything this suite actually asserts on — rendered exactly as in production.
-    canvasStyling: { status: "pending" },
+    // Settled-with-no-styling by default: the Interactive tab then mounts a real GrapesJS editor
+    // exactly as it did before canvas styling existed, so no test here has to wait on a theme fetch.
+    canvasStyling: { status: "ready", styling: {} },
     save: vi.fn(),
     remove: vi.fn(),
     confirmingDelete: false,
@@ -291,39 +277,30 @@ describe("delete confirmation", () => {
   });
 });
 
-/**
- * The tab merge (2026-09-02) — "Interactive" and "Preview" became one "Visual" tab whose Edit
- * toggle picks the renderer. These assertions are the ones that would have caught a merge that
- * silently dropped a surface: exactly two tabs exist, and BOTH old renderers are still reachable.
- */
-describe("view toggle (HTML / Visual)", () => {
-  it("offers exactly two tabs, HTML and Visual — the old Interactive/Preview pair is gone", () => {
-    renderEditor({ view: "visual" });
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["HTML", "Visual"]);
-  });
-
+describe("view toggle (Preview / Interactive / HTML)", () => {
   it("marks the active view tab as selected", () => {
-    renderEditor({ view: "visual" });
-    expect(screen.getByRole("tab", { name: "Visual" })).toHaveAttribute("aria-selected", "true");
+    renderEditor({ view: "preview" });
+    expect(screen.getByRole("tab", { name: "Preview" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Interactive" })).toHaveAttribute("aria-selected", "false");
     expect(screen.getByRole("tab", { name: "HTML" })).toHaveAttribute("aria-selected", "false");
   });
 
   it("clicking the HTML tab calls setView('html')", async () => {
     const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "visual" });
+    const { ctrl } = renderEditor({ view: "preview" });
     await user.click(screen.getByRole("tab", { name: "HTML" }));
     expect(ctrl.setView).toHaveBeenCalledWith("html");
   });
 
-  it("clicking the Visual tab calls setView('visual')", async () => {
+  it("clicking the Interactive tab calls setView('interactive')", async () => {
     const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "html" });
-    await user.click(screen.getByRole("tab", { name: "Visual" }));
-    expect(ctrl.setView).toHaveBeenCalledWith("visual");
+    const { ctrl } = renderEditor({ view: "preview" });
+    await user.click(screen.getByRole("tab", { name: "Interactive" }));
+    expect(ctrl.setView).toHaveBeenCalledWith("interactive");
   });
 
-  it("renders the rendered preview (not a textarea) in the Visual tab with editing off", () => {
-    renderEditor({ view: "visual", editing: false });
+  it("renders the rendered preview (not a textarea) in preview view", () => {
+    renderEditor({ view: "preview" });
     expect(screen.getByTitle("Page preview")).toBeInTheDocument();
     expect(screen.queryByLabelText("Page HTML")).not.toBeInTheDocument();
   });
@@ -333,7 +310,7 @@ describe("view toggle (HTML / Visual)", () => {
   // section flagged this as a real gap, not a regression). A published, un-dirtied page now iframes
   // the real public URL instead, so a visitor sees exactly what the operator sees.
   it("preview iframes the real public URL when the page is published and has no unsaved changes", () => {
-    renderEditor({ view: "visual", editing: false, status: "published", dirty: false, contentDirty: false, slug: "about" });
+    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "about" });
     const preview = screen.getByTitle("Page preview");
     expect(preview).toHaveAttribute("src", expect.stringContaining("/about"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
@@ -347,7 +324,7 @@ describe("view toggle (HTML / Visual)", () => {
   // content disappeared"), so `canShowTemplatePreview` requires `status === "published"` and a draft
   // keeps the pre-existing raw-body fallback.
   it("preview still falls back to the raw-body sandbox for a clean draft page (drafts are out of this fix's scope)", () => {
-    renderEditor({ view: "visual", editing: false, status: "draft", dirty: false, contentDirty: false });
+    renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
@@ -360,8 +337,7 @@ describe("view toggle (HTML / Visual)", () => {
   // unstyled and looked identical across every template (the fallback never read `templateChoice`).
   it("preview shows a real templated render, with the pending template in the URL, when only the template choice is dirty on a published page", () => {
     renderEditor({
-      view: "visual",
-      editing: false,
+      view: "preview",
       status: "published",
       dirty: true,
       contentDirty: false,
@@ -381,8 +357,7 @@ describe("view toggle (HTML / Visual)", () => {
   // if the component reads it off the controller rather than calling a global `api` itself.
   it("preview iframe's src is exactly the controller's templatePreviewUrl, not one this component computed itself", () => {
     renderEditor({
-      view: "visual",
-      editing: false,
+      view: "preview",
       status: "published",
       dirty: true,
       contentDirty: false,
@@ -399,14 +374,14 @@ describe("view toggle (HTML / Visual)", () => {
   // neither the live public URL nor the template-preview endpoint can reflect edits that were never
   // saved. Same notice wording as before this fix; only the branching condition changed.
   it("preview falls back to the raw-body sandbox, with a notice, when the page body itself has unsaved edits", () => {
-    renderEditor({ view: "visual", editing: false, status: "published", dirty: true, contentDirty: true });
+    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
   });
 
   it("preview falls back to the raw-body sandbox, with a notice, for a draft page with unsaved edits", () => {
-    renderEditor({ view: "visual", editing: false, status: "draft", dirty: true, contentDirty: true });
+    renderEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
@@ -422,7 +397,7 @@ describe("view toggle (HTML / Visual)", () => {
   // already passed before this fix — the bug was never that the notice was missing, only unreachable
   // without scrolling.
   it("places the raw-body-fallback notice BEFORE the preview frame, not after, so it's visible without scrolling", () => {
-    renderEditor({ view: "visual", editing: false, status: "published", dirty: true, contentDirty: true });
+    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const notice = screen.getByText(/save your changes to preview them with the theme/i);
     const preview = screen.getByTitle("Page preview");
     expect(notice.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -446,13 +421,13 @@ describe("view toggle (HTML / Visual)", () => {
     expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
   });
 
-  // The one edit-mode assertion that does NOT mount GrapesJS, and the regression this
+  // The one interactive-view assertion that does NOT mount GrapesJS, and the regression this
   // pins: the tab used to mount the editor unconditionally, which meant it could mount before the
   // active theme's CSS had resolved — and `InteractiveHtmlEditor` reads its canvas styling once, at
   // mount, so that canvas stayed unstyled (browser-default Times on white) for the rest of its life
   // no matter what arrived afterwards. See `use-theme-canvas-styling.hooks.ts`.
   it("waits for the theme's canvas styling instead of mounting the editor unstyled", () => {
-    renderEditor({ view: "visual", editing: true, canvasStyling: { status: "pending" } });
+    renderEditor({ view: "interactive", canvasStyling: { status: "pending" } });
     expect(screen.getByText(/loading the theme/i)).toBeInTheDocument();
   });
 
@@ -465,9 +440,9 @@ describe("view toggle (HTML / Visual)", () => {
   // verified in a real browser instead — see the self-validation report.
 });
 
-describe("device toggle (Visual tab, preview mode only)", () => {
+describe("device toggle (preview view only)", () => {
   it("marks the active device as pressed and shows its pixel width", () => {
-    renderEditor({ view: "visual", editing: false, device: "tablet" });
+    renderEditor({ view: "preview", device: "tablet" });
     expect(screen.getByRole("button", { name: "Tablet" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "Desktop" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByText("834px")).toBeInTheDocument();
@@ -475,174 +450,9 @@ describe("device toggle (Visual tab, preview mode only)", () => {
 
   it("clicking a device button calls setDevice", async () => {
     const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "visual", editing: false, device: "desktop" });
+    const { ctrl } = renderEditor({ view: "preview", device: "desktop" });
     await user.click(screen.getByRole("button", { name: "Mobile" }));
     expect(ctrl.setDevice).toHaveBeenCalledWith("mobile");
-  });
-
-  // HIDDEN, not disabled: `PAGE_PREVIEW_WIDTHS` works by rendering the document at a fixed width
-  // inside a CSS-scaled box, which is a property of `PagePreview` alone — the GrapesJS canvas has no
-  // such box and would not change at all. A control with no effect is worse than no control.
-  it("hides the device width toggle while editing, since it cannot act on the canvas", () => {
-    renderEditor({ view: "visual", editing: true });
-    expect(screen.queryByRole("group", { name: /preview width/i })).not.toBeInTheDocument();
-  });
-});
-
-/**
- * The Edit toggle — the merge's whole point. One tab, two renderers: the GrapesJS canvas that used
- * to be "Interactive", and the full-chrome iframe that used to be "Preview". Neither renderer was
- * rewritten; only which one this tab mounts.
- */
-describe("Edit toggle (merged Visual tab)", () => {
-  it("shows the Edit/Preview toggle in the Visual tab", () => {
-    renderEditor({ view: "visual", editing: true });
-    expect(screen.getByRole("group", { name: /edit mode/i })).toBeInTheDocument();
-  });
-
-  it("hides the Edit/Preview toggle in the HTML tab, where neither renderer is mounted", () => {
-    renderEditor({ view: "html" });
-    expect(screen.queryByRole("group", { name: /edit mode/i })).not.toBeInTheDocument();
-  });
-
-  it("marks Edit as pressed while editing, and Preview as pressed while previewing", () => {
-    const { unmount } = renderEditor({ view: "visual", editing: true });
-    expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Preview" })).toHaveAttribute("aria-pressed", "false");
-    unmount();
-
-    renderEditor({ view: "visual", editing: false });
-    expect(screen.getByRole("button", { name: "Edit" })).toHaveAttribute("aria-pressed", "false");
-    expect(screen.getByRole("button", { name: "Preview" })).toHaveAttribute("aria-pressed", "true");
-  });
-
-  it("clicking Preview calls setEditing(false) — with no confirmation dialog in the way", async () => {
-    const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm");
-    const { ctrl } = renderEditor({ view: "visual", editing: true });
-    await user.click(screen.getByRole("button", { name: "Preview" }));
-    expect(ctrl.setEditing).toHaveBeenCalledWith(false);
-    expect(confirmSpy).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
-  });
-
-  it("clicking Edit calls setEditing(true)", async () => {
-    const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "visual", editing: false });
-    await user.click(screen.getByRole("button", { name: "Edit" }));
-    expect(ctrl.setEditing).toHaveBeenCalledWith(true);
-  });
-
-  // The capability-parity assertion for the preview half: editing off must still reach the real
-  // published route in a full-chrome iframe, exactly as the old Preview tab did.
-  it("editing off mounts the full-chrome iframe preview, not the canvas", () => {
-    renderEditor({ view: "visual", editing: false, status: "published", dirty: false, contentDirty: false });
-    expect(screen.getByTitle("Page preview")).toHaveAttribute("src", expect.stringContaining("/about"));
-  });
-
-  // ...and for the edit half. `canvasStyling: "pending"` is the one edit-mode state that renders
-  // without mounting GrapesJS (which jsdom cannot host — see the note in the view-toggle block), so
-  // it is what proves editing-on takes the canvas branch rather than the iframe one.
-  it("editing on takes the canvas branch, not the iframe one", () => {
-    renderEditor({
-      view: "visual",
-      editing: true,
-      status: "published",
-      dirty: false,
-      contentDirty: false,
-      canvasStyling: { status: "pending" },
-    });
-    expect(screen.getByText(/loading the theme/i)).toBeInTheDocument();
-    expect(screen.queryByTitle("Page preview")).not.toBeInTheDocument();
-  });
-});
-
-/**
- * The colour-mode control. The Interactive canvas has always rendered the theme's DEFAULT mode
- * (dark for every shipped theme) because its document carries no `data-theme`, while the preview
- * iframe renders whatever the operator's own browser has stored for the site origin — which is how
- * one pane showed dark and the other light for the same published page. This control makes the
- * canvas side an explicit operator choice instead of an accidental default.
- */
-describe("colour-mode control (merged Visual tab, edit mode only)", () => {
-  it("offers Dark and Light while editing", () => {
-    renderEditor({ view: "visual", editing: true, themeMode: "dark" });
-    const group = screen.getByRole("group", { name: /colour mode/i });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Light" })).toHaveAttribute("aria-pressed", "false");
-  });
-
-  it("clicking Light calls setThemeMode('light')", async () => {
-    const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "visual", editing: true, themeMode: "dark" });
-    await user.click(screen.getByRole("button", { name: "Light" }));
-    expect(ctrl.setThemeMode).toHaveBeenCalledWith("light");
-  });
-
-  // HIDDEN in preview mode for the same "no lying controls" reason the device switcher is hidden in
-  // edit mode: the preview iframe is a cross-origin document in dev (:5173 vs :3000) whose colour
-  // mode is decided by the site's own `theme-toggle.js` reading ITS origin's localStorage. The admin
-  // has no handle on that, so offering the control there would be a button that does nothing.
-  it("hides the colour-mode control in preview mode, where it cannot reach the iframe", () => {
-    renderEditor({ view: "visual", editing: false });
-    expect(screen.queryByRole("group", { name: /colour mode/i })).not.toBeInTheDocument();
-  });
-
-  it("hides the colour-mode control in the HTML tab", () => {
-    renderEditor({ view: "html" });
-    expect(screen.queryByRole("group", { name: /colour mode/i })).not.toBeInTheDocument();
-  });
-
-  // The canvas reads its styling once at mount (`InteractiveHtmlEditor`'s own file header), so a new
-  // `themeMode` can only take effect by remounting it. Keying the editor on the mode is what does
-  // that; without the key the operator would click Light and see nothing change.
-  it("keys the canvas on the colour mode so a mode change remounts it with the new styling", () => {
-    renderEditor({ view: "visual", editing: true, themeMode: "light", canvasStyling: { status: "pending" } });
-    // Pending renders the notice rather than GrapesJS, but the branch taken is the canvas one — the
-    // key itself is asserted structurally by `PageEditor`'s own render in the browser check.
-    expect(screen.getByText(/loading the theme/i)).toBeInTheDocument();
-  });
-});
-
-/**
- * Capability parity with the two tabs this merge replaced. Every one of these was reachable before
- * the merge and must still be reachable after it — this is the list the owner would revert over.
- */
-describe("no capability lost in the merge", () => {
-  it("the raw HTML tab is still reachable and still editable", async () => {
-    const user = userEvent.setup();
-    const { ctrl } = renderEditor({ view: "html", html: "" });
-    await user.type(screen.getByLabelText("Page HTML"), "z");
-    expect(ctrl.setHtml).toHaveBeenCalledWith("z");
-  });
-
-  // Queried by agent handle, not by accessible name: the picker's `<label>` wraps only its
-  // visually-hidden `<span>`, never the `<select>` itself, so the control has no accessible name.
-  // That is a pre-existing a11y gap this merge neither introduced nor fixes — flagged, not widened.
-  it("the template picker still renders for an html-format page, in both views", () => {
-    const { unmount } = renderEditor({ view: "visual", availableTemplates: ["page-shell.html"] });
-    expect(document.querySelector('[data-agent-element="page-template-choice"]')).toBeInTheDocument();
-    unmount();
-
-    renderEditor({ view: "html", availableTemplates: ["page-shell.html"] });
-    expect(document.querySelector('[data-agent-element="page-template-choice"]')).toBeInTheDocument();
-  });
-
-  it("the 'view ↗' link still points at the public site", () => {
-    renderEditor();
-    expect(screen.getByRole("link", { name: "view ↗" })).toHaveAttribute(
-      "href",
-      expect.stringContaining("/about")
-    );
-  });
-
-  it("every merged-tab control is agent-addressable", () => {
-    renderEditor({ view: "visual", editing: true });
-    const handles = [...document.querySelectorAll("[data-agent-element]")].map((el) =>
-      el.getAttribute("data-agent-element")
-    );
-    expect(handles).toEqual(expect.arrayContaining(["page-view", "page-edit-mode", "page-colour-mode"]));
   });
 });
 
