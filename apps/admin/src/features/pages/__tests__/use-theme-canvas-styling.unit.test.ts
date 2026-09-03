@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createFakeThemeCanvasPort } from "../hooks/theme-canvas-dependencies.hooks";
 import {
+  resolveCanvasTemplateChoice,
   templateMarkupUrl,
   themeLightTokensUrl,
   themeStylesheetUrl,
@@ -151,6 +152,42 @@ describe("useThemeCanvasStyling", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", () => {
+  // The bug: `/admin/pages/passeios-noroeste-do-pacifico` (kind:page, bodyFormat:html,
+  // templateChoice:NULL — the state every Page starts in) rendered the Interactive canvas full-bleed,
+  // no container, no card borders, while Preview rendered it correctly through the active theme's own
+  // `page-shell.html` (the same fallback `resolveStaticTierPageShellFallback` in
+  // `apps/website/src/features/theme/static-render.ts` applies on the real render path).
+
+  it("falls back to the theme's page-shell template for an untemplated html Page (null templateChoice)", () => {
+    expect(resolveCanvasTemplateChoice(null, "html")).toBe("page-shell.html");
+  });
+
+  it('falls back to the theme\'s page-shell template for an untemplated html Page ("" templateChoice)', () => {
+    expect(resolveCanvasTemplateChoice("", "html")).toBe("page-shell.html");
+  });
+
+  it("leaves an explicit templateChoice alone even on an html Page", () => {
+    expect(resolveCanvasTemplateChoice("blog-post.html", "html")).toBe("blog-post.html");
+  });
+
+  // Negative case: a doc-format Page's "never chosen" state must NOT fall back — that shape has its
+  // own `isPageTemplateChoiceEligible` handling server-side, and reopening the
+  // terms-of-service/blog-post-title regression `isEligibleForTemplateBranch`'s doc records is exactly
+  // what this asymmetry exists to prevent.
+  it("does not fall back for a doc-format Page — null templateChoice stays null", () => {
+    expect(resolveCanvasTemplateChoice(null, "doc")).toBeNull();
+  });
+
+  it('does not fall back for a doc-format Page — "" templateChoice stays ""', () => {
+    expect(resolveCanvasTemplateChoice("", "doc")).toBe("");
+  });
+
+  it("leaves an explicit templateChoice alone on a doc-format Page too", () => {
+    expect(resolveCanvasTemplateChoice("blog-post.html", "doc")).toBe("blog-post.html");
   });
 });
 

@@ -383,6 +383,117 @@ describe("injected port — usePageEditor with no fetch stub", () => {
 });
 
 /**
+ * `canvasStyling`'s page-shell fallback (the Interactive-tab bug, 2026-09-02) —
+ * `/admin/pages/passeios-noroeste-do-pacifico` (kind:page, bodyFormat:html, templateChoice:NULL, the
+ * state every Page starts in) rendered the Interactive canvas full-bleed with no container, while
+ * Preview rendered it correctly through the active theme's own `page-shell.html` (the same fallback
+ * `resolveStaticTierPageShellFallback` in `apps/website/src/features/theme/static-render.ts` applies
+ * on the real render path — see `resolveCanvasTemplateChoice`'s own doc, `use-theme-canvas-styling.
+ * hooks.ts`, for the browser-side twin). This exercises the whole wiring through `usePageEditor`
+ * itself, not just the pure resolver, so it proves the ACTUAL hook the Interactive tab mounts produces
+ * the wrapper — not just that the helper function returns the right filename in isolation.
+ */
+describe("canvasStyling (Interactive-tab page-shell fallback, 2026-09-02)", () => {
+  const DARK_TOKENS = { "--bg": "oklch(9% 0.004 250)", "--fg": "oklch(96% 0.003 250)" };
+  // `basic`'s real `page-shell.html` wraps `{"type":"content"}` in `<main><article class="wrap">` —
+  // shape only, not copied verbatim from the theme, matching how `theme-canvas-wrapper.unit.test.ts`
+  // fixtures its own markup.
+  const PAGE_SHELL_MARKUP = `<body>
+    <main>
+      <article class="wrap" data-reveal>
+        <div data-embed-config='{"type":"content"}'></div>
+      </article>
+    </main>
+  </body>`;
+  const EXPECTED_WRAPPER = [
+    { tagName: "main", attributes: {} },
+    { tagName: "article", attributes: { class: "wrap", "data-reveal": "" } },
+    { tagName: "div", attributes: {} },
+  ];
+
+  it("derives the page-shell content wrapper for an untemplated (null) html Page", async () => {
+    const port = createFakePageEditorPort({ page: HTML_PAGE, activeThemeId: "basic" });
+    const themeCanvasPort = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
+      templatesByUrl: { "/theme-assets/basic/pages/page-shell.html": PAGE_SHELL_MARKUP },
+    });
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.templateChoice).toBeNull(); // confirms this is the "never chosen" state, not a seeded choice
+
+    await waitFor(() => expect(result.current.canvasStyling.status).toBe("ready"));
+    expect(
+      result.current.canvasStyling.status === "ready" ? result.current.canvasStyling.styling.contentWrapper : undefined
+    ).toEqual(EXPECTED_WRAPPER);
+  });
+
+  it("still degrades to no wrapper when the theme ships no page-shell.html (pre-existing no-op preserved)", async () => {
+    const port = createFakePageEditorPort({ page: HTML_PAGE, activeThemeId: "basic" });
+    // No `templatesByUrl` entry at all — `fetchTemplateMarkup` rejects, same as a real 404.
+    const themeCanvasPort = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
+    });
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    await waitFor(() => expect(result.current.canvasStyling.status).toBe("ready"));
+    expect(
+      result.current.canvasStyling.status === "ready" ? result.current.canvasStyling.styling.contentWrapper : "unset"
+    ).toBeUndefined();
+  });
+
+  it("does not fall back for a doc-format Page, even when the theme ships a page-shell.html", async () => {
+    const port = createFakePageEditorPort({ page: DOC_PAGE, activeThemeId: "basic" });
+    const themeCanvasPort = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
+      templatesByUrl: { "/theme-assets/basic/pages/page-shell.html": PAGE_SHELL_MARKUP },
+    });
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+
+    const { result } = renderHook(() => usePageEditor("privacy-policy", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    await waitFor(() => expect(result.current.canvasStyling.status).toBe("ready"));
+    expect(
+      result.current.canvasStyling.status === "ready" ? result.current.canvasStyling.styling.contentWrapper : "unset"
+    ).toBeUndefined();
+  });
+
+  it("an explicit templateChoice still wins over the page-shell fallback", async () => {
+    const port = createFakePageEditorPort({
+      page: HTML_PAGE,
+      activeThemeId: "basic",
+      activeThemeTemplates: ["blog-post.html"],
+    });
+    const BLOG_POST_MARKUP = `<body><section class="post"><div data-embed-config='{"type":"content"}'></div></section></body>`;
+    const themeCanvasPort = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK_TOKENS },
+      templatesByUrl: {
+        "/theme-assets/basic/pages/page-shell.html": PAGE_SHELL_MARKUP,
+        "/theme-assets/basic/pages/blog-post.html": BLOG_POST_MARKUP,
+      },
+    });
+    const deps = { port, themeCanvasPort, navigate: vi.fn(), t: (l: string, k: string) => `${l}:${k}`, locale: "en" };
+
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    act(() => {
+      result.current.setTemplateChoice("blog-post.html");
+    });
+
+    await waitFor(() =>
+      expect(
+        result.current.canvasStyling.status === "ready" ? result.current.canvasStyling.styling.contentWrapper : undefined
+      ).toEqual([{ tagName: "section", attributes: { class: "post" } }, { tagName: "div", attributes: {} }])
+    );
+  });
+});
+
+/**
  * `frameRef`/`paneWidth` — regression coverage for a real bug found by live measurement in Chrome
  * (`http://localhost:5173/admin/pages/contact`, Preview tab): the preview scale was frozen at the
  * `880` pre-measurement default (`.page-preview-scaler`'s `transform: scale(0.6875)` === `880/1280`)

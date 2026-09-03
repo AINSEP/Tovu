@@ -10,7 +10,11 @@ import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 import { defaultThemeCanvasPort } from "./theme-canvas-dependencies.hooks";
 import type { ThemeCanvasPort } from "./theme-canvas-port.hooks";
-import { useThemeCanvasStyling, type ThemeCanvasStylingState } from "./use-theme-canvas-styling.hooks";
+import {
+  resolveCanvasTemplateChoice,
+  useThemeCanvasStyling,
+  type ThemeCanvasStylingState,
+} from "./use-theme-canvas-styling.hooks";
 
 /**
  * @file Everything the Pages EDITOR does, so `PageEditor.tsx` is only markup.
@@ -385,7 +389,18 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // around the `{"type":"content"}` marker (`<main><article class="post-detail wrap">` in `basic`'s
   // `blog-post.html`). Without it the canvas renders the page body naked at full bleed while the
   // published page centres it in a 720px column — same CSS, same tokens, no container.
-  const canvasStyling = useThemeCanvasStyling(activeThemeId, activeThemeApiVersion, themeCanvasPort, templateChoice);
+  //
+  // Run through `resolveCanvasTemplateChoice` rather than passed straight through: an untemplated
+  // (`null`/`""`) `html`-format Page is exactly the case a `static`-tier theme's real render mirrors
+  // through its own `page-shell.html`, not through no wrapper at all — see that function's own doc.
+  // `page?.bodyFormat ?? "doc"` is the same "nothing risky before load" default `templatePreviewUrl`
+  // above and `contentDirty` below already use for a not-yet-loaded page.
+  const canvasStyling = useThemeCanvasStyling(
+    activeThemeId,
+    activeThemeApiVersion,
+    themeCanvasPort,
+    resolveCanvasTemplateChoice(templateChoice, page?.bodyFormat ?? "doc"),
+  );
 
   return {
     page,

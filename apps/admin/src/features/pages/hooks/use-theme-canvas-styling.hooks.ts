@@ -65,6 +65,53 @@ export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, te
   return themeAssetUrl(themeId, `${resolveThemeLayout(apiVersion).pagesDir}/${encodeURIComponent(templateChoice)}`);
 }
 
+/** The Tovu-owned canonical document-shell filename a `static`-tier theme ships for a `kind: "page"`,
+ *  `bodyFormat: "html"` row with no explicit template choice — the browser-side twin of
+ *  `STATIC_TIER_PAGE_SHELL_ID` in `apps/website/src/features/theme/static-render.ts` (see
+ *  `resolveStaticTierPageShellFallback` there), which the live render path consults for exactly this
+ *  case. That module is server/Node-only (its theme discovery reads real files off disk) and is not
+ *  exposed through `@tovu/theme-layout`, the one deliberately-pure cross-runtime module this file
+ *  already imports from (see this file's own header) — so its constant cannot be imported here the
+ *  way `resolveThemeLayout` is. This is the one fact of theirs {@link resolveCanvasTemplateChoice}
+ *  actually needs, kept in sync by hand: if the canonical filename ever changes, update both. */
+const STATIC_TIER_PAGE_SHELL_TEMPLATE = "page-shell.html";
+
+/**
+ * What {@link useThemeCanvasStyling}'s `templateChoice` argument should actually be, given the page's
+ * own `bodyFormat` — ordinarily `templateChoice` unchanged, except for an untemplated (`null`/`""`)
+ * `html`-format Page, which the live render path (`resolveStaticTierPageShellFallback`, consulted by
+ * `renderTemplateBranchIfEligible` in
+ * `apps/website/src/server/inbound/public-http/routes/site/pages.ts`) renders through the active
+ * theme's own {@link STATIC_TIER_PAGE_SHELL_TEMPLATE} when it ships one, instead of Tovu's generic
+ * built-in chrome — see that function's own doc for the full "why". Before this existed, the
+ * Interactive canvas asked for no template markup at all in this case, so it never derived a wrapper
+ * and rendered the page full-bleed while the published page (the SAME row, through the SAME theme)
+ * rendered inside the theme's real container.
+ *
+ * A `doc`-format Page is untouched — `bodyFormat !== "html"` short-circuits straight to
+ * `templateChoice` unchanged. That shape already has its own, unaffected "never chosen" handling
+ * (`isPageTemplateChoiceEligible` in `static-render.ts`), and this function must not reopen the
+ * `terms-of-service`/blog-post-title regression that gate exists to prevent (see that function's own
+ * doc). A real `templateChoice` — the operator picked one — always wins over the fallback.
+ *
+ * Fetching {@link STATIC_TIER_PAGE_SHELL_TEMPLATE} against a theme that does not ship one (every
+ * non-`static` tier, and a `static` theme with no `page-shell.html`) fails harmlessly:
+ * {@link useThemeCanvasStyling}'s own `fetchTemplateMarkup(...).catch(() => null)` already degrades
+ * any fetch failure to "no wrapper" — the exact pre-existing behavior for this case. No theme-tier
+ * check is needed here for that reason; the failed fetch IS the tier check.
+ *
+ * @param templateChoice - The page's own live template choice, same tri-state contract as
+ *   {@link useThemeCanvasStyling}'s own parameter.
+ * @param bodyFormat - The page's `bodyFormat`. `"doc"` — including "page not loaded yet", the
+ *   caller's own conservative default — never triggers the fallback.
+ * @returns The `templateChoice` to actually pass to {@link useThemeCanvasStyling}.
+ * @complexity O(1) — one truthiness check, no I/O.
+ */
+export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyFormat: "doc" | "html"): string | null {
+  if (templateChoice) return templateChoice;
+  return bodyFormat === "html" ? STATIC_TIER_PAGE_SHELL_TEMPLATE : templateChoice;
+}
+
 /** A token name must be a plain CSS custom property; a value must not contain any character that
  *  could terminate the declaration, the rule, or — the one that actually escalates — the `<style>`
  *  element itself. GrapesJS injects this CSS by string-concatenating it into `<style>…</style>` and
