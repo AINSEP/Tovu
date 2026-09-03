@@ -36,7 +36,19 @@ export interface SeoController {
   saving: boolean;
   notice: string | null;
   save: (patch: Partial<SeoSettings>) => Promise<void>;
-  regenerateSitemap: () => Promise<void>;
+  /** Resolves `true` on success, `false` on a caught failure (`error` is set either way this
+   *  already did) — `SitemapModal.tsx`'s own footer Regenerate button uses the boolean to decide
+   *  whether to refetch `/sitemap.xml`, so a failed attempt never re-fetches the same stale
+   *  content. The pre-existing caller, `Seo.tsx`'s own Regenerate button, still just fires this as
+   *  a plain `onClick` and discards the return value — this is a widening, not a breaking change. */
+  regenerateSitemap: () => Promise<boolean>;
+  /** Whether `SitemapModal.tsx` ("View sitemap") is open. `Seo.tsx` stays markup-only (this file's
+   *  own header) by keeping this state here alongside the rest of the screen's state, the same way
+   *  `SeoEntrySection`'s own `entryId` selection lives in `useSeoEntrySection` rather than in
+   *  `Seo.tsx` itself. */
+  sitemapModalOpen: boolean;
+  openSitemapModal: () => void;
+  closeSitemapModal: () => void;
   /** The raw resolved locale — see this file's own header for why `Seo.tsx` gets this instead of
    *  calling `useAdminLocale()` itself. */
   locale: string;
@@ -47,6 +59,7 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sitemapModalOpen, setSitemapModalOpen] = useState(false);
 
   // `locale`/`t` are deliberately not listed — same pre-existing gap `use-page-editor.hooks.ts`
   // documents (this effect only ever ran off `[]` even when `locale` came from `useAdminLocale()`
@@ -75,21 +88,34 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
     }
   }
 
-  async function regenerateSitemap() {
+  async function regenerateSitemap(): Promise<boolean> {
     setSaving(true);
     setError(null);
     setNotice(null);
     try {
       await port.regenerateSitemap();
       setNotice(t(locale, "Sitemap regeneration accepted."));
+      return true;
     } catch (e) {
       setError(e instanceof Error ? e.message : t(locale, "failed to regenerate sitemap"));
+      return false;
     } finally {
       setSaving(false);
     }
   }
 
-  return { settings, error, saving, notice, save, regenerateSitemap, locale };
+  return {
+    settings,
+    error,
+    saving,
+    notice,
+    save,
+    regenerateSitemap,
+    sitemapModalOpen,
+    openSitemapModal: () => setSitemapModalOpen(true),
+    closeSitemapModal: () => setSitemapModalOpen(false),
+    locale,
+  };
 }
 
 /**

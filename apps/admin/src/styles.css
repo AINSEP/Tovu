@@ -2460,6 +2460,30 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .seo-analyze-panel { margin-top: 0.8rem; }
 .seo-analyze-panel ul { list-style: none; margin: 0.5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 
+/* `SitemapModal.tsx`'s "View sitemap" modal. `.sitemap-modal` widens the shared `.settings-dialog`
+   (`.settings-dialog-backdrop`'s own rule above `place-items: center`s every dialog by
+   shrink-to-fit, so an explicit `width` is required, not just `max-width` — `.widget-picker-dialog`
+   /`.media-picker-dialog` above already measured this live; not re-deriving it here) to ~900px, a
+   wide-but-not-fullscreen cap for a URL table that can run to hundreds of rows. `max-height` +
+   `.sitemap-modal-body`'s own scroll below are what actually stop that table from pushing the
+   dialog past the viewport. */
+.sitemap-modal { width: 56.25rem; max-width: calc(100vw - 2rem); max-height: 85vh; }
+.sitemap-modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; }
+.sitemap-modal-header h2 { margin: 0; font-family: var(--font-display); font-size: 1.15rem; }
+.sitemap-modal-header-actions { display: flex; align-items: center; gap: var(--space-3); }
+.sitemap-modal-source-link { font-size: var(--text-sm); white-space: nowrap; }
+/* The one scrolling region between the fixed header above and the fixed `.widget-picker-footer`
+   Regenerate/Close row below — same `flex: 1 1 auto; min-height: 0; overflow-y: auto` shape
+   `.widget-picker-body`/`.media-picker-body` above already establish for the identical "shrink-to-
+   fit dialog, growing content" problem. */
+.sitemap-modal-body { display: flex; flex-direction: column; gap: var(--space-3); flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.sitemap-modal-filter { width: 100%; }
+.sitemap-modal-raw {
+  margin: 0; padding: var(--space-3); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-md); font-family: var(--font-mono, monospace); font-size: var(--text-xs);
+  line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+}
+
 /* AI Assistant — the public assistant's master switch + the not-yet-built roadmap accordion.
    The accordion reuses the native <details>/<summary> affordance `.redirects-import` above already
    established in this admin, rather than introducing a second, JS-driven disclosure widget. */

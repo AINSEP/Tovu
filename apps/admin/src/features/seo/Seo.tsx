@@ -5,6 +5,7 @@ import { useWiredEntryPicker } from "./hooks/use-entry-picker.hooks";
 import { useWiredSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
 import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
 import { useWiredSeo } from "./hooks/use-seo.hooks";
+import { SitemapModal } from "./SitemapModal";
 import { t } from "./seo-i18n";
 import type { SeoEntryAnalysis } from "../../lib/api";
 
@@ -255,7 +256,18 @@ export interface SeoProps {
 }
 
 export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
-  const { settings, error, saving, notice, save, regenerateSitemap, locale } = useSeoHook();
+  const {
+    settings,
+    error,
+    saving,
+    notice,
+    save,
+    regenerateSitemap,
+    sitemapModalOpen,
+    openSitemapModal,
+    closeSitemapModal,
+    locale,
+  } = useSeoHook();
 
   if (error && !settings) return <div className="notice error">{error}</div>;
   if (!settings) return <div className="notice">{t(locale, "Loading SEO settings…")}</div>;
@@ -416,18 +428,41 @@ export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
       >
         <h2>{t(locale, "Sitemap")}</h2>
         <p>{t(locale, "Force-rebuild the cached sitemap now, bypassing the normal cache-hit path.")}</p>
-        <button
-          className="btn-secondary"
-          disabled={saving}
-          onClick={regenerateSitemap}
-          {...agentHandle("seo-regenerate-sitemap", {
-            role: "button",
-            label: "Rebuild the cached sitemap now, bypassing the cache",
-          })}
-        >
-          {actionLabel(saving, t(locale, "Working…"), t(locale, "Regenerate sitemap"))}
-        </button>
+        <span className="editor-actions">
+          <button
+            className="btn-secondary"
+            disabled={saving}
+            onClick={regenerateSitemap}
+            {...agentHandle("seo-regenerate-sitemap", {
+              role: "button",
+              label: "Rebuild the cached sitemap now, bypassing the cache",
+            })}
+          >
+            {actionLabel(saving, t(locale, "Working…"), t(locale, "Regenerate sitemap"))}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={openSitemapModal}
+            {...agentHandle("seo-view-sitemap", {
+              role: "button",
+              label: "Open a modal showing the sitemap's URLs, or its raw XML",
+            })}
+          >
+            {t(locale, "View sitemap")}
+          </button>
+        </span>
       </div>
+
+      {sitemapModalOpen ? (
+        <SitemapModal
+          locale={locale}
+          sitemapEnabled={settings.sitemapEnabled}
+          regenerating={saving}
+          onRegenerate={regenerateSitemap}
+          onClose={closeSitemapModal}
+        />
+      ) : null}
 
       <SeoEntrySection locale={locale} />
     </div>

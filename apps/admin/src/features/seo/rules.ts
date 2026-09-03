@@ -32,7 +32,52 @@ export function orEmpty(value: string | undefined): string {
 
 /** A pending-action button's label — `Seo.tsx` uses this for both the save-settings button
  *  ("Saving…"/"Save settings") and the regenerate-sitemap button ("Working…"/"Regenerate
- *  sitemap"), same `pending ? … : …` shape, different copy. */
+ *  sitemap"), same `pending ? … : …` shape, different copy. Also reused by `SitemapModal.tsx`'s
+ *  own footer Regenerate button — same two states, same copy, different trigger. */
 export function actionLabel(pending: boolean, pendingLabel: string, idleLabel: string): string {
   return pending ? pendingLabel : idleLabel;
+}
+
+/**
+ * One `<url>` entry from a parsed sitemap. Only the fields `apps/website`'s
+ * `registerSeoSitemapRoute` (`server/inbound/public-http/routes/site/sitemap.ts`) actually emits —
+ * `<loc>` always, `<lastmod>` when the entry has one — verified by reading that route rather than
+ * guessed: it never writes `changefreq`/`priority`, so `SitemapModal.tsx`'s table has no columns
+ * for those (SPEC intent: "omit a column entirely if the sitemap never emits that field").
+ */
+export interface SitemapUrlEntry {
+  loc: string;
+  lastmod: string | null;
+}
+
+/**
+ * Parses a `<urlset>` sitemap document into its `<url>` entries via the browser's built-in
+ * `DOMParser` — no new dependency, and it reads the exact same bytes `GET /sitemap.xml` served
+ * (this never re-derives sitemap content of its own). Malformed input (a parser error, a document
+ * with no `<url>` elements, empty text) yields `[]` rather than throwing: `useSitemapModal` already
+ * guards the fetch itself via `SitemapPort`; this only guards the parse step.
+ *
+ * @complexity Time/space: O(n) in document size — one DOM parse, one linear pass over `<url>` nodes.
+ */
+export function parseSitemapXml(xmlText: string): SitemapUrlEntry[] {
+  const doc = new DOMParser().parseFromString(xmlText, "text/xml");
+  if (doc.getElementsByTagName("parsererror").length > 0) return [];
+  return Array.from(doc.getElementsByTagName("url"))
+    .map((urlEl) => ({
+      loc: urlEl.getElementsByTagName("loc")[0]?.textContent?.trim() ?? "",
+      lastmod: urlEl.getElementsByTagName("lastmod")[0]?.textContent?.trim() || null,
+    }))
+    .filter((entry) => entry.loc !== "");
+}
+
+/** Case-insensitive substring filter over a parsed sitemap's URLs — `SitemapModal.tsx`'s filter
+ *  box, for the same "narrow a long list by typing" shape every other filter in this admin uses.
+ *  An empty/whitespace-only query returns every entry unchanged (a copy, not the same reference,
+ *  matching `sortIssuesBySeverity`'s own never-mutate-the-input convention above).
+ *
+ * @complexity Time: O(n) in entry count; space: O(n) for the filtered copy. */
+export function filterSitemapEntries(entries: readonly SitemapUrlEntry[], query: string): SitemapUrlEntry[] {
+  const needle = query.trim().toLowerCase();
+  if (!needle) return [...entries];
+  return entries.filter((entry) => entry.loc.toLowerCase().includes(needle));
 }

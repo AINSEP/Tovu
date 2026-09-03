@@ -7,6 +7,7 @@ import type { SeoController } from "../hooks/use-seo.hooks";
 import type { EntryPickerController } from "../hooks/use-entry-picker.hooks";
 import type { SeoEntryPanelController } from "../hooks/use-seo-entry-panel.hooks";
 import type { SeoEntrySectionController } from "../hooks/use-seo-entry-section.hooks";
+import type { SitemapModalController } from "../hooks/use-sitemap-modal.hooks";
 import type { AdminPost, SeoEntryAnalysis, SeoEntryMeta, SeoSettings } from "@/lib/api";
 
 /**
@@ -25,11 +26,12 @@ import type { AdminPost, SeoEntryAnalysis, SeoEntryMeta, SeoSettings } from "@/l
  * a non-null `analysis`.
  */
 
-const { seoRef, entryPickerRef, seoEntryPanelRef, seoEntrySectionRef } = vi.hoisted(() => ({
+const { seoRef, entryPickerRef, seoEntryPanelRef, seoEntrySectionRef, sitemapModalRef } = vi.hoisted(() => ({
   seoRef: { current: null as unknown },
   entryPickerRef: { current: null as unknown },
   seoEntryPanelRef: { current: null as unknown },
   seoEntrySectionRef: { current: null as unknown },
+  sitemapModalRef: { current: null as unknown },
 }));
 
 vi.mock("../hooks/use-seo.hooks", async (importOriginal) => {
@@ -47,6 +49,15 @@ vi.mock("../hooks/use-seo-entry-panel.hooks", async (importOriginal) => {
 vi.mock("../hooks/use-seo-entry-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-seo-entry-section.hooks")>();
   return { ...actual, useSeoEntrySection: () => seoEntrySectionRef.current };
+});
+// `SitemapModal` is only ever rendered while `sitemapModalOpen` is true (`Seo.tsx`'s own
+// conditional), but mounting it also mounts its real `useWiredSitemapModal` — which would fire a
+// real `fetch("/sitemap.xml")` in this unit test. Mocked the same way the three hooks above are,
+// so `Seo.unit.test.tsx` only ever asserts the dialog is present, never drives its own fetch/parse
+// behavior (that lives in `SitemapModal.unit.test.tsx`, composed against `createFakeSitemapPort`).
+vi.mock("../hooks/use-sitemap-modal.hooks", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/use-sitemap-modal.hooks")>();
+  return { ...actual, useWiredSitemapModal: () => sitemapModalRef.current };
 });
 
 const SETTINGS: SeoSettings = {
@@ -98,7 +109,10 @@ function seoController(overrides: Partial<SeoController> = {}): SeoController {
     saving: false,
     notice: null,
     save: vi.fn(async () => {}),
-    regenerateSitemap: vi.fn(async () => {}),
+    regenerateSitemap: vi.fn(async () => true),
+    sitemapModalOpen: false,
+    openSitemapModal: vi.fn(),
+    closeSitemapModal: vi.fn(),
     // Matches what this screen got from a real, unmocked `useAdminLocale()` call before this
     // hook's own i18n pass (defaults to "en" synchronously).
     locale: "en",
@@ -131,11 +145,31 @@ function seoEntrySectionController(overrides: Partial<SeoEntrySectionController>
   return { entryId: "", setEntryId: vi.fn(), ...overrides };
 }
 
+/** Default {@link SitemapModalController} for `Seo.unit.test.tsx`'s own "does the dialog render at
+ *  all" tests — a fixed `"ready"`/zero-entries snapshot, never a real fetch. Behavioral coverage of
+ *  the modal's own fetch/parse/filter/toggle logic lives in `SitemapModal.unit.test.tsx`. */
+function sitemapModalController(overrides: Partial<SitemapModalController> = {}): SitemapModalController {
+  return {
+    status: "ready",
+    error: null,
+    xmlText: "",
+    entries: [],
+    filteredEntries: [],
+    filter: "",
+    setFilter: vi.fn(),
+    view: "table",
+    setView: vi.fn(),
+    refetch: vi.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   seoRef.current = seoController();
   entryPickerRef.current = entryPickerController();
   seoEntryPanelRef.current = seoEntryPanelController();
   seoEntrySectionRef.current = seoEntrySectionController();
+  sitemapModalRef.current = sitemapModalController();
 });
 
 function renderSeo(overrides: Partial<SeoController> = {}) {
@@ -252,7 +286,7 @@ describe("Seo — defaults form", () => {
 describe("Seo — sitemap regenerate", () => {
   it("clicking Regenerate sitemap calls regenerateSitemap", async () => {
     const user = userEvent.setup();
-    const regenerateSitemap = vi.fn(async () => {});
+    const regenerateSitemap = vi.fn(async () => true);
     renderSeo({ regenerateSitemap });
     await user.click(screen.getByRole("button", { name: "Regenerate sitemap" }));
     expect(regenerateSitemap).toHaveBeenCalledTimes(1);
@@ -261,6 +295,26 @@ describe("Seo — sitemap regenerate", () => {
   it("shows 'Working…' and disables the button while saving is true", () => {
     renderSeo({ saving: true });
     expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
+  });
+});
+
+describe("Seo — View sitemap modal", () => {
+  it("does not render the sitemap modal when sitemapModalOpen is false", () => {
+    renderSeo({ sitemapModalOpen: false });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("clicking View sitemap calls openSitemapModal", async () => {
+    const user = userEvent.setup();
+    const openSitemapModal = vi.fn();
+    renderSeo({ openSitemapModal });
+    await user.click(screen.getByRole("button", { name: "View sitemap" }));
+    expect(openSitemapModal).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders the sitemap modal when sitemapModalOpen is true", () => {
+    renderSeo({ sitemapModalOpen: true });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });
 
