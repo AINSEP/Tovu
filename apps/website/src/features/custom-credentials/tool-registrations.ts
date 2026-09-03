@@ -504,6 +504,130 @@ interface CreateAnswerContext {
   readonly exchange: SurfaceExchange;
 }
 
+/** `custom_credential_create`'s five submitted form fields, in their raw `typeof`-guarded form — no
+ *  defaulting yet (see {@link deriveCreateCredentialSubmission} for that stage). Split from it so each
+ *  function's own complexity is measured independently: this one is pure shape-narrowing, that one is
+ *  pure decision-making, and neither has to read the other's reasoning to verify its own.
+ *  @complexity O(1) — five fixed field reads. */
+interface RawCreateCredentialFields {
+  readonly label: string;
+  readonly baseUrl: string;
+  readonly category: string;
+  readonly username: string;
+  readonly token: string;
+}
+
+/**
+ * Narrows `custom_credential_create`'s five submitted params to strings, with no defaulting — a
+ * missing or non-string field reads as `""`, exactly like every other `answer.params[...]` read in
+ * this file (e.g. {@link handleSetTokenAnswer}'s own `token` read).
+ *
+ * @complexity O(1) — five fixed field reads.
+ */
+function readRawCreateCredentialFields(params: Record<string, unknown>): RawCreateCredentialFields {
+  return {
+    label: typeof params["label"] === "string" ? params["label"] : "",
+    baseUrl: typeof params["baseUrl"] === "string" ? params["baseUrl"] : "",
+    category: typeof params["category"] === "string" ? params["category"] : "",
+    username: typeof params["username"] === "string" ? params["username"] : "",
+    token: typeof params["token"] === "string" ? params["token"] : "",
+  };
+}
+
+/** {@link deriveCreateCredentialSubmission}'s output — the fully-defaulted shape the rest of
+ *  {@link handleCreateAnswer} actually acts on. */
+interface CreateCredentialSubmission {
+  readonly label: string;
+  readonly baseUrl: string;
+  readonly category: string;
+  readonly username: string | undefined;
+  readonly token: string;
+  /** A blank `label` still needs a human-readable name for the outcome surface's own "Label" detail
+   *  row — `store.ts`'s own validation error (surfaced via {@link mapCreateCredentialError}) is what
+   *  actually refuses the submission; this is display-only. */
+  readonly displayLabel: string;
+}
+
+/**
+ * Applies `custom_credential_create`'s three field defaults on top of {@link readRawCreateCredentialFields}'s
+ * raw extraction. Every REAL field validation (non-empty label/baseUrl, a closed category, the
+ * `(workspaceId, label)` uniqueness constraint) is still left entirely to `store.ts`'s own
+ * `createCustomCredential` — this function only decides what a blank/missing field DEFAULTS to before
+ * that validation ever runs:
+ *
+ * - `category`: defaults to `"general"` (the closed set's catch-all, same as the admin Access Tokens
+ *   page's own "Add custom provider" form) rather than passing a blank string through to `store.ts`'s
+ *   `validateCategory`, which would reject it outright and block the save on a required field the human
+ *   had no obvious answer for. Belt-and-suspenders alongside `custom-credential-create-ui.ts`'s own form
+ *   default: that default lives in the rendered `<select>`'s pre-selected option, this one covers a
+ *   submission that somehow arrives without it. `"general"` is itself a member of the closed set
+ *   `validateCategory` enforces, so a caller-supplied INVALID category (anything outside the fixed set)
+ *   is still rejected exactly as before — this default never widens what counts as valid.
+ * - `username`: a blank string is treated as "omitted", matching `readCreateCredentialPrefill`'s own
+ *   identical convention for the same optional field.
+ * - `displayLabel`: a blank `label` still needs a human-readable name for the outcome surface (see its
+ *   own field doc above); `token` is passed through unchanged — its own blank check happens in
+ *   {@link handleCreateAnswer} itself, since only that caller knows what to do about it.
+ *
+ * @complexity O(1) — three fixed defaulting decisions.
+ */
+function deriveCreateCredentialSubmission(raw: RawCreateCredentialFields): CreateCredentialSubmission {
+  return {
+    label: raw.label,
+    baseUrl: raw.baseUrl,
+    category: raw.category.trim() === "" ? "general" : raw.category,
+    username: raw.username.trim() === "" ? undefined : raw.username,
+    token: raw.token,
+    displayLabel: raw.label.trim() === "" ? "(unlabeled)" : raw.label,
+  };
+}
+
+/** Builds `custom_credential_create`'s failure-shaped `{result, outcome}` tuple — the one shape every
+ *  rejection branch below returns once a form has actually been submitted (as opposed to the
+ *  cancelled/expired/abandoned branches at the top of {@link handleCreateAnswer}, which send no
+ *  outcome at all — see that function's own body for why). Centralizing this means each rejection
+ *  branch differs only in its `reason`/`message`, never in how those get wired into the outcome
+ *  surface.
+ *  @complexity O(1). */
+function buildCreateFailureOutcome(
+  exchangeId: string,
+  displayLabel: string,
+  reason: "invalid" | "duplicate-label" | "error",
+  message: string
+): { result: CreateCredentialResult; outcome: SurfaceEmission } {
+  return {
+    result: { created: false, reason, message },
+    outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId, label: displayLabel, state: "failure", message }) } },
+  };
+}
+
+/**
+ * Maps a `createCustomCredential` rejection onto `custom_credential_create`'s own failure shape — the
+ * error-type dispatch mirrors the established one-function-per-error-type-table shape this codebase
+ * already uses for exactly this job (`sendPageCreateError`/`sendPostCreateError`,
+ * `server/inbound/admin-http/routes/pages|posts/create.ts`, and `sendPluginUninstallError`,
+ * `.../plugins/uninstall.ts`), adapted here to return a value instead of writing an HTTP response.
+ *
+ * A collision is refused, never silently overwritten — and the refusal names the correct tool for a
+ * rotation, so the model does not retry this CREATE-only tool against an existing row. `err.message`
+ * alone is used for every other failure, never echoed alongside anything else — matches
+ * `handleSetTokenAnswer`'s own catch branch and `store.ts`'s own error classes, none of which ever
+ * embed a field VALUE.
+ *
+ * @complexity O(1) — one `instanceof` branch plus one ternary.
+ */
+function mapCreateCredentialError(err: unknown, ctx: { exchangeId: string; label: string; displayLabel: string }): { result: CreateCredentialResult; outcome: SurfaceEmission } {
+  if (err instanceof CustomCredentialDuplicateLabelError) {
+    const message =
+      `A custom credential labeled '${ctx.label}' already exists in this workspace. To rotate its token, use custom_credential_set_token — ` +
+      "this tool only creates NEW credentials and never overwrites an existing one.";
+    return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, "duplicate-label", message);
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  const reason = err instanceof CustomCredentialValidationError ? "invalid" : "error";
+  return buildCreateFailureOutcome(ctx.exchangeId, ctx.displayLabel, reason, message);
+}
+
 /**
  * `custom_credential_create`'s `askThenReport` answer handling — extracted to a top-level function for
  * the same reason {@link handleSetTokenAnswer} is: its own complexity is measured independently of the
@@ -513,17 +637,16 @@ interface CreateAnswerContext {
  * Every real field validation (non-empty label/baseUrl, a closed category, the `(workspaceId, label)`
  * uniqueness constraint) is left entirely to `store.ts`'s own `createCustomCredential` — this function
  * only special-cases a blank TOKEN locally (mirroring `handleSetTokenAnswer`'s identical local check),
- * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`,
- * and a blank/missing `category` (see below), which defaults to `"general"` rather than reaching
- * `store.ts`'s `validateCategory` at all — that function stays strict (rejects anything outside the
- * fixed set), the default is chosen here, at the same call site `label`/`baseUrl`/`token` are already
- * read at. Belt-and-suspenders alongside `custom-credential-create-ui.ts`'s own form default: that
- * default lives in the rendered `<select>`'s pre-selected option, this one covers a submission that
- * somehow arrives without it.
+ * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`.
+ * Field parsing and defaulting is delegated to {@link readRawCreateCredentialFields}/
+ * {@link deriveCreateCredentialSubmission}; failure reporting to {@link buildCreateFailureOutcome}/
+ * {@link mapCreateCredentialError} — this function's own body is left holding only the sequencing
+ * decisions: bail out early, reject a blank token, otherwise attempt the write and report whichever
+ * outcome comes back.
  *
- * The token itself lives in a single local `const` for the width of this function and is never
- * assigned to any field this function returns, logged, or otherwise retained — the property
- * `agent-tools.ts`'s own catalog description promises the model.
+ * The token itself lives in a single local `const` for the width of this function (via `submission`)
+ * and is never assigned to any field this function returns, logged, or otherwise retained — the
+ * property `agent-tools.ts`'s own catalog description promises the model.
  *
  * @complexity O(1) plus one `createCustomCredential` call (validate, seal, insert).
  */
@@ -537,28 +660,10 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
     return { result: { created: false, reason: "cancelled" } };
   }
 
-  const label = typeof answer.params["label"] === "string" ? answer.params["label"] : "";
-  const baseUrl = typeof answer.params["baseUrl"] === "string" ? answer.params["baseUrl"] : "";
-  const rawCategory = typeof answer.params["category"] === "string" ? answer.params["category"] : "";
-  // Defaults to "general" (the closed set's catch-all, same as the admin Access Tokens page's own
-  // "Add custom provider" form) rather than passing a blank string through to `store.ts`'s
-  // `validateCategory`, which would reject it outright and block the save on a required field the
-  // human had no obvious answer for.
-  const category = rawCategory.trim() === "" ? "general" : rawCategory;
-  const rawUsername = typeof answer.params["username"] === "string" ? answer.params["username"] : "";
-  const username = rawUsername.trim() === "" ? undefined : rawUsername;
-  const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
-  // A blank label still needs a human-readable name for the outcome surface's own "Label" detail row —
-  // `store.ts`'s own validation error (surfaced via the generic catch below) is what actually refuses
-  // the submission; this is display-only.
-  const displayLabel = label.trim() === "" ? "(unlabeled)" : label;
+  const submission = deriveCreateCredentialSubmission(readRawCreateCredentialFields(answer.params));
 
-  if (token.trim() === "") {
-    const message = "Token cannot be blank. Nothing was saved.";
-    return {
-      result: { created: false, reason: "invalid", message },
-      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
-    };
+  if (submission.token.trim() === "") {
+    return buildCreateFailureOutcome(exchange.id, submission.displayLabel, "invalid", "Token cannot be blank. Nothing was saved.");
   }
 
   try {
@@ -570,7 +675,13 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
         clock: routeDeps.clock,
         idGen: routeDeps.idGen,
       },
-      { workspaceId: routeDeps.workspaceId, label, category, baseUrl, connection: { token, ...(username !== undefined ? { username } : {}) } }
+      {
+        workspaceId: routeDeps.workspaceId,
+        label: submission.label,
+        category: submission.category,
+        baseUrl: submission.baseUrl,
+        connection: { token: submission.token, ...(submission.username !== undefined ? { username: submission.username } : {}) },
+      }
     );
     const message = `Credential '${credential.label}' created.`;
     return {
@@ -578,25 +689,7 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
       outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
     };
   } catch (err) {
-    // A collision is refused, never silently overwritten — and the refusal names the correct tool for
-    // a rotation, so the model does not retry this CREATE-only tool against an existing row.
-    if (err instanceof CustomCredentialDuplicateLabelError) {
-      const message =
-        `A custom credential labeled '${label}' already exists in this workspace. To rotate its token, use custom_credential_set_token — ` +
-        "this tool only creates NEW credentials and never overwrites an existing one.";
-      return {
-        result: { created: false, reason: "duplicate-label", message },
-        outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
-      };
-    }
-    // `err.message` only, never echoed alongside anything else — matches `handleSetTokenAnswer`'s own
-    // catch branch and `store.ts`'s own error classes, none of which ever embed a field VALUE.
-    const message = err instanceof Error ? err.message : String(err);
-    const reason = err instanceof CustomCredentialValidationError ? "invalid" : "error";
-    return {
-      result: { created: false, reason, message },
-      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
-    };
+    return mapCreateCredentialError(err, { exchangeId: exchange.id, label: submission.label, displayLabel: submission.displayLabel });
   }
 }
 

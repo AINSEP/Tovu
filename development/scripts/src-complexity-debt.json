@@ -115,16 +115,6 @@
     },
     {
       "rule": "complexity",
-      "file": "apps/website/src/features/custom-credentials/tool-registrations.ts",
-      "reason": "Async function 'handleCreateAnswer' has a complexity of 16. Maximum allowed is 9."
-    },
-    {
-      "rule": "sonarjs/cognitive-complexity",
-      "file": "apps/website/src/features/custom-credentials/tool-registrations.ts",
-      "reason": "Refactor this function to reduce its Cognitive Complexity from 18 to the 9 allowed."
-    },
-    {
-      "rule": "complexity",
       "file": "apps/website/src/features/deployments/deploy-config.ts",
       "reason": "Function 'assertNoConfigInjection' has a complexity of 12. Maximum allowed is 9."
     },
@@ -354,5 +344,6 @@
       "reason": "Function 'createSqliteRouteDeps' has a complexity of 11. Maximum allowed is 9."
     }
   ],
-  "_comment_2026-09-03_cleared": "Cleared 10 admin-http/routes entries on 2026-09-03 after commits 503d2fb0 (cognitive: site/profile.ts, plugins/uninstall.ts, pages/create.ts, posts/create.ts) and 6d6ac28a (cyclomatic: assistant/detect-agents.ts, forms/delete-submission.ts, forms/get-submission.ts, system/custom-credentials.ts) refactored all of them under the 9/9 ceiling. Verified by this script's own findViolations() reporting them as no-longer-reproducing. tool-registrations.ts entries deliberately LEFT IN PLACE: handleCreateAnswer drifted 16->17 cyclomatic and 18->19 cognitive under f0783b49 the same day, so its baseline numbers are now stale in the WRONG direction and it needs a real refactor, not a rebaseline."
+  "_comment_2026-09-03_cleared": "Cleared 10 admin-http/routes entries on 2026-09-03 after commits 503d2fb0 (cognitive: site/profile.ts, plugins/uninstall.ts, pages/create.ts, posts/create.ts) and 6d6ac28a (cyclomatic: assistant/detect-agents.ts, forms/delete-submission.ts, forms/get-submission.ts, system/custom-credentials.ts) refactored all of them under the 9/9 ceiling. Verified by this script's own findViolations() reporting them as no-longer-reproducing.",
+  "_comment_2026-09-03_handleCreateAnswer": "Cleared the two apps/website/src/features/custom-credentials/tool-registrations.ts entries (handleCreateAnswer: cyclomatic 16, cognitive 18) on 2026-09-03 after a real refactor, not a rebaseline -- those numbers were already stale in the WRONG direction (the function had drifted to 17/19 under f0783b49 the same day before this pass started). Split into readRawCreateCredentialFields (shape-narrowing), deriveCreateCredentialSubmission (defaulting decisions), buildCreateFailureOutcome + mapCreateCredentialError (failure-shape construction, mirroring the existing sendPageCreateError/sendPostCreateError/sendPluginUninstallError one-function-per-error-type-table pattern) -- handleCreateAnswer itself now only sequences these. Live measurement after the split: handleCreateAnswer itself is now complexity 6 / cognitive 5 (readRawCreateCredentialFields 6/5, deriveCreateCredentialSubmission 4/3, mapCreateCredentialError 4/3, buildCreateFailureOutcome 1/0), well under the 9/9 ceiling. All 160 existing tests in this feature (including create-agent-tool.unit.test.ts's own characterization coverage of blank-token, duplicate-label, invalid-category, cancel, and expired paths) still pass unchanged -- no behavior change, and no bug found in the audited logic (see commit message for the full audit)."
 }
