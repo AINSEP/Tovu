@@ -506,6 +506,24 @@ test("disconnect clears the token, preserves the client secret, and returns the 
   assert.equal(payload.clientSecret, "s3cr3t", "disconnecting must not destroy a client secret the operator may never see again");
 });
 
+test("disconnect stops the read model claiming a stored token — even though the sealed blob survives", async () => {
+  const { repo, service } = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }],
+  });
+  await connect(service);
+  assert.equal((await listExternalMcpServerViews({ repo }, WORKSPACE))[0]?.oauth.hasStoredToken, true);
+
+  await service.disconnect({ serverId: SERVER });
+
+  const [view] = await listExternalMcpServerViews({ repo }, WORKSPACE);
+  assert.ok(view, "the row survives a disconnect — only the authorization is dropped");
+  assert.equal(view.oauth.status, "disconnected");
+  assert.equal(view.oauth.hasStoredToken, false, "the API must not report a stored token for a disconnected connection");
+  // Why this was ever wrong: the blob is still on the row, holding the client secret the sibling
+  // test pins. Blob presence therefore cannot be what `hasStoredToken` reads.
+  assert.notEqual((await readRow(repo)).sealedOAuth, null, "the preserved client secret's blob must still be on the row");
+});
+
 test("the device grant returns a user code and verification URL, and never exposes the device code", async () => {
   const { service } = await makeHarness({
     grant: "device_code",

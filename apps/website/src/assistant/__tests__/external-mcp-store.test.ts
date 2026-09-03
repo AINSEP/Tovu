@@ -21,7 +21,7 @@ import {
 } from "../external-mcp-store.js";
 import { admitRemoteTools } from "../mcp-federation/trust.js";
 import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
-import type { ExternalMcpServerConfig, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
+import type { ExternalMcpServerConfig, ExternalMcpServerRecord, SaveExternalMcpOAuthInput } from "../external-mcp-store.js";
 
 /**
  * @file `external-mcp-store.ts` — the operator-editable roster behind Settings → External MCP.
@@ -955,6 +955,87 @@ test("INV-001: a save that only flips `enabled`, sending today's blank OAuth ide
   assert.equal(payload.clientSecret, "dcr-minted-secret", "the DCR-minted client secret must survive");
   assert.equal(payload.tokens?.accessToken, "at-1", "the access token must survive");
   assert.equal(payload.tokens?.refreshToken, "rt-1", "the refresh token must survive");
+});
+
+/** Opaque stand-in for a sealed blob. Deliberately never opened: the property under test is that
+ *  `hasStoredToken` is answered from the PLAINTEXT columns beside it, so a fixture that had to be
+ *  decryptable would be testing the wrong thing. */
+const OPAQUE_SEALED_BLOB = { keyId: "k1", ciphertext: "Yw==", nonce: "bg==", alg: "aes-256-gcm" } as const;
+
+/** One stored row in a named OAuth lifecycle state. Cast for the same reason
+ *  {@link seedConnectedOAuthRow} casts: this fixture names only the columns the assertion turns on. */
+function oauthStateRow(serverId: string, over: Partial<ExternalMcpServerRecord>): Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0] {
+  return {
+    workspaceId: WORKSPACE,
+    serverId,
+    label: null,
+    transport: "streamable_http",
+    authMode: "oauth",
+    enabled: true,
+    command: null,
+    url: "https://mcp.example.com/mcp",
+    args: null,
+    allowedToolNames: null,
+    envNames: null,
+    sealedEnv: null,
+    oauthProviderId: null,
+    oauthGrant: "authorization_code",
+    oauthClientId: "client-1",
+    oauthEndpointsJson: null,
+    oauthScopesJson: null,
+    oauthStatus: null,
+    oauthExpiresAt: null,
+    oauthTokenEnvName: null,
+    oauthRefreshLeaseUntil: null,
+    sealedOAuth: null,
+    createdAt: "2026-09-01T00:00:00.000Z",
+    updatedAt: "2026-09-01T00:00:00.000Z",
+    ...over,
+  } as Parameters<InMemoryExternalMcpServerRepo["upsert"]>[0];
+}
+
+test("INV-003: hasStoredToken tracks the TOKEN across every lifecycle state, not the sealed blob beside it", async () => {
+  const { repo } = makeDeps();
+  // Exactly what `setOAuthStatus`'s clearToken branch leaves behind: the blob survives holding the
+  // client secret, the token is gone, and the plaintext expiry was nulled in the same write.
+  await repo.upsert(oauthStateRow("disconnected-with-secret", { oauthStatus: "disconnected", sealedOAuth: OPAQUE_SEALED_BLOB }));
+  await repo.upsert(oauthStateRow("needs-reauth-with-secret", { oauthStatus: "needs_reauth", sealedOAuth: OPAQUE_SEALED_BLOB }));
+  await repo.upsert(oauthStateRow("never-connected", { oauthStatus: null }));
+  await repo.upsert(
+    oauthStateRow("connected", { oauthStatus: "connected", sealedOAuth: OPAQUE_SEALED_BLOB, oauthExpiresAt: "2099-01-01T00:00:00.000Z" }),
+  );
+  // A provider that issued no `expires_in` (RFC 6749 §5.1 makes it optional): the token is real and
+  // `connected` is the only plaintext left to read it from.
+  await repo.upsert(oauthStateRow("connected-no-expiry", { oauthStatus: "connected", sealedOAuth: OPAQUE_SEALED_BLOB }));
+  // A re-connect begun over a live token: off `connected`, but the expiry it was stored with is
+  // still there, so the token it describes is still reported.
+  await repo.upsert(
+    oauthStateRow("pending-over-live-token", {
+      oauthStatus: "pending",
+      sealedOAuth: OPAQUE_SEALED_BLOB,
+      oauthExpiresAt: "2099-01-01T00:00:00.000Z",
+    }),
+  );
+  // Sealed before this table had AAD. Nothing here opens the blob, so the legacy lineage — which
+  // would make an unsealing implementation throw — changes no answer.
+  await repo.upsert(
+    oauthStateRow("legacy-aad-v0", {
+      oauthStatus: "connected",
+      sealedOAuth: OPAQUE_SEALED_BLOB,
+      oauthExpiresAt: "2099-01-01T00:00:00.000Z",
+      oauthAadVersion: 0,
+    }),
+  );
+
+  const stored = new Map((await listExternalMcpServerViews({ repo }, WORKSPACE)).map((view) => [view.serverId, view.oauth.hasStoredToken]));
+
+  assert.equal(stored.get("disconnected-with-secret"), false, "a blob holding only a client secret is not a stored token");
+  assert.equal(stored.get("needs-reauth-with-secret"), false, "markNeedsReauth clears the token and keeps the secret");
+  assert.equal(stored.get("never-connected"), false);
+  assert.equal(stored.get("connected"), true);
+  assert.equal(stored.get("connected-no-expiry"), true, "a token issued with no expiry is still a stored token");
+  assert.equal(stored.get("pending-over-live-token"), true);
+  assert.equal(stored.get("legacy-aad-v0"), true, "the answer must not depend on opening the blob");
 });
 
 test("INV-002: the same save preserves `clientAuth`, which no operator can type", async () => {

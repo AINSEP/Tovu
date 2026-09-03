@@ -276,8 +276,10 @@ export interface ExternalMcpOAuthView {
   /** Plaintext expiry, straight off the row — nothing is unsealed to produce it. */
   expiresAt: ISODateTime | null;
   tokenEnvName: string | null;
-  /** Whether a sealed blob exists at all. Presence, never the value — the same technique
-   *  `routes/admin/system/deployment-overview.ts` uses for environment variables. */
+  /** Whether an access TOKEN is stored. Presence, never the value — the same technique
+   *  `routes/admin/system/deployment-overview.ts` uses for environment variables. Decided from
+   *  PLAINTEXT columns only; see {@link externalMcpRecordHasStoredToken} for why it must not unseal
+   *  and for the one state it under-reports. */
   hasStoredToken: boolean;
 }
 
@@ -552,6 +554,46 @@ export function resolveExternalMcpOAuthStatus(record: Pick<ExternalMcpServerReco
     : "disconnected";
 }
 
+/**
+ * Whether this row holds an access TOKEN — answered from PLAINTEXT columns alone, never by unsealing.
+ *
+ * `record.sealedOAuth !== null` used to answer this, and stopped being true the moment clearing a
+ * token became a read-modify-write that PRESERVES the client secret sharing the blob (see
+ * `external-mcp-oauth.ts`'s `setOAuthStatus`). A disconnected connection still carries a non-null
+ * blob — a secret and no tokens — so blob presence began reporting a stored token for a row that
+ * has none.
+ *
+ * Not repaired by unsealing, deliberately. This is read by a plain list route that must answer
+ * without a keyring round trip, and must keep answering TRUTHFULLY for a row whose blob will not
+ * open at all: a rotated root key, or a legacy `aad_version 0` ciphertext. A decrypt here would turn
+ * either into a failed settings tab, and would put a keyring dependency on a read path that has
+ * never had one.
+ *
+ * The blob check leads because it is the NECESSARY condition — no blob, no token, whatever the
+ * plaintext says. Each of the two disjuncts after it is independently SUFFICIENT, which is what
+ * makes a false positive unreachable:
+ *
+ * - `connected` is written by exactly one place, `persistTokens`, and that same upsert writes the
+ *   tokens. Every path that clears a token moves the row off `connected` in the same write.
+ * - `oauthExpiresAt` is written beside the tokens by that same `persistTokens`, and nulled by every
+ *   clear (`setOAuthStatus`'s `clearToken` branch) and by every save that invalidates the token
+ *   ({@link carryOAuthRuntimeState}), so a non-null expiry cannot outlive the token it describes.
+ *
+ * @returns `true` only when a token is stored. The single state it can UNDER-report is a token
+ * issued with no `expires_in` — RFC 6749 §5.1 makes it optional and `platform/oauth/token-endpoint
+ * .ts` stores `null` rather than fabricating one — on a row that has since moved off `connected`
+ * without its token being cleared: a re-connect left `pending`, or a terminal device-poll failure.
+ * Under-reporting is the safe direction, and closing it exactly needs a plaintext token-presence
+ * column, which is a schema change rather than a read fix.
+ * @complexity O(1) — three field reads, no I/O.
+ */
+export function externalMcpRecordHasStoredToken(
+  record: Pick<ExternalMcpServerRecord, "sealedOAuth" | "oauthStatus" | "oauthExpiresAt">,
+): boolean {
+  if (record.sealedOAuth === null) return false;
+  return resolveExternalMcpOAuthStatus(record) === "connected" || record.oauthExpiresAt !== null;
+}
+
 function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
   return {
     serverId: record.serverId,
@@ -575,7 +617,7 @@ function toView(record: ExternalMcpServerRecord): ExternalMcpServerView {
       status: resolveExternalMcpOAuthStatus(record),
       expiresAt: record.oauthExpiresAt,
       tokenEnvName: record.oauthTokenEnvName,
-      hasStoredToken: record.sealedOAuth !== null,
+      hasStoredToken: externalMcpRecordHasStoredToken(record),
     },
   };
 }
@@ -1477,8 +1519,9 @@ export async function openExternalMcpOAuthPayload(
  * Seals an OAuth payload, or resolves `null` when there is nothing worth sealing.
  *
  * An empty payload seals to `null` rather than to a blob containing `{}`, so `sealedOAuth !== null`
- * is a truthful answer to "does this connection hold anything secret" — which is what
- * {@link ExternalMcpOAuthView.hasStoredToken} reports without unsealing.
+ * is a truthful answer to "does this connection hold anything secret". It is NOT an answer to "does
+ * it hold a token" — a cleared connection keeps its client secret in that blob — which is why
+ * {@link externalMcpRecordHasStoredToken} reads the plaintext columns instead.
  *
  * @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available.
  * @complexity O(1) — one seal.
