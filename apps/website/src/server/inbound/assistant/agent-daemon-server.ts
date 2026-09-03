@@ -49,12 +49,14 @@
  * it. Deliberately NOT `@jini-ai/http-kit`'s `registerApiBearerAuthMiddleware` — see
  * `daemon-auth.ts`'s header for why its loopback short-circuit makes it a no-op here.
  *
- * One route is exempt by necessity, not by preference: `/api/delegated-tool-calls`, which is
- * called by this run's own `jini-mcp` MCP subprocess rather than by Tovu's proxy. That subprocess
- * receives only `JINI_RUN_ID`/`JINI_DAEMON_URL` from `@jini-ai/daemon` and sends no
- * `Authorization` header, so a bearer requirement there would simply break tool execution. It
- * remains gated by `resolvePrincipal`'s fail-closed check that the posted `runId` is a live,
- * `randomUUID()`-derived id this process is currently tracking. See `DELEGATED_TOOL_CALLS_PATH`.
+ * One route is exempt from THIS gate by necessity, not by preference: `/api/delegated-tool-calls`,
+ * called by this run's own `jini-mcp` MCP subprocess rather than by Tovu's proxy. Its credential is
+ * a per-run HMAC derived from `TOVU_AGENT_DAEMON_TOKEN` (`mcp-injection.ts`), which never equals
+ * the boot-wide token itself — so this gate would always reject it. It carries its own, narrower
+ * gate instead: `daemon-auth.ts`'s `requireDelegatedToolCredential`, mounted path-scoped at
+ * `DELEGATED_TOOL_CALLS_PATH` just below. `resolvePrincipal`'s fail-closed check that the posted
+ * `runId` is a live, `randomUUID()`-derived id this process is currently tracking still runs
+ * afterward, unchanged. See `DELEGATED_TOOL_CALLS_PATH`'s own doc for the full history.
  */
 import path from "node:path";
 
@@ -116,6 +118,7 @@ import {
   createCustomInstructionsCache,
   DELEGATED_TOOL_CALLS_PATH,
   requireAgentDaemonToken,
+  requireDelegatedToolCredential,
   AGENT_DAEMON_EXIT_CODE,
   FRONTEND_CONTROL_CAPABILITIES,
   attachFederatedMcpTools,
@@ -825,6 +828,14 @@ const adapter: AdapterContext = { resolvedPortRef: { current: port } };
 // `run-ownership.ts` for the ownership model and the 404-not-403 rationale.
 app.use("/api/runs/:runId", requireRunOwnership(runOwners));
 app.get("/api/runs", createOwnedRunListHandler({ lifecycle, registry: runOwners }));
+
+// The other half of the exemption `requireAgentDaemonToken` grants `DELEGATED_TOOL_CALLS_PATH`
+// above: that gate cannot check this path's caller (its expected value is the boot-wide daemon
+// token; what actually arrives here is a per-run HMAC derived FROM it — see `mcp-injection.ts`),
+// so this narrower, path-scoped gate does instead. Mounted after `express.json()` (so
+// `req.body.runId` is already parsed) and before `registerDelegatedToolRoutes` below, same
+// ordering `requireRunOwnership` immediately above already uses.
+app.use(DELEGATED_TOOL_CALLS_PATH, requireDelegatedToolCredential());
 
 registerRunRoutes(app, { lifecycle, onStarted }, adapter);
 // `rescanAgents` wired explicitly (not left to fall back to `listAgents`, `@jini-ai/http-kit`'s own

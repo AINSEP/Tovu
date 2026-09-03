@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import type { NextFunction, Request, Response } from "express";
 
@@ -52,12 +52,14 @@ const BEARER_PATTERN = /^Bearer[ \t]+(\S+)[ \t]*$/i;
 
 /**
  * Constant-time string comparison. Length is compared first and non-constant-time — that leaks
- * only the token's length, which is fixed and public (64 hex chars), never its contents.
+ * only the token's length, which is fixed and public (64 hex chars), never its contents. Exported
+ * so {@link requireDelegatedToolCredential} reuses this exact comparison instead of a second,
+ * hand-rolled one that could reintroduce a timing side-channel.
  *
  * @complexity O(n) in the token length.
  * @overallScore 100
  */
-function tokensMatch(presented: string, expected: string): boolean {
+export function tokensMatch(presented: string, expected: string): boolean {
   const presentedBytes = Buffer.from(presented, "utf8");
   const expectedBytes = Buffer.from(expected, "utf8");
   if (presentedBytes.length !== expectedBytes.length) return false;
@@ -86,28 +88,62 @@ export function ensureAgentDaemonToken(env: NodeJS.ProcessEnv = process.env): st
 
 /**
  * `POST /api/delegated-tool-calls` (`@jini-ai/http-kit`'s `registerDelegatedToolRoutes`). The ONE
- * route the bearer gate cannot cover, for a structural reason worth stating in full.
+ * route {@link requireAgentDaemonToken} cannot cover, for a structural reason worth stating in
+ * full — and, since this fix, the one covered by its own separate gate instead of nothing at all.
  *
  * Its only legitimate caller is not Tovu's proxy but the `jini-mcp` stdio server that the run's own
  * spawned coding-agent CLI launches as an MCP subprocess. `@jini-ai/daemon` writes that
- * subprocess's `.mcp.json` entry with exactly two env vars — `JINI_RUN_ID` and `JINI_DAEMON_URL`
- * (`agent-executor.ts`'s `McpJsonServerEntry`) — and `@jini-ai/mcp`'s `delegated-tool.ts` posts to
- * this route with no `Authorization` header at all and no env var from which it could read one.
- * Verified in both packages' sources. Tovu cannot hand it a token without changing Jini, which is
- * a separate, published dependency.
+ * subprocess's `.mcp.json` entry with `JINI_RUN_ID`/`JINI_DAEMON_URL` (`agent-executor.ts`'s
+ * `McpJsonServerEntry`) and, now that `mcp-injection.ts` supplies a `credential` resolver,
+ * `JINI_DAEMON_TOKEN` too.
  *
- * The route is not ungated, though — it carries its own, pre-existing capability check that the
- * other routes lack: the request body must name a `runId` that `agent-daemon-server.ts`'s
- * `resolvePrincipal` currently tracks, and it throws rather than fabricating a principal for an
- * unknown one. Run ids are `randomUUID()` (`@jini-ai/daemon`'s `run-lifecycle.ts`) — 122 bits of
- * entropy — and an id only resolves while that run is actually in flight. So reaching this route
- * requires already knowing an unguessable, short-lived secret, which is a materially different
- * position from the pre-fix state where every route was open to any local process.
+ * **This comment previously said** `@jini-ai/mcp`'s `delegated-tool.ts` posts here with no
+ * `Authorization` header at all and no env var from which it could read one, and that Tovu could
+ * not hand it a token without changing Jini. That was true only while `credential` was unset —
+ * `packages/mcp/src/bin/serve.ts` already reads `JINI_DAEMON_TOKEN` and attaches
+ * `Authorization: Bearer <value>` on every daemon call once one is present, delegated-tool-calls
+ * included (verified directly against that file). A stale comment asserting a now-false invariant
+ * is its own bug, so this one was rewritten rather than left to mislead the next reader.
  *
- * The clean upstream fix is for `jini-mcp` to forward a daemon token; until then this exemption is
- * declared here rather than hidden, so it shows up in review instead of being discovered later.
+ * `requireAgentDaemonToken` still cannot be the one to check that header, though: what arrives here
+ * is `deriveDelegatedToolCredential(TOVU_AGENT_DAEMON_TOKEN, runId)` — a per-run value that is
+ * never equal to the boot-wide token that gate expects (see `mcp-injection.ts`'s header for why the
+ * credential is derived rather than reused verbatim). Hence {@link requireDelegatedToolCredential},
+ * a second, narrower gate scoped to exactly this path, which recomputes and compares that same
+ * derivation.
+ *
+ * The route was never ungated even before that, and still isn't reduced to only the new gate: the
+ * request body must also name a `runId` that `agent-daemon-server.ts`'s `resolvePrincipal`
+ * currently tracks, and it throws rather than fabricating a principal for an unknown one. Run ids
+ * are `randomUUID()` (`@jini-ai/daemon`'s `run-lifecycle.ts`) — 122 bits of entropy — and an id only
+ * resolves while that run is actually in flight. That liveness check runs exactly as it did before
+ * this fix, downstream of the new credential gate.
  */
 export const DELEGATED_TOOL_CALLS_PATH = "/api/delegated-tool-calls";
+
+/**
+ * Derives the per-run bearer credential a spawned run's `jini-mcp` subprocess presents on its
+ * {@link DELEGATED_TOOL_CALLS_PATH} callbacks — `HMAC-SHA256(secret, runId)`, hex-encoded.
+ * `secret` is the boot-wide `TOVU_AGENT_DAEMON_TOKEN`; the derived value is what actually reaches
+ * the child (via `mcp-injection.ts`'s `credential` resolver) — never `secret` itself. This is the
+ * one place both the minting side (`mcp-injection.ts`) and the checking side
+ * ({@link requireDelegatedToolCredential}) compute the value, so the two can never drift apart.
+ *
+ * Stateless and deterministic on purpose: the daemon does not need to remember which credential it
+ * handed out per run — given a claimed `runId` it can always recompute the expected value from the
+ * one secret it already holds, no storage or expiry bookkeeping required. Liveness (has this run
+ * actually started, is it still in flight) is enforced separately, by `resolvePrincipal`'s
+ * `principalByRunId` lookup, not by this function.
+ *
+ * @param secret - The boot-wide `TOVU_AGENT_DAEMON_TOKEN`. Never sent to a child directly.
+ * @param runId - The run this credential is scoped to. A credential derived for one `runId` does
+ * not verify against any other.
+ * @returns 64 lowercase hex characters (a SHA-256 HMAC digest).
+ * @complexity O(n) in `secret` and `runId` length.
+ */
+export function deriveDelegatedToolCredential(secret: string, runId: string): string {
+  return createHmac("sha256", secret).update(runId).digest("hex");
+}
 
 export interface AgentDaemonTokenGateOptions {
   /** Defaults to `process.env`. Injected only so tests can drive the gate without mutating real process env. */
@@ -158,6 +194,72 @@ export function requireAgentDaemonToken(options: AgentDaemonTokenGateOptions = {
     if (!presented || !tokensMatch(presented[1], expected)) {
       res.status(401).json({
         error: `Authorization: Bearer <${AGENT_DAEMON_TOKEN_ENV_VAR}> is required`,
+        code: "UNAUTHENTICATED",
+      });
+      return;
+    }
+
+    next();
+  };
+}
+
+export interface DelegatedToolCredentialGateOptions {
+  /** Defaults to `process.env`. Injected only so tests can drive the gate without mutating real process env. */
+  env?: NodeJS.ProcessEnv;
+}
+
+/**
+ * Express middleware factory: the path-scoped gate for {@link DELEGATED_TOOL_CALLS_PATH} —
+ * {@link requireAgentDaemonToken}'s global gate exempts this one path (see that constant's own
+ * doc for the full reasoning), so this is what actually authenticates a caller here instead of
+ * leaving the job to `resolvePrincipal`'s liveness check alone.
+ *
+ * Mount it path-scoped (`app.use(DELEGATED_TOOL_CALLS_PATH, requireDelegatedToolCredential())`),
+ * AFTER `express.json()` so `req.body.runId` is already parsed, and BEFORE
+ * `registerDelegatedToolRoutes` so a rejected caller never reaches `resolvePrincipal` or the tool
+ * executor — the same ordering `agent-daemon-server.ts` already uses for
+ * `requireRunOwnership`.
+ *
+ * Reads `runId` off the body itself rather than depending on `@jini-ai/http-kit`'s own parsing —
+ * this gate must run before that package's route handler does, so it cannot reuse the already-
+ * validated `DelegatedToolExecuteRequest` that handler builds. A body with no usable `runId`
+ * string is waved through unauthenticated ON PURPOSE, not by oversight: `@jini-ai/http-kit`'s own
+ * `parseDelegatedToolExecute` (the very next thing in the chain) refuses that same request with
+ * its own validation error before `resolvePrincipal` — or any tool — is ever reached, so there is
+ * nothing here yet for this gate to protect. Rejecting it here first would only swap one safe
+ * refusal for a different one, one path earlier.
+ *
+ * @complexity O(1) per request plus one HMAC computation over `runId`'s length.
+ */
+export function requireDelegatedToolCredential(options: DelegatedToolCredentialGateOptions = {}) {
+  const env = options.env ?? process.env;
+
+  return function requireDelegatedToolCredentialMiddleware(req: Request, res: Response, next: NextFunction): void {
+    const secret = env[AGENT_DAEMON_TOKEN_ENV_VAR];
+    if (typeof secret !== "string" || secret.length === 0) {
+      // Same fail-closed posture as requireAgentDaemonToken: an unconfigured daemon refuses to
+      // serve rather than silently trusting a caller it has no way to verify.
+      res.status(503).json({
+        error: `the agent daemon is not configured: ${AGENT_DAEMON_TOKEN_ENV_VAR} is unset`,
+        code: "AGENT_DAEMON_UNCONFIGURED",
+      });
+      return;
+    }
+
+    const body: unknown = req.body;
+    const runId = typeof body === "object" && body !== null && !Array.isArray(body) ? (body as Record<string, unknown>).runId : undefined;
+    if (typeof runId !== "string" || runId.length === 0) {
+      // No runId to derive an expected credential from — leave the refusal to
+      // parseDelegatedToolExecute's own validation error, downstream. See this function's doc.
+      next();
+      return;
+    }
+
+    const expected = deriveDelegatedToolCredential(secret, runId);
+    const presented = BEARER_PATTERN.exec(req.get("authorization") ?? "");
+    if (!presented || !tokensMatch(presented[1], expected)) {
+      res.status(401).json({
+        error: `Authorization: Bearer <credential for run "${runId}"> is required`,
         code: "UNAUTHENTICATED",
       });
       return;

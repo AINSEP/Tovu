@@ -14,24 +14,37 @@
  * `bin/serve.js` as a plain filesystem path sidesteps the exports map entirely — this is a path
  * string handed to `spawn`, never itself passed back through `require`/`import`.
  *
- * `credential` was missing until now — confirmed live (2026-07-30) that its absence silently
- * broke the entire delegated-tool surface: with no `JINI_DAEMON_TOKEN` env var, the spawned
- * `jini-mcp` child's every callback to `/api/tools/search`, `/api/tools/:id`, and
+ * `credential` was missing until 2026-07-30 — confirmed live that its absence silently broke the
+ * entire delegated-tool surface: with no `JINI_DAEMON_TOKEN` env var, the spawned `jini-mcp`
+ * child's every callback to `/api/tools/search`, `/api/tools/:id`, and
  * `/api/delegated-tool-calls` hit `daemon-auth.ts`'s `requireAgentDaemonToken` gate with no
  * `Authorization` header and failed — so neither Forms nor Identity tools were ever reachable by
- * a spawned Claude Code or Codex CLI, despite being correctly registered and tested. Floor-tier
- * fix, disclosed as such: this reuses `TOVU_AGENT_DAEMON_TOKEN`, the single boot-wide token
- * `ensureAgentDaemonToken` mints — NOT the genuinely per-run, narrowly-scoped credential the
- * upstream doc comment on `McpJsonInjectionOptions.credential` asks for ("Never hand this the
- * host's own inbound API token... its credential should authorize its own callback route and
- * nothing else"). Tovu's daemon currently has only one token tier, so this is what's available;
- * a real per-run credential (minted per `runId`, checked only against that run's own delegated
- * routes) is the correct follow-up, not a drive-by here.
+ * a spawned Claude Code or Codex CLI, despite being correctly registered and tested. The floor-tier
+ * fix that landed that day reused `TOVU_AGENT_DAEMON_TOKEN` verbatim — the single boot-wide token
+ * `ensureAgentDaemonToken` mints — handed unmodified to the least-trusted process in the run, and
+ * disclosed itself as exactly that: NOT the genuinely per-run, narrowly-scoped credential the
+ * upstream doc comment on `McpJsonInjectionOptions.credential` asks for.
+ *
+ * This revision replaces that. `credential` now returns `daemon-auth.ts`'s
+ * `deriveDelegatedToolCredential(TOVU_AGENT_DAEMON_TOKEN, runId)` — an HMAC-SHA256 of the boot
+ * token, keyed to this one run — instead of the boot token itself. The spawned `jini-mcp`
+ * subprocess (and, since it inherits env, everything IT can reach) now never holds
+ * `TOVU_AGENT_DAEMON_TOKEN` at all: only a value that authenticates this run's own
+ * `/api/delegated-tool-calls` callbacks and nothing else, matching the upstream contract verbatim
+ * ("Never hand this the host's own inbound API token... its credential should authorize its own
+ * callback route and nothing else"). `TOVU_AGENT_DAEMON_TOKEN` becomes a pure signing key here,
+ * read only in this process and never transmitted. The matching verification-side gate is
+ * `daemon-auth.ts`'s `requireDelegatedToolCredential`, mounted at `DELEGATED_TOOL_CALLS_PATH` in
+ * `agent-daemon-server.ts` — `requireAgentDaemonToken`'s own gate cannot check this value, since it
+ * is never equal to the boot-wide token that gate expects.
+ *
+ * No new storage or expiry logic needed: the derivation is stateless, so liveness is still enforced
+ * entirely by `resolvePrincipal`'s existing `principalByRunId` check, unchanged by this fix.
  */
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth.js";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, deriveDelegatedToolCredential } from "./daemon-auth.js";
 
 const require = createRequire(import.meta.url);
 
@@ -42,12 +55,12 @@ export function resolveMcpJsonInjection(daemonUrl: string): McpJsonInjectionOpti
     command: process.execPath,
     args: [script],
     daemonUrl,
-    credential: () => {
-      const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-      if (!token) {
+    credential: (runId: string) => {
+      const secret = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
+      if (!secret) {
         throw new Error(`mcp-injection: ${AGENT_DAEMON_TOKEN_ENV_VAR} is unset — the daemon should have minted it before this ever runs`);
       }
-      return token;
+      return deriveDelegatedToolCredential(secret, runId);
     },
   };
 }

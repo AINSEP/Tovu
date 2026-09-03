@@ -20,7 +20,7 @@
  */
 export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
 export { createCustomInstructionsCache } from "./custom-instructions.js";
-export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth.js";
+export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken, requireDelegatedToolCredential } from "./daemon-auth.js";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 export { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities.js";
 export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
