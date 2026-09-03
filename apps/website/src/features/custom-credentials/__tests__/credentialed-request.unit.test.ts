@@ -896,3 +896,37 @@ test("makeCredentialedRequest: strips the injected token from the response BODY 
   assert.equal(result.bodyText, '{"echo":{"authorization":"[REDACTED]"},"machines":["m-1","m-2"]}');
 });
 
+test("makeCredentialedRequest: a pathologically short credential token withholds the response body instead of substring-scrubbing it", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "shorttoken",
+    category: "general",
+    baseUrl: "https://api.short.example",
+    connection: { token: "ab" },
+  });
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: { "X-Safe-Header": "safe-value" },
+      bodyText: '{"count":12,"items":["abacus","table"]}',
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "shorttoken",
+    method: "GET",
+    url: "https://api.short.example/v1/items",
+  });
+
+  // A 2-character token would match "ab" inside "abacus" and both digits of "12" if substring-scrubbed
+  // in place — too ambiguous to redact safely, so the whole body is withheld instead of mangled.
+  assert.equal(result.bodyText, "[body withheld: credential too short to redact safely]");
+  assert.ok(!result.bodyText.includes('"count"'), "the raw body must not leak through unredacted either");
+  // Headers are unaffected by the short-token body policy — they redact by exact-name/exact-value
+  // match, which has no partial-mangling failure mode regardless of secret length.
+  assert.equal(result.headers["X-Safe-Header"], "safe-value");
+});
+

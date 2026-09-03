@@ -87,14 +87,19 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * this module's own thrown errors and `store.ts`'s `resolveCustomCredentialByLabel` are checked to
  * never interpolate `connection.token`/`connection.username` into a message). This also covers the
  * PROVIDER's own response, not just this module's: {@link makeCredentialedRequest} sends the
- * response through {@link redactResponseHeaders}/{@link redactSecretSubstrings} before returning it,
- * so a reflecting/echo endpoint that hands the injected `Authorization` (or the raw token) back in a
- * response header or body cannot leak it back through the model that way either.
+ * response through {@link redactResponseHeaders}/{@link resolveRedactedResponseBody} before returning
+ * it, so a reflecting/echo endpoint that hands the injected `Authorization` (or the raw token) back in
+ * a response header or body cannot leak it back through the model that way either.
  * `Authorization`/`Proxy-Authorization`/`Set-Cookie`/`Cookie` response headers are always stripped
- * outright; every other header and the body pass through unless they contain one of those two exact
- * secrets, in which case the header is dropped (or, for the body, only the matched substring is
- * replaced with a fixed marker) — everything else the provider actually said still reaches the model
- * unchanged.
+ * outright regardless of value or secret length; every other header passes through unless it contains
+ * the exact injected `Authorization` value or the raw token, in which case the whole header is
+ * dropped — dropping a header has no partial-mangling failure mode, so headers apply no length floor.
+ * The body is different: a substring-scrub can only work in place, so a token shorter than
+ * {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} is too ambiguous to scrub safely (it could match
+ * ordinary legitimate content by coincidence) and the ENTIRE body is withheld with
+ * {@link BODY_WITHHELD_SHORT_TOKEN_MARKER} instead of guessing; at or above that length, only the
+ * matched substring is replaced with a fixed marker and everything else the provider actually said
+ * still reaches the model unchanged.
  *
  * **Per-credential host binding — the control that stops "send my fly.io token to
  * evil.example.com".** A credential's allowed origins ({@link allowedOriginsFor}: its saved `baseUrl`
@@ -196,6 +201,27 @@ const FORBIDDEN_RESPONSE_HEADER_NAMES: ReadonlySet<string> = new Set(["authoriza
  *  splicing bytes out. */
 const REDACTED_MARKER = "[REDACTED]";
 
+/** Below this length, a raw token is short/common enough that scrubbing every occurrence of it out
+ *  of a response body risks matching ordinary legitimate content by coincidence (a 2-character
+ *  token can match inside an unrelated word or number) rather than an actual reflection of the
+ *  credential — see `"ab"` mangling `"abacus"` into `"[REDACTED]acus"` in
+ *  `__tests__/credentialed-request.unit.test.ts`'s own regression test for exactly this failure
+ *  mode. 8 is NIST SP 800-63B's own baseline minimum secret length; a real API token/secret is
+ *  almost always far longer than that, so this floor costs nothing for the tokens this tool
+ *  actually expects to see, while still catching the pathological case. Response HEADER redaction
+ *  has no equivalent floor: dropping a whole header that contains the secret has no
+ *  partial-mangling failure mode, regardless of how short the secret is — only body substring
+ *  scrubbing needs this gate. */
+const MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH = 8;
+
+/** Returned as `bodyText` in place of the real response body whenever the credential's raw token is
+ *  shorter than {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH} — failing safe by withholding legitimate
+ *  content instead of either leaking the token or silently mangling unrelated body content around
+ *  it. A caller seeing this marker can act on it (the credential itself still works; only this
+ *  tool's ability to show its response body safely is limited); a caller seeing a body with, say,
+ *  every "1" replaced could not tell redaction had even happened. */
+const BODY_WITHHELD_SHORT_TOKEN_MARKER = "[body withheld: credential too short to redact safely]";
+
 /**
  * Strips every response header this module must never hand back to the model: the always-forbidden
  * names in {@link FORBIDDEN_RESPONSE_HEADER_NAMES}, plus any header whose value contains one of
@@ -225,6 +251,21 @@ function redactResponseHeaders(headers: Readonly<Record<string, string>>, secret
  */
 function redactSecretSubstrings(text: string, secrets: readonly string[]): string {
   return secrets.reduce((acc, secret) => (secret === "" ? acc : acc.split(secret).join(REDACTED_MARKER)), text);
+}
+
+/**
+ * Decides what {@link makeCredentialedRequest} returns as `bodyText`: the real response body with
+ * {@link redactSecretSubstrings} applied when `token` is long enough that matching it is unambiguous,
+ * or {@link BODY_WITHHELD_SHORT_TOKEN_MARKER} when it is not — see
+ * {@link MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH}'s own doc for why. Gates on `token`'s own length only
+ * (not the full `secrets` list): the built Authorization header is always at least as long as the
+ * token plus its scheme prefix, so the token is the shorter, harder-to-scrub-safely secret of the two.
+ *
+ * @complexity O(1) below the length floor; {@link redactSecretSubstrings}'s own O(n * m) above it.
+ */
+function resolveRedactedResponseBody(bodyText: string, token: string, secrets: readonly string[]): string {
+  if (token.length < MIN_SAFE_BODY_REDACTION_TOKEN_LENGTH) return BODY_WITHHELD_SHORT_TOKEN_MARKER;
+  return redactSecretSubstrings(bodyText, secrets);
 }
 
 /** Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
@@ -693,7 +734,7 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
     executed: true,
     status: response.status,
     headers: redactResponseHeaders(response.headers, responseSecrets),
-    bodyText: redactSecretSubstrings(response.bodyText, responseSecrets),
+    bodyText: resolveRedactedResponseBody(response.bodyText, connection.token, responseSecrets),
     ...(authDiagnostic ? { authDiagnostic } : {}),
   };
 }
