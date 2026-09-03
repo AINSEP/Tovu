@@ -175,6 +175,20 @@ describe("AdminByokSettingsFooter", () => {
     );
     expect(screen.getByText("boom")).toBeInTheDocument();
   });
+
+  it("wears the SAME button class as Save key — the two read as one class of control", () => {
+    // Owner ruling, 2026-09-02: same burnt-orange, from the same token. Asserted as class parity
+    // rather than a colour, so it cannot pass with a hand-picked hex that merely looks similar —
+    // `.btn-primary` is the only thing that resolves `var(--primary)`.
+    const c = controller({ canSaveKey: true });
+    const { container: keyFooter } = render(<AdminByokKeyFooter controller={c} />);
+    const { container: settingsFooter } = render(<AdminByokSettingsFooter controller={c} />);
+
+    const saveKey = keyFooter.querySelector("button");
+    const saveSettings = settingsFooter.querySelector("button");
+    expect(saveKey).toHaveClass("btn-primary");
+    expect(saveSettings!.className).toBe(saveKey!.className);
+  });
 });
 
 describe("resolveByokSettingsStatusLine", () => {

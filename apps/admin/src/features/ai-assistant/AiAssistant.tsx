@@ -664,9 +664,11 @@ export function VisitorCredentialSettingsFooter({
   return (
     <div className="assistant-settings-footer">
       <div className="assistant-key-actions">
+        {/* `.btn-primary`, the same burnt-orange as Save key — see `AdminByokKeyPanel.tsx`'s
+            identical button for the reasoning. The two panels must not disagree about this. */}
         <button
           type="button"
-          className="btn-secondary"
+          className="btn-primary"
           onClick={() => void saveSettings()}
           disabled={!dirty || settingsSaveState.status === "saving"}
         >

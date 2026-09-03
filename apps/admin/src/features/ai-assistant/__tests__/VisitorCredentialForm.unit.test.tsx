@@ -212,6 +212,20 @@ describe("VisitorCredentialSettingsFooter", () => {
     render(<VisitorCredentialSettingsFooter {...fakeController({ dirty: true, settingsSaveState: { status: "error", message: "settings boom" } })} />);
     expect(screen.getByText("settings boom")).toBeInTheDocument();
   });
+
+  it("wears the SAME button class as Save key — the two read as one class of control", () => {
+    // Owner ruling, 2026-09-02, matching the admin panel's identical assertion. Class parity, not a
+    // colour: `.btn-primary` is the only thing that resolves the burnt-orange `var(--primary)`, so
+    // this cannot pass with a hand-picked hex that merely looks similar.
+    const c = fakeController({ dirty: true, config: { ...fakeController().config, apiKey: "sk-live" } });
+    const { container: keyFooter } = render(<VisitorCredentialKeyFooter {...c} />);
+    const { container: settingsFooter } = render(<VisitorCredentialSettingsFooter {...c} />);
+
+    const saveKey = keyFooter.querySelector("button");
+    const saveSettings = settingsFooter.querySelector("button");
+    expect(saveKey).toHaveClass("btn-primary");
+    expect(saveSettings!.className).toBe(saveKey!.className);
+  });
 });
 
 describe("VisitorCredentialForm", () => {

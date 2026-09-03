@@ -196,9 +196,14 @@ export function AdminByokSettingsFooter({ controller, agentHandle: handle }: Adm
   return (
     <div className="assistant-settings-footer">
       <div className="assistant-key-actions">
+        {/* `.btn-primary`, the same burnt-orange as Save key above (owner ruling, 2026-09-02). These
+            are two halves of one job — writing a credential row — and a secondary/outline treatment
+            read as "the lesser one", which is the wrong hierarchy: an admin who only ever presses
+            Save key leaves the row with no model, which the server-side turn fallback treats as
+            unusable. Same class, not a matching hex: `--primary` is the token. */}
         <button
           type="button"
-          className="btn-secondary"
+          className="btn-primary"
           onClick={() => void controller.saveSettings()}
           disabled={saving}
           {...(handle ? agentHandle(handle, { role: "button", label: "Save these execution settings" }) : {})}
