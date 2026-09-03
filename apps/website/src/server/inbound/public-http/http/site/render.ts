@@ -8,6 +8,7 @@ import {
   renderStaticPage,
 } from "#src/features/theme/index";
 import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidgetsResult } from "#src/features/widgets/resolver-service";
+import type { AssignedTermView } from "#src/features/taxonomy/repo.sqlite";
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import { substituteHtmlEmbeds } from "#src/features/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/features/forms/forms";
@@ -165,6 +166,15 @@ export interface SiteRenderContext {
    * this context follows.
    */
   mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>;
+  /**
+   * Taxonomy render-surface gap fix (2026-09-02, `renderViaTemplate`; extended here 2026-09-03 to
+   * the declarative/templated/handlebars tiers) — `post`'s assigned category/tag terms
+   * (`EntryTermReadPort.listForContent`'s own output), consumed by {@link renderPostBody}. Empty
+   * (every pre-existing caller/test of `renderSite`, and any render whose `post` has nothing
+   * assigned) renders byte-identical to before this field existed — see
+   * {@link renderAssignedTermsBlock}'s own doc.
+   */
+  assignedTerms: readonly AssignedTermView[];
 }
 
 /** One resolved asset's public-render sizing override — see `SiteRenderContext.mediaAssetMetadata`'s
@@ -538,6 +548,11 @@ const EMPTY_MEDIA_TRANSFORM_VERSIONS: ReadonlyMap<string, number> = new Map();
  * same "optional, defaults to empty, degrades to no attribute" convention as
  * {@link EMPTY_MEDIA_TRANSFORM_VERSIONS} immediately above. */
 const EMPTY_MEDIA_ASSET_METADATA: ReadonlyMap<string, MediaAssetRenderMeta> = new Map();
+
+/** No-terms default for every `renderSite`/`renderPostBody` caller that doesn't pass one — same
+ * "optional, defaults to empty, degrades to no block" convention as {@link EMPTY_MEDIA_ASSET_METADATA}
+ * immediately above. */
+const EMPTY_ASSIGNED_TERMS: readonly AssignedTermView[] = [];
 
 /** `assetId`/`transformName` become `/m/` URL path segments (`media-rendition.ts`), so — same
  * discipline `html-embeds.ts`'s `MAX_EMBED_ID_LENGTH` applies to its own author-supplied ids —
@@ -1285,6 +1300,40 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
 }
 
 /**
+ * Renders {@link SiteRenderContext.assignedTerms} as a labelled, PLAIN-TEXT block — never a link.
+ * There is still no term-archive route anywhere in this codebase: `urlFor`/`isActive` resolve every
+ * `termRef` route target to `null` (`platform/routing/types.ts`'s own `TermRefTarget` doc — "NOT
+ * resolvable today"), so linking a term here would only ever produce a 404. Terms are grouped by
+ * their owning taxonomy's name (e.g. "Category: QA"), preserving the order the caller returned them
+ * in (assignment order) rather than sorting alphabetically, so an author who assigned "Tag" before
+ * "Category" sees Tag first.
+ *
+ * Returns `""` for no assigned terms — the overwhelmingly common case while this feature is new — so
+ * every page/post with nothing assigned renders byte-identical to before this existed. Shared by
+ * every render surface that produces a post/page body: `renderViaTemplate`'s own static-tier splice
+ * (`routes/site/pages.ts`) and {@link renderPostBody} (the declarative/templated/handlebars tiers,
+ * plus the tierless fallback body) both call this same function rather than keeping separate copies.
+ *
+ * @complexity O(n) in the number of assigned terms (typically single digits).
+ */
+export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): string {
+  if (terms.length === 0) return "";
+  const groups = new Map<string, string[]>();
+  for (const term of terms) {
+    const bucket = groups.get(term.taxonomyName);
+    if (bucket) bucket.push(term.termName);
+    else groups.set(term.taxonomyName, [term.termName]);
+  }
+  const groupsHtml = Array.from(groups.entries())
+    .map(([taxonomyName, termNames]) => {
+      const items = termNames.map((name) => `<span class="entry-terms__term">${escapeHtml(name)}</span>`).join(", ");
+      return `<span class="entry-terms__group"><span class="entry-terms__taxonomy">${escapeHtml(taxonomyName)}:</span> ${items}</span>`;
+    })
+    .join(" ");
+  return `<div class="entry-terms">${groupsHtml}</div>`;
+}
+
+/**
  * Renders `ctx.post`'s body to HTML, branching on `bodyFormat` (SPEC-047 Slice 1). A `"doc"` post
  * walks its TipTap `bodyJson` exactly as before; an `"html"` Page's `bodyHtml` is bespoke,
  * pre-authored markup — there is no tree to walk, so its `data-embed-type`
@@ -1295,16 +1344,28 @@ export function renderHtmlPageBody(html: string, resolved: ResolveHtmlPageEmbeds
  * escaping it would not make this safer, it would just break the feature (the whole point of an
  * "html" Page is that its body IS HTML, not text describing HTML).
  *
+ * Taxonomy render-surface gap fix (2026-09-03) — `ctx.assignedTerms` is appended AFTER the resolved
+ * body, not spliced into it: assigned terms are metadata ABOUT the entry, not part of its authored
+ * body, the same "filed under" footer position `renderViaTemplate` (`routes/site/pages.ts`) already
+ * uses for the static tier. This is the ONE place the declarative, templated (Liquid), and handlebars
+ * tiers each read the rendered post body from (`buildTemplateRenderData`'s `post.content`, the
+ * declarative `"content"` slot, and the tierless `entryContent` fallback all call this function), so
+ * fixing it here closes the gap for all three at once rather than three separate splice points.
+ *
  * @complexity O(1) for a `"doc"` post (delegates to `renderDocNode`'s own O(n)); O(n) over
  * `bodyHtml`'s length for an `"html"` Page (delegates to `renderHtmlPageBody`'s own single
- * substitution pass — this function never re-scans).
+ * substitution pass — this function never re-scans). Plus {@link renderAssignedTermsBlock}'s own
+ * O(n) over the (typically single-digit) assigned-terms count.
  * @overallScore 100
  */
 function renderPostBody(ctx: SiteRenderContext): string {
   const post = ctx.post;
   if (!post) return "";
-  if (post.bodyFormat === "html") return renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds);
-  return renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
+  const body =
+    post.bodyFormat === "html"
+      ? renderHtmlPageBody(post.bodyHtml ?? "", ctx.pageHtmlEmbeds)
+      : renderDocNode(post.bodyJson, ctx.widgetInlineResolved, ctx.mediaTransformVersions, ctx.mediaAssetMetadata);
+  return body + renderAssignedTermsBlock(ctx.assignedTerms);
 }
 
 function entryContent(ctx: SiteRenderContext): string {
@@ -2370,6 +2431,16 @@ export interface RenderSiteRequired {
    * override" (omit the attribute), not a crash.
    */
   mediaAssetMetadata?: ReadonlyMap<string, MediaAssetRenderMeta>;
+  /**
+   * Taxonomy render-surface gap fix (2026-09-03) — `post`'s pre-resolved assigned category/tag terms
+   * (`routes/site/pages.ts`'s `resolveAssignedTermsForRender`, over `deps.entryTermReadRepo`),
+   * threaded straight into `SiteRenderContext.assignedTerms` (see that field's own doc). `render.ts`
+   * stays I/O-free, same "route resolves, render renders" split every other pre-resolved field on
+   * this required object already follows. Omitted by every caller/test that never renders a post
+   * with assigned terms — degrades to an empty array, which {@link renderAssignedTermsBlock} already
+   * treats as "nothing to render" (returns `""`), not a crash.
+   */
+  assignedTerms?: readonly AssignedTermView[];
   /** SPEC-008 T049 — pre-serialized `page.head` fold output, threaded through to `pageShell`. */
   extraHead?: string;
   /**
@@ -2421,6 +2492,7 @@ function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
     mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
     mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
+    assignedTerms: required.assignedTerms ?? EMPTY_ASSIGNED_TERMS,
     pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
 }

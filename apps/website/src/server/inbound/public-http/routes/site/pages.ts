@@ -44,6 +44,7 @@ import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../..
 import {
   renderSite,
   renderHtmlPageBody,
+  renderAssignedTermsBlock,
   injectExtraHeadIntoStaticPage,
   injectSiteAssistantIntoStaticPage,
   decodeFormSubmissionResultFromQuery,
@@ -51,7 +52,6 @@ import {
   decodeFormFlashCookieValue,
   mergeFormFlashIntoResult,
   FORM_FLASH_COOKIE_NAME,
-  escapeHtml,
   type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
@@ -681,37 +681,6 @@ export async function resolveAssignedTermsForRender(
 }
 
 /**
- * Renders {@link resolveAssignedTermsForRender}'s resolved terms as a labelled, PLAIN-TEXT block —
- * never a link. There is still no term-archive route anywhere in this codebase: `urlFor`/`isActive`
- * resolve every `termRef` route target to `null` (`platform/routing/types.ts`'s own `TermRefTarget`
- * doc — "NOT resolvable today"), so linking a term here would only ever produce a 404. Terms are
- * grouped by their owning taxonomy's name (e.g. "Category: QA"), preserving the order
- * {@link resolveAssignedTermsForRender} returned them in (assignment order) rather than sorting
- * alphabetically, so an author who assigned "Tag" before "Category" sees Tag first.
- *
- * Returns `""` for no assigned terms — the overwhelmingly common case while this feature is new — so
- * every page/post with nothing assigned renders byte-identical to before this existed.
- *
- * @complexity O(n) in the number of assigned terms (typically single digits).
- */
-export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): string {
-  if (terms.length === 0) return "";
-  const groups = new Map<string, string[]>();
-  for (const term of terms) {
-    const bucket = groups.get(term.taxonomyName);
-    if (bucket) bucket.push(term.termName);
-    else groups.set(term.taxonomyName, [term.termName]);
-  }
-  const groupsHtml = Array.from(groups.entries())
-    .map(([taxonomyName, termNames]) => {
-      const items = termNames.map((name) => `<span class="entry-terms__term">${escapeHtml(name)}</span>`).join(", ");
-      return `<span class="entry-terms__group"><span class="entry-terms__taxonomy">${escapeHtml(taxonomyName)}:</span> ${items}</span>`;
-    })
-    .join(" ");
-  return `<div class="entry-terms">${groupsHtml}</div>`;
-}
-
-/**
  * Template-picker feature (2026-08-10, unified 2026-08-11) — renders `post` (a Post OR a Page, either
  * `"doc"`- or `"html"`-format) through its chosen static-theme template (`theme.json`'s `templates`
  * array), or the explicit diagnostic page above when unresolvable. Only called when the active theme
@@ -1118,12 +1087,17 @@ export async function renderGenericPostPage(
   posts: PostRecord[],
   siteAssistantEnabled: boolean
 ): Promise<string> {
-  const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
+  const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead, assignedTerms] = await Promise.all([
     resolveWidgetsForRender(deps, theme, post),
     resolveHtmlEmbedsForRender(deps, post),
     resolveMediaTransformVersionsForRender(deps),
     resolveMediaAssetMetadataForRender(deps, post),
     buildExtraHead(deps, "post", SITE_TITLE, post),
+    // Taxonomy render-surface gap fix (2026-09-03) — this is the generic (non-template) render path;
+    // `renderTemplateBranchIfEligible`/`renderViaTemplate` above already resolves this same input for
+    // the static-tier template branch. See `SiteRenderContext.assignedTerms`'s own doc for where this
+    // lands (`render.ts`'s `renderPostBody`, shared by the declarative/templated/handlebars tiers).
+    resolveAssignedTermsForRender(deps, post),
   ]);
   return renderSite({
     theme,
@@ -1135,6 +1109,7 @@ export async function renderGenericPostPage(
     pageHtmlEmbeds,
     mediaTransformVersions,
     mediaAssetMetadata,
+    assignedTerms,
     extraHead,
     siteAssistantEnabled,
   });

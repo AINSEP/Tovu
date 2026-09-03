@@ -16,12 +16,16 @@ import type { RouteDeps } from "#src/server/routes/types";
  * .test.ts`'s own `testDeps`/fixture-builder pattern (real HTTP round trip via `startTestServer`,
  * asserting the actual response body — not an internal render variable).
  *
- * Covers the `static`-tier "no explicit templateChoice" page-shell-fallback branch only
- * (`resolveStaticTierPageShellFallback` -> `renderViaTemplate`) — the SAME branch the live proof
- * page (`/testing-page`, an `html`-format Page with no `templateChoice`) renders through. The
- * `declarative`/`templated`/`handlebars` tiers' own render paths (`render.ts`'s `renderPostBody`/
- * `buildTemplateRenderData`) are a disclosed, separate gap this fix does not close — see the
- * dispatch's own handoff report.
+ * The first two tests below cover the `static`-tier "no explicit templateChoice" page-shell-fallback
+ * branch (`resolveStaticTierPageShellFallback` -> `renderViaTemplate`) — the SAME branch the live
+ * proof page (`/testing-page`, an `html`-format Page with no `templateChoice`) renders through.
+ *
+ * 2026-09-03 follow-up — the `declarative`/`templated`/`handlebars` tiers' own render paths
+ * (`render.ts`'s `renderPostBody`, shared by `buildTemplateRenderData`'s `post.content`, the
+ * declarative `"content"` slot, and the tierless `entryContent` fallback) were a disclosed gap this
+ * fix did not originally close; the three tests after the "no terms assigned" one below close it,
+ * one per tier, each rendering through `renderGenericPostPage` (never `renderViaTemplate` — none of
+ * these three tiers can ever satisfy `isEligibleForTemplateBranch`'s `tier === "static"` gate).
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -79,17 +83,21 @@ function htmlPageWithNoTemplateChoice(overrides: Partial<PostRecord> = {}): Post
   } as unknown as PostRecord;
 }
 
-/** Returns the fixed two-row assignment (`QA` Category, `e2e` Tag) for exactly `expectedContentId`,
- *  and nothing for any other id — mirrors the real `entry_terms` rows already live on
- *  `/testing-page` in the dev DB (`content_type='page'`), the proof case this fix targets. */
-function stubEntryTermReadRepo(expectedContentId: string): EntryTermReadPort {
+/** Returns the fixed two-row assignment (`QA` Category, `e2e` Tag) for exactly
+ *  `(expectedContentType, expectedContentId)`, and nothing for any other pair — mirrors the real
+ *  `entry_terms` rows already live on `/testing-page` in the dev DB (`content_type='page'`), the proof
+ *  case this fix targets. `expectedContentType` defaults to `"page"` (every pre-existing caller of
+ *  this helper renders a Page) — the declarative/templated/handlebars-tier tests below pass
+ *  `"post"` explicitly, since they render a `kind: "post"` row and Pages/Posts are different things
+ *  in this codebase (same `content_type` column, different `PostRecord.kind` values). */
+function stubEntryTermReadRepo(expectedContentId: string, expectedContentType: "page" | "post" = "page"): EntryTermReadPort {
   const rows: readonly AssignedTermView[] = [
     { termId: "term-qa", termName: "QA", taxonomyName: "Category" },
     { termId: "term-e2e", termName: "e2e", taxonomyName: "Tag" },
   ];
   return {
     async listForContent(params) {
-      return params.contentType === "page" && params.contentId === expectedContentId ? rows : [];
+      return params.contentType === expectedContentType && params.contentId === expectedContentId ? rows : [];
     },
   };
 }
@@ -131,4 +139,160 @@ test("integration: GET /:slug renders no terms block when nothing is assigned (b
   assert.equal(res.status, 200);
   const html = await res.text();
   assert.ok(!html.includes("entry-terms"), "no assigned terms should mean no entry-terms block at all");
+});
+
+/** A `doc`-format Post, rendered through `renderGenericPostPage` (never `renderViaTemplate`) by every
+ *  non-`static` tier theme — none of them can ever satisfy `isEligibleForTemplateBranch`'s
+ *  `tier === "static"` gate, regardless of `templateChoice`. */
+function docFormatPostWithTerms(overrides: Partial<PostRecord> = {}): PostRecord {
+  return {
+    id: "post-with-terms-int",
+    workspaceId: WORKSPACE_ID,
+    title: "Post With Terms",
+    slug: "post-with-terms-int",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hello from a taxonomy-tagged post." }] }] },
+    bodyFormat: "doc",
+    status: "published",
+    kind: "post",
+    templateChoice: undefined,
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  } as unknown as PostRecord;
+}
+
+/** Declarative tier: a `templates.post` block tree whose only content is the `"content"` slot
+ *  (`render.ts`'s `renderSlot("content")` -> `renderPostBody`) — the same slot shape a real
+ *  declarative-tier theme's `post`/`entry` template authors. */
+function declarativeTierTheme(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "declarative-terms-integration-theme",
+      name: "Declarative Terms Integration Theme",
+      version: "1.0.0",
+      tier: "declarative",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/declarative-terms-integration-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: { post: { type: "doc", content: [{ type: "slot", name: "content" }] } },
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {},
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+/** Templated (LiquidJS) tier: a `liquidTemplates.post` source reading `post.content` — the same
+ *  `buildTemplateRenderData` field `render.ts`'s `renderPostBody` populates. */
+function templatedTierTheme(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "templated-terms-integration-theme",
+      name: "Templated Terms Integration Theme",
+      version: "1.0.0",
+      tier: "templated",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/templated-terms-integration-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: { post: "<article>{{ post.content | raw }}</article>" },
+    handlebarsTemplates: {},
+    pages: {},
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+/** Handlebars tier: a `handlebarsTemplates.post` source reading `post.content` — same
+ *  `buildTemplateRenderData` field as the templated (Liquid) tier above, different sandbox. */
+function handlebarsTierTheme(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "handlebars-terms-integration-theme",
+      name: "Handlebars Terms Integration Theme",
+      version: "1.0.0",
+      tier: "handlebars",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/handlebars-terms-integration-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: { post: "<article>{{{post.content}}}</article>" },
+    pages: {},
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("integration: GET /:slug renders assigned terms through the DECLARATIVE tier's own 'content' slot (renderGenericPostPage, not renderViaTemplate)", async (t) => {
+  const post = docFormatPostWithTerms({ id: "post-declarative-terms-int", slug: "post-declarative-terms-int" });
+  const app = createApp(
+    testDeps({
+      themes: [declarativeTierTheme()],
+      postRepo: new InMemoryPostRepo([post]),
+      entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
+    })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/post-declarative-terms-int`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.ok(html.includes(">QA<"), "declarative tier: expected the assigned Category term 'QA' to render in the page HTML");
+  assert.ok(html.includes(">e2e<"), "declarative tier: expected the assigned Tag term 'e2e' to render in the page HTML");
+});
+
+test("integration: GET /:slug renders assigned terms through the TEMPLATED (Liquid) tier's own post.content field (renderGenericPostPage, not renderViaTemplate)", async (t) => {
+  const post = docFormatPostWithTerms({ id: "post-templated-terms-int", slug: "post-templated-terms-int" });
+  const app = createApp(
+    testDeps({
+      themes: [templatedTierTheme()],
+      postRepo: new InMemoryPostRepo([post]),
+      entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
+    })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/post-templated-terms-int`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.ok(html.includes(">QA<"), "templated tier: expected the assigned Category term 'QA' to render in the page HTML");
+  assert.ok(html.includes(">e2e<"), "templated tier: expected the assigned Tag term 'e2e' to render in the page HTML");
+});
+
+test("integration: GET /:slug renders assigned terms through the HANDLEBARS tier's own post.content field (renderGenericPostPage, not renderViaTemplate)", async (t) => {
+  const post = docFormatPostWithTerms({ id: "post-handlebars-terms-int", slug: "post-handlebars-terms-int" });
+  const app = createApp(
+    testDeps({
+      themes: [handlebarsTierTheme()],
+      postRepo: new InMemoryPostRepo([post]),
+      entryTermReadRepo: stubEntryTermReadRepo(post.id, "post"),
+    })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/post-handlebars-terms-int`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.ok(html.includes(">QA<"), "handlebars tier: expected the assigned Category term 'QA' to render in the page HTML");
+  assert.ok(html.includes(">e2e<"), "handlebars tier: expected the assigned Tag term 'e2e' to render in the page HTML");
 });
