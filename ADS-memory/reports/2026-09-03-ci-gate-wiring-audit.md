@@ -413,3 +413,62 @@ behavior changed in any of them), `lib/dead-path-sweep.ts` (class 3 addition),
 under `apps/website/src/**`/`apps/admin/src/**` touched. `check:openapi-contract`'s 27 mismatches,
 the login-credential env-sensitivity, and the missing `try`/`finally` around `server.close()` are
 all reported above and none were fixed.
+
+**Correction confirmed by the coordinator, with the owner** — my pushback was right:
+`ci.yml`'s Gate summary reads `steps.<id>.outcome` (the pre-`continue-on-error` result), so
+`check:inventory`'s crash was genuinely failing the build. Team lead's own follow-up flourish
+("the one condition the gate was designed to escalate is the one it's silent about") was also
+corrected — it wasn't silent, it was failing the job the whole time.
+
+---
+
+# Task 3 — correct the false premise everywhere it appears in dead-path-sweep.test.ts, re-audit the register
+
+Dispatched as a follow-up once Task 2's correction was confirmed. The same "continue-on-error
+swallows the crash" misreading turned out not to be confined to the three register entries I
+already removed — grepped the whole file for `continue-on-error`/`swallow` and found it in TWO
+more places, neither of which I'd touched yet:
+
+1. **The file's own top-level design rationale** ("Why a TEST and not a `check:*` script",
+   originally: *"Ten of this repo's nineteen `check:*` scripts are invoked from nowhere, and all
+   eight wired into `ci.yml` carry `continue-on-error: true` — a `check:` script cannot fail
+   anything here."*). This was the stated justification for why `dead-path-sweep` runs as a
+   `node:test` file instead of a `check:*` script — built on the same false premise. Corrected to
+   the real reason (a test file reaches `test:ci`'s existing gate with zero `package.json`/`ci.yml`
+   editing; becoming a `check:*` script would need both to reach the same blocking status this file
+   already has), with a dated note pointing at the prior text via `git log -p`.
+
+2. **`GENERATE_SEED_CONTENT_BEFORE_921D705F`'s fixture comment**, which claimed
+   `check:seed-content-drift`'s pre-fix crash was swallowed by continue-on-error. Checked this one
+   against real git history rather than assuming the pattern held: `check:seed-content-drift` was
+   wired into `ci.yml` as `gate-seed-content-drift` (included in the Gate-summary aggregator) by
+   `ee45f50f` on 2026-08-20 — twelve days before the 2026-09-02 restructure broke its import. So
+   when it crashed, the build was already failing on it, not silently passing. Corrected the
+   comment with the dates and the real mechanism.
+
+Both corrections are disclosed inline (marked `CORRECTED 2026-09-03`, pointing at `git log -p` for
+the prior text) rather than silently rewritten, so the audit trail survives.
+
+**Added a short note directly above the register** (per instruction) stating the corrected
+semantics in one place a reader lands on when investigating any specific entry, and drawing the
+line explicitly: *"this is safe to park because continue-on-error swallows it" is not a valid
+reason to park an entry; "nothing invokes this script" is.*
+
+**Re-audited all 18 remaining register entries against the corrected understanding — none change
+disposition.** Checked mechanically, not by re-reading each rationale and trusting it: grepped
+`package.json` for all 6 remaining files' basenames (`agent-plugin-activation.ts`,
+`install-agent-plugin.ts`, `convert-legacy-doc-pages-to-html.ts`, `migrate-page-embed-markers.ts`,
+`theme-tool.ts`, `write-path-inventory.ts`) and confirmed none is invoked by a `check:*` npm
+script; then grepped `.github/workflows/ci.yml` for every one of those files/script names and
+confirmed none appears there in any form. Every remaining entry's rationale is `UNRUN_ONE_SHOT`
+("nothing invokes it, so nothing noticed") — a claim the `.outcome`/aggregator correction has no
+bearing on, because these were never CI gates to begin with. Per instruction, none were unparked
+or fixed — this is a report of the re-audit result, not an action on it.
+
+All 33 tests still pass after these edits (re-ran fresh).
+
+## Touched this task (Task 3)
+
+`development/scripts/__tests__/dead-path-sweep.test.ts` only (three corrected comments: the file
+header, the register's own header, and the `GENERATE_SEED_CONTENT_BEFORE_921D705F` fixture), plus
+this report.

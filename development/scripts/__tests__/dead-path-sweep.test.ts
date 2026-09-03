@@ -29,10 +29,24 @@ import {
  *
  * ## Why a TEST and not a `check:*` script
  *
- * Ten of this repo's nineteen `check:*` scripts are invoked from nowhere, and all eight wired into
- * `ci.yml` carry `continue-on-error: true` — a `check:` script cannot fail anything here. `test:ci`'s
- * glob already covers `development/scripts/**\/*.test.ts`, so this file runs with no `package.json`
- * edit at all.
+ * `test:ci`'s glob already covers `development/scripts/**\/*.test.ts`, so running this sweep as a
+ * `node:test` file reaches CI with zero `package.json`/`ci.yml` editing — becoming a `check:*`
+ * script would need both a new npm script AND a new `ci.yml` step to reach the same blocking
+ * status this file already gets for free from `test:ci`'s existing gate.
+ *
+ * CORRECTED 2026-09-03 (see `git log -p` on this line for the prior text): this section previously
+ * justified the TEST-not-`check:*` choice partly on "`check:*` scripts wired into `ci.yml` carry
+ * `continue-on-error: true`, so a `check:` script cannot fail anything here" — that premise is
+ * false and should not be reused. `ci.yml`'s `continue-on-error: true` + `id:` steps feed a Gate
+ * summary step that reads `steps.<id>.outcome` (the step's result BEFORE `continue-on-error` is
+ * applied — GitHub Actions reserves `.conclusion` for the post-swallow result) and `exit 1`s the
+ * job if any gate's outcome isn't `success`. A `continue-on-error` `check:*` step wired into that
+ * aggregator DOES fail the build on a real crash or finding; see `ci.yml:198-210`'s own comment.
+ * The same false premise appears again below in `GENERATE_SEED_CONTENT_BEFORE_921D705F`'s
+ * comment and, before this task's fix, in three now-removed register entries — see
+ * `ADS-memory/reports/2026-09-03-ci-gate-wiring-audit.md` for the full correction and the
+ * re-audit this triggered (every remaining register entry below was re-checked against the
+ * corrected understanding; none were parked FOR this reason, so none change disposition).
  *
  * ## What it caught
  *
@@ -129,6 +143,15 @@ const UNRUN_ONE_SHOT =
  *
  * The brief that commissioned this guard expected ONE entry (`list-server-test-files.ts`). The sweep
  * found 35. That gap is the finding, not a defect in the guard.
+ *
+ * A rationale that reasons "this is safe to park because ci.yml's continue-on-error swallows the
+ * failure anyway" is WRONG and must not be reused — three entries here previously said exactly
+ * that about check:*-script targets, and all three were actually failing the build the whole time
+ * (see the file header's "Why a TEST and not a `check:*` script" section for the corrected
+ * `.outcome`-vs-`.conclusion` mechanism, and `ADS-memory/reports/2026-09-03-ci-gate-wiring-audit.md`
+ * for the full incident). "Nothing invokes this script" (true for every entry remaining below, all
+ * one-shot operational tooling, never a `check:*` npm script) is a DIFFERENT and still-valid reason
+ * to park an entry; "CI won't notice because continue-on-error" is not a reason at all.
  */
 const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEntry>> = {
   ...known("development/scripts/agent-plugin-activation.ts", UNRUN_ONE_SHOT, [
@@ -224,8 +247,16 @@ test("the sweep actually looks at something — target enumeration is not silent
 // ---------------------------------------------------------------------------
 
 /** Verbatim from `git show 921d705f^:development/scripts/generate-seed-content.ts` — the imports that
- *  crashed `check:seed-content-drift` with ERR_MODULE_NOT_FOUND while ci.yml's continue-on-error
- *  swallowed it. */
+ *  crashed `check:seed-content-drift` with ERR_MODULE_NOT_FOUND.
+ *
+ *  CORRECTED 2026-09-03: this comment previously said "while ci.yml's continue-on-error swallowed
+ *  it" — false. `check:seed-content-drift` was wired into `ci.yml` as `gate-seed-content-drift`,
+ *  read by the Gate-summary aggregator, since `ee45f50f` (2026-08-20), well before the restructure
+ *  broke this import (2026-09-02). The crash's `.outcome` would have been `failure` and the
+ *  aggregator would have failed the build — see the file header's "Why a TEST and not a `check:*`
+ *  script" section for the corrected mechanism. Left unresolved here only because this is a
+ *  historical fixture past commit and not this task's business to re-litigate further than naming
+ *  it wrong. */
 const GENERATE_SEED_CONTENT_BEFORE_921D705F = `import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
