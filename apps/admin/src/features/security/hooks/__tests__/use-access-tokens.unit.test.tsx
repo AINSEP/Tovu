@@ -292,4 +292,28 @@ describe("useAccessTokens — content refresh bus", () => {
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
   });
+
+  /**
+   * `reloadAllStores` (fired by `triggerReload` above, fire-and-forget via `void reloadAllStores()`
+   * so `useContentRefreshSubscription`'s `onRefresh: () => void` contract compiles) awaited all
+   * three stores with no `try`/`catch` at all: a rejected store list turned every content-refresh
+   * reload into an unhandled promise rejection, with `loadError` staying `null` forever and no way
+   * for the operator to tell a background refresh had failed. Asserting only "no exception escapes"
+   * would pass for the wrong reason (an unhandled rejection does not throw synchronously) — this
+   * asserts the rejection actually surfaces as visible state.
+   */
+  it("a rejected background reload surfaces a visible load error instead of failing silently", async () => {
+    const port = createFakeAccessTokensPort({
+      custom: { list: () => Promise.resolve({ credentials: [customCredential()] }) },
+    });
+    const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
+    await waitFor(() => expect(result.current.groups).toBeDefined());
+    expect(result.current.loadError).toBe(null);
+
+    port.custom.list = () => Promise.reject(new Error("network down"));
+
+    act(() => publishContentRefresh());
+
+    await waitFor(() => expect(result.current.loadError).toBe("Couldn't load saved access tokens: network down"));
+  });
 });

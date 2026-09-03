@@ -344,6 +344,11 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setCustomCredentials(customQuery.data.credentials);
   }, [customQuery.status, customQuery.data]);
 
+  // Set when a background reload (below) rejects — merged into `loadError` so a failed refresh is
+  // as visible as a failed initial load, instead of the unhandled rejection this used to produce
+  // (LOW audit finding, 2026-09-03: `reloadAllStores` awaited all three stores with no `catch`).
+  const [reloadError, setReloadError] = useState<string | null>(null);
+
   /**
    * Re-reads all three stores directly, bypassing `useFetchQuery`'s cache — an out-of-band write
    * (today `custom_credential_set_username`/`custom_credential_set_token`,
@@ -358,13 +363,23 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
    * not carried on the row itself, so replacing the row list here cannot clobber an operator's
    * in-progress edit or in-flight save the way overwriting a settings tab's single edited `value`
    * could.
+   *
+   * Wrapped in `try`/`catch` because `triggerReload` below calls this fire-and-forget (`void
+   * reloadAllStores()`, required by `useContentRefreshSubscription`'s `onRefresh: () => void`
+   * contract) — an uncaught rejection here would otherwise become an unhandled promise rejection
+   * with no visible effect on the screen at all.
    */
   const reloadAllStores = useCallback(async () => {
-    const [publish, sourceControl, custom] = await Promise.all([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
-    setPublishCredentials(publish.credentials);
-    setSourceControlCredentials(sourceControl.credentials);
-    setCustomCredentials(custom.credentials);
-  }, [port]);
+    try {
+      const [publish, sourceControl, custom] = await Promise.all([port.publish.list(), port.sourceControl.list(), port.custom.list()]);
+      setPublishCredentials(publish.credentials);
+      setSourceControlCredentials(sourceControl.credentials);
+      setCustomCredentials(custom.credentials);
+      setReloadError(null);
+    } catch (err) {
+      setReloadError(accessTokensLoadErrorMessage(locale, describeApiError(err, t("unknown error"))));
+    }
+  }, [port, locale, t]);
 
   // Stable identity — see `use-media.hooks.ts`'s identical `invalidateList` note for why an inline
   // arrow here would resubscribe `useContentRefreshSubscription` on every render for no benefit.
@@ -373,7 +388,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
   }, [reloadAllStores]);
   useContentRefreshSubscription(ACCESS_TOKENS_RESOURCE, triggerReload);
 
-  const loadError = accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale);
+  const loadError = accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale) ?? reloadError;
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined) return undefined;
