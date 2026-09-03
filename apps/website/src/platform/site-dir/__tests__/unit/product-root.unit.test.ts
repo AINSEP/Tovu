@@ -96,7 +96,7 @@ test("resolveProductRoot(), called with no argument from a real file inside apps
   // Regression-proves the default-argument path (the one every real call site uses), not just the
   // injectable-fromDir path the tests above exercise for isolation. Asserts on the package name
   // rather than the checkout's folder name, which isn't guaranteed to be "Tovu" on every machine.
-  const repoRoot = resolveProductRoot(import.meta.dirname);
+  const repoRoot = resolveProductRoot();
   const pkg = JSON.parse(readFileSync(path.join(repoRoot, "package.json"), "utf8"));
   assert.equal(pkg.name, "tovu");
 });
