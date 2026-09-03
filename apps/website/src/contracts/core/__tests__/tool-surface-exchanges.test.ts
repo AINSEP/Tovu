@@ -386,6 +386,13 @@ test("askThenReport: an answer that never arrives (expired) still reaches handle
   assert.deepEqual(result, { published: false, reason: "expired" });
 });
 
+test("newExchangeId can be injected so caller controls generated exchange IDs", () => {
+  const store = createSurfaceExchangeStore({ newExchangeId: () => "custom-id-123" });
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+  assert.equal(exchange.id, "custom-id-123");
+  assert.equal(store.size(), 1);
+});
+
 test("the deadlines are ordered so the exchange, not the transport, gives up first", () => {
   // `@jini-ai/mcp`'s delegated-tool request deadline is 6 minutes. If the total lifetime ever
   // exceeded it, a stalled exchange would surface as a transport timeout instead of an explicit
