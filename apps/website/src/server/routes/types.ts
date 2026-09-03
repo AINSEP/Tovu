@@ -106,6 +106,7 @@ import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/dee
 import type { GatewayDeps } from "../../contracts/core/gated-mutations/gateway.js";
 import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
 import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
+import type { EntryTermReadPort } from "../../features/taxonomy/repo.sqlite.js";
 import type { WidgetRegionBindingRepoPort } from "../../features/widgets/ports.js";
 import type { EntryRefsRepoPort } from "../../contracts/core/entry-refs/ports.js";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
@@ -454,6 +455,21 @@ export interface ContentTaxonomyDeps {
    * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
    * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
   entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
+  /**
+   * Public-render read path (2026-09-02 taxonomy render-surface gap fix, `repo.sqlite.ts`'s
+   * `EntryTermReadPort`) — resolves the terms assigned to a page/post for `pages.ts`'s
+   * `renderViaTemplate` to render. Optional, unlike every other field in this group: the certified
+   * `@jini-ai/cms/taxonomy` package's `InMemoryEntryTermRepo` (wired as `entryTermRepo` above in
+   * `server/runtime/composition/app.ts`'s hermetic composition) has no by-content read method to
+   * satisfy this with, so widening `entryTermRepo`'s own type instead — the precedent
+   * `MergeableEntryTermRepoPort`/`AssignmentCountEntryTermRepoPort` set immediately above — would
+   * break that composition's typecheck. `server/runtime/composition/deps.ts`'s real composition
+   * sets this to the SAME `SqliteEntryTermRepo` instance it already constructs for `entryTermRepo`
+   * (one concrete class satisfying two differently-shaped dependency slots); the hermetic
+   * composition leaves it `undefined`, and every consumer degrades to "no terms" for that case,
+   * never a throw — see `resolveAssignedTermsForRender`'s own doc.
+   */
+  entryTermReadRepo?: EntryTermReadPort;
   taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /**
    * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam

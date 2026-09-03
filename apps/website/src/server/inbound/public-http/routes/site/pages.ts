@@ -32,6 +32,7 @@ import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { getLatestTransformDefinition } from "#src/features/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/features/media/index";
+import type { AssignedTermView, EntryTermReadPort } from "#src/features/taxonomy/repo.sqlite";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
 import {
   renderSite,
@@ -43,6 +44,7 @@ import {
   decodeFormFlashCookieValue,
   mergeFormFlashIntoResult,
   FORM_FLASH_COOKIE_NAME,
+  escapeHtml,
   type FormSubmissionRedirectResult,
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
@@ -503,7 +505,15 @@ export type ContentMarkerResolutionDeps = Pick<
  * full `deps` through unchanged. */
 export type TemplateRenderDeps = Pick<
   RouteDeps,
-  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "menuRepo" | "themes" | "mediaContentTypeStore"
+  | "workspaceId"
+  | "postRepo"
+  | "entryRepo"
+  | "mediaRepo"
+  | "transformDefinitionRepo"
+  | "menuRepo"
+  | "themes"
+  | "mediaContentTypeStore"
+  | "entryTermReadRepo"
 >;
 
 /**
@@ -602,6 +612,64 @@ export async function resolveHtmlFormatContentMarkers(
     const replacement = replacements.get(marker.id);
     return replacement === undefined ? undefined : withInnerContentFinal(marker, replacement);
   });
+}
+
+/**
+ * Taxonomy render-surface gap fix (2026-09-02) — categories and tags had a complete WRITE path
+ * (`assign-terms.ts` -> `entry_terms`) and NO read path: a term assigned to a page/post rendered
+ * nowhere on the public site. Resolves `post`'s assigned terms ahead of {@link renderViaTemplate},
+ * mirroring `resolveMediaAssetMetadataForRender`'s own "route resolves, render stays I/O-free" split
+ * immediately above it in this file — this is the one call site.
+ *
+ * `deps.entryTermReadRepo` is OPTIONAL (`routes/types.ts`'s own doc on that field explains why: no
+ * `InMemoryEntryTermRepo` adapter implements it yet) — an absent repo degrades to "no terms
+ * resolved", same as every other optional resolved input in this file (`mediaTransformVersions`,
+ * `pageHtmlEmbeds`, …) degrades to its own empty default rather than throwing.
+ *
+ * `post.kind` (`"post"` | `"page"`) is passed straight through as the taxonomy `contentType` —
+ * `TAXONOMY_ALLOWED_CONTENT_TYPES` (`@jini-ai/cms/taxonomy`) is exactly `{post, page}`, and
+ * `assign-terms.ts` writes `entry_terms.content_type` from this same field, so no translation is
+ * needed between the two vocabularies.
+ *
+ * @complexity O(1) plus {@link EntryTermReadPort.listForContent}'s own one-join-query cost.
+ */
+export async function resolveAssignedTermsForRender(
+  deps: { entryTermReadRepo?: EntryTermReadPort },
+  post: PostRecord
+): Promise<readonly AssignedTermView[]> {
+  if (!deps.entryTermReadRepo) return [];
+  return deps.entryTermReadRepo.listForContent({ contentType: post.kind, contentId: post.id });
+}
+
+/**
+ * Renders {@link resolveAssignedTermsForRender}'s resolved terms as a labelled, PLAIN-TEXT block —
+ * never a link. There is still no term-archive route anywhere in this codebase: `urlFor`/`isActive`
+ * resolve every `termRef` route target to `null` (`platform/routing/types.ts`'s own `TermRefTarget`
+ * doc — "NOT resolvable today"), so linking a term here would only ever produce a 404. Terms are
+ * grouped by their owning taxonomy's name (e.g. "Category: QA"), preserving the order
+ * {@link resolveAssignedTermsForRender} returned them in (assignment order) rather than sorting
+ * alphabetically, so an author who assigned "Tag" before "Category" sees Tag first.
+ *
+ * Returns `""` for no assigned terms — the overwhelmingly common case while this feature is new — so
+ * every page/post with nothing assigned renders byte-identical to before this existed.
+ *
+ * @complexity O(n) in the number of assigned terms (typically single digits).
+ */
+export function renderAssignedTermsBlock(terms: readonly AssignedTermView[]): string {
+  if (terms.length === 0) return "";
+  const groups = new Map<string, string[]>();
+  for (const term of terms) {
+    const bucket = groups.get(term.taxonomyName);
+    if (bucket) bucket.push(term.termName);
+    else groups.set(term.taxonomyName, [term.termName]);
+  }
+  const groupsHtml = Array.from(groups.entries())
+    .map(([taxonomyName, termNames]) => {
+      const items = termNames.map((name) => `<span class="entry-terms__term">${escapeHtml(name)}</span>`).join(", ");
+      return `<span class="entry-terms__group"><span class="entry-terms__taxonomy">${escapeHtml(taxonomyName)}:</span> ${items}</span>`;
+    })
+    .join(" ");
+  return `<div class="entry-terms">${groupsHtml}</div>`;
 }
 
 /**
@@ -711,12 +779,18 @@ export async function renderViaTemplate(
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
   const bodyResolvedHtml = renderHtmlPageBody(withNestedContent, resolved);
+  // Taxonomy render-surface gap fix (2026-09-02) — appended AFTER the content marker's own
+  // resolution, not spliced into it: assigned terms are metadata ABOUT the entry, not part of its
+  // authored body, the same "filed under" footer position a CMS conventionally uses. Lands inside
+  // the template's own `<article>`/content wrapper (whatever marker `bodyResolvedHtml` replaced),
+  // never outside it, since it's concatenated onto that exact string before the template splice.
+  const bodyWithTerms = bodyResolvedHtml + renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post));
   // Same unreachable-`?? ""` situation as the diagnostic branch above: `bodyResolvedHtml` is
   // `renderHtmlPageBody`'s `string` return, never `undefined`, so `renderStaticPage`'s own
   // `source === undefined` null case can't fire here either. See that branch's comment for the
   // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
   // `renderStaticPage`'s return type in static-render.ts, outside this file).
-  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
+  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyWithTerms, menus: staticMenus }) ?? "";
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
 

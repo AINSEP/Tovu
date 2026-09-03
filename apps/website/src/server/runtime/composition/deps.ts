@@ -873,6 +873,10 @@ export function createSqliteRouteDeps(
   // SAME shared `db.$client` connection) is chained AFTER `newsletterReady` below — this is
   // pure, synchronous, I/O-free wiring only.
   const entryRepo = new SqliteEntryRepo(db);
+  // Hoisted (2026-09-02 taxonomy render-surface gap fix) so the SAME instance backs both
+  // `entryTermRepo` and the new `entryTermReadRepo` field below — one concrete class satisfying two
+  // differently-shaped dependency slots, rather than two separate connections to the same table.
+  const sqliteEntryTermRepo = new SqliteEntryTermRepo({ db, workspaceId: workspaceId });
   // SPEC-043/ADR-047 (widgets) — hoisted alongside `entryRepo` for the same reason: both the admin
   // `widgets` routes and the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`,
   // W-004) read/write against the SAME real tables, via the same `db` connection.
@@ -1193,7 +1197,12 @@ export function createSqliteRouteDeps(
     entryRepo,
     taxonomyRepo: new SqliteTaxonomyRepo({ db, workspaceId: workspaceId }),
     termRepo: new SqliteTermRepo({ db, workspaceId: workspaceId }),
-    entryTermRepo: new SqliteEntryTermRepo({ db, workspaceId: workspaceId }),
+    // Same instance backs both `entryTermRepo` (the certified write-service port, widened with the
+    // Mergeable/AssignmentCount additive capabilities) and `entryTermReadRepo` (the new
+    // `EntryTermReadPort` read path, `routes/types.ts`'s own doc explains why these are two
+    // separately-typed fields rather than one further-widened intersection).
+    entryTermRepo: sqliteEntryTermRepo,
+    entryTermReadRepo: sqliteEntryTermRepo,
     taxonomyRevisionRepo: new SqliteTaxonomyRevisionRepo({ db, workspaceId: workspaceId }),
     stampWatermark: sqliteStampWatermark(db),
     restorePointsRepo,

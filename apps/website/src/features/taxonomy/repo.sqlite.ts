@@ -217,7 +217,40 @@ export class SqliteTermRepo implements TermRepoPort, TermListPort {
   }
 }
 
-export class SqliteEntryTermRepo implements EntryTermRepoPort {
+/**
+ * One term assigned to a piece of content, joined with its own name and its owning taxonomy's name
+ * — the shape {@link EntryTermReadPort.listForContent} returns, and the ONLY shape the public-render
+ * surface needs (`pages.ts`'s `resolveAssignedTermsForRender`/`renderAssignedTermsBlock`): a term's
+ * `status`/`parentId`/etc. are admin-surface concerns, not a reader's.
+ */
+export interface AssignedTermView {
+  termId: string;
+  termName: string;
+  taxonomyName: string;
+}
+
+/**
+ * Additive capability beyond the certified `EntryTermRepoPort` (which has no by-content READ method
+ * at all — see that port's own doc, `@jini-ai/cms/taxonomy`'s `write-service.ts`) — same "implemented
+ * directly on the concrete class, not folded into the certified port" precedent
+ * `MergeableEntryTermRepoPort` (`gated-hooks.ts`) and `AssignmentCountEntryTermRepoPort`
+ * (`@jini-ai/cms/taxonomy`) already establish for `countOverlap`/`repointTerm`/`countByTerm` above.
+ *
+ * Deliberately kept as a SEPARATE, OPTIONAL field on `RouteDeps` (`entryTermReadRepo`, `routes/
+ * types.ts`) rather than folded into the existing `entryTermRepo: EntryTermRepoPort & …`
+ * intersection those other two additive ports widen: unlike them, `@jini-ai/cms/taxonomy`'s
+ * `InMemoryEntryTermRepo` does NOT implement this method (it has no by-content read at all), and
+ * `server/runtime/composition/app.ts`'s hermetic composition wires that exact class as
+ * `entryTermRepo` — widening `entryTermRepo`'s own declared type would break that composition's
+ * typecheck for a capability this dispatch has no in-memory adapter for. A `TemplateRenderDeps`
+ * caller missing this field (every hermetic/unit test that doesn't opt in) degrades to "no terms
+ * rendered" — see `resolveAssignedTermsForRender`'s own doc — never a throw.
+ */
+export interface EntryTermReadPort {
+  listForContent(params: { contentType: string; contentId: string }): Promise<readonly AssignedTermView[]>;
+}
+
+export class SqliteEntryTermRepo implements EntryTermRepoPort, EntryTermReadPort {
   constructor(private readonly deps: { db: ContentDb; workspaceId: string }) {}
 
   /** Idempotent upsert keyed by `entry_terms_unique` (`workspaceId`, `contentType`, `contentId`,
@@ -321,6 +354,33 @@ export class SqliteEntryTermRepo implements EntryTermRepoPort {
       .where(and(eq(entryTerms.workspaceId, this.deps.workspaceId), eq(entryTerms.termId, params.termId)))
       .all();
     return rows.length;
+  }
+
+  /**
+   * `EntryTermReadPort` (this file, above) — the public-render read path (2026-09-02 taxonomy
+   * render-surface gap fix): every term currently assigned to one `(contentType, contentId)` pair,
+   * joined with its own name and its owning taxonomy's name in one query rather than N+1 `findById`
+   * calls. Ordered by `addedAt` so a page lists terms in the order they were assigned, not an
+   * arbitrary join order.
+   *
+   * @complexity O(n) in the number of terms assigned to this one piece of content (typically single
+   * digits) — one join query.
+   */
+  async listForContent(params: { contentType: string; contentId: string }): Promise<readonly AssignedTermView[]> {
+    return this.deps.db
+      .select({ termId: terms.id, termName: terms.name, taxonomyName: taxonomies.name })
+      .from(entryTerms)
+      .innerJoin(terms, eq(terms.id, entryTerms.termId))
+      .innerJoin(taxonomies, eq(taxonomies.id, terms.taxonomyId))
+      .where(
+        and(
+          eq(entryTerms.workspaceId, this.deps.workspaceId),
+          eq(entryTerms.contentType, params.contentType),
+          eq(entryTerms.contentId, params.contentId)
+        )
+      )
+      .orderBy(entryTerms.addedAt)
+      .all();
   }
 }
 
