@@ -222,12 +222,54 @@ export async function runCustomCredentialUsernameBackfill(
   return { migrated, skippedAlreadyMigrated, skippedNoUsername, failed, total: rows.length };
 }
 
-/** Read-only pending-row count — needs no decryption (`username IS NULL` alone identifies a pending
- *  row). Used by `main()` to decide whether an `--apply` run has anything to do BEFORE paying for a
- *  restore-point capture, same "skip the backup when there's nothing to back up for" posture
- *  `backfill-vendor-credentials.ts`'s own `main()` follows. */
-function countPending(db: ContentDb): number {
-  return db.select().from(customCredentialSets).all().filter((row) => row.username === null).length;
+/**
+ * Pending count for the `--apply` gate. `username IS NULL` alone is NOT enough: a token-only
+ * credential's `username` column stays NULL forever by design (`schema.ts`'s own doc on that
+ * column — "NULL means this credential has no username, not not yet migrated"), so counting NULL
+ * rows would report outstanding work forever even after every row has already been visited once,
+ * and the `--apply` gate below would never again skip its restore-point capture. A row counts as
+ * pending only when it is both unmigrated (`username IS NULL`) AND its sealed payload actually
+ * carries a `username` to copy — the same `extractUsername` check the apply loop itself applies,
+ * reused here so the two can never disagree.
+ *
+ * The root key is resolved ONCE, unguarded, before the per-row loop: a systemic misconfiguration
+ * (the key entirely missing) must fail loudly here exactly as `--apply` already always required,
+ * never get swallowed into a false "nothing pending". A single row's OWN decrypt/parse failure
+ * (corrupt ciphertext, or sealed under an old, since-rotated key) is caught per-row and not counted
+ * as pending — it cannot converge no matter how many times this script re-runs against the same
+ * key, and the apply loop's own per-row FAILED log line plus non-zero exit already surfaces it
+ * (this file's "Failure isolation") the first time this row is actually attempted.
+ *
+ * @complexity O(n) in the NULL-row count — one decrypt attempt per row, no nested iteration.
+ */
+async function countPending(
+  db: ContentDb,
+  deps: { sealer: SecretSealerPort; keyring: KeyringPort }
+): Promise<number> {
+  const rows = db.select().from(customCredentialSets).all().filter((row) => row.username === null);
+  if (rows.length === 0) return 0;
+
+  // Forces root-key resolution up front (cached for every derive/open call below) so a missing key
+  // fails loudly here rather than masquerading as "every row is unreadable, so nothing is pending".
+  await deps.keyring.derive({
+    workspaceId: "pending-check",
+    purpose: "custom-credential-username-backfill",
+    info: "root-key-availability",
+  });
+
+  let pending = 0;
+  for (const row of rows) {
+    try {
+      const plaintext = await deps.sealer.open({
+        sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
+        aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
+      });
+      if (extractUsername(plaintext) !== undefined) pending += 1;
+    } catch {
+      continue;
+    }
+  }
+  return pending;
 }
 
 async function main(): Promise<void> {
@@ -246,14 +288,17 @@ async function main(): Promise<void> {
     return;
   }
 
-  const pending = countPending(db);
+  // Constructed before the pending check (moved up from after it): `countPending` now needs to
+  // decrypt to tell a genuinely pending row from a token-only one, and a fully-migrated database
+  // (no NULL rows at all) still resolves no root key, same as before this change.
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+
+  const pending = await countPending(db, { sealer, keyring });
   if (pending === 0) {
     console.log("Nothing to migrate — every custom_credential_sets row already has a username column value (or genuinely has none to backfill).");
     return;
   }
-
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
 
   const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-custom-credential-usernames" });

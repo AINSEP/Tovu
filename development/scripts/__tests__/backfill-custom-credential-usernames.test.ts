@@ -277,37 +277,178 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
     aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: credId }),
   });
 
+  // A companion row that DOES have a username to backfill — with `countPending` now
+  // decrypt-aware (this file's own regression test below), a database containing ONLY
+  // never-backfillable rows converges to "Nothing to migrate" before ever reaching the apply
+  // loop, so this test needs a genuinely pending sibling to force the loop (and its
+  // "SKIPPED (no username)" branch below) to actually run.
+  const pendingId = "cred-pending-sibling";
+  const pendingPlaintext = JSON.stringify({ token: "FIXTURE_TOKEN_WITH_USERNAME", username: "sibling-owner" });
+  const pendingSealed = await sealer.seal({
+    plaintext: pendingPlaintext,
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: pendingId }),
+  });
+
   const seedDb = openContentDb(dbPath);
   seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
-  seedDb
-    .insert(customCredentialSets)
-    .values({
-      id: credId,
-      workspaceId: WORKSPACE,
-      label: "no-username-provider",
-      category: "general",
-      baseUrl: "https://api.example.com",
-      additionalHostsJson: null,
-      username: null,
-      sealedKeyId: sealed.keyId,
-      sealedCiphertext: sealed.ciphertext,
-      sealedNonce: sealed.nonce,
-      sealedAlg: sealed.alg,
-      createdAt: NOW,
-      updatedAt: NOW,
-    })
-    .run();
+  const seedRow = (input: SeedCredentialInput) =>
+    seedDb
+      .insert(customCredentialSets)
+      .values({
+        id: input.id,
+        workspaceId: WORKSPACE,
+        label: input.label,
+        category: input.category,
+        baseUrl: input.baseUrl,
+        additionalHostsJson: null,
+        username: input.username ?? null,
+        sealedKeyId: input.sealedKeyId,
+        sealedCiphertext: input.sealedCiphertext,
+        sealedNonce: input.sealedNonce,
+        sealedAlg: input.sealedAlg,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+      .run();
+  seedRow({
+    id: credId,
+    label: "no-username-provider",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: sealed.keyId,
+    sealedCiphertext: sealed.ciphertext,
+    sealedNonce: sealed.nonce,
+    sealedAlg: sealed.alg,
+  });
+  seedRow({
+    id: pendingId,
+    label: "pending-provider",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: pendingSealed.keyId,
+    sealedCiphertext: pendingSealed.ciphertext,
+    sealedNonce: pendingSealed.nonce,
+    sealedAlg: pendingSealed.alg,
+  });
   seedDb.$client.close();
   delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
 
   const applyOutput = runScript(dbPath, rootKeyHex, ["--apply"]);
   assert.match(applyOutput, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${credId}`));
-  assert.match(applyOutput, /Done: 0 row\(s\) migrated, 0 already migrated, 1 skipped \(no username\), 0 failed, 1 total/);
+  assert.match(applyOutput, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${pendingId}`));
+  assert.match(applyOutput, /Done: 1 row\(s\) migrated, 0 already migrated, 1 skipped \(no username\), 0 failed, 2 total/);
 
   const db = openContentDb(dbPath);
-  const row = db.select().from(customCredentialSets).all()[0]!;
-  assert.equal(row.username, null, "no username to backfill — the column must stay NULL, not an empty string or anything invented");
-  assert.equal(row.sealedCiphertext, sealed.ciphertext);
+  const byId = new Map(db.select().from(customCredentialSets).all().map((r) => [r.id, r]));
+  assert.equal(byId.get(credId)!.username, null, "no username to backfill — the column must stay NULL, not an empty string or anything invented");
+  assert.equal(byId.get(credId)!.sealedCiphertext, sealed.ciphertext);
+  assert.equal(byId.get(pendingId)!.username, "sibling-owner");
+  db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-custom-credential-usernames: countPending converges to 0 with a token-only row present, instead of reporting outstanding work forever", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-convergence-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  // A token-only credential — legitimately has no username and never will (this file's header on
+  // `custom_credential_sets.username`, and `schema.ts`'s own doc on that column). Its `username`
+  // column stays NULL forever by design, no matter how many times this script re-runs.
+  const tokenOnlyId = "cred-token-only";
+  const tokenOnlySealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TOKEN_ONLY_FOREVER" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: tokenOnlyId }),
+  });
+
+  // A genuinely pending credential, so the first `--apply` invocation has real work to do.
+  const pendingId = "cred-genuinely-pending";
+  const pendingSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TOKEN_WITH_USERNAME", username: "real-owner" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: pendingId }),
+  });
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  const seedRow = (input: SeedCredentialInput) =>
+    seedDb
+      .insert(customCredentialSets)
+      .values({
+        id: input.id,
+        workspaceId: WORKSPACE,
+        label: input.label,
+        category: input.category,
+        baseUrl: input.baseUrl,
+        additionalHostsJson: null,
+        username: input.username ?? null,
+        sealedKeyId: input.sealedKeyId,
+        sealedCiphertext: input.sealedCiphertext,
+        sealedNonce: input.sealedNonce,
+        sealedAlg: input.sealedAlg,
+        createdAt: NOW,
+        updatedAt: NOW,
+      })
+      .run();
+  seedRow({
+    id: tokenOnlyId,
+    label: "token-only-provider",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: tokenOnlySealed.keyId,
+    sealedCiphertext: tokenOnlySealed.ciphertext,
+    sealedNonce: tokenOnlySealed.nonce,
+    sealedAlg: tokenOnlySealed.alg,
+  });
+  seedRow({
+    id: pendingId,
+    label: "pending-provider",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    sealedKeyId: pendingSealed.keyId,
+    sealedCiphertext: pendingSealed.ciphertext,
+    sealedNonce: pendingSealed.nonce,
+    sealedAlg: pendingSealed.alg,
+  });
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  // --- First apply: migrates the genuinely pending row, skips the token-only row (no username to
+  // copy) — the token-only row's `username` column stays NULL, as it always will. ---
+  const firstApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(firstApply, /RESTORE POINT CAPTURED/);
+  assert.match(firstApply, new RegExp(`MIGRATED: workspace=${WORKSPACE} id=${pendingId}`));
+  assert.match(firstApply, new RegExp(`SKIPPED \\(no username in sealed payload\\): workspace=${WORKSPACE} id=${tokenOnlyId}`));
+  assert.match(firstApply, /Done: 1 row\(s\) migrated, 0 already migrated, 1 skipped \(no username\), 0 failed, 2 total/);
+
+  // --- THE MANDATORY PROOF: a second `--apply` invocation, with the token-only row's `username`
+  // STILL NULL, must report convergence — "Nothing to migrate" — not rediscover the token-only row
+  // as outstanding work and capture yet another restore point. Pre-fix, `countPending` counted every
+  // `username IS NULL` row as pending regardless of whether it could ever be backfilled, so this
+  // second invocation would loop forever: same restore point capture, same "SKIPPED" line, on every
+  // future run, even though nothing will ever change again. ---
+  const secondApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(secondApply, /Nothing to migrate/);
+  assert.doesNotMatch(secondApply, /RESTORE POINT CAPTURED/, "a token-only row must never be re-treated as pending work");
+  assert.doesNotMatch(secondApply, /SKIPPED/, "the token-only row must not be re-decrypted/re-processed on a converged run");
+
+  // --- A third invocation confirms this is a stable, converged state, not a one-off fluke. ---
+  const thirdApply = runScript(dbPath, rootKeyHex, ["--apply"]);
+  assert.match(thirdApply, /Nothing to migrate/);
+
+  const db = openContentDb(dbPath);
+  const byId = new Map(db.select().from(customCredentialSets).all().map((r) => [r.id, r]));
+  assert.equal(byId.get(tokenOnlyId)!.username, null, "a token-only credential's username column stays NULL forever — by design, not by omission");
+  assert.equal(byId.get(tokenOnlyId)!.sealedCiphertext, tokenOnlySealed.ciphertext);
+  assert.equal(byId.get(pendingId)!.username, "real-owner");
   db.$client.close();
 
   fs.rmSync(scratch, { recursive: true, force: true });
