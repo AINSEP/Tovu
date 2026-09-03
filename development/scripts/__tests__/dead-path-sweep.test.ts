@@ -53,7 +53,10 @@ import {
  * `route-coverage-lib.ts`'s `isMeasurableRouteFile` (same `src/server/routes/...` dead prefix, one
  * function away) — that instance was invisible to this sweep because both its literals end in `/`
  * (the `trailing-separator` skip rule), so it was never one of the 35 and has no register entry to
- * remove.
+ * remove. That rule unconditionally exempted every trailing-`/` literal instead of just the
+ * ambiguous single-segment ones; see `classifyRepoRelativeString`'s `NORMALIZED_SKIP_RULES` comment
+ * and the `historical:` tests below for the fix that closes the general escape, not just this one
+ * already-fixed instance.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
@@ -234,6 +237,23 @@ const DRIZZLE_CONFIG_BEFORE_7FB47F55 = `export default defineConfig({
 });
 `;
 
+/** Verbatim from `git show 678b6464^:development/scripts/route-coverage-lib.ts` — the
+ *  `isMeasurableRouteFile` prefixes that matched nothing after the apps/website restructure, so both
+ *  route-coverage gates measured zero files. Unlike the two fixtures above, THIS specific instance was
+ *  never in `KNOWN_BROKEN_PENDING_OWNER_DECISION`: the old `trailing-separator` rule exempted both
+ *  literals just for ending in `/`, so the sweep never saw them to report. */
+const ROUTE_COVERAGE_LIB_BEFORE_678B6464 = `export function isMeasurableRouteFile(relPath: string): boolean {
+  const normalized = relPath.split(path.sep).join("/");
+  const isRoutePath = normalized.startsWith("src/server/routes/") || normalized.startsWith("src/server/inbound/admin-http/routes/");
+  if (!isRoutePath) return false;
+  if (normalized.includes("/__tests__/")) return false;
+  if (/\\.(test|spec)\\.ts$/.test(normalized)) return false;
+  const base = path.basename(normalized);
+  if (base === "deps.ts" || base === "execution-deps.ts" || base === "types.ts") return false;
+  return true;
+}
+`;
+
 test("historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead", () => {
   const importerAbs = path.join(REPO_ROOT, "development/scripts/generate-seed-content.ts");
   const specifiers = extractRelativeImportSpecifiers(GENERATE_SEED_CONTENT_BEFORE_921D705F).map((s) => s.specifier);
@@ -282,6 +302,27 @@ test("historical: the current drizzle.config.ts path strings resolve, so the che
   assert.deepEqual(paths, ["apps/website/src/platform/db/schema.ts", "apps/website/src/platform/db/drizzle"]);
   for (const p of paths) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 7fb47f55`);
+  }
+});
+
+test("historical [adversarial]: the pre-678b6464 route-coverage-lib.ts prefixes are flagged as dead now that trailing-/ literals with real directory structure are classified", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  const paths = repoRelativePathsIn(ROUTE_COVERAGE_LIB_BEFORE_678B6464, segments);
+
+  assert.deepEqual(paths, ["src/server/routes", "src/server/inbound/admin-http/routes"]);
+  for (const p of paths) {
+    assert.equal(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), false, `${p} unexpectedly exists`);
+  }
+});
+
+test("historical: the current route-coverage-lib.ts prefixes resolve, so the check above is not trivially true", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  const source = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/route-coverage-lib.ts"), "utf8");
+  const paths = repoRelativePathsIn(source, segments).filter((p) => p.includes("routes"));
+
+  assert.deepEqual(paths, ["apps/website/src/server/routes", "apps/website/src/server/inbound/admin-http/routes"]);
+  for (const p of paths) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 678b6464`);
   }
 });
 
@@ -351,7 +392,7 @@ test("classifyRepoRelativeString names the rule for every string it declines", (
     ["application/json", "not-a-known-repo-segment"],
     ["schema.ts", "no-path-separator"],
     ["../../src/gone.js", "parent-relative-outside-repo"],
-    ["src/server/", "trailing-separator"],
+    ["__tests__/", "trailing-separator"],
     ["text/html", "not-a-known-repo-segment"],
   ];
 
@@ -409,6 +450,56 @@ test("classifyRepoRelativeString recognizes a first segment that only exists dee
     kind: "repo-relative-path",
     repoRelative: "src/server",
   });
+});
+
+test("classifyRepoRelativeString [adversarial]: a trailing-/ literal with real directory structure is classified and checked, not exempted — the route-coverage-lib.ts escape", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+
+  // Same shape as `isMeasurableRouteFile`'s dead `src/server/routes/` prefix: multiple segments, the
+  // slash is purely a writing style, and the target genuinely does not exist. Before this fix, the
+  // unconditional `trailing-separator` rule skipped this outright and the sweep never probed it.
+  assert.deepEqual(classifyRepoRelativeString("src/server/routes/", { knownRepoSegments: segments }), {
+    kind: "repo-relative-path",
+    repoRelative: "src/server/routes",
+  });
+  assert.equal(
+    fs.existsSync(path.join(REPO_ROOT, pathThatMustExist("src/server/routes"))),
+    false,
+    "src/server/routes unexpectedly exists — the escape-proof case is vacuous"
+  );
+
+  // The live, fixed prefix from the same function: still classified (not exempted for its trailing
+  // /), but now resolves because the directory it names is real.
+  assert.deepEqual(
+    classifyRepoRelativeString("apps/website/src/server/routes/", { knownRepoSegments: segments }),
+    { kind: "repo-relative-path", repoRelative: "apps/website/src/server/routes" }
+  );
+  assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist("apps/website/src/server/routes"))));
+});
+
+test("classifyRepoRelativeString: a trailing-/ literal naming only ONE segment stays skipped — no regression for real non-path usage", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  assert.ok(segments.has("__tests__"), "collectRepoSegments should find __tests__ as a directory name");
+
+  // Verbatim shape of report-churn-hotspots.ts / check-src-complexity-drift.ts's own
+  // `relPath.includes("__tests__/")` filter: a directory-NAME token, not a location to resolve. A
+  // single segment plus a trailing / carries no more structure than the bare word does, and
+  // `no-path-separator` already declines a bare "__tests__" for the same reason.
+  assert.deepEqual(classifyRepoRelativeString("__tests__/", { knownRepoSegments: segments }), {
+    kind: "skipped",
+    reason: "trailing-separator",
+  });
+  assert.deepEqual(classifyRepoRelativeString("__tests__", { knownRepoSegments: segments }), {
+    kind: "skipped",
+    reason: "no-path-separator",
+  });
+
+  // Proven against the real file: sweeping it reports nothing for this literal.
+  const reported = sweepFiles({ repoRoot: REPO_ROOT, files: ["development/scripts/report-churn-hotspots.ts"] });
+  assert.deepEqual(
+    reported.filter((f) => f.specifier.includes("__tests__")),
+    []
+  );
 });
 
 test("pathThatMustExist requires source files whole and non-source paths only down to their directory", () => {

@@ -370,9 +370,25 @@ const RAW_SKIP_RULES: readonly SkipRule[] = [
   { reason: "parent-relative-outside-repo", rejects: (v) => v.startsWith("../") },
 ];
 
-/** Applied after a leading `./` is stripped, to the repo-relative candidate. */
+/**
+ * Applied after a leading `./` is stripped, to the repo-relative candidate (trailing `/` still
+ * attached — `classifyRepoRelativeString` only removes it once these rules have run).
+ *
+ * `trailing-separator` rejects a value ending in `/` ONLY when removing that one slash leaves a
+ * single segment with no separator of its own left (`"src/"` -> `"src"`, `"__tests__/"` ->
+ * `"__tests__"`). That single segment is exactly as ambiguous as the same word written with no
+ * slash at all (`no-path-separator` already declines to treat a bare `"src"` as a path), and real
+ * usage bears this out: `report-churn-hotspots.ts` and its sibling complexity gates write
+ * `relPath.includes("__tests__/")` as a directory-NAME filter, never a location to resolve. A
+ * MULTI-segment trailing-slash literal is a different animal — `"src/server/"` still names real
+ * directory structure once the slash is gone, so it falls through to the same checks below and, if
+ * its target is missing, gets reported. This is what closes the escape `route-coverage-lib.ts`'s
+ * `isMeasurableRouteFile` used before it was fixed in 678b6464: its `"src/server/routes/"` /
+ * `"src/server/inbound/admin-http/routes/"` prefixes were unconditionally exempted here just for
+ * ending in `/`, so the sweep never probed them. See the `historical:` tests for that instance.
+ */
 const NORMALIZED_SKIP_RULES: readonly SkipRule[] = [
-  { reason: "trailing-separator", rejects: (v) => v.endsWith("/") },
+  { reason: "trailing-separator", rejects: (v) => v.endsWith("/") && !v.slice(0, -1).includes("/") },
   { reason: "absolute-or-home-path", rejects: (v) => v.split("/")[0]!.length === 0 },
   { reason: "not-a-known-repo-segment", rejects: (v, o) => !o.knownRepoSegments.has(v.split("/")[0]!) },
 ];
@@ -388,11 +404,12 @@ export function classifyRepoRelativeString(value: string, options: ClassifyOptio
   for (const rule of RAW_SKIP_RULES) {
     if (rule.rejects(value, options)) return { kind: "skipped", reason: rule.reason };
   }
-  const stripped = value.startsWith("./") ? value.slice(2) : value;
+  const withoutDot = value.startsWith("./") ? value.slice(2) : value;
   for (const rule of NORMALIZED_SKIP_RULES) {
-    if (rule.rejects(stripped, options)) return { kind: "skipped", reason: rule.reason };
+    if (rule.rejects(withoutDot, options)) return { kind: "skipped", reason: rule.reason };
   }
-  return { kind: "repo-relative-path", repoRelative: stripped };
+  const repoRelative = withoutDot.endsWith("/") ? withoutDot.slice(0, -1) : withoutDot;
+  return { kind: "repo-relative-path", repoRelative };
 }
 
 const SOURCE_FILE_EXTENSION = /\.(ts|tsx|mts|cts|js|mjs|cjs)$/;
