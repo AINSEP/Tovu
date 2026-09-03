@@ -606,6 +606,42 @@ test("renderSite (Liquid tier): {% render_block region: \"footer\" %} resolves t
   assert.match(html, /https:\/\/github\.com\/tovu/);
 });
 
+test("renderSite (Liquid tier): a menu widget's authored cssClass/rel/openInNewTab reach the page end-to-end through render_block region -> renderBlockSeam -> renderWidgetRegion -> renderWidgetIr — the exact chain a static-tier-only fix would have left silently broken on this tier (COMPONENTS has no 'menu' entry of its own; declarative/Liquid/Handlebars all resolve a menu widget through this one shared function)", async () => {
+  const theme = loadTheme({ themeDir: path.join(process.cwd(), "development", "fixtures", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
+  assert.equal(theme.status, "valid");
+  theme.liquidTemplates.home = '<div id="footer-region">{% render_block region: "footer" %}</div>';
+
+  const html = await renderSite({
+    theme,
+    route: "home",
+    siteTitle: "Widgets Demo",
+    posts: [],
+    widgets: widgetsResult({
+      regions: {
+        footer: [
+          {
+            componentId: "menu",
+            props: {
+              title: "Footer",
+              items: [
+                {
+                  label: "Docs",
+                  href: "/docs",
+                  available: true,
+                  attrs: { cssClass: "is-featured", rel: "nofollow", openInNewTab: true },
+                  children: [],
+                },
+              ],
+            },
+          },
+        ],
+      },
+    }),
+  });
+  assert.match(html, /<li class="is-featured">/);
+  assert.match(html, /<a href="\/docs" rel="nofollow" target="_blank">/);
+});
+
 test("renderDocNode: a widgetEmbed node resolves through inlineResolved to its widget's IR (REQ-21) — the theme never sees a raw widgetEmbed reference", () => {
   const doc: JsonObject = {
     type: "doc",
