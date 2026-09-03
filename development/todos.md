@@ -21,6 +21,16 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## ⚠️ RECURRING, 2026-09-03 — Admin SSE connection-pool exhaustion is back (fix already built, sitting disabled)
+
+Owner hit the 2026-08-18-diagnosed `:5173` 6-connection exhaustion again live today. The verified
+fix (dev HTTP/2 via mkcert, ADR C1) was built and paused the same evening it shipped and was never
+re-enabled — `apps/admin/.certs.disabled/` still has the working cert. See
+`ADS-memory/reports/2026-09-03-admin-sse-connection-exhaustion.md` for current state + recommended
+next step (re-enable C1, then chase the ADR's still-open "14 connections vs 3 tabs" anomaly).
+
+---
+
 ## 🎯 DIRECTION, owner call 2026-08-29 — Tovu-Runner becomes an EXTERNAL MCP SERVER to Tovu
 
 **The problem this solves.** Today an operator embedded in Tovu-Runner sees **two separate assistant
