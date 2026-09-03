@@ -80,3 +80,69 @@ test("renderRenderYaml: rejects a quote- or newline-bearing appName/volumeName (
   assert.throws(() => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: 'evil"\nsome_key: x' }, { region: "frankfurt" }), ValidationError);
   assert.throws(() => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, volumeName: 'evil"\nsome_key: x' }, { region: "frankfurt" }), ValidationError);
 });
+
+/**
+ * Regression for the UNQUOTED-YAML-scalar hole: `assertNoConfigInjection` (`deploy-config.ts`)
+ * rejected only `"`/newline/CR, but `renderRenderYaml`'s `name: ${descriptor.appName}` and disk
+ * `name: ${descriptor.volumeName}` lines are unquoted plain YAML scalars — a `:`, `#`, `{`, `[`,
+ * `&`, `*`, or a leading `-`/leading-trailing space in either field changes what the scalar means
+ * (or makes the file invalid) with none of those characters tripping the old guard. Each case
+ * asserts the EXACT thrown message, and the appName cases are mirrored onto volumeName since both
+ * flow through the same unquoted `name:` sink.
+ */
+test("renderRenderYaml: rejects a colon in appName/volumeName — would end the plain scalar and start a new YAML key", () => {
+  assert.throws(
+    () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil:app" }, { region: "frankfurt" }),
+    (err: unknown) =>
+      err instanceof ValidationError &&
+      err.message ===
+        'the derived Render service name (fly.toml\'s app) ("evil:app") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
+  );
+  assert.throws(
+    () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, volumeName: "evil:vol" }, { region: "frankfurt" }),
+    (err: unknown) =>
+      err instanceof ValidationError &&
+      err.message ===
+        'the derived Render disk name (fly.toml\'s [[mounts]].source) ("evil:vol") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
+  );
+});
+
+test("renderRenderYaml: rejects a hash in appName — would start an inline YAML comment mid-scalar", () => {
+  assert.throws(
+    () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil#app" }, { region: "frankfurt" }),
+    (err: unknown) =>
+      err instanceof ValidationError &&
+      err.message ===
+        'the derived Render service name (fly.toml\'s app) ("evil#app") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
+  );
+});
+
+test("renderRenderYaml: rejects a curly brace in appName — would open a YAML flow mapping", () => {
+  assert.throws(
+    () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, appName: "evil{app}" }, { region: "frankfurt" }),
+    (err: unknown) =>
+      err instanceof ValidationError &&
+      err.message ===
+        'the derived Render service name (fly.toml\'s app) ("evil{app}") contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file'
+  );
+});
+
+test("renderRenderYaml: rejects a leading hyphen in volumeName — would read as a YAML block-sequence entry", () => {
+  assert.throws(
+    () => renderRenderYaml({ ...FIXTURE_DESCRIPTOR, volumeName: "-evilvol" }, { region: "frankfurt" }),
+    (err: unknown) =>
+      err instanceof ValidationError &&
+      err.message ===
+        'the derived Render disk name (fly.toml\'s [[mounts]].source) ("-evilvol") starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file'
+  );
+});
+
+test("renderRenderYaml: a normal appName/volumeName still renders byte-identically to before this fix (happy path unmoved)", () => {
+  // Same FIXTURE_DESCRIPTOR ("acme-app" / "acme_sites") as the exact-content test above — pinned
+  // again here, right next to the new reject-list cases, so a reviewer can see side by side that
+  // widening the guard (deploy-config.ts's assertNoConfigInjection) never touched what an
+  // already-safe name renders as; it only ever rejects additional unsafe ones.
+  const result = renderRenderYaml(FIXTURE_DESCRIPTOR, { region: "frankfurt" });
+  assert.match(result.contents, /^ {4}name: acme-app$/m);
+  assert.match(result.contents, /^ {6}name: acme_sites$/m);
+});

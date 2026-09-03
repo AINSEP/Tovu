@@ -191,18 +191,49 @@ export const MIGRATIONS_NOTE =
  * Guards a value about to be interpolated, unescaped, into a generated TOML/YAML config file
  * (`./deploy-config-fly.ts`'s `fly.toml`, `./deploy-config-render.ts`'s `render.yaml`) — unlike
  * `./deploy-config-railway.ts`'s `renderRailwayConfig`, which is safe by construction because it
- * builds its config through `JSON.stringify` rather than a hand-written template string. A value
- * containing a double-quote can close the quoted TOML/YAML string early; one also containing a
- * newline can then inject an entirely new top-level key on the next line (reproduced with
- * `--region 'iad"\nprimary_region_evil="x'`, which emits a real extra `primary_region_evil` key
- * into `fly.toml`). Rejecting outright is the reliable fix here — a Fly region allow-list (the
- * shape `deploy-config-render.ts`'s `RENDER_VALID_REGIONS` uses) was considered too, but Fly's
- * ~30-region catalog had no authoritative source to enumerate against without risking rejecting a
- * real region.
+ * builds its config through `JSON.stringify` rather than a hand-written template string. Two
+ * distinct sink shapes call this, so it covers two distinct hazards:
+ *
+ * 1. QUOTED sinks (`deploy-config-fly.ts`'s `app = "${...}"`, `source = "${...}"`,
+ *    `primary_region = "${...}"`; `deploy-config-render.ts`'s `region: ${...}` after it already
+ *    passed `RENDER_VALID_REGIONS`). A value containing a double-quote can close the quoted
+ *    string early; one also containing a newline can then inject an entirely new top-level key on
+ *    the next line (reproduced with `--region 'iad"\nprimary_region_evil="x'`, which emits a real
+ *    extra `primary_region_evil` key into `fly.toml`).
+ * 2. UNQUOTED YAML plain-scalar sinks (`deploy-config-render.ts`'s `name: ${descriptor.appName}`
+ *    and the disk's `name: ${descriptor.volumeName}` — YAML, unlike the TOML sinks above, is
+ *    rendered with no surrounding quotes at all). Here a `"`/newline isn't the only hazard: `:`,
+ *    `#`, `{`, `[`, `&`, `*`, a leading `-`, or leading/trailing whitespace are each YAML
+ *    indicator/structural characters that change what an unquoted plain scalar means (`:` or `#`
+ *    can end the scalar and start a new key or a comment mid-line; `{`/`[` open a flow collection;
+ *    `&`/`*` are anchor/alias indicators; a leading `-` reads as a block-sequence entry) — the
+ *    guard passing these through was this task's bug (`deploy-config-render.ts:65-78`).
+ *
+ * Rejecting outright is the reliable fix for both — a Fly region allow-list (the shape
+ * `deploy-config-render.ts`'s `RENDER_VALID_REGIONS` uses) was considered too, but Fly's ~30-region
+ * catalog had no authoritative source to enumerate against without risking rejecting a real region;
+ * the same reasoning extends to app/volume names here — quoting the two unquoted YAML sinks at
+ * render time was considered instead of widening this check, but every renderer's own exact-string
+ * golden test already pins the CURRENT unquoted rendering for a safe name (e.g.
+ * `deploy-config-render.unit.test.ts`'s `name: acme-app`), so unconditionally quoting would change
+ * output for every already-safe app/volume name, not just unsafe ones — a real caller-visible
+ * behavior change this task's own instructions rule out. Widening the reject-list here instead never
+ * changes what an already-accepted value renders as; it only ever accepts fewer values, which is
+ * exactly the tradeoff already made for `"`/newline above.
  */
 export function assertNoConfigInjection(fieldLabel: string, value: string): void {
   if (value.includes('"') || value.includes("\n") || value.includes("\r")) {
     throw new ValidationError(`${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
+  }
+  if (value.includes(":") || value.includes("#") || value.includes("{") || value.includes("[") || value.includes("&") || value.includes("*")) {
+    throw new ValidationError(
+      `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`
+    );
+  }
+  if (value.startsWith("-") || value !== value.trim()) {
+    throw new ValidationError(
+      `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file`
+    );
   }
 }
 
