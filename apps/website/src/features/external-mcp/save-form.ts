@@ -64,18 +64,6 @@ function externalMcpSaveFormUri(exchangeId: string): UIResourceUri {
 }
 
 /**
- * Two-level "prefer explicit input, else fall back to existing, else leave unset" merge — the shared
- * shape every field in {@link mergeExternalMcpSavePrefill} follows. Extracting it turns that function
- * into a flat list of calls instead of N inlined `??` chains, which is what keeps its own cyclomatic
- * complexity low: a called helper's internal branches count toward the helper, not the caller.
- *
- * @complexity O(1).
- */
-function mergeStringField(current: string | undefined, existing: string | null | undefined): string | undefined {
-  return current ?? existing ?? undefined;
-}
-
-/**
  * Merges the agent's own input over an existing row's current (non-secret) values, so an UPDATE's
  * form shows the human accurate current state for anything the agent did not explicitly restate,
  * rather than blanks. `existing` is `undefined` for a brand-new id.
@@ -89,18 +77,18 @@ export function mergeExternalMcpSavePrefill(
   if (!existing) return input;
   return {
     id: input.id,
-    label: mergeStringField(input.label, existing.label),
+    label: input.label ?? existing.label,
     transport: input.transport,
-    command: mergeStringField(input.command, existing.command),
-    args: mergeStringField(input.args, existing.args.join(" ")),
-    url: mergeStringField(input.url, existing.url),
-    allowedToolNames: mergeStringField(input.allowedToolNames, existing.allowedToolNames.join(", ")),
-    authMode: mergeStringField(input.authMode, existing.authMode),
-    oauthProviderId: mergeStringField(input.oauthProviderId, existing.oauth.providerId),
-    oauthGrant: mergeStringField(input.oauthGrant, existing.oauth.grant),
-    oauthClientId: mergeStringField(input.oauthClientId, existing.oauth.clientId),
-    oauthScopes: mergeStringField(input.oauthScopes, existing.oauth.scopes.join(" ")),
-    oauthTokenEnvName: mergeStringField(input.oauthTokenEnvName, existing.oauth.tokenEnvName),
+    command: input.command ?? existing.command,
+    args: input.args ?? existing.args.join(" "),
+    url: input.url ?? existing.url ?? undefined,
+    allowedToolNames: input.allowedToolNames ?? existing.allowedToolNames.join(", "),
+    authMode: input.authMode ?? existing.authMode,
+    oauthProviderId: input.oauthProviderId ?? existing.oauth.providerId ?? undefined,
+    oauthGrant: input.oauthGrant ?? existing.oauth.grant ?? undefined,
+    oauthClientId: input.oauthClientId ?? existing.oauth.clientId ?? undefined,
+    oauthScopes: input.oauthScopes ?? existing.oauth.scopes.join(" "),
+    oauthTokenEnvName: input.oauthTokenEnvName ?? existing.oauth.tokenEnvName ?? undefined,
     // NOT merged from `existing` — `ExternalMcpOAuthView` carries no field for a connection's own
     // typed endpoints (only `providerId`, for a registered one). There is nothing stored to merge
     // from; see `apps/admin`'s `use-external-mcp.hooks.ts` header for the identical, already-disclosed
