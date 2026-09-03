@@ -340,13 +340,39 @@ function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: s
   }, formHtml);
 }
 
+/** Sets `<input ...>` tag's `value` attribute to `escapedValue`, given the FULL matched tag text
+ *  (open through close). Two shapes, both handled without disturbing anything else the tag carries:
+ *  1. The tag already has a `value="..."` attribute (including `value=""`) — REPLACE it in place.
+ *     Appending a second `value=` instead (the pre-fix behavior) is a silent no-op in every browser:
+ *     the DOM/HTML spec honors only the FIRST `value` attribute on an element, so the stale one
+ *     (e.g. `value="old"`) would keep winning over the freshly-flashed one.
+ *  2. No existing `value` attribute — insert one just before the tag's own closing `>`, preserving
+ *     whichever closing form the source used (bare `<input ...>` stays bare; XHTML-style
+ *     `<input .../>` keeps its `/>`) rather than normalizing one into the other.
+ *  A replacer FUNCTION at both call sites for the same `$&`/`$1` corruption reason documented on
+ *  {@link showFormSuccessMessage} — `escapedValue` is spliced in via template literal, never handed
+ *  to `String.prototype.replace` as a replacement-string argument. @complexity O(tag.length). */
+function setInputValueAttr(tag: string, escapedValue: string): string {
+  const existingValueAttr = /\bvalue="[^"]*"/i;
+  if (existingValueAttr.test(tag)) {
+    return tag.replace(existingValueAttr, () => `value="${escapedValue}"`);
+  }
+  const selfClosing = /\/>$/.test(tag);
+  const beforeClose = tag.slice(0, tag.length - (selfClosing ? 2 : 1)).replace(/\s+$/, "");
+  return `${beforeClose} value="${escapedValue}"${selfClosing ? "/>" : ">"}`;
+}
+
 /** Re-populates ONE field's rendered value from the validation flash (2026-08-31 field-wipe fix) —
  *  tries the field's `<textarea name="FIELD">` shape first, then its `<input name="FIELD">` shape;
  *  exactly one ever matches (a field renders as one element kind), so trying both and keeping
  *  whichever changed the string is cheaper than threading the field's own type through this
  *  string-splice layer, which otherwise has no reason to know it. A field id naming an element this
  *  form doesn't have (stale/forged flash) is a silent no-op, same discipline as {@link showFieldErrors}.
- *  A replacer FUNCTION for the same `$&`/`$1` corruption reason documented on
+ *  The `<input>` match is bounded to `[^>]*>` — a single `>` closes it, same bounding discipline every
+ *  other regex in this file uses — so it can never swallow a neighboring tag; {@link setInputValueAttr}
+ *  then decides whether that closing `>` was itself `/>` (2026-09-03 fix: previously REQUIRED `/>`, so
+ *  a standard HTML5 `<input name="x">` — no XHTML self-close — never matched at all and silently kept
+ *  its wiped value). A replacer FUNCTION for the same `$&`/`$1` corruption reason documented on
  *  {@link showFormSuccessMessage}. @complexity O(html.length) per call — two regex passes, the
  *  second only executed when the first did not match. */
 function showOneFieldValue(html: string, field: string, value: string): string {
@@ -355,8 +381,8 @@ function showOneFieldValue(html: string, field: string, value: string): string {
   const textareaRegex = new RegExp(`(<textarea\\b[^>]*\\bname="${fieldPattern}"[^>]*>)[\\s\\S]*?(<\\/textarea>)`, "i");
   const withTextarea = html.replace(textareaRegex, (_match, openTag: string, closeTag: string) => `${openTag}${escapedValue}${closeTag}`);
   if (withTextarea !== html) return withTextarea;
-  const inputRegex = new RegExp(`(<input\\b[^>]*\\bname="${fieldPattern}"[^>]*?)\\/>`, "i");
-  return html.replace(inputRegex, (_match, openTag: string) => `${openTag} value="${escapedValue}"/>`);
+  const inputRegex = new RegExp(`<input\\b[^>]*\\bname="${fieldPattern}"[^>]*>`, "i");
+  return html.replace(inputRegex, (matchedTag: string) => setInputValueAttr(matchedTag, escapedValue));
 }
 
 /** Re-populates every field named in `values` (already filtered to repopulatable, non-sensitive

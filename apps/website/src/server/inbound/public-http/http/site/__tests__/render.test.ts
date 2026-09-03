@@ -1519,6 +1519,64 @@ test("injectFormSubmissionResultIntoHtml: a flash value naming a field this page
 });
 
 // ---------------------------------------------------------------------------
+// showOneFieldValue (private, driven through injectFormSubmissionResultIntoHtml) — 2026-09-03 fix.
+// `<input>` repopulation was a silent no-op for standard HTML5 markup (bug a: the old regex required
+// an XHTML-style self-closing `/>`) and, separately, a no-op whenever the input already carried a
+// `value="..."` attribute (bug b: the fix appended a SECOND `value=` rather than replacing the first —
+// browsers only ever honor the first one). Hand-crafted raw HTML below (not `renderWidgetIr`, which
+// only ever emits the XHTML-self-closed shape) so every input shape is exercised directly.
+// ---------------------------------------------------------------------------
+
+function rawFormPageHtml(fieldHtml: string, slug = "contact"): string {
+  return `<form data-form-slug="${slug}">${fieldHtml}</form>`;
+}
+
+test("injectFormSubmissionResultIntoHtml: repopulates a standard HTML5 <input name=\"x\"> (no self-close, no existing value) — bug (a)", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
+});
+
+test("injectFormSubmissionResultIntoHtml: repopulates <input name=\"x\" value=\"\"> by REPLACING the empty value, not appending a second value= — bug (b)", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value="">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello">`));
+  assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
+});
+
+test("injectFormSubmissionResultIntoHtml: repopulates a non-self-closing <input name=\"x\" value=\"old\"> by REPLACING the stale value — bug (b), non-XHTML shape", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value="old">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
+  assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
+});
+
+test("injectFormSubmissionResultIntoHtml: repopulates a self-closing XHTML <input name=\"x\" value=\"old\"/> by REPLACING the stale value, keeping the /> form — bug (b), existing path must not regress", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value="old"/>`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new"/>`));
+  assert.equal((updated.match(/\bvalue="/g) ?? []).length, 1, "exactly one value= attribute — never two");
+});
+
+test("injectFormSubmissionResultIntoHtml: self-closing XHTML <input name=\"x\"/> with no existing value still repopulates, keeping the /> form — existing path must not regress", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x"/>`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="hello"/>`));
+});
+
+test("injectFormSubmissionResultIntoHtml: a raw <textarea name=\"x\"> still repopulates — existing path must not regress", () => {
+  const html = rawFormPageHtml(`<textarea name="x"></textarea>`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<textarea name="x">hello</textarea>`));
+});
+
+test("injectFormSubmissionResultIntoHtml: a field name matching no input/textarea in the form is a byte-identical no-op", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { "no-such-field": "whatever" } });
+  assert.equal(updated, html);
+});
+
+// ---------------------------------------------------------------------------
 // SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------
 
