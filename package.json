@@ -50,6 +50,7 @@
     "check:secret-scan": "tsx apps/website/src/features/webhooks/secret-scan-guard.ts",
     "check:admin-complexity-drift": "tsx development/scripts/check-admin-complexity-drift.ts",
     "check:src-complexity-drift": "tsx development/scripts/check-src-complexity-drift.ts",
+    "check:governance-adr-scope-drift": "tsx development/scripts/check-governance-adr-scope-drift.ts",
     "check:coverage-integrity": "tsx development/scripts/check-coverage-integrity.ts",
     "check:embed-marker-drift": "tsx development/scripts/check-embed-marker-drift.ts",
     "check:theme-replaced-elements": "tsx development/scripts/check-theme-replaced-elements.ts",
