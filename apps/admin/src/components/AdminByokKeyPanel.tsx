@@ -99,18 +99,10 @@ export interface AdminByokKeyFooterProps {
  * than the full `stored` record, so this function has no dependency on `AdminExecutionCredential`'s
  * shape beyond the one field it reads.
  */
-export function resolveByokFooterStatusLine(saveState: AdminByokSaveState, isStored: boolean): string | null {
-  if (saveState.status === "saving") return "Saving…";
-  // Takes the whole `saveState` rather than just `.status` so it can read `keyWritten` — the one
-  // field that separates "a key was sealed" from "the key was deliberately left alone". See
-  // `AdminByokSaveState`'s own doc for why answering both with the same sentence read to the owner
-  // as the panel accepting a blank key.
-  if (saveState.status === "saved") {
-    return saveState.keyWritten ? "Saved to the server, encrypted." : "Settings saved. Your stored key was left unchanged.";
-  }
-  if (saveState.status === "idle") {
-    return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
-  }
+export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"], isStored: boolean): string | null {
+  if (status === "saving") return "Saving…";
+  if (status === "saved") return "Saved to the server, encrypted.";
+  if (status === "idle") return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
   return null;
 }
 
@@ -125,14 +117,16 @@ export function resolveByokFooterStatusLine(saveState: AdminByokSaveState, isSto
 export function AdminByokKeyFooter({ controller, agentHandle: handle }: AdminByokKeyFooterProps) {
   const { saveState, canSaveKey, stored } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine(saveState, stored?.isSet ?? false);
+  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false);
 
   return (
     <div className="assistant-key-footer">
       <div className="assistant-key-actions">
-        {/* Disabled until there is something meaningful to write — a typed key, or (for a
-            protocol/model-only change) an already-stored one. Never fires automatically; see the
-            hook's own doc for why this is the ONLY path that can persist the key. */}
+        {/* Disabled whenever the field is blank, stored key or not: this button's only job is to
+            write the key, and an empty field has no key to write. A stored key does NOT re-enable it
+            — that arm is what left Save key live after someone typed a key and then cleared it.
+            Never fires automatically; see the hook's own doc for why this is the ONLY path that can
+            persist the key. */}
         <button
           type="button"
           className="btn-primary"

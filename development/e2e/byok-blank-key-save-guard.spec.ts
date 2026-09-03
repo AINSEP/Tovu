@@ -26,7 +26,13 @@ import { test, expect, type Browser, type Page } from "@playwright/test";
  * They do NOT share a code path. The visitor form's Save is gated in `AiAssistant.tsx`'s
  * `VisitorCredentialKeyFooter` (`!dirty || saving || (!apiKey.trim() && !hasStoredKey)`) and writes
  * through `saveVisitorCredential`; the admin form's "Save key" is gated by `canSaveKey`
- * (`hasUsableAdminKey`) in `use-admin-execution-credential.hooks.ts` and writes through `saveKey`.
+ * (`hasTypedAdminKey` — NOT `hasUsableAdminKey`, whose stored-key arm answers a different question
+ * and is still correct for `AssistantDock`'s `apiModeAvailable`) in
+ * `use-admin-execution-credential.hooks.ts` and writes through `saveKey`.
+ *
+ * The two buttons deliberately disagree about a blank field with a key stored: the visitor Save
+ * writes the WHOLE config, so it stays enabled and omits `apiKey` from the payload; the admin Save
+ * key writes only the key, so it disables. Asserting one rule against both is how this regresses.
  * Two guards, two buttons, two labels ("Save" vs "Save key"), two credential rows. A single fix
  * cannot cover both, so a single test must not be trusted to cover both either.
  *
@@ -192,27 +198,39 @@ test.describe("blank-key save guard", () => {
     await expect(keyField(page)).toHaveValue("");
     await expect(keyField(page)).toHaveAttribute("placeholder", maskBefore);
 
-    // Enabled, NOT disabled — the field is empty on purpose and the operator may still want to save
-    // a model or endpoint change. Blocking here would strand them behind a key they cannot read back.
+    // DISABLED, and this is a reversal of what this spec asserted before (owner ruling, 2026-09-02).
+    // Save key writes the key and nothing else, so a blank field has nothing to write. The earlier
+    // "keep it enabled for a model change" reasoning is obsolete: the admin's model/protocol are
+    // persisted by the `core.execution` settings slice on their own path, not by this button.
     await expect(
       saveButton(page, "Save key"),
-      "an empty field with a key ALREADY STORED must stay saveable — this is the placeholder state, not a missing value",
-    ).toBeEnabled();
+      "an empty field has no key to write — a stored key does not change that",
+    ).toBeDisabled();
 
-    await saveButton(page, "Save key").click();
-    // NOT "Saved to the server, encrypted." — that sentence is about a key, and this save carried
-    // none (the PUT omits `apiKey`). Answering it here is what the owner read as the panel
-    // accepting a blank key; the footer now reports which of the two writes actually happened.
-    await expect(keySaveLine(page)).toHaveText(/Settings saved\. Your stored key was left unchanged\./, {
-      timeout: 15_000,
-    });
-
-    const afterBlankSave = await page.request.get(CREDENTIAL_PATH).then((r) => r.json());
-    expect(afterBlankSave.data.isSet, "saving with an empty field must not clear the stored key").toBe(true);
+    // And the stored key is of course still there; disabling the button is not clearing anything.
+    const afterBlank = await page.request.get(CREDENTIAL_PATH).then((r) => r.json());
+    expect(afterBlank.data.isSet).toBe(true);
     expect(
-      afterBlankSave.data.masked,
-      "saving with an empty field must leave the SAME key in place — a changed mask means it was overwritten",
+      afterBlank.data.masked,
+      "the stored key must survive untouched — the field being empty is a display fact, not a delete",
     ).toBe(maskBefore);
+  });
+
+  test("ADMIN panel, key already stored: typing a key and then CLEARING it disables Save key again", async () => {
+    // The owner's exact reported sequence: start typing, change your mind, delete it. The field is
+    // blank but `dirty` is true and a key is stored — the state in which Save key used to stay live
+    // over an empty field. Asserted on the transition, not on a pristine form, because a
+    // never-touched blank field was already handled and this one was not.
+    await openAdminPanel(page);
+
+    await keyField(page).fill(FAKE_KEY);
+    await expect(saveButton(page, "Save key"), "a typed key is saveable").toBeEnabled();
+
+    await keyField(page).fill("");
+    await expect(
+      saveButton(page, "Save key"),
+      "the key was typed and then cleared — Save key must go back to disabled, with no delay",
+    ).toBeDisabled();
   });
 
   test("ADMIN panel, key already stored: a whitespace-only field never reaches the server as the new key", async () => {
@@ -237,13 +255,10 @@ test.describe("blank-key save guard", () => {
     expect(before.data.isSet, "this case depends on the previous test having stored a key").toBe(true);
 
     await keyField(page).fill("   \t   ");
-    await saveButton(page, "Save key").click();
-
-    // Success, not a validation error: the whitespace must be omitted from the patch entirely,
-    // exactly as an empty field is.
-    await expect(keySaveLine(page)).toHaveText(/Settings saved\. Your stored key was left unchanged\./, {
-      timeout: 15_000,
-    });
+    // Whitespace is not a credential, so this is the blank case: the button must be disabled and the
+    // request must never be made. Previously this pressed Save and relied on the client trimming
+    // before building the patch; the guard is now in front of the button instead.
+    await expect(saveButton(page, "Save key")).toBeDisabled();
     await expect(page.locator(".save-error")).toHaveCount(0);
 
     const after = await page.request.get(CREDENTIAL_PATH).then((r) => r.json());

@@ -405,6 +405,34 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     expect(patch).not.toHaveProperty("apiKey");
     expect(patch.model).toBe("m1");
   });
+
+  it("omits apiKey for a WHITESPACE-only field too, and never sends an empty string", async () => {
+    // Same "leave the stored key alone" contract as the test above, for the input that looks
+    // non-empty to a naive check. The visitor Save deliberately stays available here (it writes the
+    // whole config, so "change my model, keep my key" is a real thing to want) — which makes the
+    // payload, not the button, the only thing standing between a blank field and the stored key.
+    // Asserted as an absent PROPERTY, not a falsy value: `apiKey: ""` would satisfy a truthiness
+    // check while being exactly the write that must never happen.
+    vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
+    vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise(() => {}));
+    const setAssistantSiteCredential = vi
+      .spyOn(api, "setAssistantSiteCredential")
+      .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "   \t   ", model: "m1" }));
+
+    await act(async () => {
+      await result.current.saveCredential();
+    });
+
+    const [patch] = setAssistantSiteCredential.mock.calls[0];
+    expect(patch).not.toHaveProperty("apiKey");
+    expect(Object.keys(patch)).not.toContain("apiKey");
+  });
 });
 
 describe("useVisitorCredentialForm — selectPreset", () => {

@@ -80,6 +80,7 @@ import {
   buildLocalCliConfigFromLedger,
   clearLegacyLocalCredential,
   createExecutionPort,
+  hasTypedAdminKey,
   hasUsableAdminKey,
   loadAdminExecutionCredential,
   loadExecutionConfig,
@@ -535,6 +536,30 @@ describe("hasUsableAdminKey", () => {
   it("is false when nothing is typed and nothing is stored", () => {
     expect(hasUsableAdminKey("", null)).toBe(false);
     expect(hasUsableAdminKey("", { isSet: false })).toBe(false);
+  });
+});
+
+describe("hasTypedAdminKey", () => {
+  // The narrower "is there anything to WRITE" rule behind the Save key button. Asserted next to
+  // hasUsableAdminKey deliberately: the pair only makes sense as a contrast, and the one row where
+  // they DISAGREE is the whole reason both exist.
+  it("is true only for a non-whitespace field value", () => {
+    expect(hasTypedAdminKey("sk-typed")).toBe(true);
+    expect(hasTypedAdminKey("  sk-padded  ")).toBe(true);
+  });
+
+  it("treats an empty field and a whitespace-only field alike as blank", () => {
+    expect(hasTypedAdminKey("")).toBe(false);
+    expect(hasTypedAdminKey("   ")).toBe(false);
+    expect(hasTypedAdminKey("\t\n ")).toBe(false);
+  });
+
+  it("ignores stored state entirely — the row where it must disagree with hasUsableAdminKey", () => {
+    // The reported bug in one assertion. A stored key makes the credential USABLE, so the dock's
+    // apiModeAvailable is right to say yes; it does not make an empty field WRITABLE, so Save key
+    // must say no. Collapsing these two back into one predicate re-opens the bug.
+    expect(hasUsableAdminKey("", { isSet: true })).toBe(true);
+    expect(hasTypedAdminKey("")).toBe(false);
   });
 });
 

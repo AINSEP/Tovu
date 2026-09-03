@@ -250,6 +250,29 @@ export function hasUsableAdminKey(apiKey: string, stored: { isSet: boolean } | n
   return Boolean(apiKey.trim()) || stored?.isSet === true;
 }
 
+/**
+ * Whether there is a key to WRITE right now — a deliberately narrower question than
+ * {@link hasUsableAdminKey}, and the two must not be collapsed.
+ *
+ * `hasUsableAdminKey` answers "can this admin run against a key at all", where an already-stored key
+ * counts: `AssistantDock`'s `apiModeAvailable` is right to say yes on the strength of a stored
+ * credential the browser cannot read back. This one answers "does pressing Save key have anything to
+ * send", and there a stored key is irrelevant — the only thing that can be written is what is in the
+ * field.
+ *
+ * The distinction is what fixes the reported bug. Someone starts typing a key, changes their mind
+ * and clears the field: with a key already stored, `hasUsableAdminKey`'s stored arm kept Save key
+ * enabled over an empty field, offering to write nothing. Derived synchronously from the trimmed
+ * value on every render — never debounced, so it can never lag a keystroke and re-open that window.
+ *
+ * @param apiKey - The raw field value; trimmed here, so whitespace-only reads as blank.
+ * @returns `true` only when the field holds a non-whitespace value.
+ * @complexity O(n) in the field length, for the trim.
+ */
+export function hasTypedAdminKey(apiKey: string): boolean {
+  return Boolean(apiKey.trim());
+}
+
 export const DEFAULT_EXECUTION_CONFIG: ExecutionConfig = {
   mode: "local-cli",
   byok: {

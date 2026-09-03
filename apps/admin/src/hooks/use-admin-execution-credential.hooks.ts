@@ -5,7 +5,7 @@ import { ApiError, type AdminExecutionCredential, type AdminExecutionCredentialP
 import {
   EXECUTION_NAMESPACE,
   clearLegacyLocalCredential,
-  hasUsableAdminKey,
+  hasTypedAdminKey,
   readLegacyLocalCredential,
 } from "../lib/execution-settings";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
@@ -54,19 +54,7 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
 export type AdminByokSaveState =
   | { status: "idle" }
   | { status: "saving" }
-  /**
-   * `keyWritten` distinguishes the TWO different writes this one button performs, because they
-   * deserve different sentences.
-   *
-   * With a key already stored the field is empty on purpose — it is a write-only credential
-   * rendered as a `••••abcd` mask — so `saveKey` omits `apiKey` and only the protocol/model fields
-   * are written. Reporting that as "Saved to the server, encrypted." tells the operator their blank
-   * field was stored AS the key, which is exactly how the bug was reported: "it lets me save a
-   * blank key." Nothing was ever at risk (the omitted field is what protects the stored key), but
-   * the footer said otherwise. `false` means "the settings were saved and the stored key was left
-   * alone"; `true` means a key really was transmitted and sealed.
-   */
-  | { status: "saved"; keyWritten: boolean }
+  | { status: "saved" }
   | { status: "error"; message: string };
 
 /** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`), mirroring
@@ -111,9 +99,13 @@ export interface AdminExecutionCredentialController {
    *  controller until an explicit save succeeds. */
   apiKeyPlaceholder: string | undefined;
   saveState: AdminByokSaveState;
-  /** Whether {@link saveKey} would do anything right now — the same "typed key OR something already
-   *  stored" guard `saveKey` itself applies, exposed so a Save button can disable correctly without
-   *  duplicating the rule. */
+  /** Whether {@link saveKey} would do anything right now — the same "is there a key in the field"
+   *  guard `saveKey` itself applies, exposed so the Save key button can disable correctly without
+   *  duplicating the rule.
+   *
+   *  Derived synchronously from the trimmed field on every render, never debounced: a delayed
+   *  evaluation would leave the button enabled for the moment right after the field is cleared,
+   *  which is the bug this rule exists to close, merely shortened. */
   canSaveKey: boolean;
   /**
    * Explicit save, called ONLY from a "Save key" button press — never from any debounced or
@@ -204,7 +196,10 @@ export function useAdminExecutionCredential(
 
   async function saveKey(): Promise<void> {
     const apiKey = byok.apiKey.trim();
-    if (!hasUsableAdminKey(apiKey, stored)) return; // nothing typed and nothing stored — no-op
+    // The BUTTON's rule, applied again here so a blank field cannot reach the server even through a
+    // direct call. Deliberately NOT `hasUsableAdminKey`: a stored key makes the credential usable,
+    // not the empty field writable. See `hasTypedAdminKey`'s own doc for the bug that distinction fixes.
+    if (!hasTypedAdminKey(apiKey)) return; // nothing typed — there is no key to write
     setSaveState({ status: "saving" });
     try {
       const patch: AdminExecutionCredentialPatch = {
@@ -217,9 +212,7 @@ export function useAdminExecutionCredential(
       };
       const view = await port.saveAdminExecutionCredential(patch);
       setStored(view);
-      // `Boolean(apiKey)` mirrors the `...(apiKey ? { apiKey } : {})` spread that built the patch, so
-      // the reported outcome can never disagree with what was actually sent.
-      setSaveState({ status: "saved", keyWritten: Boolean(apiKey) });
+      setSaveState({ status: "saved" });
       // Tells every other mounted copy of this credential (the other settings screen, the dock) to
       // re-read — see this file's "Cross-mount staleness" doc above.
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
@@ -251,9 +244,7 @@ export function useAdminExecutionCredential(
       clearLegacyLocalCredential();
       setStored(view);
       setLegacyKey(null);
-      // A migration always carries a key (guarded by the `!legacyKey` return above), so this branch
-      // is unconditionally a real key write.
-      setSaveState({ status: "saved", keyWritten: true });
+      setSaveState({ status: "saved" });
       // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
     } catch (error) {
@@ -270,7 +261,7 @@ export function useAdminExecutionCredential(
     apiKeyStoredExternally: stored?.isSet === true,
     apiKeyPlaceholder: stored?.isSet ? (stored.masked ?? undefined) : undefined,
     saveState,
-    canSaveKey: hasUsableAdminKey(byok.apiKey, stored),
+    canSaveKey: hasTypedAdminKey(byok.apiKey),
     saveKey,
     legacyKey: legacyDismissed ? null : legacyKey,
     migrateLegacyKey,

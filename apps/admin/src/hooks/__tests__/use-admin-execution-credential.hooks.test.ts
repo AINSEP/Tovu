@@ -136,15 +136,25 @@ describe("useAdminExecutionCredential — save success", () => {
       expect.objectContaining({ apiKey: "sk-typed-key", protocol: "anthropic", model: "claude-sonnet-4-5" }),
     );
     expect(onByokChange).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "" }));
-    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: true });
+    expect(result.current.saveState).toEqual({ status: "saved" });
     expect(result.current.apiKeyStoredExternally).toBe(true);
     expect(result.current.apiKeyPlaceholder).toBe("••••abcd");
     rerender({ b: byok({ apiKey: "sk-typed-key" }) }); // no-op, keeps the linter quiet about unused rerender
   });
 
-  it("a protocol/model-only save (no typed key) omits apiKey from the PUT, leaving the stored key untouched", async () => {
+  it("no longer performs a protocol/model-only save — a blank field writes nothing at all", async () => {
+    // REVERSAL, recorded deliberately (owner ruling, 2026-09-02). This case used to assert that a
+    // blank field with a key stored still PUT the protocol/model fields, with `apiKey` omitted. The
+    // owner's rule is now narrower: Save key's only job is to write the key, so a blank field is a
+    // no-op, not a partial save.
+    //
+    // No capability is lost. The admin's protocol/model/baseUrl live in the `core.execution` LEDGER
+    // and are persisted by `use-admin-execution-mode.hooks.ts`'s `useSettingsSlice` on their own
+    // save path — changing a model without retyping a key still works, it just never depended on
+    // this button. What no longer happens is the refresh of the credential ROW's companion columns
+    // (the server-side fallback for an empty-field browser); those are still written on every real
+    // key save.
     getAdminExecutionCredential.mockResolvedValue({ data: setView() }); // already stored
-    setAdminExecutionCredential.mockResolvedValue({ data: setView({ model: "claude-opus-5" }) });
     const onByokChange = vi.fn();
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok({ apiKey: "", model: "claude-opus-5" }), onByokChange }));
     await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
@@ -153,24 +163,49 @@ describe("useAdminExecutionCredential — save success", () => {
       await result.current.saveKey();
     });
 
-    const patch = setAdminExecutionCredential.mock.calls[0]![0] as Record<string, unknown>;
-    expect("apiKey" in patch).toBe(false);
-    // Nothing was typed, so there is nothing to clear back out of the form.
+    expect(setAdminExecutionCredential).not.toHaveBeenCalled();
     expect(onByokChange).not.toHaveBeenCalled();
   });
 
-  it("reports a keyless save as keyWritten:false, so the footer cannot claim a key was stored", async () => {
-    // The owner-reported bug (2026-09-02): with a key already stored the field is empty ON PURPOSE
-    // (it is a write-only credential shown as a mask), so "Save key" stays enabled — and pressing it
-    // answered "Saved to the server, encrypted." That sentence is about a KEY, and no key was sent:
-    // the PUT above omits `apiKey` entirely. The stored key is never harmed, but the operator is
-    // told their blank field was saved AS the key, which is why this read as "it let me save a
-    // blank key". `keyWritten` is what lets the footer say which of the two writes actually
-    // happened; the stored key staying byte-identical is asserted alongside it.
+  it("canSaveKey goes false the moment a typed key is cleared, even with a key already stored", async () => {
+    // The owner's exact reported sequence (2026-09-02): start typing a key, change your mind, clear
+    // the field. `dirty` is true and a key IS stored, and the old rule (`hasUsableAdminKey`, whose
+    // stored arm answers a DIFFERENT question) left Save key enabled over an empty field — offering
+    // to write nothing. Driven through a rerender rather than two separate mounts, because the bug
+    // is about the transition: a never-touched blank field was already handled, a cleared one was not.
     getAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••mw4w" }) });
-    setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••mw4w", model: "claude-opus-5" }) });
+    const { result, rerender } = renderHook(
+      ({ b }) => useWiredAdminExecutionCredential({ byok: b, onByokChange: vi.fn() }),
+      { initialProps: { b: byok({ apiKey: "AIza-typed-then-regretted" }) } },
+    );
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+    expect(result.current.canSaveKey, "a typed key is of course saveable").toBe(true);
+
+    rerender({ b: byok({ apiKey: "" }) });
+
+    expect(result.current.canSaveKey, "the field was cleared — there is nothing left to write").toBe(false);
+    // The stored key is untouched by any of this; clearing the FIELD is not clearing the CREDENTIAL.
+    expect(result.current.apiKeyStoredExternally).toBe(true);
+    expect(result.current.apiKeyPlaceholder).toBe("••••mw4w");
+  });
+
+  it("treats a whitespace-only field as blank for canSaveKey, with a key stored", async () => {
+    getAdminExecutionCredential.mockResolvedValue({ data: setView() });
     const { result } = renderHook(() =>
-      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "", model: "claude-opus-5" }), onByokChange: vi.fn() }),
+      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "   \t   " }), onByokChange: vi.fn() }),
+    );
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+    expect(result.current.canSaveKey).toBe(false);
+  });
+
+  it("saveKey sends nothing when the field is blank but a key is stored", async () => {
+    // The guard and the button read the same rule, so a blank field cannot reach the server even if
+    // something called saveKey directly. Without this, tightening only the button would leave the
+    // keyless write path alive one layer down.
+    getAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••mw4w" }) });
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "" }), onByokChange: vi.fn() }),
     );
     await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
 
@@ -178,27 +213,8 @@ describe("useAdminExecutionCredential — save success", () => {
       await result.current.saveKey();
     });
 
-    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: false });
-    // The property that actually matters: the same key is still there, unchanged.
-    expect(result.current.apiKeyPlaceholder).toBe("••••mw4w");
-    expect(result.current.apiKeyStoredExternally).toBe(true);
-  });
-
-  it("reports a real typed save as keyWritten:true", async () => {
-    // The other half of the same seam — without this, `keyWritten` could be hardcoded `false` and
-    // the test above would still pass while the footer went silent about genuine key writes.
-    getAdminExecutionCredential.mockResolvedValueOnce({ data: unsetView() }).mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
-    setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
-    const { result } = renderHook(() =>
-      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange: vi.fn() }),
-    );
-    await waitFor(() => expect(result.current.stored).not.toBeNull());
-
-    await act(async () => {
-      await result.current.saveKey();
-    });
-
-    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: true });
+    expect(setAdminExecutionCredential).not.toHaveBeenCalled();
+    expect(result.current.apiKeyPlaceholder, "the stored key is left exactly as it was").toBe("••••mw4w");
   });
 
   it("saveKey is a no-op when nothing is typed and nothing is stored", async () => {
