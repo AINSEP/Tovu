@@ -232,12 +232,81 @@ export interface SkillToolSource {
   readonly bundledFiles: readonly SkillBundledFile[];
 }
 
+/** Human-readable reason a skill folder's `SKILL.md` could not be read — split out of
+ *  {@link resolveSkillEntry} so its nested "missing vs. unreadable" ternary lives in its own function
+ *  rather than adding two nested-ternary steps to that function's own complexity count. */
+function describeSkillMdReadFailure(error: unknown): string {
+  if (isEnoent(error)) return "no SKILL.md";
+  return `SKILL.md could not be read (${error instanceof Error ? error.message : String(error)})`;
+}
+
+/** One entry-resolution outcome: `"skip"` covers every tolerated case this loader's header documents
+ *  under "Bad-folder isolation" (not a directory, missing/unreadable SKILL.md, unparseable
+ *  frontmatter, unusable id) — only `"resolved"` contributes to the loaded source list. */
+type SkillEntryResolution = { readonly kind: "skip" } | { readonly kind: "resolved"; readonly source: SkillToolSource };
+
+/**
+ * Resolves one workspace-root directory entry into a ready {@link SkillToolSource}, or a `"skip"`
+ * outcome for every tolerated failure — pulled out of {@link loadInstalledSkillToolSources} so that
+ * function's own loop body is a flat dispatch on the result instead of nested try/catch and
+ * early-continue branches for each entry.
+ *
+ * @param input.seenDirById - Mutated in place: records `id -> folder name` for every entry this call
+ * resolves, so the caller's next call (for the next entry) can detect a same-id collision.
+ * @throws {Error} Only for the one non-tolerated case: `frontmatter.name` sanitizes to an `id` already
+ * present in `seenDirById` — see this file's header, "Bad-folder isolation".
+ * @complexity O(f) in the entry's own bundled-file count (from {@link listBundledFiles}).
+ */
+async function resolveSkillEntry(input: {
+  readonly workspaceRoot: string;
+  readonly entry: { readonly name: string; isDirectory: () => boolean };
+  readonly seenDirById: Map<string, string>;
+}): Promise<SkillEntryResolution> {
+  const { workspaceRoot, entry, seenDirById } = input;
+  if (!entry.isDirectory()) return { kind: "skip" };
+  const skillDir = path.join(workspaceRoot, entry.name);
+
+  let markdown: string;
+  try {
+    markdown = await readFile(path.join(skillDir, "SKILL.md"), "utf8");
+  } catch (error) {
+    console.warn(`[skills] '${entry.name}': ${describeSkillMdReadFailure(error)} — skipped`);
+    return { kind: "skip" };
+  }
+
+  const frontmatter = parseSkillFrontmatter(markdown);
+  if (!frontmatter) {
+    console.warn(`[skills] '${entry.name}': SKILL.md has no parseable frontmatter with both 'name' and 'description' — skipped`);
+    return { kind: "skip" };
+  }
+
+  const id = toSkillToolId(frontmatter.name);
+  if (!id) {
+    console.warn(`[skills] '${entry.name}': frontmatter name '${frontmatter.name}' could not be turned into a valid tool id — skipped`);
+    return { kind: "skip" };
+  }
+
+  const priorDir = seenDirById.get(id);
+  if (priorDir !== undefined) {
+    throw new Error(
+      `skills: '${frontmatter.name}' is declared by more than one installed skill folder ('${priorDir}' and '${entry.name}') — ` +
+        `both would register the same tool id '${id}'; rename one skill's frontmatter 'name' to disambiguate`,
+    );
+  }
+  seenDirById.set(id, entry.name);
+
+  return {
+    kind: "resolved",
+    source: { id, skillName: frontmatter.name, description: frontmatter.description, markdown, bundledFiles: await listBundledFiles(skillDir) },
+  };
+}
+
 /**
  * Loads every installed standalone Agent Skill for one workspace, resolved into one tool-ready
  * source per skill folder.
  *
- * @throws {Error} If two installed skill folders declare the same frontmatter `name` — see this
- * file's header, "Bad-folder isolation", for why this one case is fatal rather than skip-and-warn.
+ * @throws {Error} If two installed skill folders declare the same frontmatter `name` — see
+ * {@link resolveSkillEntry}.
  * @complexity O(d * f) in installed skill-folder count times average bundled-file count per skill.
  */
 export async function loadInstalledSkillToolSources(ctx: {
@@ -254,49 +323,10 @@ export async function loadInstalledSkillToolSources(ctx: {
   }
 
   const sources: SkillToolSource[] = [];
-  const skillDirById = new Map<string, string>();
-
+  const seenDirById = new Map<string, string>();
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
-    const skillDir = path.join(workspaceRoot, entry.name);
-
-    let markdown: string;
-    try {
-      markdown = await readFile(path.join(skillDir, "SKILL.md"), "utf8");
-    } catch (error) {
-      const reason = isEnoent(error) ? "no SKILL.md" : `SKILL.md could not be read (${error instanceof Error ? error.message : String(error)})`;
-      console.warn(`[skills] '${entry.name}': ${reason} — skipped`);
-      continue;
-    }
-
-    const frontmatter = parseSkillFrontmatter(markdown);
-    if (!frontmatter) {
-      console.warn(`[skills] '${entry.name}': SKILL.md has no parseable frontmatter with both 'name' and 'description' — skipped`);
-      continue;
-    }
-
-    const id = toSkillToolId(frontmatter.name);
-    if (!id) {
-      console.warn(`[skills] '${entry.name}': frontmatter name '${frontmatter.name}' could not be turned into a valid tool id — skipped`);
-      continue;
-    }
-
-    const priorDir = skillDirById.get(id);
-    if (priorDir !== undefined) {
-      throw new Error(
-        `skills: '${frontmatter.name}' is declared by more than one installed skill folder ('${priorDir}' and '${entry.name}') — ` +
-          `both would register the same tool id '${id}'; rename one skill's frontmatter 'name' to disambiguate`,
-      );
-    }
-    skillDirById.set(id, entry.name);
-
-    sources.push({
-      id,
-      skillName: frontmatter.name,
-      description: frontmatter.description,
-      markdown,
-      bundledFiles: await listBundledFiles(skillDir),
-    });
+    const resolution = await resolveSkillEntry({ workspaceRoot, entry, seenDirById });
+    if (resolution.kind === "resolved") sources.push(resolution.source);
   }
 
   return sources;
