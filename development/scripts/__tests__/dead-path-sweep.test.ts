@@ -40,6 +40,18 @@ import {
  * `backfill-vendor-credentials.ts`, `backfill-slug-collision-defaults.ts`). Running the sweep found
  * 35 dead references across 14 files — every one an unmigrated `src/` path. See
  * `KNOWN_BROKEN_PENDING_OWNER_DECISION` for the ledger and why none of them are fixed here.
+ *
+ * 2026-09-02 follow-up: the owner authorized fixing four of those files (13 of the 35 references) —
+ * `check-architecture.ts`, `check-route-coverage-diff.ts`, `check-src-complexity-drift.ts`, and the
+ * `drizzle.database-journal.config.ts` sibling fix `drizzle.config.ts` got in 7fb47f55 — repointing
+ * each `src/...` string to `apps/website/src/...` with no threshold, baseline, or scope changes
+ * beyond the path itself. Their register entries below are removed as no-longer-broken; the
+ * remaining 22 references across 10 files are unchanged and still the owner's call. Fixing
+ * `check-route-coverage-diff.ts`'s two git pathspecs also required repointing
+ * `route-coverage-lib.ts`'s `isMeasurableRouteFile` (same `src/server/routes/...` dead prefix, one
+ * function away) — that instance was invisible to this sweep because both its literals end in `/`
+ * (the `trailing-separator` skip rule), so it was never one of the 35 and has no register entry to
+ * remove.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
@@ -96,44 +108,6 @@ const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEn
       "which tests CI runs and what the route-coverage gates read off the resulting lcov — explicitly " +
       "reserved for the owner.",
     ["src/server"]
-  ),
-  ...known(
-    "development/scripts/check-architecture.ts",
-    `${CI_GATE_SCOPE} It cruises the bare specifier "src" (no separator, so the sweep cannot see that ` +
-      "one) and compares results against `src/index.ts`; both are dead, so `check:architecture` " +
-      "measures an empty graph.",
-    ["src/index.ts"]
-  ),
-  ...known(
-    "development/scripts/check-route-coverage-diff.ts",
-    `${CI_GATE_SCOPE} These two are git pathspecs; git does not error on a pathspec matching nothing, ` +
-      "so the gate sees zero changed route files and passes vacuously.",
-    ["src/server/routes", "src/server/inbound/admin-http/routes"]
-  ),
-  ...known(
-    "development/scripts/check-src-complexity-drift.ts",
-    `${CI_GATE_SCOPE} Eight of the nine SCOPES entries are dead; only "apps/site-chat/src" still ` +
-      "resolves, so the complexity gate lints one small app and nothing else.",
-    [
-      "src/server",
-      "src/assistant",
-      "src/features",
-      "src/widgets",
-      "src/seo",
-      "src/platform/export",
-      "src/analytics",
-      "src/media",
-    ]
-  ),
-  ...known(
-    "apps/website/src/platform/db/drizzle.database-journal.config.ts",
-    "the sibling of the `drizzle.config.ts` repointed in 7fb47f55, missed by that fix. Same " +
-      "consequence for the sidecar target: `db:generate:database-journal` fails with " +
-      "\"No schema files found\", so no migration can be generated for ops/database-journal.db. The " +
-      "real files are at apps/website/src/platform/db/sqlite/database-journal-schema.ts and " +
-      "apps/website/src/platform/db/drizzle-database-journal. Left to the owner because it belongs " +
-      "with its sibling's slice, and because migrations auto-apply to the live DB.",
-    ["./src/platform/db/sqlite/database-journal-schema.ts", "./src/platform/db/drizzle-database-journal"]
   ),
   ...known("development/scripts/agent-plugin-activation.ts", UNRUN_ONE_SHOT, [
     "../../src/features/agent-plugins/activation.js",
@@ -221,8 +195,8 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 35 references measured on 2026-09-02 — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 35);
+test("known-broken register is exactly the 22 references remaining after the 2026-09-02 four-file fix — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 22);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {

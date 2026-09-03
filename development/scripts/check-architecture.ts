@@ -68,6 +68,17 @@ import path from "node:path";
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const BASELINE_PATH = path.join(import.meta.dirname, "check-architecture.baseline.json");
 
+/** The production source tree this whole script measures. Was bare `"src"` until 2026-09-02: the
+ * apps/website restructure moved the tree but not this constant (nor the five other `"src"`-prefix
+ * checks below — `moduleOf`, `isOuterCompositionCaller`, `buildFileGraph`'s scope filter,
+ * `backEdgesIntoServer`, `deepImports` — that all have to move with it), so `cruise()` walked a
+ * nonexistent directory and every metric silently measured an empty graph. `dead-path-sweep.test.ts`
+ * only ever caught one of these six (`"src/index.ts"`, in `isOuterCompositionCaller`) — the bare
+ * `"src"` argument to `cruise()` has no path separator, so the sweep can't see it; the sweep's own
+ * known-broken register documents this as `check-architecture.ts` measuring an empty graph. One
+ * constant so every check moves together if the tree moves again. */
+const SRC_ROOT = "apps/website/src";
+
 const INCLUDE_TESTS = process.argv.includes("--include-tests");
 const UPDATE = process.argv.includes("--update");
 const LIST = process.argv.includes("--list");
@@ -237,12 +248,13 @@ interface Baseline {
   bidirectionalHubs: { count: number; total: number; pct: number; medians?: { fanIn: number; fanOut: number } };
 }
 
-/** `src/features/post/x.ts` → `features/post`; `src/seo/y.ts` → `seo`. */
+/** `apps/website/src/features/post/x.ts` → `features/post`; `apps/website/src/seo/y.ts` → `seo`. */
 function moduleOf(file: string): string | null {
-  const parts = file.split("/");
-  if (parts[0] !== "src" || parts.length < 2) return null;
-  if (parts[1] === "features" && parts.length > 2) return `features/${parts[2]}`;
-  return parts[1];
+  if (!file.startsWith(`${SRC_ROOT}/`)) return null;
+  const parts = file.slice(SRC_ROOT.length + 1).split("/");
+  if (parts.length < 2) return null;
+  if (parts[0] === "features" && parts.length > 2) return `features/${parts[1]}`;
+  return parts[0];
 }
 
 function isTestFile(file: string): boolean {
@@ -314,7 +326,7 @@ function isTypeOnlyDependency(dep: { dependencyTypes: string[] }): boolean {
  * composition root's own front door" with "a feature module reaching past its boundary", which is
  * the actual defect that metric exists to catch (Sol's step 5c). */
 function isOuterCompositionCaller(file: string): boolean {
-  return file === "src/index.ts" || file.startsWith("src/cli/");
+  return file === `${SRC_ROOT}/index.ts` || file.startsWith(`${SRC_ROOT}/cli/`);
 }
 
 /**
@@ -328,7 +340,7 @@ function cruise(): CruiseModule[] {
     "npx",
     [
       "depcruise",
-      "src",
+      SRC_ROOT,
       "--no-config",
       "--ts-pre-compilation-deps",
       "--ts-config",
@@ -375,7 +387,7 @@ function cruise(): CruiseModule[] {
  * gate on `moduleOf()`, which returns `null` for anything outside `src/`.
  */
 function buildFileGraph(modules: CruiseModule[], opts: { runtimeOnly: boolean }): Map<string, Set<string>> {
-  const inScope = (file: string): boolean => file.startsWith("src/");
+  const inScope = (file: string): boolean => file.startsWith(`${SRC_ROOT}/`);
   const forward = new Map<string, Set<string>>();
   for (const mod of modules) {
     if (!inScope(mod.source)) continue;
@@ -516,7 +528,7 @@ function backEdgesIntoServer(forward: Map<string, Set<string>>): { total: number
     if (moduleOf(from) === "server") continue;
     if (isOuterCompositionCaller(from)) continue;
     for (const to of targets) {
-      if (!to.startsWith("src/server/")) continue;
+      if (!to.startsWith(`${SRC_ROOT}/server/`)) continue;
       byTarget.set(to, (byTarget.get(to) ?? 0) + 1);
     }
   }
@@ -537,7 +549,7 @@ function deepImports(
     for (const to of targets) {
       const toModule = moduleOf(to);
       if (!toModule || toModule === fromModule) continue;
-      if (to === `src/${toModule}/index.ts`) continue;
+      if (to === `${SRC_ROOT}/${toModule}/index.ts`) continue;
       total += 1;
       if (!byModule.has(toModule)) byModule.set(toModule, { edges: 0, files: new Set() });
       const entry = byModule.get(toModule)!;

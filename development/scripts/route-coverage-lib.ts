@@ -79,10 +79,18 @@ export function isIntegrationTestFile(relPath: string): boolean {
  *  `src/server/routes/admin/**` to `src/server/inbound/admin-http/routes/**`. Both prefixes are
  *  recognized during the transition — `src/server/routes/**` still holds the site/members/oauth/etc.
  *  routes not yet moved. Once the whole tree finishes moving into `src/server/inbound/`, the first
- *  prefix becomes dead (matches nothing) and can be dropped. */
+ *  prefix becomes dead (matches nothing) and can be dropped.
+ *
+ *  2026-09-02: both prefixes repointed from `src/...` to `apps/website/src/...` — the apps/website
+ *  restructure moved the tree but not these strings, so this function matched nothing and both
+ *  route-coverage gates measured zero files. See `dead-path-sweep.test.ts`; this particular
+ *  instance was invisible to that sweep because both literals end in `/` (its
+ *  `trailing-separator` skip rule), not because it was already fixed. */
 export function isMeasurableRouteFile(relPath: string): boolean {
   const normalized = relPath.split(path.sep).join("/");
-  const isRoutePath = normalized.startsWith("src/server/routes/") || normalized.startsWith("src/server/inbound/admin-http/routes/");
+  const isRoutePath =
+    normalized.startsWith("apps/website/src/server/routes/") ||
+    normalized.startsWith("apps/website/src/server/inbound/admin-http/routes/");
   if (!isRoutePath) return false;
   if (normalized.includes("/__tests__/")) return false;
   if (/\.(test|spec)\.ts$/.test(normalized)) return false;

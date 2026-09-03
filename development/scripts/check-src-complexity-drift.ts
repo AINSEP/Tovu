@@ -20,6 +20,15 @@
  *               widening added 21 violations in `src/server` outside routes and 31 in
  *               `src/assistant` — 52 that had accumulated unseen, because `eslint.config.mjs`
  *               sets these two rules to `warn`/15 repo-wide and a warning cannot fail CI.
+ *   2026-09-02  repointed 8 of the 9 SCOPES entries from `src/...` to `apps/website/src/...`. The
+ *               apps/website restructure moved the tree but not these strings, so every entry but
+ *               `apps/site-chat/src` was a dead ESLint target — `check:src-complexity-drift` was
+ *               linting one small app and nothing else. See `dead-path-sweep.test.ts`. This is a
+ *               pure path repoint, not a re-scope: `src-complexity-debt.json`'s baseline entries
+ *               still read `src/...` and are NOT touched here, so every entry there now reads as
+ *               removed (no longer reproduces at its old path), and the real scan below will surface
+ *               whatever violations exist in the tree it can finally see — an owner decision on
+ *               whether/how to re-baseline, not made by this change.
  * `src/server` subsumes `src/server/routes`, so pre-existing route baseline entries keep matching
  * unchanged — widening the scan cannot orphan them.
  *
@@ -80,14 +89,14 @@ const DEBT_PATH = path.join(import.meta.dirname, "src-complexity-debt.json");
  * ESLint accepts multiple path patterns, so adding an area here is the whole change.
  */
 const SCOPES = [
-  "src/server",
-  "src/assistant",
-  "src/features",
-  "src/widgets",
-  "src/seo",
-  "src/platform/export",
-  "src/analytics",
-  "src/media",
+  "apps/website/src/server",
+  "apps/website/src/assistant",
+  "apps/website/src/features",
+  "apps/website/src/widgets",
+  "apps/website/src/seo",
+  "apps/website/src/platform/export",
+  "apps/website/src/analytics",
+  "apps/website/src/media",
   "apps/site-chat/src",
 ] as const;
 const THRESHOLD = 9;
