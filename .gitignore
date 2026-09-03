@@ -19,7 +19,7 @@ apps/admin/coverage/
 # mkcert-issued locally-trusted dev TLS cert + private key for the admin Vite dev server
 # (`server.https` in `apps/admin/vite.config.ts`). Machine-specific, never shared or committed —
 # each contributor runs `mkcert -install` once and regenerates their own.
-apps/admin/.certs/
+apps/admin/.certs*/
 *.log
 .DS_Store
 .env
