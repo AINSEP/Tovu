@@ -135,6 +135,50 @@ function isActionableDiagnostic(value: Record<string, unknown>): value is Action
   return typeof value.hint === "string" && value.hint.length > 0 && typeof value.remedyToolId === "string" && value.remedyToolId.length > 0;
 }
 
+/** Mutable, explicitly-threaded scan budget for {@link walkForDiagnostic} — a plain object passed down
+ *  the recursion rather than a closed-over variable, so the counter is an explicit dependency of the
+ *  function that mutates it instead of implicit shared state (see `coding-foundations`). */
+interface DiagnosticScanState {
+  visited: number;
+}
+
+/** `true` once the bounded walk should stop descending — depth past {@link MAX_DIAGNOSTIC_SCAN_DEPTH}
+ *  or the node budget exhausted. Pulled out of {@link walkForDiagnostic} so that function's own guard
+ *  is a single call instead of a compound `||` condition. */
+function diagnosticScanLimitReached(depth: number, scanState: DiagnosticScanState): boolean {
+  return depth > MAX_DIAGNOSTIC_SCAN_DEPTH || scanState.visited >= MAX_DIAGNOSTIC_SCAN_NODES;
+}
+
+/** The children {@link walkForDiagnostic} should recurse into for `value` — an object's own values, an
+ *  array's own elements, or `undefined` for anything else (a leaf, nothing to descend into). */
+function diagnosticScanChildren(value: unknown): Iterable<unknown> | undefined {
+  if (isPlainObject(value)) return Object.values(value);
+  if (Array.isArray(value)) return value;
+  return undefined;
+}
+
+/**
+ * One step of the bounded walk for {@link findActionableDiagnostic} — checks `value` itself, then
+ * recurses into its children (via {@link diagnosticScanChildren}) until a match is found or the walk
+ * is exhausted.
+ *
+ * @complexity O(min(n, {@link MAX_DIAGNOSTIC_SCAN_NODES})) where n is the subtree's own node count.
+ */
+function walkForDiagnostic(value: unknown, depth: number, scanState: DiagnosticScanState): ActionableToolFailureDiagnostic | undefined {
+  if (diagnosticScanLimitReached(depth, scanState)) return undefined;
+  scanState.visited += 1;
+
+  if (isPlainObject(value) && isActionableDiagnostic(value)) return { hint: value.hint, remedyToolId: value.remedyToolId };
+
+  const children = diagnosticScanChildren(value);
+  if (!children) return undefined;
+  for (const child of children) {
+    const found = walkForDiagnostic(child, depth + 1, scanState);
+    if (found) return found;
+  }
+  return undefined;
+}
+
 /**
  * Walks a completed tool call's raw output for the first nested object carrying an actionable
  * diagnostic (see {@link isActionableDiagnostic}) — domain-agnostic by construction: it knows nothing
@@ -146,30 +190,7 @@ function isActionableDiagnostic(value: Record<string, unknown>): value is Action
  * @complexity O(min(n, {@link MAX_DIAGNOSTIC_SCAN_NODES})) where n is the output's own node count.
  */
 function findActionableDiagnostic(output: unknown): ActionableToolFailureDiagnostic | undefined {
-  let visited = 0;
-
-  function walk(value: unknown, depth: number): ActionableToolFailureDiagnostic | undefined {
-    if (depth > MAX_DIAGNOSTIC_SCAN_DEPTH || visited >= MAX_DIAGNOSTIC_SCAN_NODES) return undefined;
-    visited += 1;
-
-    if (isPlainObject(value)) {
-      if (isActionableDiagnostic(value)) return { hint: value.hint, remedyToolId: value.remedyToolId };
-      for (const child of Object.values(value)) {
-        const found = walk(child, depth + 1);
-        if (found) return found;
-      }
-      return undefined;
-    }
-    if (Array.isArray(value)) {
-      for (const child of value) {
-        const found = walk(child, depth + 1);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-
-  return walk(output, 0);
+  return walkForDiagnostic(output, 0, { visited: 0 });
 }
 
 type JsonPrimitive = string | number | boolean | null;
@@ -192,6 +213,59 @@ interface RemedyPlan {
   readonly askFor?: { readonly key: string; readonly prompt: string };
 }
 
+/** The remedy tool's own required-field list and property schemas, pulled out of its `inputSchema` —
+ *  or `undefined` if the tool isn't registered or its schema isn't object-shaped at all. Split out of
+ *  {@link planRemedyCall} so that function's own guard clauses read as one step per concern. */
+function resolveRemedySchemaShape(descriptor: ToolDescriptor | undefined): { required: readonly string[]; properties: Record<string, unknown> } | undefined {
+  if (!descriptor || !isPlainObject(descriptor.inputSchema)) return undefined;
+  const schema = descriptor.inputSchema;
+  const required = Array.isArray(schema["required"]) ? (schema["required"] as unknown[]).filter((k): k is string => typeof k === "string") : [];
+  const properties = isPlainObject(schema["properties"]) ? schema["properties"] : {};
+  return { required, properties };
+}
+
+/** Which single required field (if any) the original call did not already supply — or the "too many
+ *  unknowns" outcome. See {@link planRemedyCall}'s own doc for why more than one unknown field means
+ *  this loop backs off entirely rather than build a multi-field form. */
+type AskKeyResolution = { readonly ok: true; readonly askKey: string | undefined } | { readonly ok: false };
+
+function resolveAskKey(required: readonly string[], knownInput: Record<string, unknown>): AskKeyResolution {
+  const missing = required.filter((key) => !(key in knownInput));
+  if (missing.length > 1) return { ok: false };
+  return { ok: true, askKey: missing[0] };
+}
+
+/** Every required field except `askKey`, carried forward verbatim from `knownInput` — or `undefined`
+ *  if one of them isn't a JSON primitive (nothing safe to re-forward without guessing at its shape). */
+function buildCarryForward(input: { required: readonly string[]; askKey: string | undefined; knownInput: Record<string, unknown> }): Readonly<Record<string, JsonPrimitive>> | undefined {
+  const { required, askKey, knownInput } = input;
+  const carryForward: Record<string, JsonPrimitive> = {};
+  for (const key of required) {
+    if (key === askKey) continue;
+    const value = knownInput[key];
+    if (!isJsonPrimitive(value)) return undefined;
+    carryForward[key] = value;
+  }
+  return carryForward;
+}
+
+function isTextLikeSchemaType(type: unknown): boolean {
+  return type === "string" || (Array.isArray(type) && type.every((t) => t === "string" || t === "null"));
+}
+
+/** Builds the one field this loop asks a human for, from `askKey`'s own schema entry — or `undefined`
+ *  if that schema isn't plain-text-shaped (this loop never invents how to render a number, boolean,
+ *  enum, or nested-object field). */
+function resolveAskFor(input: { askKey: string; properties: Record<string, unknown> }): RemedyPlan["askFor"] | undefined {
+  const { askKey, properties } = input;
+  const propSchema = properties[askKey];
+  if (!isPlainObject(propSchema) || !isTextLikeSchemaType(propSchema["type"])) return undefined;
+
+  const description = propSchema["description"];
+  const prompt = typeof description === "string" && description.trim() !== "" ? description : askKey;
+  return { key: askKey, prompt };
+}
+
 /**
  * Works out whether — and how — this loop can safely build a call to `remedyToolId`, from nothing but
  * that tool's own published `inputSchema` and the ORIGINAL failing call's input. Returns `undefined`
@@ -210,43 +284,21 @@ interface RemedyPlan {
  */
 function planRemedyCall(input: { remedyToolId: string; descriptor: ToolDescriptor | undefined; originalInput: unknown }): RemedyPlan | undefined {
   const { remedyToolId, descriptor, originalInput } = input;
-  if (!descriptor || !isPlainObject(descriptor.inputSchema)) return undefined;
+  const shape = resolveRemedySchemaShape(descriptor);
+  if (!shape) return undefined;
 
-  const schema = descriptor.inputSchema;
-  const required = Array.isArray(schema["required"]) ? (schema["required"] as unknown[]).filter((k): k is string => typeof k === "string") : [];
-  const properties = isPlainObject(schema["properties"]) ? schema["properties"] : {};
   const knownInput = isPlainObject(originalInput) ? originalInput : {};
+  const missingField = resolveAskKey(shape.required, knownInput);
+  if (!missingField.ok) return undefined;
 
-  const missing = required.filter((key) => !(key in knownInput));
-  // More than one unknown field: there is no single honest question that supplies all of them at
-  // once without guessing at how they relate — back off rather than force a multi-field form onto a
-  // contract that only ever promised one hedged hint.
-  if (missing.length > 1) return undefined;
-  const askKey = missing[0];
+  const carryForward = buildCarryForward({ required: shape.required, askKey: missingField.askKey, knownInput });
+  if (!carryForward) return undefined;
+  if (missingField.askKey === undefined) return { remedyToolId, carryForward };
 
-  const carryForward: Record<string, JsonPrimitive> = {};
-  for (const key of required) {
-    if (key === askKey) continue;
-    const value = knownInput[key];
-    // A required field the original call DID supply, but not as a plain value — refuse to guess how
-    // to re-forward it rather than risk passing something malformed or unintended to the remedy tool.
-    if (!isJsonPrimitive(value)) return undefined;
-    carryForward[key] = value;
-  }
+  const askFor = resolveAskFor({ askKey: missingField.askKey, properties: shape.properties });
+  if (!askFor) return undefined;
 
-  if (askKey === undefined) return { remedyToolId, carryForward };
-
-  const propSchema = properties[askKey];
-  if (!isPlainObject(propSchema)) return undefined;
-  const type = propSchema["type"];
-  const isTextLike = type === "string" || (Array.isArray(type) && type.every((t) => t === "string" || t === "null"));
-  // Only a plain-text answer can be collected generically, with no invented rendering — a number,
-  // boolean, enum, or nested-object field is left alone rather than guessed at.
-  if (!isTextLike) return undefined;
-
-  const description = propSchema["description"];
-  const prompt = typeof description === "string" && description.trim() !== "" ? description : askKey;
-  return { remedyToolId, carryForward, askFor: { key: askKey, prompt } };
+  return { remedyToolId, carryForward, askFor };
 }
 
 function recoverySurfaceUri(exchangeId: string): UIResourceUri {
@@ -322,6 +374,62 @@ export interface ToolFailureRecoveryDeps {
   readonly registry: Pick<ToolRegistry, "list">;
 }
 
+/** Whether `execute` should even attempt recovery, and what it found — pulled out of `execute` itself
+ *  so its own guard clauses (read-only refusal, no plannable remedy) don't count toward that method's
+ *  complexity. `attempt: false` always carries the exact `ToolExecutionResult` `execute` must return:
+ *  the original result untouched, except for the one case (a read-only refusal) that must say why
+ *  recovery was not attempted rather than silently returning the original as if nothing had happened. */
+type RecoveryGate = { readonly attempt: false; readonly outcome: ToolExecutionResult } | { readonly attempt: true; readonly plan: RemedyPlan };
+
+function resolveRecoveryGate(input: {
+  readonly diagnostic: ActionableToolFailureDiagnostic;
+  readonly principal: Principal;
+  readonly originalInput: unknown;
+  readonly registry: Pick<ToolRegistry, "list">;
+  readonly result: ToolExecutionResult;
+}): RecoveryGate {
+  const { diagnostic, principal, originalInput, registry, result } = input;
+
+  const readOnlyRefusal = refuseNonReadOnlyDispatch({ principal, toolId: diagnostic.remedyToolId, registry });
+  if (readOnlyRefusal !== null) return { attempt: false, outcome: { ...result, error: readOnlyRemedyRefusalMessage(readOnlyRefusal) } };
+
+  const descriptor = registry.list().find((d) => d.id === diagnostic.remedyToolId);
+  const plan = planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput });
+  if (!plan) return { attempt: false, outcome: result };
+
+  return { attempt: true, plan };
+}
+
+/** Wires the recovery surface's exchange to close if the caller aborts mid-ask, delegates to
+ *  {@link resolveRecoveryDecision} for the actual answer, and always tears the listener back down —
+ *  pulled out of `execute` so the abort-wiring's own optional chaining does not count toward that
+ *  method's own complexity. */
+async function collectRecoveryDecision(input: {
+  readonly exchange: SurfaceExchange;
+  readonly ui: UIResource;
+  readonly askForKey: string | undefined;
+  readonly signal: AbortSignal | undefined;
+}): Promise<RecoveryDecision> {
+  const { exchange, ui, askForKey, signal } = input;
+  const closeOnAbort = () => exchange.close();
+  signal?.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    return await resolveRecoveryDecision(exchange, ui, askForKey);
+  } finally {
+    signal?.removeEventListener("abort", closeOnAbort);
+  }
+}
+
+/** The remedy tool's own input, built from the accepted {@link RemedyPlan}: the planned carry-forward
+ *  fields plus, when one was asked for and answered, the human's own value under that field's key —
+ *  never anything else from the delivered surface response (see this file's header, "What it never
+ *  does"). */
+function buildRemedyInput(plan: RemedyPlan, decision: RecoveryDecision): Record<string, unknown> {
+  const remedyInput: Record<string, unknown> = { ...plan.carryForward };
+  if (plan.askFor && decision.answerValue !== undefined) remedyInput[plan.askFor.key] = decision.answerValue;
+  return remedyInput;
+}
+
 /**
  * Wraps `inner` with the generic ask -> apply -> retry-once recovery loop described in this file's
  * header. A drop-in `ToolExecutor` — every method other than `execute` delegates straight through,
@@ -352,38 +460,23 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
       // No channel to ask through (a headless/synthetic caller) — never guess, never suppress.
       if (!emitSurface) return result;
 
-      // A read-only execution may not be recovered by a remedy that writes. `withReadOnlyToolConstraint`
-      // would refuse the dispatch below regardless — it is the enforcement, and it does not depend on
-      // this line — but a refusal discovered THERE arrives only after a human has already been asked to
-      // fill in a form whose answer is then thrown away. Asking the same question here, from the same
-      // single decision function, means the human is never asked, and the caller gets a refusal that
-      // says what happened instead of an unexplained "nothing changed".
-      const readOnlyRefusal = refuseNonReadOnlyDispatch({ principal, toolId: diagnostic.remedyToolId, registry: deps.registry });
-      if (readOnlyRefusal !== null) return { ...result, error: readOnlyRemedyRefusalMessage(readOnlyRefusal) };
-
-      const descriptor = deps.registry.list().find((d) => d.id === diagnostic.remedyToolId);
-      const plan = planRemedyCall({ remedyToolId: diagnostic.remedyToolId, descriptor, originalInput: input });
-      // This diagnostic's shape doesn't fit the one pattern this loop can safely act on — see
-      // `planRemedyCall`'s own doc for every reason that can be. Reported honestly by doing nothing,
-      // not by forcing a guess.
-      if (!plan) return result;
+      // A read-only execution may not be recovered by a remedy that writes, and this diagnostic's
+      // shape must fit the one pattern this loop can safely act on — see `resolveRecoveryGate` and
+      // `planRemedyCall`'s own docs for every reason either can decide not to proceed.
+      // `withReadOnlyToolConstraint` would refuse the dispatch below regardless — it is the
+      // enforcement, and it does not depend on this check — but a refusal discovered THERE arrives
+      // only after a human has already been asked to fill in a form whose answer is then thrown away.
+      const gate = resolveRecoveryGate({ diagnostic, principal, originalInput: input, registry: deps.registry, result });
+      if (!gate.attempt) return gate.outcome;
 
       const exchange = deps.surfaceExchanges.open({ toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: principal.id }, emitSurface);
-      const ui = buildRecoveryFormResource({ exchangeId: exchange.id, hint: diagnostic.hint, remedyToolId: diagnostic.remedyToolId, askFor: plan.askFor });
+      const ui = buildRecoveryFormResource({ exchangeId: exchange.id, hint: diagnostic.hint, remedyToolId: diagnostic.remedyToolId, askFor: gate.plan.askFor });
 
-      const closeOnAbort = () => exchange.close();
-      signal?.addEventListener("abort", closeOnAbort, { once: true });
-      let decision: RecoveryDecision;
-      try {
-        decision = await resolveRecoveryDecision(exchange, ui, plan.askFor?.key);
-      } finally {
-        signal?.removeEventListener("abort", closeOnAbort);
-      }
+      const decision = await collectRecoveryDecision({ exchange, ui, askForKey: gate.plan.askFor?.key, signal });
       // Declined, dismissed, expired, or a blank answer — the ORIGINAL failure is still the truth.
       if (!decision.proceed) return result;
 
-      const remedyInput: Record<string, unknown> = { ...plan.carryForward };
-      if (plan.askFor && decision.answerValue !== undefined) remedyInput[plan.askFor.key] = decision.answerValue;
+      const remedyInput = buildRemedyInput(gate.plan, decision);
 
       // ---- STRUCTURAL ONE-CYCLE GUARD ----
       // Both calls below go straight to `inner` — never back through this function or the object it
