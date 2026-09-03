@@ -335,6 +335,16 @@ const HAND_WRITTEN_RULES = [
 // (`2026-08-13-api-surface-trace-B.md`) read every file in both and found no barrel to bypass
 // would be real narrowing — adding one and redirecting importers would relabel the same
 // commitment under one path, the exact anti-goal the plan doc's own dispatch ruled out.
+// `features/agent-plugins` (13 files) is excluded for the identical reason, checked independently
+// (2026-09-03; not part of trace-B's original 4-module scope, same test applied): no existing
+// `index.ts` to bypass, and only 5 of its 13 files are reached from outside the module —
+// `layout.ts`, `resolve-agent-plugin-refs.ts`, `tool-registrations.ts`, `seed-bundled.ts`, and
+// `install.ts` (type-only) — each pulled by a different subset of 4 distinct external files across
+// 3 modules (`server/runtime/boot/bootstrap.ts`; `server/inbound/assistant/plugin-prompt-prefix.ts`
+// and `server/inbound/assistant/agent-daemon-server.ts`; `features/plugin-runtime/
+// tool-registrations.ts`). Same Category-3 shape as `widgets`/`recovery`: legitimate direct access
+// to distinct capabilities, not a bypassed door. A barrel re-exporting all 5 would still leave
+// every one of those files reachable, just under one more path — relabeling, not narrowing.
 const GUARDED_MODULES = [
   "features/analytics",
   "assistant",
