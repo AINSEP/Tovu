@@ -18,13 +18,14 @@ import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-s
  * disagree (see `AdminExecutionMode`'s own doc comment in `AiAssistant.tsx`).
  */
 
-function makeSlice<T>(value: T): SettingsSlice<T> {
+function makeSlice<T>(value: T, overrides: Partial<SettingsSlice<T>> = {}): SettingsSlice<T> {
   return {
     value,
     loadError: null,
     saveState: { status: "idle" },
     onChange: vi.fn(),
     refresh: vi.fn(),
+    ...overrides,
   };
 }
 
@@ -97,5 +98,33 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     render(<AdminExecutionMode useAdminExecutionModeHook={() => fakeExecutionModeController()} />);
     // No migration prompt (nothing to fake a legacy key with), but the execution form itself renders.
     expect(screen.queryByText(/We found a saved key in this browser/)).not.toBeInTheDocument();
+  });
+
+  it("renders exactly one save-confirmation line when a BYOK settings save completes", () => {
+    // Owner-reported bug: the ledger's own generic auto-save line (`execution.saveState`, fed by every
+    // edit to `core.execution` — mode switch, Local CLI agent picks, and also every BYOK field
+    // keystroke since `ByokProviderForm` routes through the same `onConfigChange`) used to render
+    // alongside `AdminByokSettingsFooter`'s own "Settings saved." line, stacking two confirmations
+    // under one button press. Both landing on "saved" here reproduces that overlap.
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() =>
+          fakeExecutionModeController({
+            execution: makeSlice<ExecutionConfig>(
+              { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" },
+              { saveState: { status: "saved" } },
+            ),
+          })
+        }
+        useAdminExecutionCredentialHook={() =>
+          fakeAdminExecutionCredentialController({ settingsSaveState: { status: "saved" } })
+        }
+      />,
+    );
+
+    expect(screen.getByText("Settings saved.")).toBeInTheDocument();
+    // The generic ledger line's own text must not also be on screen — that second element is the
+    // duplicate the owner saw stacked under "Save settings".
+    expect(screen.queryByText("Saved.")).not.toBeInTheDocument();
   });
 });

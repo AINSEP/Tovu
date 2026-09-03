@@ -314,17 +314,25 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
       />
       {/*
-        Save feedback, which `SettingsUi.tsx` gets from its page chrome (`mergeSaveStates` across six
-        slices) and this screen has no equivalent of. Without a line here the debounced write is
-        completely silent: an operator switches to BYOK, sees nothing acknowledge it, and has no way
-        to tell a saved setting from a dropped one. Not the shared indicator, because there is only
-        one slice on this tab and merging over a set of one would be ceremony.
+        Save feedback for the ledger's OWN debounced auto-save — `SettingsUi.tsx` gets the equivalent
+        from its page chrome (`mergeSaveStates` across six slices); this screen has no such chrome, so
+        without a line here Local CLI edits (mode switch, agent pick, env change — none of which have
+        an explicit save button) would be completely silent. Local CLI mode ONLY: every BYOK field
+        edit routes through this SAME `execution.onChange` (see `ByokProviderForm`'s `onConfigChange`),
+        so while BYOK is selected this line used to fire in parallel with whichever of the two footers
+        above just confirmed its own save — two stacked "Saved." lines under one button press (owner-
+        reported). BYOK mode's two explicit buttons already own all user-facing save confirmation for
+        their fields, so this generic line has nothing left to say there.
       */}
-      <p className="assistant-save-line" role="status">
-        {execution.saveState.status === "saving" ? t("Saving…") : null}
-        {execution.saveState.status === "saved" ? t("Saved.") : null}
-      </p>
-      {execution.saveState.status === "error" ? <div className="save-error">{execution.saveState.message}</div> : null}
+      {execution.value.mode === "local-cli" ? (
+        <>
+          <p className="assistant-save-line" role="status">
+            {execution.saveState.status === "saving" ? t("Saving…") : null}
+            {execution.saveState.status === "saved" ? t("Saved.") : null}
+          </p>
+          {execution.saveState.status === "error" ? <div className="save-error">{execution.saveState.message}</div> : null}
+        </>
+      ) : null}
     </section>
   );
 }
