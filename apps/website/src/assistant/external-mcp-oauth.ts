@@ -649,31 +649,44 @@ async function setOAuthStatus(
   // client the operator never saw that secret, so losing it here means the row can never be
   // re-authorized — only deleted and recreated.
   //
-  // Both the open and the re-seal below can throw `ExternalMcpSecretStoreUnconfiguredError` — a
-  // rotated or missing root key, or a blob whose AAD no longer matches
-  // (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`). Before this
-  // read-modify-write existed, clearing a token was unconditional (plain `sealedOAuth: null`) and
-  // always succeeded; requiring a successful decrypt-then-reseal to clear one instead made every
-  // operator escape hatch that clears a token — `markNeedsReauth`, `disconnect()`, the device-poll
-  // terminal path — fail exactly when the blob is already unrecoverable, which is the one case an
-  // operator most needs to still be ABLE to clear it (the alternative is deleting the row outright).
-  // If either step fails for that reason, fall back to the pre-existing wholesale-null behavior
-  // rather than leaving the row stuck: a secret that cannot be decrypted is already lost, so nulling
-  // it loses nothing that was not lost already. Any OTHER error (a genuine bug, not an unopenable
-  // blob) still propagates — this is a documented degrade, not a blanket swallow.
+  // The open and the re-seal below are kept in SEPARATE try/catches on purpose, even though both can
+  // throw the same `ExternalMcpSecretStoreUnconfiguredError`
+  // (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`): they mean different
+  // things about whether the secret is actually lost. If OPEN fails, the blob could not be decrypted
+  // at all — a rotated root key or a corrupt row — so whatever it held is already unrecoverable, and
+  // falling back to the pre-existing wholesale-null behavior loses nothing that was not lost already
+  // (this is what keeps `markNeedsReauth`, `disconnect()`, and the device-poll terminal path from
+  // wedging on a blob that is already dead). If OPEN succeeds but the RE-SEAL fails, the secret was
+  // just read successfully — it is NOT lost, only the write-back (a transient keyring/active-key
+  // problem, say) failed. Wholesale-nulling in that case would destroy a secret this call proves is
+  // still recoverable, for a failure a retry may not even repeat. So a re-seal failure leaves
+  // `sealedOAuth` untouched instead: the row keeps its current blob, `clearToken` simply is not
+  // honored on THIS call, and the status change below still applies. Any OTHER error (a genuine bug,
+  // not an unopenable or unsealable blob) still propagates from either step — this is a documented,
+  // targeted degrade, not a blanket swallow.
   let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
   let clearedWholesale = false;
   if (options.clearToken === true) {
+    let existing: Awaited<ReturnType<typeof openExternalMcpOAuthPayload>> | undefined;
     try {
-      const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-      cleared = await sealExternalMcpOAuthPayload(
-        deps,
-        record,
-        existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
-      );
+      existing = await openExternalMcpOAuthPayload(deps.sealer, record);
     } catch (error) {
       if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
       clearedWholesale = true;
+    }
+    if (existing !== undefined) {
+      try {
+        cleared = await sealExternalMcpOAuthPayload(
+          deps,
+          record,
+          existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
+        );
+      } catch (error) {
+        if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+        // Deliberately no fallback here — see the block comment above: the secret is known-good, so
+        // leaving `sealedOAuth` out of the upsert (the `{}` branch below) is the non-destructive
+        // outcome, not `clearedWholesale`.
+      }
     }
   }
 

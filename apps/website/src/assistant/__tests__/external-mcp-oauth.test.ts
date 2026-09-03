@@ -857,17 +857,21 @@ test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a 
   );
 });
 
-test("disconnect still clears when the KEYRING has no active key — the re-seal leg throws too, not just the open", async () => {
+test("disconnect does NOT wipe the client secret when only the KEYRING re-seal leg fails — the secret was just read successfully", async () => {
   const base = await makeHarness({ script: CONNECTED_SCRIPT });
   await connect(base.service);
-  // The sealer stays real, so the blob OPENS: the only step that can fail is the re-seal.
+  // The sealer stays real, so the blob OPENS: the only step that can fail is the re-seal. Unlike
+  // `sealerThatCannotOpen` above, this is NOT "already unrecoverable" — the secret was just decrypted
+  // in this very call, so wholesale-nulling it would destroy something still known-good.
   const service = serviceWithBrokenDependency(base, { keyring: keyringWithNoActiveKey(base.keyring) });
 
   await service.disconnect({ serverId: SERVER });
 
   const row = await readRow(base.repo);
   assert.equal(row.oauthStatus, "disconnected");
-  assert.equal(row.sealedOAuth, null, "an unsealable payload cannot be written back, so the row must still be cleared");
+  assert.notEqual(row.sealedOAuth, null, "a failed RE-seal must not destroy a secret this call proved it could still read");
+  const payload = await openExternalMcpOAuthPayload(base.sealer, row);
+  assert.equal(payload.clientSecret, "s3cr3t", "the client secret must survive a transient re-seal failure");
 });
 
 test("markNeedsReauth records the durable state even when the blob became unopenable mid-session", async () => {
