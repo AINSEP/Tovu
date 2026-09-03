@@ -98,7 +98,13 @@ import {
   type BlobStorePort,
 } from "#src/features/media/index";
 import { ensureCoreMediaTransform } from "#src/features/media/bootstrap";
-import { createSqliteIdentityRouteDeps } from "#src/features/identity/wiring";
+import { createSqliteIdentityRouteDeps, type IdentityRouteDepsSlice } from "#src/features/identity/wiring";
+import {
+  resetAdminPasswordSelfVerified,
+  AdminPasswordResetVerificationFailedError,
+} from "#src/features/identity/reset-admin-password-self-verified";
+import type { IdentityRepos } from "@jini-ai/cms/identity";
+import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "#src/features/forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/contracts/core/rate-limit/rate-limit";
@@ -522,6 +528,84 @@ function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSqli
   hydrateContentDbFromSeed({ seedDbPath: builtInContentSeedDbPath(), dbPath });
 }
 
+/**
+ * 2026-09-03 production incident recovery hook — opt-in ONLY: a no-op on every ordinary boot,
+ * because it does nothing at all unless the operator has explicitly set `TOVU_ADMIN_RESET_PASSWORD`
+ * (e.g. as a Fly secret) for this one deploy. That opt-in-via-env-var gate is what makes it safe to
+ * wire into every boot unconditionally, the same reasoning `hydrateContentDbIfNeeded` above follows
+ * for its own presence-not-contents gate.
+ *
+ * Exists because the admin UI's own reset-password route is not always trustworthy as a recovery
+ * path — it is exactly what failed in the incident this closes (see
+ * `features/identity/reset-admin-password-self-verified.ts`'s own header for the full story) — so
+ * an operator locked out of the admin panel needs a way to fix the credential that does not depend
+ * on the admin panel already working. `resetAdminPasswordSelfVerified` re-reads and verifies the
+ * write before this function ever reports success; a failure here is logged loudly but never
+ * crashes the boot (mirrors `hydrateBlobStoreFromSeed`'s own catch-and-log posture below) —
+ * crashing the ENTIRE public site over a failed ADMIN-only credential fix would be a strictly worse
+ * outcome than the incident it is trying to recover from.
+ *
+ * A no-op whenever `overrides.db` is supplied, same reason and same guard as
+ * `hydrateContentDbIfNeeded` above: that caller has already opened its own db (at a path this
+ * function cannot assume equals `dbPath`) before reaching here.
+ */
+function applyAdminPasswordResetFromEnvIfConfigured(required: {
+  db: ContentDb;
+  dbPath: string;
+  workspaceId: string;
+  identity: IdentityRouteDepsSlice;
+  clock: ClockPort;
+  idGen: IdGeneratorPort;
+  overrides?: Partial<CreateSqliteRouteDepsOverrides>;
+}): Promise<void> {
+  if (required.overrides?.db !== undefined) return Promise.resolve();
+
+  const password = process.env.TOVU_ADMIN_RESET_PASSWORD;
+  if (!password) return Promise.resolve();
+  const username = process.env.TOVU_ADMIN_RESET_USERNAME ?? "admin";
+
+  const { db, dbPath, workspaceId, identity, clock, idGen } = required;
+  const repos: IdentityRepos = {
+    principals: identity.principalRepo,
+    users: identity.userRepo,
+    sessions: identity.sessionRepo,
+    roles: identity.roleRepo,
+    policies: identity.policyRepo,
+    policyPermissions: identity.policyPermissionRepo,
+    rolePolicies: identity.rolePolicyRepo,
+    principalRoles: identity.principalRoleRepo,
+    principalPolicies: identity.principalPolicyRepo,
+  };
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
+
+  // eslint-disable-next-line no-console
+  console.error(
+    `TOVU_ADMIN_RESET_PASSWORD is set — resetting password for username='${username}' at boot. ` +
+      "Unset this env var/secret again immediately after a successful reset."
+  );
+
+  return identity.identityReady
+    .then(() =>
+      resetAdminPasswordSelfVerified(
+        // eslint-disable-next-line no-console
+        { auth: { repos, hasher: identity.passwordHasher, clock, idGen }, dbOps, log: (m) => console.error(`[admin-password-reset] ${m}`) },
+        { workspaceId, username, password, restorePointScopeId: "boot-admin-password-reset" }
+      )
+    )
+    .then(() => {
+      // eslint-disable-next-line no-console
+      console.error(`[admin-password-reset] SUCCESS — username='${username}' password reset and self-verified at boot.`);
+    })
+    .catch((err) => {
+      const detail =
+        err instanceof AdminPasswordResetVerificationFailedError
+          ? err.message
+          : `${(err as Error).message ?? err}`;
+      // eslint-disable-next-line no-console
+      console.error(`[admin-password-reset] FAILED for username='${username}': ${detail}`);
+    });
+}
+
 export function createSqliteRouteDeps(
   dbPath: string = defaultContentDbPath(),
   overrides?: Partial<CreateSqliteRouteDepsOverrides>
@@ -589,6 +673,10 @@ export function createSqliteRouteDeps(
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
+  // Fire-and-forget, mirroring `identityReady`/`blobHydrationReady` below — opt-in only (see the
+  // function's own doc), so this is a genuine no-op on every ordinary boot.
+  const adminPasswordResetReady = applyAdminPasswordResetFromEnvIfConfigured({ db, dbPath, workspaceId, identity, clock, idGen, overrides });
+  void adminPasswordResetReady;
   const presentationRepo = new SqlitePresentationSettingsRepo(db);
   const settingsRepo = new SqliteSettingsRepo(db);
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
