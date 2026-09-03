@@ -71,6 +71,122 @@ test("recovery routes: disclosure always renders 'unknown' (never a fabricated 0
   assert.equal(body.counts.plugin_table, "unknown");
 });
 
+test("recovery routes: disclosure is 403 for a caller without backup.read", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps(), authorize: async () => ({ allowed: false, reason: "insufficient role" }) };
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminRecoveryDisclosureRoute(app, deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: "rp-1" }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code?: string; details?: { permission?: string; reason?: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details?.permission, "backup.read");
+  assert.equal(body.details?.reason, "insufficient role");
+});
+
+test("recovery routes: disclosure is 400 VALIDATION_ERROR when restorePointId is missing or not a string", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const missing = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({}),
+  });
+  assert.equal(missing.status, 400);
+  assert.deepEqual(await missing.json(), { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
+
+  const wrongType = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: 12345 }),
+  });
+  assert.equal(wrongType.status, 400);
+  assert.deepEqual(await wrongType.json(), { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
+
+  // No content-type header at all -- express.json() never parses the body, so `req.body` is
+  // `undefined` and the route's `req.body ?? {}` fallback is the one exercising this, not a
+  // pre-parsed empty object.
+  const noBody = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, { method: "POST", headers: { cookie } });
+  assert.equal(noBody.status, 400);
+  assert.deepEqual(await noBody.json(), { error: "'restorePointId' (string) is required", code: "VALIDATION_ERROR" });
+});
+
+test("recovery routes: disclosure 500s with the thrown message when the watermark source explodes", async (t) => {
+  const deps: RouteDeps = createRouteDeps();
+  deps.disclosureWatermarkSource.getBaseline = async () => {
+    throw new Error("watermark source unreachable");
+  };
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminRecoveryDisclosureRoute(app, deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: "rp-1" }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "watermark source unreachable", code: "INTERNAL_ERROR" });
+});
+
+test("recovery routes: disclosure 500s with a generic message when a non-Error is thrown", async (t) => {
+  const deps: RouteDeps = createRouteDeps();
+  deps.disclosureWatermarkSource.getBaseline = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw "not-an-error-instance";
+  };
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminRecoveryDisclosureRoute(app, deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: "rp-1" }),
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("recovery routes: disclosure renders real counts once the watermark baseline is usable", async (t) => {
+  const deps: RouteDeps = createRouteDeps();
+  deps.disclosureWatermarkSource.getBaseline = async () => ({ available: true, watermarkAtCapture: 42, currentWatermark: 50 });
+  deps.disclosureWatermarkSource.getCategoryCounts = async () => ({ posts_pages: 7 });
+  const app = express();
+  app.use(express.json());
+  registerAuthRoutes(app, deps);
+  app.use("/api/admin", requireAdminSession(deps));
+  registerAdminRecoveryDisclosureRoute(app, deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/disclosure`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ restorePointId: "rp-1" }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { watermarkBaselineAvailable: boolean; counts: Record<string, unknown> };
+  assert.equal(body.watermarkBaselineAvailable, true);
+  assert.equal(body.counts.posts_pages, 7);
+  // plugin_table has no entry in the count source -- the missing-key `?? 0` fallback (not "unknown").
+  assert.equal(body.counts.plugin_table, 0);
+});
+
 test("recovery routes: a deep-link envelope with a stale/unknown restorePointId resolves {found:false}, not an error (INV-04)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

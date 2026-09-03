@@ -145,6 +145,50 @@ test("DELETE clears the key; a second DELETE on an already-cleared credential is
   assert.equal(second.status, 200);
 });
 
+test("PUT is 403 for a caller without the assistant-settings permission", async (t) => {
+  const { app } = buildTestApp({ authorize: async () => ({ allowed: false, reason: "insufficient role" }) });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "would-be-a-real-key" });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code?: string; details?: { reason?: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(body.details?.reason, "insufficient role");
+});
+
+test("PUT rejects a present-but-non-string field (a stray {provider: 12345}) as 400, distinct from the empty-apiKey check", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { provider: 12345 });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code?: string; error?: string };
+  assert.equal(body.code, "SITE_CREDENTIAL_VALIDATION_ERROR");
+  assert.equal(body.error, "provider must be a string");
+});
+
+test("PUT rejects a null apiKey (present, not a string, not caught by the trim().length===0 empty check) as 400", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: null });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json() as { error?: string }).error, "apiKey must be a string");
+});
+
+test("PUT 500s (generic) when the repo explodes on an otherwise-valid request", async (t) => {
+  const deps = createRouteDeps();
+  deps.siteAssistantCredentialRepo.findByWorkspaceId = async () => {
+    throw new Error("db exploded");
+  };
+  const { app } = buildTestApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await put(baseUrl, CREDENTIAL_PATH, cookie, { apiKey: "would-be-a-real-key" });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
 test("PUT with an apiKey fails closed with 503 SECRET_STORE_UNCONFIGURED when the master secret is unavailable", async (t) => {
   const brokenKeyring = new BrokenKeyring();
   const { app } = buildTestApp({

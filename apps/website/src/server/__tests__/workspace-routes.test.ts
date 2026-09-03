@@ -202,3 +202,102 @@ test("AC-06: DELETE always refuses in v1 (LAST_WORKSPACE) for the caller's own w
   });
   assert.equal(mismatched.status, 404);
 });
+
+test("AC-06b: unauthenticated DELETE is 401, and a caller without workspace.manage is 403 (both before the LAST_WORKSPACE guard)", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const unauthed = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, { method: "DELETE" });
+  assert.equal(unauthed.status, 401);
+
+  await deps.identityReady;
+  const viewerRole = (await deps.roleRepo.list({ workspaceId: deps.workspaceId })).find((role) => role.name === "viewer");
+  assert.ok(viewerRole, "seed created a built-in viewer role");
+  await deps.principalRepo.save({
+    id: "ws-viewer-del",
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: "Viewer",
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId: "ws-viewer-del",
+    workspaceId: deps.workspaceId,
+    username: "wsviewerdel",
+    passwordHash: await deps.passwordHasher.hash("viewer-pw"),
+  });
+  await deps.principalRoleRepo.save({
+    id: "pr-ws-viewer-del",
+    workspaceId: deps.workspaceId,
+    principalId: "ws-viewer-del",
+    roleId: viewerRole!.id,
+  });
+  const { cookie: viewerCookie } = await loginAs(baseUrl, "wsviewerdel", "viewer-pw");
+  const denied = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
+    method: "DELETE",
+    headers: { cookie: viewerCookie },
+  });
+  assert.equal(denied.status, 403);
+});
+
+test("AC-06c: DELETE succeeds (204) once a second workspace row exists, so the caller's own is no longer the last remaining", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  await fetch(`${baseUrl}/api/admin/v1/workspaces`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Decoy", slug: "decoy" }),
+  });
+
+  // NOTE (reported to the coordinator, not fixed here — out of this dispatch's route-file scope):
+  // every other route in this composition trusts `deps.workspaceId` as a fixed, always-valid
+  // constant (it is never re-validated per request). This guard only refuses deleting the LAST
+  // workspace row, not specifically the process's OWN configured workspace, so an authorized admin
+  // can delete the site's real, currently-in-use workspace as long as a second (even unrelated,
+  // empty) workspace row exists to satisfy INV-03 -- leaving every other route pointed at a
+  // workspace id that no longer resolves. This test documents the route's mechanical behavior
+  // (204 on a real non-last delete), not an endorsement of that broader design gap.
+  const deleted = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(deleted.status, 204);
+});
+
+test("AC-06d: DELETE surfaces WorkspaceNotFoundError as 404 RESOURCE_NOT_FOUND when the repo has no row for the id", async (t) => {
+  const deps = createRouteDeps();
+  deps.workspaceRepo.findById = async () => null;
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code?: string };
+  assert.equal(body.code, "RESOURCE_NOT_FOUND");
+});
+
+test("AC-06e: DELETE 500s (generic) when the repo throws something other than the two typed workspace errors", async (t) => {
+  const deps = createRouteDeps();
+  deps.workspaceRepo.list = async () => {
+    throw new Error("db exploded");
+  };
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+});
