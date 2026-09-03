@@ -19,6 +19,8 @@ import { ExternalMcpReauthRequiredError, externalMcpSettingsDeepLink } from "./e
 import {
   resolveExternalMcpAuthMode,
   resolveExternalMcpOAuthStatus,
+  type ExternalMcpOAuthStatus,
+  type ExternalMcpServerRecord,
   type ExternalMcpServerRepoPort,
 } from "./external-mcp-store.js";
 
@@ -201,6 +203,113 @@ async function resolveReauthAcknowledgement(
   return { acknowledged: true };
 }
 
+/** Narrows and validates the tool call's `id` input. Split out purely to keep the handler's
+ *  complexity under the shop ceiling.
+ *  @throws {Error} `id` is missing or not a string. */
+function parseReauthServerId(ctx: Parameters<ToolHandler>[0]): string {
+  const input = (ctx.input ?? {}) as Record<string, unknown>;
+  const serverId = typeof input["id"] === "string" ? input["id"] : "";
+  if (!serverId) {
+    throw new Error(`${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
+  }
+  return serverId;
+}
+
+/**
+ * Loads the connection this notice is for, or degrades to a plain terminal error rather than
+ * raising a dialog that cannot do anything useful — see this file's own header and the dispatch's
+ * own "cannot proceed" rule. Split out purely to keep the handler's complexity under the shop
+ * ceiling.
+ *
+ * @throws {ExternalMcpReauthRequiredError} No row exists, or it names no OAuth client identity at
+ *   all — both reuse this error's wording ("ask the operator to reconnect it in Settings → External
+ *   MCP"), which is accurate for either case.
+ * @throws {Error} The row exists but is not OAuth-authenticated — a distinct message, because
+ *   "authorization expired" would be actively misleading for a `static_env`/`none` connection that
+ *   was never going to have one.
+ */
+async function requireReauthableExternalMcpServer(
+  routeDeps: ExternalMcpReauthToolDeps,
+  serverId: string,
+): Promise<ExternalMcpServerRecord> {
+  const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
+  if (!record) throw new ExternalMcpReauthRequiredError({ serverId, label: null });
+  if (resolveExternalMcpAuthMode(record) !== "oauth") {
+    throw new Error(
+      `${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: '${record.label ?? serverId}' does not use OAuth ` +
+        `authorization, so there is nothing to reconnect. Check its configuration in Settings → External MCP.`,
+    );
+  }
+  if (!record.oauthProviderId && !record.oauthClientId) {
+    throw new ExternalMcpReauthRequiredError({ serverId, label: record.label });
+  }
+  return record;
+}
+
+/** The handler's no-interactive-channel degrade. Split out purely to keep the handler's complexity
+ *  under the shop ceiling. */
+function buildReauthNoSurfaceResult(input: { serverId: string; label: string }) {
+  return {
+    promptShown: false,
+    serverId: input.serverId,
+    label: input.label,
+    note:
+      `This execution context cannot show an interactive dialog. Tell the administrator directly: ` +
+      `"${input.label}" needs to be reconnected — open Settings → External MCP and click Reconnect on ${input.label}.`,
+  };
+}
+
+/** The handler's already-showing degrade. Split out purely to keep the handler's complexity under
+ *  the shop ceiling. */
+function buildReauthAlreadyShowingResult(input: { serverId: string; label: string }) {
+  return {
+    promptShown: false,
+    alreadyShowing: true,
+    serverId: input.serverId,
+    label: input.label,
+    note: `A reconnect notice for "${input.label}" is already showing. Do not open another — wait for the administrator to answer that one.`,
+  };
+}
+
+/** Builds the handler's final result once the administrator has answered (or the dialog expired /
+ *  the run ended). Split out purely to keep the handler's complexity under the shop ceiling —
+ *  behavior (including message text) is unchanged. */
+function buildReauthOutcome(input: {
+  serverId: string;
+  label: string;
+  currentStatus: ExternalMcpOAuthStatus;
+  answer: Awaited<ReturnType<typeof resolveReauthAcknowledgement>>;
+}) {
+  const { serverId, label, currentStatus, answer } = input;
+  if (!answer.acknowledged) {
+    return {
+      promptShown: true,
+      acknowledged: false,
+      reason: answer.reason,
+      serverId,
+      label,
+      currentStatus,
+      note:
+        answer.reason === "expired"
+          ? `The administrator did not respond to the reconnect notice for "${label}" before it expired.`
+          : `The reconnect notice for "${label}" was closed because the run ended.`,
+    };
+  }
+  return {
+    promptShown: true,
+    acknowledged: true,
+    serverId,
+    label,
+    currentStatus,
+    note:
+      currentStatus === "connected"
+        ? `"${label}" is reconnected. Retry the original failed call now.`
+        : `The administrator acknowledged the reconnect notice for "${label}". Its status is still ` +
+          `'${currentStatus}' — ask them to confirm they finished in Settings → External MCP before ` +
+          `retrying, or call this tool again once they say they have.`,
+  };
+}
+
 /**
  * Builds this tool's registration.
  *
@@ -221,58 +330,17 @@ export function buildExternalMcpReauthRegistrations(
 
   const handlers: Record<string, ToolHandler> = {
     [EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID]: async (ctx: Parameters<ToolHandler>[0]) => {
-      const input = (ctx.input ?? {}) as Record<string, unknown>;
-      const serverId = typeof input["id"] === "string" ? input["id"] : "";
-      if (!serverId) {
-        throw new Error(`${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: 'id' is required.`);
-      }
-
-      const record = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
-
-      // ---- Degrade to a plain terminal error rather than raising a dialog that cannot do anything
-      // useful — see this file's own header and the dispatch's own "cannot proceed" rule. A missing
-      // row or one with no OAuth client identity at all reuses `ExternalMcpReauthRequiredError`
-      // itself: its wording ("ask the operator to reconnect it in Settings → External MCP") is
-      // accurate for both. A row that simply is not OAuth-authenticated gets a distinct message,
-      // because "authorization expired" would be actively misleading for a `static_env`/`none`
-      // connection that was never going to have one. ----
-      if (!record) throw new ExternalMcpReauthRequiredError({ serverId, label: null });
-      if (resolveExternalMcpAuthMode(record) !== "oauth") {
-        throw new Error(
-          `${EXTERNAL_MCP_REAUTH_PROMPT_TOOL_ID}: '${record.label ?? serverId}' does not use OAuth ` +
-            `authorization, so there is nothing to reconnect. Check its configuration in Settings → External MCP.`,
-        );
-      }
-      if (!record.oauthProviderId && !record.oauthClientId) {
-        throw new ExternalMcpReauthRequiredError({ serverId, label: record.label });
-      }
-
+      const serverId = parseReauthServerId(ctx);
+      const record = await requireReauthableExternalMcpServer(routeDeps, serverId);
       const label = record.label ?? record.serverId;
 
       // No interactive channel on this execution — degrade to a plain, honest instruction rather than
       // raising a dialog nobody can see. Non-destructive, unlike `content_post_delete`'s hard refusal
       // for the identical case: there is nothing to protect by refusing outright, only somebody to
       // still tell.
-      if (!ctx.emitSurface) {
-        return {
-          promptShown: false,
-          serverId,
-          label,
-          note:
-            `This execution context cannot show an interactive dialog. Tell the administrator directly: ` +
-            `"${label}" needs to be reconnected — open Settings → External MCP and click Reconnect on ${label}.`,
-        };
-      }
+      if (!ctx.emitSurface) return buildReauthNoSurfaceResult({ serverId, label });
 
-      if (activePrompts.has(serverId)) {
-        return {
-          promptShown: false,
-          alreadyShowing: true,
-          serverId,
-          label,
-          note: `A reconnect notice for "${label}" is already showing. Do not open another — wait for the administrator to answer that one.`,
-        };
-      }
+      if (activePrompts.has(serverId)) return buildReauthAlreadyShowingResult({ serverId, label });
 
       activePrompts.add(serverId);
       const exchange = surfaces.surfaceExchanges.open(
@@ -288,34 +356,7 @@ export function buildExternalMcpReauthRegistrations(
         const latest = await routeDeps.externalMcpServerRepo.findByServerId({ workspaceId: routeDeps.workspaceId, serverId });
         const currentStatus = latest ? resolveExternalMcpOAuthStatus(latest) : "disconnected";
 
-        if (!answer.acknowledged) {
-          return {
-            promptShown: true,
-            acknowledged: false,
-            reason: answer.reason,
-            serverId,
-            label,
-            currentStatus,
-            note:
-              answer.reason === "expired"
-                ? `The administrator did not respond to the reconnect notice for "${label}" before it expired.`
-                : `The reconnect notice for "${label}" was closed because the run ended.`,
-          };
-        }
-
-        return {
-          promptShown: true,
-          acknowledged: true,
-          serverId,
-          label,
-          currentStatus,
-          note:
-            currentStatus === "connected"
-              ? `"${label}" is reconnected. Retry the original failed call now.`
-              : `The administrator acknowledged the reconnect notice for "${label}". Its status is still ` +
-                `'${currentStatus}' — ask them to confirm they finished in Settings → External MCP before ` +
-                `retrying, or call this tool again once they say they have.`,
-        };
+        return buildReauthOutcome({ serverId, label, currentStatus, answer });
       } finally {
         activePrompts.delete(serverId);
       }

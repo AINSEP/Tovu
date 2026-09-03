@@ -1313,22 +1313,31 @@ async function assertUnderExternalMcpServerCap(
  *  to keep {@link saveExternalMcpServer}'s complexity under the shop ceiling.
  *  @throws {ExternalMcpValidationError} On a malformed env block (via {@link parseEnvBlock}).
  *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under. */
-async function resolveExternalMcpSealedEnv(
+/** {@link resolveExternalMcpSealedEnv}'s `rawEnv === undefined` branch — carries the existing sealed
+ *  env block through untouched. Split out purely to keep that function's complexity under the shop
+ *  ceiling.
+ *
+ *  Carried through untouched, so its lineage must be carried too — bumping the version here would
+ *  claim an AAD binding the stored ciphertext does not have, and brick the row. */
+function carryForwardExternalMcpSealedEnv(
+  existing: ExternalMcpServerRecord | null,
+): { readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number } {
+  return {
+    sealedEnv: existing?.sealedEnv ?? null,
+    envNames: parseJsonArray(existing?.envNames ?? null),
+    aadVersion: existing?.aadVersion ?? EXTERNAL_MCP_AAD_VERSION,
+  };
+}
+
+/** {@link resolveExternalMcpSealedEnv}'s fresh-seal branch — parses and seals a NEW env block. Split
+ *  out purely to keep that function's complexity under the shop ceiling.
+ *  @throws {ExternalMcpValidationError} On a malformed env block (via {@link parseEnvBlock}).
+ *  @throws {ExternalMcpSecretStoreUnconfiguredError} When no root key is available to seal under. */
+async function sealFreshExternalMcpEnv(
   deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
   identity: ExternalMcpAadIdentity,
-  rawEnv: string | undefined,
-  existing: ExternalMcpServerRecord | null,
+  rawEnv: string,
 ): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
-  if (rawEnv === undefined) {
-    // Carried through untouched, so its lineage must be carried too — bumping the version here
-    // would claim an AAD binding the stored ciphertext does not have, and brick the row.
-    return {
-      sealedEnv: existing?.sealedEnv ?? null,
-      envNames: parseJsonArray(existing?.envNames ?? null),
-      aadVersion: existing?.aadVersion ?? EXTERNAL_MCP_AAD_VERSION,
-    };
-  }
-
   const env = parseEnvBlock(rawEnv);
   const envNames = Object.keys(env);
   if (envNames.length === 0) return { sealedEnv: null, envNames, aadVersion: EXTERNAL_MCP_AAD_VERSION };
@@ -1345,6 +1354,17 @@ async function resolveExternalMcpSealedEnv(
       `external MCP credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
+}
+
+async function resolveExternalMcpSealedEnv(
+  deps: Pick<ExternalMcpStoreDeps, "sealer" | "keyring">,
+  identity: ExternalMcpAadIdentity,
+  rawEnv: string | undefined,
+  existing: ExternalMcpServerRecord | null,
+): Promise<{ readonly sealedEnv: SealedSecret | null; readonly envNames: string[]; readonly aadVersion: number }> {
+  return rawEnv === undefined
+    ? carryForwardExternalMcpSealedEnv(existing)
+    : sealFreshExternalMcpEnv(deps, identity, rawEnv);
 }
 
 /** Hosts for which plaintext `http` is tolerated — a local development server, and nothing else. */

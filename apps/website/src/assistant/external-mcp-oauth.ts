@@ -643,7 +643,102 @@ async function persistTokens(
   });
 }
 
-/** Moves a row into a terminal or reset OAuth state without touching anything else on it. */
+/** The row-patch fields {@link setOAuthStatus} merges on top of `status`/`oauthRefreshLeaseUntil`
+ *  when clearing a token. Empty when `clearToken` was not requested. */
+type ClearedTokenPatch = Partial<Pick<ExternalMcpServerRecord, "sealedOAuth" | "oauthExpiresAt" | "oauthAadVersion">>;
+
+/**
+ * Resolves {@link setOAuthStatus}'s token-clear patch. Split out purely to keep that function's
+ * complexity under the shop ceiling — behavior is unchanged.
+ *
+ * Read-modify-write, the same rule `persistTokens` follows: `sealedOAuth` holds
+ * `{ clientSecret?, tokens? }` TOGETHER, so nulling it wholesale on a token clear would delete an
+ * operator's client secret along with the dead token. For a dynamically-registered (RFC 7591)
+ * client the operator never saw that secret, so losing it here means the row can never be
+ * re-authorized — only deleted and recreated.
+ *
+ * The open and the re-seal below are kept in SEPARATE try/catches on purpose, even though both can
+ * throw the same `ExternalMcpSecretStoreUnconfiguredError`
+ * (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`): they mean different
+ * things about whether the secret is actually lost. If OPEN fails, the blob could not be decrypted
+ * at all — a rotated root key or a corrupt row — so whatever it held is already unrecoverable, and
+ * falling back to the pre-existing wholesale-null behavior loses nothing that was not lost already
+ * (this is what keeps `markNeedsReauth`, `disconnect()`, and the device-poll terminal path from
+ * wedging on a blob that is already dead). If OPEN succeeds but the RE-SEAL fails, the secret was
+ * just read successfully — it is NOT lost, only the write-back (a transient keyring/active-key
+ * problem, say) failed, so it is retried a few times — bounded, no backoff — before giving up.
+ * Wholesale-nulling would destroy a secret this call proves is still recoverable, so it is never the
+ * outcome here; but silently leaving `sealedOAuth` untouched and reporting success would leave the
+ * row's `oauthStatus` claiming a state (e.g. `disconnected`) the stored blob does not actually match,
+ * with nothing to say so. So once the retry budget is exhausted, this rethrows instead: each of this
+ * function's callers already has a place that reacts to `ExternalMcpSecretStoreUnconfiguredError`
+ * without inventing a new one — `disconnect()`'s admin route already maps it to a 503
+ * `SECRET_STORE_UNCONFIGURED`, `reportAuthFailure` already carries an unexpected `setOAuthStatus`
+ * failure as `cause` on its terminal error, and `markNeedsReauth`'s two call sites in
+ * `token-refresh.ts`'s `performRefresh` treat this write as best-effort the same way — its failure
+ * is carried as `cause` on the `OAUTH_INVALID_GRANT` error they throw next, never left to propagate
+ * in that error's place. (An earlier version of this comment claimed that path "already folds" a
+ * write failure into the boot report; it did not — the failure escaped unguarded and displaced the
+ * reauth signal every downstream caller branches on. Both call sites now guard it explicitly.) Any
+ * OTHER error (a genuine bug, not an unopenable or unsealable blob) still propagates from either
+ * step — this is a documented, targeted degrade, not a blanket swallow.
+ *
+ * @throws {ExternalMcpSecretStoreUnconfiguredError} If the re-seal never recovers within
+ *   {@link CLEAR_TOKEN_RESEAL_ATTEMPTS} attempts.
+ */
+async function resolveClearedTokenPatch(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+  options: { readonly clearToken?: boolean },
+): Promise<ClearedTokenPatch> {
+  if (options.clearToken !== true) return {};
+
+  const opened = await openExistingOAuthPayloadForClear(deps, record);
+  if ("wholesale" in opened) return { sealedOAuth: null, oauthExpiresAt: null };
+
+  const clientSecret = opened.existing.clientSecret === undefined ? {} : { clientSecret: opened.existing.clientSecret };
+  return resealClearedOAuthToken(deps, record, clientSecret);
+}
+
+/** {@link resolveClearedTokenPatch}'s OPEN step — reads the existing payload, or signals the
+ *  wholesale-null fallback when the blob cannot be opened at all (see that function's doc for why
+ *  this branch is safe). Split out purely to keep that function's cognitive complexity under the
+ *  shop ceiling. */
+async function openExistingOAuthPayloadForClear(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+): Promise<{ readonly existing: Awaited<ReturnType<typeof openExternalMcpOAuthPayload>> } | { readonly wholesale: true }> {
+  try {
+    return { existing: await openExternalMcpOAuthPayload(deps.sealer, record) };
+  } catch (error) {
+    if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+    return { wholesale: true };
+  }
+}
+
+/** {@link resolveClearedTokenPatch}'s RE-SEAL step — retries a bounded number of times before giving
+ *  up (see that function's doc for why). Split out purely to keep that function's cognitive
+ *  complexity under the shop ceiling.
+ *  @throws {ExternalMcpSecretStoreUnconfiguredError} If the re-seal never recovers within
+ *  {@link CLEAR_TOKEN_RESEAL_ATTEMPTS} attempts. */
+async function resealClearedOAuthToken(
+  deps: ExternalMcpOAuthDeps,
+  record: ExternalMcpServerRecord,
+  clientSecret: { readonly clientSecret?: string },
+): Promise<ClearedTokenPatch> {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      const cleared = await sealExternalMcpOAuthPayload(deps, record, clientSecret);
+      return { sealedOAuth: cleared.sealedOAuth, oauthExpiresAt: null, oauthAadVersion: cleared.oauthAadVersion };
+    } catch (error) {
+      if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+      if (attempt >= CLEAR_TOKEN_RESEAL_ATTEMPTS) throw error;
+    }
+  }
+}
+
+/** Moves a row into a terminal or reset OAuth state without touching anything else on it. See
+ *  {@link resolveClearedTokenPatch} for the `clearToken` decision tree. */
 async function setOAuthStatus(
   deps: ExternalMcpOAuthDeps,
   serverId: string,
@@ -653,74 +748,12 @@ async function setOAuthStatus(
   const record = await deps.repo.findByServerId({ workspaceId: deps.workspaceId, serverId });
   if (!record) return;
 
-  // Read-modify-write, the same rule `persistTokens` follows: `sealedOAuth` holds
-  // `{ clientSecret?, tokens? }` TOGETHER, so nulling it wholesale on a token clear would delete an
-  // operator's client secret along with the dead token. For a dynamically-registered (RFC 7591)
-  // client the operator never saw that secret, so losing it here means the row can never be
-  // re-authorized — only deleted and recreated.
-  //
-  // The open and the re-seal below are kept in SEPARATE try/catches on purpose, even though both can
-  // throw the same `ExternalMcpSecretStoreUnconfiguredError`
-  // (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`): they mean different
-  // things about whether the secret is actually lost. If OPEN fails, the blob could not be decrypted
-  // at all — a rotated root key or a corrupt row — so whatever it held is already unrecoverable, and
-  // falling back to the pre-existing wholesale-null behavior loses nothing that was not lost already
-  // (this is what keeps `markNeedsReauth`, `disconnect()`, and the device-poll terminal path from
-  // wedging on a blob that is already dead). If OPEN succeeds but the RE-SEAL fails, the secret was
-  // just read successfully — it is NOT lost, only the write-back (a transient keyring/active-key
-  // problem, say) failed, so it is retried a few times — bounded, no backoff — before giving up.
-  // Wholesale-nulling would destroy a secret this call proves is still recoverable, so it is never the
-  // outcome here; but silently leaving `sealedOAuth` untouched and reporting success would leave the
-  // row's `oauthStatus` claiming a state (e.g. `disconnected`) the stored blob does not actually match,
-  // with nothing to say so. So once the retry budget is exhausted, this rethrows instead: each of this
-  // function's callers already has a place that reacts to `ExternalMcpSecretStoreUnconfiguredError`
-  // without inventing a new one — `disconnect()`'s admin route already maps it to a 503
-  // `SECRET_STORE_UNCONFIGURED`, `reportAuthFailure` already carries an unexpected `setOAuthStatus`
-  // failure as `cause` on its terminal error, and `markNeedsReauth`'s two call sites in
-  // `token-refresh.ts`'s `performRefresh` treat this write as best-effort the same way — its failure
-  // is carried as `cause` on the `OAUTH_INVALID_GRANT` error they throw next, never left to propagate
-  // in that error's place. (An earlier version of this comment claimed that path "already folds" a
-  // write failure into the boot report; it did not — the failure escaped unguarded and displaced the
-  // reauth signal every downstream caller branches on. Both call sites now guard it explicitly.) Any
-  // OTHER error (a genuine bug, not an unopenable or unsealable blob) still propagates from either
-  // step — this is a documented, targeted degrade, not a blanket swallow.
-  let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
-  let clearedWholesale = false;
-  if (options.clearToken === true) {
-    let existing: Awaited<ReturnType<typeof openExternalMcpOAuthPayload>> | undefined;
-    try {
-      existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-    } catch (error) {
-      if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
-      clearedWholesale = true;
-    }
-    if (existing !== undefined) {
-      const clientSecret = existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret };
-      for (let attempt = 1; ; attempt += 1) {
-        try {
-          cleared = await sealExternalMcpOAuthPayload(deps, record, clientSecret);
-          break;
-        } catch (error) {
-          if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
-          if (attempt >= CLEAR_TOKEN_RESEAL_ATTEMPTS) throw error;
-        }
-      }
-    }
-  }
+  const clearedTokenPatch = await resolveClearedTokenPatch(deps, record, options);
 
   await deps.repo.upsert({
     ...record,
     oauthStatus: status,
-    ...(cleared !== null
-      ? {
-          sealedOAuth: cleared.sealedOAuth,
-          oauthExpiresAt: null,
-          // Carried from the seal, never from `...record` — same reason `persistTokens` does this.
-          oauthAadVersion: cleared.oauthAadVersion,
-        }
-      : clearedWholesale
-        ? { sealedOAuth: null, oauthExpiresAt: null }
-        : {}),
+    ...clearedTokenPatch,
     oauthRefreshLeaseUntil: null,
     updatedAt: deps.clock.nowIso(),
   });

@@ -193,15 +193,23 @@ function assertValidSetSiteAssistantCredentialInput(input: SetSiteAssistantCrede
  *  ceiling.
  *  @throws {SiteAssistantSecretStoreUnconfiguredError} `apiKey` was provided but the master secret
  *  is unavailable. */
-async function resolveSiteAssistantCredentialSeal(
+/** {@link resolveSiteAssistantCredentialSeal}'s `apiKey === undefined` branch — carries the existing
+ *  sealed key through unchanged. Split out purely to keep that function's complexity under the shop
+ *  ceiling. */
+function carryForwardSiteAssistantCredentialSeal(
+  existing: SiteAssistantCredentialRecord | null,
+): { readonly sealed: SealedSecret | null; readonly masked: string | null; readonly aadVersion: number } {
+  return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null, aadVersion: existing?.aadVersion ?? 0 };
+}
+
+/** {@link resolveSiteAssistantCredentialSeal}'s fresh-seal branch. Split out purely to keep that
+ *  function's complexity under the shop ceiling.
+ *  @throws {SiteAssistantSecretStoreUnconfiguredError} The master secret is unavailable. */
+async function sealFreshSiteAssistantCredential(
   deps: Pick<SiteAssistantCredentialWriteDeps, "sealer" | "keyring">,
   workspaceId: UUID,
-  apiKey: string | undefined,
-  existing: SiteAssistantCredentialRecord | null,
+  apiKey: string,
 ): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null; readonly aadVersion: number }> {
-  if (apiKey === undefined) {
-    return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null, aadVersion: existing?.aadVersion ?? 0 };
-  }
   try {
     const activeKey = await deps.keyring.activeKey();
     const aad = buildSiteAssistantCredentialAad({ workspaceId });
@@ -215,6 +223,17 @@ async function resolveSiteAssistantCredentialSeal(
       `site assistant secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
     );
   }
+}
+
+async function resolveSiteAssistantCredentialSeal(
+  deps: Pick<SiteAssistantCredentialWriteDeps, "sealer" | "keyring">,
+  workspaceId: UUID,
+  apiKey: string | undefined,
+  existing: SiteAssistantCredentialRecord | null,
+): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null; readonly aadVersion: number }> {
+  return apiKey === undefined
+    ? carryForwardSiteAssistantCredentialSeal(existing)
+    : sealFreshSiteAssistantCredential(deps, workspaceId, apiKey);
 }
 
 /** `explicit ?? existing ?? fallback`, named for {@link buildSiteAssistantCredentialRecord}'s
