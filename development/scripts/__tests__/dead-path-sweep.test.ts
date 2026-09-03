@@ -320,7 +320,11 @@ test("historical: the current route-coverage-lib.ts prefixes resolve, so the che
   const source = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/route-coverage-lib.ts"), "utf8");
   const paths = repoRelativePathsIn(source, segments).filter((p) => p.includes("routes"));
 
-  assert.deepEqual(paths, ["apps/website/src/server/routes", "apps/website/src/server/inbound/admin-http/routes"]);
+  assert.deepEqual(paths, [
+    "apps/website/src/server/routes",
+    "apps/website/src/server/inbound/admin-http/routes",
+    "apps/website/src/server/inbound/public-http/routes",
+  ]);
   for (const p of paths) {
     assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 678b6464`);
   }
