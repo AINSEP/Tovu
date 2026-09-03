@@ -112,16 +112,18 @@ export interface KeyringPort {
  * any of those five stores' own file header for the full migration story, and
  * `development/scripts/backfill-*-aad.ts` for the five backfill scripts themselves.
  *
- * This is NOT "every credential-shaped table in this codebase" — that overstates what the 2026-09-02
- * change did. Four more stores already sealed with an aad before that change and were never in its
- * scope: `vendor-credentials/store.ts`, `custom-credentials/store.ts`, `source-control/store.ts`, and
- * `deployments/publish-credentials/store.ts` (see each file's own `sealConnection()`), which puts the
- * real current total at nine stores passing `aad` at seal time, not five. And
- * `assistant/external-mcp-store.ts` — the `external_mcp_servers` table — still seals with NO aad on
- * either of its two call sites as of this writing: `deps.sealer.seal(...)` at
- * `external-mcp-store.ts:1272` (server env) and `:1421` (OAuth payload); it was never touched by the
- * AAD gap closure. `aad` stays optional at the port level regardless: a table with no natural row
- * identity to bind is still free to seal with none.
+ * This was NOT "every credential-shaped table in this codebase" at the time of the 2026-09-02 change
+ * — that would have overstated what it did. Four more stores already sealed with an aad before that
+ * change and were never in its scope: `vendor-credentials/store.ts`, `custom-credentials/store.ts`,
+ * `source-control/store.ts`, and `deployments/publish-credentials/store.ts` (see each file's own
+ * `sealConnection()`), which put the total at nine stores passing `aad` at seal time, not five. The
+ * tenth, `assistant/external-mcp-store.ts` (the `external_mcp_servers` table), was fixed shortly after
+ * (`e3cb674a`, same day): both its call sites — `deps.sealer.seal(...)` at
+ * `external-mcp-store.ts:1346` (server env) and `:1571` (OAuth payload) — now pass `aad` too. As of
+ * that fix, all ten credential-shaped tables in this codebase seal with an aad (verified live via
+ * `npm run check:seal-aad`, `seal-aad-invariant.ts`'s AST scan of every `.seal()` call site). `aad`
+ * stays optional at the port level regardless: a table with no natural row identity to bind is still
+ * free to seal with none — this just records that none currently do.
  */
 export interface SecretSealerPort {
   seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret>;

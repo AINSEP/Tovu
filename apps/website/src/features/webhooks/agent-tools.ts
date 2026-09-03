@@ -6,14 +6,14 @@
  * Purpose:
  * A static, in-process catalog describing every agent-callable tool this domain exposes. Every
  * entry maps 1:1 onto a real admin HTTP route already exposed to a human operator
- * (`server/routes/admin/integrations/*.ts`) — this catalog never names an operation the admin UI
- * does not already perform.
+ * (`server/inbound/admin-http/routes/integrations/*.ts`) — this catalog never names an operation
+ * the admin UI does not already perform.
  *
- * `server/routes/admin/integrations/` exposes exactly 5 routes: list, create, pause (both
- * directions), delete (soft), and deliveries (a per-subscription delivery log read). All 5 are
+ * `server/inbound/admin-http/routes/integrations/` exposes exactly 5 routes: list, create, pause
+ * (both directions), delete (soft), and deliveries (a per-subscription delivery log read). All 5 are
  * wired here — plain webhook-subscription CRUD/read over already-durable rows, no credential
- * material anywhere in the response shape (`WebhookSubscriptionRecord` has no secret field at all;
- * see `server/http/admin/integrations.ts`'s own header for why there is nothing to redact).
+ * material anywhere in the response shape (`WebhookSubscriptionRecord` — `types.ts` — has no secret
+ * field at all, so there is nothing to redact).
  *
  * Deliberately absent from this catalog entirely (not merely unwired — there is no operation to
  * even name a tool against, the same framing `identity/agent-tools.ts` uses for role revocation):

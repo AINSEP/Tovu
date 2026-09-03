@@ -38,9 +38,9 @@ export type {
 export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
 
 // Subscription CRUD write-service (ADR-036 §6) — the first landed consumer is the admin HTTP API
-// (`src/server/routes/admin/integrations`), so this barrel now carries the surface that file's own
-// doc comment already promised ("the delivery worker, admin routes, AI tools depend on
-// `integrations` via this index"). Additive only — no behavior change to `./subscriptions`.
+// (`apps/website/src/server/inbound/admin-http/routes/integrations`), so this barrel now carries the
+// surface that file's own doc comment already promised ("the delivery worker, admin routes, AI tools
+// depend on `integrations` via this index"). Additive only — no behavior change to `./subscriptions`.
 export {
   createSubscription,
   deleteSubscription,
@@ -74,8 +74,9 @@ export type { DeliveryEnvelopeStore } from "./repo.memory.js";
 
 // ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — contract-tested at
 // `db/sqlite/__tests__/webhook-*-repo.sqlite.test.ts` and wired into the real composition root at
-// `server/deps.ts`. Relocated to `db/sqlite/webhook-repo.sqlite.ts` (2026-08-17, architecture SCC
-// cut: `integrations → db` concentrated entirely in this concrete adapter) and DELIBERATELY not
-// re-exported here — re-exporting it through this barrel would reintroduce the same edge the move
-// was for. `server/deps.ts` imports it directly from `db/sqlite`, same as every other outer-layer
-// SQLite adapter (`vendor-credential-repo.sqlite.ts` et al.).
+// `apps/website/src/server/runtime/composition/deps.ts`. Relocated to `db/sqlite/webhook-repo.sqlite.ts`
+// (2026-08-17, architecture SCC cut: `integrations → db` concentrated entirely in this concrete
+// adapter) and DELIBERATELY not re-exported here — re-exporting it through this barrel would
+// reintroduce the same edge the move was for. The composition root imports it directly from
+// `db/sqlite`, same as every other outer-layer SQLite adapter (`vendor-credential-repo.sqlite.ts`
+// et al.).
