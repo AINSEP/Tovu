@@ -194,6 +194,87 @@ test("menu link labels and hrefs are HTML-escaped", () => {
   assert.ok(html?.includes("/x&quot;y"));
 });
 
+/**
+ * The above proves escaping only for the FLAT path (`renderMenuLinks`). This proves it for the TREE
+ * path (`menuItemBody`/`menuItemInnerHtml`/`menuItemLinkAttrs`) — the functions the batch-G
+ * complexity refactor actually split out of the original `menuItemBody`. Every `treeTheme()` test
+ * above this point asserts that an AUTHORED value passes through; none used a hostile one, so the
+ * tree path's escaping was unproven by any test until this one, even though a source read shows it
+ * calls the same `escapeHtml()` (this file's own `static-render.ts:159-166`) the flat path does.
+ *
+ * `label`/`description` are BODY-context sinks (`>${escapeHtml(x)}<`) — a raw `<`/`>` breaking out of
+ * the surrounding element is the risk. `href`/`icon`'s `data-icon`/`rel` are ATTRIBUTE-context sinks
+ * (`="${escapeHtml(x)}"`) — a raw `"` closing the attribute early and injecting a new one onto the
+ * SAME tag is the risk that a body-only escaping bug could miss, so each attribute-sink payload below
+ * leads with `">` specifically to attempt exactly that break-out.
+ */
+test("tree path (menuItemBody): label/description (body sinks) and href/icon/rel (attribute sinks) are all HTML-escaped — hostile input never breaks out of its sink", () => {
+  const label = '<script>alert("label")</script>';
+  const description = "<img src=x onerror=alert('description')>";
+  const icon = '"><svg onload=alert(1)>';
+  const href = '/x"><script>alert("href")</script>';
+  const rel = 'noopener"><script>alert("rel")</script>';
+
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({ label, href, attrs: { description, icon, rel } }),
+    },
+  });
+
+  // Negative check first, independent of the exact-string assertion below: none of the raw payloads
+  // may survive unescaped ANYWHERE on the page — this catches a leak even if the positive assertion
+  // below has a typo.
+  assert.ok(!html?.includes('<script>alert("label")</script>'), "label must not reach the page as a live <script> tag");
+  assert.ok(!html?.includes("<img src=x onerror=alert('description')>"), "description must not reach the page as a live <img> tag");
+  assert.ok(!html?.includes("<svg onload=alert(1)>"), "icon's data-icon value must not break out of its attribute into a live <svg> tag");
+  assert.ok(!html?.includes('<script>alert("href")</script>'), "href must not break out of its attribute into a live <script> tag");
+  assert.ok(!html?.includes('<script>alert("rel")</script>'), "rel must not break out of its attribute into a live <script> tag");
+
+  // Positive check: the exact escaped bytes `escapeHtml()` must produce, reconstructed in place —
+  // proves correct encoding, not merely absence of the raw payload.
+  const expectedInner =
+    '<span class="menu-item-icon" data-icon="&quot;&gt;&lt;svg onload=alert(1)&gt;"></span>' +
+    '&lt;script&gt;alert(&quot;label&quot;)&lt;/script&gt;' +
+    "<span class=\"menu-item-desc\">&lt;img src=x onerror=alert(&#39;description&#39;)&gt;</span>";
+  const expectedHref = '/x&quot;&gt;&lt;script&gt;alert(&quot;href&quot;)&lt;/script&gt;';
+  const expectedRel = 'noopener&quot;&gt;&lt;script&gt;alert(&quot;rel&quot;)&lt;/script&gt;';
+  const expectedAnchor = `<a href="${expectedHref}" rel="${expectedRel}">${expectedInner}</a>`;
+
+  assert.ok(html?.includes(expectedAnchor), `expected exact escaped anchor markup, got:\n${html}`);
+});
+
+/**
+ * The flat and tree paths call the exact same `escapeHtml()` on the two fields they share (label,
+ * href) — this proves it end to end rather than trusting the source read, since this repo has THREE
+ * render paths that are documented to diverge elsewhere (`reference_tovu_three_render_paths_diverge`)
+ * and "the source calls the same function" has already been an unreliable argument on its own today.
+ */
+test("tree and flat paths escape the SAME label/href value byte-identically — not two independently-drifting copies", () => {
+  const label = '<script>alert(1)</script>';
+  const href = '/x"y';
+
+  const flatHtml = renderStaticPage({
+    theme: flatTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label, href }) },
+  });
+  const treeHtml = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label, href }) },
+  });
+
+  const expectedEscapedLabel = "&lt;script&gt;alert(1)&lt;/script&gt;";
+  const expectedEscapedHrefAttr = 'href="/x&quot;y"';
+
+  assert.ok(flatHtml?.includes(expectedEscapedLabel));
+  assert.ok(treeHtml?.includes(expectedEscapedLabel));
+  assert.ok(flatHtml?.includes(expectedEscapedHrefAttr));
+  assert.ok(treeHtml?.includes(expectedEscapedHrefAttr));
+});
+
 test("a marker with syntactically invalid data-embed-config degrades to its authored fallback, never throws", () => {
   // parseMarkerConfig (src/contracts/core/embeds/marker.ts) reports invalid JSON as a REJECTED marker rather
   // than a match; substituteMarkers only ever touches matched markers, so a rejected one is left
