@@ -5,7 +5,7 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { InMemoryRedirectRepo } from "../repo.memory.js";
 import { SqliteRedirectRepo } from "../repo.sqlite.js";
 import type { RedirectRepoPort } from "../ports.js";
-import type { RedirectRecord, RedirectRevision } from "../types.js";
+import { RedirectNotFoundError, type RedirectRecord, type RedirectRevision } from "../types.js";
 
 /**
  * @file T007 — shared `RedirectRepoPort` contract-test suite, run against
@@ -223,3 +223,100 @@ function runContractSuite(label: string, makeRepo: () => RedirectRepoPort) {
 runContractSuite("memory", () => new InMemoryRedirectRepo());
 
 runContractSuite("sqlite", () => new SqliteRedirectRepo(openContentDb(":memory:")));
+
+test("InMemoryRedirectRepo: constructor seeding and listRevisionsForTests", async () => {
+  const seedRecord = makeRecord({ id: "seed-1" });
+  const repo = new InMemoryRedirectRepo([seedRecord]);
+  const found = await repo.findById({ workspaceId: "workspace-1", id: "seed-1" });
+  assert.equal(found?.id, "seed-1");
+
+  // listRevisionsForTests
+  repo.insertRevision(makeRevision(seedRecord, 2));
+  repo.insertRevision(makeRevision(seedRecord, 1));
+  const revs = repo.listRevisionsForTests("seed-1");
+  assert.equal(revs[0].seq, 1);
+  assert.equal(revs[1].seq, 2);
+  assert.deepEqual(repo.listRevisionsForTests("non-existent"), []);
+});
+
+test("InMemoryRedirectRepo: tombstone throws RedirectNotFoundError if not found or workspace mismatch", async () => {
+  const repo = new InMemoryRedirectRepo();
+  const record = makeRecord({ id: "t-1", workspaceId: "ws-1" });
+  await repo.save({ record, revision: makeRevision(record) });
+
+  await assert.rejects(
+    () => repo.tombstone({ workspaceId: "ws-1", id: "non-existent", revision: makeRevision(record) }),
+    RedirectNotFoundError
+  );
+  await assert.rejects(
+    () => repo.tombstone({ workspaceId: "ws-other", id: "t-1", revision: makeRevision(record) }),
+    RedirectNotFoundError
+  );
+});
+
+test("InMemoryRedirectRepo: lookupLongestPrefix with trailing slash, exact path, override filter, null when none match", async () => {
+  const repo = new InMemoryRedirectRepo();
+  const slashPrefix = makeRecord({ id: "slash", matchType: "prefix", fromPattern: "/docs/", override: false });
+  const exactPrefix = makeRecord({ id: "exact-p", matchType: "prefix", fromPattern: "/about", override: true });
+  await repo.save({ record: slashPrefix, revision: makeRevision(slashPrefix) });
+  await repo.save({ record: exactPrefix, revision: makeRevision(exactPrefix) });
+
+  // trailing slash pattern matches subpath
+  const foundSub = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/docs/page", includeOverrideOnly: false });
+  assert.equal(foundSub?.id, "slash");
+
+  // exact path match on prefix rule
+  const foundExact = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/about", includeOverrideOnly: false });
+  assert.equal(foundExact?.id, "exact-p");
+
+  // includeOverrideOnly excludes slashPrefix
+  const foundOverride = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/docs/page", includeOverrideOnly: true });
+  assert.equal(foundOverride, null);
+
+  // no match
+  const foundNone = await repo.lookupLongestPrefix({ workspaceId: "workspace-1", path: "/nomatch", includeOverrideOnly: false });
+  assert.equal(foundNone, null);
+});
+
+test("InMemoryRedirectRepo: listDynamic with includeOverrideOnly and tie-breaking", async () => {
+  const repo = new InMemoryRedirectRepo();
+  const wc1 = makeRecord({ id: "wc-1", matchType: "wildcard", fromPattern: "/a/*", priority: 1, override: false });
+  const wc2 = makeRecord({ id: "wc-2", matchType: "wildcard", fromPattern: "/b/*", priority: 2, override: true });
+  const wc3 = makeRecord({ id: "wc-3", matchType: "wildcard", fromPattern: "/b/*", priority: 2, override: true, updatedAt: "2026-07-15T00:00:00.000Z" });
+  await repo.save({ record: wc1, revision: makeRevision(wc1) });
+  await repo.save({ record: wc2, revision: makeRevision(wc2) });
+  await repo.save({ record: wc3, revision: makeRevision(wc3) });
+
+  // override only
+  const overrideOnly = await repo.listDynamic({ workspaceId: "workspace-1", includeOverrideOnly: true, limit: 10 });
+  assert.equal(overrideOnly.length, 2);
+  assert.equal(overrideOnly[0].id, "wc-3"); // higher recency
+
+  // lookupExact tie-break
+  const ex1 = makeRecord({ id: "ex-1", matchType: "exact", fromPattern: "/tie", priority: 5 });
+  const ex2 = makeRecord({ id: "ex-2", matchType: "exact", fromPattern: "/tie", priority: 10 });
+  await repo.save({ record: ex1, revision: makeRevision(ex1) });
+  await repo.save({ record: ex2, revision: makeRevision(ex2) });
+  const foundTie = await repo.lookupExact({ workspaceId: "workspace-1", path: "/tie", includeOverrideOnly: false });
+  assert.equal(foundTie?.id, "ex-2"); // higher priority
+});
+
+test("InMemoryRedirectRepo: findByFromPattern tie breaks exact before prefix, then by id", async () => {
+  const repo = new InMemoryRedirectRepo();
+  const pref = makeRecord({ id: "b-pref", matchType: "prefix", fromPattern: "/pattern" });
+  const exact = makeRecord({ id: "a-exact", matchType: "exact", fromPattern: "/pattern" });
+  await repo.save({ record: pref, revision: makeRevision(pref) });
+  await repo.save({ record: exact, revision: makeRevision(exact) });
+
+  const found = await repo.findByFromPattern({ workspaceId: "workspace-1", fromPattern: "/pattern" });
+  assert.equal(found?.id, "a-exact");
+
+  // Two exact rules tie break by id
+  const repo2 = new InMemoryRedirectRepo();
+  const e1 = makeRecord({ id: "id-b", matchType: "exact", fromPattern: "/same" });
+  const e2 = makeRecord({ id: "id-a", matchType: "exact", fromPattern: "/same" });
+  await repo2.save({ record: e1, revision: makeRevision(e1) });
+  await repo2.save({ record: e2, revision: makeRevision(e2) });
+  const found2 = await repo2.findByFromPattern({ workspaceId: "workspace-1", fromPattern: "/same" });
+  assert.equal(found2?.id, "id-a");
+});
