@@ -143,3 +143,134 @@ test("all 7 admin redirects endpoints deny 403 FORBIDDEN without admin.redirects
     assert.equal(json.code, "FORBIDDEN");
   }
 });
+
+test("admin redirects update route: workspace mismatch, update happy path, undefined optionals, not found, loop error, unexpected error", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Seed a redirect
+  await deps.redirectRepo.save({
+    record: {
+      id: "up-1",
+      workspaceId: WORKSPACE_ID,
+      matchType: "exact",
+      fromPattern: "/old-path",
+      toTarget: "/new-path",
+      statusCode: 301,
+      status: "active",
+      override: false,
+      priority: 0,
+      source: "manual",
+      createdByPrincipal: "system",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+      version: 1,
+    },
+    revision: {
+      redirectId: "up-1",
+      workspaceId: WORKSPACE_ID,
+      seq: 1,
+      state: {
+        id: "up-1",
+        workspaceId: WORKSPACE_ID,
+        matchType: "exact",
+        fromPattern: "/old-path",
+        toTarget: "/new-path",
+        statusCode: 301,
+        status: "active",
+        override: false,
+        priority: 0,
+        source: "manual",
+        createdByPrincipal: "system",
+        createdAt: "2026-07-13T00:00:00.000Z",
+        updatedAt: "2026-07-13T00:00:00.000Z",
+        version: 1,
+      },
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: "2026-07-13T00:00:00.000Z",
+    },
+  });
+
+  // 1. Workspace mismatch -> 404
+  const mismatchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/redirects/up-1`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ toTarget: "/target" }),
+  });
+  assert.equal(mismatchRes.status, 404);
+  const mismatchJson = await mismatchRes.json();
+  assert.equal(mismatchJson.error, "workspace was not found");
+
+  // 2. Happy path with all optional fields provided
+  const patchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/up-1`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      matchType: "exact",
+      fromPattern: "/old-path",
+      toTarget: "/updated-target",
+      statusCode: 302,
+      status: "inactive",
+      override: true,
+      priority: 5,
+    }),
+  });
+  assert.equal(patchRes.status, 200);
+  const patchedJson = (await patchRes.json()) as { data: { toTarget: string; statusCode: number; status: string; override: boolean; priority: number } };
+  assert.equal(patchedJson.data.toTarget, "/updated-target");
+  assert.equal(patchedJson.data.statusCode, 302);
+  assert.equal(patchedJson.data.status, "inactive");
+  assert.equal(patchedJson.data.override, true);
+  assert.equal(patchedJson.data.priority, 5);
+
+  // 3. Happy path without optional override/priority (tests undefined branches)
+  const patchRes2 = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/up-1`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      toTarget: "/updated-target-2",
+    }),
+  });
+  assert.equal(patchRes2.status, 200);
+  const patchedJson2 = (await patchRes2.json()) as { data: { toTarget: string } };
+  assert.equal(patchedJson2.data.toTarget, "/updated-target-2");
+
+  // 4. Not found -> 404
+  const notFoundRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/non-existent`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ toTarget: "/new" }),
+  });
+  assert.equal(notFoundRes.status, 404);
+  const notFoundJson = (await notFoundRes.json()) as { code: string };
+  assert.equal(notFoundJson.code, "REDIRECT_NOT_FOUND");
+
+  // 5. Validation error (loop error) -> 409
+  const loopRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/up-1`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fromPattern: "/loop", toTarget: "/loop" }),
+  });
+  assert.equal(loopRes.status, 409);
+  const loopJson = (await loopRes.json()) as { code: string };
+  assert.equal(loopJson.code, "REDIRECT_LOOP_DETECTED");
+
+  // 6. Unexpected error in catch block -> 500
+  const origFindById = deps.redirectRepo.findById.bind(deps.redirectRepo);
+  deps.redirectRepo.findById = async () => {
+    throw new Error("unexpected error");
+  };
+  try {
+    const errorRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/up-1`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ toTarget: "/new-target" }),
+    });
+    assert.equal(errorRes.status, 500);
+    const errorJson = (await errorRes.json()) as { code: string };
+    assert.equal(errorJson.code, "INTERNAL_ERROR");
+  } finally {
+    deps.redirectRepo.findById = origFindById;
+  }
+});
