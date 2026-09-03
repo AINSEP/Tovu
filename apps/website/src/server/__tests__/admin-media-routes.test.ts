@@ -379,3 +379,37 @@ test("T-media-delete: delete.ts (hard purge) requires media.delete.force specifi
   const grantedBody = (await grantedRes.json()) as { purged: boolean };
   assert.equal(grantedBody.purged, true);
 });
+
+test("admin media routes: delete returns 404 for wrong workspace id and non-existent media, and 500 on unexpected error", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const wrongWs = await fetch(`${baseUrl}/api/admin/v1/workspaces/unknown-ws/media/m-1`, {
+    method: "DELETE",
+    headers: { cookie: ownerCookie },
+  });
+  assert.equal(wrongWs.status, 404);
+  assert.deepEqual(await wrongWs.json(), { error: "workspace was not found" });
+
+  const notFound = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/non-existent-media`, {
+    method: "DELETE",
+    headers: { cookie: ownerCookie },
+  });
+  assert.equal(notFound.status, 404);
+
+  const originalFind = deps.mediaRepo.findById;
+  deps.mediaRepo.findById = async () => {
+    throw new Error("unexpected error");
+  };
+  try {
+    const errorRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/any-id`, {
+      method: "DELETE",
+      headers: { cookie: ownerCookie },
+    });
+    assert.equal(errorRes.status, 500);
+    assert.deepEqual(await errorRes.json(), { error: "internal error" });
+  } finally {
+    deps.mediaRepo.findById = originalFind;
+  }
+});
+
