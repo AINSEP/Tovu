@@ -993,10 +993,21 @@ export interface AdminMenuTarget {
   route?: string;
 }
 
+/** Mirrors Jini `NavItemAttrs` (`packages/cms/src/navigation/types.ts:104-115`) — presentational,
+ *  kept separate from `target` so the render model can pass them through without interpreting them. */
+export interface AdminMenuItemAttrs {
+  openInNewTab?: boolean;
+  rel?: string;
+  cssClass?: string;
+  description?: string;
+  icon?: string;
+}
+
 export interface AdminMenuItem {
   id: string;
   label?: string;
   target: AdminMenuTarget;
+  attrs?: AdminMenuItemAttrs;
   children?: AdminMenuItem[];
 }
 

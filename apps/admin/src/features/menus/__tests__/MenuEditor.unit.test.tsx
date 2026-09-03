@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -307,6 +307,73 @@ describe("MenuItemTargetFields", () => {
     );
     expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");
     expect(screen.getByPlaceholderText("taxonomy")).toHaveValue("category");
+  });
+});
+
+/**
+ * `NavItemAttrs`'s five presentational fields (`cssClass`/`description`/`icon`/`rel`/
+ * `openInNewTab`), exposed via `MenuItemAttrsFields`'s per-item "Advanced" disclosure. Pins the
+ * ROUND TRIP, not just that the inputs render: a value typed here must reach the `PUT` request
+ * body's `items[].attrs`, since that's the only observable proof the write path (which never
+ * validated/stripped `attrs` — Jini's `validateAndCloneTree` clones each node with `{ ...node,
+ * children }`) actually receives what the operator typed. Before `attrs` existed on `AdminMenuItem`
+ * (`lib/api.ts`) and on this screen, these queries found nothing to type into at all.
+ */
+describe("attrs — advanced per-item fields", () => {
+  it("round-trips a typed CSS class (and the other four fields) through Save into the PUT body", async () => {
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(MENU_WITH_NESTED_CHILD));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ menu: { ...MENU_WITH_NESTED_CHILD.menu, version: 2 } }));
+
+    render(<MenuEditor menuId="m1" />);
+
+    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row") as HTMLElement;
+    await user.click(within(leafRow).getByText("Advanced"));
+    await user.type(within(leafRow).getByPlaceholderText("CSS class"), "featured-link");
+    await user.type(within(leafRow).getByPlaceholderText("Icon"), "star");
+    await user.type(within(leafRow).getByPlaceholderText("Description"), "Featured");
+    await user.type(within(leafRow).getByPlaceholderText("Link rel"), "nofollow");
+    await user.click(within(leafRow).getByRole("checkbox"));
+
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const putCall = fetchMock.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === "PUT");
+    expect(putCall).toBeDefined();
+    const body = JSON.parse(String((putCall?.[1] as RequestInit).body));
+    const leaf = body.items.find((it: { id: string }) => it.id === "leaf");
+    expect(leaf.attrs).toEqual({
+      cssClass: "featured-link",
+      icon: "star",
+      description: "Featured",
+      rel: "nofollow",
+      openInNewTab: true,
+    });
+  });
+
+  it("shows an existing item's attrs pre-filled when the Advanced disclosure is opened", async () => {
+    const withAttrs = {
+      menu: {
+        ...MENU_WITH_NESTED_CHILD.menu,
+        items: [
+          {
+            id: "leaf",
+            label: "Leaf",
+            target: { kind: "url", href: "/leaf" },
+            attrs: { cssClass: "existing-class", openInNewTab: true },
+          },
+        ],
+      },
+    };
+    const user = userEvent.setup();
+    fetchMock.mockResolvedValueOnce(jsonResponse(withAttrs));
+    render(<MenuEditor menuId="m1" />);
+
+    const leafRow = (await screen.findByDisplayValue("Leaf")).closest(".menu-item-row") as HTMLElement;
+    await user.click(within(leafRow).getByText("Advanced"));
+
+    expect(within(leafRow).getByPlaceholderText("CSS class")).toHaveValue("existing-class");
+    expect(within(leafRow).getByRole("checkbox")).toBeChecked();
   });
 });
 

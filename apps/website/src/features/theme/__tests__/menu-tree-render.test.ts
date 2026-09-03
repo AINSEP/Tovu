@@ -150,6 +150,30 @@ test("authored cssClass, description and icon reach the markup", () => {
   assert.ok(html?.includes('data-icon="swatch"'));
 });
 
+test("authored rel and openInNewTab reach the <a> tag — previously read nowhere despite being declared on NavItemAttrs alongside cssClass/description/icon", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: {
+      [HEADER_ID]: items({
+        label: "External",
+        href: "https://example.com",
+        attrs: { rel: "nofollow", openInNewTab: true },
+      }),
+    },
+  });
+  assert.ok(html?.includes('<a href="https://example.com" rel="nofollow" target="_blank">External</a>'));
+});
+
+test("an item with no attrs at all still renders the plain <a>, no stray rel/target/class", () => {
+  const html = renderStaticPage({
+    theme: treeTheme(),
+    pageId: "index",
+    menus: { [HEADER_ID]: items({ label: "Plain", href: "/plain" }) },
+  });
+  assert.ok(html?.includes('<a href="/plain">Plain</a>'));
+});
+
 test("a tree that renders to nothing leaves the marker's authored fallback alone", () => {
   const html = renderStaticPage({
     theme: treeTheme("FALLBACK"),

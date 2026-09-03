@@ -94,3 +94,23 @@
    directly since it lives in the Pages-only stylesheet (see that file's own header on why Pages and
    Posts stay separate). */
 .editor-preview-notice { margin: 0.5rem 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* `MenuEditor.tsx`'s per-item `<details class="menu-item-advanced">` (cssClass/description/icon/rel/
+ * openInNewTab) — lives here rather than `styles.css` (that file's own `.menu-item-fields` etc. are
+ * currently owned by another agent's concurrent edit; see this file's header for the same reasoning
+ * `.editor-preview-iframe` above already follows). Indented to sit under the row it belongs to, same
+ * `.menu-item-row[style*="margin-left"]` left-border convention `styles.css` uses for nested rows. */
+.menu-item-advanced { margin: 0.35rem 0 0; font-size: 0.85rem; }
+.menu-item-advanced > summary { cursor: pointer; color: var(--muted); width: fit-content; }
+.menu-item-advanced-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+  padding-left: 0.9rem;
+  border-left: 2px solid var(--border);
+}
+.menu-item-advanced-fields input[type="text"],
+.menu-item-advanced-fields input:not([type]) { flex: 1 1 9rem; min-width: 7rem; font-size: 0.85rem; padding: 0.35rem 0.55rem; }
+/* Same shape as `styles.css`'s `.collections-term-checkbox` — inline-flex row, small gap, no box. */
+.menu-item-advanced-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; }

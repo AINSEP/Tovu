@@ -1607,22 +1607,59 @@ function renderWidgetRecentEntries(children: readonly WidgetRenderIR[] | undefin
   return `<ul class="widget widget-recent-entries">${items || '<li class="widget-empty">No entries yet.</li>'}</ul>`;
 }
 
+/** The `class="…"` attribute from a resolved item's `attrs.cssClass`, or `""` when absent — same
+ *  escaped, no-allowlist posture `static-render.ts`'s tree-variant renderer already established for
+ *  the same `NavItemAttrs` passthrough (see that file's `menuItemClasses`). */
+function widgetMenuItemClassAttr(attrs: JsonObject | undefined): string {
+  const cssClass = attrs?.cssClass;
+  return typeof cssClass === "string" && cssClass ? ` class="${escapeHtml(cssClass)}"` : "";
+}
+
+/** `rel="…"`/`target="_blank"` from a resolved item's `attrs.rel`/`attrs.openInNewTab`. */
+function widgetMenuItemLinkAttrs(attrs: JsonObject | undefined): string {
+  const rel = attrs?.rel;
+  const relAttr = typeof rel === "string" && rel ? ` rel="${escapeHtml(rel)}"` : "";
+  const targetAttr = attrs?.openInNewTab === true ? ' target="_blank"' : "";
+  return `${relAttr}${targetAttr}`;
+}
+
+/** `icon`/`description` as child spans around the label — mirrors `static-render.ts`'s
+ *  `menuItemBody` so a theme author moving between static and widget-IR themes gets the same
+ *  markup shape for the same authored attrs. */
+function widgetMenuItemDecoratedLabel(attrs: JsonObject | undefined, label: string): string {
+  const icon = attrs?.icon;
+  const iconHtml =
+    typeof icon === "string" && icon ? `<span class="widget-menu-item-icon" data-icon="${escapeHtml(icon)}"></span>` : "";
+  const description = attrs?.description;
+  const descriptionHtml =
+    typeof description === "string" && description
+      ? `<span class="widget-menu-item-desc">${escapeHtml(description)}</span>`
+      : "";
+  return `${iconHtml}${label}${descriptionHtml}`;
+}
+
 /** Renders a `menu` widget's resolved nav items (`navigation/resolver.ts`'s `ResolvedNavItem[]`,
  * passed through as plain IR props) — mirrors `siteNav`'s own unavailable-link handling: an
- * `available:false` item renders as inert text, never a broken/empty href. */
+ * `available:false` item renders as inert text, never a broken/empty href.
+ *
+ * `attrs` (`cssClass`/`rel`/`openInNewTab`/`icon`/`description`) previously reached this function
+ * (the resolver already attaches `NavItemAttrs` to every `ResolvedNavItem`) but were read nowhere —
+ * this was the one render path of the two that honored NONE of them, while the static-tier tree
+ * renderer already honored `cssClass`/`icon`/`description`. Now both paths honor all five. */
 function renderWidgetMenuItems(items: JsonValue[]): string {
   return items
     .map((item) => {
       const o = obj(item);
       if (!o) return "";
-      const label = escapeHtml(str(o.label));
+      const attrs = obj(o.attrs);
+      const label = widgetMenuItemDecoratedLabel(attrs, escapeHtml(str(o.label)));
       const available = o.available === true && typeof o.href === "string";
       const link = available
-        ? `<a href="${escapeHtml(safeHref(o.href))}">${label}</a>`
+        ? `<a href="${escapeHtml(safeHref(o.href))}"${widgetMenuItemLinkAttrs(attrs)}>${label}</a>`
         : `<span class="widget-menu-item--unavailable">${label}</span>`;
       const children = arr(o.children);
       const sub = children.length ? `<ul>${renderWidgetMenuItems(children)}</ul>` : "";
-      return `<li>${link}${sub}</li>`;
+      return `<li${widgetMenuItemClassAttr(attrs)}>${link}${sub}</li>`;
     })
     .join("");
 }

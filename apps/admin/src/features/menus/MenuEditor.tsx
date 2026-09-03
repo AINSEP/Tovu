@@ -14,9 +14,20 @@ type AdminMenuTargetKind = AdminMenuTarget["kind"];
  * No drag-and-drop.
  *
  * Every piece of state and every API call lives in `hooks/use-menu-editor.hooks.ts`; see that
- * file's header for why. What stays here is `ItemRow` and its two pure helpers
- * (`countDescendants`, `targetForKind`) — presentation concerns invoked directly from `ItemRow`'s
- * own markup, not part of the hook's state transitions.
+ * file's header for why. What stays here is `ItemRow` and its pure helpers
+ * (`countDescendants`, `targetForKind`) plus `MenuItemTargetFields`/`MenuItemAttrsFields` —
+ * presentation concerns invoked directly from `ItemRow`'s own markup, not part of the hook's state
+ * transitions.
+ *
+ * `MenuItemAttrsFields` exposes `NavItemAttrs`'s five presentational fields (Jini
+ * `packages/cms/src/navigation/types.ts:104-115` — `cssClass`/`description`/`icon`/`openInNewTab`/
+ * `rel`) behind a per-item `<details>` disclosure. These already round-trip through storage
+ * untouched (`validateAndCloneTree` in Jini's `menu-service.ts` clones each node with `{ ...node,
+ * children }`, never touching `attrs`) and the static-tier theme renderer already consumed
+ * `cssClass`/`icon`/`description` — this screen was simply the one gap in an otherwise-working
+ * pipeline. `rel`/`openInNewTab` were not consumed by ANY render path before this change; both the
+ * static-tier tree-variant renderer (`features/theme/static-render.ts`) and the widget-IR menu
+ * renderer (`server/inbound/public-http/http/site/render.ts`) now honor all five fields.
  */
 
 /** Total nested descendant count (children, grandchildren, …) — used to name exactly how many
@@ -133,6 +144,77 @@ export function MenuItemTargetFields({
   }
 }
 
+/**
+ * `NavItemAttrs`'s five presentational fields, collapsed behind a `<details>` disclosure rather
+ * than five more always-visible inputs on an already-dense row (label/kind/target-value/move/
+ * child/remove) — see this file's own header for why they're safe to expose now. Applies
+ * identically to every target kind, unlike {@link MenuItemTargetFields}'s kind-specific fields, so
+ * it renders once per row rather than switching on `item.target.kind`. Native `<details>` needs no
+ * open/closed state of its own (browser-managed), so this stays presentation-only, same as
+ * {@link MenuItemTargetFields} above.
+ */
+export function MenuItemAttrsFields({
+  item,
+  path,
+  onChange,
+  t,
+}: {
+  item: AdminMenuItem;
+  path: number[];
+  onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
+  t: Translate;
+}) {
+  const attrs = item.attrs;
+
+  return (
+    <details className="menu-item-advanced">
+      <summary>{t("Advanced")}</summary>
+      <div className="menu-item-advanced-fields">
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("CSS class")}</span>
+          <input
+            value={attrs?.cssClass ?? ""}
+            placeholder={t("CSS class")}
+            onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, cssClass: e.target.value } }))}
+          />
+        </label>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("Icon")}</span>
+          <input
+            value={attrs?.icon ?? ""}
+            placeholder={t("Icon")}
+            onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, icon: e.target.value } }))}
+          />
+        </label>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("Description")}</span>
+          <input
+            value={attrs?.description ?? ""}
+            placeholder={t("Description")}
+            onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, description: e.target.value } }))}
+          />
+        </label>
+        <label className="a11y-label-wrap">
+          <span className="visually-hidden">{t("Link rel")}</span>
+          <input
+            value={attrs?.rel ?? ""}
+            placeholder={t("Link rel")}
+            onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, rel: e.target.value } }))}
+          />
+        </label>
+        <label className="menu-item-advanced-checkbox">
+          <input
+            type="checkbox"
+            checked={attrs?.openInNewTab ?? false}
+            onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, openInNewTab: e.target.checked } }))}
+          />
+          {t("Open in new tab")}
+        </label>
+      </div>
+    </details>
+  );
+}
+
 function ItemRow(props: {
   item: AdminMenuItem;
   path: number[];
@@ -220,6 +302,7 @@ function ItemRow(props: {
           ✕
         </button>
       </div>
+      <MenuItemAttrsFields item={item} path={path} onChange={onChange} t={t} />
       {(item.children ?? []).map((child, i) => (
         <ItemRow
           key={child.id}

@@ -906,6 +906,37 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   assert.doesNotMatch(html, /leak-me/);
 });
 
+test("menu widget: authored cssClass/rel/openInNewTab/icon/description reach the rendered <li>/<a> — previously silently dropped (the resolver already attaches NavItemAttrs to every ResolvedNavItem; only static-tier themes' tree variant read it)", () => {
+  const html = renderWidgetIr({
+    componentId: "menu",
+    props: {
+      title: "Main",
+      items: [
+        {
+          label: "Docs",
+          href: "/docs",
+          available: true,
+          attrs: { cssClass: "is-featured", rel: "nofollow", openInNewTab: true, icon: "book", description: "Guides" },
+          children: [],
+        },
+      ],
+    },
+  });
+  assert.match(html, /<li class="is-featured">/);
+  assert.match(html, /<a href="\/docs" rel="nofollow" target="_blank">/);
+  assert.match(html, /data-icon="book"/);
+  assert.match(html, /widget-menu-item-desc">Guides</);
+  assert.match(html, /Docs/);
+});
+
+test("menu widget: an item with no attrs at all renders exactly as before this feature existed (no stray class/rel/target attributes)", () => {
+  const html = renderWidgetIr({
+    componentId: "menu",
+    props: { items: [{ label: "Home", href: "/", available: true }] },
+  });
+  assert.match(html, /<li><a href="\/">Home<\/a><\/li>/);
+});
+
 test("widgets: protocol-relative hrefs never reach public HTML through any widget href surface (open-redirect fix, 2026-08-20)", () => {
   // social-links and menu both go THROUGH safeHref (render.ts:1408/1436) — fixed by the same
   // safeHref change the C7 test above proves.

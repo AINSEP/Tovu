@@ -142,8 +142,17 @@ export interface StaticMenuItem {
   readonly isCurrent: boolean;
   /** True when this item OR a descendant is current — what a sidebar uses to expand a section. */
   readonly isActive?: boolean | undefined;
-  /** `NavItemAttrs` passthrough. Only the presentational fields this renderer emits are declared. */
-  readonly attrs?: { readonly cssClass?: string | undefined; readonly description?: string | undefined; readonly icon?: string | undefined } | undefined;
+  /** `NavItemAttrs` passthrough — all five presentational fields (`cssClass`/`description`/`icon`
+   *  render as before; `rel`/`openInNewTab` added alongside them, same escaped/no-allowlist posture). */
+  readonly attrs?:
+    | {
+        readonly cssClass?: string | undefined;
+        readonly description?: string | undefined;
+        readonly icon?: string | undefined;
+        readonly rel?: string | undefined;
+        readonly openInNewTab?: boolean | undefined;
+      }
+    | undefined;
   readonly children: readonly StaticMenuItem[];
 }
 
@@ -189,6 +198,12 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
  * page), `is-active` (this item or a descendant is — what expands the right section), `has-children`,
  * a `depth-N` class, and the item's own authored `attrs.cssClass`. `description`/`icon` render as
  * child spans so a theme can style or ignore them without the renderer knowing an icon set.
+ * `attrs.rel`/`attrs.openInNewTab` render onto the `<a>` itself (`rel="…"`/`target="_blank"`) —
+ * escaped, not allowlist-validated, same posture as `cssClass`/`icon` despite this file's own
+ * `NavItemAttrs` doc comment describing `rel` as "validated against an allowlist": no such
+ * allowlist exists anywhere in the write chokepoint (`validateAndCloneTree` clones `attrs`
+ * untouched) — flagged, not fixed, here; fixing it is a Jini `menu-service.ts` change, out of this
+ * pass's scope.
  *
  * Availability rule, which differs from the flat renderer's on purpose: an unavailable **leaf** is
  * omitted entirely (the flat contract — never emit a dead link), but an unavailable **branch** is
@@ -223,7 +238,9 @@ function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
   const inner = `${icon}${label}${description}`;
   if (!linkable) return `<span class="menu-item-label">${inner}</span>`;
   const current = item.isCurrent ? ' aria-current="page"' : "";
-  return `<a href="${escapeHtml(item.href as string)}"${current}>${inner}</a>`;
+  const rel = item.attrs?.rel ? ` rel="${escapeHtml(item.attrs.rel)}"` : "";
+  const target = item.attrs?.openInNewTab ? ' target="_blank"' : "";
+  return `<a href="${escapeHtml(item.href as string)}"${current}${rel}${target}>${inner}</a>`;
 }
 
 /** One `<li>`, or `""` when the item is neither linkable nor a branch worth keeping for its children. */
