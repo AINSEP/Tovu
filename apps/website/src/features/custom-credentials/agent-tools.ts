@@ -1,11 +1,13 @@
 import type { AgentToolSideEffect } from "@jini-ai/cms/core";
 
+import { CUSTOM_CREDENTIAL_CATEGORIES } from "./types.js";
+
 /**
  * @file Agent-tool catalog for `features/custom-credentials` — closes the gap the admin's Access
  * Tokens "Add custom provider" form leaves open: the assistant could already SEE that a custom
  * credential (e.g. "name.com", "fly.io") is saved, but had no way to actually USE one, or (until
  * `custom_credential_list` below) even discover what labels exist without a human typing them out.
- * Five tools, all wired in this directory's sibling `tool-registrations.ts`:
+ * Six tools, all wired in this directory's sibling `tool-registrations.ts`:
  *
  * - `custom_credential_list` — added 2026-09-01. Read-back for every saved custom credential: label
  *   (the exact value the other three tools' `label` field expects — call this first to chain straight
@@ -55,6 +57,21 @@ import type { AgentToolSideEffect } from "@jini-ai/cms/core";
  *   The tool's own result is value-free by construction (`{saved: true}` or `{saved: false, reason}`)
  *   — see `tool-registrations.ts`'s `handleSetTokenAnswer` and `custom-credential-set-token-ui.ts`'s
  *   header for the full mechanism, including why it uses `askThenReport` rather than `askOnce`.
+ * - `custom_credential_create` — added 2026-09-03, closing the gap `custom_credential_set_token`
+ *   itself cannot close: that tool can only ROTATE a token on a credential that already exists (it
+ *   resolves an existing row by `label` before ever opening its form), so an agent that found no saved
+ *   credential for a provider had no way to finish the job in chat — it had to dead-end the human with
+ *   directions to Admin -> Access Tokens -> "Add custom provider" instead. This tool is that missing
+ *   capability: the model may optionally supply `label`/`baseUrl`/`category` as non-secret PRE-FILL
+ *   hints (e.g. from earlier in the conversation), and the handler opens an interactive form
+ *   collecting those three fields plus an optional username and the token itself — the SAME
+ *   "token never passes through the model's context" mechanism `custom_credential_set_token` uses,
+ *   driven by the same `askThenReport` for the same reason (see `custom-credential-create-ui.ts`'s
+ *   header). A submitted label that collides with an existing saved credential is refused outright —
+ *   this tool creates ONLY new rows, never overwrites one, and its refusal message names
+ *   `custom_credential_set_token` as the correct tool for a rotation instead. On success, returns the
+ *   SAME summary shape `custom_credential_list` does (safe in full — see that tool's own bullet above
+ *   for why `CustomCredentialSummary` can never carry a token) — never the token itself.
  *
  * No schema below carries a token field of any kind: the credential's own SAVED allowed-origin
  * set (`baseUrl` plus any `additionalHosts` — set by a human through the Access Tokens form, never by
@@ -159,6 +176,35 @@ const SET_TOKEN_SCHEMA = {
   },
 } as const;
 
+/** `custom_credential_create`'s entire input shape — three OPTIONAL, non-secret pre-fill hints, no
+ *  required field at all (a call with none of them is valid; the human fills in everything on the
+ *  form). There is no `token`/`username`/`connection` property to fill in, mistakenly or otherwise —
+ *  the same two-layer guarantee `SET_TOKEN_SCHEMA`'s own doc gives (JSON Schema's
+ *  `additionalProperties: false` is descriptive only, per `@jini-ai/core`'s own
+ *  `ToolDescriptor.inputSchema` doc) — this schema simply has no field capable of carrying one in the
+ *  first place. */
+const CREATE_CREDENTIAL_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {
+    label: {
+      type: "string",
+      description:
+        "Optional pre-fill hint for the form's Label field — the display name to save this credential under (e.g. 'github', 'fly.io'), from earlier in the conversation. Non-secret; the human can change it before submitting. Must be unique in this workspace — a submitted label that collides with an existing saved credential is refused, and the refusal names custom_credential_set_token as the tool to use instead (this tool only creates NEW credentials, it never overwrites one).",
+    },
+    baseUrl: {
+      type: "string",
+      description: "Optional pre-fill hint for the form's Base URL field (e.g. 'https://api.github.com'). Non-secret.",
+    },
+    category: {
+      type: "string",
+      enum: [...CUSTOM_CREDENTIAL_CATEGORIES],
+      description: `Optional pre-fill hint for the form's Category field — one of: ${CUSTOM_CREDENTIAL_CATEGORIES.join(", ")}.`,
+    },
+  },
+} as const;
+
 /**
  * This domain's fixed agent-tool catalog.
  *
@@ -204,5 +250,13 @@ export const customCredentialsAgentToolCatalog: AgentToolDefinition[] = [
     sideEffects: "mutates-durable-state",
     authorization: { permission: "custom-credentials.write" },
     inputSchema: SET_TOKEN_SCHEMA,
+  },
+  {
+    name: "custom_credential_create",
+    description:
+      "THIS IS HOW TO CREATE A BRAND-NEW SAVED CREDENTIAL — in chat, without the human going to the Access Tokens page, and WITHOUT the token ever passing through you. Call this when custom_credential_list shows NO saved credential for a provider you need (a DNS registrar, hosting account, deployment target, or any other third-party API) and the human wants to save one now — do NOT tell them to go add it themselves in Admin; use this tool instead. You may optionally pass 'label'/'baseUrl'/'category' as non-secret pre-fill hints if you already know them from the conversation (e.g. label: 'github', baseUrl: 'https://api.github.com', category: 'source-control') — the human can still change any of them before submitting, and omitting one just leaves that field blank for them to fill in. This tool has NO field capable of accepting a token, username, or any other secret — a call naming anything besides 'label'/'baseUrl'/'category' is refused outright by its own schema. Calling it shows the human an interactive form (label, base URL, category, an optional username, and a masked token field); they fill it in and submit directly, and the token is sealed on the server the instant they submit — it is never sent to you, never appears in this tool's result, and never enters the chat transcript. THIS ONE CALL raises that form and WAITS — it does not return until the human submits or cancels, or the form times out; there is no second call to make. On a successful save this returns { created: true, credential } where 'credential' is the SAME summary shape custom_credential_list returns (id, label, category, baseUrl, additionalHosts, username if one was set, configured, createdAt, updatedAt) — never the token. If the submitted label already matches an existing saved credential, NOTHING is created or overwritten: this returns { created: false, reason: 'duplicate-label', message } naming the collision, and the message points you at custom_credential_set_token to rotate that existing credential's token instead — call that tool, do not retry this one with a different label unless the human actually wants a second, separate credential. If they cancel, it returns { created: false, reason: 'cancelled' }. If nobody answers before the form expires (or the run ends first), it returns { created: false, reason: 'expired' | 'abandoned' }. A blank token, or any other invalid field (an unparseable base URL, a category outside the fixed set, a blank label), is refused and returns { created: false, reason: 'invalid', message } naming what was wrong — nothing is written. Any other failure (e.g. the server's secret store is unconfigured) returns { created: false, reason: 'error', message } with an actionable message — never the token, never a raw error dump. Never echoes, logs, or otherwise reveals the token you asked to have saved — treat every result from this tool as proof only of whether the save happened, nothing more.",
+    sideEffects: "mutates-durable-state",
+    authorization: { permission: "custom-credentials.write" },
+    inputSchema: CREATE_CREDENTIAL_SCHEMA,
   },
 ];

@@ -32,9 +32,19 @@ import {
   type CredentialedRequestDeps,
   type CredentialedRequestOutcome,
 } from "./credentialed-request.js";
+import { buildCreateFormResource, buildCreateOutcomeResource, CREATE_TOOL_ID, type CreateCredentialPrefill } from "./custom-credential-create-ui.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import { CustomCredentialNotFoundError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, updateCustomCredential } from "./store.js";
+import {
+  createCustomCredential,
+  CustomCredentialDuplicateLabelError,
+  CustomCredentialNotFoundError,
+  CustomCredentialValidationError,
+  describeCredential,
+  describeCredentialByLabel,
+  listCustomCredentials,
+  updateCustomCredential,
+} from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
 
 /**
@@ -134,6 +144,33 @@ import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./typ
  * DELETE gate's own posture), because that fallback shape is exactly a fresh MODEL-ISSUED tool call
  * carrying the human's answer as its input — the one shape this whole design exists to make impossible
  * for a secret.
+ *
+ * ## `custom_credential_create` — closing the gap `custom_credential_set_token` cannot close (2026-09-03)
+ *
+ * The live incident this closes: an operator asked the assistant to save a GitHub token; the
+ * assistant correctly found `custom_credential_set_token` in the catalog, correctly found no saved
+ * `github` row via `custom_credential_list`, and correctly reported that nothing in the catalog could
+ * CREATE that row — `custom_credential_set_token` only ever resolves an EXISTING credential by label
+ * before opening its form (`describeCredentialByLabel`, above), so a provider with no saved row at all
+ * was a genuine dead end that sent the human to Admin -> Access Tokens -> "Add custom provider"
+ * instead of finishing the job in chat. This tool is the fix: `custom_credential_create`'s handler
+ * skips the existing-row lookup entirely (there is nothing to resolve — the row does not exist until
+ * the human submits) and opens `custom-credential-create-ui.ts`'s multi-field form directly, collecting
+ * `label`/`baseUrl`/`category`/optional `username`/`token` the SAME way `custom_credential_set_token`
+ * collects its own token: browser -> `mcp-ui-tool-calls-route.ts` -> `SurfaceExchangeStore` -> this
+ * parked handler, never through the model.
+ *
+ * Driven by `askThenReport`, not `askOnce`, for the identical reason `custom_credential_set_token`
+ * documents above. `WRITE`-gated, same permission every other write tool in this domain uses. Unlike
+ * `custom_credential_set_token`, this handler validates NOTHING before opening the form (there is no
+ * label to resolve, no target to fail closed on before the dialog) beyond the permission check and the
+ * `emitSurface` fail-closed guard — every real validation (non-empty label/baseUrl, a closed category,
+ * a non-blank token, and the `(workspaceId, label)` uniqueness constraint) happens once, in
+ * `store.ts`'s own `createCustomCredential`, inside `handleCreateAnswer` below, matching this domain's
+ * "one place decides what valid means" discipline. A submitted label colliding with an existing row is
+ * NOT silently overwritten — `createCustomCredential`'s own `CustomCredentialDuplicateLabelError` is
+ * caught and turned into a refusal that names `custom_credential_set_token` as the correct tool for a
+ * rotation, so a duplicate submission can never masquerade as a successful create.
  */
 
 export interface CustomCredentialsToolDeps {
@@ -207,6 +244,13 @@ export const customCredentialsDerivedRisk: DerivedRiskByToolId = new Map<string,
   // THIS TOOL ID can cause to happen, same convention every other entry in this map uses. No external
   // call, ever — see this file's header, "custom_credential_set_token", for the full reasoning.
   ["custom_credential_set_token", "mutates-durable-state"],
+  // -> createCustomCredential's insert path, via the human's own form submission: a genuine Tovu-side
+  // DURABLE WRITE (a brand-new row, sealed ciphertext) — the model-issued call itself performs no write
+  // at all (it only opens the exchange and waits, same as custom_credential_set_token above), but this
+  // classification describes what THIS TOOL ID can cause to happen, same convention every other entry
+  // in this map uses. No external call, ever — see this file's header, "custom_credential_create", for
+  // the full reasoning.
+  ["custom_credential_create", "mutates-durable-state"],
 ]);
 
 /**
@@ -420,6 +464,131 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
   };
 }
 
+/** Reads `custom_credential_create`'s optional non-secret prefill hints off the model-issued call —
+ *  see `agent-tools.ts`'s `CREATE_CREDENTIAL_SCHEMA` for the exact three fields this accepts. Blank
+ *  strings are treated as absent, matching `buildS3CompatiblePrefill`'s
+ *  (`features/deployments/publish-agent-tools.ts`) identical convention for the same kind of field. A
+ *  prefilled `category` that turns out not to be one of the fixed options is passed through unchecked —
+ *  harmless, since `renderSelect` simply starts unselected on an unrecognised value (`custom-credential-
+ *  create-ui.ts`'s own doc) and the real enforcement is `store.ts`'s `validateCategory` at write time.
+ *
+ * @complexity O(1) — three fixed field reads.
+ */
+function readCreateCredentialPrefill(input: Record<string, unknown>): CreateCredentialPrefill {
+  const prefill: { label?: string; baseUrl?: string; category?: string } = {};
+  for (const field of ["label", "baseUrl", "category"] as const) {
+    if (typeof input[field] === "string" && (input[field] as string).trim() !== "") {
+      prefill[field] = input[field] as string;
+    }
+  }
+  return prefill;
+}
+
+/** `custom_credential_create`'s ENTIRE agent-facing result shape. On success, the SAME summary shape
+ *  `custom_credential_list`/`custom_credential_set_username` already return — safe in full, since
+ *  `CustomCredentialSummary` has no field capable of carrying a secret (`types.ts`'s own doc). Every
+ *  failure branch is boolean-plus-reason, the same shape {@link SetTokenResult} uses and for the
+ *  identical reason: nothing here could ever be widened to carry the submitted token.
+ *  `'duplicate-label'` is this tool's own addition — `custom_credential_set_token` has no equivalent
+ *  case, since it always targets a row that is already known to exist. */
+type CreateCredentialResult =
+  | { created: true; credential: CustomCredentialSummary }
+  | { created: false; reason: "cancelled" | "expired" | "abandoned" | "invalid" | "duplicate-label" | "error"; message?: string };
+
+/** Every dependency {@link handleCreateAnswer} needs to create the credential and report the outcome —
+ *  bundled for the same reason {@link SetTokenAnswerContext} is. No `existing` field: unlike
+ *  `custom_credential_set_token`, there is no row to resolve before the form opens — a CREATE's target
+ *  row does not exist until the human submits. */
+interface CreateAnswerContext {
+  readonly routeDeps: CustomCredentialsToolDeps;
+  readonly exchange: SurfaceExchange;
+}
+
+/**
+ * `custom_credential_create`'s `askThenReport` answer handling — extracted to a top-level function for
+ * the same reason {@link handleSetTokenAnswer} is: its own complexity is measured independently of the
+ * handler that opens the exchange and builds the form. `askThenReport`, not `askOnce` — the identical
+ * defect this closes is documented on `handleSetTokenAnswer` above.
+ *
+ * Every real field validation (non-empty label/baseUrl, a closed category, the `(workspaceId, label)`
+ * uniqueness constraint) is left entirely to `store.ts`'s own `createCustomCredential` — this function
+ * only special-cases a blank TOKEN locally (mirroring `handleSetTokenAnswer`'s identical local check),
+ * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`.
+ *
+ * The token itself lives in a single local `const` for the width of this function and is never
+ * assigned to any field this function returns, logged, or otherwise retained — the property
+ * `agent-tools.ts`'s own catalog description promises the model.
+ *
+ * @complexity O(1) plus one `createCustomCredential` call (validate, seal, insert).
+ */
+async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerContext): Promise<{ result: CreateCredentialResult; outcome?: SurfaceEmission }> {
+  const { routeDeps, exchange } = ctx;
+
+  if (answer.status !== "received") {
+    return { result: { created: false, reason: answer.status } };
+  }
+  if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
+    return { result: { created: false, reason: "cancelled" } };
+  }
+
+  const label = typeof answer.params["label"] === "string" ? answer.params["label"] : "";
+  const baseUrl = typeof answer.params["baseUrl"] === "string" ? answer.params["baseUrl"] : "";
+  const category = typeof answer.params["category"] === "string" ? answer.params["category"] : "";
+  const rawUsername = typeof answer.params["username"] === "string" ? answer.params["username"] : "";
+  const username = rawUsername.trim() === "" ? undefined : rawUsername;
+  const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
+  // A blank label still needs a human-readable name for the outcome surface's own "Label" detail row —
+  // `store.ts`'s own validation error (surfaced via the generic catch below) is what actually refuses
+  // the submission; this is display-only.
+  const displayLabel = label.trim() === "" ? "(unlabeled)" : label;
+
+  if (token.trim() === "") {
+    const message = "Token cannot be blank. Nothing was saved.";
+    return {
+      result: { created: false, reason: "invalid", message },
+      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
+    };
+  }
+
+  try {
+    const credential = await createCustomCredential(
+      {
+        repo: routeDeps.customCredentialSetRepo,
+        sealer: routeDeps.siteAssistantSecretSealer,
+        keyring: routeDeps.siteAssistantSecretKeyring,
+        clock: routeDeps.clock,
+        idGen: routeDeps.idGen,
+      },
+      { workspaceId: routeDeps.workspaceId, label, category, baseUrl, connection: { token, ...(username !== undefined ? { username } : {}) } }
+    );
+    const message = `Credential '${credential.label}' created.`;
+    return {
+      result: { created: true, credential },
+      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: credential.label, state: "success", message }) } },
+    };
+  } catch (err) {
+    // A collision is refused, never silently overwritten — and the refusal names the correct tool for
+    // a rotation, so the model does not retry this CREATE-only tool against an existing row.
+    if (err instanceof CustomCredentialDuplicateLabelError) {
+      const message =
+        `A custom credential labeled '${label}' already exists in this workspace. To rotate its token, use custom_credential_set_token — ` +
+        "this tool only creates NEW credentials and never overwrites an existing one.";
+      return {
+        result: { created: false, reason: "duplicate-label", message },
+        outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
+      };
+    }
+    // `err.message` only, never echoed alongside anything else — matches `handleSetTokenAnswer`'s own
+    // catch branch and `store.ts`'s own error classes, none of which ever embed a field VALUE.
+    const message = err instanceof Error ? err.message : String(err);
+    const reason = err instanceof CustomCredentialValidationError ? "invalid" : "error";
+    return {
+      result: { created: false, reason, message },
+      outcome: { channel: "mcp-ui", payload: { resource: buildCreateOutcomeResource({ exchangeId: exchange.id, label: displayLabel, state: "failure", message }) } },
+    };
+  }
+}
+
 export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentialsToolDeps, surfaces: AssistantSurfaceDeps): ToolRegistration[] {
   const requestDeps: CredentialedRequestDeps = {
     repo: routeDeps.customCredentialSetRepo,
@@ -529,6 +698,45 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
         // this closes and why the handler is a separate top-level function rather than inlined here.
         const answerContext: SetTokenAnswerContext = { routeDeps, existing, label, exchange };
         return await askThenReport<SetTokenResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleSetTokenAnswer(answer, answerContext));
+      } finally {
+        ctx.signal.removeEventListener("abort", closeOnAbort);
+      }
+    },
+
+    // Creates a brand-new credential row — see this file's header, "custom_credential_create", for the
+    // full mechanism and the incident it closes. Unlike every other write handler in this domain, there
+    // is no existing row to resolve or fail closed on before opening the form: a CREATE's row does not
+    // exist yet, so the only pre-form checks are the permission gate and the `emitSurface` fail-closed
+    // guard below. All three prefill fields are optional and non-secret by schema
+    // (`CREATE_CREDENTIAL_SCHEMA`, `agent-tools.ts`) — a call with none of them is a normal, valid call.
+    custom_credential_create: async (ctx): Promise<CreateCredentialResult> => {
+      // `requireInputRecord` refuses `undefined` outright, but this tool's schema has no required
+      // field at all (same `required: []` shape `custom_credential_list`'s own `NO_INPUT_SCHEMA`
+      // documents) — a model-issued call with no arguments at all is a normal, valid call here, not a
+      // malformed one, so it is treated the same as an explicit `{}` rather than rejected.
+      const input = ctx.input === undefined ? {} : requireInputRecord(ctx.input);
+      const prefill = readCreateCredentialPrefill(input);
+      await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
+
+      // Fail closed rather than degrade — same posture `custom_credential_set_token` documents above,
+      // and for the identical reason: the only place a token can ever enter is the rendered form.
+      if (!ctx.emitSurface) {
+        throw new Error(
+          "custom_credential_create: this execution context has no interactive confirmation channel " +
+            "(no emitSurface), so a credential cannot be created here. Nothing was changed."
+        );
+      }
+
+      const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: CREATE_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
+      const ui = buildCreateFormResource({ exchangeId: exchange.id, prefill });
+
+      const closeOnAbort = () => exchange.close();
+      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
+      try {
+        // `askThenReport`, not `askOnce` — see `handleCreateAnswer`'s own header for the full defect
+        // this closes and why the handler is a separate top-level function rather than inlined here.
+        const answerContext: CreateAnswerContext = { routeDeps, exchange };
+        return await askThenReport<CreateCredentialResult>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, (answer) => handleCreateAnswer(answer, answerContext));
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }

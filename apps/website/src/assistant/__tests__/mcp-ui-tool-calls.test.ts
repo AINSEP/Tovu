@@ -61,6 +61,11 @@ test("custom_credential_make_request is on the allowlist — its DELETE method h
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
 });
 
+test("custom_credential_create is on the allowlist — it holds up the same held-open-exchange shape custom_credential_set_token does (2026-09-03)", () => {
+  assert.equal(isMcpUiToolCallAllowed("custom_credential_create"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_create"));
+});
+
 test("external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)", () => {
   assert.equal(isMcpUiToolCallAllowed("external_mcp_reauth_prompt"), true);
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_reauth_prompt"));
@@ -84,6 +89,7 @@ const EXPECTED_ALLOWLIST = [
   "assistant_tool_failure_recovery",
   "content_post_delete",
   "content_post_search",
+  "custom_credential_create",
   "custom_credential_make_request",
   "custom_credential_set_token",
   "deployment_execute_static_publish",
