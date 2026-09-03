@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { PublicAssistantSettings } from "@/lib/api";
+import { navigate } from "@/lib/router";
 import { describeApiError } from "../rules";
 import { defaultAiAssistantPort } from "./ai-assistant-dependencies.hooks";
 import type { AiAssistantPort } from "./ai-assistant-port.hooks";
@@ -74,4 +75,28 @@ export function useAiAssistant({ port }: AiAssistantDependencies): AiAssistantCo
  */
 export function useWiredAiAssistant(): AiAssistantController {
   return useAiAssistant({ port: defaultAiAssistantPort });
+}
+
+/** The three tab ids `AiAssistant.tsx`'s own `tabs` array declares — kept here as the single source
+ *  {@link resolveAiAssistantRequestedTabId} checks a `?tab=` value against, so a stray typo in a
+ *  link can never look like a valid tab. */
+export const AI_ASSISTANT_TAB_IDS = ["visitor", "admin", "roadmap"] as const;
+
+/**
+ * The tab the inline shell should actually open on, or `undefined` to leave it uncontrolled — same
+ * computation, and same reason, as `SettingsUi.tsx`'s own `requestedTabId`: `tabId` can be `null` (no
+ * `?tab=` at all, the common case) or an id that matches none of the three tabs (typo, stale link),
+ * and either one must fall back to the shell's own default rather than being passed straight through
+ * as `activeTabId`, whose controlled/uncontrolled switch is `!== undefined`, not truthiness.
+ */
+export function resolveAiAssistantRequestedTabId(tabId: string | null | undefined): string | undefined {
+  return tabId && (AI_ASSISTANT_TAB_IDS as readonly string[]).includes(tabId) ? tabId : undefined;
+}
+
+/**
+ * Keeps `?tab=` in sync as the operator switches tabs — same `replace`-not-push shape and same
+ * "fires even before any `?tab=` is present" behaviour as `SettingsUi.tsx`'s own `handleTabChange`.
+ */
+export function navigateToAiAssistantTab(nextTabId: string): void {
+  navigate(`/ai-assistant?tab=${nextTabId}`, { replace: true });
 }

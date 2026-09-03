@@ -8,10 +8,12 @@ import {
   VisitorCredentialSettingsFooter,
   visitorCredentialApiKeyPlaceholder,
   visitorCredentialKeyStatusMessage,
+} from "../AiAssistant";
+import {
   visitorCredentialSaveStatusMessage,
   visitorCredentialSettingsStatusMessage,
-} from "../AiAssistant";
-import type { VisitorCredentialFormController } from "../hooks/use-visitor-credential-form.hooks";
+  type VisitorCredentialFormController,
+} from "../hooks/use-visitor-credential-form.hooks";
 
 /**
  * @file Direct tests for the units pulled out of `VisitorCredentialForm` in the complexity pass

@@ -17,11 +17,19 @@ import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
-import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
-import { useWiredVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
+import {
+  navigateToAiAssistantTab,
+  resolveAiAssistantRequestedTabId,
+  useWiredAiAssistant,
+} from "./hooks/use-ai-assistant.hooks";
+import {
+  useWiredVisitorCredentialForm,
+  visitorCredentialSaveStatusMessage,
+  visitorCredentialSettingsStatusMessage,
+  type VisitorCredentialFormController,
+} from "./hooks/use-visitor-credential-form.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
-import { navigate } from "../../lib/router";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -516,57 +524,6 @@ export function visitorCredentialKeyStatusMessage(
   return null;
 }
 
-/** Save key's status line — whether the KEY reached the server, and nothing else. One of four
- *  mutually exclusive messages keyed on `saveState.status` (plus `stored` for the two "idle"
- *  variants), pulled to a top-level pure function for the same reason as
- *  {@link visitorCredentialKeyStatusMessage} above.
- *
- *  `dirty` is deliberately NOT read here any more (two-button split, 2026-09-02). It means "settings
- *  changed since they were last written", which is {@link visitorCredentialSettingsStatusMessage}'s
- *  question — under the KEY field it would have announced an unsaved model change as though the key
- *  were the thing left unsaved.
- *
- *  The "WHICH key is stored" question lives in the field's own masked placeholder
- *  ({@link visitorCredentialApiKeyPlaceholder}), which is where an operator looks for it. That mask
- *  went through a full round trip of being removed and restored during design, so the conclusion is
- *  worth recording here too: it is a deliberate, bounded disclosure — without it the field is blank
- *  and cannot distinguish "nothing was ever saved" from "a key is saved and working", an ambiguity
- *  worse than four characters. */
-/**
- * @param t - Same seam as {@link visitorCredentialKeyStatusMessage}'s own `t` param — defaults to
- *   English passthrough for the same test-compatibility reason.
- */
-export function visitorCredentialSaveStatusMessage(
-  saveState: VisitorCredentialFormController["saveState"],
-  stored: VisitorCredentialFormController["stored"],
-  t: Translate = (key) => key,
-): string | null {
-  if (saveState.status === "saving") return t("Saving…");
-  if (saveState.status === "saved") return t("Saved to the server, encrypted.");
-  if (saveState.status !== "idle") return null;
-  if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
-  return t("Paste your key, check it with Show, then press Save key.");
-}
-
-/**
- * Save settings' own status line.
- *
- * Says "Settings saved." and never anything about encryption or the server holding a key: this
- * button sends no `apiKey`, so borrowing {@link visitorCredentialSaveStatusMessage}'s "Saved to the
- * server, encrypted." would recreate — under a new button — the exact false confirmation the split
- * exists to remove.
- *
- * @param t - Same seam as its siblings above.
- */
-export function visitorCredentialSettingsStatusMessage(
-  settingsSaveState: VisitorCredentialFormController["settingsSaveState"],
-  t: Translate = (key) => key,
-): string | null {
-  if (settingsSaveState.status === "saving") return t("Saving…");
-  if (settingsSaveState.status === "saved") return t("Settings saved.");
-  return null;
-}
-
 export function VisitorCredentialKeyFooter({
   config,
   saveState,
@@ -1036,23 +993,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
     },
   ];
 
-  /**
-   * The tab the inline shell should actually open on, or `undefined` to leave it uncontrolled —
-   * same computation, and same reason, as `SettingsUi.tsx`'s own `requestedTabId`: `tabId` can be
-   * `null` (no `?tab=` at all, the common case) or an id that matches none of the three tabs above
-   * (typo, stale link), and either one must fall back to the shell's own default rather than being
-   * passed straight through as `activeTabId`, whose controlled/uncontrolled switch is `!== undefined`,
-   * not truthiness.
-   */
-  const requestedTabId = tabId && tabs.some((tab) => tab.id === tabId) ? tabId : undefined;
-
-  /**
-   * Keeps `?tab=` in sync as the operator switches tabs — same `replace`-not-push shape and same
-   * "fires even before any `?tab=` is present" behaviour as `SettingsUi.tsx`'s own `handleTabChange`.
-   */
-  const handleTabChange = (nextTabId: string) => {
-    navigate(`/ai-assistant?tab=${nextTabId}`, { replace: true });
-  };
+  const requestedTabId = resolveAiAssistantRequestedTabId(tabId);
 
   return (
     <div className="page">
@@ -1102,7 +1043,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant, tabId }:
             className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}
             activeTabId={requestedTabId}
-            onActiveTabIdChange={handleTabChange}
+            onActiveTabIdChange={navigateToAiAssistantTab}
           />
         </div>
       </I18nProvider>

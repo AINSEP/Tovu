@@ -11,6 +11,7 @@ import {
 } from "@jini-ai/ui";
 
 import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "@/lib/api";
+import type { Translate } from "@/lib/dictionary-translator";
 import { createExecutionPort } from "@/lib/execution-settings";
 import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, hasUsableKey, isPresetSuppliedEndpoint } from "../rules";
 import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
@@ -185,6 +186,58 @@ export async function saveVisitorSettings(deps: {
   } catch (e) {
     setSettingsSaveState({ status: "error", message: describeApiError(e, "failed to save the settings") });
   }
+}
+
+/**
+ * Save key's status line — whether the KEY reached the server, and nothing else. One of four
+ * mutually exclusive messages keyed on `saveState.status` (plus `stored` for the two "idle"
+ * variants), pulled to a top-level pure function for the same reason as `AiAssistant.tsx`'s
+ * `visitorCredentialKeyStatusMessage`.
+ *
+ * `dirty` is deliberately NOT read here any more (two-button split, 2026-09-02). It means "settings
+ * changed since they were last written", which is {@link visitorCredentialSettingsStatusMessage}'s
+ * question — under the KEY field it would have announced an unsaved model change as though the key
+ * were the thing left unsaved.
+ *
+ * The "WHICH key is stored" question lives in the field's own masked placeholder
+ * (`visitorCredentialApiKeyPlaceholder`, `AiAssistant.tsx`), which is where an operator looks for it.
+ * That mask went through a full round trip of being removed and restored during design, so the
+ * conclusion is worth recording here too: it is a deliberate, bounded disclosure — without it the
+ * field is blank and cannot distinguish "nothing was ever saved" from "a key is saved and working",
+ * an ambiguity worse than four characters.
+ *
+ * @param t - Defaults to English passthrough for `VisitorCredentialForm.unit.test.tsx`'s direct,
+ *   locale-unaware calls, which keep asserting the exact English strings they always have.
+ */
+export function visitorCredentialSaveStatusMessage(
+  saveState: VisitorCredentialFormController["saveState"],
+  stored: VisitorCredentialFormController["stored"],
+  t: Translate = (key) => key,
+): string | null {
+  if (saveState.status === "saving") return t("Saving…");
+  if (saveState.status === "saved") return t("Saved to the server, encrypted.");
+  if (saveState.status !== "idle") return null;
+  if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
+  return t("Paste your key, check it with Show, then press Save key.");
+}
+
+/**
+ * Save settings' own status line.
+ *
+ * Says "Settings saved." and never anything about encryption or the server holding a key: this
+ * button sends no `apiKey`, so borrowing {@link visitorCredentialSaveStatusMessage}'s "Saved to the
+ * server, encrypted." would recreate — under a new button — the exact false confirmation the split
+ * exists to remove.
+ *
+ * @param t - Same seam as its sibling above.
+ */
+export function visitorCredentialSettingsStatusMessage(
+  settingsSaveState: VisitorCredentialFormController["settingsSaveState"],
+  t: Translate = (key) => key,
+): string | null {
+  if (settingsSaveState.status === "saving") return t("Saving…");
+  if (settingsSaveState.status === "saved") return t("Settings saved.");
+  return null;
 }
 
 /**
