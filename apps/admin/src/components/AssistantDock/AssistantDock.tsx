@@ -13,7 +13,7 @@ import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
-import { SelectedAgentPluginTray, type SelectedAgentPluginChip } from "./SelectedAgentPluginTray";
+import { SelectedAgentPluginTray } from "./SelectedAgentPluginTray";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
@@ -47,6 +47,7 @@ import {
   useRuntimeAccess,
   useRuntimeAccessSeam,
   useSelectedAgentPlugins,
+  useSelectedPluginChips,
 } from "./hooks/AssistantDock.hooks";
 
 // `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
@@ -385,18 +386,8 @@ export function AssistantDock({
     callAllowlistedTool: mcpUiToolCaller,
     addPluginRef,
   });
-  /**
-   * Chip labels come from the projection itself (`composerCapabilities.byPluginRefId`), not a
-   * second hardcoded copy — the same row a pinned ref came FROM is the one place its display label
-   * is authored (`composer-capabilities.ts`'s bundled catalog). Falls back to the bare id only if
-   * the projection has not resolved yet or no longer carries a matching capability (e.g. a stale
-   * chip from a catalog that changed shape underneath it) — better than dropping the chip and
-   * silently losing track of a ref that will still be sent.
-   */
-  const selectedPluginChips: readonly SelectedAgentPluginChip[] = selectedPluginRefIds.map((pluginRefId) => ({
-    pluginRefId,
-    label: composerCapabilities.byPluginRefId.get(pluginRefId)?.item.label ?? pluginRefId,
-  }));
+  // See `useSelectedPluginChips`'s own doc for the projection and its label-fallback reasoning.
+  const selectedPluginChips = useSelectedPluginChips(selectedPluginRefIds, composerCapabilities);
 
   const handleMessagesChange = useMessagesChangeHandler({ chats });
   const runContext = useRunContext({

@@ -1,8 +1,8 @@
-import { type AdminFormDefinition } from "../../lib/api";
 import { navigate } from "../../lib/router";
-import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
+import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { formRowMenuItems } from "./rules";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
 
 /**
@@ -40,25 +40,6 @@ export interface FormsListProps {
 
 export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
   const { forms, error, rowSavingId, toggleStatus, t } = useFormsListHook();
-
-  // `RowMenu` has no per-item `disabled` — the in-flight guard lives inside `onSelect` instead,
-  // same shape as `Redirects.tsx`'s `if (saving) return;`.
-  function rowMenuItems(form: AdminFormDefinition): RowMenuItem[] {
-    return [
-      // Slug, not id — the admin URL reads `/admin/forms/<slug>` (ui-fixes-backlog.md #8); the GET
-      // route still resolves an id too, so this is not a behavior change for any existing bookmark.
-      { key: "edit", label: t("Edit"), onSelect: () => navigate(`/forms/${form.slug}`) },
-      {
-        key: "toggle-status",
-        label: form.status === "active" ? t("Disable") : t("Enable"),
-        tone: form.status === "active" ? "warning" : "default",
-        onSelect: () => {
-          if (rowSavingId) return;
-          void toggleStatus(form);
-        },
-      },
-    ];
-  }
 
   if (error && !forms) return <div className="notice error">{error}</div>;
   if (!forms) return <div className="notice">Loading forms…</div>;
@@ -140,7 +121,17 @@ export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListPro
               <RowMenu
                 triggerLabel={`Actions for form "${form.name}"`}
                 agentHandle={`${rowHandles[index]}-menu`}
-                items={rowMenuItems(form)}
+                items={formRowMenuItems(
+                  form,
+                  {
+                    onEdit: (f) => navigate(`/forms/${f.slug}`),
+                    onToggleStatus: (f) => {
+                      if (rowSavingId) return;
+                      void toggleStatus(f);
+                    },
+                  },
+                  t,
+                )}
               />
             ),
           },

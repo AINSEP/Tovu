@@ -1,3 +1,5 @@
+import type { RowMenuItem } from "@jini-ai/admin/react";
+
 import { describeApiError, type AdminFormDefinition, type AdminFormField } from "../../lib/api";
 import type { QueryKey } from "../../lib/fetch-query";
 
@@ -93,6 +95,34 @@ export function formsListError(params: { toggleError: Error | null; listError: E
   if (params.toggleError) return describeApiError(params.toggleError, "failed to update form status");
   if (params.hasForms) return null;
   return params.listError ? describeApiError(params.listError, "failed to load forms") : null;
+}
+
+/** The callbacks a form row menu needs. Passed in rather than imported so this module stays free
+ *  of state, mirroring `redirects/rules.ts`'s `RedirectRowMenuHandlers`. */
+export interface FormRowMenuHandlers {
+  onEdit: (form: AdminFormDefinition) => void;
+  onToggleStatus: (form: AdminFormDefinition) => void;
+}
+
+/**
+ * The row-action menu for one form. `RowMenu` has no per-item `disabled` — the in-flight guard
+ * stays in the caller's `onToggleStatus` closure (`FormsList.tsx`'s own `if (rowSavingId) return;`),
+ * same shape `Redirects.tsx` uses for its own row-saving guard.
+ *
+ * @complexity Time/space: O(1) — two fixed entries, no iteration.
+ */
+export function formRowMenuItems(form: AdminFormDefinition, handlers: FormRowMenuHandlers, t: (key: string) => string): RowMenuItem[] {
+  return [
+    // Slug, not id — the admin URL reads `/admin/forms/<slug>` (ui-fixes-backlog.md #8); the GET
+    // route still resolves an id too, so this is not a behavior change for any existing bookmark.
+    { key: "edit", label: t("Edit"), onSelect: () => handlers.onEdit(form) },
+    {
+      key: "toggle-status",
+      label: form.status === "active" ? t("Disable") : t("Enable"),
+      tone: form.status === "active" ? "warning" : "default",
+      onSelect: () => handlers.onToggleStatus(form),
+    },
+  ];
 }
 
 export const FIELD_TYPES = ["text", "email", "textarea", "checkbox"] as const;

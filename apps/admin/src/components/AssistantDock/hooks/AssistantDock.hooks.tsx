@@ -39,6 +39,7 @@ import {
   type ComposerCapabilityProjection,
 } from "@/features/plugins/composer-capabilities";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "../assistant-dock-i18n";
+import type { SelectedAgentPluginChip } from "../SelectedAgentPluginTray";
 
 /**
  * @file `AssistantDock`'s state/effects layer, split out of `AssistantDock.tsx` (2026-08-06
@@ -683,6 +684,34 @@ export function useSelectedAgentPlugins(): UseSelectedAgentPlugins {
 
 export function useChatI18n(locale: string): I18nAdapter {
   return useMemo(() => createChatI18nAdapter(locale), [locale]);
+}
+
+/**
+ * The composer's pinned-Agent-Plugin chips — `selectedPluginRefIds` (see
+ * {@link useSelectedAgentPlugins}) projected through `composerCapabilities.byPluginRefId` into the
+ * `{ pluginRefId, label }` pairs `SelectedAgentPluginTray` renders.
+ *
+ * Chip labels come from the projection itself, not a second hardcoded copy — the same row a pinned
+ * ref came FROM is the one place its display label is authored
+ * (`composer-capabilities.ts`'s bundled catalog). Falls back to the bare id only if the projection
+ * has not resolved yet or no longer carries a matching capability (e.g. a stale chip from a catalog
+ * that changed shape underneath it) — better than dropping the chip and silently losing track of a
+ * ref that will still be sent.
+ *
+ * @complexity Time/space: O(selectedPluginRefIds.length) per recompute — one `Map.get` per pinned id.
+ */
+export function useSelectedPluginChips(
+  selectedPluginRefIds: readonly string[],
+  composerCapabilities: ComposerCapabilityProjection,
+): readonly SelectedAgentPluginChip[] {
+  return useMemo(
+    () =>
+      selectedPluginRefIds.map((pluginRefId) => ({
+        pluginRefId,
+        label: composerCapabilities.byPluginRefId.get(pluginRefId)?.item.label ?? pluginRefId,
+      })),
+    [selectedPluginRefIds, composerCapabilities],
+  );
 }
 
 /**

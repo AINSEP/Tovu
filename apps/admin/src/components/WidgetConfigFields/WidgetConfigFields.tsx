@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 import type { AdminFormDefinition, AdminMenu, AdminWidgetType } from "../../lib/api";
-import { useFetchedOptions } from "./WidgetConfigFields.hooks";
+import { useFetchedOptions, useSocialLinksConfig } from "./WidgetConfigFields.hooks";
 import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 
 /**
@@ -85,31 +85,14 @@ function TextConfigFields(props: {
   );
 }
 
-interface SocialLink {
-  platform: string;
-  url: string;
-}
-
 /** `social-links` (SOCIAL_LINKS_REGISTRATION: `{ links: [{platform,url}], max 20 }`). */
 function SocialLinksConfigFields(props: {
   config: Record<string, unknown>;
   onChange: (config: Record<string, unknown>) => void;
   agentHandle?: string;
 }) {
-  const links: SocialLink[] = Array.isArray(props.config.links) ? (props.config.links as SocialLink[]) : [];
+  const { links, updateLink, removeLink, addLink } = useSocialLinksConfig(props.config, props.onChange);
   const base = props.agentHandle;
-
-  function updateLink(index: number, patch: Partial<SocialLink>) {
-    const next = links.map((l, i) => (i === index ? { ...l, ...patch } : l));
-    props.onChange({ ...props.config, links: next });
-  }
-  function removeLink(index: number) {
-    props.onChange({ ...props.config, links: links.filter((_, i) => i !== index) });
-  }
-  function addLink() {
-    if (links.length >= 20) return;
-    props.onChange({ ...props.config, links: [...links, { platform: "", url: "" }] });
-  }
 
   return (
     <div className="widget-config-fields">

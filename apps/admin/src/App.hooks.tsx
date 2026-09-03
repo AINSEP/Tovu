@@ -15,6 +15,7 @@ import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api"
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
+import type { AdminNavGroup } from "./nav";
 
 /**
  * @file `App`'s state/effects/refs/DOM logic (2026-08-12 extraction, same pattern
@@ -577,4 +578,25 @@ export function useScreenshotAnnouncement(): UseScreenshotAnnouncement {
   const [announced, setAnnounced] = useState(false);
   useEffect(() => subscribeToScreenshotCaptured(() => setAnnounced(true)), []);
   return { announced, dismiss: () => setAnnounced(false) };
+}
+
+/**
+ * Which nav groups get a collapse toggle: every LABELLED section (CONTENT, PEOPLE, MARKETING,
+ * OPERATIONS, STUDIO, ADMINISTRATION). Derived from the nav rather than hardcoded so a section
+ * added to `panels.tsx` later is collapsible the day it appears — a hardcoded list would silently
+ * leave exactly one heading behaving differently from its neighbours, which reads as a bug rather
+ * than a choice.
+ *
+ * `filter(Boolean)` drops the ungrouped top row (Overview / AI Assistant), which has no label and
+ * therefore no heading to click. It is sliced off separately in `App.tsx`'s render anyway; this
+ * keeps the array honest on its own terms rather than relying on that.
+ *
+ * @param navGroups - The (already-translated) nav groups `App.tsx` renders `<Sidebar.Nav>` from.
+ * @complexity Time/space: O(navGroups.length) per recompute.
+ */
+export function useCollapsibleNavGroupLabels(navGroups: readonly AdminNavGroup[]): readonly string[] {
+  return useMemo(
+    () => navGroups.map((group) => group.label).filter((label): label is string => Boolean(label)),
+    [navGroups],
+  );
 }

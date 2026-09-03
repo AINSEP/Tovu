@@ -18,6 +18,7 @@ import {
   useAdminSession,
   useAgentPageBridge,
   useChatDockLayout,
+  useCollapsibleNavGroupLabels,
   useInternalLinkInterceptor,
   useLogoutConfirm,
   useScreenshotAnnouncement,
@@ -322,17 +323,8 @@ export function App(props: AppProps) {
    *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
   const dockT = (key: string): string => ASSISTANT_DOCK_DICT[navLocale]?.[key] ?? key;
 
-  /**
-   * Every labelled section collapses (CONTENT, PEOPLE, MARKETING, OPERATIONS, STUDIO,
-   * ADMINISTRATION). Derived from the nav rather than hardcoded so a section added to `panels.tsx`
-   * later is collapsible the day it appears — a hardcoded list would silently leave exactly one
-   * heading behaving differently from its neighbours, which reads as a bug rather than a choice.
-   *
-   * `filter(Boolean)` drops the ungrouped top row (Overview / AI Assistant), which has no label and
-   * therefore no heading to click. It is sliced off below anyway; this keeps the array honest on its
-   * own terms rather than relying on that.
-   */
-  const collapsibleGroups = navGroups.map((group) => group.label).filter((label): label is string => Boolean(label));
+  // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
+  const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
 
   if (checking) return <div className="boot-screen">Loading Tovu…</div>;
   if (!user) return <Login onLogin={handleLogin} />;
