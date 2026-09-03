@@ -275,6 +275,72 @@ test("tree and flat paths escape the SAME label/href value byte-identically — 
   assert.ok(treeHtml?.includes(expectedEscapedHrefAttr));
 });
 
+/**
+ * G3 — `escapeHtml` alone never inspects a URL's scheme, so a menu item's `href` (operator-authored,
+ * reaches every visitor) could smuggle an executable scheme into public HTML before `safeHref` (this
+ * file) existed. Every entry here is exercised against BOTH render paths below, since both were
+ * equally exposed before this fix — a scheme guard added to only one path would have just moved the
+ * gap, not closed it.
+ */
+const MALICIOUS_HREF_SCHEMES: readonly string[] = [
+  "javascript:alert(1)",
+  "JaVaScRiPt:alert(1)",
+  "data:text/html,<script>alert(1)</script>",
+  "vbscript:msgbox(1)",
+  "//evil.example",
+  "/\\evil.example",
+];
+
+/** Every href shape a real menu link legitimately uses — a scheme guard that breaks these is a worse
+ *  outcome than the vulnerability it closes (this dispatch's own words). */
+const LEGITIMATE_HREFS: readonly string[] = ["/about", "https://example.com", "mailto:hello@example.com", "#anchor"];
+
+test("flat path (renderMenuLinks): every malicious href scheme collapses to '#', never reaches the page", () => {
+  for (const hostileHref of MALICIOUS_HREF_SCHEMES) {
+    const html = renderStaticPage({
+      theme: flatTheme(),
+      pageId: "index",
+      menus: { [HEADER_ID]: items({ label: "X", href: hostileHref }) },
+    });
+    assert.ok(html?.includes('<a href="#"'), `expected '${hostileHref}' to collapse to href="#", got:\n${html}`);
+    assert.ok(!html?.includes(`href="${hostileHref}"`), `'${hostileHref}' must never reach the page verbatim`);
+  }
+});
+
+test("flat path (renderMenuLinks): every legitimate href passes through unchanged", () => {
+  for (const href of LEGITIMATE_HREFS) {
+    const html = renderStaticPage({
+      theme: flatTheme(),
+      pageId: "index",
+      menus: { [HEADER_ID]: items({ label: "X", href }) },
+    });
+    assert.ok(html?.includes(`href="${href}"`), `expected '${href}' to pass through unchanged, got:\n${html}`);
+  }
+});
+
+test("tree path (menuItemBody): every malicious href scheme collapses to '#', never reaches the page", () => {
+  for (const hostileHref of MALICIOUS_HREF_SCHEMES) {
+    const html = renderStaticPage({
+      theme: treeTheme(),
+      pageId: "index",
+      menus: { [HEADER_ID]: items({ label: "X", href: hostileHref }) },
+    });
+    assert.ok(html?.includes('<a href="#"'), `expected '${hostileHref}' to collapse to href="#", got:\n${html}`);
+    assert.ok(!html?.includes(`href="${hostileHref}"`), `'${hostileHref}' must never reach the page verbatim`);
+  }
+});
+
+test("tree path (menuItemBody): every legitimate href passes through unchanged", () => {
+  for (const href of LEGITIMATE_HREFS) {
+    const html = renderStaticPage({
+      theme: treeTheme(),
+      pageId: "index",
+      menus: { [HEADER_ID]: items({ label: "X", href }) },
+    });
+    assert.ok(html?.includes(`href="${href}"`), `expected '${href}' to pass through unchanged, got:\n${html}`);
+  }
+});
+
 test("a marker with syntactically invalid data-embed-config degrades to its authored fallback, never throws", () => {
   // parseMarkerConfig (src/contracts/core/embeds/marker.ts) reports invalid JSON as a REJECTED marker rather
   // than a match; substituteMarkers only ever touches matched markers, so a rejected one is left

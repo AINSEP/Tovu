@@ -166,6 +166,64 @@ function escapeHtml(value: string): string {
 }
 
 /**
+ * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against —
+ * mirrors `server/inbound/public-http/http/site/render.ts`'s identically-named constant byte-for-byte.
+ */
+const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
+const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
+
+/**
+ * Sanitize a menu item's `href` before it reaches public HTML: allow only in-page (`#…`),
+ * same-origin relative (`/…`), `http(s)://`, and `mailto:` targets. Everything else — notably
+ * `javascript:`, `data:`, and any other scheme — collapses to `"#"` so a menu link can never smuggle
+ * script into the page. A menu item's `href` is operator-authored (the admin menu editor, or an
+ * agent tool acting on an operator's behalf) and reaches every visitor of the public site, including
+ * an authenticated admin — the same "content is data, so a link is an untrusted string" posture
+ * `render.ts`'s own `safeHref` doc already states for post-body links.
+ *
+ * **This is a deliberate DUPLICATE, not a shared import, of
+ * `server/inbound/public-http/http/site/render.ts`'s `safeHref` (confirmed byte-identical logic,
+ * including its `/…` branch's 2026-08-20 protocol-relative-URL fix — see that function's own doc for
+ * the full attack-shape writeup this mirrors).** `render.ts` sits in `server/inbound/`, a layer
+ * `features/theme` must never reach into (`check:boundaries`' no-deep-import rule; a feature pulling
+ * from an inbound-transport module is backwards) — this file's own header already makes the identical
+ * call for `escapeHtml` just above, for the identical reason (avoiding a runtime import cycle back
+ * into the file that pulls in widgets/Liquid/Handlebars). If this logic changes, the `render.ts` copy
+ * must change too — that file does not yet cross-reference this one; flagged for whoever next edits
+ * either copy to add the reciprocal comment there.
+ *
+ * **KNOWN GAP, not fixed here (out of this pass's scope):** `render.ts`'s own `announcement`,
+ * `siteNav`, and `siteFooterRich` widget renderers build `<a href>` from operator-authored widget
+ * props via `escapeHtml(str(o.href, "#"))` alone, with NO `safeHref` call — the exact same class of
+ * gap this function closes for static-tier menus, still live in that file's widget-IR path.
+ *
+ * @returns the original value when it passes the allowlist, otherwise `"#"` — never a malformed or
+ *   unsafe href, matching this codebase's "degrade, don't disappear" convention for a link target.
+ *
+ * Takes `string`, not `string | null` — matching {@link escapeHtml}'s own signature just above.
+ * `render.ts`'s `safeHref` accepts `JsonValue | undefined` because ITS callers hand it raw,
+ * attacker-shaped widget-prop JSON; both of THIS function's callers already narrow `StaticMenuItem`'s
+ * `href: string | null` to a real string before calling (the same `available && href !== null` gate
+ * `renderMenuLinks`'s `.filter()` and `renderMenuItem`'s `linkable` both already apply) — adding a
+ * second, always-false null guard here would be untestable dead code, not defense in depth.
+ */
+function safeHref(value: string): string {
+  const href = value.trim();
+  if (href.startsWith("#")) return href;
+  if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
+  if (href.startsWith("/")) {
+    let resolved: URL;
+    try {
+      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
+    } catch {
+      return "#";
+    }
+    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
+  }
+  return "#";
+}
+
+/**
  * Renders one location's resolved menu items as a flat sequence of `<a>` tags. Top-level items
  * only — v1: every static theme's nav/footer markup this session is a flat link row/column with no
  * dropdown/submenu CSS to hook a nested render into, so rendering `children` would need chrome none
@@ -179,7 +237,7 @@ function renderMenuLinks(items: readonly StaticMenuItem[]): string {
     .filter((item) => item.available && item.href !== null)
     .map((item) => {
       const current = item.isCurrent ? ' aria-current="page"' : "";
-      return `<a href="${escapeHtml(item.href as string)}"${current}>${escapeHtml(item.label)}</a>`;
+      return `<a href="${escapeHtml(safeHref(item.href as string))}"${current}>${escapeHtml(item.label)}</a>`;
     })
     .join("");
 }
@@ -252,7 +310,7 @@ function menuItemLinkAttrs(item: StaticMenuItem): string {
 function menuItemBody(item: StaticMenuItem, linkable: boolean): string {
   const inner = menuItemInnerHtml(item);
   if (!linkable) return `<span class="menu-item-label">${inner}</span>`;
-  return `<a href="${escapeHtml(item.href as string)}"${menuItemLinkAttrs(item)}>${inner}</a>`;
+  return `<a href="${escapeHtml(safeHref(item.href as string))}"${menuItemLinkAttrs(item)}>${inner}</a>`;
 }
 
 /** One `<li>`, or `""` when the item is neither linkable nor a branch worth keeping for its children. */
