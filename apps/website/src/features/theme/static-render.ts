@@ -692,10 +692,24 @@ const STATIC_TIER_PAGE_SHELL_ID = "page-shell";
  * shell" meaning). This does not read `theme.manifest.templates` or its ordering at all: it looks up
  * exactly one canonical, Tovu-owned filename, `page-shell.html` — the same closed-vocabulary lookup
  * `renderStaticTierHomePage` already performs for `"index.html"` on the home route, extended to cover
- * every other route a static theme has no dedicated template for. Every static theme installed today
- * (`basic`) ships this file; a static theme that does not returns `undefined` here, identical to
- * `resolveTemplate`'s own "theme has no such page" contract, and the caller's pre-existing generic
- * `pageShell()` fallback is unchanged for it.
+ * every other route a static theme has no dedicated template for.
+ *
+ * Most static themes do NOT ship this file. Counted 2026-09-02: of the five installed under
+ * `sites/tovu-com/themes/static/`, only `basic` and `basic-2` have `render/pages/page-shell.html` —
+ * `tailark-dusk`, `tailark-quartz-dark` and `tailark-quartz-libre` do not, and neither do the seed
+ * copies `dist/content/themes/static/{fuel,gracious-timing,portfolite}` nor the pre-migration
+ * `content/themes/__original-themes__/static/basic`. A theme without it returns `undefined` here,
+ * identical to `resolveTemplate`'s own "theme has no such page" contract, and the caller's
+ * pre-existing generic `pageShell()` fallback is unchanged for it — which means switching the active
+ * theme to any of those three tailark themes REOPENS the exact bug described above: an untemplated
+ * `html` Page renders in Tovu's generic chrome again, at HTTP 200.
+ *
+ * That degrade stays deliberate — guessing at some other template is what put `terms-of-service`
+ * under `blog-post.html`, so a miss must remain a no-op rather than a substitution. What it must not
+ * remain is SILENT: the miss now emits {@link warnPageShellFallbackMissOnce}'s `[theme] …` warning
+ * (this module's existing `console.warn` convention, see `renderStaticPage`), once per distinct
+ * message rather than once per request, so the state is visible in the server log instead of being
+ * inferable only by eyeballing a rendered page.
  *
  * Scoped to `kind: "page"` + `bodyFormat: "html"` only: `kind: "post"` and `bodyFormat: "doc"` Pages
  * already have their own, unaffected "never chosen" handling (`isPageTemplateChoiceEligible` above)
@@ -705,6 +719,32 @@ const STATIC_TIER_PAGE_SHELL_ID = "page-shell";
  * @complexity O(n) in the shell template's HTML length for the one `markersOfType` slot check
  *   (identical cost shape to `resolveTemplate`'s own `resolveAgainstTheme`); O(1) otherwise.
  */
+/**
+ * Miss diagnostics {@link resolveStaticTierPageShellFallback} has already emitted, keyed by the exact
+ * message text (which embeds the theme id and the reason), so each distinct miss is reported once per
+ * process.
+ *
+ * De-duplicated where `renderStaticPage`'s two `[theme]` warnings are not, because the two are
+ * bounded differently: those fire per page render and a theme has a fixed, small page count, while
+ * this one sits on the generic-fallback path taken by EVERY request to EVERY untemplated `html` Page
+ * on the site — an unbounded warn would bury its own signal within minutes of real traffic. Bounded
+ * by (installed static themes x 2 reasons), so it cannot grow with traffic.
+ */
+const warnedPageShellFallbackMisses = new Set<string>();
+
+/**
+ * Emits a page-shell miss diagnostic at most once per distinct message.
+ *
+ * @param message - The full `[theme] …` warning text; doubles as the de-duplication key.
+ * @returns Nothing. Side effect: one `console.warn`, only on the first call for this message.
+ * @complexity O(1) — one `Set` lookup plus at most one insert.
+ */
+function warnPageShellFallbackMissOnce(message: string): void {
+  if (warnedPageShellFallbackMisses.has(message)) return;
+  warnedPageShellFallbackMisses.add(message);
+  console.warn(message);
+}
+
 export function resolveStaticTierPageShellFallback(
   required: { theme: DiscoveredTheme; post: { kind: "post" | "page"; bodyFormat: "doc" | "html" } },
   _optional: Record<string, never> = {}
@@ -714,7 +754,18 @@ export function resolveStaticTierPageShellFallback(
   if (post.kind !== "page" || post.bodyFormat !== "html") return undefined;
 
   const html = theme.pages[STATIC_TIER_PAGE_SHELL_ID];
-  if (html === undefined || markersOfType(html, "content").length === 0) return undefined;
+  if (html === undefined) {
+    warnPageShellFallbackMissOnce(
+      `[theme] static theme '${theme.manifest.id}' ships no '${STATIC_TIER_PAGE_SHELL_ID}.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`
+    );
+    return undefined;
+  }
+  if (markersOfType(html, "content").length === 0) {
+    warnPageShellFallbackMissOnce(
+      `[theme] static theme '${theme.manifest.id}' ships a '${STATIC_TIER_PAGE_SHELL_ID}.html' with no {"type":"content"} slot; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`
+    );
+    return undefined;
+  }
   return `${STATIC_TIER_PAGE_SHELL_ID}.html`;
 }
 

@@ -29,12 +29,15 @@ const PAGE_SHELL_HTML = `<html data-theme="dark"><body><main>${CONTENT_SLOT}</ma
 interface ThemeOptions {
   tier?: ThemeTier;
   pages?: Record<string, string>;
+  /** Overridden per warn test: the one-time miss diagnostic dedupes on its own message text (which
+   *  embeds the theme id), so two tests sharing an id would silence the second one's warning. */
+  id?: string;
 }
 
 function makeTheme(options: ThemeOptions = {}): DiscoveredTheme {
   return {
     manifest: {
-      id: "page-shell-fallback-test",
+      id: options.id ?? "page-shell-fallback-test",
       name: "Page Shell Fallback Test",
       version: "1.0.0",
       tier: options.tier ?? "static",
@@ -116,4 +119,77 @@ test("a non-static tier resolves nothing even when a page keyed 'page-shell' exi
       `tier '${tier}' must not resolve a static-tier page shell`
     );
   }
+});
+
+/** Runs `fn` with `console.warn` captured, returning every warning it emitted. Same capture shape
+ *  `static-render-token-sentinel.test.ts` uses for this module's other `[theme]` warnings. */
+function capturingWarnings(fn: () => void): unknown[][] {
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+  try {
+    fn();
+  } finally {
+    console.warn = originalWarn;
+  }
+  return warnings;
+}
+
+test("a static theme with no page-shell.html warns, so the silent no-op is observable", () => {
+  // Without this the miss is invisible: the caller just renders Tovu's generic chrome and returns
+  // HTTP 200, so switching the active theme to a tailark theme reopens ed1dd2e9's bug with no log,
+  // no error, and no test signal anywhere.
+  const theme = makeTheme({ id: "warn-no-shell", pages: { index: PAGE_SHELL_HTML } });
+
+  const warnings = capturingWarnings(() => {
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } });
+  });
+
+  assert.deepEqual(warnings, [
+    [
+      "[theme] static theme 'warn-no-shell' ships no 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document",
+    ],
+  ]);
+});
+
+test("a page-shell.html with no content slot warns with its own distinct reason", () => {
+  const theme = makeTheme({ id: "warn-no-slot", pages: { "page-shell": "<html><body>no slot</body></html>" } });
+
+  const warnings = capturingWarnings(() => {
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } });
+  });
+
+  assert.deepEqual(warnings, [
+    [
+      `[theme] static theme 'warn-no-slot' ships a 'page-shell.html' with no {"type":"content"} slot; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`,
+    ],
+  ]);
+});
+
+test("the miss warning fires ONCE per theme, not once per request", () => {
+  // This path runs on every request to every untemplated html Page, so an unbounded warn would
+  // bury its own signal.
+  const theme = makeTheme({ id: "warn-once", pages: {} });
+
+  const warnings = capturingWarnings(() => {
+    for (let i = 0; i < 3; i += 1) {
+      resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } });
+    }
+  });
+
+  assert.equal(warnings.length, 1, "three resolutions of the same missing shell must warn exactly once");
+});
+
+test("a resolvable page shell, and every arm that never consults the shell at all, warn nothing", () => {
+  const warnings = capturingWarnings(() => {
+    resolveStaticTierPageShellFallback({ theme: makeTheme({ id: "warn-none-ok" }), post: { kind: "page", bodyFormat: "html" } });
+    resolveStaticTierPageShellFallback({ theme: makeTheme({ id: "warn-none-post" }), post: { kind: "post", bodyFormat: "doc" } });
+    resolveStaticTierPageShellFallback({ theme: makeTheme({ id: "warn-none-doc" }), post: { kind: "page", bodyFormat: "doc" } });
+    resolveStaticTierPageShellFallback({
+      theme: makeTheme({ id: "warn-none-tier", tier: "declarative", pages: {} }),
+      post: { kind: "page", bodyFormat: "html" },
+    });
+  });
+
+  assert.deepEqual(warnings, [], "a non-static tier, a Post, a doc Page, and a successful resolve are all silent");
 });
