@@ -75,22 +75,37 @@ export function isIntegrationTestFile(relPath: string): boolean {
   return normalized.includes("/__tests__/integration/");
 }
 
-/** Phase 1 step 6 (src/server/ inbound/runtime split, 2026-08-28): admin routes moved from
- *  `src/server/routes/admin/**` to `src/server/inbound/admin-http/routes/**`. Both prefixes are
- *  recognized during the transition — `src/server/routes/**` still holds the site/members/oauth/etc.
- *  routes not yet moved. Once the whole tree finishes moving into `src/server/inbound/`, the first
- *  prefix becomes dead (matches nothing) and can be dropped.
+/** Repo-relative directory prefixes (trailing `/` kept, so a prefix can never accidentally match a
+ *  sibling like `.../routes-legacy/`) whose `.ts` files this module treats as measurable route
+ *  source. A single named list rather than inline `startsWith` calls chained by `||`, so the next
+ *  subtree move only has to add or edit one entry here instead of every call site independently
+ *  falling out of sync (see `check-route-coverage-diff.ts`'s `changedRouteFiles`, which reuses this
+ *  same list for its git pathspec rather than keeping its own copy).
  *
- *  2026-09-02: both prefixes repointed from `src/...` to `apps/website/src/...` — the apps/website
- *  restructure moved the tree but not these strings, so this function matched nothing and both
- *  route-coverage gates measured zero files. See `dead-path-sweep.test.ts`; this particular
- *  instance was invisible to that sweep because both literals end in `/` (its
- *  `trailing-separator` skip rule), not because it was already fixed. */
+ *  History, oldest first:
+ *  - Phase 1 step 6 (src/server/ inbound/runtime split, 2026-08-28): admin routes moved from
+ *    `src/server/routes/admin/**` to `src/server/inbound/admin-http/routes/**`. Both prefixes were
+ *    recognized during the transition.
+ *  - 2026-09-02: both prefixes repointed from `src/...` to `apps/website/src/...` — the apps/website
+ *    restructure moved the tree but not these strings, so this function matched nothing and both
+ *    route-coverage gates measured zero files. See `dead-path-sweep.test.ts`; this particular
+ *    instance was invisible to that sweep because both literals end in `/` (its
+ *    `trailing-separator` skip rule).
+ *  - 2026-09-03: `src/server/routes/**` finished emptying out (down to the type-only `types.ts`,
+ *    already excluded below) — the site/members/oauth/forms/etc. routes it used to hold moved into
+ *    `src/server/inbound/public-http/routes/**`, a THIRD prefix that was never added here. Unlike
+ *    the two instances above, this was not a broken/stale literal `dead-path-sweep.test.ts` could
+ *    ever have flagged — the string was simply never written, so there was nothing dead to resolve.
+ *    24 public-http route files sat unmeasured by both gates until this entry was added. */
+export const MEASURABLE_ROUTE_PREFIXES: readonly string[] = [
+  "apps/website/src/server/routes/",
+  "apps/website/src/server/inbound/admin-http/routes/",
+  "apps/website/src/server/inbound/public-http/routes/",
+];
+
 export function isMeasurableRouteFile(relPath: string): boolean {
   const normalized = relPath.split(path.sep).join("/");
-  const isRoutePath =
-    normalized.startsWith("apps/website/src/server/routes/") ||
-    normalized.startsWith("apps/website/src/server/inbound/admin-http/routes/");
+  const isRoutePath = MEASURABLE_ROUTE_PREFIXES.some((prefix) => normalized.startsWith(prefix));
   if (!isRoutePath) return false;
   if (normalized.includes("/__tests__/")) return false;
   if (/\.(test|spec)\.ts$/.test(normalized)) return false;

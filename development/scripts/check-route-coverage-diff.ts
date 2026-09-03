@@ -74,6 +74,7 @@ import { execFileSync } from "node:child_process";
 import {
   LCOV_INTEGRATION_PATH,
   LCOV_UNIT_PATH,
+  MEASURABLE_ROUTE_PREFIXES,
   REPO_ROOT,
   isMeasurableRouteFile,
   loadRouteCoverage,
@@ -115,8 +116,10 @@ function changedRouteFiles(baseRef: string): string[] {
       mergeBase,
       "HEAD",
       "--",
-      "apps/website/src/server/routes",
-      "apps/website/src/server/inbound/admin-http/routes",
+      // Reuses route-coverage-lib.ts's single named prefix list rather than a second hand-copied one
+      // -- see MEASURABLE_ROUTE_PREFIXES's own doc comment for why that copy is exactly how the
+      // 2026-09-03 public-http gap happened to this file's sibling predicate.
+      ...MEASURABLE_ROUTE_PREFIXES,
     ],
     { cwd: REPO_ROOT, encoding: "utf8" }
   );
