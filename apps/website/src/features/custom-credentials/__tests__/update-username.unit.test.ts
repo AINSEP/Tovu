@@ -4,7 +4,13 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
 import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
 import { InMemoryCustomCredentialSetRepo } from "../repo.memory.js";
-import { createCustomCredential, updateCustomCredential, CustomCredentialValidationError, type CustomCredentialWriteDeps } from "../store.js";
+import {
+  createCustomCredential,
+  resolveCustomCredentialByLabel,
+  updateCustomCredential,
+  CustomCredentialValidationError,
+  type CustomCredentialWriteDeps,
+} from "../store.js";
 
 /**
  * @file `updateCustomCredential`'s top-level `username` field (2026-09-01) — lets an operator fix a
@@ -104,6 +110,26 @@ test("updateCustomCredential: `username: null` explicitly clears a saved usernam
 
   const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
   assert.equal("username" in result, false);
+});
+
+test("updateCustomCredential: `username: null` (no connection) also strips the sealed payload's own embedded username, so the real decrypting read path (resolveCustomCredentialByLabel) does not resurrect it", async () => {
+  const deps = makeWriteDeps();
+  const created = await createCustomCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "name.com",
+    category: "general",
+    baseUrl: "https://api.name.com",
+    connection: { token: "sk_live_original", username: "old-username" },
+  });
+
+  const result = await updateCustomCredential(deps, { workspaceId: WORKSPACE, id: created.id, username: null });
+  assert.equal("username" in result, false);
+
+  const resolved = await resolveCustomCredentialByLabel(deps, { workspaceId: WORKSPACE, label: "name.com" });
+  assert.ok(resolved);
+  // Before the fix, `record.username` is `undefined` so `resolveCustomCredentialByLabel`'s
+  // `record.username ?? decrypted.username` fallback returned the OLD sealed username right back.
+  assert.deepEqual(resolved?.connection, { token: "sk_live_original" });
 });
 
 test("updateCustomCredential: `username: \"\"` (blank string) is rejected — not a silent clear, not a silent no-op", async () => {

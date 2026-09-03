@@ -403,13 +403,23 @@ export interface UpdateCustomCredentialInput {
  * the username" signal a caller can send on its own with no token in hand at all; `connection`'s own
  * `username` member only ever arrives bundled with a token replacement, so treating it as the
  * decisive value would make an operator's explicit, standalone edit losable by an unrelated,
- * incidental field on a DIFFERENT input. Note this can leave the plaintext column and the sealed
- * copy's own embedded username disagreeing — that is an accepted, pre-existing divergence, not a new
- * inconsistency this introduces: `resolveCustomCredentialByLabel`'s own doc already establishes the
- * column as authoritative over the sealed copy for every reader, precisely so a future gap between
- * the two is never a correctness problem, only ever a fact about which write path touched last.
+ * incidental field on a DIFFERENT input. Note this CAN leave the plaintext column and the sealed
+ * copy's own embedded username disagreeing when both fields are supplied together with different
+ * values — that is an accepted, pre-existing divergence, not a new inconsistency this introduces:
+ * `resolveCustomCredentialByLabel`'s own doc already establishes the column as authoritative over the
+ * sealed copy for every reader, precisely so a future gap between the two is never a correctness
+ * problem, only ever a fact about which write path touched last.
  *
- * @complexity O(1) — one read, at most one seal, one update.
+ * One divergence is NOT left standing, though: a standalone `username: null` clear (no `connection`
+ * supplied in the same call) re-seals the existing token WITHOUT a username, rather than leaving the
+ * old ciphertext in place. Skipping that reseal would be invisible to every non-decrypting reader
+ * (`describeCredential`/`listCustomCredentials` never look at the sealed copy at all) but would
+ * silently resurrect the just-cleared value the moment `resolveCustomCredentialByLabel` — the one
+ * decrypting reader — hit a row whose column is `undefined` and fell back to the stale embedded
+ * username.
+ *
+ * @complexity O(1) — one read, at most one seal, one update, plus one extra decrypt+seal on a
+ *   standalone username clear.
  */
 export async function updateCustomCredential(deps: CustomCredentialWriteDeps, input: UpdateCustomCredentialInput): Promise<CustomCredentialSummary> {
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
@@ -442,6 +452,19 @@ export async function updateCustomCredential(deps: CustomCredentialWriteDeps, in
   // other optional field on this store already has.
   if (input.username !== undefined) {
     username = validateUsernamePatch(input.username);
+    // An explicit clear (`username: null`) with no `connection` replacement leaves `sealed` as
+    // `existing.sealed` above — still carrying the OLD username inside the ciphertext.
+    // `resolveCustomCredentialByLabel` falls back to that embedded value whenever the plaintext
+    // column is `undefined` (its own doc explains why: half-migrated rows), so without this reseal
+    // the clear would silently resurrect on the next decrypting read. Re-seal with the existing
+    // token and no username so the ciphertext stops carrying it too. Not needed for the "set a new
+    // value" case: the column always wins over the sealed copy once it holds a real value, so that
+    // divergence never surfaces to a reader (see `update-username.unit.test.ts`'s byte-identical
+    // assertion for that case, which this branch must not disturb).
+    if (username === undefined && input.connection === undefined) {
+      const oldConnection = await decryptRecord(deps.sealer, existing);
+      sealed = await sealConnection(deps, { workspaceId: input.workspaceId, id: input.id, connection: { token: oldConnection.token } });
+    }
   }
 
   const record: CustomCredentialSetRecord = {
