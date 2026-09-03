@@ -8,8 +8,8 @@ import { isIntegrationTestFile } from "../route-coverage-lib.js";
  * @file Sanity coverage for `listServerTestFiles` — the shared enumeration behind
  * `test:cov:server:unit` / `test:cov:server:integration` (package.json). Real filesystem/`find`
  * shell-out against this actual repo checkout, deliberately: the thing worth verifying is that the
- * two lists partition the real `src/server/**\/*.test.ts` set with no overlap and no gaps, using the
- * SAME classifier the route-coverage diff gate's tier split depends on.
+ * two lists partition the real `apps/website/src/server/**\/*.test.ts` set with no overlap and no
+ * gaps, using the SAME classifier the route-coverage diff gate's tier split depends on.
  */
 
 test("listServerTestFiles: unit and integration lists partition all src/server test files with zero overlap", () => {
@@ -29,6 +29,6 @@ test("listServerTestFiles: unit and integration lists partition all src/server t
 test("listServerTestFiles: known integration suites are present in the integration list", () => {
   const integration = listServerTestFiles("integration");
   assert.ok(
-    integration.includes("src/server/__tests__/integration/boot-lifecycle-real-deps.integration.test.ts")
+    integration.includes("apps/website/src/server/__tests__/integration/boot-lifecycle-real-deps.integration.test.ts")
   );
 });

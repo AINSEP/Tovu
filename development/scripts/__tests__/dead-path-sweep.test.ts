@@ -41,13 +41,15 @@ import {
  * 35 dead references across 14 files — every one an unmigrated `src/` path. See
  * `KNOWN_BROKEN_PENDING_OWNER_DECISION` for the ledger and why none of them are fixed here.
  *
- * 2026-09-02 follow-up: the owner authorized fixing four of those files (13 of the 35 references) —
- * `check-architecture.ts`, `check-route-coverage-diff.ts`, `check-src-complexity-drift.ts`, and the
- * `drizzle.database-journal.config.ts` sibling fix `drizzle.config.ts` got in 7fb47f55 — repointing
- * each `src/...` string to `apps/website/src/...` with no threshold, baseline, or scope changes
- * beyond the path itself. Their register entries below are removed as no-longer-broken; the
- * remaining 22 references across 10 files are unchanged and still the owner's call. Fixing
- * `check-route-coverage-diff.ts`'s two git pathspecs also required repointing
+ * 2026-09-02 follow-up: the owner authorized fixing five of those files in two passes (14 of the 35
+ * references). Pass one — `check-architecture.ts`, `check-route-coverage-diff.ts`,
+ * `check-src-complexity-drift.ts`, and the `drizzle.database-journal.config.ts` sibling fix
+ * `drizzle.config.ts` got in 7fb47f55. Pass two — `list-server-test-files.ts`, the ONE entry this
+ * guard was originally commissioned around, once the owner decided which tests CI should run was no
+ * longer an open question. Both passes repoint each `src/...` string to `apps/website/src/...` with
+ * no threshold, baseline, or scope changes beyond the path itself. Their register entries below are
+ * removed as no-longer-broken; the remaining 21 references across 9 files are unchanged and still the
+ * owner's call. Fixing `check-route-coverage-diff.ts`'s two git pathspecs also required repointing
  * `route-coverage-lib.ts`'s `isMeasurableRouteFile` (same `src/server/routes/...` dead prefix, one
  * function away) — that instance was invisible to this sweep because both its literals end in `/`
  * (the `trailing-separator` skip rule), so it was never one of the 35 and has no register entry to
@@ -101,14 +103,6 @@ const UNRUN_ONE_SHOT =
  * found 35. That gap is the finding, not a defect in the guard.
  */
 const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEntry>> = {
-  ...known(
-    "development/scripts/list-server-test-files.ts",
-    "the entry the guard was commissioned around. `find src/server` prints nothing, so " +
-      "`test:cov:server:unit` / `:integration` expand to an EMPTY file list. A one-line repair changes " +
-      "which tests CI runs and what the route-coverage gates read off the resulting lcov — explicitly " +
-      "reserved for the owner.",
-    ["src/server"]
-  ),
   ...known("development/scripts/agent-plugin-activation.ts", UNRUN_ONE_SHOT, [
     "../../src/features/agent-plugins/activation.js",
     "../../src/features/agent-plugins/layout.js",
@@ -195,8 +189,8 @@ test("known-broken register has no stale entries — every listed reference is s
   );
 });
 
-test("known-broken register is exactly the 22 references remaining after the 2026-09-02 four-file fix — growth needs a deliberate edit", () => {
-  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 22);
+test("known-broken register is exactly the 21 references remaining after the 2026-09-02 five-file fix — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 21);
 });
 
 test("every known-broken entry carries a non-empty rationale", () => {
