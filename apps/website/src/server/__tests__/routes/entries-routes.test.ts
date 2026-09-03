@@ -7,6 +7,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
+import { registerAdminContentTypeLifecycleRoute } from "../../inbound/admin-http/routes/content-types/lifecycle.js";
 import { registerAdminEntryListRoute } from "../../inbound/admin-http/routes/entries/list.js";
 import { registerAdminEntryCreateRoute } from "../../inbound/admin-http/routes/entries/create.js";
 import { registerAdminEntryUpdateRoute } from "../../inbound/admin-http/routes/entries/update.js";
@@ -25,6 +26,7 @@ function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   app.use("/api/admin", requireAdminSession(deps));
 
   registerAdminContentTypeRegisterRoute(app, deps);
+  registerAdminContentTypeLifecycleRoute(app, deps);
   registerAdminEntryListRoute(app, deps);
   registerAdminEntryCreateRoute(app, deps);
   registerAdminEntryUpdateRoute(app, deps);
@@ -39,6 +41,36 @@ async function registerRecipeType(baseUrl: string, cookie: string): Promise<void
     body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
   });
   assert.equal(res.status, 201);
+}
+
+/** Tombstones the `recipe` content type registered by {@link registerRecipeType} (starts at
+ *  version 1). EC-09: a content type must be `deprecated` before it can be `tombstone`d, so this
+ *  drives both transitions in sequence rather than jumping straight to tombstone. */
+async function tombstoneRecipeType(baseUrl: string, cookie: string): Promise<void> {
+  const deprecateRes = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "deprecate", expectedVersion: 1 }),
+  });
+  assert.equal(deprecateRes.status, 200);
+
+  const tombstoneRes = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "tombstone", expectedVersion: 2 }),
+  });
+  assert.equal(tombstoneRes.status, 200);
+}
+
+async function createRecipeEntry(baseUrl: string, cookie: string, slug = "eggs"): Promise<{ id: string; version: number }> {
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug, title: "Eggs" }),
+  });
+  assert.equal(res.status, 201);
+  const created = (await res.json()) as { entry: { id: string; version: number } };
+  return created.entry;
 }
 
 test("entries routes: create denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
@@ -222,4 +254,419 @@ test("entries routes: an update that omits bodyJson leaves the existing body alo
   const updated = (await updateRes.json()) as { entry: { title: string; bodyJson: unknown } };
   assert.equal(updated.entry.title, "Renamed");
   assert.deepEqual(updated.entry.bodyJson, body, "omitting bodyJson must preserve it, not clear it");
+});
+
+// --- Coverage gap fill (2026-09-03): update.ts / lifecycle.ts / list.ts branch coverage ---
+
+test("entries routes: update denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+});
+
+test("entries routes: update without a numeric expectedVersion is rejected 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title" }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "'expectedVersion' (number) is required");
+});
+
+test("entries routes: a fields-only update (no `title` key at all) leaves the existing title alone", async (t) => {
+  // The other half of `typeof body.title === "string" ? body.title : undefined` from the
+  // existing bodyJson-omission test — `title` itself must survive being omitted too.
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fieldsJson: { ext: { site: {} } }, expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 200);
+  const updated = (await res.json()) as { entry: { title: string } };
+  assert.equal(updated.entry.title, "Eggs", "omitting `title` must preserve it, not clear it");
+});
+
+test("entries routes: updating a nonexistent entry is rejected 404 ENTRY_NOT_FOUND", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/does-not-exist`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "X", expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "ENTRY_NOT_FOUND");
+});
+
+test("entries routes: updating an entry whose content type has been tombstoned is rejected 409 CONTENT_TYPE_NOT_ACTIVE (REQ-28/AC-45)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+  await tombstoneRecipeType(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "CONTENT_TYPE_NOT_ACTIVE");
+});
+
+test("entries routes: updating with a stale expectedVersion is rejected 409 VERSION_CONFLICT", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: 999 }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VERSION_CONFLICT");
+});
+
+test("entries routes: updating with an un-enveloped fieldsJson is rejected 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fieldsJson: { notEnveloped: true }, expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("entries routes: update's write-service chokepoint re-check enforces FORBIDDEN even though the route's own pre-check passed", async (t) => {
+  // BUG WATCH (see final report): `update.ts`'s own pre-check calls `deps.authorize` with
+  // `entityType: "entry"`; `features/entries/write-service.ts`'s `resolveExistingEntryForTransition`
+  // (the chokepoint `updateEntry` shares with `publishEntry`/`unpublishEntry`) calls the SAME
+  // `deps.authorize` a second time but WITHOUT `entityType`. A real RBAC policy scoped to
+  // `resourceType: "entry"` would pass the route's own check and then be denied by the
+  // chokepoint's re-check — this mock reproduces that exact divergence (keyed on `entityType`
+  // presence, not a synthetic denial) to prove the chokepoint is what actually decides, and to
+  // exercise `statusFor`'s `ForbiddenError` branch, which no test previously reached.
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async (params) =>
+    params.entityType ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FORBIDDEN");
+});
+
+test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "boom");
+});
+
+test("entries routes: update surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw "boom";
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "internal error");
+});
+
+test("entries routes: lifecycle denied 403 FORBIDDEN without admin.collections.manage", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.manage' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.collections.manage", reason: "test_denied" });
+});
+
+test("entries routes: lifecycle with an unrecognized op is rejected 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "archive", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "'op' must be one of 'publish', 'unpublish'");
+});
+
+test("entries routes: lifecycle without a numeric expectedVersion is rejected 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish" }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "'expectedVersion' (number) is required");
+});
+
+test("entries routes: lifecycle on a nonexistent entry is rejected 404 ENTRY_NOT_FOUND", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/does-not-exist/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "ENTRY_NOT_FOUND");
+});
+
+test("entries routes: lifecycle on an entry whose content type has been tombstoned is rejected 409 CONTENT_TYPE_NOT_ACTIVE (REQ-28/AC-45)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+  await tombstoneRecipeType(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "CONTENT_TYPE_NOT_ACTIVE");
+});
+
+test("entries routes: lifecycle with a stale expectedVersion is rejected 409 VERSION_CONFLICT", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: 999 }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VERSION_CONFLICT");
+});
+
+test("entries routes: lifecycle's write-service chokepoint re-check enforces FORBIDDEN even though the route's own pre-check passed", async (t) => {
+  // Same divergence as update.ts's equivalent test — `publishEntry`/`unpublishEntry` share
+  // `resolveExistingEntryForTransition`'s entityType-less internal `authorize()` call.
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async (params) =>
+    params.entityType ? { allowed: true, reason: "matched" } : { allowed: false, reason: "resource_scope_mismatch" };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FORBIDDEN");
+});
+
+test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "boom");
+});
+
+test("entries routes: lifecycle surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  deps.authorize = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw "boom";
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "internal error");
+});
+
+test("entries routes: list denied 403 FORBIDDEN without admin.collections.read", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.match(body.error, /^principal '.+' is not authorized for 'admin\.collections\.read' \(test_denied\)$/);
+  assert.deepEqual(body.details, { permission: "admin.collections.read", reason: "test_denied" });
+});
+
+test("entries routes: list without a `type` filter returns every content type's entries", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const listed = (await res.json()) as { items: Array<{ id: string }> };
+  assert.deepEqual(
+    listed.items.map((i) => i.id),
+    [entry.id]
+  );
+});
+
+test("entries routes: list surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "boom");
+});
+
+test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) with a generic message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    // eslint-disable-next-line @typescript-eslint/no-throw-literal
+    throw "boom";
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries`, { headers: { cookie } });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+  assert.equal(body.error, "internal error");
 });

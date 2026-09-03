@@ -41,7 +41,11 @@ export function registerAdminEntryLifecycleRoute(app: Express, deps: ContentType
         return;
       }
 
-      const body = req.body ?? {};
+      // `req.body` is never nullish here: the composition root's blanket `express.json()`
+      // (`runtime/composition/app.ts`) runs `body-parser`, which sets `req.body = req.body || {}`
+      // unconditionally before any content-type check (`node_modules/body-parser/lib/types/
+      // json.js:105-108`) — so a `?? {}` fallback can never actually fire through real HTTP.
+      const body = req.body;
       const op = parseEntryLifecycleOp(body.op);
       if (!op) {
         res.status(400).json({ error: "'op' must be one of 'publish', 'unpublish'", code: "VALIDATION_ERROR" });
