@@ -1,0 +1,473 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import test from "node:test";
+
+import {
+  SKIP_REASONS,
+  classifyRepoRelativeString,
+  collectRepoSegments,
+  collectSweepTargets,
+  extractRelativeImportSpecifiers,
+  extractStringLiterals,
+  findingKey,
+  pathThatMustExist,
+  resolveImportCandidates,
+  shouldScanStringsIn,
+  stripComments,
+  sweepFiles,
+  type DeadPathFinding,
+  type SkipReason,
+} from "../lib/dead-path-sweep.js";
+
+/**
+ * @file The dead-path guard: every relative import and every hardcoded repo-relative path string in
+ * `development/scripts/**\/*.ts` and `apps/website/src/platform/db/*.config.ts` must resolve to
+ * something that exists.
+ *
+ * ## Why a TEST and not a `check:*` script
+ *
+ * Ten of this repo's nineteen `check:*` scripts are invoked from nowhere, and all eight wired into
+ * `ci.yml` carry `continue-on-error: true` — a `check:` script cannot fail anything here. `test:ci`'s
+ * glob already covers `development/scripts/**\/*.test.ts`, so this file runs with no `package.json`
+ * edit at all.
+ *
+ * ## What it caught
+ *
+ * The `apps/website` restructure moved the source tree and left `src/...` behind in tooling nothing
+ * exercises. Six instances were known when this was written (`drizzle.config.ts`, its
+ * `database-journal` sibling, `generate-seed-content.ts`, `list-server-test-files.ts`,
+ * `backfill-vendor-credentials.ts`, `backfill-slug-collision-defaults.ts`). Running the sweep found
+ * 35 dead references across 14 files — every one an unmigrated `src/` path. See
+ * `KNOWN_BROKEN_PENDING_OWNER_DECISION` for the ledger and why none of them are fixed here.
+ */
+
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..");
+
+// ---------------------------------------------------------------------------
+// The known-broken register
+// ---------------------------------------------------------------------------
+
+interface KnownBrokenEntry {
+  readonly rationale: string;
+}
+
+/** Builds one register row per specifier so the staleness gate below sees each dead reference
+ *  individually — a per-FILE register would let a second dead path slip into an already-listed file
+ *  unnoticed, which is the exact hole that makes a suppression list rot. */
+const known = (
+  file: string,
+  rationale: string,
+  specifiers: readonly string[]
+): Record<string, KnownBrokenEntry> =>
+  Object.fromEntries(specifiers.map((specifier) => [`${file}:${specifier}`, { rationale }]));
+
+const CI_GATE_SCOPE =
+  "a CI gate's own scan scope, passed to depcruise/eslint/git with cwd=REPO_ROOT. Repointing it at " +
+  "apps/website/src/ changes WHICH FILES THE GATE MEASURES and therefore what its committed baseline " +
+  "means — an owner decision, not a mechanical path fix.";
+
+const UNRUN_ONE_SHOT =
+  "a one-shot operational script whose imports have been dead since the restructure. Nothing invokes " +
+  "it, so nothing noticed. Repointing is mechanical, but the script has no test proving it still " +
+  "works against today's schema, so a blind fix would ship an unverified migration tool.";
+
+/**
+ * Dead path references that exist TODAY and are deliberately not fixed by this change, each with the
+ * reason it is the owner's call rather than a mechanical repair.
+ *
+ * This is NOT a general suppression mechanism, and nothing may be added to it to make an unrelated
+ * failure go away. It is a ledger of one specific, finite piece of debt — the unfinished
+ * `src/` to `apps/website/src/` migration — and it is paired with the staleness gate below: the
+ * moment an entry's path starts resolving, the entry becomes redundant and the test FAILS, forcing
+ * its removal. That pairing is what stops this list from drifting the way three other
+ * hand-maintained registries in this repo did in a single day. It follows `REVIEWED_JSON_COLUMNS` in
+ * `apps/website/src/platform/db/migration/manifest.ts` and its staleness/non-redundancy tests, which
+ * is this codebase's established pattern for exactly this problem.
+ *
+ * The brief that commissioned this guard expected ONE entry (`list-server-test-files.ts`). The sweep
+ * found 35. That gap is the finding, not a defect in the guard.
+ */
+const KNOWN_BROKEN_PENDING_OWNER_DECISION: Readonly<Record<string, KnownBrokenEntry>> = {
+  ...known(
+    "development/scripts/list-server-test-files.ts",
+    "the entry the guard was commissioned around. `find src/server` prints nothing, so " +
+      "`test:cov:server:unit` / `:integration` expand to an EMPTY file list. A one-line repair changes " +
+      "which tests CI runs and what the route-coverage gates read off the resulting lcov — explicitly " +
+      "reserved for the owner.",
+    ["src/server"]
+  ),
+  ...known(
+    "development/scripts/check-architecture.ts",
+    `${CI_GATE_SCOPE} It cruises the bare specifier "src" (no separator, so the sweep cannot see that ` +
+      "one) and compares results against `src/index.ts`; both are dead, so `check:architecture` " +
+      "measures an empty graph.",
+    ["src/index.ts"]
+  ),
+  ...known(
+    "development/scripts/check-route-coverage-diff.ts",
+    `${CI_GATE_SCOPE} These two are git pathspecs; git does not error on a pathspec matching nothing, ` +
+      "so the gate sees zero changed route files and passes vacuously.",
+    ["src/server/routes", "src/server/inbound/admin-http/routes"]
+  ),
+  ...known(
+    "development/scripts/check-src-complexity-drift.ts",
+    `${CI_GATE_SCOPE} Eight of the nine SCOPES entries are dead; only "apps/site-chat/src" still ` +
+      "resolves, so the complexity gate lints one small app and nothing else.",
+    [
+      "src/server",
+      "src/assistant",
+      "src/features",
+      "src/widgets",
+      "src/seo",
+      "src/platform/export",
+      "src/analytics",
+      "src/media",
+    ]
+  ),
+  ...known(
+    "apps/website/src/platform/db/drizzle.database-journal.config.ts",
+    "the sibling of the `drizzle.config.ts` repointed in 7fb47f55, missed by that fix. Same " +
+      "consequence for the sidecar target: `db:generate:database-journal` fails with " +
+      "\"No schema files found\", so no migration can be generated for ops/database-journal.db. The " +
+      "real files are at apps/website/src/platform/db/sqlite/database-journal-schema.ts and " +
+      "apps/website/src/platform/db/drizzle-database-journal. Left to the owner because it belongs " +
+      "with its sibling's slice, and because migrations auto-apply to the live DB.",
+    ["./src/platform/db/sqlite/database-journal-schema.ts", "./src/platform/db/drizzle-database-journal"]
+  ),
+  ...known("development/scripts/agent-plugin-activation.ts", UNRUN_ONE_SHOT, [
+    "../../src/features/agent-plugins/activation.js",
+    "../../src/features/agent-plugins/layout.js",
+    "../../src/features/agent-plugins/resolve-agent-plugin-refs.js",
+  ]),
+  ...known("development/scripts/install-agent-plugin.ts", UNRUN_ONE_SHOT, [
+    "../../src/features/agent-plugins/fetch-archive.js",
+    "../../src/features/agent-plugins/install.js",
+    "../../src/features/agent-plugins/install-from-url.js",
+    "../../src/features/agent-plugins/layout.js",
+  ]),
+  ...known("development/scripts/convert-legacy-doc-pages-to-html.ts", UNRUN_ONE_SHOT, [
+    "../../src/platform/db/sqlite/content-db.js",
+    "../../src/platform/db/sqlite/db-ops.js",
+    "../../src/contracts/core/entry-refs/repo.sqlite.js",
+    "../../src/features/pages/html-document-store.js",
+    "../../src/server/inbound/public-http/http/site/render.js",
+  ]),
+  ...known("development/scripts/migrate-page-embed-markers.ts", UNRUN_ONE_SHOT, [
+    "../../src/platform/db/sqlite/content-db.js",
+    "../../src/contracts/core/embeds/marker.js",
+    "../../src/contracts/core/entry-refs/extractor.js",
+    "../../src/contracts/core/entry-refs/repo.sqlite.js",
+  ]),
+  ...known("development/scripts/theme-tool.ts", UNRUN_ONE_SHOT, ["../../src/features/theme/theme.js"]),
+  ...known(
+    "development/scripts/write-path-inventory.ts",
+    `${UNRUN_ONE_SHOT} Note this script builds its own ROOT as development/, not the repo root, so ` +
+      "the true dead target is development/src/platform/db/schema.ts — absent under either base.",
+    ["src/platform/db/schema.ts"]
+  ),
+  ...known(
+    "development/scripts/check-capability-inventory.ts",
+    `${UNRUN_ONE_SHOT} This one IS a check: script, so its failure mode is a crash rather than a ` +
+      "silent pass — but ci.yml's continue-on-error swallows the crash.",
+    ["../../src/server/runtime/configuration/capability-inventory.js"]
+  ),
+  ...known(
+    "development/scripts/check-embed-marker-drift.ts",
+    `${UNRUN_ONE_SHOT} Same crash-not-silence shape as check-capability-inventory.ts.`,
+    ["../../src/contracts/core/embeds/marker.js"]
+  ),
+  ...known(
+    "development/scripts/lib/tovu-test-server.ts",
+    "the shared harness behind check-openapi-contract.ts and check-openapi-secret-leaks.ts — both of " +
+      "those gates crash on import today. Fixing it means booting the real app from a check script, " +
+      "which needs verification this task is not scoped to do.",
+    ["../../../src/server/runtime/composition/app.js"]
+  ),
+};
+
+// ---------------------------------------------------------------------------
+// The live sweep
+// ---------------------------------------------------------------------------
+
+const sweepTheRepo = (): readonly DeadPathFinding[] =>
+  sweepFiles({ repoRoot: REPO_ROOT, files: collectSweepTargets(REPO_ROOT) });
+
+/** The repo-relative paths a source text yields, with the skipped literals dropped. */
+const repoRelativePathsIn = (source: string, segments: ReadonlySet<string>): string[] =>
+  extractStringLiterals(source)
+    .map((l) => classifyRepoRelativeString(l.value, { knownRepoSegments: segments }))
+    .flatMap((c) => (c.kind === "repo-relative-path" ? [c.repoRelative] : []));
+
+const describe = (f: DeadPathFinding): string =>
+  `${f.file}:${f.line} [${f.kind}] "${f.specifier}" -> none of ${f.attempted.join(", ")} exist`;
+
+test("dead-path sweep: no path reference outside the known-broken register resolves to nothing", () => {
+  const unexpected = sweepTheRepo().filter((f) => !(findingKey(f) in KNOWN_BROKEN_PENDING_OWNER_DECISION));
+  assert.deepEqual(
+    unexpected.map(describe),
+    [],
+    "a path reference under development/scripts or the db tooling points at a file that does not exist"
+  );
+});
+
+test("known-broken register has no stale entries — every listed reference is still actually broken", () => {
+  const live = new Set(sweepTheRepo().map(findingKey));
+  const stale = Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).filter((key) => !live.has(key));
+  assert.deepEqual(
+    stale,
+    [],
+    "this reference now resolves — delete its register entry rather than leaving a suppression behind"
+  );
+});
+
+test("known-broken register is exactly the 35 references measured on 2026-09-02 — growth needs a deliberate edit", () => {
+  assert.equal(Object.keys(KNOWN_BROKEN_PENDING_OWNER_DECISION).length, 35);
+});
+
+test("every known-broken entry carries a non-empty rationale", () => {
+  const missing = Object.entries(KNOWN_BROKEN_PENDING_OWNER_DECISION)
+    .filter(([, entry]) => entry.rationale.trim().length === 0)
+    .map(([key]) => key);
+  assert.deepEqual(missing, []);
+});
+
+test("the sweep actually looks at something — target enumeration is not silently empty", () => {
+  const targets = collectSweepTargets(REPO_ROOT);
+  assert.ok(targets.length > 40, `expected the sweep to cover the script tree, got ${targets.length} files`);
+  assert.ok(targets.includes("development/scripts/list-server-test-files.ts"));
+  assert.ok(targets.includes("apps/website/src/platform/db/drizzle.config.ts"));
+  assert.ok(targets.includes("apps/website/src/platform/db/drizzle.database-journal.config.ts"));
+  for (const t of targets) assert.ok(fs.existsSync(path.join(REPO_ROOT, t)), `${t} does not exist`);
+});
+
+// ---------------------------------------------------------------------------
+// Historical proof: the matcher catches defects that actually shipped
+// ---------------------------------------------------------------------------
+
+/** Verbatim from `git show 921d705f^:development/scripts/generate-seed-content.ts` — the imports that
+ *  crashed `check:seed-content-drift` with ERR_MODULE_NOT_FOUND while ci.yml's continue-on-error
+ *  swallowed it. */
+const GENERATE_SEED_CONTENT_BEFORE_921D705F = `import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+import { seededPosts, seededPresentation, seededWorkspace } from "../../src/server/runtime/configuration/seed.js";
+import type { TemplateSeedContent } from "../../src/platform/site-dir/types.js";
+`;
+
+/** Verbatim from `git show 7fb47f55^:apps/website/src/platform/db/drizzle.config.ts` — the config
+ *  that made `drizzle-kit generate` fail "No schema files found", meaning NO migration could be
+ *  generated by anyone after the restructure. */
+const DRIZZLE_CONFIG_BEFORE_7FB47F55 = `export default defineConfig({
+  dialect: "sqlite",
+  schema: "./src/platform/db/schema.ts",
+  out: "./src/platform/db/drizzle",
+});
+`;
+
+test("historical: the pre-921d705f generate-seed-content.ts imports are flagged as dead", () => {
+  const importerAbs = path.join(REPO_ROOT, "development/scripts/generate-seed-content.ts");
+  const specifiers = extractRelativeImportSpecifiers(GENERATE_SEED_CONTENT_BEFORE_921D705F).map((s) => s.specifier);
+
+  assert.deepEqual(specifiers, [
+    "../../src/server/runtime/configuration/seed.js",
+    "../../src/platform/site-dir/types.js",
+  ]);
+
+  for (const specifier of specifiers) {
+    const candidates = resolveImportCandidates(importerAbs, specifier);
+    const alive = candidates.filter((c) => fs.existsSync(c));
+    assert.deepEqual(alive, [], `${specifier} unexpectedly resolves — the historical proof is vacuous`);
+  }
+});
+
+test("historical: the fixed generate-seed-content.ts imports resolve, so the check above is not trivially true", () => {
+  const importerAbs = path.join(REPO_ROOT, "development/scripts/generate-seed-content.ts");
+  for (const specifier of [
+    "../../apps/website/src/server/runtime/configuration/seed.js",
+    "../../apps/website/src/platform/site-dir/types.js",
+  ]) {
+    const candidates = resolveImportCandidates(importerAbs, specifier);
+    assert.ok(
+      candidates.some((c) => fs.existsSync(c)),
+      `${specifier} should resolve after the 921d705f fix; probed ${candidates.join(", ")}`
+    );
+  }
+});
+
+test("historical: the pre-7fb47f55 drizzle.config.ts path strings are flagged as dead", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  const paths = repoRelativePathsIn(DRIZZLE_CONFIG_BEFORE_7FB47F55, segments);
+
+  assert.deepEqual(paths, ["src/platform/db/schema.ts", "src/platform/db/drizzle"]);
+  for (const p of paths) {
+    assert.equal(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), false, `${p} unexpectedly exists`);
+  }
+});
+
+test("historical: the current drizzle.config.ts path strings resolve, so the check above is not trivially true", () => {
+  const segments = collectRepoSegments(REPO_ROOT);
+  const source = fs.readFileSync(path.join(REPO_ROOT, "apps/website/src/platform/db/drizzle.config.ts"), "utf8");
+  const paths = repoRelativePathsIn(source, segments);
+
+  assert.deepEqual(paths, ["apps/website/src/platform/db/schema.ts", "apps/website/src/platform/db/drizzle"]);
+  for (const p of paths) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(p))), `${p} should exist after 7fb47f55`);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// The matcher's own rules
+// ---------------------------------------------------------------------------
+
+test("stripComments blanks comments without touching string literals or line numbers", () => {
+  const source = ['const a = "http://x/y"; // ../../src/gone.js', "/* ../../src/also-gone.js */", 'const b = "./real/path.ts";'].join("\n");
+  const stripped = stripComments(source);
+
+  assert.equal(stripped.length, source.length);
+  assert.equal(stripped.split("\n").length, 3);
+  assert.ok(stripped.includes('"http://x/y"'));
+  assert.ok(stripped.includes('"./real/path.ts"'));
+  assert.equal(stripped.includes("gone.js"), false, "a path mentioned only in a comment must not be swept");
+});
+
+test("stripComments keeps a // sequence that lives inside a string literal", () => {
+  const stripped = stripComments('const u = "https://example.com/a"; const v = 1;');
+  assert.ok(stripped.includes("https://example.com/a"));
+  assert.ok(stripped.includes("const v = 1;"));
+});
+
+test("extractRelativeImportSpecifiers finds from/side-effect/dynamic/require forms and ignores bare specifiers", () => {
+  const source = [
+    'import fs from "node:fs";',
+    'import { a } from "./a.js";',
+    'export { b } from "../b.js";',
+    'import "./side-effect.js";',
+    'const c = await import("./dyn.js");',
+    'const d = require("../req.js");',
+    'import x from "@jini-ai/cms";',
+  ].join("\n");
+
+  assert.deepEqual(
+    extractRelativeImportSpecifiers(source).map((s) => s.specifier).sort(),
+    ["../b.js", "../req.js", "./a.js", "./dyn.js", "./side-effect.js"]
+  );
+});
+
+test("resolveImportCandidates applies the .js-written/.ts-on-disk rewrite", () => {
+  const candidates = resolveImportCandidates("/repo/development/scripts/x.ts", "./route-coverage-lib.js");
+  assert.ok(candidates.includes("/repo/development/scripts/route-coverage-lib.js"));
+  assert.ok(candidates.includes("/repo/development/scripts/route-coverage-lib.ts"));
+});
+
+test("resolveImportCandidates really resolves this repo's own .js-written imports", () => {
+  const importerAbs = path.join(REPO_ROOT, "development/scripts/list-server-test-files.ts");
+  const candidates = resolveImportCandidates(importerAbs, "./route-coverage-lib.js");
+  assert.ok(candidates.some((c) => fs.existsSync(c)));
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, "development/scripts/route-coverage-lib.js")), false);
+  assert.ok(fs.existsSync(path.join(REPO_ROOT, "development/scripts/route-coverage-lib.ts")));
+});
+
+test("classifyRepoRelativeString names the rule for every string it declines", () => {
+  const segments = new Set(["src", "apps", "development", "content"]);
+  const cases: readonly [string, string][] = [
+    ["https://example.com/a/b", "url-scheme"],
+    ["src/**/*.test.ts", "glob-or-regex-metacharacter"],
+    ["find src/server -type f", "contains-whitespace"],
+    ["#src/platform/db/schema.js", "package-imports-specifier"],
+    ["@jini-ai/cms/dist/index.js", "scoped-package-specifier"],
+    ["/Users/la/Programming/Tovu/src", "absolute-or-home-path"],
+    ["~/src/thing.ts", "absolute-or-home-path"],
+    ["node:fs/promises", "colon-bearing-specifier"],
+    ["application/json", "not-a-known-repo-segment"],
+    ["schema.ts", "no-path-separator"],
+    ["../../src/gone.js", "parent-relative-outside-repo"],
+    ["src/server/", "trailing-separator"],
+    ["text/html", "not-a-known-repo-segment"],
+  ];
+
+  for (const [value, expected] of cases) {
+    const classified = classifyRepoRelativeString(value, { knownRepoSegments: segments });
+    assert.equal(classified.kind, "skipped", `${value} should have been skipped`);
+    if (classified.kind !== "skipped") continue;
+    assert.equal(classified.reason, expected, `wrong rule for ${value}`);
+    assert.ok(SKIP_REASONS.includes(classified.reason), `${expected} is not a declared SkipReason`);
+  }
+});
+
+test("SKIP_REASONS is exactly the SkipReason union — neither the rule tables nor the type can grow alone", () => {
+  // The Record forces TypeScript to reject this file if a SkipReason is added to the union without a
+  // key here; the assertion rejects it if a rule is added to the tables without the union.
+  const everyReason: Record<SkipReason, true> = {
+    "own-import-specifier": true,
+    "url-scheme": true,
+    "glob-or-regex-metacharacter": true,
+    "contains-whitespace": true,
+    "package-imports-specifier": true,
+    "scoped-package-specifier": true,
+    "absolute-or-home-path": true,
+    "colon-bearing-specifier": true,
+    "no-path-separator": true,
+    "parent-relative-outside-repo": true,
+    "trailing-separator": true,
+    "not-a-known-repo-segment": true,
+  };
+  assert.deepEqual(new Set(SKIP_REASONS), new Set(Object.keys(everyReason)));
+});
+
+test("classifyRepoRelativeString hands a `./` literal that is also an import specifier back to class 1", () => {
+  const segments = new Set(["lib", "apps"]);
+  const asString = classifyRepoRelativeString("./lib/openapi-operations.js", {
+    knownRepoSegments: segments,
+    ownImportSpecifiers: new Set(["./lib/openapi-operations.js"]),
+  });
+  assert.deepEqual(asString, { kind: "skipped", reason: "own-import-specifier" });
+
+  // ...and without that hint it IS treated as repo-root-relative, which is what drizzle.config.ts needs.
+  const withoutHint = classifyRepoRelativeString("./apps/website/src/platform/db/schema.ts", {
+    knownRepoSegments: segments,
+  });
+  assert.deepEqual(withoutHint, { kind: "repo-relative-path", repoRelative: "apps/website/src/platform/db/schema.ts" });
+});
+
+test("classifyRepoRelativeString recognizes a first segment that only exists deeper in the tree — the whole point", () => {
+  // `src` is not a repo-root entry any more; it exists at apps/website/src. Deriving the candidate
+  // set from the ROOT LISTING alone would make every dead `src/...` string invisible.
+  const segments = collectRepoSegments(REPO_ROOT);
+  assert.equal(fs.existsSync(path.join(REPO_ROOT, "src")), false, "a root-level src/ would invalidate this test");
+  assert.ok(segments.has("src"));
+  assert.deepEqual(classifyRepoRelativeString("src/server", { knownRepoSegments: segments }), {
+    kind: "repo-relative-path",
+    repoRelative: "src/server",
+  });
+});
+
+test("pathThatMustExist requires source files whole and non-source paths only down to their directory", () => {
+  assert.equal(pathThatMustExist("apps/website/src/platform/db/schema.ts"), "apps/website/src/platform/db/schema.ts");
+  assert.equal(pathThatMustExist("development/scripts/dev.mjs"), "development/scripts/dev.mjs");
+  // a not-yet-generated artifact must not read as rot
+  assert.equal(pathThatMustExist("development/coverage/lcov.unit.info"), "development/coverage");
+  assert.equal(pathThatMustExist("src/server"), "src");
+});
+
+test("generated coverage artifacts are not reported as dead paths", () => {
+  const artifacts = ["development/coverage/lcov.unit.info", "development/coverage/test-results.tap"];
+  for (const a of artifacts) {
+    assert.ok(fs.existsSync(path.join(REPO_ROOT, pathThatMustExist(a))), `${a}'s parent directory should exist`);
+  }
+  const reported = sweepTheRepo().filter((f) => artifacts.includes(f.attempted[0]!));
+  assert.deepEqual(reported, []);
+});
+
+test("shouldScanStringsIn excludes test files' fixture paths but not their imports", () => {
+  assert.equal(shouldScanStringsIn("development/scripts/__tests__/check-coverage-integrity.test.ts"), false);
+  assert.equal(shouldScanStringsIn("development/scripts/__tests__/emit-dist-package-json.test.mjs"), false);
+  assert.equal(shouldScanStringsIn("development/scripts/list-server-test-files.ts"), true);
+
+  // check-coverage-integrity.test.ts asserts against `src/contracts/core/embeds/marker.ts`, a path
+  // that has never existed — fixture data, not a reference the program follows. Its own relative
+  // imports are still swept, and pass.
+  const reported = sweepTheRepo().filter((f) => f.file.includes("__tests__/") && f.kind === "repo-relative-string");
+  assert.deepEqual(reported, []);
+});
