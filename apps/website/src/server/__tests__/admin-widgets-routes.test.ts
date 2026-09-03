@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 
 import express from "express";
 
@@ -639,4 +639,443 @@ test("Fable adversarial-review fix (2026-07-21, Finding B): widgets.diagnose on 
   const diagnosed = (await diagnoseRes.json()) as { exists: boolean; status: string | null };
   assert.equal(diagnosed.exists, false);
   assert.equal(diagnosed.status, null);
+});
+
+test("admin widgets agent tools: widgets.diagnose on a widget entry with an unparseable fieldsJson payload reports status:null, not a 500 (resolveWidgetStatus's parse-failure branch)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await deps.entryRepo.save({
+    id: "corrupted-widget-diagnose",
+    workspaceId: deps.workspaceId,
+    type: WIDGET_CONTENT_TYPE,
+    slug: "corrupted-widget-diagnose",
+    status: "published",
+    title: "Corrupted widget",
+    bodyJson: null,
+    fieldsJson: { ext: { site: { title: "not the widgets envelope at all" } } },
+    publishedAt: deps.clock.nowIso(),
+    createdAt: deps.clock.nowIso(),
+    updatedAt: deps.clock.nowIso(),
+    version: 1,
+  });
+
+  const diagnoseRes = await fetch(`${baseUrl}${BASE}/widgets/tools/diagnose/corrupted-widget-diagnose`, { headers: { cookie } });
+  assert.equal(diagnoseRes.status, 200, await diagnoseRes.clone().text());
+  const diagnosed = (await diagnoseRes.json()) as { exists: boolean; status: string | null };
+  assert.equal(diagnosed.exists, true, "the row IS a widget-typed entry, so exists must be true even though its payload can't be parsed");
+  assert.equal(diagnosed.status, null);
+});
+
+test("admin widgets agent tools: widgets.remove removes a region placement (region kind) and an embed placement (embed kind, also exercising widgets.create's embed-target branch), rejects a malformed target/placementId, and 404s an unbound region", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  // --- region-kind removal ---
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ regionKey: "remove-region-test" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+
+  const createRegionWidget = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Region widget", config: { body: "r" } }),
+  });
+  const { widget: regionWidget } = (await createRegionWidget.json()) as { widget: { id: string } };
+
+  const placeRes = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetInstanceId: regionWidget.id, target: { kind: "region", regionKey: "remove-region-test", baseVersion: area.version } }),
+  });
+  assert.equal(placeRes.status, 200, await placeRes.clone().text());
+
+  const regionAfterPlace = await fetch(`${baseUrl}${BASE}/widgets/regions/remove-region-test`, { headers: { cookie } });
+  const { area: areaAfterPlace, placements: placementsAfterPlace } = (await regionAfterPlace.json()) as {
+    area: { version: number };
+    placements: Array<{ placementId: string }>;
+  };
+  assert.equal(placementsAfterPlace.length, 1);
+  const regionPlacementId = placementsAfterPlace[0].placementId;
+
+  const removeRegionRes = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ placementId: regionPlacementId, target: { kind: "region", regionKey: "remove-region-test", baseVersion: areaAfterPlace.version } }),
+  });
+  assert.equal(removeRegionRes.status, 200, await removeRegionRes.clone().text());
+  const removedRegion = (await removeRegionRes.json()) as { tool: string; result: { areaEntry: { doc: { placements: unknown[] } } } };
+  assert.equal(removedRegion.tool, "widgets.remove");
+  assert.equal(removedRegion.result.areaEntry.doc.placements.length, 0);
+
+  const regionAfterRemove = await fetch(`${baseUrl}${BASE}/widgets/regions/remove-region-test`, { headers: { cookie } });
+  const { placements: placementsAfterRemove } = (await regionAfterRemove.json()) as { placements: unknown[] };
+  assert.equal(placementsAfterRemove.length, 0, "the placement must actually be gone");
+
+  // --- embed-kind removal, via a widgets.create call targeting an embed host (readTarget's
+  // "embed" branch and placeTarget's insertWidgetEmbed branch were otherwise never exercised —
+  // every other test in this file only ever targets a region) ---
+  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { createEntry } = await import("../../features/entries/index.js");
+  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  await registerContentType({
+    deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
+    input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },
+  });
+  const hostCreated = await createEntry({
+    deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
+    input: {
+      actorId: "system",
+      workspaceId: deps.workspaceId,
+      type: "article",
+      slug: "agent-tools-embed-host",
+      title: "Host",
+      fieldsJson: { ext: { site: {} } },
+      bodyJson: { type: "doc", content: [] },
+    },
+  });
+  if (!hostCreated.ok) throw hostCreated.error;
+  const hostId = hostCreated.value.entry.id;
+
+  const createToolRes = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      widgetType: "text",
+      title: "Embed-target widget",
+      config: { body: "e" },
+      target: { kind: "embed", hostEntryId: hostId, baseVersion: 1 },
+    }),
+  });
+  assert.equal(createToolRes.status, 201, await createToolRes.clone().text());
+  const createdEmbed = (await createToolRes.json()) as { result: { placementId: string; entry: { version: number } } };
+  assert.ok(createdEmbed.result.placementId, "widgets.create against an embed target must return the new placementId");
+
+  const removeEmbedRes = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      placementId: createdEmbed.result.placementId,
+      target: { kind: "embed", hostEntryId: hostId, baseVersion: createdEmbed.result.entry.version },
+    }),
+  });
+  assert.equal(removeEmbedRes.status, 200, await removeEmbedRes.clone().text());
+  const removedEmbed = (await removeEmbedRes.json()) as { tool: string; result: { entry: { version: number } } };
+  assert.equal(removedEmbed.tool, "widgets.remove");
+
+  // --- malformed target / placementId rejected 400 ---
+  const noTarget = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ placementId: "whatever" }),
+  });
+  assert.equal(noTarget.status, 400);
+  assert.equal(((await noTarget.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const noPlacementId = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ target: { kind: "region", regionKey: "remove-region-test", baseVersion: 1 } }),
+  });
+  assert.equal(noPlacementId.status, 400);
+
+  // --- unbound region -> 404 ---
+  const unboundRemove = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ placementId: "whatever", target: { kind: "region", regionKey: "never-bound", baseVersion: 1 } }),
+  });
+  assert.equal(unboundRemove.status, 404);
+  assert.equal(((await unboundRemove.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+
+  // --- wrong workspace -> 404, across all four AI tool routes ---
+  const wrongWsPlace = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: "{}",
+  });
+  assert.equal(wrongWsPlace.status, 404);
+  const wrongWsCreate = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: "{}",
+  });
+  assert.equal(wrongWsCreate.status, 404);
+  const wrongWsRemove = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: "{}",
+  });
+  assert.equal(wrongWsRemove.status, 404);
+  const wrongWsDiagnose = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/tools/diagnose/some-id`, { headers: { cookie } });
+  assert.equal(wrongWsDiagnose.status, 404);
+});
+
+test("admin widgets embed-remove route: rejects wrong workspace and a missing baseVersion, and maps a stale baseVersion to a version-conflict error instead of a raw 500", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { createEntry } = await import("../../features/entries/index.js");
+  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  await registerContentType({
+    deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
+    input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },
+  });
+  const hostCreated = await createEntry({
+    deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
+    input: {
+      actorId: "system",
+      workspaceId: deps.workspaceId,
+      type: "article",
+      slug: "embed-remove-route-host",
+      title: "Host",
+      fieldsJson: { ext: { site: {} } },
+      bodyJson: { type: "doc", content: [] },
+    },
+  });
+  if (!hostCreated.ok) throw hostCreated.error;
+  const hostId = hostCreated.value.entry.id;
+
+  const createW = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Embed remove target", config: { body: "x" } }),
+  });
+  const { widget } = (await createW.json()) as { widget: { id: string } };
+
+  const insertRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: 1, widgetEntryId: widget.id }),
+  });
+  const inserted = (await insertRes.json()) as { placementId: string; entry: { version: number } };
+
+  const wrongWs = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: inserted.entry.version }),
+  });
+  assert.equal(wrongWs.status, 404);
+
+  const missingBaseVersion = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({}),
+  });
+  assert.equal(missingBaseVersion.status, 400);
+  assert.equal(((await missingBaseVersion.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const staleVersion = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: inserted.entry.version + 99 }),
+  });
+  assert.equal(staleVersion.status, 409, await staleVersion.clone().text());
+
+  const removeRes = await fetch(`${baseUrl}${BASE}/entries/${hostId}/widget-embeds/${inserted.placementId}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ baseVersion: inserted.entry.version }),
+  });
+  assert.equal(removeRes.status, 200, await removeRes.clone().text());
+});
+
+test("admin widgets regions-list/region-get: reject wrong workspace and no-permission, 404 an unbound region, tolerate a binding whose area entry is missing or wrong-typed, and surface a force-purged widget's dangling placement as broken", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const bareCookie = await loginWithPermissions(deps, baseUrl, []);
+  await deps.identityReady;
+
+  // wrong workspace -> 404 (both routes)
+  const wrongWsList = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/regions`, { headers: { cookie: ownerCookie } });
+  assert.equal(wrongWsList.status, 404);
+  const wrongWsGet = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/widgets/regions/anything`, { headers: { cookie: ownerCookie } });
+  assert.equal(wrongWsGet.status, 404);
+
+  // no widgets.read permission -> 403 (both routes)
+  const deniedList = await fetch(`${baseUrl}${BASE}/widgets/regions`, { headers: { cookie: bareCookie } });
+  assert.equal(deniedList.status, 403);
+  assert.equal(((await deniedList.json()) as { details: { permission: string } }).details.permission, "widgets.read");
+  const deniedGet = await fetch(`${baseUrl}${BASE}/widgets/regions/anything`, { headers: { cookie: bareCookie } });
+  assert.equal(deniedGet.status, 403);
+  assert.equal(((await deniedGet.json()) as { details: { permission: string } }).details.permission, "widgets.read");
+
+  // region-get: never-bound region -> 404
+  const unbound = await fetch(`${baseUrl}${BASE}/widgets/regions/never-bound-region`, { headers: { cookie: ownerCookie } });
+  assert.equal(unbound.status, 404);
+  assert.equal(((await unbound.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+
+  // A binding pointing at a completely nonexistent area entry (simulates the derived binding index
+  // not having been rebuilt after the area entry disappeared) — regions-list must degrade to a
+  // zero placement count rather than throw, while region-get (which actually needs the area entry's
+  // contents to answer) correctly still 404s.
+  await deps.widgetBindingRepo.upsert({
+    workspaceId: deps.workspaceId,
+    regionKey: "orphan-binding",
+    areaEntryId: "does-not-exist-area",
+    updatedAt: deps.clock.nowIso(),
+  });
+  const listWithOrphan = await fetch(`${baseUrl}${BASE}/widgets/regions`, { headers: { cookie: ownerCookie } });
+  assert.equal(listWithOrphan.status, 200, await listWithOrphan.clone().text());
+  const { regions } = (await listWithOrphan.json()) as { regions: Array<{ regionKey: string; placementCount: number }> };
+  const orphanRegion = regions.find((r) => r.regionKey === "orphan-binding");
+  assert.ok(orphanRegion, "the orphaned binding must still be listed");
+  assert.equal(orphanRegion?.placementCount, 0, "a missing area entry must count as zero placements, not throw");
+
+  const getOrphan = await fetch(`${baseUrl}${BASE}/widgets/regions/orphan-binding`, { headers: { cookie: ownerCookie } });
+  assert.equal(getOrphan.status, 404, "region-get requires the area entry to actually exist, unlike regions-list's tolerant count");
+  assert.equal(((await getOrphan.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+
+  // A binding pointing at a REAL entry that is the wrong content type (not a widget_area) —
+  // region-get's `areaEntry.type !== WIDGET_AREA_CONTENT_TYPE` branch.
+  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { createEntry } = await import("../../features/entries/index.js");
+  const { PRE_AUTHORIZED } = await import("../../features/widgets/authorize-helper.js");
+  await registerContentType({
+    deps: { repo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, indexProvisioner: new NoopContentTypeIndexProvisioner(), outbox: deps.outbox },
+    input: { actorId: "system", workspaceId: deps.workspaceId, key: "article", label: "Article", fields: [] },
+  });
+  const wrongTypeEntry = await createEntry({
+    deps: { entryRepo: deps.entryRepo, contentTypeRepo: deps.contentTypeRepo, clock: deps.clock, ids: deps.idGen, authorize: PRE_AUTHORIZED, outbox: deps.outbox },
+    input: {
+      actorId: "system",
+      workspaceId: deps.workspaceId,
+      type: "article",
+      slug: "not-a-widget-area",
+      title: "Not an area",
+      fieldsJson: { ext: { site: {} } },
+      bodyJson: { type: "doc", content: [] },
+    },
+  });
+  if (!wrongTypeEntry.ok) throw wrongTypeEntry.error;
+  await deps.widgetBindingRepo.upsert({
+    workspaceId: deps.workspaceId,
+    regionKey: "wrong-type-binding",
+    areaEntryId: wrongTypeEntry.value.entry.id,
+    updatedAt: deps.clock.nowIso(),
+  });
+  const getWrongType = await fetch(`${baseUrl}${BASE}/widgets/regions/wrong-type-binding`, { headers: { cookie: ownerCookie } });
+  assert.equal(getWrongType.status, 404);
+  assert.equal(((await getWrongType.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+
+  // A real region holding a placement whose target widget was force-purged out from under it —
+  // REQ-43's documented "dangling reference" outcome. region-get must surface broken:true instead
+  // of throwing (the widget row survives force-purge — status flips to "purged" — so this is the
+  // realistic dangling-reference shape, not a nonexistent-row one the write path already blocks).
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ regionKey: "broken-placement-region" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+  const purgeTarget = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ widgetType: "text", title: "Force-purged widget", config: { body: "gone" } }),
+  });
+  const { widget: purgeTargetWidget } = (await purgeTarget.json()) as { widget: { id: string } };
+
+  const placeForBroken = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ widgetInstanceId: purgeTargetWidget.id, target: { kind: "region", regionKey: "broken-placement-region", baseVersion: area.version } }),
+  });
+  assert.equal(placeForBroken.status, 200, await placeForBroken.clone().text());
+
+  const forcePurgeRes = await fetch(`${baseUrl}${BASE}/widgets/${purgeTargetWidget.id}/purge?force=true`, { method: "POST", headers: { cookie: ownerCookie } });
+  assert.equal(forcePurgeRes.status, 200, await forcePurgeRes.clone().text());
+
+  const getBroken = await fetch(`${baseUrl}${BASE}/widgets/regions/broken-placement-region`, { headers: { cookie: ownerCookie } });
+  assert.equal(getBroken.status, 200, await getBroken.clone().text());
+  const { placements: brokenPlacements } = (await getBroken.json()) as {
+    placements: Array<{ broken: boolean; widgetTitle: string | null; widgetType: string | null }>;
+  };
+  assert.equal(brokenPlacements.length, 1);
+  assert.equal(brokenPlacements[0].broken, true, "a force-purged (status: 'purged') target must be reported broken, even though its row still exists");
+  assert.equal(brokenPlacements[0].widgetTitle, "Force-purged widget", "the row survives force-purge, so title/type are still resolvable — only `broken` flips");
+  assert.equal(brokenPlacements[0].widgetType, "text");
+});
+
+/**
+ * `req.params.workspaceId ?? ""` (regions-list.ts, region-get.ts, embed-remove.ts, and all four
+ * agent-tools.ts routes) / agent-tools.ts's own `req.body ?? {}` (place/create/remove): Express
+ * guarantees a matched `:workspaceId` segment is always a populated string, and real `body-parser`
+ * always assigns `req.body` to an object — so the right side of every `??` below is unreachable
+ * through any real HTTP request. Per this repo's established convention (`extractRouteHandler`'s
+ * own doc, `helpers/http-test-server.ts`, and `admin-menus-routes.test.ts`'s identical treatment of
+ * `parseMenuTreeRequestBody`'s `(rawBody ?? {})`), the fix is to KEEP the guard and exercise it with
+ * a hand-built `req` that deliberately omits the field, not to delete it as dead code.
+ */
+test("admin widgets routes: `req.params.workspaceId ?? \"\"` fallback, forced via direct handler calls (regions-list, region-get, embed-remove, and all four agent-tools routes)", async (t) => {
+  const { app } = buildTestApp();
+
+  const listHandler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/widgets/regions");
+  const listCapture = createCapturingResponse();
+  await listHandler({ params: {} }, listCapture.res);
+  assert.equal(listCapture.capture.statusCode, 404);
+  assert.equal((listCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const getHandler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/widgets/regions/:regionKey");
+  const getCapture = createCapturingResponse();
+  await getHandler({ params: { regionKey: "footer" } }, getCapture.res);
+  assert.equal(getCapture.capture.statusCode, 404);
+  assert.equal((getCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const embedRemoveHandler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/entries/:hostEntryId/widget-embeds/:placementId");
+  const embedRemoveCapture = createCapturingResponse();
+  await embedRemoveHandler({ params: { hostEntryId: "h1", placementId: "p1" }, body: { baseVersion: 1 } }, embedRemoveCapture.res);
+  assert.equal(embedRemoveCapture.capture.statusCode, 404);
+  assert.equal((embedRemoveCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const placeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/place");
+  const placeCapture = createCapturingResponse();
+  await placeHandler({ params: {}, body: {} }, placeCapture.res);
+  assert.equal(placeCapture.capture.statusCode, 404);
+  assert.equal((placeCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const createHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/create");
+  const createCapture = createCapturingResponse();
+  await createHandler({ params: {}, body: {} }, createCapture.res);
+  assert.equal(createCapture.capture.statusCode, 404);
+  assert.equal((createCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const removeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove");
+  const removeCapture = createCapturingResponse();
+  await removeHandler({ params: {}, body: {} }, removeCapture.res);
+  assert.equal(removeCapture.capture.statusCode, 404);
+  assert.equal((removeCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+
+  const diagnoseHandler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/diagnose/:widgetInstanceId");
+  const diagnoseCapture = createCapturingResponse();
+  await diagnoseHandler({ params: { widgetInstanceId: "w1" } }, diagnoseCapture.res);
+  assert.equal(diagnoseCapture.capture.statusCode, 404);
+  assert.equal((diagnoseCapture.capture.jsonBody as { error: string }).error, "workspace was not found");
+});
+
+test("admin widgets agent tools: `req.body ?? {}` fallback on widgets.place/create/remove, forced via direct handler calls with req.body omitted entirely", async (t) => {
+  const { app, deps } = buildTestApp();
+
+  const placeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/place");
+  const placeCapture = createCapturingResponse();
+  await placeHandler({ params: { workspaceId: deps.workspaceId } }, placeCapture.res); // no `body` key at all
+  assert.equal(placeCapture.capture.statusCode, 400);
+  assert.equal((placeCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
+
+  const createHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/create");
+  const createCapture = createCapturingResponse();
+  await createHandler({ params: { workspaceId: deps.workspaceId } }, createCapture.res);
+  assert.equal(createCapture.capture.statusCode, 400);
+  assert.equal((createCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
+
+  const removeHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/widgets/tools/remove");
+  const removeCapture = createCapturingResponse();
+  await removeHandler({ params: { workspaceId: deps.workspaceId } }, removeCapture.res);
+  assert.equal(removeCapture.capture.statusCode, 400);
+  assert.equal((removeCapture.capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });

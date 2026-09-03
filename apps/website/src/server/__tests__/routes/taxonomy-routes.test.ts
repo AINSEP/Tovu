@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminTaxonomyListRoute } from "../../inbound/admin-http/routes/taxonomy/list.js";
@@ -479,6 +479,164 @@ test("taxonomy routes: delete-term returns 403 FORBIDDEN when the caller is deni
   assert.equal(res.status, 403);
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "FORBIDDEN");
+});
+
+test("taxonomy routes: create-taxonomy validates 'name'/'hierarchical', reports FORBIDDEN, and maps unexpected repo failures (Error and non-Error) to 500", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const missingName = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ hierarchical: true }),
+  });
+  assert.equal(missingName.status, 400);
+  assert.equal(((await missingName.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const missingHierarchical = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category" }),
+  });
+  assert.equal(missingHierarchical.status, 400);
+  assert.equal(((await missingHierarchical.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+  const forbidden = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  assert.equal(forbidden.status, 403);
+  assert.equal(((await forbidden.json()) as { code: string }).code, "FORBIDDEN");
+
+  deps.authorize = async () => ({ allowed: true, reason: "matched" });
+  deps.taxonomyRepo.insert = async () => {
+    throw new Error("db connection broken");
+  };
+  const errorRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  assert.equal(errorRes.status, 500);
+  const errorBody = (await errorRes.json()) as { code: string; error: string };
+  assert.equal(errorBody.code, "INTERNAL_ERROR");
+  assert.equal(errorBody.error, "db connection broken");
+
+  deps.taxonomyRepo.insert = async () => {
+    throw "non-error thrown value";
+  };
+  const nonErrorRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  assert.equal(nonErrorRes.status, 500);
+  const nonErrorBody = (await nonErrorRes.json()) as { code: string; error: string };
+  assert.equal(nonErrorBody.code, "INTERNAL_ERROR");
+  assert.equal(nonErrorBody.error, "internal error");
+});
+
+test("taxonomy routes: rename-term validates 'newName', reports FORBIDDEN and TERM_NOT_FOUND, and maps unexpected repo failures (Error and non-Error) to 500", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const taxRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "category", hierarchical: true }),
+  });
+  const tax = (await taxRes.json()) as { taxonomy: { id: string } };
+  const termRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/${tax.taxonomy.id}/terms`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ name: "Breakfast" }),
+  });
+  const term = (await termRes.json()) as { term: { id: string } };
+
+  const missingNewName = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({}),
+  });
+  assert.equal(missingNewName.status, 400);
+  assert.equal(((await missingNewName.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const notFound = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/does-not-exist`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ newName: "Whatever" }),
+  });
+  assert.equal(notFound.status, 404);
+  assert.equal(((await notFound.json()) as { code: string }).code, "TERM_NOT_FOUND");
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+  const forbidden = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ newName: "Brunch" }),
+  });
+  assert.equal(forbidden.status, 403);
+  assert.equal(((await forbidden.json()) as { code: string }).code, "FORBIDDEN");
+
+  deps.authorize = async () => ({ allowed: true, reason: "matched" });
+  deps.termRepo.update = async () => {
+    throw new Error("db connection broken");
+  };
+  const errorRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ newName: "Brunch" }),
+  });
+  assert.equal(errorRes.status, 500);
+  const errorBody = (await errorRes.json()) as { code: string; error: string };
+  assert.equal(errorBody.code, "INTERNAL_ERROR");
+  assert.equal(errorBody.error, "db connection broken");
+
+  deps.termRepo.update = async () => {
+    throw "non-error thrown value";
+  };
+  const nonErrorRes = await fetch(`${baseUrl}/api/admin/v1/taxonomy/terms/${term.term.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ newName: "Brunch" }),
+  });
+  assert.equal(nonErrorRes.status, 500);
+  const nonErrorBody = (await nonErrorRes.json()) as { code: string; error: string };
+  assert.equal(nonErrorBody.code, "INTERNAL_ERROR");
+  assert.equal(nonErrorBody.error, "internal error");
+});
+
+/**
+ * `req.body ?? {}` (create-taxonomy.ts, rename-term.ts): real `body-parser` always assigns
+ * `req.body` to an object, so the right side of this `??` is unreachable through any real HTTP
+ * request. Per this repo's established convention (`extractRouteHandler`'s own doc,
+ * `helpers/http-test-server.ts`, and `admin-menus-routes.test.ts`'s identical treatment), the fix
+ * is to KEEP the guard and exercise it with a hand-built `req` that omits `body` entirely.
+ */
+test("taxonomy routes: create-taxonomy's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/taxonomy");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "direct-invoke-principal" };
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("taxonomy routes: rename-term's `req.body ?? {}` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/taxonomy/terms/:id");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "direct-invoke-principal" };
+
+  await handler({ params: { id: "whatever" } }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });
 
 test("taxonomy routes: delete-taxonomy returns 403 FORBIDDEN when the caller is denied admin.taxonomy.manage", async (t) => {
