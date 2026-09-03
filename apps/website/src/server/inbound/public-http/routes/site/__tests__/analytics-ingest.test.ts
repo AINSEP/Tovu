@@ -293,6 +293,43 @@ test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct han
   assert.ok(hit, "the beacon must still be accepted when req.hostname is undefined and raw.host is absent");
 });
 
+/**
+ * `parseBeacon`'s `(body ?? {})` fallback (extractRouteHandler's own doc,
+ * `../../../../__tests__/helpers/http-test-server.ts`): real `body-parser` always assigns `req.body`
+ * (as `{}` at worst), so the right side of this `??` is unreachable through any real HTTP request.
+ * Restored 2026-09-03 after being wrongly deleted as "unreachable dead code" -- the repo's
+ * established answer is to KEEP the guard and exercise it with a hand-built `req` that deliberately
+ * violates that contract, same technique as the `req.ip`/`req.hostname` direct-invoke tests above.
+ */
+test("analytics-ingest: `parseBeacon`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely -- still 204s and the hit still lands (no crash from Object.entries(undefined))", async (t) => {
+  const { app, sink } = buildApp();
+  const handler = extractHandler(app, "/_analytics/e");
+  let statusCode: number | undefined;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    end() {
+      return res;
+    },
+  };
+  const req = {
+    body: undefined, // no req.body at all -> parseBeacon's `(body ?? {})` fallback
+    ip: "127.0.0.1",
+    socket: { remoteAddress: "127.0.0.1" },
+    hostname: "example.com",
+    get: () => undefined,
+  };
+
+  await handler(req, res);
+
+  assert.equal(statusCode, 204);
+  const hit = sink.all()[0];
+  assert.ok(hit, "the beacon must still be accepted when req.body is undefined");
+  assert.equal(hit.path, "", "an absent body bounds to an empty path rather than throwing");
+});
+
 test("analytics-ingest: a sink failure is swallowed — still 204s, never leaks the error to the caller", async (t) => {
   const sink = new LocalBufferSink();
   sink.accept = async () => {

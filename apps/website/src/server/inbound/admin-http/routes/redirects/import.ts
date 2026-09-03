@@ -14,17 +14,12 @@ const MAX_IMPORT_BATCH_SIZE = 500;
  */
 export const registerAdminRedirectImportRoute: RedirectRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/redirects/import", async (req, res) => {
-    // `req.params.workspaceId` is always a string once Express has matched this route
-    // (`ParamsDictionary` types every required param as `string`, never `undefined`), and
-    // `req.body` is always an object — `express.json()` sets it unconditionally
-    // (`body-parser/lib/types/json.js`) before any content-type check — so neither a `?? ""` nor
-    // a `req.body?.` fallback is reachable through real HTTP.
-    if (req.params.workspaceId !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const rules = req.body.rules;
+    const rules = req.body?.rules;
     if (!Array.isArray(rules) || rules.length < 1 || rules.length > MAX_IMPORT_BATCH_SIZE) {
       res.status(400).json({
         error: `rules must be an array of 1-${MAX_IMPORT_BATCH_SIZE} items`,

@@ -656,3 +656,58 @@ test("POST /forms/:slug/submit: `req.get(\"host\") ?? \"localhost\"` and `req.pa
   const location = new URL(redirectLocation ?? "", "http://localhost");
   assert.equal(location.searchParams.get("form_status"), "error");
 });
+
+/**
+ * `boundBody`'s `(body ?? {})` fallback (extractRouteHandler's own doc,
+ * `helpers/http-test-server.ts`): real `body-parser` always assigns `req.body` (as `{}` at worst),
+ * so the right side of this `??` is unreachable through any real HTTP request. Restored 2026-09-03
+ * after being wrongly deleted as "unreachable dead code" -- the repo's established answer is to
+ * KEEP the guard and exercise it with a hand-built `req` that deliberately violates that contract,
+ * same technique (and the same router-stack reach-in, since this route mounts TWO handlers --
+ * `express.urlencoded` then the real one -- so `extractRouteHandler`'s `stack[0]` assumption does
+ * not hold here) as the `slug ?? ""` test above.
+ */
+test("POST /forms/:slug/submit: `boundBody`'s `(body ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async (t) => {
+  const { server, app, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  interface ExpressHandlerLayer {
+    route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+  }
+  interface ExpressAppWithRouter {
+    _router: { stack: ExpressHandlerLayer[] };
+  }
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === "/forms/:slug/submit");
+  if (!layer?.route) throw new Error("route not found in router stack");
+  const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+
+  let statusCode: number | undefined;
+  let jsonBody: unknown;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(body: unknown) {
+      jsonBody = body;
+      return res;
+    },
+  };
+  const req = {
+    params: { slug: "contact" },
+    body: undefined, // no req.body at all -> boundBody's `(body ?? {})` fallback
+    socket: {},
+    headers: {},
+    protocol: "http",
+    get: () => undefined, // no Accept: text/html -> stays on the JSON path
+  };
+
+  await handler(req, res);
+
+  // An empty bounded body fails the form's own required "name" field -- proof the `?? {}` produced
+  // a real, iterable object rather than throwing on `Object.entries(undefined)`.
+  assert.equal(statusCode, 400);
+  assert.equal((jsonBody as { code: string }).code, "FORMS_SUBMISSION_VALIDATION_ERROR");
+});

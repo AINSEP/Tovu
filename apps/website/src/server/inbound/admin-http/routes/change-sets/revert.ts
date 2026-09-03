@@ -42,15 +42,12 @@ function sendChangeSetRevertError(res: Response, err: unknown): void {
  */
 export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
-    // `req.params.workspaceId`/`changeSetId` are always strings once Express has matched this
-    // route (`ParamsDictionary` types every required param as `string`, never `undefined`), so a
-    // `?? ""` fallback here would be dead code — never reachable through real HTTP.
-    if (req.params.workspaceId !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
 
-    const changeSetId = req.params.changeSetId;
+    const changeSetId = String(req.params.changeSetId ?? "");
 
     try {
       const principal = getAuthedPrincipal(res);

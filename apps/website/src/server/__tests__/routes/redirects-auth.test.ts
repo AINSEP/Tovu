@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 
 import express from "express";
 
@@ -345,6 +345,24 @@ test("admin redirects import route: workspace mismatch, batch-size validation, a
   } finally {
     deps.authorize = origAuthorize;
   }
+});
+
+/**
+ * `req.params.workspaceId ?? ""` (extractRouteHandler's own doc, `helpers/http-test-server.ts`):
+ * Express guarantees a matched `:param` is always a populated string, so the right side of this
+ * `??` is unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly
+ * deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard and
+ * exercise it with a hand-built `req` that deliberately violates Express's own routing contract.
+ */
+test("admin redirects import route: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/redirects/import");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, body: { rules: [] } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { error: string }).error, "workspace was not found");
 });
 
 test("admin redirects get-by-id route: workspace mismatch, found, not found, unexpected error", async (t) => {

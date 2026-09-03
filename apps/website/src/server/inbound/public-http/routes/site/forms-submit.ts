@@ -45,12 +45,7 @@ const MAX_BODY_STRING_LENGTH = 5000;
 
 /** Truncates string values in an untrusted body before it reaches `submitForm`; other types pass through unchanged so `validateSubmissionPayload` can reject them by type, mirroring `analytics-ingest.ts`'s `parseBeacon`. */
 function boundBody(body: unknown): Record<string, unknown> {
-  // No `?? {}` fallback: `boundBody`'s one call site passes `req.body`, and this route always
-  // registers `express.urlencoded({ extended: false })` ahead of the handler in its OWN chain (see
-  // this file's `registerFormsSubmitRoute`) — `body-parser`'s `urlencoded` middleware sets
-  // `req.body = req.body || {}` unconditionally, before it even checks the content type, so
-  // `req.body` can never be `null`/`undefined` here, in the composed app or the standalone test app.
-  const raw = body as Record<string, unknown>;
+  const raw = (body ?? {}) as Record<string, unknown>;
   const bounded: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
     bounded[key] = typeof value === "string" ? value.slice(0, MAX_BODY_STRING_LENGTH) : value;

@@ -404,6 +404,75 @@ test("GET /connectors/statuses: req.params.workspaceId is always populated by Ex
   assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
+/**
+ * `req.params.workspaceId ?? ""` / `req.params.connectorId ?? ""` (extractRouteHandler's own doc,
+ * `helpers/http-test-server.ts`): Express guarantees a matched `:param` is always a populated
+ * string, so the right side of every `??` below is unreachable through any real HTTP request.
+ * Restored 2026-09-03 after being wrongly deleted as "unreachable dead code" -- the repo's
+ * established answer is to KEEP the guard and exercise it with a hand-built `req` that deliberately
+ * violates Express's own routing contract, same technique as `GET /connectors/statuses`'s own
+ * `?? ""` test above.
+ */
+test("disconnect: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async (t) => {
+  const { app } = await buildTestApp(t);
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/disconnect");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("disconnect: `req.params.connectorId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/disconnect");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
+
+  // An empty connector id is not in the catalog -- the service's own ordinary not-found mapping,
+  // proof the `?? ""` fallback produced a real (if unmatched) lookup key rather than throwing.
+  assert.equal(capture.statusCode, 404);
+});
+
+test("cancel: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async (t) => {
+  const { app } = await buildTestApp(t);
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/cancel");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("cancel: `req.params.connectorId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/cancel");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
+
+  // An empty connector id is not in the catalog -- the service's own ordinary not-found mapping,
+  // proof the `?? ""` fallback produced a real (if unmatched) lookup key rather than throwing.
+  assert.equal(capture.statusCode, 404);
+});
+
 test("a missing master secret is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {
   const { app } = await buildTestApp(t, { siteAssistantSecretKeyring: new BrokenKeyring() });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminChangeSetRevertRoute } from "../../inbound/admin-http/routes/change-sets/revert.js";
@@ -166,4 +166,45 @@ test("change-sets revert: an unexpected error is 500 with a generic body", async
   });
   assert.equal(res.status, 500);
   assert.deepEqual(await res.json(), { error: "internal error" });
+});
+
+/**
+ * `req.params.workspaceId ?? ""` / `req.params.changeSetId ?? ""` (extractRouteHandler's own doc,
+ * `../helpers/http-test-server.ts`): Express guarantees a matched `:param` is always a populated
+ * string, so the right side of both `??`s is unreachable through any real HTTP request. Restored
+ * 2026-09-03 after being wrongly deleted as "unreachable dead code" -- the repo's established answer
+ * is to KEEP the guard and exercise it with a hand-built `req` that deliberately violates Express's
+ * own routing contract, the same way a `default: throw` exhaustiveness guard is tested.
+ */
+test("change-sets revert: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { error: string }).error, "workspace was not found");
+});
+
+test("change-sets revert: `req.params.changeSetId ?? \"\"` fallback, forced via a direct handler call with only that param omitted -- reaches the real not-found lookup behind a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  // `getAuthedPrincipal` normally runs behind `requireAdminSession`, which `extractRouteHandler`
+  // bypasses -- stand in with the REAL seeded owner principal so `authorize()` actually grants
+  // `changeset.revert` and the handler proceeds past auth into the lookup, same as a real request.
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: WS } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  const body = capture.jsonBody as { code: string };
+  assert.equal(body.code, "CHANGE_SET_NOT_FOUND");
 });

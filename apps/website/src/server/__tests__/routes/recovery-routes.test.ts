@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminDatabaseRestorePointsCreateRoute } from "../../inbound/admin-http/routes/database/restore-points.js";
@@ -168,6 +168,52 @@ test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR w
   assert.equal(res.status, 500);
   const body = (await res.json()) as { error: string; code: string };
   assert.deepEqual(body, { error: "boom", code: "INTERNAL_ERROR" });
+});
+
+test("recovery routes: deep-link surfaces a non-Error thrown value as 500 INTERNAL_ERROR with a generic message (the `err instanceof Error ? ... : \"internal error\"` ternary's false branch)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // A real caller can throw anything, not just an `Error` -- e.g. a legacy code path or a
+  // third-party dependency rejecting with a plain string/object. Unlike the `?? {}` fallback below,
+  // this ternary's false branch IS reachable through real HTTP; it just needs an unusual throw.
+  deps.authorize = async () => {
+    throw "boom";
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ envelope: { v: 1, correlationId: "c1", siteId: "site-1", ledgerEventId: null, restorePointId: "rp-1", drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z" } }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.deepEqual(body, { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+/**
+ * `req.body ?? {}` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): real
+ * `body-parser` always assigns `req.body` (as `{}` at worst), so the right side of this `??` is
+ * unreachable through any real HTTP request. Restored 2026-09-03 after being wrongly deleted as
+ * "unreachable dead code" -- the repo's established answer is to KEEP the guard and exercise it
+ * with a hand-built `req` that deliberately violates that contract.
+ */
+test("recovery routes: deep-link's `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/recovery/deep-link");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({}, res); // no `body` key at all -> `req.body ?? {}` fallback
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });
 
 test("recovery routes: status resolves the real dbOps costClass, and reports the 'watermark-baseline-unavailable' banner (the honest, safe state while no per-category write tracker exists — never a fabricated 'healthy' state)", async (t) => {
