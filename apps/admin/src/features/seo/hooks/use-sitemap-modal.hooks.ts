@@ -18,7 +18,23 @@ import type { SitemapPort } from "./sitemap-port.hooks";
  */
 
 export type SitemapModalView = "table" | "raw";
-export type SitemapModalStatus = "loading" | "error" | "ready";
+/** `"disabled"` is a real, terminal state, not a stalled `"loading"`: with `sitemapEnabled` false the
+ *  modal deliberately never fetches, so there is nothing in flight to be loading. Naming it keeps
+ *  `SitemapModal.tsx`'s header honest — `sitemapModalTitle`/`SitemapModalHeaderActions` both key off
+ *  `status === "ready"`, so a URL count and the raw/table toggle stay off a sitemap that is off. */
+export type SitemapModalStatus = "disabled" | "loading" | "error" | "ready";
+
+/** What {@link useSitemapModal} needs from its caller. An object rather than trailing positional
+ *  parameters specifically so the `SitemapModal.tsx` `useModal` test seam forwards it whole: a
+ *  positional `enabled` can be silently dropped by a shorter test double (TypeScript accepts a
+ *  function of fewer parameters), which is exactly how the "this never fetches" claim below went
+ *  untested while the fetch fired on every open. */
+export interface SitemapModalInputs {
+  /** `settings.sitemapEnabled` — when `false`, `/sitemap.xml` is never requested at all. */
+  enabled: boolean;
+  /** Called on the Escape-to-close path — see {@link useSitemapModal}. */
+  onClose: () => void;
+}
 
 /** What {@link useSitemapModal} (and {@link useWiredSitemapModal}) hands back to
  *  `SitemapModal.tsx` — the modal's full render-time contract. */
@@ -47,13 +63,15 @@ export interface SitemapModalController {
  *
  * @param port - Injected {@link SitemapPort} — see that file's own doc for why this is a separate
  *   port from `SeoPort`.
- * @param onClose - Called on the modal's Escape-to-close path (the click-to-close/footer Close
- *   button paths stay plain `onClick={onClose}` in the component, same split
- *   `useMediaPickerDialog` uses for its own Escape listener vs. its plain-`onClick` Cancel button).
+ * @param required - `enabled` (gates the fetch entirely) and `onClose` (called on the modal's
+ *   Escape-to-close path; the click-to-close/footer Close button paths stay plain
+ *   `onClick={onClose}` in the component, same split `useMediaPickerDialog` uses for its own Escape
+ *   listener vs. its plain-`onClick` Cancel button). See {@link SitemapModalInputs}.
  * @returns The modal's full render-time contract — see {@link SitemapModalController}.
  */
-export function useSitemapModal(port: SitemapPort, onClose: () => void): SitemapModalController {
-  const [status, setStatus] = useState<SitemapModalStatus>("loading");
+export function useSitemapModal(port: SitemapPort, required: SitemapModalInputs): SitemapModalController {
+  const { enabled, onClose } = required;
+  const [status, setStatus] = useState<SitemapModalStatus>(enabled ? "loading" : "disabled");
   const [error, setError] = useState<string | null>(null);
   const [xmlText, setXmlText] = useState("");
   const [filter, setFilter] = useState("");
@@ -64,6 +82,17 @@ export function useSitemapModal(port: SitemapPort, onClose: () => void): Sitemap
   const [fetchToken, setFetchToken] = useState(0);
 
   useEffect(() => {
+    // Branch INSIDE the effect, never around the hook call: `SitemapModal.tsx` reads `useModal`
+    // unconditionally (Rules of Hooks), so "skip the fetch" has to be expressed here. Before this
+    // guard existed the fetch fired on every open regardless of `sitemapEnabled`, and — worse than
+    // the wasted request — a resolved response flipped `status` to `"ready"`, which put a URL count
+    // in the header and a live raw/table toggle on a modal whose body reads "Sitemap is off."
+    if (!enabled) {
+      setStatus("disabled");
+      setError(null);
+      setXmlText("");
+      return;
+    }
     let cancelled = false;
     setStatus("loading");
     setError(null);
@@ -85,7 +114,7 @@ export function useSitemapModal(port: SitemapPort, onClose: () => void): Sitemap
     return () => {
       cancelled = true;
     };
-  }, [port, fetchToken]);
+  }, [port, fetchToken, enabled]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -121,8 +150,8 @@ export function useSitemapModal(port: SitemapPort, onClose: () => void): Sitemap
  * The zero-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so `SitemapModal
  * .tsx` composes this and a test composes {@link useSitemapModal} with `createFakeSitemapPort`.
  *
- * @param onClose - Forwarded to {@link useSitemapModal}.
+ * @param required - Forwarded verbatim to {@link useSitemapModal}.
  */
-export function useWiredSitemapModal(onClose: () => void): SitemapModalController {
-  return useSitemapModal(defaultSitemapPort, onClose);
+export function useWiredSitemapModal(required: SitemapModalInputs): SitemapModalController {
+  return useSitemapModal(defaultSitemapPort, required);
 }

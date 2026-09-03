@@ -41,7 +41,13 @@ export interface SitemapModalProps {
   locale: string;
   /** `settings.sitemapEnabled` from `useSeo()` — when `false`, the modal shows why instead of a
    *  table (REQ 8: "disabled" and "on but zero URLs" are different facts, so this never fetches to
-   *  find out — it already knows). */
+   *  find out — it already knows).
+   *
+   *  Threaded into `useSitemapModal` as `SitemapModalInputs.enabled`, which is what actually makes
+   *  the "never fetches" half true. Until 2026-09-02 this prop only reached
+   *  {@link SitemapModalBody}: the hook was called with no notion of it and fetched on every open,
+   *  so a resolved `/sitemap.xml` put `Sitemap · N URLs` in the header and a live Raw XML toggle
+   *  beside it while the body read "Sitemap is off." */
   sitemapEnabled: boolean;
   /** `saving` from `useSeo()` — shared with the outer page's own Save/Regenerate buttons, same as
    *  today's single-flag convention (`Seo.tsx`'s existing `disabled={saving}` on both). */
@@ -207,7 +213,7 @@ export function SitemapModal({
   useModal = useWiredSitemapModal,
 }: SitemapModalProps) {
   const titleId = useId();
-  const modal = useModal(onClose);
+  const modal = useModal({ enabled: sitemapEnabled, onClose });
 
   /** Only refetches on a successful regenerate (REQ 7) — `onRegenerate` already resolves `false`
    *  on a caught failure (`useSeo`'s own `regenerateSitemap`), so a failed attempt leaves the

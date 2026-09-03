@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -52,7 +52,9 @@ function renderModal(port: SitemapPort, options: RenderModalOptions = {}) {
       regenerating={options.regenerating ?? false}
       onRegenerate={onRegenerate}
       onClose={onClose}
-      useModal={(close) => useSitemapModal(port, close)}
+      // Forwards the whole `SitemapModalInputs` object rather than re-listing its fields, so this
+      // double cannot silently drop `enabled` the way a positional parameter could.
+      useModal={(inputs) => useSitemapModal(port, inputs)}
     />
   );
   return { onClose, onRegenerate };
@@ -130,9 +132,32 @@ describe("SitemapModal — Raw XML toggle", () => {
   });
 });
 
+/** Flushes a full turn of the event loop inside `act`, so anything a wrongly-fired fetch would do
+ *  has actually landed (and re-rendered) before a test asserts it never happened. Without this a
+ *  synchronous assertion runs while the port promise is still pending and passes no matter what the
+ *  component does — the exact vacuum these disabled-state tests used to sit in. */
+async function flushPendingFetches(): Promise<void> {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+}
+
+/** A {@link SitemapPort} that records every call, so a test can assert the fetch was NOT made. */
+function countingSitemapPort(text: string): SitemapPort & { calls: number } {
+  const port = {
+    calls: 0,
+    async fetchSitemapXml() {
+      port.calls += 1;
+      return { text };
+    },
+  };
+  return port;
+}
+
 describe("SitemapModal — disabled and error states", () => {
-  it("shows the disabled message instead of a table when sitemapEnabled is false", () => {
+  it("shows the disabled message instead of a table when sitemapEnabled is false", async () => {
     renderModal(createFakeSitemapPort({ text: TWO_URL_XML }), { sitemapEnabled: false });
+    await flushPendingFetches();
 
     expect(screen.getByText(/Sitemap is off/)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
@@ -140,6 +165,17 @@ describe("SitemapModal — disabled and error states", () => {
     // result to toggle, and this state deliberately never fetches (see `SitemapModal.tsx`'s own
     // `sitemapEnabled` prop doc).
     expect(screen.queryByRole("button", { name: "Raw XML" })).not.toBeInTheDocument();
+    // The header must not report a URL count either: "the sitemap is off" and "the sitemap has 2
+    // URLs" cannot both be true, and REQ 8 exists precisely to keep those two facts distinct.
+    expect(screen.getByRole("heading", { name: "Sitemap" })).toBeInTheDocument();
+  });
+
+  it("never fetches /sitemap.xml at all when sitemapEnabled is false", async () => {
+    const port = countingSitemapPort(TWO_URL_XML);
+    renderModal(port, { sitemapEnabled: false });
+    await flushPendingFetches();
+
+    expect(port.calls).toBe(0);
   });
 
   it("a fetch failure shows the error, not a blank modal", async () => {
