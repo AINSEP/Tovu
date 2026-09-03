@@ -837,6 +837,40 @@ export interface MakeCredentialedRequestInput {
  * @complexity O(1) beyond the credential resolution's own O(n) (see {@link resolveCredentialOrThrow})
  *   and the header validation's own O(n) in header count.
  */
+/**
+ * Everything a reflecting/echo endpoint could hand back that must never reach the model — the exact
+ * Authorization value this call sent, the credential's own raw token, and — for a Basic-auth
+ * connection (one with a saved `username`, AND no self-describing scheme that took priority over it
+ * — see this file's header, "Self-describing token schemes") — the bare base64 `username:token`
+ * payload ON ITS OWN, with no "Basic " scheme prefix.
+ *
+ * That third value is NOT a substring of either of the first two: it is a substring of
+ * `authorizationHeader` only when the "Basic " prefix is also present, and it is not
+ * `connection.token` at all (it is the base64 encoding of `username:token` together) — so without
+ * listing it explicitly, an endpoint that echoes just the bare payload back would slip past both
+ * {@link redactResponseHeaders} and {@link resolveRedactedResponseBody} undetected.
+ *
+ * Gated on the RESOLVED scheme being `basic` rather than the looser `connection.username`
+ * truthiness check, so this list only ever contains a payload that was actually sent — a credential
+ * carrying both a self-describing token AND a leftover saved username never sends Basic, so there
+ * is no such payload to leak or to list. See this file's header, "The token never reaches the
+ * model", and {@link buildBasicAuthPayload}'s own doc for why this is derived rather than
+ * duplicated.
+ *
+ * Extracted from {@link makeCredentialedRequest} (2026-09-03) so that function stays under the
+ * repo's 9/9 complexity ceiling — the Basic-payload branch was its tenth.
+ *
+ * Every entry is matched as a SUBSTRING (see {@link redactResponseHeaders}), never by exact
+ * equality.
+ *
+ * @complexity O(1).
+ */
+function buildResponseSecrets(connection: CustomProviderConnectionInput, authorizationHeader: string): readonly string[] {
+  const resolvedScheme = resolveAuthorizationScheme(connection);
+  if (resolvedScheme.kind !== "basic") return [authorizationHeader, connection.token];
+  return [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)];
+}
+
 export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
   const label = requireLabel(input.label);
   const method = validateMethod(input.method);
@@ -848,28 +882,8 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
   const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
-  const resolvedScheme = resolveAuthorizationScheme(connection);
   const authorizationHeader = buildAuthorizationHeader(connection);
-  // Everything a reflecting/echo endpoint could hand back that must never reach the model — the
-  // exact Authorization value this call sent, the credential's own raw token, and — for a Basic-auth
-  // connection (one with a saved `username`, AND no self-describing scheme that took priority over
-  // it — see this file's header, "Self-describing token schemes") — the bare base64
-  // `username:token` payload ON ITS OWN, with no "Basic " scheme prefix. That third value is NOT a
-  // substring of either of the first two: it is a substring of `authorizationHeader` only when the
-  // "Basic " prefix is also present, and it is not `connection.token` at all (it is the base64
-  // encoding of `username:token` together) — so without listing it explicitly, an endpoint that
-  // echoes just the bare payload back would slip past both {@link redactResponseHeaders} and
-  // {@link resolveRedactedResponseBody} undetected. Gated on `resolvedScheme.kind === "basic"` rather
-  // than the looser `connection.username` truthiness check so this list only ever contains a payload
-  // that was actually sent — a credential with both a self-describing token AND a leftover saved
-  // username never sends Basic, so there is no such payload to leak or to list. See this file's
-  // header, "The token never reaches the model", and {@link buildBasicAuthPayload}'s own doc for why
-  // this is derived rather than duplicated. Every entry here is matched as a SUBSTRING (see
-  // {@link redactResponseHeaders}), never by exact equality.
-  const responseSecrets: readonly string[] =
-    resolvedScheme.kind === "basic"
-      ? [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)]
-      : [authorizationHeader, connection.token];
+  const responseSecrets = buildResponseSecrets(connection, authorizationHeader);
 
   let response;
   try {
