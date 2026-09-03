@@ -35,6 +35,7 @@ import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
 import { getWebhooksAgentToolCatalog } from "../../features/webhooks/agent-tools.js";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
 import { mediaAgentToolCatalog } from "../../features/media/index.js";
+import { mediaGenerationAgentToolCatalog } from "../../features/media-generation/agent-tools.js";
 import { membersAgentToolCatalog } from "../../features/members/agent-tools.js";
 import { menusAgentToolCatalog } from "../../features/navigation/index.js";
 import { newsletterAgentToolCatalog } from "../../features/newsletter/agent-tools.js";
@@ -49,7 +50,7 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations.js";
-import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { listToolContributors, resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/runtime/composition/tool-catalog-manifest.js";
 
 // `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
@@ -119,95 +120,99 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
   return found;
 }
 
-/** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 24 wired
- * domains are listed (`deployments` added 2026-08-15; `pages` was missing before that dispatch —
- * see the comment on its own array entry below; `static-publish` added 2026-08-15 in this dispatch,
- * for the same reason `deployments` is here — it wires `deployment_preview_static_publish` and
- * needs its catalog entry resolvable for the same generic assertions); the generic contract/risk
- * assertions below iterate EVERY wired registration, not just content-types', so each domain's
- * catalog has to be resolvable from here even when that domain also has its own dedicated test
- * file. The `as unknown as` casts cover the catalogs whose own `AgentToolDefinition` is a
- * structural sibling rather than the content-types one this array is typed as (identity requires
- * `inputSchema`, database/recovery/plugins/workspace/settings/taxonomy/seo/redirects/integrations/
- * post/themes/static-publish each declare their own copy — taxonomy's and static-publish's
+/**
+ * Every wired domain's own catalog, keyed by the exact `domain` string that domain registers
+ * under — either `tool-contribution-registry.ts`'s `listToolContributors()` (every
+ * `contribute<Domain>Tools()` call `installFirstPartyToolContributors()` makes; see that file's
+ * own header) or `tool-registrations.ts`'s private, not-yet-converted `DOMAIN_SLICES` array (today:
+ * the four in-chat UI domains plus `component-catalog`/`ask-choice` — see that file's own header
+ * for why both seams still coexist).
+ *
+ * This is the declared side of every cross-check below, independent of what
+ * `buildAssistantToolRegistrations` actually builds — so keying it by domain and checking it
+ * against the REAL registered-domain list (the completeness test right after this) is what makes a
+ * newly wired domain's missing catalog entry fail LOUDLY, by domain name, instead of silently
+ * reproducing the exact drift `media_generate_asset` hit here (registered via
+ * `contributeMediaGenerationTools()` on 2026-09-02; this map never got its `media-generation` entry
+ * added) — and `pages` hit before it (`DOMAIN_SLICES`'s own `buildPagesRegistrations` entry, added
+ * without its catalog import; confirmed via `git show HEAD:<this file>` before this dispatch touched
+ * anything). Both are entries below now.
+ *
+ * The completeness test can only walk `listToolContributors()` for the 29 registry-based domains —
+ * `DOMAIN_SLICES` itself is a private, unexported const in `assistant/tool-registrations.ts`
+ * (confirmed: no exported getter for its domain names exists there as of this dispatch), and adding
+ * one is a production-file change outside this dispatch's scope (`assistant/tool-registrations.ts`
+ * is exactly the file a concurrently-running sibling agent may also be editing to add DOMAIN_SLICES'
+ * next entry, per this dispatch's own brief — editing it here risks a live collision, not just a
+ * scope violation). So the 6 DOMAIN_SLICES-only domains below (`demo-choices`/`demo-a2ui`/
+ * `demo-image`/`render-ui`/`component-catalog`/`ask-choice`) stay a disclosed, hand-maintained
+ * fallback for exactly that reason — everything else derives.
+ *
+ * The `as unknown as` casts cover the catalogs whose own `AgentToolDefinition` is a structural
+ * sibling rather than the content-types one this map is typed as (identity requires `inputSchema`,
+ * database/recovery/plugins/workspace/settings/taxonomy/seo/redirects/integrations/post/themes/
+ * static-publish/media-generation each declare their own copy — taxonomy's and static-publish's
  * additionally carry `actorClassRule`) — the shared structural supertype lives in
- * `assistant/tool-registration-kit.ts`. */
-const WIRED_CATALOGS: AgentToolDefinition[] = [
-  ...contentTypesAgentToolCatalog,
-  ...formsAgentToolCatalog,
-  ...identityAgentToolCatalog,
-  ...commentsAgentToolCatalog,
-  ...membersAgentToolCatalog,
-  ...newsletterAgentToolCatalog,
-  ...mediaAgentToolCatalog,
-  ...widgetsAgentToolCatalog,
-  ...menusAgentToolCatalog,
-  ...(getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(recoveryAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(pluginAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(entriesAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(taxonomyAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(getSeoAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(postAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(getThemesAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(deploymentsAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // Pre-existing gap, not introduced by this dispatch: `pages` (`DOMAIN_SLICES`'s own
-  // `buildPagesRegistrations` entry) was never added here when it was wired in, so
-  // `pages_read_html`/`pages_write_html` failed `catalogEntry()` lookups below at HEAD already —
-  // confirmed via `git show HEAD:<this file>`, before this dispatch touched anything. Fixed here
-  // since this dispatch is already editing this exact array for `deployments`.
-  ...(pagesAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `static-publish` (`DOMAIN_SLICES`'s own `buildStaticPublishRegistrations` entry): as of
-  // 2026-08-15 all 3 catalog entries are wired, including `deployment_execute_static_publish` (see
-  // `publish-agent-tools.ts`'s own file header for the human-gated MCP-UI mechanism that made
-  // wiring it safe). This comment previously said only the preview tool was wired and the execute
-  // tool was "never-wired" — that was true before this dispatch and is stale now; corrected here
-  // rather than left to mislead the next reader.
-  ...(staticPublishAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `source-control` (`DOMAIN_SLICES`'s own `buildSourceControlRegistrations` entry, added
-  // 2026-08-16): both catalog entries are wired — `source_control_get_capabilities` (a pure read)
-  // and `source_control_execute_commit` (human-gated via the same MCP-UI held-open exchange
-  // `deployment_execute_static_publish` uses). See `features/source-control/tool-registrations.ts`'s
-  // own file header.
-  ...(sourceControlAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `site-evidence` (2026-08-26): one tool, `site_collect_page_evidence` — the browser-backed
-  // render-truth capability. Registered through `contributeSiteEvidenceTools()` like every other
-  // domain, so its catalog belongs in this array for the same reason theirs do.
-  ...(siteEvidenceAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `site-inspection` (2026-08-26): both entries wired — `site_get_profile` (a config snapshot
-  // whose FIVE per-section authorization decisions live in `buildSiteProfile`, not in the handler,
-  // so its catalog `authorization.permission` is a visibility floor rather than the gate; see
-  // `features/site-inspection/agent-tools.ts`'s own header) and `fetch_published_page` (one
-  // same-origin render of this site's public surface, gated inline by the handler like `theme_list`).
-  ...(siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // The four in-chat UI domains (2026-08-26): one tool each — `assistant_demo_choices`,
-  // `assistant_demo_a2ui`, `assistant_demo_image`, `assistant_render_ui`. They were absent from
-  // this array for as long as `TOVU_ENABLE_DEMO_TOOLS` kept them unwired, so the contract checks
-  // below never saw them. Removing that gate is what put them in scope, and this file failing on
-  // exactly that is the guard working: a newly-wired tool with no catalog entry here is a tool
-  // publishing a descriptor nothing has checked against its own catalog.
-  ...(demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(demoImageAgentToolCatalog as unknown as AgentToolDefinition[]),
-  ...(renderUiAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `component-catalog` (2026-08-30): `search_components`/`describe_component`, wired into this
-  // registry so a BYOK turn's `execute_delegated_tool` can reach them — see
-  // `component-catalog-tool.ts`'s own header for why they were previously unreachable from BYOK.
-  ...(componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `assistant_ask_choice` (2026-08-30): the production counterpart to `demo-choices` above — see
-  // `ask-choice-tool.ts`'s own header.
-  ...(askChoiceAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `custom-credentials` (2026-08-31): `custom_credential_verify`/`custom_credential_make_request` —
-  // the two tools that let the agent actually USE a saved Access Tokens "Add custom provider"
-  // credential (e.g. name.com, fly.io), not just save one. See
-  // `features/custom-credentials/credentialed-request.ts`'s own header.
-  ...(customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[]),
-];
+ * `assistant/tool-registration-kit.ts`.
+ */
+const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
+  "content-types": contentTypesAgentToolCatalog,
+  forms: formsAgentToolCatalog,
+  identity: identityAgentToolCatalog,
+  comments: commentsAgentToolCatalog,
+  members: membersAgentToolCatalog,
+  newsletter: newsletterAgentToolCatalog,
+  media: mediaAgentToolCatalog,
+  widgets: widgetsAgentToolCatalog,
+  menus: menusAgentToolCatalog,
+  database: getDatabaseAgentToolCatalog() as unknown as AgentToolDefinition[],
+  recovery: recoveryAgentToolCatalog as unknown as AgentToolDefinition[],
+  plugins: pluginAgentToolCatalog as unknown as AgentToolDefinition[],
+  workspace: getWorkspaceAgentToolCatalog() as unknown as AgentToolDefinition[],
+  settings: getSettingsAgentToolCatalog() as unknown as AgentToolDefinition[],
+  entries: entriesAgentToolCatalog as unknown as AgentToolDefinition[],
+  taxonomy: taxonomyAgentToolCatalog as unknown as AgentToolDefinition[],
+  seo: getSeoAgentToolCatalog() as unknown as AgentToolDefinition[],
+  redirects: getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[],
+  integrations: getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[],
+  post: postAgentToolCatalog as unknown as AgentToolDefinition[],
+  themes: getThemesAgentToolCatalog() as unknown as AgentToolDefinition[],
+  deployments: deploymentsAgentToolCatalog as unknown as AgentToolDefinition[],
+  pages: pagesAgentToolCatalog as unknown as AgentToolDefinition[],
+  "static-publish": staticPublishAgentToolCatalog as unknown as AgentToolDefinition[],
+  "source-control": sourceControlAgentToolCatalog as unknown as AgentToolDefinition[],
+  "site-evidence": siteEvidenceAgentToolCatalog as unknown as AgentToolDefinition[],
+  "site-inspection": siteInspectionAgentToolCatalog as unknown as AgentToolDefinition[],
+  "custom-credentials": customCredentialsAgentToolCatalog as unknown as AgentToolDefinition[],
+  // `media-generation` (2026-09-02): `media_generate_asset`, wired via
+  // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
+  // header. The entry this dispatch was sent to add; see this const's own doc above.
+  "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
+  // The 6 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
+  // doc above for why they cannot derive the same way.
+  "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],
+  "demo-a2ui": demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[],
+  "demo-image": demoImageAgentToolCatalog as unknown as AgentToolDefinition[],
+  "render-ui": renderUiAgentToolCatalog as unknown as AgentToolDefinition[],
+  "component-catalog": componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[],
+  "ask-choice": askChoiceAgentToolCatalog as unknown as AgentToolDefinition[],
+};
+
+/** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog
+ * whose entries `buildAssistantToolRegistrations` wires, in one array. */
+const WIRED_CATALOGS: AgentToolDefinition[] = Object.values(CATALOGS_BY_DOMAIN).flat();
+
+test("CATALOGS_BY_DOMAIN has an entry for every domain the tool-contribution registry actually has installed — not just the domains this file remembered to add", () => {
+  const registeredDomains = listToolContributors().map((contributor) => contributor.domain);
+  assert.ok(registeredDomains.length > 0, "installFirstPartyToolContributors() must have run (see this file's top-level call) before this check means anything");
+
+  for (const domain of registeredDomains) {
+    assert.ok(
+      domain in CATALOGS_BY_DOMAIN,
+      `'${domain}' is registered in the tool-contribution registry (installFirstPartyToolContributors wired it) but CATALOGS_BY_DOMAIN has no entry for it — add that domain's own *AgentToolCatalog import here. This is the exact drift 'media_generate_asset' hit: a domain wired in production with no catalog entry in this test file.`,
+    );
+  }
+});
 
 function catalogEntry(toolId: string): AgentToolDefinition {
   const entry = WIRED_CATALOGS.find((tool) => tool.name === toolId);
