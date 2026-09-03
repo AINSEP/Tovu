@@ -25,6 +25,7 @@ import {
   type PendingAuthorizationStore,
 } from "../platform/oauth/index.js";
 import {
+  ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
   openExternalMcpOAuthPayload,
   resolveExternalMcpAuthMode,
@@ -98,11 +99,18 @@ export class ExternalMcpReauthRequiredError extends Error {
   /** Where an operator fixes it. Safe to render — built from a validated server id, no user text. */
   readonly settingsLink: string;
 
-  constructor(input: { serverId: string; label?: string | null }) {
+  /**
+   * @param input.cause - A failure that happened while RECORDING this state, when the state write is
+   *   best-effort and this error is thrown regardless (see `reportAuthFailure`). It rides along so a
+   *   swallowed write failure stays visible to whoever logs the error, instead of disappearing —
+   *   this class carries no logger, and the alternative was a silent `catch`.
+   */
+  constructor(input: { serverId: string; label?: string | null; cause?: unknown }) {
     const name = input.label ?? input.serverId;
     super(
       `"${name}" is disconnected: its authorization expired or was revoked. ` +
         `Ask the operator to reconnect it in Settings → External MCP. Do not retry this tool.`,
+      input.cause === undefined ? undefined : { cause: input.cause },
     );
     this.name = "ExternalMcpReauthRequiredError";
     this.serverId = input.serverId;
@@ -640,27 +648,48 @@ async function setOAuthStatus(
   // operator's client secret along with the dead token. For a dynamically-registered (RFC 7591)
   // client the operator never saw that secret, so losing it here means the row can never be
   // re-authorized — only deleted and recreated.
+  //
+  // Both the open and the re-seal below can throw `ExternalMcpSecretStoreUnconfiguredError` — a
+  // rotated or missing root key, or a blob whose AAD no longer matches
+  // (`openExternalMcpOAuthPayload`/`sealExternalMcpOAuthPayload`'s own `@throws`). Before this
+  // read-modify-write existed, clearing a token was unconditional (plain `sealedOAuth: null`) and
+  // always succeeded; requiring a successful decrypt-then-reseal to clear one instead made every
+  // operator escape hatch that clears a token — `markNeedsReauth`, `disconnect()`, the device-poll
+  // terminal path — fail exactly when the blob is already unrecoverable, which is the one case an
+  // operator most needs to still be ABLE to clear it (the alternative is deleting the row outright).
+  // If either step fails for that reason, fall back to the pre-existing wholesale-null behavior
+  // rather than leaving the row stuck: a secret that cannot be decrypted is already lost, so nulling
+  // it loses nothing that was not lost already. Any OTHER error (a genuine bug, not an unopenable
+  // blob) still propagates — this is a documented degrade, not a blanket swallow.
   let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
+  let clearedWholesale = false;
   if (options.clearToken === true) {
-    const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
-    cleared = await sealExternalMcpOAuthPayload(
-      deps,
-      record,
-      existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
-    );
+    try {
+      const existing = await openExternalMcpOAuthPayload(deps.sealer, record);
+      cleared = await sealExternalMcpOAuthPayload(
+        deps,
+        record,
+        existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
+      );
+    } catch (error) {
+      if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+      clearedWholesale = true;
+    }
   }
 
   await deps.repo.upsert({
     ...record,
     oauthStatus: status,
-    ...(cleared === null
-      ? {}
-      : {
+    ...(cleared !== null
+      ? {
           sealedOAuth: cleared.sealedOAuth,
           oauthExpiresAt: null,
           // Carried from the seal, never from `...record` — same reason `persistTokens` does this.
           oauthAadVersion: cleared.oauthAadVersion,
-        }),
+        }
+      : clearedWholesale
+        ? { sealedOAuth: null, oauthExpiresAt: null }
+        : {}),
     oauthRefreshLeaseUntil: null,
     updatedAt: deps.clock.nowIso(),
   });
@@ -837,12 +866,33 @@ export function createExternalMcpOAuthService(deps: ExternalMcpOAuthDeps): Exter
       // A preset connection, a `static_env` row, or one already deleted has no reauth state this
       // service owns — see `createExternalMcpConnectionGate`'s identical passthrough.
       if (!record || resolveExternalMcpAuthMode(record) !== "oauth") throw error;
+
+      // The state write is BEST EFFORT; the terminal error below is the guarantee. `setOAuthStatus`
+      // can still fail here — a row write that rejects, or a blob `openExternalMcpOAuthPayload`
+      // refuses for a reason that is NOT `ExternalMcpSecretStoreUnconfiguredError` (a payload written
+      // at a newer schema version, which `hydrateExternalMcpOAuthPayload` throws deliberately outside
+      // its own catch). Letting that escape would hand the caller an incidental error in place of the
+      // terminal one, and every consumer branches on the CLASS: the connection gate would not engage,
+      // the in-chat `external_mcp_reauth_prompt` surface would never render, and the "do not retry"
+      // sentence a model needs in order to stop hammering a dead connection would be gone — the
+      // failure mode that surface exists for. So the write's failure is carried out as `cause`
+      // instead of thrown in its place: nothing is silently swallowed, and nothing displaces the
+      // signal. A row left un-updated is recoverable on the next call; a lost signal is not.
+      let statusWriteFailure: unknown;
       // Idempotent: a call that arrives after `tokenResolver` already discovered the same dead
       // grant must not re-clear an already-cleared token or bump `updatedAt` needlessly.
       if (resolveExternalMcpOAuthStatus(record) !== "needs_reauth") {
-        await setOAuthStatus(deps, serverId, "needs_reauth", { clearToken: true });
+        try {
+          await setOAuthStatus(deps, serverId, "needs_reauth", { clearToken: true });
+        } catch (writeError) {
+          statusWriteFailure = writeError;
+        }
       }
-      throw new ExternalMcpReauthRequiredError({ serverId, label: record.label });
+      throw new ExternalMcpReauthRequiredError({
+        serverId,
+        label: record.label,
+        ...(statusWriteFailure === undefined ? {} : { cause: statusWriteFailure }),
+      });
     },
 
     tokenResolver: {

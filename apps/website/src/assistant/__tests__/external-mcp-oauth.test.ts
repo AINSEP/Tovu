@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryKeyring } from "../../features/webhooks/keyring.memory.js";
+import type { KeyringPort, SecretSealerPort } from "../../features/webhooks/ports.js";
 import { AesGcmSecretSealer } from "../../features/webhooks/secret-sealer.aesgcm.js";
 import { createPendingAuthorizationStore, OAuthError, type OAuthFetch, type OAuthProviderDescriptor } from "../../platform/oauth/index.js";
 import {
@@ -13,6 +14,8 @@ import {
 } from "../external-mcp-oauth.js";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import {
+  ExternalMcpSecretStoreUnconfiguredError,
+  type ExternalMcpServerRepoPort,
   listExternalMcpServerViews,
   openExternalMcpOAuthPayload,
   readEnabledExternalMcpConfigs,
@@ -721,4 +724,190 @@ test("the connection gate ignores a static_env server, which has no authorizatio
   const gate = createExternalMcpConnectionGate({ workspaceId: WORKSPACE, repo });
 
   await gate("plain");
+});
+
+// ---------------------------------------------------------------------------
+// The clear-token escape hatches under a BROKEN credential store.
+//
+// `setOAuthStatus`'s clear-token branch is a read-modify-write through the sealer AND the keyring
+// (it must be — nulling `sealedOAuth` wholesale would delete the client secret sharing the blob).
+// That made every operator escape hatch depend on a successful decrypt-then-reseal, so clearing a
+// token started failing in the one situation where clearing it is the whole point: the blob is
+// already unrecoverable. Nothing above exercises a failing sealer or keyring, which is why that
+// shipped green. Each double below breaks exactly one leg, so a fix that only covers `open` cannot
+// pass the `seal` case by accident.
+// ---------------------------------------------------------------------------
+
+/** A sealer that cannot open anything — a rotated `TOVU_INTEGRATIONS_ROOT_KEY`, a changed AAD, or a
+ *  corrupt row. `openExternalMcpOAuthPayload` converts any `open` failure into
+ *  `ExternalMcpSecretStoreUnconfiguredError`; sealing is left working so the failure is unambiguously
+ *  the read leg. */
+function sealerThatCannotOpen(inner: SecretSealerPort): SecretSealerPort {
+  return {
+    seal: (input) => inner.seal(input),
+    open: () => Promise.reject(new Error("Unsupported state or unable to authenticate data")),
+  };
+}
+
+/** Opens `healthyOpens` times and then stops — a root key that goes away BETWEEN a boot-time read
+ *  and the write that follows it, which is how a live session discovers the problem rather than a
+ *  process that was broken from the start. */
+function sealerThatStopsOpeningAfter(inner: SecretSealerPort, healthyOpens: number): SecretSealerPort {
+  let opens = 0;
+  return {
+    seal: (input) => inner.seal(input),
+    open: async (input) => {
+      opens += 1;
+      if (opens > healthyOpens) throw new Error("Unsupported state or unable to authenticate data");
+      return inner.open(input);
+    },
+  };
+}
+
+/** Opens onto a payload written by a NEWER build. `hydrateExternalMcpOAuthPayload` refuses it with a
+ *  plain `Error`, deliberately outside its own catch — so this is a real route by which
+ *  `openExternalMcpOAuthPayload` throws something that is NOT
+ *  `ExternalMcpSecretStoreUnconfiguredError`, and the only honest way to prove the degrade is
+ *  targeted rather than a blanket `catch`. */
+function sealerThatOpensAFutureSchemaVersion(inner: SecretSealerPort): SecretSealerPort {
+  return {
+    seal: (input) => inner.seal(input),
+    open: async () => JSON.stringify({ schemaVersion: 99, clientSecret: "s3cr3t" }),
+  };
+}
+
+/** A keyring with no active key. Only `activeKey()` breaks: `AesGcmSecretSealer.open` re-derives
+ *  from `sealed.keyId` via `derive()`, so reads keep working and the ONLY failing step is the
+ *  re-seal. */
+function keyringWithNoActiveKey(inner: KeyringPort): KeyringPort {
+  return {
+    activeKey: () => Promise.reject(new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set")),
+    deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
+    derive: (input) => inner.derive(input),
+  };
+}
+
+/** A repo whose row write rejects. Models the failure that is left AFTER the secret-store degrade —
+ *  it never reaches the sealer at all. */
+function repoWhoseUpsertRejects(inner: ExternalMcpServerRepoPort, error: Error): ExternalMcpServerRepoPort {
+  return {
+    listByWorkspaceId: (workspaceId) => inner.listByWorkspaceId(workspaceId),
+    findByServerId: (input) => inner.findByServerId(input),
+    upsert: () => Promise.reject(error),
+    deleteByServerId: (input) => inner.deleteByServerId(input),
+    tryClaimOAuthRefreshLease: (input) => inner.tryClaimOAuthRefreshLease(input),
+    releaseOAuthRefreshLease: (input) => inner.releaseOAuthRefreshLease(input),
+  };
+}
+
+/** Rebuilds the service over the SAME repo and row with one dependency swapped. The row is written
+ *  by the real sealer first, so every case below is "the credential store broke after a successful
+ *  connect" — the operator's actual situation, not a process that never worked. */
+function serviceWithBrokenDependency(
+  base: Awaited<ReturnType<typeof makeHarness>>,
+  overrides: { sealer?: SecretSealerPort; keyring?: KeyringPort; repo?: ExternalMcpServerRepoPort },
+): ReturnType<typeof createExternalMcpOAuthService> {
+  return createExternalMcpOAuthService({
+    workspaceId: WORKSPACE,
+    repo: overrides.repo ?? base.repo,
+    sealer: overrides.sealer ?? base.sealer,
+    keyring: overrides.keyring ?? base.keyring,
+    clock: base.clock,
+    pending: createPendingAuthorizationStore({ clock: base.clock }),
+    devices: createDeviceAuthorizationStore(),
+    fetchFn: base.http.fetchFn,
+    lookupProvider: () => PROVIDER,
+  });
+}
+
+const CONNECTED_SCRIPT: readonly ScriptStep[] = [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }];
+
+test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a rotated root key must not wedge the escape hatch", async () => {
+  const base = await makeHarness({ script: CONNECTED_SCRIPT });
+  await connect(base.service);
+  const service = serviceWithBrokenDependency(base, { sealer: sealerThatCannotOpen(base.sealer) });
+
+  await service.disconnect({ serverId: SERVER });
+
+  const row = await readRow(base.repo);
+  assert.equal(row.oauthStatus, "disconnected");
+  assert.equal(row.oauthExpiresAt, null);
+  assert.equal(
+    row.sealedOAuth,
+    null,
+    "a blob that cannot be decrypted is already lost — nulling it loses nothing that was not lost already",
+  );
+});
+
+test("disconnect still clears when the KEYRING has no active key — the re-seal leg throws too, not just the open", async () => {
+  const base = await makeHarness({ script: CONNECTED_SCRIPT });
+  await connect(base.service);
+  // The sealer stays real, so the blob OPENS: the only step that can fail is the re-seal.
+  const service = serviceWithBrokenDependency(base, { keyring: keyringWithNoActiveKey(base.keyring) });
+
+  await service.disconnect({ serverId: SERVER });
+
+  const row = await readRow(base.repo);
+  assert.equal(row.oauthStatus, "disconnected");
+  assert.equal(row.sealedOAuth, null, "an unsealable payload cannot be written back, so the row must still be cleared");
+});
+
+test("markNeedsReauth records the durable state even when the blob became unopenable mid-session", async () => {
+  const base = await makeHarness({
+    script: [{ json: { access_token: "at-1", refresh_token: "rt-1", expires_in: 3600 } }, { status: 400, json: { error: "invalid_grant" } }],
+  });
+  await connect(base.service);
+  base.clock.advance(60 * 60 * 1000);
+  // Two healthy opens — the refresher's own read of the token, then `resolveClient` reading the
+  // client secret for the refresh request — and the THIRD, the clear that follows the provider's
+  // rejection, finds the key gone. Losing the state write here is the worst of the three cases:
+  // `needs_reauth` is what stops every later tool call from re-probing a grant already refused.
+  const service = serviceWithBrokenDependency(base, { sealer: sealerThatStopsOpeningAfter(base.sealer, 2) });
+
+  await assert.rejects(() => service.tokenResolver.resolveAccessToken({ serverId: SERVER }));
+
+  const row = await readRow(base.repo);
+  assert.equal(row.oauthStatus, "needs_reauth", "the durable state must be recorded even when the dead token cannot be read back");
+  assert.equal(row.sealedOAuth, null);
+});
+
+test("reportAuthFailure throws the TERMINAL error even when the status write fails — the do-not-retry signal is the guarantee", async () => {
+  // `external_mcp_reauth_prompt` and `createExternalMcpConnectionGate` both branch on the CLASS of
+  // this error. Replacing it with an incidental write failure does not just lose a diagnostic: the
+  // gate never engages and the model is told nothing that makes it stop retrying a dead connection.
+  const base = await makeHarness({ script: CONNECTED_SCRIPT });
+  await connect(base.service);
+  const writeFailure = new Error("database is locked");
+  const service = serviceWithBrokenDependency(base, { repo: repoWhoseUpsertRejects(base.repo, writeFailure) });
+
+  await assert.rejects(
+    () => service.reportAuthFailure(SERVER, new Error("mcp-federation: the server refused 'tools/call' with 401")),
+    (error: unknown) => {
+      assert.ok(error instanceof ExternalMcpReauthRequiredError, `expected the terminal error, got ${String(error)}`);
+      assert.equal(error.retryable, false);
+      assert.match(error.message, /Do not retry this tool\.$/);
+      assert.equal(error.cause, writeFailure, "the best-effort write's failure must survive as `cause`, not vanish");
+      return true;
+    },
+  );
+});
+
+test("a clear-token failure that is NOT the secret store still propagates — the degrade is targeted, not a blanket swallow", async () => {
+  const base = await makeHarness({ script: CONNECTED_SCRIPT });
+  await connect(base.service);
+  const service = serviceWithBrokenDependency(base, { sealer: sealerThatOpensAFutureSchemaVersion(base.sealer) });
+
+  await assert.rejects(
+    () => service.disconnect({ serverId: SERVER }),
+    (error: unknown) =>
+      error instanceof Error &&
+      !(error instanceof ExternalMcpSecretStoreUnconfiguredError) &&
+      /newer than this build understands/.test(error.message),
+  );
+
+  assert.equal(
+    (await readRow(base.repo)).oauthStatus,
+    "connected",
+    "a row must not be moved on a failure this module does not understand",
+  );
 });

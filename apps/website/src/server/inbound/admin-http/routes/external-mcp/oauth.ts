@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import { ExternalMcpReauthRequiredError, ExternalMcpValidationError } from "#src/assistant/index";
+import { ExternalMcpReauthRequiredError, ExternalMcpSecretStoreUnconfiguredError, ExternalMcpValidationError } from "#src/assistant/index";
 import type { ExternalMcpOAuthService } from "#src/assistant/index";
 import { isOAuthError } from "#src/platform/oauth/index";
 import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
@@ -55,6 +55,15 @@ function sendExternalMcpOAuthError(res: import("express").Response, error: unkno
   }
   if (error instanceof ExternalMcpReauthRequiredError) {
     res.status(409).json({ error: error.message, code: error.code, details: { retryable: false, settingsLink: error.settingsLink } });
+    return;
+  }
+  if (error instanceof ExternalMcpSecretStoreUnconfiguredError) {
+    // Same status and code `routes/external-mcp/put.ts` already answers with for this class, so an
+    // admin client has one contract to handle rather than two. It matters here because the routes
+    // that still surface it — connect and the callback, which must OPEN the blob to authenticate to
+    // the token endpoint — otherwise fall through to a bare 500 "internal error", which tells an
+    // operator whose root key has rotated nothing about the one thing they can act on.
+    res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
     return;
   }
   if (isOAuthError(error)) {
