@@ -10,6 +10,7 @@ import {
   listCustomCredentials,
   updateCustomCredential,
   type CustomCredentialSummary,
+  type UpdateCustomCredentialInput,
 } from "#src/features/custom-credentials/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -71,6 +72,32 @@ function sendStoreError(res: Response, err: unknown): void {
   }
   console.error("[custom-credentials] unexpected error", err);
   res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+}
+
+/**
+ * Builds the PUT body into `updateCustomCredential`'s partial-update input — each field is forwarded
+ * only when the request actually supplied that key (an omitted key must leave the stored value
+ * alone; see `UpdateCustomCredentialInput`'s own per-field "omitted = unchanged" doc). Extracted from
+ * the PUT handler below: six independent `!== undefined` checks inlined into one object literal
+ * pushed that handler's cyclomatic complexity to 10 against the repo's ceiling of 9 — this helper's
+ * own complexity is a flat 7 (one per checked field, no nesting), comfortably under the gate.
+ */
+function buildUpdateCredentialInput(workspaceId: string, id: string, body: Record<string, unknown>): UpdateCustomCredentialInput {
+  return {
+    workspaceId,
+    id,
+    ...(body.label !== undefined ? { label: body.label } : {}),
+    ...(body.category !== undefined ? { category: body.category } : {}),
+    ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
+    ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
+    ...(body.connection !== undefined ? { connection: body.connection } : {}),
+    // Independent of `connection` (2026-09-01) — `body.username` travels through even on a
+    // request that carries no `connection` at all. `null` (an explicit clear) survives this
+    // check exactly like a string does; only an actually-absent JSON key reads as `undefined`
+    // and gets skipped, same "omitted key vs. present null" distinction `store.ts`'s own
+    // `UpdateCustomCredentialInput.username` doc relies on.
+    ...(body.username !== undefined ? { username: body.username } : {}),
+  };
 }
 
 export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCustomCredentialsDeps): void {
@@ -141,21 +168,7 @@ export function registerAdminCustomCredentialsRoutes(app: Express, deps: AdminCu
     if (await rejectUnlessAuthorized(req, res)) return;
     const body = (req.body ?? {}) as Record<string, unknown>;
     try {
-      const credential = await updateCustomCredential(writeDeps, {
-        workspaceId: deps.workspaceId,
-        id: req.params.id,
-        ...(body.label !== undefined ? { label: body.label } : {}),
-        ...(body.category !== undefined ? { category: body.category } : {}),
-        ...(body.baseUrl !== undefined ? { baseUrl: body.baseUrl } : {}),
-        ...(body.additionalHosts !== undefined ? { additionalHosts: body.additionalHosts } : {}),
-        ...(body.connection !== undefined ? { connection: body.connection } : {}),
-        // Independent of `connection` (2026-09-01) — `body.username` travels through even on a
-        // request that carries no `connection` at all. `null` (an explicit clear) survives this
-        // check exactly like a string does; only an actually-absent JSON key reads as `undefined`
-        // and gets skipped, same "omitted key vs. present null" distinction `store.ts`'s own
-        // `UpdateCustomCredentialInput.username` doc relies on.
-        ...(body.username !== undefined ? { username: body.username } : {}),
-      });
+      const credential = await updateCustomCredential(writeDeps, buildUpdateCredentialInput(deps.workspaceId, req.params.id, body));
       res.status(200).json({ credential });
     } catch (err) {
       sendStoreError(res, err);

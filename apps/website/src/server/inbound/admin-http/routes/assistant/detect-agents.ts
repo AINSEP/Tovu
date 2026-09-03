@@ -3,6 +3,31 @@ import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 
+/** Narrows `agent.models` to the `{id,label}` shape the UI needs, or `{}` when the runtime found none. */
+function projectModels(agent: RuntimeDetectedAgent): { models?: Array<{ id: string; label: string }> } {
+  return agent.models?.length
+    ? { models: agent.models.map((model) => ({ id: model.id, label: model.label })) }
+    : {};
+}
+
+/** Narrows `agent.reasoningOptions` to the `{id,label}` shape the UI needs, or `{}` when the runtime declared none. */
+function projectReasoningOptions(agent: RuntimeDetectedAgent): { reasoningOptions?: Array<{ id: string; label: string }> } {
+  return agent.reasoningOptions?.length
+    ? { reasoningOptions: agent.reasoningOptions.map((option) => ({ id: option.id, label: option.label })) }
+    : {};
+}
+
+/** Narrows `agent.reasoningInModelId` to the `{id,label}` shape the UI needs, or `{}` when the runtime rides no effort suffix. */
+function projectReasoningInModelId(agent: RuntimeDetectedAgent): { reasoningInModelId?: { levels: Array<{ id: string; label: string }> } } {
+  return agent.reasoningInModelId?.levels.length
+    ? {
+        reasoningInModelId: {
+          levels: agent.reasoningInModelId.levels.map((level) => ({ id: level.id, label: level.label })),
+        },
+      }
+    : {};
+}
+
 /**
  * Maps `@jini-ai/agent-runtime`'s `DetectedAgent` onto the `@jini-ai/ui`
  * `ExecutionTab`'s own `DetectedAgent`.
@@ -30,6 +55,14 @@ import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
  * derives its per-base-model levels from `models`, which this projection
  * already carries, so the vocabulary is all it additionally needs.
  *
+ * The three collection-shaped fields (`models`, `reasoningOptions`,
+ * `reasoningInModelId`) are each narrowed by a small helper above — every one
+ * of them is an independent `presence check + map` branch, and inlined here
+ * they pushed this function's cyclomatic complexity to 12 against the repo's
+ * ceiling of 9. Extracting them (rather than the five scalar fields below,
+ * which are single ternaries with no nested branching) is what brings this
+ * back under the gate without changing a single returned value.
+ *
  * Exported for `__tests__/detect-agents-projection.test.ts`, which pins both
  * fields so the next narrowing fails there rather than silently in the UI.
  */
@@ -52,20 +85,10 @@ export function toExecutionTabAgent(agent: RuntimeDetectedAgent): {
     installed: agent.available,
     ...(agent.version ? { version: agent.version } : {}),
     ...(agent.path ? { path: agent.path } : {}),
-    ...(agent.models?.length
-      ? { models: agent.models.map((model) => ({ id: model.id, label: model.label })) }
-      : {}),
+    ...projectModels(agent),
     ...(agent.modelsSource ? { modelsSource: agent.modelsSource } : {}),
-    ...(agent.reasoningOptions?.length
-      ? { reasoningOptions: agent.reasoningOptions.map((option) => ({ id: option.id, label: option.label })) }
-      : {}),
-    ...(agent.reasoningInModelId?.levels.length
-      ? {
-          reasoningInModelId: {
-            levels: agent.reasoningInModelId.levels.map((level) => ({ id: level.id, label: level.label })),
-          },
-        }
-      : {}),
+    ...projectReasoningOptions(agent),
+    ...projectReasoningInModelId(agent),
     ...(agent.authStatus ? { authStatus: agent.authStatus } : {}),
     // Auth guidance is operator-facing text from the adapter ("run `x login`"),
     // not provider output, so it carries no credential material.

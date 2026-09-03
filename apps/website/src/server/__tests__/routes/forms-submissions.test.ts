@@ -125,6 +125,43 @@ test("admin forms submissions: unknown submission id returns FORMS_SUBMISSION_NO
   assert.equal(body.code, "FORMS_SUBMISSION_NOT_FOUND");
 });
 
+test("admin forms submissions: a submission that belongs to a DIFFERENT form 404s with FORMS_SUBMISSION_NOT_FOUND on both get and delete — the id is real, just scoped to the wrong definition", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const ownFormId = await createDefinition(baseUrl, cookie, "cross-form-owner");
+  const otherFormId = await createDefinition(baseUrl, cookie, "cross-form-other");
+
+  await deps.formSubmissionRepo.create({
+    id: "sub-cross-form",
+    workspaceId: deps.workspaceId,
+    formDefinitionId: otherFormId,
+    data: { name: "Belongs elsewhere" },
+    sourceIp: "1.1.1.1",
+    submittedAt: "2026-07-13T00:00:00.000Z",
+  });
+
+  const getRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${ownFormId}/submissions/sub-cross-form`,
+    { headers: { cookie } }
+  );
+  assert.equal(getRes.status, 404);
+  assert.equal(((await getRes.json()) as { code: string }).code, "FORMS_SUBMISSION_NOT_FOUND");
+
+  const deleteRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${ownFormId}/submissions/sub-cross-form`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(deleteRes.status, 404);
+  assert.equal(((await deleteRes.json()) as { code: string }).code, "FORMS_SUBMISSION_NOT_FOUND");
+
+  // Still there under its real form — delete on the wrong scope must not have touched it.
+  const stillThereRes = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/forms/${otherFormId}/submissions/sub-cross-form`,
+    { headers: { cookie } }
+  );
+  assert.equal(stillThereRes.status, 200);
+});
+
 test("admin forms submissions: list/get/delete resolve by slug — the Submissions tab URL is /admin/forms/:slug, and FormEditor.tsx passes that same route param straight through as `formId` to all three submissions calls (see use-form-submissions.hooks.ts / use-form-submission-detail.hooks.ts)", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
