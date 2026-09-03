@@ -225,3 +225,26 @@ describe("translateRunAgentPayload — raw and surface events", () => {
     expect(translateRunAgentPayload({ type: "thinking_start" })).toBeNull();
   });
 });
+
+/**
+ * `slow_running` — Jini's `@jini-ai/daemon` `run-lifecycle.ts` slow-run notice (a wall-clock
+ * "still working" signal, distinct from the run actually failing). It has no dedicated `case` in
+ * `translateRunAgentPayload`'s switch — deliberately: it falls through to the generic `default`
+ * branch (the same one every other unrecognized `payload.type` already hits) and becomes an `ext`
+ * event, so `AssistantDock.tsx`'s `registerExtEventRenderer("slow_running", ...)` renders it inline
+ * — see `SlowRunNoticeCard.tsx`'s own doc for why `ext` was chosen over the pre-existing (but
+ * nowhere-rendered) `'status'` kind.
+ */
+describe("translateRunAgentPayload — slow_running falls through to the ext default branch", () => {
+  test("becomes an ext event named 'slow_running', carrying the whole payload as data", () => {
+    const translated = translateRunAgentPayload({
+      type: "slow_running",
+      detail: "Still working — this turn is taking longer than usual.",
+    });
+    expect(translated).toEqual({
+      kind: "ext",
+      name: "slow_running",
+      data: { type: "slow_running", detail: "Still working — this turn is taking longer than usual." },
+    });
+  });
+});

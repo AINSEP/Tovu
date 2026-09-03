@@ -12,6 +12,7 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
+import { SlowRunNoticeCard } from "./SlowRunNoticeCard";
 import { SelectedAgentPluginTray, type SelectedAgentPluginChip } from "./SelectedAgentPluginTray";
 import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
@@ -161,6 +162,13 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
  */
 const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
 registerExtEventRenderer("a2ui", (props) => <RoutedA2uiSurfaceCard {...props} onAgentAction={postA2uiAction} />);
+
+/**
+ * The wall-clock "still working" notice (`@jini-ai/daemon`'s `run-lifecycle.ts` slow-run watchdog) —
+ * see `SlowRunNoticeCard.tsx`'s own doc for the full "why `ext` instead of the existing (unrendered)
+ * `'status'` kind" reasoning. Same module-scope-once registration shape as the two above.
+ */
+registerExtEventRenderer("slow_running", (props) => <SlowRunNoticeCard {...props} />);
 
 declare global {
   interface Window {
