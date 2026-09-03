@@ -106,3 +106,214 @@ test("content-types routes: an unrecognized lifecycle 'op' is rejected VALIDATIO
   const body = (await res.json()) as { code: string };
   assert.equal(body.code, "VALIDATION_ERROR");
 });
+
+// ---------------------------------------------------------------------------
+// UPDATE-FIELDS coverage gap fill — statusFor()'s error-mapping branches and the
+// outer catch-all, none of which the golden-path/shape-boundary suites reach.
+// ---------------------------------------------------------------------------
+
+test("UPDATE-FIELDS: 404 CONTENT_TYPE_NOT_FOUND for a key that was never registered", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/does-not-exist/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "CONTENT_TYPE_NOT_FOUND");
+});
+
+test("UPDATE-FIELDS: 409 VERSION_CONFLICT for a stale expectedVersion", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 99 }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VERSION_CONFLICT");
+});
+
+test("UPDATE-FIELDS: rejects an empty fields array with the write-service's own 'fields_empty' ValidationError — distinct from the route's shape guard (an empty array is legal shape, REGISTER allows it)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [{ name: "x", kind: "integer", required: false, queryable: false }] }),
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields: [], expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.error, /empty fields array/);
+});
+
+test("UPDATE-FIELDS: a shape-valid but grammar-invalid field name is rejected by the write-service's own guard chain (InvalidFieldNameGrammarError), not the route's shape boundary", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields: [{ name: "NotValidGrammar", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.error, /fails the identifier grammar gate/);
+});
+
+test("UPDATE-FIELDS: a kind outside the closed enum is rejected by the write-service's own guard chain (InvalidFieldKindError)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields: [{ name: "good_name", kind: "bogus", required: false, queryable: false }], expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.error, /not one of the closed field-kind enum/);
+});
+
+test("UPDATE-FIELDS: exceeding the queryable-field cap is rejected by the write-service's own guard chain (QueryableFieldCapExceededError)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const fields = Array.from({ length: 21 }, (_, i) => ({ name: `f_${i}`, kind: "integer", required: false, queryable: true }));
+  const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ fields, expectedVersion: 1 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.match(body.error, /more than 20 queryable fields/);
+});
+
+test("UPDATE-FIELDS: statusFor's own ForbiddenError branch — the write-service's internal re-check of admin.collections.manage, distinct from the route's own inline 403 (which runs first)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const originalAuthorize = deps.authorize;
+  let call = 0;
+  // The route checks `admin.collections.manage` itself before ever calling
+  // `updateContentTypeFields`, which checks the SAME permission again internally
+  // (write-service.ts). Allow the route's own check through, deny the write-service's
+  // internal one, to reach `statusFor`'s `ForbiddenError` mapping specifically.
+  deps.authorize = async (input) => {
+    call += 1;
+    if (call === 1) return originalAuthorize(input);
+    return { allowed: false, reason: "test_denied" };
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+    });
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { code: string };
+    assert.equal(body.code, "FORBIDDEN");
+  } finally {
+    deps.authorize = originalAuthorize;
+  }
+});
+
+test("UPDATE-FIELDS: an unexpected repo failure surfaces as 500 through the route's outer catch, with the real error message (not the generic 'internal error' the delete routes use)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const originalTransaction = deps.contentTypeRepo.transaction.bind(deps.contentTypeRepo);
+  deps.contentTypeRepo.transaction = async () => {
+    throw new Error("simulated repo failure");
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+    });
+    assert.equal(res.status, 500);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.error, "simulated repo failure");
+    assert.equal(body.code, "INTERNAL_ERROR");
+  } finally {
+    deps.contentTypeRepo.transaction = originalTransaction;
+  }
+});
+
+test("UPDATE-FIELDS: a non-Error throw still surfaces as 500 with the generic 'internal error' message (the outer catch's err instanceof Error ternary, false side)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await fetch(`${baseUrl}/api/admin/v1/content-types`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ key: "recipe", label: "Recipe", fields: [] }),
+  });
+
+  const originalTransaction = deps.contentTypeRepo.transaction.bind(deps.contentTypeRepo);
+  // eslint-disable-next-line @typescript-eslint/only-throw-error -- deliberately non-Error, to
+  // exercise the outer catch's `err instanceof Error` ternary false side.
+  deps.contentTypeRepo.transaction = async () => {
+    throw "simulated non-Error rejection";
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/content-types/recipe/fields`, {
+      method: "PUT",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ fields: [{ name: "x", kind: "integer", required: false, queryable: false }], expectedVersion: 1 }),
+    });
+    assert.equal(res.status, 500);
+    const body = (await res.json()) as { error: string; code: string };
+    assert.equal(body.error, "internal error");
+    assert.equal(body.code, "INTERNAL_ERROR");
+  } finally {
+    deps.contentTypeRepo.transaction = originalTransaction;
+  }
+});

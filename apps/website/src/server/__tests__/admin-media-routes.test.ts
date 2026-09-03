@@ -247,6 +247,120 @@ test("admin media routes: 404s for an unknown workspace id and an unknown media 
   assert.equal(unknownMedia.status, 404);
 });
 
+// ---------------------------------------------------------------------------
+// update.ts coverage gap fill — this route's own workspace check, the
+// MediaNotFoundError/MediaValidationError branches, and the width/height/cssClass
+// undefined/null/value parsing, none of which the golden-path/permission suites
+// above reach (they only ever send caption/credit as plain strings).
+// ---------------------------------------------------------------------------
+
+test("update: 404s for a wrong workspace id on the PATCH route itself (not just the trash route)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/nope/media/${mediaId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ caption: "irrelevant" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("update: 404 MediaNotFoundError for a PATCH against a media id that does not exist", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/does-not-exist`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ caption: "irrelevant" }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /was not found/);
+});
+
+test("update: 400 MediaValidationError for a non-positive-integer width", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ width: -5 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /must be a positive integer/);
+});
+
+test("update: width/height/cssClass round-trip through their full undefined/null/value contract (parseOptionalNullableField's two branches)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+
+  // 1. Provide real values.
+  const setRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ width: 640, height: 480, cssClass: "hero-image" }),
+  });
+  assert.equal(setRes.status, 200);
+  const setBody = (await setRes.json()) as { media: { width: number; height: number; cssClass: string } };
+  assert.equal(setBody.media.width, 640);
+  assert.equal(setBody.media.height, 480);
+  assert.equal(setBody.media.cssClass, "hero-image");
+
+  // 2. Omitting them on a later PATCH must leave them unchanged (partial-update — the field this
+  //    dispatch's coverage gap explicitly asks about: does omission blank the field?).
+  const untouchedRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ caption: "unrelated edit" }),
+  });
+  assert.equal(untouchedRes.status, 200);
+  const untouchedBody = (await untouchedRes.json()) as { media: { width: number; height: number; cssClass: string } };
+  assert.equal(untouchedBody.media.width, 640, "omitting width must NOT blank it");
+  assert.equal(untouchedBody.media.height, 480, "omitting height must NOT blank it");
+  assert.equal(untouchedBody.media.cssClass, "hero-image", "omitting cssClass must NOT blank it");
+
+  // 3. Explicit null clears them back to unset.
+  const clearedRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+    method: "PATCH",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ width: null, height: null, cssClass: null }),
+  });
+  assert.equal(clearedRes.status, 200);
+  const clearedBody = (await clearedRes.json()) as { media: { width: unknown; height: unknown; cssClass: unknown } };
+  assert.equal(clearedBody.media.width, null, "explicit null must clear width, not be ignored");
+  assert.equal(clearedBody.media.height, null, "explicit null must clear height, not be ignored");
+  assert.equal(clearedBody.media.cssClass, null, "explicit null must clear cssClass, not be ignored");
+});
+
+test("update: an unexpected repo failure surfaces as the generic 500 (sendPostUpdateError-style default branch, via a real save() failure)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const mediaId = await uploadAsOwner(baseUrl, cookie);
+
+  const originalSave = deps.mediaRepo.save.bind(deps.mediaRepo);
+  deps.mediaRepo.save = async () => {
+    throw new Error("simulated media repo failure");
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/media/${mediaId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ caption: "will not persist" }),
+    });
+    assert.equal(res.status, 500);
+    assert.deepEqual(await res.json(), { error: "internal error" });
+  } finally {
+    deps.mediaRepo.save = originalSave;
+  }
+});
+
 test("SPEC-021 REQ-39/OQ-01: a principal with zero grants is denied 403 with the route's specific media.* permission named, on every one of the 5 routes", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);

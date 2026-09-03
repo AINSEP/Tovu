@@ -310,6 +310,121 @@ test("admin menus routes: 404s for unknown workspace and unknown menu id", async
   assert.equal(missingMenu.status, 404);
 });
 
+// ---------------------------------------------------------------------------
+// update-tree.ts coverage gap fill — this route's own workspace check, body-shape
+// guard, and `sendUpdateMenuTreeError`'s NotFound/Validation branches, none of
+// which the golden-path/permission suites above reach.
+// ---------------------------------------------------------------------------
+
+test("update-tree: 404s for a wrong workspace id on the PUT route itself (not just GET/list)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/some-other-workspace/menus/whatever`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ expectedVersion: 1, items: [] }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("update-tree: 400s when 'items' is missing or not an array, before any menu lookup", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const missing = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/does-not-exist`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ expectedVersion: 1 }),
+  });
+  assert.equal(missing.status, 400);
+  assert.match(String(((await missing.json()) as { error?: string }).error), /items must be an array/);
+
+  const wrongType = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/does-not-exist`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ expectedVersion: 1, items: "not-an-array" }),
+  });
+  assert.equal(wrongType.status, 400);
+});
+
+test("update-tree: 404 MenuNotFoundError (sendUpdateMenuTreeError's own mapping) for a well-formed request against an id that does not exist — distinct from the workspace-mismatch 404 above", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/does-not-exist`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ expectedVersion: 1, title: "X", slug: "x", items: [] }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /was not found/);
+});
+
+test("update-tree: 400 MenuValidationError reached through the UPDATE path's own error mapping (not create's), for a disallowed url scheme", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Nav", slug: "validation-nav" }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      expectedVersion: 1,
+      items: [{ id: "item-1", label: "XSS", target: { kind: "url", href: "javascript:alert(1)" } }],
+    }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /disallowed scheme/);
+
+  // The rejected update must not have applied — still version 1, still empty.
+  const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    headers: { cookie },
+  });
+  const stillThereBody = (await stillThere.json()) as { menu: { version: number; items: unknown[] } };
+  assert.equal(stillThereBody.menu.version, 1);
+  assert.equal(stillThereBody.menu.items.length, 0);
+});
+
+test("update-tree: omitting title/slug carries the existing values forward unchanged (the route's one partial-update exception — 'items' itself is always a full replace)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      title: "Original Title",
+      slug: "original-slug",
+      items: [{ id: "item-1", label: "Home", target: { kind: "url", href: "/" } }],
+    }),
+  });
+  const { menu } = (await created.json()) as { menu: { id: string } };
+
+  // Replace only the items — title/slug omitted entirely.
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      expectedVersion: 1,
+      items: [{ id: "item-1", label: "Home", target: { kind: "url", href: "/" } }, { id: "item-2", label: "About", target: { kind: "url", href: "/about" } }],
+    }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { menu: { title: string; slug: string; items: unknown[] } };
+  assert.equal(body.menu.title, "Original Title", "omitting title on update must NOT blank it");
+  assert.equal(body.menu.slug, "original-slug", "omitting slug on update must NOT blank it");
+  assert.equal(body.menu.items.length, 2);
+});
+
 test("admin menus routes: ADR-PIPE-012 D-1/D-2/D-9 — a principal with no grants is denied 403 on every route with the new per-action permission named, and a grant restores access", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);

@@ -24,11 +24,17 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  *  route supplies separately) rather than left inferred, so a field this route
  *  stops forwarding — or a shape change in `UpdatePostInput` — fails to compile
  *  here instead of surfacing downstream in `updatePost`.
+ *
+ *  `rawBody` is always an object here — `express.json()` sits ahead of every admin route
+ *  (composition/app.ts) and unconditionally sets `req.body = req.body || {}` before any handler
+ *  runs (body-parser's own `types/json.js`), so this function's one real caller (`req.body` below)
+ *  can never hand it `undefined`. The prior `rawBody ?? {}` default was accordingly dead through
+ *  any real HTTP request; removed rather than covered with an artificial direct-invoke test.
  *  @complexity O(1). */
 function parsePostUpdateBody(
   rawBody: unknown
 ): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage"> {
-  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const body = rawBody as Record<string, unknown>;
   return {
     title: String(body.title ?? ""),
     slug: String(body.slug ?? ""),
@@ -87,12 +93,16 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
     "/api/admin/v1/workspaces/:workspaceId/posts/:postId",
     rejectOversizedJsonBody({ maxBytes: CONTENT_ENTRY_MAX_BODY_BYTES }),
     async (req, res) => {
-      if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      // No `?? ""` fallback on either `req.params` read below: Express only invokes a route's
+      // handler once every `:param` segment in its path matched a non-empty path segment, so
+      // `workspaceId`/`postId` are always populated strings here — the same guarantee
+      // `admin-post-page-delete-routes.test.ts` documents for `pages/delete.ts`'s `pageId`.
+      if (req.params.workspaceId !== deps.workspaceId) {
         res.status(404).json({ error: "workspace was not found" });
         return;
       }
 
-      const rawParam = String(req.params.postId ?? "");
+      const rawParam = req.params.postId;
       // Admin URLs use the slug when one resolves (2026-08-10) — resolve to the real stable id up
       // front, before the command gateway starts, so `entityId`/`captureInverse`/`updatePost` all
       // key off the same real id even when the URL's own slug is one of the fields being changed in
