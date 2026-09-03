@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import type { Translate } from "@/lib/dictionary-translator";
+import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";
 import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "./theme-pages-port.hooks";
 
@@ -90,6 +92,29 @@ export interface ThemePagesController {
 function pageIdFromPath(path: string): string {
   const base = path.slice(path.lastIndexOf("/") + 1);
   return base.replace(/\.html$/, "");
+}
+
+/**
+ * Where a colliding content record's own admin editor lives — mirrors
+ * `ThemeExploreSlugCollisionWarning`'s identical `adminPath` derivation (`ThemeExplore.tsx`): a
+ * Page's editor route is keyed by slug (`/pages/:slug`), a Post's by id (`/posts/:postId`).
+ *
+ * @complexity O(1).
+ */
+export function themePageCollisionAdminPath(collision: ThemePageSlugCollision): string {
+  return collision.kind === "post" ? `/posts/${collision.id}` : `/pages/${collision.slug}`;
+}
+
+/**
+ * The Publish section's own line — the locked reason (already-translated, same string the row's
+ * `InfoTip` shows) for a locked row, or the live/not-live state word for a real candidate one.
+ *
+ * @complexity O(1).
+ */
+export function themePagePublishSummary(row: ThemePageRow, t: Translate): string {
+  const state = themePagePublishState(row, t);
+  if (state.kind === "locked") return themePagePublishTooltip(state);
+  return state.published ? t("Live") : t("Not live");
 }
 
 /**

@@ -2,8 +2,13 @@ import type { ReactNode } from "react";
 
 import { adminHref, navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
-import type { ThemePageRow, ThemePageSlugCollision } from "./hooks/use-theme-pages.hooks";
-import { themePagePublishState, themePagePublishTooltip } from "./lib/theme-page-publish-state";
+import {
+  themePageCollisionAdminPath,
+  themePagePublishSummary,
+  type ThemePageRow,
+  type ThemePageSlugCollision,
+} from "./hooks/use-theme-pages.hooks";
+import { themePagePublishState } from "./lib/theme-page-publish-state";
 import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
 
 /**
@@ -72,31 +77,6 @@ import { useThemePageDetailsModal } from "./ThemePageDetailsModal.hooks";
 /** Stable id for the dialog's own accessible name — a static constant, not a generated one, since
  *  exactly one instance of this component is ever mounted at a time (see this file's own header). */
 const TITLE_ID = "theme-page-details-title";
-
-/**
- * Where a colliding content record's own admin editor lives — mirrors `ThemeExploreSlugCollisionWarning`'s
- * identical `adminPath` derivation verbatim (`ThemeExplore.tsx`): a Page's editor route is keyed by
- * slug (`/pages/:slug`), a Post's by id (`/posts/:postId`).
- *
- * @complexity O(1).
- */
-function themePageCollisionAdminPath(collision: ThemePageSlugCollision): string {
-  return collision.kind === "post" ? `/posts/${collision.id}` : `/pages/${collision.slug}`;
-}
-
-/**
- * The Publish section's own line — the locked reason (already-translated, same string the row's
- * `InfoTip` shows) for a locked row, or the live/not-live state word for a real candidate one. Pulled
- * out of the component body purely to keep {@link ThemePageDetailsModal} itself a flat sequence of
- * guards rather than a nested ternary inline in JSX.
- *
- * @complexity O(1).
- */
-function themePagePublishSummary(row: ThemePageRow, t: Translate): string {
-  const state = themePagePublishState(row, t);
-  if (state.kind === "locked") return themePagePublishTooltip(state);
-  return state.published ? t("Live") : t("Not live");
-}
 
 /**
  * The dialog's opening block — a small-caps `t("Page")` kicker over the page id itself, styled as

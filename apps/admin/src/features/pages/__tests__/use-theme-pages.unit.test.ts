@@ -2,7 +2,13 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { createFakeThemePagesPort } from "../hooks/theme-pages-dependencies.hooks";
-import { useThemePages, useWiredThemePages } from "../hooks/use-theme-pages.hooks";
+import {
+  themePageCollisionAdminPath,
+  themePagePublishSummary,
+  useThemePages,
+  useWiredThemePages,
+  type ThemePageRow,
+} from "../hooks/use-theme-pages.hooks";
 import type { ThemePagesFileEntry } from "../hooks/theme-pages-port.hooks";
 
 /**
@@ -167,5 +173,55 @@ describe("useThemePages", () => {
       // The row's own state is untouched by a failed call.
       expect(result.current.pages?.find((p) => p.pageId === "about")?.published).toBe(false);
     });
+  });
+});
+
+// `themePageCollisionAdminPath`/`themePagePublishSummary` used to be top-level functions inline in
+// `ThemePageDetailsModal.tsx`, reachable only through a full component render (no direct test
+// existed). Moved here (2026-09-03 relocation pass, moving derived-logic computations out of `.tsx`
+// files and into their hooks) alongside the rest of this file's row derivations.
+describe("themePageCollisionAdminPath", () => {
+  it("routes a colliding Post to /posts/:id", () => {
+    expect(themePageCollisionAdminPath({ id: "post-1", slug: "about", title: "About Us", kind: "post" })).toBe(
+      "/posts/post-1",
+    );
+  });
+
+  it("routes a colliding Page to /pages/:slug", () => {
+    expect(themePageCollisionAdminPath({ id: "page-1", slug: "about", title: "About Us", kind: "page" })).toBe(
+      "/pages/about",
+    );
+  });
+});
+
+describe("themePagePublishSummary", () => {
+  const row = (overrides: Partial<ThemePageRow> = {}): ThemePageRow => ({
+    pageId: "about",
+    filePath: "render/pages/about.html",
+    published: false,
+    resettable: true,
+    collidingContent: null,
+    ...overrides,
+  });
+  const t = (key: string) => key;
+
+  it("reports 'Live' for a published candidate page", () => {
+    expect(themePagePublishSummary(row({ published: true }), t)).toBe("Live");
+  });
+
+  it("reports 'Not live' for an unpublished candidate page", () => {
+    expect(themePagePublishSummary(row({ published: false }), t)).toBe("Not live");
+  });
+
+  it("reports the locked reason for index, verbatim", () => {
+    expect(themePagePublishSummary(row({ pageId: "index", published: null }), t)).toBe(
+      "Always published — theme home page",
+    );
+  });
+
+  it("reports the locked reason for a declared template shell", () => {
+    expect(themePagePublishSummary(row({ pageId: "blog-post", published: null }), t)).toBe(
+      "Not a standalone page — used as a content template",
+    );
   });
 });
