@@ -368,30 +368,58 @@ test("no credential anywhere (saved or env) names the selected model's vendor, n
 // 3c. Stub fallback — explicit opt-in only, flag visibly set on the return
 // ---------------------------------------------------------------------------
 
-// 'flux-schnell-fal' (provider 'fal') is `integrated: true` in the catalogue — so it IS a valid
-// `model` value — but has no adapter registered in the dispatch engine's `mediaVendorRegistry` (see
-// `agent-tools.ts`'s own `IMAGE_MODEL_IDS` doc for the full list of which providers do). These tests
-// let the REAL `defaultGenerateMedia`/dispatch engine run (`generateMedia: null`) instead of this
-// file's injected fake — safe here specifically because this (provider, surface) pair can never
-// reach a network call: the engine's own `resolveRenderer` finds nothing and either throws
-// synchronously or returns synchronous placeholder bytes, before any `fetch` would happen.
+// 2026-09-02 catalogue fix: 'flux-schnell-fal' (provider 'fal') used to be `integrated: true` in
+// the catalogue with ZERO adapter registered anywhere in the dispatch engine's
+// `mediaVendorRegistry` — a catalogue lie (see `agent-tools.ts`'s `IMAGE_MODEL_IDS` doc, and
+// `@jini-ai/integrations`'s `providers.test.ts` adapter-coverage assertion that now guards every
+// provider against this recurring). `fal` is `integrated: false` now, so `IMAGE_MODEL_IDS` no
+// longer contains any of its models — 'flux-schnell-fal' fails the SAME schema-level check as any
+// other unsupported model id (see "an unsupported model id is rejected..." above) and never reaches
+// the dispatch engine at all. The two tests below used to force the REAL engine to run
+// (`generateMedia: null`) specifically because this (provider, surface) pair could reach it without
+// a fetch call; that's no longer true for any catalogued vendor, so they're rewritten to match.
 const UNIMPLEMENTED_VENDOR_MODEL = "flux-schnell-fal";
 
-test("a credential-resolved but unimplemented vendor fails with the engine's own clear error when allowStubFallback is not set", async () => {
-  const { deps, generateCalls } = fakeRouteDeps({ generateMedia: null, env: { FAL_KEY: "fake-fal-key-for-routing-only" } });
+test("a real vendor's model with no registered adapter is rejected the same as any unsupported model id — never reaches generateMedia", async () => {
+  const fixture = fakeRouteDeps();
+  const { deps, generateCalls } = fixture;
+  await seedOpenAiCredential(fixture);
 
-  await assert.rejects(
-    () => wired("media_generate_asset", deps).handler(executionContext({ prompt: "a red circle", model: UNIMPLEMENTED_VENDOR_MODEL })),
-    /no renderer configured for provider "fal"/
-  );
-  assert.equal(generateCalls.length, 0, "this scenario runs the real engine, not the injected fake, so the fake's own call log stays empty");
+  const error = await wired("media_generate_asset", deps)
+    .handler(executionContext({ prompt: "a red circle", model: UNIMPLEMENTED_VENDOR_MODEL }))
+    .then(() => null, (e: unknown) => e as Error);
+
+  assert.ok(error, "a model naming a vendor with no adapter must reject before generation, not at generation time");
+  assert.match(error.message, /'model' must be a registered image model — got 'flux-schnell-fal'/);
+  assert.equal(generateCalls.length, 0, "this must never reach generateMedia — that's the whole point of the catalogue fix");
 });
 
-test("allowStubFallback:true on the same unimplemented vendor returns placeholder bytes, with placeholder:true on the returned media", async () => {
-  const { deps, mediaRepo } = fakeRouteDeps({ generateMedia: null, env: { FAL_KEY: "fake-fal-key-for-routing-only" } });
+// The dispatch engine's own "no renderer configured" error and allowStubFallback-returns-a-
+// placeholder behavior (`resolveRenderer` finding nothing registered) are still real production
+// code paths — every currently catalogued `integrated: true` provider has an adapter now, but a
+// FUTURE provider shipped with `integrated: true` and no adapter yet would still hit them. That
+// engine-level behavior is proven directly against the engine, bypassing this tool's schema gate
+// (which now blocks any such model from reaching the engine at all), in Jini's own
+// `dispatch/__tests__/engine.test.ts` ("returns placeholder bytes when allowStubFallback is true and
+// no renderer is wired", using `leonardo-phoenix` — a model this tool's own schema rejects for the
+// same reason `flux-schnell-fal` now is). What THIS test still owns: proving
+// `tool-registrations.ts`'s handler correctly threads `MediaGenerationResult.usedStubFallback` into
+// the returned `media.placeholder` field, independent of which vendor produced it.
+test("usedStubFallback:true from generateMedia is surfaced as media.placeholder:true on the tool's return", async () => {
+  const fixture = fakeRouteDeps({
+    generateMedia: async (_request, _credentials, options) => ({
+      bytes: FAKE_PNG_BYTES,
+      providerNote: "stub/test",
+      providerId: options.providerId,
+      usedStubFallback: true,
+      warnings: [],
+    }),
+  });
+  const { deps, mediaRepo } = fixture;
+  await seedOpenAiCredential(fixture);
 
   const out = (await wired("media_generate_asset", deps).handler(
-    executionContext({ prompt: "a red circle", model: UNIMPLEMENTED_VENDOR_MODEL, allowStubFallback: true })
+    executionContext({ prompt: "a red circle", allowStubFallback: true })
   )) as { media: { id: string; placeholder: boolean } };
 
   assert.equal(out.media.placeholder, true, "a stub-fallback render must be visibly flagged, never mistaken for a real generation");

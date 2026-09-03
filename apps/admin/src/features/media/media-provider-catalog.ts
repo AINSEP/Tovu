@@ -34,8 +34,10 @@ import type { MediaProviderOption } from "@jini-ai/ui";
 /** Providers the operator can actually configure a credential for.
  *
  * Two exclusions, both deliberate:
- * - `settingsVisible === false` — the vendor's own catalogue entry says it has no settings surface
- *   (`hyperframes` is a local CLI renderer, not a REST endpoint with an API key).
+ * - `settingsVisible === false` — the vendor's own catalogue entry says it has no settings surface.
+ *   `hyperframes` is the only entry with this set: it names a planned local HTML → MP4 renderer
+ *   (`integrated: false`), not a working REST endpoint, so there is no API key to collect and no
+ *   adapter anywhere in `@jini-ai/integrations` to route a credential to yet.
  * - `stub` — the deterministic local placeholder renderer. It takes no credential and exists for
  *   tests; showing it as a configurable vendor would be noise.
  *

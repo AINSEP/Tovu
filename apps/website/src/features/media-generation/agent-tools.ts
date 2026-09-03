@@ -49,19 +49,19 @@ export interface AgentToolDefinition {
  * `ToolDescriptor.inputSchema` doc), so a caller-supplied `model` outside this set must be rejected in
  * the handler, not merely described here.
  *
- * NOT a perfect proxy for "will definitely generate a real image": the dispatch engine's own
- * vendor-adapter registry (`dispatch/vendor-registry.ts`'s `mediaVendorRegistry`, which this
- * dependency-free file deliberately does not import — see this file's own header) currently has a
- * real adapter registered for only 9 of the providers `integrated: true` covers here
+ * As of the 2026-09-02 catalogue fix, this filter IS a perfect proxy for "the dispatch engine has a
+ * real adapter wired up": `hyperframes`/`fal`/`leonardo` used to ship `integrated: true` with zero
+ * `mediaVendorRegistry.register(...)` calls anywhere for them (a catalogue lie caught by
+ * `providers.test.ts`'s adapter-coverage assertion), so selecting one of their models used to reach
+ * the dispatch engine's own clean `no renderer configured for provider "..." ... pass
+ * allowStubFallback: true` error at generation time instead of a real image. Now that all three are
+ * `integrated: false`, every image-surface provider this filter includes
  * (`openai`/`nanobanana`/`grok`/`volcengine`/`imagerouter`/`senseaudio`/`openrouter`/`custom-image`/
- * `aihubmix`). Two providers included by this filter (`fal`, `leonardo`) are catalogue-`integrated:
- * true` but have no adapter registered yet — selecting one of their models reaches the dispatch
- * engine's own clean `no renderer configured for provider "..." ... pass allowStubFallback: true`
- * error at generation time rather than a real image, exactly the failure `allowStubFallback` (see
- * `GENERATE_SCHEMA`) exists to soften. Every OTHER excluded provider
- * (`bfl`/`replicate`/`google`/`kling`/`midjourney`/`comfyui`/`suno`/`udio`) is `integrated: false` in
- * the catalogue itself — genuinely unwired anywhere in this codebase — so excluding those is reading
- * the catalogue's own signal, not a guess.
+ * `aihubmix`) has a registered adapter (`dispatch/vendor-registry.ts`'s `mediaVendorRegistry`, which
+ * this dependency-free file deliberately does not import — see this file's own header), same as every
+ * excluded provider (`fal`/`leonardo`/`bfl`/`replicate`/`google`/`kling`/`midjourney`/`comfyui`/
+ * `suno`/`udio`) is genuinely unwired anywhere in this codebase — so this filter is reading the
+ * catalogue's own signal, not a guess.
  */
 export const IMAGE_MODEL_IDS: readonly string[] = IMAGE_MODELS.filter(
   (model) => findProvider(model.provider)?.integrated === true
