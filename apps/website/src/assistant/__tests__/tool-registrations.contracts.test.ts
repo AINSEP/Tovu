@@ -4,6 +4,7 @@ import test from "node:test";
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
+import { adminScreenLinkAgentToolCatalog } from "../admin-screen-link-tool.js";
 import { askChoiceAgentToolCatalog } from "../ask-choice-tool.js";
 import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
@@ -189,7 +190,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
   // header. The entry this dispatch was sent to add; see this const's own doc above.
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
-  // The 7 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
+  // The 8 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],
   "demo-a2ui": demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -198,6 +199,10 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "component-catalog": componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[],
   "ask-choice": askChoiceAgentToolCatalog as unknown as AgentToolDefinition[],
   "external-mcp-reauth": externalMcpReauthAgentToolCatalog as unknown as AgentToolDefinition[],
+  // 2026-09-03: `admin-screen-link` — the general "take the human to the right admin screen"
+  // fallback. See `admin-screen-link-tool.ts`'s own header for why it is read-only and returns a
+  // path rather than driving `page.navigate` itself.
+  "admin-screen-link": adminScreenLinkAgentToolCatalog as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog
@@ -551,4 +556,17 @@ test("describe_component actually executes and rejects an unknown id with a plai
 
   assert.equal(result.status, "failed", `expected a real failed execution for an unknown id, got: ${JSON.stringify(result)}`);
   assert.match(result.error ?? "", /nonexistent\.component.*was not found/);
+});
+
+// ---------------------------------------------------------------------------
+// 7. admin-screen-link wiring (2026-09-03) — the general "take the human to the right admin
+//    screen" fallback actually reaches buildAssistantToolRegistrations, not just its own catalog
+// ---------------------------------------------------------------------------
+
+test("assistant_admin_screen_link is wired into the real assistant tool registry, read-only, with no confirmation requirement", () => {
+  const registration = wiredRegistration("assistant_admin_screen_link");
+
+  assert.equal(registration.descriptor.readOnly, true, "a fallback that only points at a screen must be read-only");
+  assert.equal(registration.descriptor.requiresConfirmation, undefined);
+  assert.deepEqual(registration.descriptor.inputSchema, adminScreenLinkAgentToolCatalog[0]!.inputSchema);
 });

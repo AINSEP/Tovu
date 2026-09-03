@@ -43,6 +43,8 @@
  * in-chat UI ones just un-gated. The per-domain table above is a 2026-08-05 snapshot summing to
  * 131 and has NOT been re-measured since; domains added after that date (see the dated notes
  * below) are why the live number is higher. Trust the measurement, not the table.
+ * 2026-09-03: `admin-screen-link` added one more (`assistant_admin_screen_link` — see its own
+ * `DOMAIN_SLICES` entry comment below), not re-measured into the 154 figure above either.
  * 2026-09-02: `external-mcp-reauth` added one more (`external_mcp_reauth_prompt` — see its own
  * `DOMAIN_SLICES` entry comment below), not re-measured into the 154 figure above either.
  * 2026-08-30: `component-catalog` added two more (`search_components`/`describe_component` —
@@ -145,6 +147,7 @@
  * changes for that path, which is the property the registry exists to buy.
  */
 import type { CommentsToolDeps } from "../features/comments/tool-registrations.js";
+import { buildAdminScreenLinkRegistrations, adminScreenLinkDerivedRisk } from "./admin-screen-link-tool.js";
 import { buildAskChoiceRegistrations, askChoiceDerivedRisk } from "./ask-choice-tool.js";
 import { buildComponentCatalogRegistrations, componentCatalogDerivedRisk } from "./component-catalog-tool.js";
 import {
@@ -539,6 +542,14 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // disqualifying) and instead points at Settings → External MCP's own, already-correct authorize
   // flow.
   { domain: "external-mcp-reauth", build: buildExternalMcpReauthRegistrations, risk: externalMcpReauthDerivedRisk },
+  // 2026-09-03: `assistant_admin_screen_link` — the general fallback for "take the human to the
+  // right admin screen" once no in-chat tool can perform the action itself, closing the same failure
+  // shape `custom_credential_create` (above the domain slices this file wires via the tool-
+  // contribution registry) closed for ONE specific gap: dead-ending the human with prose directions
+  // ("Admin → Access Tokens → ...") instead of something they can open. Read-only, no server-side
+  // route registry to validate against, and deliberately NOT `page.navigate` — see
+  // `admin-screen-link-tool.ts`'s own header for why both were rejected.
+  { domain: "admin-screen-link", build: buildAdminScreenLinkRegistrations, risk: adminScreenLinkDerivedRisk },
 ];
 
 /**
