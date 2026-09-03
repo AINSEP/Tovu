@@ -245,6 +245,41 @@ describe("startRun — guard and request shape", () => {
     expect("model" in JSON.parse(body.contextRef)).toBe(false);
   });
 
+  // `reasoning` rides the same envelope on the same terms as `model` above; if it stops being
+  // encoded the Execution tab's effort pick becomes a stored value that never reaches argv, with
+  // nothing to say so.
+  test("carries the reasoning effort through context when present as a non-empty string", async () => {
+    fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const transport = createTovuAssistantTransport();
+
+    await transport.startRun(
+      { history: HISTORY, context: { model: "claude-opus-5", reasoning: "max" }, signal: new AbortController().signal },
+      handlers(),
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const decoded = JSON.parse(JSON.parse((init.body as string) as string).contextRef) as Record<string, unknown>;
+    expect(decoded.reasoning).toBe("max");
+    expect(decoded.model).toBe("claude-opus-5");
+  });
+
+  test("omits reasoning entirely when absent, empty, or a shape mismatch", async () => {
+    for (const context of [undefined, { reasoning: "" }, { reasoning: 3 }]) {
+      fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
+      vi.stubGlobal("fetch", fetchMock);
+      const transport = createTovuAssistantTransport();
+
+      await transport.startRun(
+        { history: HISTORY, ...(context ? { context } : {}), signal: new AbortController().signal },
+        handlers(),
+      );
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      expect("reasoning" in JSON.parse(JSON.parse(init.body as string).contextRef)).toBe(false);
+    }
+  });
+
   test("attachment capability ids are forwarded as attachmentIds, not the attachment objects themselves", async () => {
     fetchMock = vi.fn(async () => new Response(JSON.stringify({ run: { id: "run-1" } }), { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);

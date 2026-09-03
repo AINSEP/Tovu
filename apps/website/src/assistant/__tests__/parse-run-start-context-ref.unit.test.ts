@@ -95,3 +95,37 @@ test("an empty-string conversationId is not forwarded", () => {
   const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", conversationId: "" }));
   assert.equal(result.conversationId, undefined);
 });
+
+/**
+ * `reasoning` is the model field's twin: the Execution tab's "Reasoning effort" pick rides the same
+ * `contextRef` envelope, and `onStarted` spreads it into `AgentExecutor.run()` the same way, so the
+ * def's own `buildArgs` can emit `--effort <level>` / `-c model_reasoning_effort=...`. Decoding it
+ * with the identical optional/degrade rules is what keeps the two from drifting apart.
+ */
+test("forwards a reasoning level present in contextRef", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", reasoning: "high" }));
+  assert.equal(result.reasoning, "high");
+});
+
+test("omits reasoning when absent from contextRef", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1" }));
+  assert.equal(result.reasoning, undefined);
+});
+
+test("a non-string reasoning is not forwarded", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", reasoning: 3 }));
+  assert.equal(result.reasoning, undefined);
+});
+
+test("an empty-string reasoning is not forwarded", () => {
+  const result = parseRunStartContextRef(JSON.stringify({ prompt: "hi", principalId: "p1", reasoning: "" }));
+  assert.equal(result.reasoning, undefined);
+});
+
+test("model and reasoning both survive the same envelope", () => {
+  const result = parseRunStartContextRef(
+    JSON.stringify({ prompt: "hi", principalId: "p1", model: "opus", reasoning: "max" }),
+  );
+  assert.equal(result.model, "opus");
+  assert.equal(result.reasoning, "max");
+});

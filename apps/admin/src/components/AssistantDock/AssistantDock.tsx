@@ -13,7 +13,7 @@ import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { OverflowAwareMcpUiSurfaceCard } from "./OverflowAwareMcpUiSurfaceCard";
 import { SelectedAgentPluginTray, type SelectedAgentPluginChip } from "./SelectedAgentPluginTray";
-import { hasUsableAdminKey } from "../../lib/execution-settings";
+import { hasUsableAdminKey, selectedLocalCliReasoning } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
@@ -392,6 +392,10 @@ export function AssistantDock({
   const runContext = useRunContext({
     agentBridge,
     model: localCliSelection.model,
+    // The Execution tab owns the "Reasoning effort" control, so this comes from the persisted
+    // ledger rather than from the dock's own picker (which has no effort axis). Reading it here is
+    // what turns a stored level into real CLI argv — see `useRunContext`'s own doc.
+    reasoning: selectedLocalCliReasoning(executionConfig),
     pluginRefIds: selectedPluginRefIds,
     // Same id already passed to `<ChatPane conversationId={...}>` below — see `useRunContext`'s
     // own doc for why the daemon needs it too (per-conversation agent-CLI session resume).

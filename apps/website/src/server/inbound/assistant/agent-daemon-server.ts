@@ -587,6 +587,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
   let attachmentIds: readonly string[] = [];
   let pluginRefIds: readonly string[] = [];
   let model: string | undefined;
+  let reasoning: string | undefined;
   let conversationId: string | undefined;
   // H1 fix: set once `storedSessionId` is resolved below, read by the stream subscription's
   // `shouldClearSessionOnFailedResume` check — `null` (unchanged) means this run never attempted a
@@ -609,6 +610,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
     attachmentIds = decoded.attachmentIds;
     pluginRefIds = decoded.pluginRefIds;
     model = decoded.model;
+    reasoning = decoded.reasoning;
     conversationId = decoded.conversationId;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -740,6 +742,9 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         cwd: process.env.TOVU_AGENT_CWD ?? process.cwd(),
         permissionMode: resolvePermissionMode(),
         ...(model !== undefined ? { model } : {}),
+        // Same spread shape as `model` immediately above: `AgentExecutor.run()` passes it into the
+        // def's own `buildArgs` options, which is where it becomes real argv.
+        ...(reasoning !== undefined ? { reasoning } : {}),
         ...attachmentRunFields,
         ...resolveResumeSessionField(storedSessionId),
       });

@@ -737,6 +737,26 @@ describe("resolveRunContext", () => {
     expect(resolveRunContext({ bindToken: undefined, conversationId: null })).toEqual({});
     expect(resolveRunContext({ bindToken: undefined, conversationId: "" })).toEqual({});
   });
+
+  // Same round trip the model already makes, for the value the Execution tab's "Reasoning effort"
+  // control persists. Without it the level is stored in the ledger and never reaches argv, which
+  // reads to an operator as the setting silently doing nothing.
+  it("carries the selected reasoning effort through when one exists", () => {
+    expect(resolveRunContext({ bindToken: undefined, reasoning: "high" })).toEqual({ reasoning: "high" });
+  });
+
+  it("omits reasoning entirely when absent or empty — '' is the ledger's 'no explicit effort'", () => {
+    expect(resolveRunContext({ bindToken: undefined, reasoning: undefined })).toEqual({});
+    expect(resolveRunContext({ bindToken: undefined, reasoning: "" })).toEqual({});
+  });
+
+  it("carries model and reasoning together without either shadowing the other", () => {
+    expect(resolveRunContext({ bindToken: "tok-123", model: "opus", reasoning: "max" })).toEqual({
+      frontendBindToken: "tok-123",
+      model: "opus",
+      reasoning: "max",
+    });
+  });
 });
 
 /**

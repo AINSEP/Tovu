@@ -17,14 +17,15 @@
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
  *
  * `prompt`/`principalId` are required (a malformed value means the run cannot proceed at all);
- * `attachmentIds`/`model`/`pluginRefIds` are optional and silently degrade to "none"/`undefined`
- * on a malformed or absent value — an attachment, a model pick, or a pinned Agent Plugin is
- * optional, unlike `prompt`/`principalId`.
+ * `attachmentIds`/`model`/`reasoning`/`pluginRefIds` are optional and silently degrade to
+ * "none"/`undefined` on a malformed or absent value — an attachment, a model pick, a
+ * reasoning-effort pick, or a pinned Agent Plugin is optional, unlike `prompt`/`principalId`.
  *
  * @param contextRef - The raw JSON string from `RunStartHandler`'s `request.contextRef`.
- * @returns The six fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
- *   attachment claim step, `AgentExecutor.run()`'s `model`, the Agent Plugin resolution step, and
- *   the per-conversation agent-session lookup (`agent-session-resume.ts`) respectively.
+ * @returns The seven fields `onStarted` forwards into the prompt prefix, `principalByRunId`, the
+ *   attachment claim step, `AgentExecutor.run()`'s `model` and `reasoning`, the Agent Plugin
+ *   resolution step, and the per-conversation agent-session lookup (`agent-session-resume.ts`)
+ *   respectively.
  * @throws If `contextRef` is not valid JSON, or decodes without a non-empty string `prompt` or
  *   `principalId`.
  * @complexity O(n + m) in `attachmentIds` and `pluginRefIds` length combined; O(1) otherwise.
@@ -35,6 +36,7 @@ export function parseRunStartContextRef(contextRef: string): {
   principalId: string;
   attachmentIds: readonly string[];
   model?: string;
+  reasoning?: string;
   pluginRefIds: readonly string[];
   conversationId?: string;
 } {
@@ -43,6 +45,7 @@ export function parseRunStartContextRef(contextRef: string): {
     principalId?: unknown;
     attachmentIds?: unknown;
     model?: unknown;
+    reasoning?: unknown;
     pluginRefIds?: unknown;
     conversationId?: unknown;
   };
@@ -67,6 +70,14 @@ export function parseRunStartContextRef(contextRef: string): {
     attachmentIds,
     pluginRefIds,
     ...(typeof parsed.model === "string" && parsed.model.length > 0 ? { model: parsed.model } : {}),
+    // The model field's twin, decoded with byte-identical rules: the Execution tab's
+    // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it
+    // into `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that
+    // encodes effort inside the model id (antigravity) never sends this — its level is already
+    // part of `model`.
+    ...(typeof parsed.reasoning === "string" && parsed.reasoning.length > 0
+      ? { reasoning: parsed.reasoning }
+      : {}),
     // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
     // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
     // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.

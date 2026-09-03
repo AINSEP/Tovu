@@ -534,6 +534,19 @@ export function buildLocalCliContextRef(input: StartRunInput, prompt: string): R
   }
 
   /**
+   * The Execution tab's "Reasoning effort" pick, from the same `runContext` seam as `model` above
+   * and forwarded with the identical "opaque string, omit when absent" convention. What turns it
+   * into real argv is the def's own `buildArgs` on the daemon side (`claude --effort <level>`,
+   * codex's `-c model_reasoning_effort=...`) — nothing here interprets it, and a runtime whose
+   * effort is encoded in the model id (antigravity) never sends it at all, because its level is
+   * already inside `model`.
+   */
+  const reasoning = input.context?.["reasoning"];
+  if (typeof reasoning === "string" && reasoning.length > 0) {
+    contextRef.reasoning = reasoning;
+  }
+
+  /**
    * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem path
    * this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the attachments
    * themselves — `contextRef` is the one channel `prompt`/`frontendBindToken` already ride on to

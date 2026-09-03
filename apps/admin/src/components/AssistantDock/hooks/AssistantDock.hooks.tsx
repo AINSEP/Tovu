@@ -1151,16 +1151,28 @@ export function useMessagesChangeHandler(
  * const context = resolveRunContext({ bindToken: agentBridge?.bindToken(), model: selection.model, pluginRefIds, conversationId });
  */
 export function resolveRunContext(
-  { bindToken, model, pluginRefIds, conversationId }: {
+  { bindToken, model, reasoning, pluginRefIds, conversationId }: {
     bindToken: string | undefined;
     model?: string;
+    reasoning?: string;
     pluginRefIds?: readonly string[];
     conversationId?: string | null;
   },
-): { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[]; conversationId?: string } {
+): {
+  frontendBindToken?: string;
+  model?: string;
+  reasoning?: string;
+  pluginRefIds?: readonly string[];
+  conversationId?: string;
+} {
   return {
     ...(bindToken === undefined ? {} : { frontendBindToken: bindToken }),
     ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+    // The Execution tab's persisted "Reasoning effort" pick, carried on exactly the same terms as
+    // `model` — including the empty-string omission, since `""` is the ledger's own "no explicit
+    // effort" and sending it would mean the same thing as sending nothing while looking like a
+    // real selection on the wire.
+    ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
     // Omitted entirely when empty, same "absent means none" convention as the two fields above —
     // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
@@ -1190,6 +1202,10 @@ export function resolveRunContext(
  * @param input.agentBridge - This tab's page-control connection, or `null`/`undefined` if unbound.
  * @param input.model - {@link UseLocalCliSelection.localCliSelection}`.model`, the live picker
  *   value.
+ * @param input.reasoning - The selected agent's persisted reasoning effort
+ *   (`selectedLocalCliReasoning`, `lib/execution-settings.ts`). Read from the ledger rather than
+ *   from a dock-local picker because the Execution tab owns that control; same "rebuild when it
+ *   changes" posture as `model`, so flipping the effort takes effect on the NEXT message.
  * @param input.pluginRefIds - {@link UseSelectedAgentPlugins.selectedPluginRefIds}, read fresh on
  *   every rebuild — same "never captured, always the live value" posture as `model`, so pinning or
  *   removing a chip mid-session takes effect on the NEXT message without forcing a new callback
@@ -1201,16 +1217,24 @@ export function resolveRunContext(
  * const runContext = useRunContext({ agentBridge, model: localCliSelection.model, pluginRefIds: selectedPluginRefIds, conversationId: chats.activeId });
  */
 export function useRunContext(
-  { agentBridge, model, pluginRefIds, conversationId }: {
+  { agentBridge, model, reasoning, pluginRefIds, conversationId }: {
     agentBridge: FrontendSessionBridge | null | undefined;
     model?: string;
+    reasoning?: string;
     pluginRefIds?: readonly string[];
     conversationId?: string | null;
   },
-): () => { frontendBindToken?: string; model?: string; pluginRefIds?: readonly string[]; conversationId?: string } {
+): () => {
+  frontendBindToken?: string;
+  model?: string;
+  reasoning?: string;
+  pluginRefIds?: readonly string[];
+  conversationId?: string;
+} {
   return useMemo(
-    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model, pluginRefIds, conversationId }),
-    [agentBridge, model, pluginRefIds, conversationId],
+    () => () =>
+      resolveRunContext({ bindToken: agentBridge?.bindToken(), model, reasoning, pluginRefIds, conversationId }),
+    [agentBridge, model, reasoning, pluginRefIds, conversationId],
   );
 }
 
