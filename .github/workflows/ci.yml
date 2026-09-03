@@ -355,6 +355,37 @@ jobs:
         continue-on-error: true
         run: npm run check:seed-content-drift
 
+      - name: Check coverage-integrity
+        # Added 2026-09-03 (CI gate wiring audit) — this script existed and passed locally the
+        # whole time but was never referenced by any workflow. Verified non-vacuous before
+        # wiring: `npm run check:coverage-integrity` evaluates 799 first-party test blocks (470
+        # non-first-party skipped) and reports 0 dual-instantiation contamination on this branch.
+        # Same blocking-via-summary posture as the other `tsx`-run gates above.
+        id: gate-coverage-integrity
+        continue-on-error: true
+        run: npm run check:coverage-integrity
+
+      - name: Check seal-aad invariant
+        # Added 2026-09-03 (CI gate wiring audit) — same "written but never wired" state as
+        # check:coverage-integrity above. Verified non-vacuous: independently grepped 36
+        # `.seal(` call sites across 13 files under apps/website/src before wiring; the script
+        # itself confirms every one supplies `aad`. Do not edit
+        # apps/website/src/features/webhooks/seal-aad-invariant.ts from this workflow file —
+        # it is owned elsewhere this session.
+        id: gate-seal-aad
+        continue-on-error: true
+        run: npm run check:seal-aad
+
+      - name: Check default-credential exposure
+        # Added 2026-09-03 (CI gate wiring audit) — same "written but never wired" state.
+        # Scope is apps/admin/src (851 files, confirmed non-empty before wiring) per the
+        # script's own header. Do not edit
+        # apps/website/src/features/identity/default-credential-exposure.ts from this workflow
+        # file — it is owned elsewhere this session.
+        id: gate-default-credential
+        continue-on-error: true
+        run: npm run check:default-credential
+
       - name: Lint
         # No lint tool existed in this repo before this workflow. Added Biome (single
         # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
@@ -429,6 +460,9 @@ jobs:
           check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
           check "${{ steps.gate-seed-content-drift.outcome }}" "check:seed-content-drift"
+          check "${{ steps.gate-coverage-integrity.outcome }}" "check:coverage-integrity"
+          check "${{ steps.gate-seal-aad.outcome }}"           "check:seal-aad"
+          check "${{ steps.gate-default-credential.outcome }}" "check:default-credential"
           check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
           check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
