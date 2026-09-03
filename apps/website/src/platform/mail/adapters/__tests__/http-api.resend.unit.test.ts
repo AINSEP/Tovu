@@ -186,6 +186,36 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
   assert.equal(http.calls[2].body ? (JSON.parse(http.calls[2].body) as { to: string }).to : "", "three@example.com");
 });
 
+test("sendBatch() gives each message its own Idempotency-Key, deterministically derived so a redelivery of the same batch reproduces the same keys", async () => {
+  const http = new FakeHttpClient([
+    { status: 200, headers: {}, bodyText: '{"id":"ok-1"}' },
+    { status: 200, headers: {}, bodyText: '{"id":"ok-2"}' },
+    { status: 200, headers: {}, bodyText: '{"id":"ok-3"}' },
+  ]);
+  const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test" });
+  const messages = [
+    makeMessage({ to: { email: "one@example.com" } }),
+    makeMessage({ to: { email: "two@example.com" } }),
+    makeMessage({ to: { email: "three@example.com" } }),
+  ];
+  await adapter.sendBatch(messages, { ...SEND_OPTIONS, idempotencyKey: "batch-1" });
+
+  const keys = http.calls.map((call) => call.headers["Idempotency-Key"]);
+  assert.equal(new Set(keys).size, 3, "each message in an n-message batch must get a DISTINCT Idempotency-Key");
+
+  // A redelivery of the SAME batch (same base idempotencyKey, same message order) must reproduce
+  // the exact same per-message keys — stable per message, never random per retry (ADR-009).
+  const httpRetry = new FakeHttpClient([
+    { status: 200, headers: {}, bodyText: '{"id":"retry-1"}' },
+    { status: 200, headers: {}, bodyText: '{"id":"retry-2"}' },
+    { status: 200, headers: {}, bodyText: '{"id":"retry-3"}' },
+  ]);
+  const retryAdapter = new HttpApiMailerAdapter(httpRetry, { apiKey: "re_test" });
+  await retryAdapter.sendBatch(messages, { ...SEND_OPTIONS, idempotencyKey: "batch-1" });
+  const retryKeys = httpRetry.calls.map((call) => call.headers["Idempotency-Key"]);
+  assert.deepEqual(retryKeys, keys, "a redelivery of the same batch must reuse the SAME per-message keys, not new random ones");
+});
+
 test("send() forwards replyTo, html, and custom headers when provided", async () => {
   const http = new FakeHttpClient();
   const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test" });

@@ -213,8 +213,13 @@ export class HttpApiMailerAdapter implements MailerPort {
     opts: MailerSendOptions
   ): Promise<readonly MailerSendResult[]> {
     const results: MailerSendResult[] = [];
-    for (const message of messages) {
-      results.push(await this.send(message, opts));
+    for (const [index, message] of messages.entries()) {
+      // Resend dedupes by `Idempotency-Key` (24h window) — reusing `opts.idempotencyKey` as-is for
+      // every message in the batch would make messages 2..n look like retries of message 1 and they
+      // would never actually send. The `:index` suffix is deterministic (not random), so a
+      // redelivery of this same batch (same base key, same message order — ADR-009) reproduces the
+      // exact same per-message keys rather than minting new ones.
+      results.push(await this.send(message, { ...opts, idempotencyKey: `${opts.idempotencyKey}:${index}` }));
     }
     return results;
   }
