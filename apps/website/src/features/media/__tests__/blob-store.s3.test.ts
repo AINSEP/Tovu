@@ -44,11 +44,17 @@ interface FakeS3Server {
   readonly baseUrl: string;
   readonly objectCount: () => number;
   readonly lastAuthorizationHeader: () => string | undefined;
+  /** Makes the next and all subsequent `HEAD` requests for `key` respond with `status` instead of
+   *  the normal 200/404 — simulates a provider-side auth rejection (403), rate limit (429), or
+   *  server error (5xx) so `exists()`'s handling of a non-404 failure can be proven without a real
+   *  bucket. */
+  readonly setForcedHeadStatus: (key: string, status: number) => void;
   readonly close: () => Promise<void>;
 }
 
 async function startFakeS3(): Promise<FakeS3Server> {
   const objects = new Map<string, Buffer>();
+  const forcedHeadStatusByKey = new Map<string, number>();
   let lastAuthorizationHeader: string | undefined;
 
   function readBody(req: IncomingMessage): Promise<Buffer> {
@@ -101,6 +107,12 @@ async function startFakeS3(): Promise<FakeS3Server> {
         return;
       }
       if (req.method === "HEAD") {
+        const forcedStatus = forcedHeadStatusByKey.get(key);
+        if (forcedStatus !== undefined) {
+          res.writeHead(forcedStatus);
+          res.end();
+          return;
+        }
         const body = objects.get(key);
         if (!body) {
           res.writeHead(404);
@@ -130,6 +142,9 @@ async function startFakeS3(): Promise<FakeS3Server> {
     baseUrl: `http://127.0.0.1:${address.port}`,
     objectCount: () => objects.size,
     lastAuthorizationHeader: () => lastAuthorizationHeader,
+    setForcedHeadStatus: (key: string, status: number) => {
+      forcedHeadStatusByKey.set(key, status);
+    },
     close: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
@@ -201,6 +216,36 @@ test("S3BlobStore.exists() is true right after put() and false after remove()", 
     assert.equal(await store.exists({ storageKey }), true);
     await store.remove({ storageKey });
     assert.equal(await store.exists({ storageKey }), false);
+  } finally {
+    await fakeS3.close();
+  }
+});
+
+test("S3BlobStore.exists() distinguishes a genuine 404 from 403/429/5xx instead of collapsing every non-ok response into false", async () => {
+  const fakeS3 = await startFakeS3();
+  try {
+    const store = makeStore(fakeS3.baseUrl);
+    const bytes = new TextEncoder().encode("auth-and-outage-probe");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const { storageKey } = await store.put({ workspaceId: "ws-1", sha256, bytes });
+
+    // A genuinely missing key still resolves to `false`, not an error.
+    assert.equal(await store.exists({ storageKey: "ws/ws-1/blobs/zz/never-existed" }), false);
+
+    fakeS3.setForcedHeadStatus(storageKey, 403);
+    await assert.rejects(() => store.exists({ storageKey }), {
+      message: `S3BlobStore.exists: failed to check '${storageKey}' — HTTP 403`,
+    });
+
+    fakeS3.setForcedHeadStatus(storageKey, 429);
+    await assert.rejects(() => store.exists({ storageKey }), {
+      message: `S3BlobStore.exists: failed to check '${storageKey}' — HTTP 429`,
+    });
+
+    fakeS3.setForcedHeadStatus(storageKey, 500);
+    await assert.rejects(() => store.exists({ storageKey }), {
+      message: `S3BlobStore.exists: failed to check '${storageKey}' — HTTP 500`,
+    });
   } finally {
     await fakeS3.close();
   }

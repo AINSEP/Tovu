@@ -191,9 +191,26 @@ export class S3BlobStore implements BlobStorePort {
     return new Uint8Array(await resp.arrayBuffer());
   }
 
+  /**
+   * A 404 means the object is genuinely absent and resolves to `false`. Any other non-ok status
+   * (403/429/5xx — an auth failure, rate limit, or provider outage) is surfaced as a thrown error
+   * instead of collapsing into `false`: a caller branching on `exists()` must not mistake "the
+   * store rejected/failed this request" for "the object was deleted".
+   */
   async exists(input: { storageKey: string }): Promise<boolean> {
-    const resp = await this.client.fetch(objectUrl(this.config, input.storageKey), { method: "HEAD" });
-    return resp.ok;
+    let resp: Response;
+    try {
+      resp = await this.client.fetch(objectUrl(this.config, input.storageKey), { method: "HEAD" });
+    } catch (err) {
+      throw new Error(`S3BlobStore.exists: request failed for '${input.storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (resp.status === 404) {
+      return false;
+    }
+    if (!resp.ok) {
+      throw new Error(`S3BlobStore.exists: failed to check '${input.storageKey}' — HTTP ${resp.status}`);
+    }
+    return true;
   }
 
   /** Idempotent — a 404 (already absent) is treated as success, matching `BlobStorePort.remove`'s
