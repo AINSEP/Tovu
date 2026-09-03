@@ -64,6 +64,18 @@ function externalMcpSaveFormUri(exchangeId: string): UIResourceUri {
 }
 
 /**
+ * Two-level "prefer explicit input, else fall back to existing, else leave unset" merge — the shared
+ * shape every field in {@link mergeExternalMcpSavePrefill} follows. Extracting it turns that function
+ * into a flat list of calls instead of N inlined `??` chains, which is what keeps its own cyclomatic
+ * complexity low: a called helper's internal branches count toward the helper, not the caller.
+ *
+ * @complexity O(1).
+ */
+function mergeStringField(current: string | undefined, existing: string | null | undefined): string | undefined {
+  return current ?? existing ?? undefined;
+}
+
+/**
  * Merges the agent's own input over an existing row's current (non-secret) values, so an UPDATE's
  * form shows the human accurate current state for anything the agent did not explicitly restate,
  * rather than blanks. `existing` is `undefined` for a brand-new id.
@@ -77,18 +89,18 @@ export function mergeExternalMcpSavePrefill(
   if (!existing) return input;
   return {
     id: input.id,
-    label: input.label ?? existing.label,
+    label: mergeStringField(input.label, existing.label),
     transport: input.transport,
-    command: input.command ?? existing.command,
-    args: input.args ?? existing.args.join(" "),
-    url: input.url ?? existing.url ?? undefined,
-    allowedToolNames: input.allowedToolNames ?? existing.allowedToolNames.join(", "),
-    authMode: input.authMode ?? existing.authMode,
-    oauthProviderId: input.oauthProviderId ?? existing.oauth.providerId ?? undefined,
-    oauthGrant: input.oauthGrant ?? existing.oauth.grant ?? undefined,
-    oauthClientId: input.oauthClientId ?? existing.oauth.clientId ?? undefined,
-    oauthScopes: input.oauthScopes ?? existing.oauth.scopes.join(" "),
-    oauthTokenEnvName: input.oauthTokenEnvName ?? existing.oauth.tokenEnvName ?? undefined,
+    command: mergeStringField(input.command, existing.command),
+    args: mergeStringField(input.args, existing.args.join(" ")),
+    url: mergeStringField(input.url, existing.url),
+    allowedToolNames: mergeStringField(input.allowedToolNames, existing.allowedToolNames.join(", ")),
+    authMode: mergeStringField(input.authMode, existing.authMode),
+    oauthProviderId: mergeStringField(input.oauthProviderId, existing.oauth.providerId),
+    oauthGrant: mergeStringField(input.oauthGrant, existing.oauth.grant),
+    oauthClientId: mergeStringField(input.oauthClientId, existing.oauth.clientId),
+    oauthScopes: mergeStringField(input.oauthScopes, existing.oauth.scopes.join(" ")),
+    oauthTokenEnvName: mergeStringField(input.oauthTokenEnvName, existing.oauth.tokenEnvName),
     // NOT merged from `existing` — `ExternalMcpOAuthView` carries no field for a connection's own
     // typed endpoints (only `providerId`, for a registered one). There is nothing stored to merge
     // from; see `apps/admin`'s `use-external-mcp.hooks.ts` header for the identical, already-disclosed
@@ -99,87 +111,117 @@ export function mergeExternalMcpSavePrefill(
   };
 }
 
+/** `{ value }` when `value` is present, an empty object otherwise — the shared shape every optional
+ *  field spread in this file's field builders used to write inline as `value !== undefined ? {value}
+ *  : {}`. Collapsing it into a call removes that ternary from every call site's own complexity count. */
+function fieldValue<T>(value: T | undefined): { value: T } | Record<string, never> {
+  return value !== undefined ? { value } : {};
+}
+
+function buildIdField(input: ExternalMcpSaveInput): SurfaceField {
+  return { kind: "string", name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." };
+}
+
+function buildLabelField(input: ExternalMcpSaveInput): SurfaceField {
+  return { kind: "string", name: "label", label: "Display name", ...fieldValue(input.label) };
+}
+
+function buildStdioTransportFields(input: ExternalMcpSaveInput): SurfaceField[] {
+  return [
+    { kind: "string", name: "command", label: "Command", required: true, ...fieldValue(input.command), placeholder: "e.g. npx, node, /path/to/binary" },
+    { kind: "string", name: "args", label: "Args", ...fieldValue(input.args), placeholder: "space-separated" },
+  ];
+}
+
+function buildHttpTransportFields(input: ExternalMcpSaveInput): SurfaceField[] {
+  return [{ kind: "string", name: "url", label: "URL", required: true, ...fieldValue(input.url), placeholder: "https://…" }];
+}
+
+function buildAllowedToolNamesField(input: ExternalMcpSaveInput): SurfaceField {
+  return {
+    kind: "string",
+    name: "allowedToolNames",
+    label: "Allowed tools",
+    ...fieldValue(input.allowedToolNames),
+    hint: "Comma-separated — nothing runs unless it is listed here.",
+  };
+}
+
+function buildEnvField(isUpdate: boolean): SurfaceField {
+  return {
+    kind: "string",
+    name: "env",
+    label: "Environment variables",
+    multiline: true,
+    rows: 3,
+    secret: true,
+    placeholder: "KEY=VALUE, one per line",
+    hint: isUpdate ? "Leave blank to keep the stored values." : undefined,
+  };
+}
+
+function buildOAuthCoreFields(input: ExternalMcpSaveInput, isUpdate: boolean): SurfaceField[] {
+  return [
+    { kind: "string", name: "oauthProviderId", label: "Provider ID", ...fieldValue(input.oauthProviderId), hint: "Leave blank to use your own endpoints below." },
+    {
+      kind: "enum",
+      name: "oauthGrant",
+      label: "Sign-in method",
+      required: true,
+      options: [
+        { value: "authorization_code", label: "Browser sign-in" },
+        { value: "device_code", label: "Device code" },
+      ],
+      ...fieldValue(input.oauthGrant),
+    },
+    { kind: "string", name: "oauthClientId", label: "Client ID", required: true, ...fieldValue(input.oauthClientId) },
+    { kind: "string", name: "oauthClientSecret", label: "Client secret", secret: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
+    { kind: "string", name: "oauthScopes", label: "Scopes", ...fieldValue(input.oauthScopes), placeholder: "space- or comma-separated" },
+  ];
+}
+
+function buildOAuthTokenEnvField(input: ExternalMcpSaveInput): SurfaceField {
+  return {
+    kind: "string",
+    name: "oauthTokenEnvName",
+    label: "Access token environment variable",
+    required: true,
+    ...fieldValue(input.oauthTokenEnvName),
+  };
+}
+
+function buildOAuthEndpointFields(input: ExternalMcpSaveInput): SurfaceField[] {
+  return [
+    { kind: "string", name: "oauthAuthorizationEndpoint", label: "Authorization endpoint", ...fieldValue(input.oauthAuthorizationEndpoint), hint: "Needed for Browser sign-in, unless Provider ID is set." },
+    { kind: "string", name: "oauthTokenEndpoint", label: "Token endpoint", ...fieldValue(input.oauthTokenEndpoint), hint: "Needed unless Provider ID is set." },
+    { kind: "string", name: "oauthDeviceAuthorizationEndpoint", label: "Device authorization endpoint", ...fieldValue(input.oauthDeviceAuthorizationEndpoint), hint: "Needed for Device code, unless Provider ID is set." },
+  ];
+}
+
+function buildOAuthFields(input: ExternalMcpSaveInput, isUpdate: boolean, isStdio: boolean): SurfaceField[] {
+  return [...buildOAuthCoreFields(input, isUpdate), ...(isStdio ? [buildOAuthTokenEnvField(input)] : []), ...buildOAuthEndpointFields(input)];
+}
+
 /**
  * The field list for one save form — see this file's header for why this is computed once rather
- * than reactively.
+ * than reactively. Composed from per-section builders (transport, env, oauth) so the section that
+ * decides inclusion stays a flat list of ternaries, and each section's own field shape lives in its
+ * own single-purpose function.
  *
  * @complexity O(1) — a fixed, bounded number of conditionally-included entries.
  */
 export function buildExternalMcpSaveFormFields(input: ExternalMcpSaveInput, isUpdate: boolean): SurfaceField[] {
   const isStdio = input.transport !== "streamable_http";
   const isOAuth = input.authMode === "oauth";
-  const fields: SurfaceField[] = [];
 
-  if (!isUpdate) {
-    fields.push({ kind: "string", name: "id", label: "ID", required: true, value: input.id, hint: "Lowercase letters, digits and dashes." });
-  }
-  fields.push({ kind: "string", name: "label", label: "Display name", ...(input.label !== undefined ? { value: input.label } : {}) });
-
-  if (isStdio) {
-    fields.push(
-      { kind: "string", name: "command", label: "Command", required: true, ...(input.command !== undefined ? { value: input.command } : {}), placeholder: "e.g. npx, node, /path/to/binary" },
-      { kind: "string", name: "args", label: "Args", ...(input.args !== undefined ? { value: input.args } : {}), placeholder: "space-separated" },
-    );
-  } else {
-    fields.push({ kind: "string", name: "url", label: "URL", required: true, ...(input.url !== undefined ? { value: input.url } : {}), placeholder: "https://…" });
-  }
-
-  fields.push({
-    kind: "string",
-    name: "allowedToolNames",
-    label: "Allowed tools",
-    ...(input.allowedToolNames !== undefined ? { value: input.allowedToolNames } : {}),
-    hint: "Comma-separated — nothing runs unless it is listed here.",
-  });
-
-  if (isStdio) {
-    fields.push({
-      kind: "string",
-      name: "env",
-      label: "Environment variables",
-      multiline: true,
-      rows: 3,
-      secret: true,
-      placeholder: "KEY=VALUE, one per line",
-      hint: isUpdate ? "Leave blank to keep the stored values." : undefined,
-    });
-  }
-
-  if (isOAuth) {
-    fields.push(
-      { kind: "string", name: "oauthProviderId", label: "Provider ID", ...(input.oauthProviderId !== undefined ? { value: input.oauthProviderId } : {}), hint: "Leave blank to use your own endpoints below." },
-      {
-        kind: "enum",
-        name: "oauthGrant",
-        label: "Sign-in method",
-        required: true,
-        options: [
-          { value: "authorization_code", label: "Browser sign-in" },
-          { value: "device_code", label: "Device code" },
-        ],
-        ...(input.oauthGrant !== undefined ? { value: input.oauthGrant } : {}),
-      },
-      { kind: "string", name: "oauthClientId", label: "Client ID", required: true, ...(input.oauthClientId !== undefined ? { value: input.oauthClientId } : {}) },
-      { kind: "string", name: "oauthClientSecret", label: "Client secret", secret: true, hint: isUpdate ? "Leave blank to keep the stored secret." : "Leave blank if this provider needs none (a public/PKCE client)." },
-      { kind: "string", name: "oauthScopes", label: "Scopes", ...(input.oauthScopes !== undefined ? { value: input.oauthScopes } : {}), placeholder: "space- or comma-separated" },
-    );
-    if (isStdio) {
-      fields.push({
-        kind: "string",
-        name: "oauthTokenEnvName",
-        label: "Access token environment variable",
-        required: true,
-        ...(input.oauthTokenEnvName !== undefined ? { value: input.oauthTokenEnvName } : {}),
-      });
-    }
-    fields.push(
-      { kind: "string", name: "oauthAuthorizationEndpoint", label: "Authorization endpoint", ...(input.oauthAuthorizationEndpoint !== undefined ? { value: input.oauthAuthorizationEndpoint } : {}), hint: "Needed for Browser sign-in, unless Provider ID is set." },
-      { kind: "string", name: "oauthTokenEndpoint", label: "Token endpoint", ...(input.oauthTokenEndpoint !== undefined ? { value: input.oauthTokenEndpoint } : {}), hint: "Needed unless Provider ID is set." },
-      { kind: "string", name: "oauthDeviceAuthorizationEndpoint", label: "Device authorization endpoint", ...(input.oauthDeviceAuthorizationEndpoint !== undefined ? { value: input.oauthDeviceAuthorizationEndpoint } : {}), hint: "Needed for Device code, unless Provider ID is set." },
-    );
-  }
-
-  return fields;
+  return [
+    ...(isUpdate ? [] : [buildIdField(input)]),
+    buildLabelField(input),
+    ...(isStdio ? buildStdioTransportFields(input) : buildHttpTransportFields(input)),
+    buildAllowedToolNamesField(input),
+    ...(isStdio ? [buildEnvField(isUpdate)] : []),
+    ...(isOAuth ? buildOAuthFields(input, isUpdate, isStdio) : []),
+  ];
 }
 
 /**
