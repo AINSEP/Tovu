@@ -92,6 +92,7 @@ export {
   injectPageTitle,
   resolveTemplate,
   isEligibleForTemplateBranch,
+  resolveStaticTierPageShellFallback,
   scanMenuEmbedIds,
   type StaticMenuItem,
   type PostTemplateResolution,

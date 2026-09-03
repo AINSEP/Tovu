@@ -5,7 +5,7 @@ import test from "node:test";
 import express from "express";
 
 import type { PostRecord } from "#src/features/post/index";
-import type { DiscoveredTheme } from "#src/features/theme/index";
+import { resolveStaticTierPageShellFallback, type DiscoveredTheme } from "#src/features/theme/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { createContentModule } from "../../runtime/composition/modules/content.js";
@@ -101,21 +101,34 @@ function buildTestApp(
  * subject under test is the SITE render path, and a direct save is the only way to reproduce the
  * exact stored shape that caused the regression (`templateChoice` absent entirely, as migration
  * `0028` left every pre-feature row) without the admin editor's own defaulting in the way.
+ *
+ * `bodyFormat`/`bodyHtml` (optional, default `"doc"`/generated `bodyJson`) — an `"html"`-format Page
+ * has no `createPost`/`updatePost` path at all (`PostRecord.bodyFormat`'s own doc: written only by
+ * an agent tool inserting the `posts` row directly), so a direct repo save is not just convenient
+ * here, it is the ONLY way this shape is ever produced in production too.
  */
 async function savePost(
   deps: RouteDeps,
-  fields: { slug: string; templateChoice?: string | null; overridesThemePage?: boolean | null; kind?: "post" | "page" }
+  fields: {
+    slug: string;
+    templateChoice?: string | null;
+    overridesThemePage?: boolean | null;
+    kind?: "post" | "page";
+    bodyFormat?: "doc" | "html";
+    bodyHtml?: string;
+  }
 ): Promise<PostRecord> {
+  const isHtml = fields.bodyFormat === "html";
   const post = {
     id: randomUUID(),
     workspaceId: WORKSPACE_ID,
     title: `Post ${fields.slug}`,
     slug: fields.slug,
-    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: POST_BODY_TEXT }] }] },
+    bodyJson: isHtml ? {} : { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: POST_BODY_TEXT }] }] },
     status: "published",
     kind: fields.kind ?? "post",
-    bodyFormat: "doc",
-    bodyHtml: null,
+    bodyFormat: isHtml ? "html" : "doc",
+    bodyHtml: isHtml ? (fields.bodyHtml ?? `<p>${POST_BODY_TEXT}</p>`) : null,
     updatedAt: new Date().toISOString(),
     version: 1,
     ...(fields.templateChoice !== undefined ? { templateChoice: fields.templateChoice } : {}),
@@ -359,4 +372,84 @@ test('ROUND TRIP: saving overridesThemePage through the admin API persists it an
   const after = await getPage(baseUrl, "collision-page");
   assert.ok(after.html.includes(POST_BODY_TEXT), "the post's own content must now win over the theme page");
   assert.ok(!after.html.includes('data-tpl="theme-collision-page"'));
+});
+
+/**
+ * Static-tier generic-Page-shell fallback (live bug, 2026-09-02) — an `html`-format `kind: "page"`
+ * row with no `templateChoice` (the state EVERY Page starts in: neither the agent create tool nor
+ * the admin Pages editor sets this column on creation, see `resolveStaticTierPageShellFallback`'s own
+ * doc) is, by `isEligibleForTemplateBranch`'s design, never routed into the template branch. It
+ * therefore fell through to `renderSite`'s generic path — correct in spirit for the declarative/
+ * templated/handlebars tiers, where `pageShell()`'s own built-in chrome IS the theme's only shell,
+ * but wrong for a `static`-tier theme, whose real pages are complete standalone documents
+ * (`<html data-theme>`, real `/theme-assets/` scripts/icons) that `pageShell()` never produces
+ * (`data-theme` is never set, `theme.pages`'s own markup — scripts included — is never referenced;
+ * only `theme.css`'s bytes get inlined via `<style>`). Observed live: `pageShell()`'s plain
+ * `<html lang="en">` and Tovu's own generic `siteHeader`/`siteFooter` markup replaced the theme's real
+ * chrome and its dark/light toggle script wholesale on `/passeios-noroeste-do-pacifico`.
+ *
+ * These three tests exercise the fix through the real HTTP boundary rather than
+ * `resolveStaticTierPageShellFallback`'s unit tests alone (see `static-render.test.ts`), so a wiring
+ * mistake in `renderTemplateBranchIfEligible` — the fallback computed but never threaded into
+ * `renderViaTemplate`, or applied to the wrong `kind`/`bodyFormat` — would be caught at the same
+ * boundary the original bug was found at.
+ */
+const PAGE_SHELL_DATA_THEME_MARKER = 'data-theme="dark"';
+const PAGE_SHELL_ASSET_MARKER = "/theme-assets/basic/scripts/theme-toggle.js";
+const PAGE_SHELL_TPL_MARKER = 'data-tpl="page-shell"';
+
+function pageShellHtml(): string {
+  const contentSlot = `<div data-embed-config='{"type":"content"}'></div>`;
+  return (
+    `<html ${PAGE_SHELL_DATA_THEME_MARKER}><head>` +
+    `<script src="${PAGE_SHELL_ASSET_MARKER}"></script></head>` +
+    `<body><main ${PAGE_SHELL_TPL_MARKER}>${contentSlot}</main></body></html>`
+  );
+}
+
+test("REGRESSION: an html Page with no templateChoice renders through the static theme's own page-shell, not the generic Tovu chrome", async (t) => {
+  const theme = staticThemeWithPostTemplate({ extraPages: { "page-shell": pageShellHtml() } });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "no-template-html-page", kind: "page", bodyFormat: "html", bodyHtml: `<p>${POST_BODY_TEXT}</p>` });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "no-template-html-page");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes(PAGE_SHELL_DATA_THEME_MARKER), "must render through the theme's own document shell (data-theme present)");
+  assert.ok(html.includes(PAGE_SHELL_ASSET_MARKER), "must keep the theme's real asset/script references");
+  assert.ok(html.includes(PAGE_SHELL_TPL_MARKER), "must be the theme's page-shell template, not pageShell()'s generic wrapper");
+  assert.ok(html.includes(POST_BODY_TEXT), "the page's own authored body must still reach the response");
+});
+
+test("a doc-format Page with no templateChoice does NOT get the static page-shell auto-fallback (asymmetry preserved)", () => {
+  // The static-tier auto-fallback is scoped to bodyFormat:"html" only — a doc-format Page with
+  // templateChoice null stays gated out of the template branch entirely (isEligibleForTemplateBranch's
+  // existing, unchanged contract), the same as before this fix. Applying the fallback here too would
+  // re-open the terms-of-service-shaped regression this file's own header describes, just through a
+  // page-shell.html door instead of blog-post.html. Verified at the unit level (not HTTP) since this
+  // is asserting an ABSENCE of new routing, which `template-eligibility.test.ts` already covers for
+  // the underlying gate — this test only pins that the new fallback function itself respects it.
+  const theme = staticThemeWithPostTemplate({ extraPages: { "page-shell": pageShellHtml() } });
+  assert.equal(
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "doc" } }),
+    undefined,
+    "doc-format Pages must never receive the static page-shell auto-fallback"
+  );
+});
+
+test("a static theme with no page-shell page keeps the pre-fix generic fallback for an untemplated html Page", async (t) => {
+  // No behavior change for a static theme that doesn't happen to ship a `page-shell.html` — the
+  // fallback function itself must no-op, same contract as `resolveTemplate`'s own `resolveAgainstTheme`
+  // for a missing/slotless candidate.
+  const theme = staticThemeWithPostTemplate(); // no "page-shell" in extraPages
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "no-page-shell-theme", kind: "page", bodyFormat: "html", bodyHtml: `<p>${POST_BODY_TEXT}</p>` });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "no-page-shell-theme");
+
+  assert.equal(status, 200);
+  assert.ok(!html.includes(PAGE_SHELL_DATA_THEME_MARKER), "no page-shell file exists, so no data-theme shell can be produced");
+  assert.ok(html.includes(POST_BODY_TEXT), "the generic path must still render the page's own real content");
 });

@@ -635,6 +635,17 @@ export function resolveTemplate(
  *   preserved verbatim here, not resolved — unifying it too was not asked for and would be an
  *   undisclosed behavior change for `doc`-format Pages.
  *
+ *   CORRECTION (2026-09-02): "fully-functional" above was false for a `static`-tier active theme.
+ *   The generic path this arm sends an untemplated `html` Page to (`renderSite`'s
+ *   `renderDeclarativeTierBody` -> `fallbackSiteBody` -> `pageShell()`) is Tovu's own built-in demo
+ *   chrome, correct for the `declarative`/`templated`/`handlebars` tiers (which have no other shell)
+ *   but not a static theme's real document — no `data-theme`, no theme scripts/icons, no real
+ *   nav/footer. Live: an agent-authored Page lost the active theme's chrome entirely. This gate's OWN
+ *   behavior (never route an unchosen Page into the template branch) is UNCHANGED and stays correct —
+ *   what was wrong is the assumption about what the fallback destination looked like. Fixed at that
+ *   destination instead of here: see {@link resolveStaticTierPageShellFallback}, consulted by
+ *   `renderTemplateBranchIfEligible` (`pages.ts`) only when this gate returns `false`.
+ *
  * @complexity O(1) — field comparisons only, no I/O or iteration.
  */
 /**
@@ -648,6 +659,63 @@ function isPageTemplateChoiceEligible(post: { bodyFormat: "doc" | "html"; templa
     return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
   }
   return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
+}
+
+/** The canonical filename `static`-tier themes use for a reusable, content-agnostic document shell —
+ *  the same role `"index"` plays for the home route in {@link renderStaticTierHomePage}, just for any
+ *  OTHER route. A Tovu-owned convention, not a per-theme manifest choice (see
+ *  {@link resolveStaticTierPageShellFallback}'s own doc for why that distinction matters). */
+const STATIC_TIER_PAGE_SHELL_ID = "page-shell";
+
+/**
+ * The 2026-09-02 fix for a live bug: an `html`-format `kind: "page"` row with no explicit
+ * `templateChoice` — the state EVERY Page starts in (neither the agent create tool nor the admin
+ * Pages editor sets this column on creation; see this repo's `content_post_create` tool and
+ * `PageEditor.tsx`'s picker, both of which persist `null`/`""` until an author makes an explicit
+ * choice) — is correctly kept OUT of the template branch by {@link isPageTemplateChoiceEligible}. The
+ * doc above that gate claims the generic (non-template) path it falls through to is Pages' "normal,
+ * fully-functional, default behavior". That claim is true for the `declarative`/`templated`/
+ * `handlebars` tiers, where a theme never has a real standalone document of its own — `pageShell()`
+ * IS those themes' only shell, template or not. It was FALSE for `static` tier: a static theme's real
+ * pages are complete documents (`<html data-theme>`, real `/theme-assets/` scripts, icons, a
+ * manifest) that `pageShell()` cannot reproduce — it never sets `data-theme`, never references the
+ * theme's own scripts/icons, and only inlines `theme.css`'s raw bytes into a `<style>` tag
+ * (`render.ts`'s own `pageShell`). Observed live: an agent-authored Page landed on Tovu's generic
+ * `siteHeader`/`siteFooter` markup with zero `/theme-assets/` references and no `data-theme`
+ * attribute, instead of the active theme's real chrome.
+ *
+ * This function restores that claim for `static` tier by giving the generic path a document shell to
+ * render into, WITHOUT guessing at the row's intended CONTENT template — the exact distinction that
+ * matters against the regression `isEligibleForTemplateBranch`'s own doc records (`resolveTemplate`'s
+ * "never chosen -> theme's first template" arm, safe for Posts, put `terms-of-service` et al. under
+ * `blog-post.html`'s Post-shaped chrome because array position 0 carries no "this is a generic page
+ * shell" meaning). This does not read `theme.manifest.templates` or its ordering at all: it looks up
+ * exactly one canonical, Tovu-owned filename, `page-shell.html` — the same closed-vocabulary lookup
+ * `renderStaticTierHomePage` already performs for `"index.html"` on the home route, extended to cover
+ * every other route a static theme has no dedicated template for. Every static theme installed today
+ * (`basic`) ships this file; a static theme that does not returns `undefined` here, identical to
+ * `resolveTemplate`'s own "theme has no such page" contract, and the caller's pre-existing generic
+ * `pageShell()` fallback is unchanged for it.
+ *
+ * Scoped to `kind: "page"` + `bodyFormat: "html"` only: `kind: "post"` and `bodyFormat: "doc"` Pages
+ * already have their own, unaffected "never chosen" handling (`isPageTemplateChoiceEligible` above)
+ * and must keep it — this function is never consulted for either, by construction of its own
+ * `post.kind`/`post.bodyFormat` check, not by relying on the caller to gate correctly.
+ *
+ * @complexity O(n) in the shell template's HTML length for the one `markersOfType` slot check
+ *   (identical cost shape to `resolveTemplate`'s own `resolveAgainstTheme`); O(1) otherwise.
+ */
+export function resolveStaticTierPageShellFallback(
+  required: { theme: DiscoveredTheme; post: { kind: "post" | "page"; bodyFormat: "doc" | "html" } },
+  _optional: Record<string, never> = {}
+): string | undefined {
+  const { theme, post } = required;
+  if (theme.manifest.tier !== "static") return undefined;
+  if (post.kind !== "page" || post.bodyFormat !== "html") return undefined;
+
+  const html = theme.pages[STATIC_TIER_PAGE_SHELL_ID];
+  if (html === undefined || markersOfType(html, "content").length === 0) return undefined;
+  return `${STATIC_TIER_PAGE_SHELL_ID}.html`;
 }
 
 export function isEligibleForTemplateBranch(

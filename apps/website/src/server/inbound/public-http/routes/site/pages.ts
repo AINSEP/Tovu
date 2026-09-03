@@ -11,6 +11,7 @@ import {
   injectPageTitle,
   resolveTemplate,
   isEligibleForTemplateBranch,
+  resolveStaticTierPageShellFallback,
   scanMenuEmbedIds,
   resolveActiveTheme,
   tokenStylesheetSentinel,
@@ -933,6 +934,21 @@ export async function resolvePostAfterMarketingCheck(
  * surface to set `template_choice` at all, which is how `terms-of-service` et al. were
  * rendering under the theme's first template (`<title>Blog post — Basic</title>`) on the live
  * site — fixed by gating on `kind`, not just `bodyFormat`.
+ *
+ * `pageShellFallback` (2026-09-02) — when `post` is ineligible for the branch above (the common
+ * case: no admin surface sets `templateChoice` on create), an `html`-format `kind: "page"` row on a
+ * `static`-tier theme gets ONE more chance before falling through to the caller's generic path: the
+ * theme's own canonical `page-shell.html` document shell, via {@link resolveStaticTierPageShellFallback}.
+ * This is NOT a second "which content template" guess — `isEligibleForTemplateBranch`'s own
+ * `kind: "page"` gate is completely untouched, so a `doc`-format Page or a Post with no opinion never
+ * reaches this arm, and the `terms-of-service`-shaped regression that gate exists to prevent cannot
+ * reopen through it. It exists because the generic (non-template) path this row would otherwise fall
+ * to renders through Tovu's own `pageShell()` — correct for the other three tiers, which have no
+ * standalone documents of their own, but not for `static` tier, whose real pages are complete
+ * documents `pageShell()` cannot reproduce (see that function's own doc for the full live-bug trace).
+ * `renderViaTemplate` is called with a shallow clone carrying the resolved filename ONLY for this
+ * render — nothing is written back to `post.templateChoice`, so the row stays `null`/`undefined` and
+ * a later explicit choice (or a theme switch) is free to override this every time.
  */
 export async function renderTemplateBranchIfEligible(
   deps: RouteDeps,
@@ -941,14 +957,18 @@ export async function renderTemplateBranchIfEligible(
   staticMenus: StaticMenuMap | undefined,
   siteAssistantEnabled: boolean
 ): Promise<string | undefined> {
-  if (!isEligibleForTemplateBranch({ theme, post })) return undefined;
+  const explicitlyEligible = isEligibleForTemplateBranch({ theme, post });
+  const pageShellFallback = explicitlyEligible ? undefined : resolveStaticTierPageShellFallback({ theme, post });
+  if (!explicitlyEligible && pageShellFallback === undefined) return undefined;
+
   // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
   // pageShell-bypassing `renderStaticPage` shape as the marketing-page branch above; unlike
   // that branch this one DOES have a real backing `post`, so it folds through the same
   // entry-bearing `"post"` shape the generic (non-template) render below already uses. Same ADR-054
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
   const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
-  return renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead, siteAssistantEnabled);
+  const renderedPost = pageShellFallback !== undefined ? { ...post, templateChoice: pageShellFallback } : post;
+  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, extraHead, siteAssistantEnabled);
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input
