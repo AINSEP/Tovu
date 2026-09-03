@@ -34,7 +34,7 @@ import {
 } from "./credentialed-request.js";
 import { buildSetTokenFormResource, buildSetTokenOutcomeResource, SET_TOKEN_TOOL_ID } from "./custom-credential-set-token-ui.js";
 import { buildDeleteRequestConfirmationResource, MAKE_CREDENTIALED_REQUEST_TOOL_ID } from "./delete-request-confirmation-ui.js";
-import { CustomCredentialNotFoundError, CustomCredentialValidationError, describeCredentialByLabel, listCustomCredentials, updateCustomCredential } from "./store.js";
+import { CustomCredentialNotFoundError, CustomCredentialValidationError, describeCredential, describeCredentialByLabel, listCustomCredentials, updateCustomCredential } from "./store.js";
 import type { CustomCredentialSetRepoPort, CustomCredentialSummary } from "./types.js";
 
 /**
@@ -371,6 +371,14 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
   }
 
   try {
+    // Re-reads the username HERE, at write time — never trusts `existing` (captured back when
+    // `custom_credential_set_token`'s handler first resolved the label, before the form was even shown
+    // to a human who may sit on it for an arbitrarily long time). `custom_credential_set_username` can
+    // run against this same row while the form is open; if this handler carried `existing.username`
+    // forward as a captured literal, that concurrent change would be silently overwritten with the
+    // value the username held before the form opened. `existing.id` is still safe to reuse — it names
+    // WHICH row to update and cannot go stale the way a plaintext column value can.
+    const current = await describeCredential({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, id: existing.id });
     await updateCustomCredential(
       {
         repo: routeDeps.customCredentialSetRepo,
@@ -382,12 +390,15 @@ async function handleSetTokenAnswer(answer: SurfaceMessage, ctx: SetTokenAnswerC
       {
         workspaceId: routeDeps.workspaceId,
         id: existing.id,
-        // Carries the EXISTING username forward into the fresh connection. Replacing `connection`
-        // WITHOUT it would silently CLEAR a saved username — `store.ts`'s own `updateCustomCredential`
-        // doc: "replacing the connection replaces the username ... including clearing it, when the new
-        // connection omits one". A token-only fix must never have that side effect, so this is the one
-        // place this handler reads `existing.username` at all.
-        connection: { token, ...(existing.username !== undefined ? { username: existing.username } : {}) },
+        // Carries the CURRENT (just re-read) username forward into the fresh connection. Replacing
+        // `connection` WITHOUT one would silently CLEAR a saved username — `store.ts`'s own
+        // `updateCustomCredential` doc: "replacing the connection replaces the username ... including
+        // clearing it, when the new connection omits one". A token-only fix must never have that side
+        // effect, and must never resurrect a value the username has since moved on from either — hence
+        // the fresh read above rather than the `existing` snapshot. If the row was deleted while the
+        // form was open, `current` is `null` and `updateCustomCredential`'s own `findById` throws
+        // `CustomCredentialNotFoundError` below, same as it always has.
+        connection: { token, ...(current?.username !== undefined ? { username: current.username } : {}) },
       }
     );
   } catch (err) {
@@ -488,9 +499,10 @@ export function buildCustomCredentialsRegistrations(routeDeps: CustomCredentials
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: WRITE_PERMISSION, entityType: DOMAIN });
 
       // Non-decrypting label->id resolution — same lookup `custom_credential_set_username` above uses,
-      // and for the identical reason: a bad label should never cost a decrypt. `existing.username` is
-      // also read here (never a decrypt — it is a plaintext column) so `handleSetTokenAnswer` can carry
-      // it forward into the fresh connection without a second lookup after the human answers.
+      // and for the identical reason: a bad label should never cost a decrypt. Only `existing.id` is
+      // load-bearing past this point: `handleSetTokenAnswer` deliberately re-reads the username itself,
+      // fresh, right before writing — see its own header for why trusting THIS snapshot's username
+      // would be wrong once the human's answer can arrive an arbitrarily long time later.
       const existing = await describeCredentialByLabel({ repo: routeDeps.customCredentialSetRepo }, { workspaceId: routeDeps.workspaceId, label });
       if (!existing) {
         throw new CustomCredentialNotFoundError(`no custom credential labeled '${label}' in this workspace`);

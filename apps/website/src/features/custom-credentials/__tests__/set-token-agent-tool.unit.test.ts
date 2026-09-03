@@ -343,6 +343,33 @@ test("submit: the credential's existing username is preserved across a token-onl
   assert.equal(resolved!.connection.username, "leonaburime@gmail.com", "a token-only submission must never clear the existing username");
 });
 
+test("submit: a username changed OUT-OF-BAND while the form was open survives a token-only submission (must not be overwritten by the value captured at form-open time)", async () => {
+  const { deps, repo, sealer, writeDeps } = fakeRouteDeps();
+  await seedNameCom(writeDeps, { token: "old-secret-token", username: "stale-username@example.com" });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const setTokenTool = tool(registrations, TOOL_ID);
+  const setUsernameTool = tool(registrations, "custom_credential_set_username");
+
+  const { pending, exchangeId } = await raiseForm(setTokenTool);
+
+  // Simulates a concurrent agent (or the owner, in another tab) fixing the username while this
+  // form is still open and unanswered — the exact race `custom_credential_set_username` exists for.
+  await call(setUsernameTool, { input: { label: "name.com", username: "fresh-username@example.com" } });
+
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { token: "brand-new-secret-token" } });
+  await pending;
+
+  const resolved = await resolveCustomCredentialByLabel({ repo, sealer }, { workspaceId: WORKSPACE_ID, label: "name.com" });
+  assert.ok(resolved);
+  assert.equal(resolved!.connection.token, "brand-new-secret-token");
+  assert.equal(
+    resolved!.connection.username,
+    "fresh-username@example.com",
+    "the username changed while the form was open must survive — not be overwritten by the value captured at form-open time"
+  );
+});
+
 test("submit: a blank token is refused as invalid, and nothing is written or re-sealed", async () => {
   const { deps, sealer, writeDeps } = fakeRouteDeps();
   await seedNameCom(writeDeps);
