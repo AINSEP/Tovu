@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { startTestServer } from "../helpers/http-test-server.js";
+import { createCapturingResponse, extractRouteHandler, startTestServer } from "../helpers/http-test-server.js";
 
 import express from "express";
 
@@ -139,4 +139,96 @@ test("404s on a workspace id that does not match the deployed workspace", async 
 
   const res = await postSignIn(baseUrl, "some-other-workspace", "whoever@example.com");
   assert.equal(res.status, 404);
+});
+
+test("a malformed email is rejected 400 with the MemberValidationError message, below any rate limit", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await postSignIn(baseUrl, deps.workspaceId, "not-an-email");
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /is not a valid email address/);
+});
+
+test("a redirectPath is carried into the minted sign-in link", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const originalLog = console.log;
+  let capturedBody = "";
+  console.log = (...args: unknown[]) => {
+    const text = args.map(String).join(" ");
+    if (text.includes("token=")) capturedBody = text;
+  };
+  try {
+    const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email: "redirect-path@example.com", redirectPath: "/welcome" }),
+    });
+    assert.equal(res.status, 200);
+  } finally {
+    console.log = originalLog;
+  }
+  assert.match(capturedBody, /&redirect=%2Fwelcome/);
+});
+
+test("a mailer failure surfaces as a 500 internal error, past both rate-limit checks", async (t) => {
+  const { app, deps } = buildPublicApp();
+  deps.mailer.send = async () => {
+    throw new Error("smtp exploded");
+  };
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await postSignIn(baseUrl, deps.workspaceId, "mailer-failure@example.com");
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "internal error");
+});
+
+test("an email-less JSON body ({}) is treated as an empty, invalid email — not a crash", async (t) => {
+  const { app, deps } = buildPublicApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/api/members/v1/workspaces/${deps.workspaceId}/sign-in`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /is not a valid email address/);
+});
+
+// The two tests below deliberately bypass real HTTP dispatch, the same technique
+// `export-site-route.test.ts` uses and `extractRouteHandler`'s own doc describes: Express
+// guarantees `req.params.workspaceId` is always a populated string for any request that reaches
+// this handler at all (an unfilled `:workspaceId` segment simply never matches the route), and
+// `body-parser`'s `express.json()` unconditionally sets `req.body = req.body || {}` before this
+// handler ever runs (`node_modules/body-parser/lib/types/json.js`) — so neither `?? ""` nor `?? {}`
+// fallback below is reachable through any real request. Calling the handler directly is the only
+// way to exercise them, exactly as the exhaustiveness-guard case that helper's doc describes.
+test("req.params.workspaceId ?? \"\": an unpopulated param (impossible via real Express routing) still 404s rather than throwing", async () => {
+  const { app } = buildPublicApp();
+  const handler = extractRouteHandler(app, "post", "/api/members/v1/workspaces/:workspaceId/sign-in");
+  const { res, capture } = createCapturingResponse();
+  const req = { params: { workspaceId: undefined }, body: { email: "whoever@example.com" } } as unknown as Parameters<
+    typeof handler
+  >[0];
+
+  await handler(req, res);
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+});
+
+test("req.body ?? {}: an undefined body (impossible with express.json() mounted) still resolves to an empty-email 400 rather than throwing", async () => {
+  const { app, deps } = buildPublicApp();
+  const handler = extractRouteHandler(app, "post", "/api/members/v1/workspaces/:workspaceId/sign-in");
+  const { res, capture } = createCapturingResponse();
+  const req = { params: { workspaceId: deps.workspaceId }, body: undefined } as unknown as Parameters<typeof handler>[0];
+
+  await handler(req, res);
+  assert.equal(capture.statusCode, 400);
+  assert.match((capture.jsonBody as { error: string }).error, /is not a valid email address/);
 });
