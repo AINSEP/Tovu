@@ -94,9 +94,11 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 import { assemblePromptWithPluginPrefix, resolveAgentPluginPromptPrefix } from "./plugin-prompt-prefix.js";
 import { buildCapabilityManifestPrefix, resolveCapabilityManifestArm } from "./capability-manifest-prefix.js";
 import {
+  agentCarriesOwnMemory,
   extractSessionRefFromEndEvent,
   resolveResumeSessionField,
   shouldClearSessionOnFailedResume,
+  wouldForcedColdStartLoseConversationContext,
 } from "./agent-session-resume.js";
 import { createLiveRunTracker } from "./agent-run-concurrency.js";
 import { buildBaseSystemOverlay, resolveBashProhibitionEnabled } from "./assistant-system-overlay.js";
@@ -718,22 +720,44 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
 
       const agentId = request.agentId ?? DEFAULT_AGENT_ID;
       // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
-      // the plugin prefix above. `null` (no conversationId at all, nothing on record yet, OR — H2
-      // fix — another run for this same conversation is already live) makes
-      // `resolveResumeSessionField` a no-op — see that function's own doc for why this run then
-      // starts cold rather than this handler minting a session id itself.
-      //
-      // The `hasConcurrentLiveRun` check is the H2 fix: refusing to resume here means at most one
-      // process ever holds `--resume <id>` for this conversation's CLI session at a time, closing
-      // the two-live-`--resume`-processes-on-one-transcript-file hazard even though the two runs'
-      // `end` events can still race each other for the store's last write — see
+      // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
+      // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
+      // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
+      // makes `resolveResumeSessionField` a no-op below, so this run then starts cold rather than
+      // this handler minting a session id itself.
+      const storedSessionId =
+        conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
+      // The H2 fix: refusing to resume when another run for this conversation is already live
+      // means at most one process ever holds `--resume <id>` for that CLI session at a time,
+      // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
+      // two runs' `end` events can still race each other for the store's last write — see
       // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
       // tracker needs no special handling across a daemon restart.
-      const storedSessionId =
-        conversationId !== undefined && !liveRunTracker.hasConcurrentLiveRun(conversationId, run.id)
-          ? await routeDeps.agentSessions.getSessionId(conversationId, agentId)
-          : null;
-      attemptedResumeSessionId = storedSessionId;
+      const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun(conversationId, run.id);
+
+      // H2-context-loss fix: H2 alone silently drops conversation history for a
+      // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
+      // the full mechanism. The client already sent only the bare latest message trusting this run
+      // to resume; forcing it cold here would answer with none of the conversation `storedSessionId`
+      // proves actually exists. Refuse the run outright (same "fail loud, not silently degrade"
+      // precedent as the attachment-claim-failure branch above) rather than let the CLI answer
+      // blind.
+      if (
+        wouldForcedColdStartLoseConversationContext({
+          storedSessionId,
+          hasConcurrentLiveRun,
+          carriesOwnMemory: agentCarriesOwnMemory(agentId),
+        })
+      ) {
+        void runLifecycle.finish({ runId: run.id, status: "failed", code: null, signal: null, resumable: false });
+        console.error(
+          `[agent-daemon] run ${run.id}: refused — conversation "${conversationId}" has a live concurrent run holding agent "${agentId}"'s resumable session, and this agent carries its own memory; starting cold would silently drop conversation history`,
+        );
+        return;
+      }
+
+      const effectiveResumeSessionId = hasConcurrentLiveRun ? null : storedSessionId;
+      attemptedResumeSessionId = effectiveResumeSessionId;
 
       await agentExecutor.run({
         runId: run.id,
@@ -746,7 +770,7 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
         // def's own `buildArgs` options, which is where it becomes real argv.
         ...(reasoning !== undefined ? { reasoning } : {}),
         ...attachmentRunFields,
-        ...resolveResumeSessionField(storedSessionId),
+        ...resolveResumeSessionField(effectiveResumeSessionId),
       });
     })
     // `AgentExecutor.run()` already transitions the run to `'failed'` via `lifecycle.finish()` on

@@ -53,11 +53,16 @@ describe("H1 wiring — a failed resume must clear its dead stored session id", 
     assert.ok(decisionCallIndex < clearCallIndex, "the decision must be checked BEFORE clearSessionId is called, not after (the clear must be conditional on the decision, not unconditional)");
   });
 
-  test("attemptedResumeSessionId is assigned from storedSessionId — the value the decision checks must reflect what was actually attempted", () => {
+  test("attemptedResumeSessionId is assigned from the gated resume value actually attempted — the value the decision checks must reflect what onStarted really passed to agentExecutor.run, not the raw pre-gating lookup", () => {
+    // Post-H2-context-loss-fix: the raw `storedSessionId` lookup is now unconditional (see that
+    // fix's own wiring suite below), so it alone no longer tells you what THIS run actually
+    // attempted — `effectiveResumeSessionId` (storedSessionId gated by hasConcurrentLiveRun) is the
+    // value that must flow into `attemptedResumeSessionId`, same invariant as before this fix, just
+    // renamed to keep "the raw lookup" and "what was actually attempted" distinguishable.
     assert.match(
       onStartedSource,
-      /attemptedResumeSessionId\s*=\s*storedSessionId\s*;/,
-      "attemptedResumeSessionId must be set to storedSessionId so shouldClearSessionOnFailedResume knows whether THIS run actually attempted a resume",
+      /attemptedResumeSessionId\s*=\s*effectiveResumeSessionId\s*;/,
+      "attemptedResumeSessionId must be set to effectiveResumeSessionId (not the raw storedSessionId) so shouldClearSessionOnFailedResume knows whether THIS run actually attempted a resume",
     );
   });
 });
@@ -117,14 +122,98 @@ describe("H2 wiring — overlapping runs on one conversation must not both resum
     const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
     assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
 
-    // Both calls must live in the same `storedSessionId = ... ? ... : null` conditional — proven
-    // here by requiring they appear within a short span of each other with no intervening
-    // `agentExecutor.run(` call, which is the point that conditional's result gets consumed.
     const runCallIndex = onStartedSource.indexOf("await agentExecutor.run({");
     assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
     assert.ok(
       hasConcurrentIndex < runCallIndex && getSessionIdIndex < runCallIndex,
       "both the concurrency check and the stored-session lookup must be resolved before agentExecutor.run is called",
+    );
+  });
+});
+
+describe("H2-context-loss wiring — a forced-cold run must not silently drop conversation history", () => {
+  /**
+   * @file Proves `onStarted` is actually wired to refuse the run BEFORE `agentExecutor.run` is
+   * ever called, when `wouldForcedColdStartLoseConversationContext` says starting cold here would
+   * silently drop conversation history — the bug: H2 alone forces a run cold whenever another run
+   * for the same conversation is already live, with no regard for whether the client already
+   * stripped its prompt down to the bare latest message trusting THIS run to resume. See
+   * `agent-session-resume.unit.test.ts`'s own suite for the decision function's pure-logic proof;
+   * this file proves the decision is not computed and then ignored.
+   */
+
+  test("imports agentCarriesOwnMemory and wouldForcedColdStartLoseConversationContext from the pure decision module", () => {
+    assert.match(
+      DAEMON_ENTRY_SOURCE,
+      /import\s*\{[^}]*agentCarriesOwnMemory[^}]*\}\s*from\s*["'][^"']*agent-session-resume(\.js)?["']/,
+      "onStarted must import agentCarriesOwnMemory from agent-session-resume.ts, not reimplement the def lookup inline",
+    );
+    assert.match(
+      DAEMON_ENTRY_SOURCE,
+      /import\s*\{[^}]*wouldForcedColdStartLoseConversationContext[^}]*\}\s*from\s*["'][^"']*agent-session-resume(\.js)?["']/,
+      "onStarted must import wouldForcedColdStartLoseConversationContext from agent-session-resume.ts",
+    );
+  });
+
+  test("getSessionId is looked up unconditionally (not gated behind !hasConcurrentLiveRun) so the risky case is even detectable", () => {
+    const getSessionIdIndex = onStartedSource.indexOf("routeDeps.agentSessions.getSessionId(");
+    assert.ok(getSessionIdIndex > -1, "this test's own anchor (the getSessionId call) must still exist verbatim");
+
+    const hasConcurrentDeclIndex = onStartedSource.indexOf("const hasConcurrentLiveRun =");
+    assert.ok(hasConcurrentDeclIndex > -1, "onStarted must declare hasConcurrentLiveRun as its own value (no longer inline in the storedSessionId ternary) — needed so the context-loss check can read it independently of whether it gated the lookup");
+
+    // Regression guard for the exact pre-fix shape: `getSessionId` used to appear INSIDE a
+    // `!liveRunTracker.hasConcurrentLiveRun(...)` ternary condition, meaning it was never called at
+    // all whenever a concurrent run was live — which is exactly the case
+    // `wouldForcedColdStartLoseConversationContext` needs a real storedSessionId value to detect.
+    assert.ok(
+      !/!liveRunTracker\.hasConcurrentLiveRun\([^)]*\)\s*\n?\s*\?\s*await routeDeps\.agentSessions\.getSessionId/.test(onStartedSource),
+      "getSessionId must not be conditioned on !hasConcurrentLiveRun any more — that shape silently made the context-loss check unable to see a real stored session id",
+    );
+  });
+
+  test("the context-loss check runs, and refuses the run (finish + return), strictly before agentExecutor.run is called", () => {
+    const decisionCallIndex = onStartedSource.indexOf("wouldForcedColdStartLoseConversationContext({");
+    assert.ok(decisionCallIndex > -1, "onStarted must call wouldForcedColdStartLoseConversationContext — without this, H2 silently drops conversation history for a carriesOwnMemory agent");
+
+    const carriesOwnMemoryCallIndex = onStartedSource.indexOf("agentCarriesOwnMemory(agentId)");
+    assert.ok(carriesOwnMemoryCallIndex > -1, "onStarted must pass agentCarriesOwnMemory(agentId) into the decision — without it every run would look non-resume-capable and the check would never fire");
+
+    const runCallIndex = onStartedSource.indexOf("await agentExecutor.run({");
+    assert.ok(runCallIndex > -1, "this test's own anchor (the agentExecutor.run call) must still exist verbatim");
+
+    assert.ok(
+      decisionCallIndex < runCallIndex,
+      "the context-loss decision must be evaluated before agentExecutor.run is called, not after",
+    );
+
+    // The refusal branch: between the decision call and the run call, onStarted must finish the
+    // run as failed and return, exactly like the malformed-contextRef and attachment-claim-failure
+    // guards earlier in this same handler — never let agentExecutor.run be reached in this branch.
+    const refusalBlock = onStartedSource.slice(decisionCallIndex, runCallIndex);
+    assert.match(
+      refusalBlock,
+      /runLifecycle\.finish\(\{\s*runId:\s*run\.id,\s*status:\s*"failed"/,
+      "the refusal branch must finish the run as failed, the same pattern every other pre-flight guard in onStarted already uses",
+    );
+    assert.match(refusalBlock, /\breturn\s*;/, "the refusal branch must return before falling through to agentExecutor.run");
+  });
+
+  test("effectiveResumeSessionId (not the raw storedSessionId) is what attemptedResumeSessionId and resolveResumeSessionField consume", () => {
+    assert.match(
+      onStartedSource,
+      /const\s+effectiveResumeSessionId\s*=\s*hasConcurrentLiveRun\s*\?\s*null\s*:\s*storedSessionId\s*;/,
+      "onStarted must derive an effectiveResumeSessionId that is null whenever hasConcurrentLiveRun is true, independent of the now-unconditional storedSessionId lookup",
+    );
+    assert.match(
+      onStartedSource,
+      /attemptedResumeSessionId\s*=\s*effectiveResumeSessionId\s*;/,
+      "attemptedResumeSessionId must reflect what this run actually attempted (effectiveResumeSessionId), not the raw lookup",
+    );
+    assert.match(
+      onStartedSource,
+      /resolveResumeSessionField\(effectiveResumeSessionId\)/,
+      "agentExecutor.run must be handed the gated effectiveResumeSessionId, not the raw storedSessionId, or H2's own concurrency guard would be defeated",
     );
   });
 });

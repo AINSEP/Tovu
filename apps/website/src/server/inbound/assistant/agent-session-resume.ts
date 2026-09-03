@@ -20,6 +20,7 @@
  * to resume yet, correctly), and whatever session id the CLI reports at `end` is what
  * {@link extractSessionRefFromEndEvent} captures for the NEXT turn to resume.
  */
+import { AGENT_DEFS } from "@jini-ai/agent-runtime";
 import type { RunStartHandler } from "@jini-ai/http-kit";
 
 type OnStartedContext = Parameters<RunStartHandler>[0];
@@ -107,4 +108,60 @@ export function shouldClearSessionOnFailedResume(
   if (attemptedResumeSessionId === null) return false;
   if (event.kind !== "end") return false;
   return extractSessionRefFromEndEvent(event) === undefined;
+}
+
+/**
+ * Whether `agentId`'s own CLI/ACP session already carries multi-turn conversation memory across
+ * spawns — the same static, per-def property `assistant/agents.ts`'s `probeAssistantAgents`
+ * derives as `AssistantAgentSummary.carriesOwnMemory` (client-side, from `GET /api/agents`) and
+ * `apps/admin/src/lib/assistant-transport.ts`'s `startRun` reads to decide whether to send the
+ * full rendered transcript or just the newest user message for a turn. Duplicated here (rather
+ * than imported from `assistant/agents.ts`) because that module's only export is the async,
+ * PATH-probing `listAssistantAgents()`/`rescanAssistantAgents()` pair — this needs the same
+ * boolean synchronously, off `@jini-ai/agent-runtime`'s static `AGENT_DEFS` alone, with no I/O.
+ *
+ * @param agentId - The run's resolved agent id (`request.agentId ?? DEFAULT_AGENT_ID`).
+ * @returns `false` for an unknown agentId (matches `Boolean(undefined)`, the same "not resume
+ *   capable" default an absent def's fields would produce).
+ * @complexity O(d) in `AGENT_DEFS.length` (24 today) — a linear scan, not indexed, since this
+ *   runs once per run start, not per event.
+ */
+export function agentCarriesOwnMemory(agentId: string): boolean {
+  const def = AGENT_DEFS.find((candidate) => candidate.id === agentId);
+  return Boolean(def?.resumesSessionViaCli) || Boolean(def?.resumesSessionViaAcpLoad);
+}
+
+/**
+ * Whether this run must be refused outright rather than started cold, to avoid silently
+ * answering with none of the conversation's prior turns.
+ *
+ * The H2 fix (`agent-run-concurrency.ts`) already refuses to pass a stored session id to a run
+ * that observes another run already live for the same conversation, so at most one process ever
+ * holds `--resume <id>` on one CLI transcript file at a time — necessary, but for a
+ * {@link agentCarriesOwnMemory} agent it has a side effect H2 itself never accounted for: the
+ * CLIENT (`assistant-transport.ts`'s `startRun`) already decided, independently and before this
+ * run was even dispatched, to send ONLY the newest user message instead of the full rendered
+ * transcript — trusting THIS run to resume the CLI's own carried memory. If H2 then forces this
+ * run cold, the CLI starts a brand-new session whose only input is that bare latest message: the
+ * rest of the conversation is gone, silently — no error, and nothing left to react to, since the
+ * client already sent what it sent.
+ *
+ * True only when ALL of:
+ *  - `storedSessionId` is non-null — a PRIOR turn already established a session for this
+ *    (conversationId, agentId) pair. A genuine first turn (`null`) has no history to lose:
+ *    `latestUserPrompt` already IS the whole conversation.
+ *  - `hasConcurrentLiveRun` is true — the H2 guard is about to force this run cold despite that
+ *    stored session existing.
+ *  - `carriesOwnMemory` is true — this agent def is one the client trusts to have stripped the
+ *    prompt down to the bare latest message. For any other def the client already sent the full
+ *    transcript regardless of what this run does, so forcing it cold loses nothing.
+ *
+ * @complexity O(1).
+ */
+export function wouldForcedColdStartLoseConversationContext(input: {
+  storedSessionId: string | null;
+  hasConcurrentLiveRun: boolean;
+  carriesOwnMemory: boolean;
+}): boolean {
+  return input.storedSessionId !== null && input.hasConcurrentLiveRun && input.carriesOwnMemory;
 }

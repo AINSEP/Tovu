@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import test, { describe } from "node:test";
 
 import {
+  agentCarriesOwnMemory,
   extractSessionRefFromEndEvent,
   resolveResumeSessionField,
   shouldClearSessionOnFailedResume,
+  wouldForcedColdStartLoseConversationContext,
 } from "../agent-session-resume.js";
 
 /**
@@ -109,5 +111,80 @@ describe("shouldClearSessionOnFailedResume", () => {
   test("false: not a terminal end event — a mid-run progress event says nothing about whether the resume ultimately failed", () => {
     const event = makeEvent("agent", { type: "status", label: "thinking" });
     assert.equal(shouldClearSessionOnFailedResume(event, "sess-dead"), false);
+  });
+});
+
+describe("agentCarriesOwnMemory", () => {
+  test("true for a def declaring resumesSessionViaCli (e.g. claude)", () => {
+    assert.equal(agentCarriesOwnMemory("claude"), true);
+  });
+
+  test("true for a def declaring resumesSessionViaAcpLoad (e.g. amr)", () => {
+    assert.equal(agentCarriesOwnMemory("amr"), true);
+  });
+
+  test("false for a def declaring neither (e.g. qoder — native attachment delivery, but no CLI/ACP resume)", () => {
+    assert.equal(agentCarriesOwnMemory("qoder"), false);
+  });
+
+  test("false for an unknown agentId (no matching def)", () => {
+    assert.equal(agentCarriesOwnMemory("not-a-real-agent-id"), false);
+  });
+});
+
+describe("wouldForcedColdStartLoseConversationContext", () => {
+  /**
+   * @file H2-context-loss regression cover. The H2 fix (`agent-run-concurrency.ts`) refuses to
+   * resume a run when another run for the same conversation is already live, so the run starts
+   * cold instead. That is silently WRONG for a `carriesOwnMemory` agent: `assistant-transport.ts`'s
+   * `startRun` already sent only the bare latest user message for such an agent, trusting this run
+   * to resume the conversation's stored session — a cold start then answers with none of the
+   * conversation's prior turns, with no error surfaced anywhere. This suite proves the decision
+   * that flags exactly that case; the wiring that actually refuses the run off this decision is
+   * covered separately by `agent-daemon-server.session-resume-wiring.unit.test.ts`.
+   */
+
+  test("true: a stored session exists, another run is live for the conversation, and the agent carries its own memory", () => {
+    assert.equal(
+      wouldForcedColdStartLoseConversationContext({
+        storedSessionId: "sess-abc",
+        hasConcurrentLiveRun: true,
+        carriesOwnMemory: true,
+      }),
+      true,
+    );
+  });
+
+  test("false: no stored session — a genuine first turn has no history to lose", () => {
+    assert.equal(
+      wouldForcedColdStartLoseConversationContext({
+        storedSessionId: null,
+        hasConcurrentLiveRun: true,
+        carriesOwnMemory: true,
+      }),
+      false,
+    );
+  });
+
+  test("false: no concurrent live run — this run may simply resume normally", () => {
+    assert.equal(
+      wouldForcedColdStartLoseConversationContext({
+        storedSessionId: "sess-abc",
+        hasConcurrentLiveRun: false,
+        carriesOwnMemory: true,
+      }),
+      false,
+    );
+  });
+
+  test("false: agent does not carry its own memory — the client already sent the full transcript, so a cold start loses nothing", () => {
+    assert.equal(
+      wouldForcedColdStartLoseConversationContext({
+        storedSessionId: "sess-abc",
+        hasConcurrentLiveRun: true,
+        carriesOwnMemory: false,
+      }),
+      false,
+    );
   });
 });
