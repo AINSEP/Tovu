@@ -73,8 +73,31 @@ test.beforeAll(async ({ browser }: { browser: Browser }) => {
   await page.waitForSelector(".login-card", { state: "detached", timeout: 15_000 });
 });
 
+/**
+ * Deletes the credential the stored-key cases below create, and asserts it is gone.
+ *
+ * NOT optional housekeeping — this suite shares ONE `TOVU_DB=memory` API process across every spec
+ * file, at `workers: 1`, in alphabetical file order. A credential left behind here is visible to
+ * every spec that runs after this file, and `ByokProviderForm` changes behaviour on exactly that
+ * fact: `apiKeyStoredExternally` makes it DELETE `apiKey` from `missingRequiredFields`, so an empty
+ * key field stops counting as missing and "Test connection" becomes enabled. That is precisely what
+ * `byok-key-handling.spec.ts:231` asserts the opposite of. Measured, not feared: leaving the row in
+ * place turned that spec from green to red, with "Received: enabled".
+ *
+ * Runs before the page closes so it can reuse the page's already-authenticated context rather than
+ * spending another login against `LOGIN_STRICT`.
+ */
 test.afterAll(async () => {
-  await page?.close();
+  if (!page) return;
+  const cleared = await page.request.delete(CREDENTIAL_PATH);
+  expect(
+    cleared.ok(),
+    "failed to delete the credential this file created — later specs in this suite will inherit it "
+      + "and see a stored-key form where they expect an unconfigured one",
+  ).toBe(true);
+  const after = await page.request.get(CREDENTIAL_PATH).then((r) => r.json());
+  expect(after.data.isSet, "the credential must actually be gone, not merely reported deleted").toBe(false);
+  await page.close();
 });
 
 /** The shared `ByokProviderForm` API-key input, whichever panel is mounted. */
