@@ -3,7 +3,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "@/lib/api";
 import { createFakeThemeExplorePort } from "../hooks/theme-explore-dependencies.hooks";
-import { useThemeExplore } from "../hooks/use-theme-explore.hooks";
+import {
+  lockedPublishReason,
+  readOnlyReason,
+  selectedFileLabel,
+  selectedFilePublishState,
+  useThemeExplore,
+  type ThemeExploreFile,
+} from "../hooks/use-theme-explore.hooks";
 
 /**
  * @file `useThemeExplore` driven against the injected `ThemeExplorePort`, no `fetch` stub and no
@@ -688,5 +695,81 @@ describe("useThemeExplore — delete", () => {
     expect(result.current.deleting).toBe(false);
     // The confirmation stays open on failure — the operator has not been told it's safe to walk away.
     expect(result.current.deleteTarget).toBe("pages/about.html");
+  });
+});
+
+// `readOnlyReason`/`lockedPublishReason`/`selectedFilePublishState`/`selectedFileLabel` used to be
+// top-level functions inline in `ThemeExplore.tsx`, reachable only through a full component render
+// (`ThemeExplore.unit.test.tsx` drives a full-controller fake, never these directly). Moved here
+// (2026-09-03 relocation pass, moving derived-logic computations out of `.tsx` files and into their
+// hooks) alongside this hook's other pure per-file derivations (`fileLabel`, `mapDetailFiles`).
+const t = (key: string) => key;
+
+function file(overrides: Partial<ThemeExploreFile> = {}): ThemeExploreFile {
+  return {
+    path: "pages/about.html",
+    label: "about",
+    kind: "page",
+    readable: true,
+    editable: true,
+    resettable: true,
+    published: null,
+    collidingContent: null,
+    ...overrides,
+  };
+}
+
+describe("readOnlyReason", () => {
+  it("returns the untranslated reason string — the caller applies t()", () => {
+    expect(readOnlyReason()).toBe("This file type is read-only in Explore.");
+  });
+});
+
+describe("lockedPublishReason", () => {
+  it("reports index as always-on", () => {
+    expect(lockedPublishReason("index", t)).toEqual({ on: true, reason: "Always published — theme home page" });
+  });
+
+  it("reports 404 as always-on", () => {
+    expect(lockedPublishReason("404", t)).toEqual({ on: true, reason: "Always published — error page" });
+  });
+
+  it("reports any other page label as a locked-off template shell", () => {
+    expect(lockedPublishReason("blog-post", t)).toEqual({
+      on: false,
+      reason: "Not a standalone page — used as a content template",
+    });
+  });
+});
+
+describe("selectedFilePublishState", () => {
+  it("returns null when no file is selected", () => {
+    expect(selectedFilePublishState(undefined, t)).toBeNull();
+  });
+
+  it("returns a toggle state for a real candidate page", () => {
+    expect(selectedFilePublishState(file({ published: true }), t)).toEqual({ kind: "toggle", published: true });
+  });
+
+  it("returns null for a non-page file with no publish state", () => {
+    expect(selectedFilePublishState(file({ kind: "style", published: null }), t)).toBeNull();
+  });
+
+  it("returns a locked state for index/404/a declared template shell", () => {
+    expect(selectedFilePublishState(file({ label: "index", published: null }), t)).toEqual({
+      kind: "locked",
+      on: true,
+      reason: "Always published — theme home page",
+    });
+  });
+});
+
+describe("selectedFileLabel", () => {
+  it("returns the file's label", () => {
+    expect(selectedFileLabel(file({ label: "about" }))).toBe("about");
+  });
+
+  it("returns '' when no file is selected", () => {
+    expect(selectedFileLabel(undefined)).toBe("");
   });
 });

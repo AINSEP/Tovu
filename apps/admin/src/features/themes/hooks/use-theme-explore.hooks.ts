@@ -273,6 +273,90 @@ function basenameOf(path: string): string {
 }
 
 /**
+ * Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
+ * not editable — see `ThemeExploreFile.editable`'s doc comment for the readable/editable split this
+ * answers. A single generic message now: scripts had their own wording here until 2026-08-29 (owner
+ * ask — "we need the ability to edit CSS and JS for the themes"), when `script` stopped being a
+ * content-read-only group server-side (`explore.ts`'s `CONTENT_EDIT_LOCKED_GROUPS`), leaving `other`
+ * the one remaining case this branch can actually render for.
+ */
+export function readOnlyReason(): string {
+  return "This file type is read-only in Explore.";
+}
+
+/**
+ * One of the two states `ThemeExplorePublishToggle` (`ThemeExplore.tsx`) can render — see that
+ * component's own doc for what each one looks like.
+ */
+export type ThemeExplorePublishState =
+  | { kind: "toggle"; published: boolean }
+  | { kind: "locked"; on: boolean; reason: string };
+
+/**
+ * The reason — and the fixed switch position that goes with it — for a page that EXISTS but can
+ * never be independently toggled. `theme.ts`'s `isPublishableThemePageCandidate` returns false for
+ * exactly three shapes: `index`/`404` (`NON_ROUTABLE_THEME_PAGE_IDS`) or a declared Post/Page
+ * template shell (`ThemeManifest.templates`) — keyed here off the page's own `label` (its id) rather
+ * than a server-sent reason string, so this can never drift from that set without both files
+ * changing together; `index`/`404` are the only two ids that constant names, so any OTHER label
+ * reaching this function is, by construction, the remaining case.
+ *
+ * `index`/`404` show ON: both are genuinely live and rendered whenever a visitor reaches them (via
+ * `/` and the 404 document respectively) regardless of any publish decision — the switch's fixed
+ * position reflects a true fact, same as everywhere else it appears. A declared template shell shows
+ * OFF instead, for the opposite reason: it has NO independent public route of its own at all (nobody
+ * ever reaches `/blog-post` directly), so showing it "on" would claim a reachability it never has —
+ * see `theme.ts`'s own `isStandaloneThemePage` doc for the full three-way split this mirrors.
+ *
+ * @complexity O(1).
+ */
+export function lockedPublishReason(pageLabel: string, t: Translate): { on: boolean; reason: string } {
+  if (pageLabel === "index") return { on: true, reason: t("Always published — theme home page") };
+  if (pageLabel === "404") return { on: true, reason: t("Always published — error page") };
+  return { on: false, reason: t("Not a standalone page — used as a content template") };
+}
+
+/**
+ * The selected file's publish-control state, or `null` when no control should render at all.
+ *
+ * 2026-08-30: this used to collapse straight to `file.published` (`boolean | null`) and treat every
+ * `null` as "no control at all" — which hid the control for `index`/`404`/a declared template shell
+ * exactly as silently as it correctly hid it for a genuinely unrelated file (a stylesheet, an image),
+ * and cost real operator confusion: the owner selected `404`, saw nothing, and concluded the publish
+ * feature hadn't shipped at all. The two `null` cases are told apart here using data this screen
+ * ALREADY has — `file.kind` — with NO backend change: `describeThemeFile` (`explore.ts`) can only
+ * produce a non-null `published` for a `"page"`-kind file (see that function's own doc), so a `null`
+ * value on a `"page"` file is, by construction, one of `theme.ts`'s three non-candidate cases
+ * ({@link lockedPublishReason}), and a `null` value on any OTHER kind is a file the publish question
+ * never applied to in the first place.
+ *
+ * @complexity O(1).
+ */
+export function selectedFilePublishState(
+  file: ThemeExploreFile | undefined,
+  t: Translate
+): ThemeExplorePublishState | null {
+  if (!file) return null;
+  if (file.published !== null) return { kind: "toggle", published: file.published };
+  if (file.kind !== "page") return null;
+  return { kind: "locked", ...lockedPublishReason(file.label, t) };
+}
+
+/**
+ * The currently selected file's label, or `""` before a file is selected. Pulled out to a top-level
+ * function rather than an inline `selectedFile?.label ?? ""` — the optional-chain plus
+ * nullish-coalescing pair scores two points against a cyclomatic-complexity budget. The `""`
+ * fallback only ever matters transiently in practice: {@link selectedFilePublishState} already
+ * returns `null` whenever there is no selected file, so `ThemeExplorePublishToggle` never actually
+ * renders with an empty label.
+ *
+ * @complexity O(1).
+ */
+export function selectedFileLabel(file: ThemeExploreFile | undefined): string {
+  return file?.label ?? "";
+}
+
+/**
  * Owner-reported bug (2026-08-12): clicking a `.liquid` template in Explore downloaded it instead of
  * previewing it. Originally patched HERE, client-side (overriding `readable` to `true` for any
  * `.liquid` path regardless of what the listing route reported), because the GET-file route
