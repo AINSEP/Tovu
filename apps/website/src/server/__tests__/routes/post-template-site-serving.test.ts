@@ -389,10 +389,11 @@ test('ROUND TRIP: saving overridesThemePage through the admin API persists it an
  * chrome and its dark/light toggle script wholesale on `/passeios-noroeste-do-pacifico`.
  *
  * These three tests exercise the fix through the real HTTP boundary rather than
- * `resolveStaticTierPageShellFallback`'s unit tests alone (see `static-render.test.ts`), so a wiring
- * mistake in `renderTemplateBranchIfEligible` — the fallback computed but never threaded into
- * `renderViaTemplate`, or applied to the wrong `kind`/`bodyFormat` — would be caught at the same
- * boundary the original bug was found at.
+ * `resolveStaticTierPageShellFallback`'s unit tests alone (`features/theme/__tests__/static-render-
+ * page-shell-fallback.test.ts`, which owns the resolution rule itself and every arm that must return
+ * `undefined`), so a wiring mistake in `renderTemplateBranchIfEligible` — the fallback computed but
+ * never threaded into `renderViaTemplate`, or applied to the wrong `kind`/`bodyFormat` — would be
+ * caught at the same boundary the original bug was found at.
  */
 const PAGE_SHELL_DATA_THEME_MARKER = 'data-theme="dark"';
 const PAGE_SHELL_ASSET_MARKER = "/theme-assets/basic/scripts/theme-toggle.js";
