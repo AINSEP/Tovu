@@ -76,7 +76,8 @@
     "ci:local:route-coverage": "bash development/scripts/ci-local.sh --route-coverage",
     "test:rerun-failing": "bash development/scripts/rerun-failing-tests.sh",
     "link:jini": "node development/scripts/link-jini.mjs",
-    "unlink:jini": "node development/scripts/unlink-jini.mjs"
+    "unlink:jini": "node development/scripts/unlink-jini.mjs",
+    "check:default-credential": "tsx apps/website/src/features/identity/default-credential-exposure.ts"
   },
   "dependencies": {
     "@ag-ui/core": "0.0.58",
