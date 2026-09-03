@@ -121,3 +121,10 @@ function runSuite(adapterName: string, makeRepo: () => PluginActivationRepoPort)
 
 runSuite("InMemoryPluginActivationRepo", () => new InMemoryPluginActivationRepo());
 runSuite("SqlitePluginActivationRepo", () => new SqlitePluginActivationRepo(openContentDb(":memory:")));
+
+test("InMemoryPluginActivationRepo initializes with pre-existing rows", async () => {
+  const init = [record({ pluginId: "pre-existing" })];
+  const repo = new InMemoryPluginActivationRepo(init);
+  assert.deepEqual(await repo.listAll(), init);
+});
+
