@@ -356,6 +356,41 @@ test("the fix itself failing to complete (e.g. the remedy tool is denied) never 
   );
 });
 
+test("the remedy tool completing but reporting {saved: false} (a declined/expired/invalid human-gated write) never triggers a retry — a completed execution status is not proof the fix was actually applied", async () => {
+  let originalCallCount = 0;
+  const inner = routedExecutor({});
+  inner.execute = async (_p, _r, toolId, input) => {
+    inner.calls.push({ toolId, input });
+    if (toolId === ORIGINAL_TOOL_ID) {
+      originalCallCount += 1;
+      // A retry here would prove the bug this test exists for — the remedy's `{saved: false}` must
+      // stop this loop before a second call to the original is ever made.
+      if (originalCallCount > 1) throw new Error("the original must NEVER be retried when the remedy reported {saved: false}");
+      return { executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: SET_TOKEN_TOOL_ID }) };
+    }
+    if (toolId === SET_TOKEN_TOOL_ID) return { executionId: "e-remedy", status: "completed", output: { saved: false, reason: "cancelled" } };
+    throw new Error(`unexpected tool '${toolId}'`);
+  };
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executor = withToolFailureRecovery(inner, { surfaceExchanges, registry: fakeRegistry([SET_TOKEN_DESCRIPTOR]) });
+
+  const { pending, emitted } = await runOriginal(executor);
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_FAILURE_RECOVERY_TOOL_ID, principalId: PRINCIPAL.id, params: {} });
+
+  const result = await pending;
+  assert.deepEqual(
+    result,
+    { executionId: "e1", status: "completed", output: authFailureOutput({ remedyToolId: SET_TOKEN_TOOL_ID }) },
+    "the ORIGINAL failure must survive completely untouched — the remedy completed but reported it never actually saved",
+  );
+  assert.deepEqual(
+    inner.calls.map((c) => c.toolId),
+    [ORIGINAL_TOOL_ID, SET_TOKEN_TOOL_ID],
+    "the original must NEVER be retried when the remedy tool's own COMPLETED result reports {saved: false}",
+  );
+});
+
 // ---------------------------------------------------------------------------
 // 5. Never a secret in the remedy call — only what this loop explicitly planned ever reaches it
 // ---------------------------------------------------------------------------

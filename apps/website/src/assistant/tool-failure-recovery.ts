@@ -135,6 +135,22 @@ function isActionableDiagnostic(value: Record<string, unknown>): value is Action
   return typeof value.hint === "string" && value.hint.length > 0 && typeof value.remedyToolId === "string" && value.remedyToolId.length > 0;
 }
 
+/**
+ * Whether a remedy tool's own COMPLETED result reports that it did not actually apply the fix. A
+ * `completed` execution status means only that the remedy tool ran without being denied or throwing —
+ * several human-gated write tools in this codebase report a decline, an expiry, or a validation
+ * failure as a normal `{saved: false, reason, ...}` RESULT rather than a non-completed status (see
+ * `custom_credential_set_token`, `external_mcp_*_save`, and the S3-compatible publish-credential save,
+ * each returning `{saved: true}` on success or `{saved: false, ...}` for every other outcome). This
+ * loop must not read `completed` as `succeeded` for any of them, or it would retry the original call
+ * as if the fix had been applied when it had not.
+ *
+ * @complexity O(1).
+ */
+function remedyReportedFailure(output: unknown): boolean {
+  return isPlainObject(output) && output["saved"] === false;
+}
+
 /** Mutable, explicitly-threaded scan budget for {@link walkForDiagnostic} — a plain object passed down
  *  the recursion rather than a closed-over variable, so the counter is an explicit dependency of the
  *  function that mutates it instead of implicit shared state (see `coding-foundations`). */
@@ -487,6 +503,10 @@ export function withToolFailureRecovery(inner: ToolExecutor, deps: ToolFailureRe
       // The fix itself did not complete (denied, threw, timed out, ...) — nothing changed, so retrying
       // the original would only reproduce the same failure. Return the ORIGINAL result, untouched.
       if (remedyResult.status !== "completed") return result;
+      // The remedy RAN, but its own result says the fix was never actually applied (a declined,
+      // expired, or invalid human-gated write) — see {@link remedyReportedFailure}. "Completed" is not
+      // "succeeded"; retrying here would only reproduce the same failure.
+      if (remedyReportedFailure(remedyResult.output)) return result;
 
       // Retry the ORIGINAL call exactly once, with its exact original input. Whatever this returns —
       // success or a fresh failure — is this wrapper's final answer.
