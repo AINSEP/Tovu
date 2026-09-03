@@ -259,6 +259,27 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
   assert.equal(removeAgainRes.status, 200);
   const removedAgain = (await removeAgainRes.json()) as { data: { status: string } };
   assert.equal(removedAgain.data.status, "unsubscribed");
+
+  // Non-existent subscription -> 404
+  const removeMissingRes = await fetch(`${baseUrl}${base}/lists/${list.id}/subscriptions/missing-sub-id`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(removeMissingRes.status, 404);
+
+  // Wrong listId -> 404
+  const removeWrongListRes = await fetch(`${baseUrl}${base}/lists/other-list-id/subscriptions/${createdSub.data.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(removeWrongListRes.status, 404);
+
+  // Wrong workspaceId -> 404
+  const removeWrongWorkspaceRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-workspace/newsletter/lists/${list.id}/subscriptions/${createdSub.data.id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(removeWrongWorkspaceRes.status, 404);
 });
 
 test("send-log: an empty (never-sent) campaign's send log is a 200 empty array, not a 404/500", async (t) => {
