@@ -28,11 +28,7 @@ export const registerAdminRedirectTombstoneRoute: RedirectRouteRegistrar = (app,
         entityId: id,
       });
       if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.redirects.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.redirects.manage", reason: authResult.reason },
-        });
+        res.status(403).json({ error: `principal '${principal.id}' is not authorized for 'admin.redirects.manage' (${authResult.reason})`, code: "FORBIDDEN", details: { permission: "admin.redirects.manage", reason: authResult.reason } });
         return;
       }
 
