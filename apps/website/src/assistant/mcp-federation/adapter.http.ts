@@ -67,6 +67,31 @@ const SESSION_ID_PATTERN = /^[\x21-\x7e]{1,512}$/;
 /** MCP requires a client to accept both response modes on every request, and the server picks. */
 const ACCEPT_BOTH = "application/json, text/event-stream";
 
+/** Wires `controller` to also abort when `callerSignal` does — including firing immediately if
+ *  `callerSignal` is already aborted by the time this runs. Returns the listener so the caller can
+ *  remove it again once the request settles. Split out of
+ *  {@link McpHttpSession.postWithTimeout} purely to keep that method under the shop complexity
+ *  ceiling; behavior is unchanged. */
+function forwardAbort(controller: AbortController, callerSignal: AbortSignal | undefined): () => void {
+  const onCallerAbort = (): void => controller.abort();
+  callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
+  if (callerSignal?.aborted) controller.abort();
+  return onCallerAbort;
+}
+
+/** Builds the right {@link McpProtocolError} for a failed POST — distinguishing "the caller
+ *  cancelled" from "the request timed out" from "the network/transport itself failed". Split out
+ *  of {@link McpHttpSession.postWithTimeout} purely to keep that method under the shop complexity
+ *  ceiling; behavior (including the exact message text) is unchanged. */
+function buildPostFailureError(params: { error: unknown; timedOut: boolean; callerAborted: boolean; requestTimeoutMs: number }): McpProtocolError {
+  if (params.timedOut) {
+    return new McpProtocolError(
+      params.callerAborted ? "mcp-federation: the request was aborted" : `mcp-federation: the request timed out after ${params.requestTimeoutMs}ms`,
+    );
+  }
+  return new McpProtocolError(`mcp-federation: the request failed — ${params.error instanceof Error ? params.error.message : String(params.error)}`);
+}
+
 /**
  * A connected MCP client session against one hosted server.
  *
@@ -177,22 +202,18 @@ class McpHttpSession implements McpSessionPort {
    */
   private async postWithTimeout(body: string, headers: Record<string, string>, callerSignal?: AbortSignal): Promise<McpHttpResponse> {
     const controller = new AbortController();
-    const onCallerAbort = (): void => controller.abort();
-    callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
-    if (callerSignal?.aborted) controller.abort();
+    const onCallerAbort = forwardAbort(controller, callerSignal);
 
     const timer = setTimeout(() => controller.abort(), this.requestTimeoutMs);
     try {
       return await this.exchange.send({ url: this.spec.url, method: "POST", headers, body, signal: controller.signal });
     } catch (error) {
-      if (controller.signal.aborted) {
-        throw new McpProtocolError(
-          callerSignal?.aborted
-            ? "mcp-federation: the request was aborted"
-            : `mcp-federation: the request timed out after ${this.requestTimeoutMs}ms`,
-        );
-      }
-      throw new McpProtocolError(`mcp-federation: the request failed — ${error instanceof Error ? error.message : String(error)}`);
+      throw buildPostFailureError({
+        error,
+        timedOut: controller.signal.aborted,
+        callerAborted: callerSignal?.aborted === true,
+        requestTimeoutMs: this.requestTimeoutMs,
+      });
     } finally {
       clearTimeout(timer);
       callerSignal?.removeEventListener("abort", onCallerAbort);

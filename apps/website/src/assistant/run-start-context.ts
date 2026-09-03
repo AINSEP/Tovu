@@ -13,6 +13,34 @@
  * real port or being torn down by the daemon's own `EADDRINUSE`/`process.exit()` handling.
  */
 
+/** Requires `value` to be a non-empty string, or throws naming `label` — the shared shape
+ *  `prompt`/`principalId` both need (a malformed value means the run cannot proceed at all).
+ *  Split out of {@link parseRunStartContextRef} purely to keep it under the shop complexity
+ *  ceiling; behavior (including the exact error text) is unchanged. */
+function requireNonEmptyContextField(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error(`contextRef did not decode to a non-empty '${label}'`);
+  }
+  return value;
+}
+
+/** Filters an optional array field down to its non-empty string entries, defaulting to `[]` when
+ *  the field is absent or not an array — the shared shape `attachmentIds` and `pluginRefIds` both
+ *  need, so `onStarted` never has to special-case "the field was omitted" vs. "the field was an
+ *  empty/malformed array". Split out of {@link parseRunStartContextRef} purely to keep it under
+ *  the shop complexity ceiling; behavior is unchanged. */
+function readContextStringArray(value: unknown): readonly string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === "string" && id.length > 0) : [];
+}
+
+/** Reads an optional non-empty string field, silently degrading to `undefined` on any other shape
+ *  — the shared "optional, degrade rather than fail" contract `model`/`reasoning`/
+ *  `conversationId` all follow (see {@link parseRunStartContextRef}'s own doc). Split out purely
+ *  to keep that function under the shop complexity ceiling; behavior is unchanged. */
+function readOptionalContextString(value: unknown): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
 /**
  * Decodes a run's `contextRef` JSON into the fields `onStarted` needs.
  *
@@ -49,40 +77,28 @@ export function parseRunStartContextRef(contextRef: string): {
     pluginRefIds?: unknown;
     conversationId?: unknown;
   };
-  if (typeof parsed.prompt !== "string" || parsed.prompt.length === 0) {
-    throw new Error("contextRef did not decode to a non-empty 'prompt'");
-  }
-  if (typeof parsed.principalId !== "string" || parsed.principalId.length === 0) {
-    throw new Error("contextRef did not decode to a non-empty 'principalId'");
-  }
-  const attachmentIds = Array.isArray(parsed.attachmentIds)
-    ? parsed.attachmentIds.filter((id): id is string => typeof id === "string" && id.length > 0)
-    : [];
-  // Same shape as `attachmentIds` immediately above — filtered to non-empty strings, defaulted to
-  // an empty array rather than `undefined`, so `onStarted` never has to special-case "the field
-  // was omitted" vs. "the field was an empty/malformed array".
-  const pluginRefIds = Array.isArray(parsed.pluginRefIds)
-    ? parsed.pluginRefIds.filter((id): id is string => typeof id === "string" && id.length > 0)
-    : [];
+  const prompt = requireNonEmptyContextField(parsed.prompt, "prompt");
+  const principalId = requireNonEmptyContextField(parsed.principalId, "principalId");
+  const attachmentIds = readContextStringArray(parsed.attachmentIds);
+  const pluginRefIds = readContextStringArray(parsed.pluginRefIds);
+  const model = readOptionalContextString(parsed.model);
+  // The model field's twin, decoded with byte-identical rules: the Execution tab's
+  // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it into
+  // `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that encodes
+  // effort inside the model id (antigravity) never sends this — its level is already part of
+  // `model`.
+  const reasoning = readOptionalContextString(parsed.reasoning);
+  // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
+  // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
+  // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
+  const conversationId = readOptionalContextString(parsed.conversationId);
   return {
-    prompt: parsed.prompt,
-    principalId: parsed.principalId,
+    prompt,
+    principalId,
     attachmentIds,
     pluginRefIds,
-    ...(typeof parsed.model === "string" && parsed.model.length > 0 ? { model: parsed.model } : {}),
-    // The model field's twin, decoded with byte-identical rules: the Execution tab's
-    // "Reasoning effort" pick rides this same envelope so the def's own `buildArgs` can turn it
-    // into `--effort <level>` (claude) or `-c model_reasoning_effort=...` (codex). A runtime that
-    // encodes effort inside the model id (antigravity) never sends this — its level is already
-    // part of `model`.
-    ...(typeof parsed.reasoning === "string" && parsed.reasoning.length > 0
-      ? { reasoning: parsed.reasoning }
-      : {}),
-    // Optional, same "silently degrade to none" convention as `model`/`attachmentIds`/
-    // `pluginRefIds` above: a caller that never sends one (any daemon client other than the admin
-    // chat pane, today) just never gets session-resume behavior, rather than the whole run failing.
-    ...(typeof parsed.conversationId === "string" && parsed.conversationId.length > 0
-      ? { conversationId: parsed.conversationId }
-      : {}),
+    ...(model === undefined ? {} : { model }),
+    ...(reasoning === undefined ? {} : { reasoning }),
+    ...(conversationId === undefined ? {} : { conversationId }),
   };
 }

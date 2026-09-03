@@ -94,7 +94,7 @@ export interface AttachFederatedToolsResult {
  * @complexity O(c · t) in connections and their advertised tools.
  * @overallScore 100
  */
-export async function attachFederatedMcpTools(params: {
+export interface AttachFederatedMcpToolsParams {
   registry: ToolRegistry;
   deps: FederationDeps;
   connections?: readonly ResolvedFederatedConnection[];
@@ -112,14 +112,28 @@ export async function attachFederatedMcpTools(params: {
   connect?: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
   logger?: FederationLogger;
   env?: NodeJS.ProcessEnv;
-}): Promise<AttachFederatedToolsResult> {
+}
+
+/** Resolves the defaulted inputs `attachFederatedMcpTools` needs — `logger`, `connect`, and the
+ *  merged connection list (presets or an injected override, plus any extra roster connections).
+ *  Split out purely to keep that function under the shop complexity ceiling; behavior is
+ *  unchanged. */
+function resolveFederationAttachInputs(params: AttachFederatedMcpToolsParams): {
+  logger: FederationLogger;
+  connect: (connection: ResolvedFederatedConnection) => Promise<McpSessionPort>;
+  connections: readonly ResolvedFederatedConnection[];
+} {
   const logger = params.logger ?? consoleLogger;
   const connect = params.connect ?? defaultConnect;
-
   const connections = [
     ...(params.connections ?? resolveRegisteredPresets(params.env ?? process.env, logger)),
     ...(params.extraConnections ?? []),
   ];
+  return { logger, connect, connections };
+}
+
+export async function attachFederatedMcpTools(params: AttachFederatedMcpToolsParams): Promise<AttachFederatedToolsResult> {
+  const { logger, connect, connections } = resolveFederationAttachInputs(params);
 
   if (connections.length === 0) return { registeredToolIds: [], sessions: [], reports: [] };
 

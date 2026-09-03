@@ -93,6 +93,18 @@ test("new overrides path: a pre-opened db + explicit workspaceId is honored verb
   assert.ok(foundSecond, "a row inserted directly via the original db object after construction must be visible through deps' repo — proving deps and the caller share the identical handle");
 });
 
+test("overrides.themesDir is honored verbatim — the install-dir-relative themes root `tovu serve <dir>` needs, not the process.cwd()-relative default (CR-R01)", () => {
+  const dbPath = mkTempDbPath();
+  const themesDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-deps-themes-override-"));
+  try {
+    const deps = createSqliteRouteDeps(dbPath, { themesDir });
+    assert.equal(deps.themesDir, themesDir, "overrides.themesDir must be honored verbatim, not the process.cwd()-relative siteThemesDir() default");
+  } finally {
+    fs.rmSync(path.dirname(dbPath), { recursive: true, force: true });
+    fs.rmSync(themesDir, { recursive: true, force: true });
+  }
+});
+
 test("overrides.db supplied without overrides.workspaceId -> throws (must be supplied together or not at all)", () => {
   const db = openContentDb(":memory:");
   assert.throws(

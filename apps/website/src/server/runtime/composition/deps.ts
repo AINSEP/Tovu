@@ -529,6 +529,48 @@ function hydrateContentDbIfNeeded(dbPath: string, overrides?: Partial<CreateSqli
 }
 
 /**
+ * 2026-09-03 (complexity pass) — `overrides.themesDir ?? siteThemesDir()`, hoisted out of
+ * `createSqliteRouteDeps` for the same reason {@link assertOverridesPairedOrAbsent} is: one `??`
+ * counted once here, not inline in the composition root.
+ */
+function resolveThemesDirOverride(overrides?: Partial<CreateSqliteRouteDepsOverrides>): string {
+  return overrides?.themesDir ?? siteThemesDir();
+}
+
+/**
+ * 2026-09-03 (complexity pass) — `overrides.db ?? openContentDb(...)`, hoisted for the same reason
+ * {@link assertOverridesPairedOrAbsent} is. When `overrides.db` is supplied (the install-dir
+ * `serve` path), reuse that SAME handle rather than opening/migrating a second db — `bootSiteDir`
+ * has already validated, migrated, and stamped this db before calling here (BR-05/BR-06).
+ */
+function resolveOrOpenContentDb(dbPath: string, overrides?: Partial<CreateSqliteRouteDepsOverrides>): ContentDb {
+  return (
+    overrides?.db ??
+    openContentDb(
+      dbPath,
+      {
+        workspace: seededWorkspace,
+        posts: seededPosts,
+        presentation: seededPresentation,
+      },
+      // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
+      // DDL attempt, before the site opens to end users.
+      recoverIncompleteDataModuleMigrations
+    )
+  );
+}
+
+/**
+ * 2026-09-03 (complexity pass) — `overrides.workspaceId ?? resolveWorkspace({ db }).id`, hoisted
+ * for the same reason {@link assertOverridesPairedOrAbsent} is. CIC U-001 (Workspace-id
+ * single-source-of-truth) still holds: this remains the sole `resolveWorkspace` call site: moving
+ * it into its own function does not add a second one.
+ */
+function resolveWorkspaceIdOverride(db: ContentDb, overrides?: Partial<CreateSqliteRouteDepsOverrides>): string {
+  return overrides?.workspaceId ?? resolveWorkspace({ db }).id;
+}
+
+/**
  * 2026-09-03 production incident recovery hook — opt-in ONLY: a no-op on every ordinary boot,
  * because it does nothing at all unless the operator has explicitly set `TOVU_ADMIN_RESET_PASSWORD`
  * (e.g. as a Fly secret) for this one deploy. That opt-in-via-env-var gate is what makes it safe to
@@ -618,36 +660,22 @@ export function createSqliteRouteDeps(
   // otherwise hand the admin an empty theme list. Deliberately NOT done in `server/app.ts`'s
   // in-memory `createRouteDeps()` — that is the hermetic/test path, and seeding there would copy
   // the whole ~19MB stock tree per test run.
-  const resolvedThemesDir = overrides?.themesDir ?? siteThemesDir();
+  const resolvedThemesDir = resolveThemesDirOverride(overrides);
   seedSiteThemes({ stockDir: builtInThemesDir(), siteThemesDir: resolvedThemesDir });
 
   hydrateContentDbIfNeeded(dbPath, overrides);
 
-  // When `overrides.db` is supplied (the install-dir `serve` path), reuse that SAME handle rather
-  // than opening/migrating a second db — `bootSiteDir` has already validated, migrated, and
-  // stamped this db before calling here (BR-05/BR-06).
-  const db =
-    overrides?.db ??
-    openContentDb(
-      dbPath,
-      {
-        workspace: seededWorkspace,
-        posts: seededPosts,
-        presentation: seededPresentation,
-      },
-      // ADR-023 §2 — mandatory, blocking boot-time recovery for any crash-interrupted dataModule
-      // DDL attempt, before the site opens to end users.
-      recoverIncompleteDataModuleMigrations
-    );
+  const db = resolveOrOpenContentDb(dbPath, overrides);
   // CIC U-001 (Workspace-id single-source-of-truth): ONE resolved variable, reused by every
   // internal construction below that used to read the old seeded-workspace literal directly —
-  // this is the sole `resolveWorkspace` call site in this function (U-001-B1's grep-checkable
-  // invariant: zero remaining literal references outside this line). The legacy default path (no
-  // overrides) resolves it dynamically too (rather than keeping the literal for that branch
+  // this is the sole `resolveWorkspace` call site in this function's call graph
+  // (U-001-B1's grep-checkable invariant: zero remaining literal references outside this line;
+  // {@link resolveWorkspaceIdOverride} is the one place that calls it). The legacy default path
+  // (no overrides) resolves it dynamically too (rather than keeping the literal for that branch
   // only), so both paths share one mechanism instead of two that could drift (REQ-06/REQ-10;
   // every existing seeded fixture has exactly one workspace row, so this is behavior-identical to
   // the old literal for every current caller — see CIC's Design Context).
-  const workspaceId = overrides?.workspaceId ?? resolveWorkspace({ db }).id;
+  const workspaceId = resolveWorkspaceIdOverride(db, overrides);
   // Posts written before migration 0022 existed — and the demo content `openContentDb` seeds
   // directly into `posts`, bypassing `SqlitePostRepo` entirely — have no FTS projection yet, so
   // `content_post_search` would not find them without an edit. Synchronous and unconditional (not

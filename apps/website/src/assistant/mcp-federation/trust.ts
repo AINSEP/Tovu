@@ -327,6 +327,31 @@ function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations,
   return null;
 }
 
+/** Narrows `tool.name` — the one place the "not a string" case degrades to `""` rather than
+ *  throwing, since {@link admitRemoteToolName} rejects the empty-string case immediately after via
+ *  {@link REMOTE_TOOL_NAME_PATTERN}. Shared by {@link classifyRemoteTool} and
+ *  {@link describeRemoteToolSurface}'s mapping — both need the identical narrowing, and
+ *  duplicating it risks the two silently drifting apart on which tools they treat as named. Split
+ *  out purely to keep both under the shop complexity ceiling. */
+function remoteToolName(tool: RemoteToolDescriptor): string {
+  return typeof tool?.name === "string" ? tool.name : "";
+}
+
+/** The three facts {@link RemoteToolSurfaceEntry} derives from a remote tool's raw `annotations` —
+ *  split out of {@link describeRemoteToolSurface}'s mapping purely to keep that arrow function
+ *  under the shop complexity ceiling; behavior is unchanged. */
+function describeRemoteToolHints(annotations: RemoteToolDescriptorAnnotations): {
+  writeDeclared: boolean;
+  destructiveDeclared: boolean;
+  hintsAbsent: boolean;
+} {
+  return {
+    writeDeclared: annotations?.readOnlyHint === false,
+    destructiveDeclared: annotations?.destructiveHint === true,
+    hintsAbsent: annotations === undefined || (annotations.readOnlyHint === undefined && annotations.destructiveHint === undefined),
+  };
+}
+
 function classifyRemoteTool(
   tool: RemoteToolDescriptor,
   config: FederatedMcpConnectionConfig,
@@ -335,7 +360,7 @@ function classifyRemoteTool(
   seen: Set<string>,
   admittedCount: number,
 ): RemoteToolClassification {
-  const remoteName = typeof tool?.name === "string" ? tool.name : "";
+  const remoteName = remoteToolName(tool);
 
   const nameRefusal = admitRemoteToolName(remoteName, seen);
   if (nameRefusal) return { ok: false, remoteName, reason: nameRefusal };
@@ -472,17 +497,14 @@ export function describeRemoteToolSurface(params: {
   const writeAllowed = new Set(config.writeAllowedToolNames);
 
   return classifyRemoteToolSurface(tools, config).map(({ tool, classification }) => {
-    const remoteName = typeof tool?.name === "string" ? tool.name : "";
+    const remoteName = remoteToolName(tool);
     const annotations = tool?.annotations;
-    const hintsAbsent = annotations === undefined || (annotations.readOnlyHint === undefined && annotations.destructiveHint === undefined);
 
     return {
       remoteName,
       description: describeFederatedTool({ label: config.label, remoteName, remoteDescription: tool?.description }),
       declaredAnnotations: annotations,
-      writeDeclared: annotations?.readOnlyHint === false,
-      destructiveDeclared: annotations?.destructiveHint === true,
-      hintsAbsent,
+      ...describeRemoteToolHints(annotations),
       allowlisted: allowed.has(remoteName),
       writeAllowed: writeAllowed.has(remoteName),
       admitted: classification.ok,

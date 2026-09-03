@@ -159,29 +159,53 @@ interface SelectSpec {
   readonly options: ReadonlyArray<{ value: string; label: string }>;
 }
 
-/** Reads one of the two optional select groups out of the raw input, or returns undefined if the
- *  model omitted it entirely. Split out purely to keep `parseAskChoiceInput` under the shop
- *  complexity ceiling; behavior is unchanged. */
-function readSelectSpec(raw: unknown, fieldName: "singleSelect" | "multiSelect"): SelectSpec | undefined {
+/** Narrows one option-array entry to `{ value, label }`, or throws. Split out of
+ *  {@link readSelectSpec} purely to keep it under the shop complexity ceiling — and to make this
+ *  one option's narrowing directly invocable by a test, independent of the array it came from. */
+function readSelectOption(entry: unknown, fieldName: "singleSelect" | "multiSelect"): { value: string; label: string } {
+  const option = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+  const value = typeof option["value"] === "string" ? option["value"] : undefined;
+  const optionLabel = typeof option["label"] === "string" ? option["label"] : undefined;
+  if (!value || !optionLabel) {
+    throw new AskChoiceInputError(`assistant_ask_choice: every '${fieldName}' option requires a string 'value' and 'label'.`);
+  }
+  return { value, label: optionLabel };
+}
+
+/** Narrows the raw `singleSelect`/`multiSelect` value to a plain object, or `undefined` when the
+ *  model omitted the field entirely. Split out of {@link readSelectSpec} purely to keep it under
+ *  the shop complexity ceiling; behavior (including the exact rejection message) is unchanged. */
+function readSelectSpecShape(raw: unknown, fieldName: "singleSelect" | "multiSelect"): Record<string, unknown> | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "object" || raw === null) {
     throw new AskChoiceInputError(`assistant_ask_choice: '${fieldName}' must be an object.`);
   }
-  const spec = raw as Record<string, unknown>;
+  return raw as Record<string, unknown>;
+}
+
+/** Narrows `label` + `options` out of an already-shape-checked select spec, requiring a non-empty
+ *  label and at least one option. Split out of {@link readSelectSpec} purely to keep it under the
+ *  shop complexity ceiling; behavior (including the exact rejection message) is unchanged. */
+function readSelectLabelAndOptions(
+  spec: Record<string, unknown>,
+  fieldName: "singleSelect" | "multiSelect",
+): { label: string; rawOptions: unknown[] } {
   const label = typeof spec["label"] === "string" ? spec["label"] : undefined;
   const rawOptions = Array.isArray(spec["options"]) ? (spec["options"] as unknown[]) : undefined;
   if (!label || !rawOptions || rawOptions.length === 0) {
     throw new AskChoiceInputError(`assistant_ask_choice: '${fieldName}' requires a non-empty 'label' and at least one option.`);
   }
-  const options = rawOptions.map((entry) => {
-    const option = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
-    const value = typeof option["value"] === "string" ? option["value"] : undefined;
-    const optionLabel = typeof option["label"] === "string" ? option["label"] : undefined;
-    if (!value || !optionLabel) {
-      throw new AskChoiceInputError(`assistant_ask_choice: every '${fieldName}' option requires a string 'value' and 'label'.`);
-    }
-    return { value, label: optionLabel };
-  });
+  return { label, rawOptions };
+}
+
+/** Reads one of the two optional select groups out of the raw input, or returns undefined if the
+ *  model omitted it entirely. Split out purely to keep `parseAskChoiceInput` under the shop
+ *  complexity ceiling; behavior is unchanged. */
+function readSelectSpec(raw: unknown, fieldName: "singleSelect" | "multiSelect"): SelectSpec | undefined {
+  const spec = readSelectSpecShape(raw, fieldName);
+  if (spec === undefined) return undefined;
+  const { label, rawOptions } = readSelectLabelAndOptions(spec, fieldName);
+  const options = rawOptions.map((entry) => readSelectOption(entry, fieldName));
   const hint = typeof spec["hint"] === "string" ? spec["hint"] : undefined;
   return { label, ...(hint === undefined ? {} : { hint }), options };
 }
@@ -194,27 +218,43 @@ interface ParsedAskChoiceInput {
   readonly multiSelect?: SelectSpec;
 }
 
-/** Validates the model's call shape before any surface is built — a domain boundary parser in the
- *  same style `content-types` uses, so a rejection here never reaches a `try` around a live call. */
-function parseAskChoiceInput(input: Record<string, unknown>): ParsedAskChoiceInput {
+/** Reads and requires the model's `title` — the one field with no fallback, since a malformed
+ *  value means the call cannot proceed at all. Split out of {@link parseAskChoiceInput} purely to
+ *  keep it under the shop complexity ceiling; behavior (including the exact rejection message) is
+ *  unchanged. */
+function readAskChoiceTitle(input: Record<string, unknown>): string {
   const title = typeof input["title"] === "string" ? input["title"] : undefined;
   if (!title) throw new AskChoiceInputError("assistant_ask_choice: 'title' is required.");
+  return title;
+}
 
+/** Reads both select groups and requires at least one — the pair-level defaulting decision. Split
+ *  out of {@link parseAskChoiceInput} purely to keep it under the shop complexity ceiling;
+ *  behavior (including the exact rejection message) is unchanged. */
+function readAskChoiceSelects(input: Record<string, unknown>): { singleSelect?: SelectSpec; multiSelect?: SelectSpec } {
   const singleSelect = readSelectSpec(input["singleSelect"], "singleSelect");
   const multiSelect = readSelectSpec(input["multiSelect"], "multiSelect");
   if (!singleSelect && !multiSelect) {
     throw new AskChoiceInputError("assistant_ask_choice: at least one of 'singleSelect' or 'multiSelect' is required.");
   }
+  return { ...(singleSelect === undefined ? {} : { singleSelect }), ...(multiSelect === undefined ? {} : { multiSelect }) };
+}
 
+/** Reads the two plain optional string fields. Split out of {@link parseAskChoiceInput} purely to
+ *  keep it under the shop complexity ceiling; behavior is unchanged. */
+function readAskChoiceOptionalStrings(input: Record<string, unknown>): { description?: string; submitLabel?: string } {
   const description = typeof input["description"] === "string" ? input["description"] : undefined;
   const submitLabel = typeof input["submitLabel"] === "string" ? input["submitLabel"] : undefined;
-  return {
-    title,
-    ...(description === undefined ? {} : { description }),
-    ...(submitLabel === undefined ? {} : { submitLabel }),
-    ...(singleSelect === undefined ? {} : { singleSelect }),
-    ...(multiSelect === undefined ? {} : { multiSelect }),
-  };
+  return { ...(description === undefined ? {} : { description }), ...(submitLabel === undefined ? {} : { submitLabel }) };
+}
+
+/** Validates the model's call shape before any surface is built — a domain boundary parser in the
+ *  same style `content-types` uses, so a rejection here never reaches a `try` around a live call. */
+function parseAskChoiceInput(input: Record<string, unknown>): ParsedAskChoiceInput {
+  const title = readAskChoiceTitle(input);
+  const optionalStrings = readAskChoiceOptionalStrings(input);
+  const selects = readAskChoiceSelects(input);
+  return { title, ...optionalStrings, ...selects };
 }
 
 /** Builds the field list `buildFormSurface` renders, from the model's parsed input. */

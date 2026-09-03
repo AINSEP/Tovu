@@ -605,6 +605,18 @@ test("with no configuration, the daemon boots exactly as it did before federatio
   assert.equal(registry.registered.length, 0);
 });
 
+test("omitting `env` reads the real process.env, not just the explicit `env: {}` every other test here supplies", async () => {
+  const registry = fakeRegistry(["database_get_health"]);
+  // No `connections` and no `env` — forces both the preset-resolution path AND its `process.env`
+  // default, distinct from the `env: {}` override every other test in this file supplies (which
+  // takes the OTHER side of the `??`). No real vendor preset is configured in this sandbox's
+  // actual process.env, so the outcome is the same as the explicit-`{}` case above.
+  const result = await attachFederatedMcpTools({ registry, deps: fakeDeps().deps });
+
+  assert.deepEqual(result.registeredToolIds, []);
+  assert.equal(registry.registered.length, 0);
+});
+
 test("a configured connection registers its admitted tools into the daemon's registry", async () => {
   const registry = fakeRegistry(["database_get_health"]);
   const { messages, logger } = collectingLogger();

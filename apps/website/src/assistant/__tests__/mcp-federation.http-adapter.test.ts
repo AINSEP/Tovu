@@ -367,6 +367,46 @@ test("a caller's own abort signal cancels the call, and is reported as an abort 
   await assert.rejects(pending, /the request was aborted/);
 });
 
+test("a signal that is already aborted before the call starts aborts it immediately, without waiting for a later abort event", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => (request.message?.method === "tools/call" ? undefined : politeServer()(request)),
+  });
+  const session = await connect(exchange, 5_000);
+
+  const controller = new AbortController();
+  controller.abort();
+  const pending = session.callTool({ name: "generate_image", arguments: {}, signal: controller.signal });
+
+  await assert.rejects(pending, /the request was aborted/);
+});
+
+test("a raw transport failure (not a timeout or an abort) is reported as a request failure, carrying the underlying Error's message", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => {
+      if (request.message?.method === "tools/list") throw new Error("ECONNREFUSED: connection refused");
+      return politeServer()(request);
+    },
+  });
+  const session = await connect(exchange, 5_000);
+
+  await assert.rejects(session.listTools(), /the request failed — ECONNREFUSED: connection refused/);
+});
+
+test("a raw transport failure that throws a non-Error value still produces a readable message, via String()", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: a hostile or
+      // broken transport is not obligated to reject with a real Error, and this is exactly the
+      // non-Error shape `buildPostFailureError`'s `String(error)` fallback exists to handle.
+      if (request.message?.method === "tools/list") throw "raw-transport-failure";
+      return politeServer()(request);
+    },
+  });
+  const session = await connect(exchange, 5_000);
+
+  await assert.rejects(session.listTools(), /the request failed — raw-transport-failure/);
+});
+
 // ---------------------------------------------------------------------------
 // Shutdown
 // ---------------------------------------------------------------------------
@@ -390,6 +430,34 @@ test("a server that refuses the shutdown DELETE does not make close throw", asyn
 
   // The spec explicitly allows a server to refuse session termination. Tidying up must not throw.
   await session.close();
+});
+
+test("close does not throw when the DELETE fails at the transport level, not just with a refusal status", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => {
+      if (request.method === "DELETE") throw new Error("network down");
+      return politeServer()(request);
+    },
+  });
+  const session = await connect(exchange);
+
+  await assert.doesNotReject(session.close());
+});
+
+test("a failed handshake that already had a session id issued still cleans it up, even when the cleanup DELETE itself fails", async () => {
+  const exchange = new ScriptedMcpHttpExchange({
+    respond: (request) => {
+      if (request.method === "DELETE") throw new Error("network down");
+      if (request.message?.method === "initialize") {
+        return { body: { jsonrpc: "2.0", id: request.message.id, error: { code: -32000, message: "no" } }, sessionId: "sess-doomed" };
+      }
+      return politeServer()(request);
+    },
+  });
+
+  // The original handshake failure must win — a failed best-effort cleanup must not replace or
+  // swallow it.
+  await assert.rejects(connect(exchange), /remote returned JSON-RPC error -32000: no/);
 });
 
 test("a closed session refuses further calls instead of reopening one", async () => {
