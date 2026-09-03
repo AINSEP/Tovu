@@ -47,6 +47,47 @@ export interface NormalizedTarget {
 const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
 
 /**
+ * Rejects forbidden raw characters, then parses with the WHATWG `URL` parser. Any parser throw is
+ * a parse failure. Split out of {@link normalizeOriginCandidate} purely to keep that function's own
+ * complexity below the repo's gate — the check, its order, and its meaning are unchanged.
+ *
+ * @returns The parsed `URL`, or `null` if `rawUrl` fails either check. Never throws.
+ * @complexity O(n) in the length of `rawUrl` (parser-bound), O(1) space.
+ */
+function parseCandidateUrl(rawUrl: string): URL | null {
+  if (typeof rawUrl !== "string" || rawUrl.length === 0) return null;
+  if (FORBIDDEN_RAW_CHARS.test(rawUrl)) return null;
+  try {
+    return new URL(rawUrl);
+  } catch {
+    return null;
+  }
+}
+
+/** Narrows a parsed URL's protocol to the two schemes this oracle ever accepts, or `null`. */
+function schemeOf(parsed: URL): "https" | "http" | null {
+  if (parsed.protocol === "https:") return "https";
+  if (parsed.protocol === "http:") return "http";
+  return null;
+}
+
+function defaultPortFor(scheme: "https" | "http"): number {
+  return scheme === "https" ? 443 : 80;
+}
+
+/**
+ * Resolves the candidate's effective port: the explicit port if one was given, else the scheme's
+ * default (443 for `https`, 80 for `http`).
+ *
+ * @returns The port, or `null` if it is not a positive integer.
+ */
+function resolvePort(parsed: URL, scheme: "https" | "http"): number | null {
+  const port = parsed.port ? Number(parsed.port) : defaultPortFor(scheme);
+  if (!Number.isInteger(port) || port <= 0) return null;
+  return port;
+}
+
+/**
  * Parse and normalize a candidate redirect/egress URL per ADR-040 F3.
  *
  * Pipeline: reject forbidden raw characters -> parse with the WHATWG `URL`
@@ -66,25 +107,19 @@ const FORBIDDEN_RAW_CHARS = /[\\\s\x00-\x1F\x7F]/;
  * @overallScore 100/100
  */
 export function normalizeOriginCandidate(rawUrl: string): NormalizedTarget | null {
-  if (typeof rawUrl !== "string" || rawUrl.length === 0) return null;
-  if (FORBIDDEN_RAW_CHARS.test(rawUrl)) return null;
+  const parsed = parseCandidateUrl(rawUrl);
+  if (!parsed) return null;
 
-  let parsed: URL;
-  try {
-    parsed = new URL(rawUrl);
-  } catch {
-    return null;
-  }
+  const scheme = schemeOf(parsed);
+  if (!scheme) return null;
 
-  if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return null;
   if (parsed.username !== "" || parsed.password !== "") return null;
 
   const host = stripTrailingDot(parsed.hostname.toLowerCase());
   if (!host) return null;
 
-  const scheme: "https" | "http" = parsed.protocol === "https:" ? "https" : "http";
-  const port = parsed.port ? Number(parsed.port) : scheme === "https" ? 443 : 80;
-  if (!Number.isInteger(port) || port <= 0) return null;
+  const port = resolvePort(parsed, scheme);
+  if (port === null) return null;
 
   return { scheme, host, port };
 }

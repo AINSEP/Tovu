@@ -54,23 +54,15 @@ export type NormalizeSitePathResult =
   | { readonly ok: false; readonly reason: SitePathRejectionReason; readonly message: string };
 
 /**
- * Normalizes one caller-supplied site-relative path, or explains why it is not one.
+ * The syntactic rejections that only need the trimmed raw string — every one of these fires before
+ * a fragment is ever stripped or a leading slash ever added. Split out of {@link normalizeSitePath}
+ * purely to keep that function's own complexity below the repo's gate; the checks, their order, and
+ * every message are unchanged.
  *
- * Accepts a leading-slash path with an optional query string (`/pricing`, `/blog/post?draft=1`).
- * A missing leading slash is added rather than rejected — `pricing` is an unambiguous typo for
- * `/pricing`, and there is no authority it could be confused with once every other form below is
- * already refused.
- *
- * A fragment is stripped: it never reaches the server, so it cannot change what is observed, and
- * keeping it would make two citations of the same evidence look like different pages.
- *
- * @throws Nothing — every rejection is returned, matching this codebase's convention for expected
- * validation outcomes (`agent-plugins/manifest.ts`, `plugin-runtime/discovery.ts`).
+ * @returns The rejection, or `null` if `trimmed` passes every syntactic check.
  * @complexity O(n) in the path's own length.
  */
-export function normalizeSitePath(raw: string): NormalizeSitePathResult {
-  const trimmed = raw.trim();
-
+function rejectionForRawPath(trimmed: string): NormalizeSitePathResult | null {
   if (trimmed.length === 0) return reject("empty", "path is empty");
   if (trimmed.length > MAX_PATH_LENGTH) {
     return reject("too-long", `path is ${trimmed.length} characters, over the ${MAX_PATH_LENGTH}-character cap`);
@@ -90,11 +82,36 @@ export function normalizeSitePath(raw: string): NormalizeSitePathResult {
   if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(trimmed)) {
     return reject("absolute-url", "path is an absolute URL; this tool accepts site-relative paths only and never fetches another origin");
   }
+  return null;
+}
+
+/**
+ * Normalizes one caller-supplied site-relative path, or explains why it is not one.
+ *
+ * Accepts a leading-slash path with an optional query string (`/pricing`, `/blog/post?draft=1`).
+ * A missing leading slash is added rather than rejected — `pricing` is an unambiguous typo for
+ * `/pricing`, and there is no authority it could be confused with once every other form below is
+ * already refused.
+ *
+ * A fragment is stripped: it never reaches the server, so it cannot change what is observed, and
+ * keeping it would make two citations of the same evidence look like different pages.
+ *
+ * @throws Nothing — every rejection is returned, matching this codebase's convention for expected
+ * validation outcomes (`agent-plugins/manifest.ts`, `plugin-runtime/discovery.ts`).
+ * @complexity O(n) in the path's own length.
+ */
+export function normalizeSitePath(raw: string): NormalizeSitePathResult {
+  const trimmed = raw.trim();
+
+  const syntaxRejection = rejectionForRawPath(trimmed);
+  if (syntaxRejection) return syntaxRejection;
 
   const withoutFragment = trimmed.split("#", 1)[0] as string;
+  // Always non-empty and always leading-slash by construction (either `withoutFragment` already
+  // started with "/", or one was just prepended) — `rejectionForRawPath` has already refused the
+  // only two raw forms that could make this empty (the empty string and a `//`-prefixed one).
   const absolute = withoutFragment.startsWith("/") ? withoutFragment : `/${withoutFragment}`;
 
-  if (absolute.length === 0) return reject("empty", "path is empty once its fragment is removed");
   // Refused rather than resolved. Resolving would be safe (the join below is `new URL`-based and
   // cannot escape the origin), but a `..` in a caller-supplied path means the caller believes it is
   // somewhere it is not, and silently rewriting it would produce evidence cited against a path
@@ -102,7 +119,6 @@ export function normalizeSitePath(raw: string): NormalizeSitePathResult {
   if (absolute.split("/").includes("..")) {
     return reject("traversal", "path contains a '..' segment; give the resolved path instead");
   }
-  if (!absolute.startsWith("/")) return reject("not-absolute-path", "path is not absolute");
 
   return { ok: true, path: absolute };
 }

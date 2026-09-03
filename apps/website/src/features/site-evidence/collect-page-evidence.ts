@@ -50,6 +50,7 @@ import type {
   ObservationPhase,
   PageObservation,
   SiteEvidenceBrowserFactory,
+  SiteEvidenceBrowserPort,
 } from "./browser-port.js";
 import { isSameOriginUrl, normalizeSitePath, resolveSameOriginUrl, verifiedOriginToBaseUrl } from "./same-origin.js";
 
@@ -205,42 +206,12 @@ export async function collectPageEvidence(
         continue;
       }
 
-      const url = resolveSameOriginUrl(originBaseUrl, path);
-      const result = await availability.browser.observe({
-        url,
-        originBaseUrl,
-        ...(input.consentAcceptSelector !== undefined ? { consentAcceptSelector: input.consentAcceptSelector } : {}),
-        collectAccessibility: input.collectAccessibility ?? true,
-        timeoutMs: SITE_EVIDENCE_LIMITS.maxPageLoadMs,
-        maxTextExcerptChars: SITE_EVIDENCE_LIMITS.maxTextExcerptChars,
-        maxCookies: SITE_EVIDENCE_LIMITS.maxCookies,
-        maxRequests: SITE_EVIDENCE_LIMITS.maxRequests,
-        maxAccessibilityNodesPerCategory: SITE_EVIDENCE_LIMITS.maxAccessibilityNodesPerCategory,
-        maxContrastSamples: SITE_EVIDENCE_LIMITS.maxContrastSamples,
-      });
-
-      if (!result.ok) {
-        runtimeSkipped.push(skip(path, "navigation-failed", result.reason));
-        continue;
+      const outcome = await observeOnePage(availability.browser, originBaseUrl, path, input);
+      if (outcome.kind === "skipped") {
+        runtimeSkipped.push(outcome.skipped);
+      } else {
+        pages.push(outcome.page);
       }
-
-      // Second same-origin layer (`same-origin.ts`'s header, layer 2): the path could not name
-      // another origin, but the SERVER can redirect to one. A page that left the origin is reported
-      // as evidence of the redirect and its content is discarded — this tool does not inspect
-      // anybody else's site, including one this site chose to point at.
-      const finalUrl = result.observation.document.finalUrl;
-      if (!isSameOriginUrl(originBaseUrl, finalUrl)) {
-        runtimeSkipped.push(
-          skip(
-            path,
-            "off-origin-redirect",
-            `redirected off this site's origin to '${redactToOrigin(finalUrl)}' — not inspected; this tool only observes ${originBaseUrl}`,
-          ),
-        );
-        continue;
-      }
-
-      pages.push({ path, url, observation: result.observation });
     }
   } finally {
     await availability.browser.close();
@@ -257,6 +228,61 @@ export async function collectPageEvidence(
     skipped: [...skipped, ...runtimeSkipped],
     disclaimer: SITE_EVIDENCE_DISCLAIMER,
   };
+}
+
+type ObserveOnePageOutcome =
+  | { readonly kind: "skipped"; readonly skipped: SkippedPage }
+  | { readonly kind: "observed"; readonly page: PageEvidence };
+
+/**
+ * Resolves, loads, and validates exactly one requested page. Split out of
+ * {@link collectPageEvidence} purely to keep that function's own cognitive complexity below the
+ * repo's gate — the request shape, the failure handling, and the second same-origin check
+ * (`same-origin.ts`'s header, layer 2) are unchanged.
+ *
+ * @complexity O(1) plus one browser page load.
+ */
+async function observeOnePage(
+  browser: SiteEvidenceBrowserPort,
+  originBaseUrl: string,
+  path: string,
+  input: CollectPageEvidenceInput,
+): Promise<ObserveOnePageOutcome> {
+  const url = resolveSameOriginUrl(originBaseUrl, path);
+  const result = await browser.observe({
+    url,
+    originBaseUrl,
+    ...(input.consentAcceptSelector !== undefined ? { consentAcceptSelector: input.consentAcceptSelector } : {}),
+    collectAccessibility: input.collectAccessibility ?? true,
+    timeoutMs: SITE_EVIDENCE_LIMITS.maxPageLoadMs,
+    maxTextExcerptChars: SITE_EVIDENCE_LIMITS.maxTextExcerptChars,
+    maxCookies: SITE_EVIDENCE_LIMITS.maxCookies,
+    maxRequests: SITE_EVIDENCE_LIMITS.maxRequests,
+    maxAccessibilityNodesPerCategory: SITE_EVIDENCE_LIMITS.maxAccessibilityNodesPerCategory,
+    maxContrastSamples: SITE_EVIDENCE_LIMITS.maxContrastSamples,
+  });
+
+  if (!result.ok) {
+    return { kind: "skipped", skipped: skip(path, "navigation-failed", result.reason) };
+  }
+
+  // Second same-origin layer (`same-origin.ts`'s header, layer 2): the path could not name
+  // another origin, but the SERVER can redirect to one. A page that left the origin is reported
+  // as evidence of the redirect and its content is discarded — this tool does not inspect
+  // anybody else's site, including one this site chose to point at.
+  const finalUrl = result.observation.document.finalUrl;
+  if (!isSameOriginUrl(originBaseUrl, finalUrl)) {
+    return {
+      kind: "skipped",
+      skipped: skip(
+        path,
+        "off-origin-redirect",
+        `redirected off this site's origin to '${redactToOrigin(finalUrl)}' — not inspected; this tool only observes ${originBaseUrl}`,
+      ),
+    };
+  }
+
+  return { kind: "observed", page: { path, url, observation: result.observation } };
 }
 
 /**

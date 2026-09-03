@@ -185,6 +185,93 @@ function assertNoTraversalSegment(pathOnly: string, raw: string): void {
 }
 
 /**
+ * The syntactic rejections that operate on the raw caller value, before any URL parsing happens.
+ * Split out of {@link resolveSameOriginPath} purely to keep that function's own complexity below
+ * the repo's gate — the checks, their order, and every message are unchanged.
+ *
+ * @throws {PublishedPagePathError} On the first rule `raw` fails.
+ * @returns `raw`, narrowed to `string`, once every rule has passed.
+ */
+function assertRawPathShape(raw: unknown): string {
+  if (typeof raw !== "string" || raw.length === 0) {
+    throw new PublishedPagePathError("path must be a non-empty string, e.g. '/' or '/blog/hello'.");
+  }
+  if (raw.length > MAX_PATH_LENGTH) {
+    throw new PublishedPagePathError(`path must be at most ${MAX_PATH_LENGTH} characters, got ${raw.length}.`);
+  }
+  if (!raw.startsWith("/")) {
+    throw new PublishedPagePathError(
+      `path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got '${raw}'.`,
+    );
+  }
+  if (raw.startsWith("//")) {
+    throw new PublishedPagePathError(
+      "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches.",
+    );
+  }
+  if (raw.includes("\\")) {
+    throw new PublishedPagePathError("path must not contain a backslash — URL parsers treat '\\' as '/'.");
+  }
+  if (hasControlCharacter(raw)) {
+    throw new PublishedPagePathError("path must not contain control characters (including CR/LF).");
+  }
+  // BEFORE `new URL()`, because the URL parser RESOLVES `..` away rather than reporting it:
+  // `new URL("/a/../../etc/passwd", base).pathname` is already `/etc/passwd`, so a check on the
+  // parsed pathname sees nothing to reject. Silent normalization is exactly the "rewrite rather
+  // than refuse" behavior this validator must not have — a caller that wrote `..` gets told so.
+  assertNoTraversalSegment(raw.split("?")[0] ?? "", raw);
+  return raw;
+}
+
+/**
+ * Parses `raw` against `base` and asserts the result stayed on `base`'s origin. Split out of
+ * {@link resolveSameOriginPath} purely to keep that function's own complexity below the repo's
+ * gate — the structural same-origin assertion itself is unchanged.
+ *
+ * @throws {PublishedPagePathError} If `raw` does not parse, or parses off-origin.
+ */
+function resolveWithinOrigin(raw: string, base: string): URL {
+  const baseUrl = new URL(base);
+  let resolved: URL;
+  try {
+    resolved = new URL(raw, baseUrl);
+  } catch {
+    throw new PublishedPagePathError(`path is not a valid URL path: '${raw}'.`);
+  }
+  if (resolved.origin !== baseUrl.origin) {
+    throw new PublishedPagePathError(
+      `path resolved off-origin (to '${resolved.origin}') — this tool only fetches routes on this site.`,
+    );
+  }
+  return resolved;
+}
+
+/**
+ * Decodes the resolved pathname once and asserts it carries none of the forms
+ * {@link resolveSameOriginPath}'s own doc refuses. Split out purely to keep that function's own
+ * complexity below the repo's gate — the decode-once rule and every check are unchanged.
+ *
+ * @throws {PublishedPagePathError} On a malformed encoding, a decoded backslash/control character,
+ * or a decoded path under `/api/`.
+ */
+function assertNoDisallowedDecodedForm(resolved: URL, raw: string): void {
+  let decodedPathname: string;
+  try {
+    decodedPathname = decodeURIComponent(resolved.pathname);
+  } catch {
+    throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
+  }
+  if (decodedPathname.includes("\\") || hasControlCharacter(decodedPathname)) {
+    throw new PublishedPagePathError("path decodes to a backslash or control character, which is refused.");
+  }
+  if (decodedPathname.toLowerCase().startsWith("/api/")) {
+    throw new PublishedPagePathError(
+      "path must not target '/api/' — that is the authenticated admin/API surface, not a published page.",
+    );
+  }
+}
+
+/**
  * Validates and canonicalizes a caller-supplied site path against the loopback origin this module
  * minted, following canonicalize-then-validate order.
  *
@@ -220,62 +307,9 @@ function assertNoTraversalSegment(pathOnly: string, raw: string): void {
  * @example resolveSameOriginPath("/blog/hello", "http://127.0.0.1:53142"); // => "/blog/hello"
  */
 export function resolveSameOriginPath(raw: unknown, base: string): string {
-  if (typeof raw !== "string" || raw.length === 0) {
-    throw new PublishedPagePathError("path must be a non-empty string, e.g. '/' or '/blog/hello'.");
-  }
-  if (raw.length > MAX_PATH_LENGTH) {
-    throw new PublishedPagePathError(`path must be at most ${MAX_PATH_LENGTH} characters, got ${raw.length}.`);
-  }
-  if (!raw.startsWith("/")) {
-    throw new PublishedPagePathError(
-      `path must start with '/' — this tool fetches a route on THIS site and never accepts a full URL or a remote host. Got '${raw}'.`,
-    );
-  }
-  if (raw.startsWith("//")) {
-    throw new PublishedPagePathError(
-      "path must not start with '//' — a protocol-relative path resolves to a different host, which this tool never fetches.",
-    );
-  }
-  if (raw.includes("\\")) {
-    throw new PublishedPagePathError("path must not contain a backslash — URL parsers treat '\\' as '/'.");
-  }
-  if (hasControlCharacter(raw)) {
-    throw new PublishedPagePathError("path must not contain control characters (including CR/LF).");
-  }
-  // BEFORE `new URL()`, because the URL parser RESOLVES `..` away rather than reporting it:
-  // `new URL("/a/../../etc/passwd", base).pathname` is already `/etc/passwd`, so a check on the
-  // parsed pathname sees nothing to reject. Silent normalization is exactly the "rewrite rather
-  // than refuse" behavior this validator must not have — a caller that wrote `..` gets told so.
-  assertNoTraversalSegment(raw.split("?")[0] ?? "", raw);
-
-  const baseUrl = new URL(base);
-  let resolved: URL;
-  try {
-    resolved = new URL(raw, baseUrl);
-  } catch {
-    throw new PublishedPagePathError(`path is not a valid URL path: '${raw}'.`);
-  }
-  if (resolved.origin !== baseUrl.origin) {
-    throw new PublishedPagePathError(
-      `path resolved off-origin (to '${resolved.origin}') — this tool only fetches routes on this site.`,
-    );
-  }
-
-  let decodedPathname: string;
-  try {
-    decodedPathname = decodeURIComponent(resolved.pathname);
-  } catch {
-    throw new PublishedPagePathError(`path contains a malformed percent-encoding: '${raw}'.`);
-  }
-  if (decodedPathname.includes("\\") || hasControlCharacter(decodedPathname)) {
-    throw new PublishedPagePathError("path decodes to a backslash or control character, which is refused.");
-  }
-  if (decodedPathname.toLowerCase().startsWith("/api/")) {
-    throw new PublishedPagePathError(
-      "path must not target '/api/' — that is the authenticated admin/API surface, not a published page.",
-    );
-  }
-
+  const path = assertRawPathShape(raw);
+  const resolved = resolveWithinOrigin(path, base);
+  assertNoDisallowedDecodedForm(resolved, path);
   return `${resolved.pathname}${resolved.search}`;
 }
 

@@ -55,6 +55,23 @@ export interface PageStructureCapture {
 export function collectPageStructure(limits: PageStructureLimits): PageStructureCapture {
   const truncated: string[] = [];
 
+  /** Whether `current` should end the selector walk, and if so, the segment to use: `html`/`body`
+   *  by tag, or any ancestor's own `id`. Nested (not module-scope) alongside every other helper here
+   *  — see this file's header for why that is not optional. */
+  function terminalSegment(current: Element): string | null {
+    const tag = current.tagName.toLowerCase();
+    if (tag === "html" || tag === "body") return tag;
+    if (current.id) return `#${CSS.escape(current.id)}`;
+    return null;
+  }
+
+  /** The `tag` or `tag:nth-of-type(n)` segment for `current` among its siblings under `parent`. */
+  function siblingSegment(current: Element, parent: Element): string {
+    const tag = current.tagName.toLowerCase();
+    const siblings = Array.from(parent.children).filter((child) => child.tagName === current.tagName);
+    return siblings.length > 1 ? `${tag}:nth-of-type(${siblings.indexOf(current) + 1})` : tag;
+  }
+
   /** A short, re-checkable CSS path for one element. Prefers an `id` (stable and readable), then a
    *  bounded `nth-of-type` chain. The path is a CITATION — a human must be able to paste it into
    *  devtools and land on the same element — so readability beats theoretical uniqueness. */
@@ -65,23 +82,17 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     let current: Element | null = element;
     let depth = 0;
     while (current && current.nodeType === 1 && depth < 5) {
-      const tag = current.tagName.toLowerCase();
-      if (tag === "html" || tag === "body") {
-        parts.unshift(tag);
+      const terminal = terminalSegment(current);
+      if (terminal !== null) {
+        parts.unshift(terminal);
         break;
       }
-      if (current.id) {
-        parts.unshift(`#${CSS.escape(current.id)}`);
-        break;
-      }
-      const parent: Element | null = current.parentElement;
+      const parent = current.parentElement;
       if (!parent) {
-        parts.unshift(tag);
+        parts.unshift(current.tagName.toLowerCase());
         break;
       }
-      const self: Element = current;
-      const siblings = Array.from(parent.children).filter((child) => child.tagName === self.tagName);
-      parts.unshift(siblings.length > 1 ? `${tag}:nth-of-type(${siblings.indexOf(self) + 1})` : tag);
+      parts.unshift(siblingSegment(current, parent));
       current = parent;
       depth += 1;
     }
@@ -93,38 +104,59 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     return raw.length > max ? `${raw.slice(0, max)}…` : raw;
   }
 
-  function accessibleNameOf(element: Element): { name: string | null; source: string } {
+  // Each of the following is one accessible-name STRATEGY, tried in the order the accessible-name
+  // computation spec prefers: `aria-label`, then `aria-labelledby`, then an explicit `<label for>`,
+  // then a wrapping `<label>`, then `title`. Each returns `null` to fall through to the next; the
+  // order and every reject/accept condition are unchanged from the pre-split function.
+  function accessibleNameFromAriaLabel(element: Element): { name: string; source: string } | null {
     const ariaLabel = element.getAttribute("aria-label");
-    if (ariaLabel?.trim()) return { name: ariaLabel.trim(), source: "aria-label" };
+    return ariaLabel?.trim() ? { name: ariaLabel.trim(), source: "aria-label" } : null;
+  }
 
+  function accessibleNameFromAriaLabelledBy(element: Element): { name: string; source: string } | null {
     const labelledBy = element.getAttribute("aria-labelledby");
-    if (labelledBy) {
-      const names = labelledBy
-        .split(/\s+/)
-        .map((id) => document.getElementById(id))
-        .filter((node): node is HTMLElement => node !== null)
-        .map((node) => textOf(node, 120))
-        .filter((value) => value.length > 0);
-      if (names.length > 0) return { name: names.join(" "), source: "aria-labelledby" };
-    }
+    if (!labelledBy) return null;
+    const names = labelledBy
+      .split(/\s+/)
+      .map((id) => document.getElementById(id))
+      .filter((node): node is HTMLElement => node !== null)
+      .map((node) => textOf(node, 120))
+      .filter((value) => value.length > 0);
+    return names.length > 0 ? { name: names.join(" "), source: "aria-labelledby" } : null;
+  }
 
-    if (element.id) {
-      const forLabel = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
-      if (forLabel) {
-        const value = textOf(forLabel, 120);
-        if (value) return { name: value, source: "label-for" };
-      }
-    }
+  function accessibleNameFromLabelFor(element: Element): { name: string; source: string } | null {
+    if (!element.id) return null;
+    const forLabel = document.querySelector(`label[for="${CSS.escape(element.id)}"]`);
+    if (!forLabel) return null;
+    const value = textOf(forLabel, 120);
+    return value ? { name: value, source: "label-for" } : null;
+  }
 
+  function accessibleNameFromLabelWrap(element: Element): { name: string; source: string } | null {
     const wrapping = element.closest("label");
-    if (wrapping) {
-      const value = textOf(wrapping, 120);
-      if (value) return { name: value, source: "label-wrap" };
-    }
+    if (!wrapping) return null;
+    const value = textOf(wrapping, 120);
+    return value ? { name: value, source: "label-wrap" } : null;
+  }
 
+  function accessibleNameFromTitle(element: Element): { name: string; source: string } | null {
     const title = element.getAttribute("title");
-    if (title?.trim()) return { name: title.trim(), source: "title" };
+    return title?.trim() ? { name: title.trim(), source: "title" } : null;
+  }
 
+  function accessibleNameOf(element: Element): { name: string | null; source: string } {
+    const strategies = [
+      accessibleNameFromAriaLabel,
+      accessibleNameFromAriaLabelledBy,
+      accessibleNameFromLabelFor,
+      accessibleNameFromLabelWrap,
+      accessibleNameFromTitle,
+    ];
+    for (const strategy of strategies) {
+      const found = strategy(element);
+      if (found) return found;
+    }
     return { name: null, source: "none" };
   }
 
@@ -253,49 +285,68 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
     return "rgb(255, 255, 255)";
   }
 
-  function collectContrastSamples() {
-    const out: {
-      selector: string;
-      foreground: string;
-      background: string;
-      ratio: number;
-      fontSizePx: number;
-      fontWeight: number;
-    }[] = [];
+  const CONTRAST_CANDIDATE_SELECTOR = "p,li,a,button,h1,h2,h3,h4,h5,h6,label,span,td,th";
 
-    const candidates = Array.from(document.querySelectorAll("p,li,a,button,h1,h2,h3,h4,h5,h6,label,span,td,th"));
+  type ContrastSample = {
+    selector: string;
+    foreground: string;
+    background: string;
+    ratio: number;
+    fontSizePx: number;
+    fontWeight: number;
+  };
+
+  /** Only leaf-ish text with real content: a wrapper repeats its children's colours and would crowd
+   *  the sample set with duplicates of the same real pair. */
+  function hasOwnSampleableText(element: Element): boolean {
+    const text = (element.textContent ?? "").trim();
+    if (text.length === 0) return false;
+    return !element.querySelector(CONTRAST_CANDIDATE_SELECTOR);
+  }
+
+  function isRenderedVisible(style: CSSStyleDeclaration): boolean {
+    return style.visibility !== "hidden" && style.display !== "none";
+  }
+
+  /** Computes one contrast sample for an element already known to be sampleable and visible, or
+   *  `null` when its colours cannot be parsed. */
+  function contrastSampleFor(element: Element, style: CSSStyleDeclaration): ContrastSample | null {
+    const foreground = style.color;
+    const background = effectiveBackground(element);
+    const fg = parseColor(foreground);
+    const bg = parseColor(background);
+    if (!fg || !bg) return null;
+
+    const l1 = relativeLuminance(fg);
+    const l2 = relativeLuminance(bg);
+    const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+
+    return {
+      selector: selectorFor(element),
+      foreground,
+      background,
+      ratio: Math.round(ratio * 100) / 100,
+      fontSizePx: Math.round(parseFloat(style.fontSize) * 10) / 10,
+      fontWeight: Number(style.fontWeight) || 400,
+    };
+  }
+
+  function collectContrastSamples() {
+    const out: ContrastSample[] = [];
+
+    const candidates = Array.from(document.querySelectorAll(CONTRAST_CANDIDATE_SELECTOR));
     for (const element of candidates) {
       if (out.length >= limits.maxContrastSamples) {
         truncated.push("contrastSamples");
         break;
       }
-      const text = (element.textContent ?? "").trim();
-      if (text.length === 0) continue;
-      // Only leaf-ish text: a wrapper repeats its children's colours and would crowd the sample set
-      // with duplicates of the same real pair.
-      if (element.querySelector("p,li,a,button,h1,h2,h3,h4,h5,h6,label,span,td,th")) continue;
+      if (!hasOwnSampleableText(element)) continue;
 
       const style = getComputedStyle(element);
-      if (style.visibility === "hidden" || style.display === "none") continue;
+      if (!isRenderedVisible(style)) continue;
 
-      const foreground = style.color;
-      const background = effectiveBackground(element);
-      const fg = parseColor(foreground);
-      const bg = parseColor(background);
-      if (!fg || !bg) continue;
-
-      const l1 = relativeLuminance(fg);
-      const l2 = relativeLuminance(bg);
-      const ratio = (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
-
-      out.push({
-        selector: selectorFor(element),
-        foreground,
-        background,
-        ratio: Math.round(ratio * 100) / 100,
-        fontSizePx: Math.round(parseFloat(style.fontSize) * 10) / 10,
-        fontWeight: Number(style.fontWeight) || 400,
-      });
+      const sample = contrastSampleFor(element, style);
+      if (sample) out.push(sample);
     }
     return out;
   }
