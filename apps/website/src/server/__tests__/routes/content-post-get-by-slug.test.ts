@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import express from "express";
@@ -7,6 +8,8 @@ import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerContentPostGetRoute } from "../../inbound/public-http/routes/content/posts/get-by-slug.js";
 import type { RouteDeps } from "../../routes/types.js";
 import type { PostRecord } from "../../../features/post/post.js";
+import type { MemberSessionRecord } from "../../../features/members/index.js";
+import { InMemoryMemberSessionRepo } from "../../../features/members/index.js";
 import { startTestServer, extractRouteHandler, createCapturingResponse } from "../helpers/http-test-server.js";
 
 /**
@@ -16,25 +19,39 @@ import { startTestServer, extractRouteHandler, createCapturingResponse } from ".
  * `admin-post-page-delete-routes.test.ts`'s before/after-delete pair), so the workspace-mismatch,
  * `PresentationSettingsNotFoundError`, and generic-500 branches were never reached.
  *
- * SECURITY FINDING (reported, not fixed here -- see the coverage-gap report): this route applies
- * NO member-content gating. `getPublishedPostBySlug` (`features/post/post.ts`) correctly excludes
- * drafts and trashed rows, but does not consult `MemberAccessResolver`/`resolvePostMemberAccess` at
- * all, unlike `routes/site/pages.ts`'s `GET /:slug` (gated 2026-09-02, commit 7fb47f55). A post whose
- * `memberAccessJson` marks it `members`/`paid`/`tiers` is served here to ANY anonymous caller who
- * knows its slug. This suite deliberately does NOT add a passing test asserting that a gated post
- * 200s for an anonymous caller -- that would enshrine the bug. The tests below cover the route's
- * genuinely correct behavior (published-only visibility, workspace scoping, presentation-missing,
- * unexpected-error) without asserting anything about member-gated content.
+ * SECURITY FIX (2026-09-03): this route previously applied NO member-content gating -- a post whose
+ * `memberAccessJson` marked it `members`/`paid`/`tiers` was served in full to ANY anonymous caller
+ * who knew its slug, unlike `routes/site/pages.ts`'s `GET /:slug` (gated 2026-09-02, commit
+ * `7fb47f55`, which this route was missed by). The two "member gating" tests below prove the fix:
+ * an anonymous caller is refused (404, same shape a nonexistent slug gets, with the gated title and
+ * body text absent from the response entirely) and an entitled signed-in member still reads the
+ * real content. The rest of the suite is unchanged: published-only visibility, workspace scoping,
+ * presentation-missing, and unexpected-error handling.
  */
 
 const WORKSPACE_ID = "workspace-local";
+const RAW_MEMBER_TOKEN = "test-raw-member-session-token-for-content-api-gating";
 
-function buildTestApp(): { app: express.Express; deps: RouteDeps } {
-  const deps: RouteDeps = createRouteDeps();
+function buildTestApp(overrides: Partial<RouteDeps> = {}): { app: express.Express; deps: RouteDeps } {
+  const deps: RouteDeps = { ...createRouteDeps(), ...overrides };
   const app = express();
   app.use(express.json());
   registerContentPostGetRoute(app, deps);
   return { app, deps };
+}
+
+/** Same `createHash("sha256").update(rawToken).digest("hex")` shape `access-resolver.ts`'s own
+ *  (private) `hashToken` uses -- duplicated here rather than imported, same precedent
+ *  `pages.member-access.route.test.ts` (`routes/site/__tests__/`) already follows. */
+function activeMemberSession(): MemberSessionRecord {
+  return {
+    id: "session-content-api-gating-test",
+    workspaceId: WORKSPACE_ID,
+    memberId: "member-content-api-gating-test-1",
+    tokenHash: createHash("sha256").update(RAW_MEMBER_TOKEN).digest("hex"),
+    createdAt: "2026-09-03T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
 }
 
 function contentUrl(slug: string): string {
@@ -128,6 +145,69 @@ test("GET content post by slug: an unexpected repo error surfaces as a generic 5
   } finally {
     deps.postRepo.findBySlug = originalFindBySlug;
   }
+});
+
+test("GET content post by slug: an anonymous caller is 404'd for a members-only post, and the gated title/body never appear in the response", async (t) => {
+  const { app, deps } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  await deps.postRepo.save(
+    makePost({
+      id: "p-members-only",
+      slug: "members-only-post",
+      title: "Members Only Secret Title",
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "MEMBERS_ONLY_SECRET_BODY_TEXT" }] }] },
+      status: "published",
+      memberAccessJson: JSON.stringify({ visibility: "members" }),
+    })
+  );
+
+  const res = await fetch(`${baseUrl}${contentUrl("members-only-post")}`);
+  const raw = await res.text();
+  assert.equal(res.status, 404, raw);
+  assert.doesNotMatch(raw, /Members Only Secret Title/, "the gated title must not leak into the 404 response body");
+  assert.doesNotMatch(raw, /MEMBERS_ONLY_SECRET_BODY_TEXT/, "the gated body text must not leak into the 404 response body");
+  assert.deepEqual(JSON.parse(raw), { error: "post 'members-only-post' was not found" }, "must be the SAME shape a nonexistent slug gets -- indistinguishable from 'no such post'");
+});
+
+test("GET content post by slug: an unrelated or malformed cookie header does not grant member access to a gated post", async (t) => {
+  const { app, deps } = buildTestApp();
+  const baseUrl = await startTestServer(app, t);
+  await deps.postRepo.save(
+    makePost({
+      id: "p-members-only-unrelated-cookies",
+      slug: "members-only-post-unrelated-cookies",
+      status: "published",
+      memberAccessJson: JSON.stringify({ visibility: "members" }),
+    })
+  );
+
+  const res = await fetch(`${baseUrl}${contentUrl("members-only-post-unrelated-cookies")}`, {
+    headers: { cookie: "malformed_cookie_with_no_equals_sign; some_other_cookie=some_value" },
+  });
+  assert.equal(res.status, 404, "a malformed or unrelated cookie header must not be mistaken for a member session");
+});
+
+test("GET content post by slug: an entitled signed-in member CAN read a members-only post's real content", async (t) => {
+  const { app, deps } = buildTestApp({ memberSessionRepo: new InMemoryMemberSessionRepo([activeMemberSession()]) });
+  const baseUrl = await startTestServer(app, t);
+  await deps.postRepo.save(
+    makePost({
+      id: "p-members-only-entitled",
+      slug: "members-only-post-entitled",
+      title: "Members Only Secret Title",
+      bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "MEMBERS_ONLY_SECRET_BODY_TEXT" }] }] },
+      status: "published",
+      memberAccessJson: JSON.stringify({ visibility: "members" }),
+    })
+  );
+
+  const res = await fetch(`${baseUrl}${contentUrl("members-only-post-entitled")}`, {
+    headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+  });
+  const raw = await res.text();
+  assert.equal(res.status, 200, raw);
+  const body = JSON.parse(raw) as { post: { title: string } };
+  assert.equal(body.post.title, "Members Only Secret Title", "a signed-in member holding no tier at all must still read a members-only post");
 });
 
 test("GET content post by slug: req.params.slug is always populated by Express for a matched route (defensive ?? \"\" fallback is unreachable through real HTTP)", async () => {
