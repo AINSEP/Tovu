@@ -142,7 +142,7 @@ interface ExpressAppWithRouter {
  */
 export function extractRouteHandler(
   app: express.Express,
-  method: "get" | "post" | "put" | "delete",
+  method: "get" | "post" | "put" | "patch" | "delete",
   path: string
 ): (req: unknown, res: unknown) => unknown {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;

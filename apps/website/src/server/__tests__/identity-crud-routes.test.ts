@@ -314,10 +314,21 @@ test("AC-01 (route-parity): every new mutating route requires authentication (40
     // authentication regression on either is caught here, not just by their own suites.
     ["POST", "/api/admin/v1/workspaces/workspace-local/users/some-id/roles"],
     ["POST", "/api/admin/v1/workspaces/workspace-local/users/some-id/policies"],
+    // LIST_USERS (`users/list.ts`) was also missing here — the highest-privilege READ route in
+    // this file (returns the full user roster with role/policy grants) had no end-to-end proof it
+    // sits behind `requireAdminSession` at all; unit-level route tests bypass that middleware by
+    // construction, so this integration-level check is the only place it can be proven
+    // (coverage-gap sweep, 2026-09-03).
+    ["GET", "/api/admin/v1/workspaces/workspace-local/users"],
   ];
 
   for (const [method, path] of routes) {
-    const res = await fetch(`${baseUrl}${path}`, { method, headers: { "content-type": "application/json" }, body: "{}" });
+    const hasBody = method !== "GET";
+    const res = await fetch(`${baseUrl}${path}`, {
+      method,
+      headers: hasBody ? { "content-type": "application/json" } : {},
+      ...(hasBody ? { body: "{}" } : {}),
+    });
     assert.equal(res.status, 401, `${method} ${path} should require authentication`);
   }
 });
