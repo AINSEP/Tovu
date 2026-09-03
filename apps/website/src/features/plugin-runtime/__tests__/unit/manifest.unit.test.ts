@@ -218,3 +218,30 @@ test("omitting a field description entirely (every pre-existing manifest) still 
   const result = validateManifest(required(validManifest())); // validManifest()'s own fixture field has no `description`
   assert.deepEqual(result.errors, []);
 });
+
+/**
+ * BUG (found auditing `validateField` for the complexity refactor, `manifest.ts`): the old
+ * `queryable` check was `decl.queryable === true`, which only ever rejects the literal boolean
+ * `true`. A non-boolean, JS-truthy value (a string, a number, ...) silently passed with ZERO
+ * errors despite `queryable` being a REQUIRED `boolean` field — the exact "missing-vs-present-but-
+ * wrong-type conflated" class of gap this audit was told to look for.
+ */
+test("BUG REGRESSION: a non-boolean queryable value (e.g. a string) is MANIFEST_MALFORMED, not silently accepted", () => {
+  const result = validateManifest(
+    required(validManifest({ fields: [{ path: "ext.word-count.count", type: "integer", queryable: "false" as never }] })),
+  );
+  assert.ok(
+    codesOf(result).includes("MANIFEST_MALFORMED"),
+    `a non-boolean 'queryable' must be rejected as malformed, not pass through as if 'queryable: false' had been declared (found: ${codesOf(result).join(", ")})`,
+  );
+});
+
+test("BUG REGRESSION: an omitted queryable field is MANIFEST_MALFORMED — it is a required field, not defaulted", () => {
+  const result = validateManifest(
+    required(validManifest({ fields: [{ path: "ext.word-count.count", type: "integer" } as never] })),
+  );
+  assert.ok(
+    codesOf(result).includes("MANIFEST_MALFORMED"),
+    `an omitted 'queryable' must be rejected as malformed (found: ${codesOf(result).join(", ")})`,
+  );
+});

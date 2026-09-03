@@ -112,6 +112,44 @@ test("parent-not-found", async () => {
   if (!result.ok) assert.equal(result.reason, "parent-not-found");
 });
 
+/**
+ * BUG REGRESSION (found auditing `submit()` for the complexity refactor, not introduced by it):
+ * `CommentRepoPort.findById` is keyed only on `(workspaceId, id)`, not `entryId` — nothing checked
+ * that a `parentId` actually belongs to the SAME entry as the submission. A submitter could supply
+ * an open entry's id alongside a `parentId` that is really a comment on a totally different entry,
+ * silently grafting the new comment onto that other entry's thread (wrong `threadRootId`, a
+ * `depth` computed against an unrelated thread). This must be rejected exactly like any other
+ * dangling parent id — see `ingress.ts`'s `resolveParentContext` for the fix.
+ */
+test("BUG REGRESSION: a parentId belonging to a DIFFERENT entry is rejected as parent-not-found, not silently grafted onto its thread", async () => {
+  const repo = new InMemoryCommentRepo();
+  await repo.create({
+    id: "other-entry-root",
+    workspaceId: WORKSPACE_ID,
+    entryId: "entry-OTHER", // a different entry than OPEN_ENTRY ("entry-1")
+    parentId: null,
+    threadRootId: "other-entry-root",
+    depth: 0,
+    status: "approved",
+    authorPrincipalId: null,
+    authorName: "x",
+    authorEmail: null,
+    authorUrl: null,
+    authorIpHash: null,
+    bodyText: "x",
+    spamScore: null,
+    spamProvider: null,
+    createdAt: "2026-07-16T00:00:00.000Z",
+    updatedAt: "2026-07-16T00:00:00.000Z",
+    version: 0,
+  });
+
+  const policy = makePolicy({ repo });
+  const result = await policy.submit(makeSubmission({ entryId: "entry-1", parentId: "other-entry-root" }));
+  assert.equal(result.ok, false, "a cross-entry parentId must be rejected, not accepted as a valid parent");
+  if (!result.ok) assert.equal(result.reason, "parent-not-found");
+});
+
 test("max-depth-exceeded", async () => {
   const repo = new InMemoryCommentRepo();
   await repo.create({

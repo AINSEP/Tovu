@@ -242,6 +242,28 @@ export interface UpdateRedirectRequired {
   input: UpdateRedirectInput;
 }
 
+/** The PATCH-able subset of a redirect record — `updateRedirect`'s input, one field at a time,
+ *  falls back to `existing`'s own value. */
+type UpdatableRedirectFields = Pick<
+  RedirectRecord,
+  "matchType" | "fromPattern" | "toTarget" | "statusCode" | "priority" | "override" | "status"
+>;
+
+/** Merges a partial `UpdateRedirectInput` over the existing record's own values — C-002's
+ *  "apply only what changed" PATCH semantics, isolated as its own defaulting decision so
+ *  {@link updateRedirect} itself only has to sequence validate → write against the result. */
+function resolveUpdateFields(input: UpdateRedirectInput, existing: RedirectRecord): UpdatableRedirectFields {
+  return {
+    matchType: input.matchType ?? existing.matchType,
+    fromPattern: input.fromPattern ?? existing.fromPattern,
+    toTarget: input.toTarget ?? existing.toTarget,
+    statusCode: input.statusCode ?? existing.statusCode,
+    priority: input.priority ?? existing.priority,
+    override: input.override ?? existing.override,
+    status: input.status ?? existing.status,
+  };
+}
+
 /** C-002: symmetric chokepoint entry for updates (REQ-04). */
 export async function updateRedirect(required: UpdateRedirectRequired): Promise<{ record: RedirectRecord }> {
   const { deps, input } = required;
@@ -249,41 +271,24 @@ export async function updateRedirect(required: UpdateRedirectRequired): Promise<
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) throw new RedirectNotFoundError(`redirect '${input.id}' was not found`);
 
-  const matchType = input.matchType ?? existing.matchType;
-  const fromPattern = input.fromPattern ?? existing.fromPattern;
-  const toTarget = input.toTarget ?? existing.toTarget;
-  const statusCode = input.statusCode ?? existing.statusCode;
-  const priority = input.priority ?? existing.priority;
-  const override = input.override ?? existing.override;
-  const status = input.status ?? existing.status;
+  const fields = resolveUpdateFields(input, existing);
 
-  const patternCheck = deps.matcher.validatePattern({ matchType, fromPattern });
+  const patternCheck = deps.matcher.validatePattern({ matchType: fields.matchType, fromPattern: fields.fromPattern });
   if (!patternCheck.ok) throw new RedirectValidationError(patternCheck.reason);
-  validateToTargetLength(toTarget);
-  validateStatusCode(statusCode);
-  validatePriority(priority);
+  validateToTargetLength(fields.toTarget);
+  validateStatusCode(fields.statusCode);
+  validatePriority(fields.priority);
 
-  await assertTargetAllowed(deps.originRegistry, input.workspaceId, toTarget);
-  const finalTarget = await resolveCollapsedTarget(deps.repo, input.workspaceId, fromPattern, toTarget);
-  if (finalTarget !== toTarget) {
+  await assertTargetAllowed(deps.originRegistry, input.workspaceId, fields.toTarget);
+  const finalTarget = await resolveCollapsedTarget(deps.repo, input.workspaceId, fields.fromPattern, fields.toTarget);
+  if (finalTarget !== fields.toTarget) {
     await assertTargetAllowed(deps.originRegistry, input.workspaceId, finalTarget);
   }
-  await assertNoDuplicate(deps.repo, input.workspaceId, matchType, fromPattern, existing.id);
+  await assertNoDuplicate(deps.repo, input.workspaceId, fields.matchType, fields.fromPattern, existing.id);
 
   const now = deps.clock.nowIso();
   const version = existing.version + 1;
-  const record: RedirectRecord = {
-    ...existing,
-    matchType,
-    fromPattern,
-    toTarget: finalTarget,
-    statusCode,
-    status,
-    override,
-    priority,
-    updatedAt: now,
-    version,
-  };
+  const record: RedirectRecord = { ...existing, ...fields, toTarget: finalTarget, updatedAt: now, version };
   const revision: RedirectRevision = {
     redirectId: existing.id,
     workspaceId: input.workspaceId,

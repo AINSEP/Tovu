@@ -284,6 +284,89 @@ export interface AgentPluginToolSource {
   readonly defaultSkillReason?: string;
 }
 
+/** One installed plugin's manifest identity, as `listInstalledPlugins` returns it — the narrow
+ *  slice {@link assertSingleDigestPerPlugin} needs, named separately so that guard doesn't have to
+ *  import the whole `InstalledAgentPlugin` shape. */
+interface InstalledPluginIdentity {
+  readonly pluginId: string;
+  readonly archiveDigest: string;
+}
+
+/**
+ * Refuses loudly when the SAME plugin id is installed under two different archive digests —
+ * mutates `digestByPluginId` as its record of "digest seen so far per plugin id". Split out of
+ * {@link loadInstalledAgentPluginToolSources}'s loop so that loop is left with only the two things
+ * it must do per plugin: check-and-record identity, then (if unique) resolve its tool source.
+ *
+ * @throws {Error} See {@link loadInstalledAgentPluginToolSources}'s own `@throws` doc — this is
+ * where that error is actually thrown.
+ */
+function assertSingleDigestPerPlugin(digestByPluginId: Map<string, string>, plugin: InstalledPluginIdentity): void {
+  const priorDigest = digestByPluginId.get(plugin.pluginId);
+  if (priorDigest !== undefined && priorDigest !== plugin.archiveDigest) {
+    throw new Error(
+      `agent-plugin tools: '${plugin.pluginId}' is installed under more than one digest ` +
+        `(${priorDigest} and ${plugin.archiveDigest}) — this module wires one tool id per installed plugin id ` +
+        `with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool`,
+    );
+  }
+  digestByPluginId.set(plugin.pluginId, plugin.archiveDigest);
+}
+
+/** Reads and summarizes every one of one installed plugin's skills — the only `await`-per-item
+ *  work in the whole load, isolated so the caller's loop has no nested `for` of its own. */
+async function resolveSkillsForPlugin(plugin: {
+  readonly packageRoot: string;
+  readonly skills: readonly { readonly name: string; readonly skillPath: string }[];
+}): Promise<AgentPluginSkillDetail[]> {
+  const skills: AgentPluginSkillDetail[] = [];
+  for (const skill of plugin.skills) {
+    const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
+    skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown });
+  }
+  return skills;
+}
+
+/** Which skill a no-argument (or unrecognized-argument) call to this plugin's tool returns —
+ *  the plugin's own eponymous skill when one exists, otherwise its alphabetically-first skill (see
+ *  this file's header, "The optional `skill` argument"). A pure defaulting decision, isolated from
+ *  the source-object construction that consumes it.
+ *
+ *  @param skills Never empty — every caller only reaches this after the plugin's own
+ *  `skills.length === 0` short-circuit. */
+function resolveDefaultSkill(
+  skills: readonly AgentPluginSkillDetail[],
+  pluginId: string,
+): { readonly defaultSkillName: string; readonly defaultSkillReason?: string } {
+  const eponymous = skills.find((skill) => skill.name === pluginId);
+  if (eponymous) return { defaultSkillName: eponymous.name };
+
+  // Guarded by every caller (`skills.length === 0` short-circuits first), so `skills[0]` is
+  // always defined here.
+  const fallbackSkill = skills[0] as AgentPluginSkillDetail;
+  return {
+    defaultSkillName: fallbackSkill.name,
+    defaultSkillReason:
+      `no eponymous skill folder ('skills/${pluginId}/SKILL.md') exists in this installed package — ` +
+      `defaulting to its alphabetically-first skill`,
+  };
+}
+
+/** Assembles one installed plugin's fully-resolved {@link AgentPluginToolSource} from its already
+ *  fetched skills — pure construction, no I/O, so it's the composition {@link
+ *  loadInstalledAgentPluginToolSources}'s loop reduces to a call. */
+function buildToolSource(pluginId: string, skills: readonly AgentPluginSkillDetail[]): AgentPluginToolSource {
+  const { defaultSkillName, defaultSkillReason } = resolveDefaultSkill(skills, pluginId);
+  return {
+    id: toAgentPluginToolId(pluginId),
+    pluginId,
+    description: buildPluginToolDescription(pluginId, skills, defaultSkillName, defaultSkillReason),
+    skills,
+    defaultSkillName,
+    ...(defaultSkillReason !== undefined ? { defaultSkillReason } : {}),
+  };
+}
+
 /**
  * Loads every installed Agent Plugin for one workspace, resolved into one tool-ready source per
  * plugin.
@@ -311,41 +394,11 @@ export async function loadInstalledAgentPluginToolSources(ctx: {
   const sources: AgentPluginToolSource[] = [];
 
   for (const plugin of active) {
-    const priorDigest = digestByPluginId.get(plugin.pluginId);
-    if (priorDigest !== undefined && priorDigest !== plugin.archiveDigest) {
-      throw new Error(
-        `agent-plugin tools: '${plugin.pluginId}' is installed under more than one digest ` +
-          `(${priorDigest} and ${plugin.archiveDigest}) — this module wires one tool id per installed plugin id ` +
-          `with no digest in the id, so an operator must remove the stale install before this plugin can be wired as a tool`,
-      );
-    }
-    digestByPluginId.set(plugin.pluginId, plugin.archiveDigest);
-
+    assertSingleDigestPerPlugin(digestByPluginId, plugin);
     if (plugin.skills.length === 0) continue; // nothing this plugin's tool could ever return
 
-    const skills: AgentPluginSkillDetail[] = [];
-    for (const skill of plugin.skills) {
-      const markdown = await readInstalledSkillMarkdown(plugin.packageRoot, skill.skillPath);
-      skills.push({ name: skill.name, summary: summarizeSkillMarkdown(skill.name, markdown), markdown });
-    }
-
-    const eponymous = skills.find((skill) => skill.name === plugin.pluginId);
-    // `plugin.skills` is never empty here (guarded above), so `skills[0]` is always defined.
-    const fallbackSkill = skills[0] as AgentPluginSkillDetail;
-    const defaultSkillName = eponymous ? eponymous.name : fallbackSkill.name;
-    const defaultSkillReason = eponymous
-      ? undefined
-      : `no eponymous skill folder ('skills/${plugin.pluginId}/SKILL.md') exists in this installed package — ` +
-        `defaulting to its alphabetically-first skill`;
-
-    sources.push({
-      id: toAgentPluginToolId(plugin.pluginId),
-      pluginId: plugin.pluginId,
-      description: buildPluginToolDescription(plugin.pluginId, skills, defaultSkillName, defaultSkillReason),
-      skills,
-      defaultSkillName,
-      ...(defaultSkillReason !== undefined ? { defaultSkillReason } : {}),
-    });
+    const skills = await resolveSkillsForPlugin(plugin);
+    sources.push(buildToolSource(plugin.pluginId, skills));
   }
   return sources;
 }

@@ -28,6 +28,7 @@ import type { RateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import type { CommentHookRegistry } from "./hooks.js";
 import type {
   CommentIngressPolicy,
+  CommentIngressRejection,
   CommentIngressResult,
   CommentRepoPort,
   SpamCheckPort,
@@ -40,6 +41,7 @@ import type {
   CommentSubmission,
   CommentsSettings,
   ModerationLogEntry,
+  SpamVerdict,
 } from "./types.js";
 
 const MAX_BODY_LENGTH = 10_000;
@@ -70,100 +72,195 @@ function readIngressString(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+/** A step's shared failure shape — matches `CommentIngressResult`'s own `{ ok: false, reason }`
+ *  half exactly, so a caller can `return` it directly as the policy's own result. */
+interface StepRejected {
+  readonly ok: false;
+  readonly reason: CommentIngressRejection;
+}
+
+/** entry-exists + entry-open gate (comments-enabled → entry-open, per this file's header). */
+async function checkEntryGate(deps: CommentIngressDeps, submission: CommentSubmission): Promise<{ ok: true } | StepRejected> {
+  const entry = await deps.entryLookup({ workspaceId: submission.workspaceId, entryId: submission.entryId });
+  if (!entry) return { ok: false, reason: "entry-not-found" };
+  if (entry.commentsClosed) return { ok: false, reason: "entry-closed" };
+  return { ok: true };
+}
+
+interface ParentContext {
+  readonly ok: true;
+  readonly depth: number;
+  readonly parentThreadRootId: UUID | null;
+}
+
+/**
+ * Resolves the depth + thread-root a submission's optional `parentId` implies (parent-exists →
+ * depth-cap, per this file's header). A top-level submission (`parentId: null`) trivially passes
+ * at depth 0 with no thread root yet (the comment being created becomes its own root — see
+ * `submit()`'s own `threadRootId: parentThreadRootId ?? id`).
+ *
+ * BUG FIX (this pass — found auditing this exact function for the complexity refactor, not
+ * introduced by it): the parent lookup never checked that the found parent actually belongs to
+ * the SAME entry as this submission — `CommentRepoPort.findById` is keyed only on
+ * `(workspaceId, id)`, not `entryId`. A submission could supply an `entryId` for one (open,
+ * comments-enabled) entry and a `parentId` that is really a comment on a completely different
+ * entry, silently grafting the new comment onto that other entry's thread (wrong `threadRootId`,
+ * a `depth` computed against an unrelated thread). `types.ts`'s own header says this referential
+ * integrity is "validated at the write chokepoint, NOT by a DB foreign key" (i.e. here) — this was
+ * the gap. Treated as `parent-not-found`, not a new rejection reason: from the submitter's point
+ * of view, the parent they asked for does not exist ON THIS ENTRY. Regression:
+ * `ingress.test.ts` ("a parentId belonging to a different entry...").
+ */
+async function resolveParentContext(
+  deps: CommentIngressDeps,
+  submission: CommentSubmission,
+  settings: CommentsSettings,
+): Promise<ParentContext | StepRejected> {
+  if (!submission.parentId) return { ok: true, depth: 0, parentThreadRootId: null };
+
+  const parent = await deps.repo.findById({ workspaceId: submission.workspaceId, id: submission.parentId });
+  if (!parent || parent.entryId !== submission.entryId) return { ok: false, reason: "parent-not-found" };
+
+  const depth = parent.depth + 1;
+  if (depth > settings.maxDepth) return { ok: false, reason: "max-depth-exceeded" };
+  return { ok: true, depth, parentThreadRootId: parent.threadRootId };
+}
+
+/** rate-limit → honeypot gate (per this file's header). */
+function checkRateLimitAndHoneypot(deps: CommentIngressDeps, submission: CommentSubmission): { ok: true; authorIpHash: string | null } | StepRejected {
+  const authorIpHash = readIngressString(submission.ingressContext.authorIpHash);
+  if (!deps.rateLimiter.check(authorIpHash ?? "unknown").allowed) return { ok: false, reason: "rate-limited" };
+  if (readIngressString(submission.ingressContext.honeypotValue)) return { ok: false, reason: "honeypot-tripped" };
+  return { ok: true, authorIpHash };
+}
+
+/** size/link caps, applied to the ALREADY-sanitized body (sanitize → size/link caps is this
+ *  function's own order — see this file's header — so the caps see what will actually be stored). */
+function sanitizeAndCapBody(bodyRaw: string): { ok: true; sanitizedBody: string } | StepRejected {
+  const sanitizedBody = sanitizeCommentBody(bodyRaw);
+  if (sanitizedBody.length > MAX_BODY_LENGTH) return { ok: false, reason: "body-too-large" };
+  if (countLinks(sanitizedBody) > MAX_LINKS) return { ok: false, reason: "too-many-links" };
+  return { ok: true, sanitizedBody };
+}
+
+/** spam-classification decision (score → status), isolated so `submit()` reads as one line instead
+ *  of a nested ternary (also clears the `sonarjs/no-nested-conditional` finding this line used to
+ *  trip). Spam is never a rejection at this boundary — see this file's header. */
+function classifyCommentStatus(verdict: SpamVerdict, settings: CommentsSettings): CommentStatus {
+  if (verdict.score >= settings.spamAutoRejectScore) return "spam";
+  return settings.requireModeration ? "pending" : "approved";
+}
+
+function buildCommentRecord(params: {
+  readonly submission: CommentSubmission;
+  readonly hookSubmission: CommentSubmission;
+  readonly authorIpHash: string | null;
+  readonly depth: number;
+  readonly parentThreadRootId: UUID | null;
+  readonly status: CommentStatus;
+  readonly verdict: SpamVerdict;
+  readonly id: UUID;
+  readonly now: string;
+}): CommentRecord {
+  const { submission, hookSubmission, authorIpHash, depth, parentThreadRootId, status, verdict, id, now } = params;
+  return {
+    id,
+    workspaceId: submission.workspaceId,
+    entryId: submission.entryId,
+    parentId: submission.parentId,
+    threadRootId: parentThreadRootId ?? id,
+    depth,
+    status,
+    authorPrincipalId: hookSubmission.authorPrincipalId,
+    authorName: hookSubmission.authorName,
+    authorEmail: hookSubmission.authorEmail,
+    authorUrl: hookSubmission.authorUrl,
+    authorIpHash,
+    bodyText: hookSubmission.bodyRaw,
+    spamScore: verdict.score,
+    spamProvider: verdict.provider,
+    createdAt: now,
+    updatedAt: now,
+    version: 0,
+  };
+}
+
+// OQ-3 resolution (ADR-031 round-2 fold, SPEC-035): every ingress-created comment gets a `submit`
+// moderation_log row, attributed to the seeded system principal — the ingress has no real operator
+// principal to attribute this to (the visitor is anonymous by definition), and the
+// auto-classification (pending/approved/spam) IS itself a moderation decision, just one core made
+// instead of a human. `fromStatus: null` (nothing existed before this write).
+function buildSubmitLogEntry(deps: CommentIngressDeps, record: CommentRecord, now: string): ModerationLogEntry {
+  return {
+    id: deps.idGen.newId(),
+    workspaceId: record.workspaceId,
+    commentId: record.id,
+    actorPrincipalId: COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID,
+    action: "submit",
+    fromStatus: null,
+    toStatus: record.status,
+    at: now,
+    note: null,
+  };
+}
+
+async function enqueueSubmittedEvent(deps: CommentIngressDeps, record: CommentRecord, now: string): Promise<void> {
+  // Inline object literal (not a `CommentDomainEvent`-typed intermediate) — matches this
+  // codebase's established `outbox.enqueue()` call-site convention (e.g.
+  // `features/entries/write-service.ts`): TS only infers a `Record<string, unknown>`-
+  // compatible index signature for a FRESH object literal argument, not for a value already
+  // typed against a concrete interface without one.
+  await deps.outbox.enqueue({
+    id: deps.idGen.newId(),
+    name: "comments.submitted",
+    occurredAt: now,
+    aggregateId: record.id,
+    workspaceId: record.workspaceId,
+    payload: { commentId: record.id, entryId: record.entryId, status: record.status },
+  });
+}
+
 export function createCommentIngressPolicy(deps: CommentIngressDeps): CommentIngressPolicy {
   return {
     async submit(submission: CommentSubmission): Promise<CommentIngressResult> {
       const settings = await deps.getSettings(submission.workspaceId);
       if (!settings.enabled) return { ok: false, reason: "comments-disabled" };
 
-      const entry = await deps.entryLookup({ workspaceId: submission.workspaceId, entryId: submission.entryId });
-      if (!entry) return { ok: false, reason: "entry-not-found" };
-      if (entry.commentsClosed) return { ok: false, reason: "entry-closed" };
+      const entryGate = await checkEntryGate(deps, submission);
+      if (!entryGate.ok) return entryGate;
 
-      let depth = 0;
-      let parentThreadRootId: UUID | null = null;
-      if (submission.parentId) {
-        const parent = await deps.repo.findById({ workspaceId: submission.workspaceId, id: submission.parentId });
-        if (!parent) return { ok: false, reason: "parent-not-found" };
-        depth = parent.depth + 1;
-        if (depth > settings.maxDepth) return { ok: false, reason: "max-depth-exceeded" };
-        parentThreadRootId = parent.threadRootId;
-      }
+      const parentContext = await resolveParentContext(deps, submission, settings);
+      if (!parentContext.ok) return parentContext;
 
-      const authorIpHash = readIngressString(submission.ingressContext.authorIpHash);
-      const rateLimitResult = deps.rateLimiter.check(authorIpHash ?? "unknown");
-      if (!rateLimitResult.allowed) return { ok: false, reason: "rate-limited" };
+      const rateGate = checkRateLimitAndHoneypot(deps, submission);
+      if (!rateGate.ok) return rateGate;
 
-      if (readIngressString(submission.ingressContext.honeypotValue)) {
-        return { ok: false, reason: "honeypot-tripped" };
-      }
+      const bodyResult = sanitizeAndCapBody(submission.bodyRaw);
+      if (!bodyResult.ok) return bodyResult;
 
-      const sanitizedBody = sanitizeCommentBody(submission.bodyRaw);
-      if (sanitizedBody.length > MAX_BODY_LENGTH) return { ok: false, reason: "body-too-large" };
-      if (countLinks(sanitizedBody) > MAX_LINKS) return { ok: false, reason: "too-many-links" };
-
-      const sanitizedSubmission: CommentSubmission = { ...submission, bodyRaw: sanitizedBody };
+      const sanitizedSubmission: CommentSubmission = { ...submission, bodyRaw: bodyResult.sanitizedBody };
       const hookResult = await deps.hooks.runBeforeSubmitChain(sanitizedSubmission);
       if ("reject" in hookResult) return { ok: false, reason: hookResult.reject };
 
       const verdict = await deps.spamCheck.check(hookResult.submission);
-      const status: CommentStatus =
-        verdict.score >= settings.spamAutoRejectScore ? "spam" : settings.requireModeration ? "pending" : "approved";
+      const status = classifyCommentStatus(verdict, settings);
 
       const id = deps.idGen.newId();
       const now = deps.clock.nowIso();
-      const record: CommentRecord = {
-        id,
-        workspaceId: submission.workspaceId,
-        entryId: submission.entryId,
-        parentId: submission.parentId,
-        threadRootId: parentThreadRootId ?? id,
-        depth,
+      const record = buildCommentRecord({
+        submission,
+        hookSubmission: hookResult.submission,
+        authorIpHash: rateGate.authorIpHash,
+        depth: parentContext.depth,
+        parentThreadRootId: parentContext.parentThreadRootId,
         status,
-        authorPrincipalId: hookResult.submission.authorPrincipalId,
-        authorName: hookResult.submission.authorName,
-        authorEmail: hookResult.submission.authorEmail,
-        authorUrl: hookResult.submission.authorUrl,
-        authorIpHash,
-        bodyText: hookResult.submission.bodyRaw,
-        spamScore: verdict.score,
-        spamProvider: verdict.provider,
-        createdAt: now,
-        updatedAt: now,
-        version: 0,
-      };
-
-      // OQ-3 resolution (ADR-031 round-2 fold, SPEC-035): every ingress-created comment gets a
-      // `submit` moderation_log row, attributed to the seeded system principal — the ingress has
-      // no real operator principal to attribute this to (the visitor is anonymous by definition),
-      // and the auto-classification (pending/approved/spam) IS itself a moderation decision, just
-      // one core made instead of a human. `fromStatus: null` (nothing existed before this write).
-      const submitLogEntry: ModerationLogEntry = {
-        id: deps.idGen.newId(),
-        workspaceId: record.workspaceId,
-        commentId: record.id,
-        actorPrincipalId: COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID,
-        action: "submit",
-        fromStatus: null,
-        toStatus: record.status,
-        at: now,
-        note: null,
-      };
-      await deps.repo.create(record, submitLogEntry);
-
-      // Inline object literal (not a `CommentDomainEvent`-typed intermediate) — matches this
-      // codebase's established `outbox.enqueue()` call-site convention (e.g.
-      // `features/entries/write-service.ts`): TS only infers a `Record<string, unknown>`-
-      // compatible index signature for a FRESH object literal argument, not for a value already
-      // typed against a concrete interface without one.
-      await deps.outbox.enqueue({
-        id: deps.idGen.newId(),
-        name: "comments.submitted",
-        occurredAt: now,
-        aggregateId: record.id,
-        workspaceId: record.workspaceId,
-        payload: { commentId: record.id, entryId: record.entryId, status: record.status },
+        verdict,
+        id,
+        now,
       });
+
+      await deps.repo.create(record, buildSubmitLogEntry(deps, record, now));
+      await enqueueSubmittedEvent(deps, record, now);
 
       return { ok: true, comment: record, autoClassified: status };
     },

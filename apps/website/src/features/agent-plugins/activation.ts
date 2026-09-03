@@ -158,6 +158,45 @@ export async function readAgentPluginActivations(workspaceRoot: string): Promise
   return normalizeActivations(parsed);
 }
 
+/** Whether `value` is a plain (non-null, non-array) object — the shape every one of this file's
+ *  JSON-adjacent values (the activations envelope, and each individual plugin entry) must have
+ *  before its own fields are worth looking at. */
+function isPlainObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The `plugins` bag out of an already-`JSON.parse`d activations value, or `undefined` when the
+ *  top-level envelope doesn't match this schema version at all (wrong shape, wrong
+ *  `schemaVersion`, or a non-object `plugins`) — collapsing the three top-level shape gates
+ *  {@link normalizeActivations} used to inline into one lookup its loop can build on. */
+function extractPluginsBag(value: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (!isPlainObject(value) || value.schemaVersion !== 1 || !isPlainObject(value.plugins)) return undefined;
+  return value.plugins;
+}
+
+/** Fills in an activation record's optional fields from a (validated-boolean-`enabled`) raw entry.
+ *  Pure defaulting: no field here can fail validation, only fall back to a safe default — matching
+ *  the file's own "fail-OPEN per malformed field, never per entry" discipline (see this file's
+ *  header). */
+function withActivationDefaults(record: Readonly<Record<string, unknown>>, enabled: boolean): AgentPluginActivationRecord {
+  return {
+    enabled,
+    origin: record.origin === "bundled" ? "bundled" : "operator-installed",
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date(0).toISOString(),
+    updatedBy: typeof record.updatedBy === "string" ? record.updatedBy : "unknown",
+  };
+}
+
+/** One `plugins` entry, normalized — or `undefined` when it does not match the shape (bad plugin
+ *  id, non-object entry, or a non-boolean `enabled`), so {@link normalizeActivations}'s loop stays a
+ *  simple accumulate-or-skip. */
+function normalizeActivationEntry(pluginId: string, entry: unknown): AgentPluginActivationRecord | undefined {
+  if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId)) return undefined;
+  const record = isPlainObject(entry) ? entry : undefined;
+  if (record === undefined || typeof record.enabled !== "boolean") return undefined;
+  return withActivationDefaults(record, record.enabled);
+}
+
 /**
  * Validates an already-`JSON.parse`d activations value, dropping anything that does not match the
  * shape. Pure, so the parsing rules are assertable without touching a filesystem.
@@ -168,26 +207,13 @@ export async function readAgentPluginActivations(workspaceRoot: string): Promise
  * @complexity O(p) in the entry count.
  */
 export function normalizeActivations(value: unknown): AgentPluginActivations {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return EMPTY_ACTIVATIONS;
-
-  const raw = value as Readonly<Record<string, unknown>>;
-  if (raw.schemaVersion !== 1) return EMPTY_ACTIVATIONS;
-
-  const plugins = raw.plugins;
-  if (typeof plugins !== "object" || plugins === null || Array.isArray(plugins)) return EMPTY_ACTIVATIONS;
+  const plugins = extractPluginsBag(value);
+  if (plugins === undefined) return EMPTY_ACTIVATIONS;
 
   const normalized: Record<string, AgentPluginActivationRecord> = {};
-  for (const [pluginId, entry] of Object.entries(plugins as Record<string, unknown>)) {
-    if (!SAFE_PLUGIN_ID_PATTERN.test(pluginId)) continue;
-    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
-    const record = entry as Readonly<Record<string, unknown>>;
-    if (typeof record.enabled !== "boolean") continue;
-    normalized[pluginId] = {
-      enabled: record.enabled,
-      origin: record.origin === "bundled" ? "bundled" : "operator-installed",
-      updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : new Date(0).toISOString(),
-      updatedBy: typeof record.updatedBy === "string" ? record.updatedBy : "unknown",
-    };
+  for (const [pluginId, entry] of Object.entries(plugins)) {
+    const record = normalizeActivationEntry(pluginId, entry);
+    if (record !== undefined) normalized[pluginId] = record;
   }
 
   return { schemaVersion: 1, plugins: normalized };

@@ -285,42 +285,81 @@ function validateHooks(raw: Readonly<Record<string, unknown>>): PluginValidation
   return errors;
 }
 
-/** One `fields[]` entry (BR-02 step 6, REQ-06): path namespacing, declared type, `queryable`. */
+/** Path namespacing half of one `fields[]` entry (BR-02 step 6 part 1). */
+function validateFieldPath(decl: Readonly<Record<string, unknown>>, expectedPrefix: string): PluginValidationError | undefined {
+  if (typeof decl.path === "string" && decl.path.startsWith(expectedPrefix) && decl.path.length > expectedPrefix.length) {
+    return undefined;
+  }
+  return {
+    code: "FIELD_PATH_INVALID",
+    file: null,
+    message: `field path '${String(decl.path)}' must be namespaced to this plugin's own id ('${expectedPrefix}*')`,
+  };
+}
+
+/** Declared type half of one `fields[]` entry (BR-02 step 6 part 2). */
+function validateFieldType(decl: Readonly<Record<string, unknown>>): PluginValidationError | undefined {
+  if (typeof decl.type === "string" && VALID_FIELD_TYPES.has(decl.type)) return undefined;
+  return malformed(`field '${String(decl.path)}' has an unrecognized type '${String(decl.type)}'`);
+}
+
+/**
+ * `queryable` half of one `fields[]` entry (BR-02 step 6 part 3, EC-04).
+ *
+ * BUG FIX (this pass — found auditing this exact function for the complexity refactor, not
+ * introduced by it): the prior check was `decl.queryable === true`, which only ever rejects the
+ * literal boolean `true`. `PluginManifestFieldDecl.queryable` is a REQUIRED `boolean` field, but
+ * nothing enforced that shape — a manifest declaring `queryable: "true"` (a string), `queryable: 1`,
+ * or omitting `queryable` entirely all produced ZERO errors, silently accepted as if `queryable:
+ * false` had been declared. `queryable` currently has no downstream reader anywhere in this
+ * codebase (verified: `grep -rn '\.queryable\b'` finds only this file), so today's blast radius is
+ * a validator that doesn't validate rather than a live exploit — but the very first consumer that
+ * does `if (field.queryable)` on a manifest this function already certified as error-free would
+ * treat a JS-truthy non-boolean (`"true"`, `1`, `"false"` — also truthy!) as enabled, quietly
+ * defeating the "unsupported in v1" restriction this code exists to enforce. Fixed by requiring the
+ * boolean type itself first, matching how {@link validateFieldType} already validates shape before
+ * value for its own field. Regression: `manifest.unit.test.ts` ("a non-boolean queryable value...").
+ */
+function validateFieldQueryable(decl: Readonly<Record<string, unknown>>): PluginValidationError | undefined {
+  if (typeof decl.queryable !== "boolean") {
+    return malformed(`field '${String(decl.path)}' has an invalid 'queryable' value '${String(decl.queryable)}' — must be a boolean`);
+  }
+  if (decl.queryable === true) {
+    return {
+      code: "QUERYABLE_UNSUPPORTED_V1",
+      file: null,
+      message: `field '${String(decl.path)}' declares queryable:true, unsupported in v1 (OQ-04)`,
+    };
+  }
+  return undefined;
+}
+
+/** Optional `description` half of one `fields[]` entry (2026-08-26 addition, see
+ *  `PluginManifestFieldDecl.description`'s own doc) — absent is always fine (most fields, and every
+ *  pre-existing manifest, declare none); present-but-not-a-non-empty-string is rejected so a typo'd
+ *  `description: ""` cannot silently ship an empty, useless search_tools description instead of a
+ *  validation error a plugin author can act on. */
+function validateFieldDescription(decl: Readonly<Record<string, unknown>>): PluginValidationError | undefined {
+  if (decl.description === undefined) return undefined;
+  if (typeof decl.description === "string" && decl.description.trim().length > 0) return undefined;
+  return {
+    code: "FIELD_DESCRIPTION_INVALID",
+    file: null,
+    message: `field '${String(decl.path)}' declares a 'description' that must be a non-empty string when present`,
+  };
+}
+
+/** One `fields[]` entry (BR-02 step 6, REQ-06): path namespacing, declared type, `queryable`,
+ *  optional `description` — each half delegated to its own validator (see each one's own doc), this
+ *  function only shape-gates the entry itself and collects whichever of the four report an error. */
 function validateField(field: unknown, expectedPrefix: string): PluginValidationError[] {
   if (typeof field !== "object" || field === null) {
     return [malformed("each 'fields' entry must be an object")];
   }
   const decl = field as Readonly<Record<string, unknown>>;
-  const errors: PluginValidationError[] = [];
-  if (typeof decl.path !== "string" || !decl.path.startsWith(expectedPrefix) || decl.path.length <= expectedPrefix.length) {
-    errors.push({
-      code: "FIELD_PATH_INVALID",
-      file: null,
-      message: `field path '${String(decl.path)}' must be namespaced to this plugin's own id ('${expectedPrefix}*')`,
-    });
-  }
-  if (typeof decl.type !== "string" || !VALID_FIELD_TYPES.has(decl.type)) {
-    errors.push(malformed(`field '${String(decl.path)}' has an unrecognized type '${String(decl.type)}'`));
-  }
-  if (decl.queryable === true) {
-    errors.push({
-      code: "QUERYABLE_UNSUPPORTED_V1",
-      file: null,
-      message: `field '${String(decl.path)}' declares queryable:true, unsupported in v1 (OQ-04)`,
-    });
-  }
-  // Optional (2026-08-26 addition, see PluginManifestFieldDecl.description's own doc) — absent is
-  // always fine (most fields, and every pre-existing manifest, declare none); present-but-not-a-
-  // non-empty-string is rejected so a typo'd `description: ""` cannot silently ship an empty,
-  // useless search_tools description instead of a validation error a plugin author can act on.
-  if (decl.description !== undefined && (typeof decl.description !== "string" || decl.description.trim().length === 0)) {
-    errors.push({
-      code: "FIELD_DESCRIPTION_INVALID",
-      file: null,
-      message: `field '${String(decl.path)}' declares a 'description' that must be a non-empty string when present`,
-    });
-  }
-  return errors;
+  return [validateFieldPath(decl, expectedPrefix), validateFieldType(decl), validateFieldQueryable(decl), validateFieldDescription(decl)].filter(
+    (error): error is PluginValidationError => error !== undefined,
+  );
 }
 
 /** fields (BR-02 step 6, REQ-06) — `expectedPrefix` is constant across the array (it depends only

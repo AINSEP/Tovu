@@ -221,16 +221,33 @@ export const MIGRATIONS_NOTE =
  * changes what an already-accepted value renders as; it only ever accepts fewer values, which is
  * exactly the tradeoff already made for `"`/newline above.
  */
+/** QUOTED-sink hazard chars (hazard 1 in this function's own doc) — a bare array + `.some()` so
+ *  this predicate carries zero branches of its own; the ceiling this whole extraction exists to
+ *  clear applies per-FUNCTION, and a 3-character alternation hand-written as `||` chains was most
+ *  of {@link assertNoConfigInjection}'s prior complexity. */
+const QUOTE_OR_NEWLINE_CHARS = ['"', "\n", "\r"] as const;
+
+/** UNQUOTED-YAML-plain-scalar indicator/structural chars (hazard 2 in this function's own doc). */
+const YAML_SIGNIFICANT_CHARS = [":", "#", "{", "[", "&", "*"] as const;
+
+function containsAnyOf(value: string, chars: readonly string[]): boolean {
+  return chars.some((char) => value.includes(char));
+}
+
+function hasLeadingHyphenOrSurroundingWhitespace(value: string): boolean {
+  return value.startsWith("-") || value !== value.trim();
+}
+
 export function assertNoConfigInjection(fieldLabel: string, value: string): void {
-  if (value.includes('"') || value.includes("\n") || value.includes("\r")) {
+  if (containsAnyOf(value, QUOTE_OR_NEWLINE_CHARS)) {
     throw new ValidationError(`${fieldLabel} (${JSON.stringify(value)}) contains a quote or newline character, which would corrupt the generated config file`);
   }
-  if (value.includes(":") || value.includes("#") || value.includes("{") || value.includes("[") || value.includes("&") || value.includes("*")) {
+  if (containsAnyOf(value, YAML_SIGNIFICANT_CHARS)) {
     throw new ValidationError(
       `${fieldLabel} (${JSON.stringify(value)}) contains a YAML-significant character (one of : # { [ & *), which would corrupt an unquoted YAML scalar in the generated config file`
     );
   }
-  if (value.startsWith("-") || value !== value.trim()) {
+  if (hasLeadingHyphenOrSurroundingWhitespace(value)) {
     throw new ValidationError(
       `${fieldLabel} (${JSON.stringify(value)}) starts with "-" or has leading/trailing whitespace, which would corrupt an unquoted YAML scalar in the generated config file`
     );
