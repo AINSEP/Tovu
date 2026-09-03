@@ -96,10 +96,12 @@ function makeResolveDeps(overrides: Partial<ResolveMailerDeps> = {}, warnings: s
   };
 }
 
-test("parseSmtpEndpoint: port 465 is secure, 587 is not, and a missing port defaults to 587", () => {
+test("parseSmtpEndpoint: explicit 465/443 are secure, explicit 587 and other nonstandard ports are not, and a portless https URL defaults to 443 (implicit TLS)", () => {
   assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:465"), { host: "smtp.example.com", port: 465, secure: true });
+  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:443"), { host: "smtp.example.com", port: 443, secure: true });
   assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:587"), { host: "smtp.example.com", port: 587, secure: false });
-  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com"), { host: "smtp.example.com", port: 587, secure: false });
+  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com:2525"), { host: "smtp.example.com", port: 2525, secure: false });
+  assert.deepEqual(parseSmtpEndpoint("https://smtp.example.com"), { host: "smtp.example.com", port: 443, secure: true });
 });
 
 test("no credential configured + production mode: falls back to console and warns naming both labels", async () => {

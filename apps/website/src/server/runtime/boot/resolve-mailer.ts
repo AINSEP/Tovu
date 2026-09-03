@@ -88,17 +88,21 @@ export const MAIL_SMTP_CREDENTIAL_LABEL = "Tovu Mail — SMTP Server";
 
 /**
  * Decodes an SMTP endpoint packed into `custom_credential_sets.baseUrl` — see this file's header
- * for why an `http(s)://` scheme is used to carry a non-HTTP endpoint. Port `465` (SMTPS/implicit
- * TLS) is the only case treated as `secure: true`; every other port (587 submission, 25 plain,
- * or any nonstandard port) is treated as STARTTLS/plaintext, matching nodemailer's own
- * `secure`-option convention and real-world SMTP submission practice.
+ * for why an `http(s)://` scheme is used to carry a non-HTTP endpoint. Ports `443` and `465`
+ * (SMTPS/implicit TLS) are treated as `secure: true`; every other port (587 submission, 25 plain,
+ * or any other nonstandard port) is treated as STARTTLS/plaintext, matching nodemailer's own
+ * `secure`-option convention and real-world SMTP submission practice. When `baseUrl` carries no
+ * explicit port, the port defaults to the URL's own scheme default (`443` for `https:`, `80` for
+ * `http:`) rather than silently assuming plaintext submission on `587` — a portless `https://host`
+ * baseUrl means implicit TLS on `443`, the same thing that scheme means everywhere else.
  *
  * @complexity O(1).
  */
 export function parseSmtpEndpoint(baseUrl: string): { host: string; port: number; secure: boolean } {
   const url = new URL(baseUrl);
-  const port = url.port ? Number(url.port) : 587;
-  return { host: url.hostname, port, secure: port === 465 };
+  const defaultPort = url.protocol === "https:" ? 443 : 80;
+  const port = url.port ? Number(url.port) : defaultPort;
+  return { host: url.hostname, port, secure: port === 443 || port === 465 };
 }
 
 export interface ResolveMailerDeps {
