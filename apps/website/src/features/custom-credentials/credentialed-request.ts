@@ -85,7 +85,16 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * accepts a token, and neither ever returns one: {@link buildAuthorizationHeader}'s result is used
  * only as an outbound request header, never echoed in any return value or thrown error message (both
  * this module's own thrown errors and `store.ts`'s `resolveCustomCredentialByLabel` are checked to
- * never interpolate `connection.token`/`connection.username` into a message).
+ * never interpolate `connection.token`/`connection.username` into a message). This also covers the
+ * PROVIDER's own response, not just this module's: {@link makeCredentialedRequest} sends the
+ * response through {@link redactResponseHeaders}/{@link redactSecretSubstrings} before returning it,
+ * so a reflecting/echo endpoint that hands the injected `Authorization` (or the raw token) back in a
+ * response header or body cannot leak it back through the model that way either.
+ * `Authorization`/`Proxy-Authorization`/`Set-Cookie`/`Cookie` response headers are always stripped
+ * outright; every other header and the body pass through unless they contain one of those two exact
+ * secrets, in which case the header is dropped (or, for the body, only the matched substring is
+ * replaced with a fixed marker) — everything else the provider actually said still reaches the model
+ * unchanged.
  *
  * **Per-credential host binding — the control that stops "send my fly.io token to
  * evil.example.com".** A credential's allowed origins ({@link allowedOriginsFor}: its saved `baseUrl`
@@ -174,6 +183,49 @@ const MAX_REQUEST_BODY_BYTES = 1_000_000;
  *  `Authorization` itself, and none of the other three have any legitimate reason to be
  *  caller-supplied on a request already pinned to one of the credential's own saved hosts. */
 const FORBIDDEN_REQUEST_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "cookie", "host", "proxy-authorization"]);
+
+/** Response header names that must never reach the model, regardless of value — the credential's
+ *  own injected `Authorization`/`Proxy-Authorization` if a reflecting endpoint echoes the request
+ *  back, and any `Set-Cookie`/`Cookie` the provider sends. Response-side counterpart to
+ *  {@link FORBIDDEN_REQUEST_HEADER_NAMES}; see this file's header, "The token never reaches the
+ *  model". */
+const FORBIDDEN_RESPONSE_HEADER_NAMES: ReadonlySet<string> = new Set(["authorization", "proxy-authorization", "set-cookie", "cookie"]);
+
+/** Fixed marker substituted for a matched secret inside a response body — keeps the rest of the
+ *  body legible while making unambiguous that something was removed, rather than silently
+ *  splicing bytes out. */
+const REDACTED_MARKER = "[REDACTED]";
+
+/**
+ * Strips every response header this module must never hand back to the model: the always-forbidden
+ * names in {@link FORBIDDEN_RESPONSE_HEADER_NAMES}, plus any header whose value contains one of
+ * `secrets` verbatim — the shape a reflecting/echo endpoint takes when it hands the request's own
+ * `Authorization` value, or the credential's raw token, back in a response header. A header with no
+ * secret material passes through unchanged; see this file's header, "The token never reaches the
+ * model".
+ *
+ * @complexity O(n * m): n response headers, each checked against m (small, fixed) secrets.
+ */
+function redactResponseHeaders(headers: Readonly<Record<string, string>>, secrets: readonly string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (FORBIDDEN_RESPONSE_HEADER_NAMES.has(key.trim().toLowerCase())) continue;
+    if (secrets.some((secret) => secret !== "" && value.includes(secret))) continue;
+    result[key] = value;
+  }
+  return result;
+}
+
+/**
+ * Replaces every occurrence of a secret in `text` with {@link REDACTED_MARKER} — applied to the
+ * response body so a reflecting/echo endpoint cannot hand the injected credential back through the
+ * model inside body content, while every other byte of the body reaches it unchanged.
+ *
+ * @complexity O(n * m): n secrets, each a linear scan/replace over `text`.
+ */
+function redactSecretSubstrings(text: string, secrets: readonly string[]): string {
+  return secrets.reduce((acc, secret) => (secret === "" ? acc : acc.split(secret).join(REDACTED_MARKER)), text);
+}
 
 /** Every HTTP method this tool will send — mirrors `platform/http/types.ts`'s `HttpRequest.method`
  *  union exactly, so a value that passes this check always type-checks as one `httpClient.send()`
@@ -614,13 +666,19 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
   const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
+  const authorizationHeader = buildAuthorizationHeader(connection);
+  // Everything a reflecting/echo endpoint could hand back that must never reach the model — the
+  // exact Authorization value this call sent, and the credential's own raw token (covers a Basic
+  // scheme's base64 payload being echoed, and a bare token appearing on its own). See this file's
+  // header, "The token never reaches the model".
+  const responseSecrets: readonly string[] = [authorizationHeader, connection.token];
 
   let response;
   try {
     response = await deps.httpClient.send({
       method,
       url: url.toString(),
-      headers: { ...extraHeaders, Authorization: buildAuthorizationHeader(connection) },
+      headers: { ...extraHeaders, Authorization: authorizationHeader },
       timeoutMs: CREDENTIALED_REQUEST_TIMEOUT_MS,
       ...(body !== undefined ? { body } : {}),
     });
@@ -634,8 +692,8 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   return {
     executed: true,
     status: response.status,
-    headers: { ...response.headers },
-    bodyText: response.bodyText,
+    headers: redactResponseHeaders(response.headers, responseSecrets),
+    bodyText: redactSecretSubstrings(response.bodyText, responseSecrets),
     ...(authDiagnostic ? { authDiagnostic } : {}),
   };
 }

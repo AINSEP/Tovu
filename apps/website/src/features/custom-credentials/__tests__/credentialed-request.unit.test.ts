@@ -774,3 +774,125 @@ test("verifyCustomCredential: an unknown label throws CustomCredentialNotFoundEr
     }
   );
 });
+
+// ---------------------------------------------------------------------------------------------
+// Response header redaction — Authorization, Set-Cookie, and reflected tokens never reach caller
+// ---------------------------------------------------------------------------------------------
+
+test("makeCredentialedRequest: strips sensitive response headers (Authorization, Set-Cookie, Cookie) before returning to the caller", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer namecom-secret-token",
+        "Set-Cookie": "session_id=secret_cookie_123; Secure; HttpOnly",
+        cookie: "tracking=abc",
+        "X-Request-Id": "req-1",
+      },
+      bodyText: '{"ok":true}',
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "name.com",
+    method: "GET",
+    url: "https://api.name.com/v4/domains",
+  });
+
+  assert.equal(result.headers["Content-Type"], "application/json");
+  assert.equal(result.headers["X-Request-Id"], "req-1");
+  assert.equal(result.headers.Authorization, undefined);
+  assert.equal(result.headers.authorization, undefined);
+  assert.equal(result.headers["Set-Cookie"], undefined);
+  assert.equal(result.headers["set-cookie"], undefined);
+  assert.equal(result.headers.cookie, undefined);
+  assert.ok(!JSON.stringify(result.headers).includes("namecom-secret-token"));
+  assert.ok(!JSON.stringify(result.headers).includes("secret_cookie_123"));
+});
+
+test("makeCredentialedRequest: strips response headers that reflect the credential's token or injected Authorization value", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Echoed-Token": "flyio-secret-token",
+        "X-Reflected-Auth": "Bearer flyio-secret-token",
+        "X-Safe-Header": "safe-value",
+      },
+      bodyText: "ok",
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    method: "GET",
+    url: "https://api.fly.io/v1/apps",
+  });
+
+  assert.equal(result.headers["Content-Type"], "application/json");
+  assert.equal(result.headers["X-Safe-Header"], "safe-value");
+  assert.equal(result.headers["X-Echoed-Token"], undefined);
+  assert.equal(result.headers["X-Reflected-Auth"], undefined);
+  assert.ok(!JSON.stringify(result.headers).includes("flyio-secret-token"));
+});
+
+test("makeCredentialedRequest: strips response headers reflecting basic-auth credentials or tokens for username-authenticated credentials", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const basicAuthPayload = Buffer.from("namecom-user:namecom-secret-token").toString("base64");
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {
+        "X-Echoed-Basic": `Basic ${basicAuthPayload}`,
+        "X-Echoed-Secret": "namecom-secret-token",
+        "X-Safe-Header": "safe",
+      },
+      bodyText: "ok",
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "name.com",
+    method: "GET",
+    url: "https://api.name.com/v4/domains",
+  });
+
+  assert.equal(result.headers["X-Safe-Header"], "safe");
+  assert.equal(result.headers["X-Echoed-Basic"], undefined);
+  assert.equal(result.headers["X-Echoed-Secret"], undefined);
+  assert.ok(!JSON.stringify(result.headers).includes("namecom-secret-token"));
+  assert.ok(!JSON.stringify(result.headers).includes(basicAuthPayload));
+});
+
+test("makeCredentialedRequest: strips the injected token from the response BODY too, while leaving the rest of the body intact", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient([
+    {
+      status: 200,
+      headers: {},
+      bodyText: '{"echo":{"authorization":"Bearer flyio-secret-token"},"machines":["m-1","m-2"]}',
+    },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    method: "GET",
+    url: "https://api.fly.io/v1/apps",
+  });
+
+  assert.ok(!result.bodyText.includes("flyio-secret-token"));
+  assert.equal(result.bodyText, '{"echo":{"authorization":"[REDACTED]"},"machines":["m-1","m-2"]}');
+});
+
