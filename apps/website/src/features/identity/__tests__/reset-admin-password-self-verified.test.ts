@@ -63,7 +63,7 @@ test("resetAdminPasswordSelfVerified: resets the seeded owner's password, self-v
     assert.ok(ownerBefore, "the seeded owner user must exist before this test's reset");
 
     const result = await resetAdminPasswordSelfVerified(
-      { auth, dbOps },
+      { auth, dbOps, ownerPrincipalId: identity.ownerPrincipalId },
       { workspaceId: WORKSPACE, username: "admin", password: "recovered-pw-123456", restorePointScopeId: "test-happy" }
     );
     assert.equal(result.principalId, ownerBefore!.principalId);
@@ -120,7 +120,7 @@ test("resetAdminPasswordSelfVerified: a write that does not verify is caught bef
     await assert.rejects(
       () =>
         resetAdminPasswordSelfVerified(
-          { auth, dbOps },
+          { auth, dbOps, ownerPrincipalId: identity.ownerPrincipalId },
           { workspaceId: WORKSPACE, username: "admin", password: "should-never-verify-123456", restorePointScopeId: "test-corrupt" }
         ),
       AdminPasswordResetVerificationFailedError

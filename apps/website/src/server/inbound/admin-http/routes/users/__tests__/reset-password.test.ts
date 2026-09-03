@@ -66,6 +66,23 @@ async function createTestUser(deps: UsersRouteDeps, ownerId: string, username: s
   return { principalId: principal.id, originalHash: user.passwordHash };
 }
 
+/** Attach a policy carrying only `permission` (unconstrained) to `principalId`, mirroring
+ *  `disable.test.ts`'s identical fixture — used here to prove a caller holding ONLY the delegated
+ *  `user.manage` grant (never the owner wildcard) cannot use it against the seeded owner. */
+async function attachSinglePermissionPolicy(deps: UsersRouteDeps, principalId: string, permission: string): Promise<void> {
+  const policyId = `${permission}-only-${principalId}`;
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: policyId, isBuiltin: false, isFrozen: false });
+  await deps.policyPermissionRepo.save({
+    id: `pp-${policyId}`,
+    workspaceId: deps.workspaceId,
+    policyId,
+    permission,
+    resourceType: null,
+    constraintJson: null,
+  });
+  await deps.principalPolicyRepo.save({ id: `pa-${principalId}`, workspaceId: deps.workspaceId, principalId, policyId });
+}
+
 test("RESET_USER_PASSWORD route: 404 when workspaceId does not match", async (t) => {
   const { app } = await buildApp();
   const baseUrl = await startTestServer(app, t);
@@ -163,6 +180,63 @@ test("RESET_USER_PASSWORD route: 403 FORBIDDEN when caller lacks user.manage", a
   const body = (await res.json()) as { code: string; details: { permission: string } };
   assert.equal(body.code, "FORBIDDEN");
   assert.equal(body.details.permission, "user.manage");
+});
+
+/**
+ * 2026-09-03 privilege-escalation finding: `user.manage` is independently grantable and NOT
+ * owner-exclusive (`permissions.ts` — "Create/disable operator users and principals"). Before this
+ * fix, a caller holding only that one delegated permission could call this route against the seeded
+ * owner's account, set a password of their own choosing, and log in as owner — a full takeover from
+ * a routine delegation. Mirrors `disable.test.ts`'s own REQ-13 owner-refusal proof.
+ */
+test("SECURITY REQ-13: RESET_USER_PASSWORD route: 409 OWNER_REQUIRED when a THIRD-PARTY caller with only user.manage targets the seeded owner", async (t) => {
+  const { app, deps, ownerId } = await buildApp({}, "mid-level-admin");
+  // `attachSinglePermissionPolicy` only writes a `principal_policies` row — `authorize()` also
+  // requires the caller's own `principals` row to exist (mirrors `disable.test.ts`'s identical
+  // INV-08 fixture, which seeds its caller principal before attaching a policy the same way).
+  await deps.principalRepo.save({
+    id: "mid-level-admin",
+    workspaceId: WORKSPACE_ID,
+    kind: "user",
+    displayName: "mid-level-admin",
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await attachSinglePermissionPolicy(deps, "mid-level-admin", "user.manage");
+  const baseUrl = await startTestServer(app, t);
+
+  const ownerBefore = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: ownerId });
+  assert.ok(ownerBefore);
+
+  const res = await fetch(`${baseUrl}${urlFor(ownerId)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "attacker-chosen-pw-123456" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "OWNER_REQUIRED");
+
+  const ownerAfter = await deps.userRepo.findByPrincipalId({ workspaceId: WORKSPACE_ID, principalId: ownerId });
+  assert.equal(ownerAfter?.passwordHash, ownerBefore?.passwordHash, "a refused reset must not have changed the owner's credential");
+});
+
+/**
+ * The refusal above must not break the owner's own credential rotation — unlike
+ * `DISABLE_PRINCIPAL`'s unconditional owner refusal, this guard exempts the owner acting on itself
+ * (see `admin-crud-service.ts`'s `resetUserPassword` doc for why: this is also the shape
+ * `reset-admin-password-self-verified.ts`'s incident-recovery path relies on).
+ */
+test("RESET_USER_PASSWORD route: 204 when the seeded owner resets its own password (self-service is not the escalation REQ-13 blocks)", async (t) => {
+  const { app, ownerId } = await buildApp({}, undefined);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}${urlFor(ownerId)}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ password: "owner-self-rotated-pw-123456" }),
+  });
+  assert.equal(res.status, 204);
 });
 
 test("RESET_USER_PASSWORD route: 400 VALIDATION_ERROR when password is missing", async (t) => {

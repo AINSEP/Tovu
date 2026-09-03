@@ -132,7 +132,12 @@ async function main(): Promise<void> {
 
   try {
     await resetAdminPasswordSelfVerified(
-      { auth: { repos, hasher: identity.passwordHasher, clock, idGen }, dbOps, log: (m) => console.log(m) },
+      {
+        auth: { repos, hasher: identity.passwordHasher, clock, idGen },
+        dbOps,
+        ownerPrincipalId: identity.ownerPrincipalId,
+        log: (m) => console.log(m),
+      },
       { workspaceId, username: args.username, password: args.password, restorePointScopeId: "backfill-reset-admin-password" }
     );
   } catch (err) {

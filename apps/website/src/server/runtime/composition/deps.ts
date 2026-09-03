@@ -630,7 +630,12 @@ function applyAdminPasswordResetFromEnvIfConfigured(required: {
     .then(() =>
       resetAdminPasswordSelfVerified(
         // eslint-disable-next-line no-console
-        { auth: { repos, hasher: identity.passwordHasher, clock, idGen }, dbOps, log: (m) => console.error(`[admin-password-reset] ${m}`) },
+        {
+          auth: { repos, hasher: identity.passwordHasher, clock, idGen },
+          dbOps,
+          ownerPrincipalId: identity.ownerPrincipalId,
+          log: (m) => console.error(`[admin-password-reset] ${m}`),
+        },
         { workspaceId, username, password, restorePointScopeId: "boot-admin-password-reset" }
       )
     )

@@ -4,6 +4,7 @@ import {
   IdentityForbiddenError,
   IdentityNotFoundError,
   IdentityValidationError,
+  OwnerRequiredError,
   resetUserPassword,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
@@ -13,6 +14,10 @@ import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 function sendResetPasswordError(res: Response, err: unknown): void {
   if (err instanceof IdentityForbiddenError) {
     res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
     return;
   }
   if (err instanceof IdentityValidationError) {
@@ -29,7 +34,11 @@ function sendResetPasswordError(res: Response, err: unknown): void {
 /**
  * POST users/:principalId/reset-password — `RESET_USER_PASSWORD` (SPEC-006 0.6.0, REQ-17). Gated
  * by **`user.manage`** only (stricter than `UPDATE_USER`). No response body — the raw new password
- * is never echoed back (INV-05); revokes every one of the target's active sessions (AC-29).
+ * is never echoed back (INV-05); revokes every one of the target's active sessions (AC-29). Refuses
+ * a THIRD-PARTY caller resetting the seeded owner's password (REQ-11/REQ-13) — the owner may still
+ * reset its own — see `identity/admin-crud-service.ts`'s `resetUserPassword` for the full contract;
+ * `seededOwnerPrincipalId` is resolved here exactly as `disable.ts` resolves it for
+ * `DISABLE_PRINCIPAL`.
  */
 export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/users/:principalId/reset-password", async (req, res) => {
@@ -40,6 +49,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
 
     try {
       const caller = getAuthedPrincipal(res);
+      const seededOwnerPrincipalId = await deps.ownerPrincipalId;
 
       const body = (req.body ?? {}) as Record<string, unknown>;
       await resetUserPassword({
@@ -49,6 +59,7 @@ export const registerAdminUserResetPasswordRoute: UsersRouteRegistrar = (app, de
           callerPrincipalId: caller.id,
           principalId: String(req.params.principalId ?? ""),
           password: String(body.password ?? ""),
+          seededOwnerPrincipalId,
         },
       });
 

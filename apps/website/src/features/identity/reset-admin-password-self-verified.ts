@@ -1,4 +1,5 @@
 import { resetUserPassword, IdentityNotFoundError, type AuthServiceDeps } from "@jini-ai/cms/identity";
+import type { UUID } from "@jini-ai/cms/core";
 
 import type { DbOpsPort } from "#src/contracts/core/gated-mutations/ports";
 
@@ -46,6 +47,16 @@ export class AdminPasswordResetVerificationFailedError extends Error {}
 export interface ResetAdminPasswordSelfVerifiedDeps {
   readonly auth: AuthServiceDeps;
   readonly dbOps: DbOpsPort;
+  /**
+   * SPEC-006 0.6.0 — the seeded owner's principal id, resolved once at boot (mirrors
+   * `IdentityRouteDepsSlice.ownerPrincipalId`'s exact shape). `resetUserPassword` now refuses a
+   * password reset against the seeded owner from any caller OTHER than the owner itself
+   * (REQ-11/REQ-13) — this module always resets a user's OWN password (`callerPrincipalId ===
+   * principalId` below), so that guard never refuses this self-service/recovery path; it still
+   * needs the real id threaded through because the guard compares against it, not because this
+   * call could ever trip the guard.
+   */
+  readonly ownerPrincipalId: Promise<UUID>;
   /** Defaults to a no-op. Injected so callers (tests, the CLI script, the boot hook) can route
    *  progress output wherever they need it without this function knowing where that is. */
   readonly log?: (message: string) => void;
@@ -97,6 +108,7 @@ export async function resetAdminPasswordSelfVerified(
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: input.restorePointScopeId });
   log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 
+  const seededOwnerPrincipalId = await deps.ownerPrincipalId;
   await resetUserPassword({
     deps: auth,
     input: {
@@ -104,6 +116,7 @@ export async function resetAdminPasswordSelfVerified(
       callerPrincipalId: target.principalId,
       principalId: target.principalId,
       password: input.password,
+      seededOwnerPrincipalId,
     },
   });
   log(`resetUserPassword() returned for username='${input.username}' — verifying before reporting success.`);
