@@ -29,7 +29,7 @@
  * `platform/site-dir/site-root.ts`'s `resolveSiteRoot()` uses for its own `TOVU_SITE` fallback.
  */
 import Database from "better-sqlite3";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -187,14 +187,51 @@ function vacuumAndVerify(db) {
 }
 
 /**
- * Cross-checks the seed's remaining `asset_blobs.storage_key`s against `<site>/uploads/` on disk —
- * every key must have a corresponding file, or this script would publish a seed that ships real
- * `media`/`asset_blobs` ROWS with no way to ever get their BYTES (the exact production incident
- * this check exists to prevent: `content.seed.db` ships regardless of whether `uploads/` has the
- * matching file, since neither table is in `PRUNE_TABLES`, but the Dockerfile's build stage only
- * ships whatever `uploads/` actually contains — see that file's own comment at the `uploads/`
- * extraction step). Read-only against `liveDir` — never writes there, mirrors this script's own
- * "never touch the live tree" rule for `liveDbPath`.
+ * Whether the file backing one `asset_blobs` row is actually a usable blob: a real, regular file
+ * (not a directory, symlink, or other non-regular entry) whose BYTES really hash to the row's own
+ * `sha256` column. `fs.existsSync()` alone answers neither question — it returns `true` for a
+ * directory or a valid symlink, and says nothing about content — which is exactly how this check's
+ * prior version let a directory or wrong-content file pass as a "blob" (see `findMissingSeedBlobs`'s
+ * own doc for the incident this closes). Since `storage_key` is content-addressed
+ * (`ws/{workspaceId}/blobs/{shard}/{sha256}`, `blob-key.ts`'s own template), the row's `sha256`
+ * column IS the one comparison that actually means something: a file at the right path with the
+ * wrong bytes is exactly as useless to a fresh deploy as no file at all.
+ *
+ * `lstatSync` (not `statSync`) deliberately does NOT follow a symlink — a symlink is exactly what
+ * `hydrateBlobStoreFromSeed()`'s own directory walk on the runtime side already treats as "not a
+ * blob" (its `readdir(..., { withFileTypes: true })` only ever picks up `entry.isFile()` dirents,
+ * which report `false` for a symlink); this check uses the SAME definition of "valid blob" the
+ * runtime consumer will use, rather than a looser one that could pass a symlink the hydrator would
+ * then silently skip.
+ *
+ * @complexity O(n) full-file reads for n rows — this script is a low-frequency, developer-invoked
+ *   build step (`npm run seed:site`), not a request path, and already loads/copies/VACUUMs the
+ *   whole live db in-process, so a synchronous full-file hash per blob is consistent with its
+ *   existing resource profile rather than a new concern this change introduces.
+ */
+function seedBlobIsValid(row, liveDir) {
+  const filePath = path.join(liveDir, "uploads", row.storage_key);
+  let stat;
+  try {
+    stat = fs.lstatSync(filePath);
+  } catch {
+    return false; // ENOENT (or any other stat failure) — no file at all.
+  }
+  if (!stat.isFile()) return false; // a directory, symlink, or other non-regular entry.
+  const actualSha256 = createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+  return actualSha256 === row.sha256;
+}
+
+/**
+ * Cross-checks the seed's remaining `asset_blobs` rows against `<site>/uploads/` on disk — every
+ * row's `storage_key` must resolve to a real, correctly content-addressed regular file, or this
+ * script would publish a seed that ships real `media`/`asset_blobs` ROWS with no way to ever get
+ * their BYTES (the exact production incident this check exists to prevent: `content.seed.db` ships
+ * regardless of whether `uploads/` has the matching file, since neither table is in
+ * `PRUNE_TABLES`, but the Dockerfile's build stage only ships whatever `uploads/` actually
+ * contains — see that file's own comment at the `uploads/` extraction step). Read-only against
+ * `liveDir` — never writes there, mirrors this script's own "never touch the live tree" rule for
+ * `liveDbPath`.
  *
  * Exported (2026-09-02) — `development/scripts/__tests__/seed-site.unit.test.ts` imports this
  * directly, mirroring `generate-seed-content.ts`'s `generate()`/`assertNoUndefinedProperties`
@@ -202,11 +239,12 @@ function vacuumAndVerify(db) {
  * without running this script's real live-db-copying `main()` as an import side effect (see the
  * `main()` guard at the bottom of this file).
  *
- * @returns every `storage_key` with no matching file — empty means consistent.
+ * @returns every `storage_key` whose file is missing, non-regular, or hash-mismatched — empty
+ *   means consistent.
  */
 export function findMissingSeedBlobs(db, liveDir) {
-  const rows = db.prepare(`SELECT storage_key FROM asset_blobs`).all();
-  return rows.map((row) => row.storage_key).filter((storageKey) => !fs.existsSync(path.join(liveDir, "uploads", storageKey)));
+  const rows = db.prepare(`SELECT storage_key, sha256 FROM asset_blobs`).all();
+  return rows.filter((row) => !seedBlobIsValid(row, liveDir)).map((row) => row.storage_key);
 }
 
 /** Atomically publishes the finished scratch copy to `seedDbPath` (write-then-rename, same dir/fs). */
