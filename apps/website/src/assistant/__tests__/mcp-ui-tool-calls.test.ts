@@ -61,6 +61,11 @@ test("custom_credential_make_request is on the allowlist — its DELETE method h
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("custom_credential_make_request"));
 });
 
+test("external_mcp_reauth_prompt is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-09-02)", () => {
+  assert.equal(isMcpUiToolCallAllowed("external_mcp_reauth_prompt"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("external_mcp_reauth_prompt"));
+});
+
 // ---------------------------------------------------------------------------
 // The closed-set property
 // ---------------------------------------------------------------------------
@@ -83,6 +88,7 @@ const EXPECTED_ALLOWLIST = [
   "custom_credential_set_token",
   "deployment_execute_static_publish",
   "deployment_propose_custom_provider_credential",
+  "external_mcp_reauth_prompt",
   "source_control_execute_commit",
 ];
 
@@ -114,6 +120,9 @@ test("SECURITY-CRITICAL: isMcpUiToolCallAllowed admits a tool id if and ONLY if 
     "deployment_execute_static_publish_all",
     "source_control_execute_commit2",
     "assistant_demo_choices_admin",
+    "external_mcp_reauth_prompts",
+    "not_external_mcp_reauth_prompt",
+    "EXTERNAL_MCP_REAUTH_PROMPT",
     // Shapes a caller controls that must never be treated as a match.
     "",
     " ",

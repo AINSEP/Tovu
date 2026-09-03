@@ -165,6 +165,16 @@ export function buildBaseSystemOverlay(bashProhibitionEnabled: boolean): string 
     "actually succeeded, and the provider's own error, unchanged, if it failed again. Never attempt " +
     "a second ask-fix-retry cycle for the same request: if the retry still fails, or " +
     "'usernameStored' was already true (a different, unguessable cause this diagnostic cannot " +
-    "explain), stop and report the failure plainly instead of looping."
+    "explain), stop and report the failure plainly instead of looping. When a federated external " +
+    "MCP tool call (its id starts with 'mcp__') fails with an error saying a server 'is " +
+    "disconnected: its authorization expired or was revoked', do not just relay that in prose and " +
+    "do not keep retrying the same tool. Call external_mcp_reauth_prompt with that connection's id " +
+    "— the segment of the failing tool's own id between 'mcp__' and the next '__' (e.g. " +
+    "'higgsfield' from 'mcp__higgsfield__generate_video') — to show the administrator an in-chat " +
+    "reconnect notice naming that server; if you ever forget that exact name, " +
+    "search_tools/describe_tool/execute_delegated_tool can find and run it too, the same as any " +
+    "other registered tool. It blocks until they acknowledge it. Once they say they have " +
+    "reconnected it, retry the ORIGINAL failed call exactly once and report its real outcome " +
+    "truthfully — never a second ask-fix-retry cycle for the same failing call."
   );
 }

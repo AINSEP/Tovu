@@ -9,6 +9,7 @@ import { componentCatalogAgentToolCatalog } from "../component-catalog-tool.js";
 import { demoA2uiAgentToolCatalog } from "../demo-a2ui-tool.js";
 import { demoChoicesAgentToolCatalog } from "../demo-choices-tool.js";
 import { demoImageAgentToolCatalog } from "../demo-image-tool.js";
+import { externalMcpReauthAgentToolCatalog } from "../external-mcp-reauth-tool.js";
 import { renderUiAgentToolCatalog } from "../render-ui-tool.js";
 import { commentsAgentToolCatalog } from "../../features/comments/agent-tools.js";
 import {
@@ -188,7 +189,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   // `contributeMediaGenerationTools()` — see `features/media-generation/tool-registrations.ts`'s own
   // header. The entry this dispatch was sent to add; see this const's own doc above.
   "media-generation": mediaGenerationAgentToolCatalog as unknown as AgentToolDefinition[],
-  // The 6 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
+  // The 7 `DOMAIN_SLICES`-only domains — disclosed hand-maintained fallback, see this const's own
   // doc above for why they cannot derive the same way.
   "demo-choices": demoChoicesAgentToolCatalog as unknown as AgentToolDefinition[],
   "demo-a2ui": demoA2uiAgentToolCatalog as unknown as AgentToolDefinition[],
@@ -196,6 +197,7 @@ const CATALOGS_BY_DOMAIN: Record<string, AgentToolDefinition[]> = {
   "render-ui": renderUiAgentToolCatalog as unknown as AgentToolDefinition[],
   "component-catalog": componentCatalogAgentToolCatalog as unknown as AgentToolDefinition[],
   "ask-choice": askChoiceAgentToolCatalog as unknown as AgentToolDefinition[],
+  "external-mcp-reauth": externalMcpReauthAgentToolCatalog as unknown as AgentToolDefinition[],
 };
 
 /** Flattened view of {@link CATALOGS_BY_DOMAIN} for the per-tool-id lookups below — every catalog

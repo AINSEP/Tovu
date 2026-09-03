@@ -43,6 +43,8 @@
  * in-chat UI ones just un-gated. The per-domain table above is a 2026-08-05 snapshot summing to
  * 131 and has NOT been re-measured since; domains added after that date (see the dated notes
  * below) are why the live number is higher. Trust the measurement, not the table.
+ * 2026-09-02: `external-mcp-reauth` added one more (`external_mcp_reauth_prompt` — see its own
+ * `DOMAIN_SLICES` entry comment below), not re-measured into the 154 figure above either.
  * 2026-08-30: `component-catalog` added two more (`search_components`/`describe_component` —
  * see its own `DOMAIN_SLICES` entry below), not re-measured into the 154 figure above either.
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
@@ -145,6 +147,11 @@
 import type { CommentsToolDeps } from "../features/comments/tool-registrations.js";
 import { buildAskChoiceRegistrations, askChoiceDerivedRisk } from "./ask-choice-tool.js";
 import { buildComponentCatalogRegistrations, componentCatalogDerivedRisk } from "./component-catalog-tool.js";
+import {
+  buildExternalMcpReauthRegistrations,
+  externalMcpReauthDerivedRisk,
+  type ExternalMcpReauthToolDeps,
+} from "./external-mcp-reauth-tool.js";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool.js";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool.js";
 import { buildDemoImageRegistrations, demoImageDerivedRisk } from "./demo-image-tool.js";
@@ -248,7 +255,8 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   RedirectsToolDeps &
   SeoToolDeps &
   SiteEvidenceToolDeps &
-  WidgetsToolDeps;
+  WidgetsToolDeps &
+  ExternalMcpReauthToolDeps;
 
 /**
  * One wired domain: its builder and the risk classification its own wiring file maintains.
@@ -523,6 +531,14 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // from the administrator. See `ask-choice-tool.ts`'s own header for why this is additive rather
   // than a rename of the demo tool.
   { domain: "ask-choice", build: buildAskChoiceRegistrations, risk: askChoiceDerivedRisk },
+  // 2026-09-02: the in-chat re-auth notice for a federated MCP connection whose OAuth grant died —
+  // the surface half of the detect/mark-`needs_reauth` flow `mcp-federation/registrations.ts`'s
+  // `onAuthFailed` and `external-mcp-oauth.ts`'s `reportAuthFailure` already implement (landed
+  // `ae893f48`). See `external-mcp-reauth-tool.ts`'s own header for why this tool never calls
+  // `beginConnect` itself (a cross-process trap AND a sandboxed-iframe trap, independently
+  // disqualifying) and instead points at Settings → External MCP's own, already-correct authorize
+  // flow.
+  { domain: "external-mcp-reauth", build: buildExternalMcpReauthRegistrations, risk: externalMcpReauthDerivedRisk },
 ];
 
 /**

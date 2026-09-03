@@ -129,6 +129,13 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // needs to be reachable through this same redemption path, for the identical reason every other
   // held-open exchange does.
   "assistant_tool_failure_recovery",
+  // 2026-09-02 — `external_mcp_reauth_prompt` (`external-mcp-reauth-tool.ts`) holds up the SAME
+  // held-open-exchange shape every entry above does: its handler opens a `SurfaceExchangeStore`
+  // exchange and parks on the administrator's "Got it" click before returning. Omitting it here
+  // would repeat the exact gap `assistant_ask_choice`'s own comment above describes — the notice
+  // would render correctly and every acknowledgement would 403, leaving the parked call to expire
+  // on its own idle deadline instead of ever resolving.
+  "external_mcp_reauth_prompt",
 ]);
 
 /**
