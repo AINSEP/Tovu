@@ -28,8 +28,10 @@ export function registerAdminRecoveryDeepLinkRoute(app: Express, deps: DatabaseR
         return;
       }
 
-      const body = req.body ?? {};
-      const envelope = body.envelope as DatabaseContextEnvelope | undefined;
+      // `req.body` is always an object here: `express.json()` sets it unconditionally
+      // (`body-parser/lib/types/json.js`) before any content-type check, so a `?? {}` fallback
+      // would be dead code — never reachable through real HTTP.
+      const envelope = req.body.envelope as DatabaseContextEnvelope | undefined;
       if (!envelope || typeof envelope !== "object") {
         res.status(400).json({ error: "'envelope' (object) is required", code: "VALIDATION_ERROR" });
         return;

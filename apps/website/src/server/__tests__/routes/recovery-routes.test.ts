@@ -88,6 +88,88 @@ test("recovery routes: a deep-link envelope with a stale/unknown restorePointId 
   assert.equal(body.restorePoint, null);
 });
 
+test("recovery routes: a deep-link envelope carrying a restorePointId that DOES exist server-side resolves {found:true} with the re-looked-up value", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ trigger: "manual" }),
+  });
+  const created = (await createRes.json()) as { restorePoint: { id: string; capturedAt: string } };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      envelope: { v: 1, correlationId: "c1", siteId: "site-1", ledgerEventId: null, restorePointId: created.restorePoint.id, drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z" },
+    }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { found: boolean; restorePoint: { restorePointId: string } | null };
+  assert.equal(body.found, true);
+  assert.equal(body.restorePoint?.restorePointId, created.restorePoint.id);
+});
+
+test("recovery routes: deep-link denies 403 FORBIDDEN without backup.read", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ envelope: { v: 1, correlationId: "c1", siteId: "site-1", ledgerEventId: null, restorePointId: "rp-1", drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z" } }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "backup.read", reason: "test_denied" });
+});
+
+test("recovery routes: deep-link rejects a missing envelope, and a non-object envelope, with 400 VALIDATION_ERROR", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const missing = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({}),
+  });
+  assert.equal(missing.status, 400);
+  assert.equal(((await missing.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  // A truthy but non-object envelope (e.g. a string) must fail the same way — the second half of
+  // the `!envelope || typeof envelope !== "object"` guard, not just the first.
+  const wrongType = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ envelope: "not-an-object" }),
+  });
+  assert.equal(wrongType.status, 400);
+  assert.equal(((await wrongType.json()) as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("recovery routes: deep-link surfaces a thrown error as 500 INTERNAL_ERROR with the error's own message", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/recovery/deep-link`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ envelope: { v: 1, correlationId: "c1", siteId: "site-1", ledgerEventId: null, restorePointId: "rp-1", drift: "in-sync", intent: "view", issuedAt: "2026-07-15T00:00:00.000Z" } }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.deepEqual(body, { error: "boom", code: "INTERNAL_ERROR" });
+});
+
 test("recovery routes: status resolves the real dbOps costClass, and reports the 'watermark-baseline-unavailable' banner (the honest, safe state while no per-category write tracker exists — never a fabricated 'healthy' state)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

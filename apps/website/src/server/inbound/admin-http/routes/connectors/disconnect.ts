@@ -29,7 +29,10 @@ export function registerAdminConnectorsDisconnectRoute(
   outboundLimiter: RateLimiter
 ): void {
   app.post("/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/disconnect", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    // `req.params.workspaceId`/`connectorId` are always strings once Express has matched this
+    // route (`ParamsDictionary` types every required param as `string`, never `undefined`), so a
+    // `?? ""` fallback here would be dead code — never reachable through real HTTP.
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -55,7 +58,7 @@ export function registerAdminConnectorsDisconnectRoute(
       });
       if (!authorized) return;
 
-      const connector = await deps.composioConnectors.service.disconnect(String(req.params.connectorId ?? ""));
+      const connector = await deps.composioConnectors.service.disconnect(req.params.connectorId);
       await deps.composioConnectors.flushCredentials();
       res.json(connector);
     } catch (error) {
@@ -66,7 +69,7 @@ export function registerAdminConnectorsDisconnectRoute(
 
 export const registerAdminConnectorsCancelRoute: ConnectorsRouteRegistrar = (app, deps) => {
   app.post("/api/admin/v1/workspaces/:workspaceId/connectors/:connectorId/cancel", async (req, res) => {
-    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    if (req.params.workspaceId !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -89,7 +92,7 @@ export const registerAdminConnectorsCancelRoute: ConnectorsRouteRegistrar = (app
       }
 
       res.json(
-        await deps.composioConnectors.service.cancelPendingAuthorization(String(req.params.connectorId ?? ""))
+        await deps.composioConnectors.service.cancelPendingAuthorization(req.params.connectorId)
       );
     } catch (error) {
       sendConnectorError(res, error);

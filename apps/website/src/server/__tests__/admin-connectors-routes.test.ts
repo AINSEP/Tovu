@@ -289,6 +289,75 @@ test("clearing a key needs no verification — it must work while Composio is do
   assert.deepEqual(await cleared.json(), { configured: false, apiKeyTail: "" });
 });
 
+test("disconnect: a workspace id that is not this site's is 404, a successful disconnect flushes credentials and returns 200, and the outbound rate limit trips after its budget", async (t) => {
+  const { app } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // 1. Workspace mismatch -> 404, and never touches the per-IP outbound budget (the check happens
+  // before `outboundLimiter.check`, so this must not consume any of the 12 calls below).
+  const mismatchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-this-site/connectors/github/disconnect`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(mismatchRes.status, 404);
+  assert.equal((await mismatchRes.json()).error, "workspace was not found");
+
+  // 2. CONNECTOR_OUTBOUND_PER_IP is max:10/burst:2 -> 12 allowed requests in the window. No
+  // credential is stored for "github", so each disconnect completes without an outbound call to
+  // Composio (short-circuits at `credentials === undefined`) and returns 200.
+  for (let i = 0; i < 12; i++) {
+    const res = await fetch(`${baseUrl}${BASE}/github/disconnect`, { method: "POST", headers: { cookie } });
+    assert.equal(res.status, 200, `call ${i + 1} of 12 should be within budget`);
+    const body = (await res.json()) as { id: string };
+    assert.equal(body.id, "github");
+  }
+
+  // 3. The 13th call in the same window is rate-limited.
+  const limited = await fetch(`${baseUrl}${BASE}/github/disconnect`, { method: "POST", headers: { cookie } });
+  assert.equal(limited.status, 429);
+  const limitedBody = (await limited.json()) as { code: string; details: { retryAfterSeconds: number } };
+  assert.equal(limitedBody.code, "RATE_LIMIT_EXCEEDED");
+  assert.ok(limitedBody.details.retryAfterSeconds > 0);
+  assert.equal(limited.headers.get("retry-after"), String(limitedBody.details.retryAfterSeconds));
+});
+
+test("cancel: workspace mismatch is 404, denies 403 FORBIDDEN without admin.integrations.manage, a successful cancel returns 200, and authorize() failure is a 500", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // 1. Workspace mismatch -> 404.
+  const mismatchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-this-site/connectors/github/cancel`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(mismatchRes.status, 404);
+  assert.equal((await mismatchRes.json()).error, "workspace was not found");
+
+  // 2. Denied -> 403 FORBIDDEN, matching disconnect's own pre-conversion shape.
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+  const forbidRes = await fetch(`${baseUrl}${BASE}/github/cancel`, { method: "POST", headers: { cookie } });
+  assert.equal(forbidRes.status, 403);
+  const forbidBody = (await forbidRes.json()) as { error: string; code: string; details: { permission: string; reason: string } };
+  assert.equal(forbidBody.code, "FORBIDDEN");
+  assert.match(forbidBody.error, /^principal '.+' is not authorized for 'admin\.integrations\.manage' \(test_denied\)$/);
+  assert.deepEqual(forbidBody.details, { permission: "admin.integrations.manage", reason: "test_denied" });
+
+  // 3. Success -> 200. No pending authorization exists for "github"; the service cancels 0 and
+  // still returns the connector detail rather than erroring.
+  deps.authorize = async () => ({ allowed: true });
+  const okRes = await fetch(`${baseUrl}${BASE}/github/cancel`, { method: "POST", headers: { cookie } });
+  assert.equal(okRes.status, 200);
+  assert.equal(((await okRes.json()) as { id: string }).id, "github");
+
+  // 4. authorize() throws -> 500 INTERNAL_ERROR (not limited by any rate limiter — cancel has none).
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+  const errRes = await fetch(`${baseUrl}${BASE}/github/cancel`, { method: "POST", headers: { cookie } });
+  assert.equal(errRes.status, 500);
+  assert.deepEqual(await errRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
 test("a missing master secret is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {
   const { app } = await buildTestApp(t, { siteAssistantSecretKeyring: new BrokenKeyring() });
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

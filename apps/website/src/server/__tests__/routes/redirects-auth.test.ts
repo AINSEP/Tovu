@@ -275,6 +275,78 @@ test("admin redirects update route: workspace mismatch, update happy path, undef
   }
 });
 
+test("admin redirects import route: workspace mismatch, batch-size validation, all-created, partial failure, unexpected error", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const importUrl = `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/import`;
+  const post = (body: unknown) =>
+    fetch(importUrl, { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify(body) });
+
+  // 1. Workspace mismatch -> 404 (checked before any body validation).
+  const mismatchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/redirects/import`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ rules: [] }),
+  });
+  assert.equal(mismatchRes.status, 404);
+  assert.equal((await mismatchRes.json()).error, "workspace was not found");
+
+  // 2. Top-level shape validation -> 400 VALIDATION_ERROR: not an array, too few, too many.
+  for (const rules of [undefined, "not-an-array", []]) {
+    const res = await post({ rules });
+    assert.equal(res.status, 400, `rules=${JSON.stringify(rules)} should be 400`);
+    assert.equal(((await res.json()) as { code: string }).code, "VALIDATION_ERROR");
+  }
+  const tooMany = await post({ rules: Array.from({ length: 501 }, (_, i) => ({ matchType: "exact", fromPattern: `/r${i}`, toTarget: "/t", statusCode: 301 })) });
+  assert.equal(tooMany.status, 400);
+  assert.equal(((await tooMany.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  // 3. Every rule valid -> 207 with all created, none failed.
+  const okRes = await post({
+    rules: [
+      { matchType: "exact", fromPattern: "/import-a", toTarget: "/target-a", statusCode: 301 },
+      { matchType: "exact", fromPattern: "/import-b", toTarget: "/target-b", statusCode: 302 },
+    ],
+  });
+  assert.equal(okRes.status, 207);
+  const okBody = (await okRes.json()) as { created: Array<{ fromPattern: string }>; failed: unknown[] };
+  assert.equal(okBody.created.length, 2);
+  assert.equal(okBody.failed.length, 0);
+  assert.deepEqual(okBody.created.map((r) => r.fromPattern).sort(), ["/import-a", "/import-b"]);
+
+  // 4. A per-item failure never aborts the batch (EC-08): the duplicate `fromPattern` fails on its
+  // own, the first item still commits, and the response is still 207 (never a top-level error).
+  const partialRes = await post({
+    rules: [
+      { matchType: "exact", fromPattern: "/import-dup", toTarget: "/target-c", statusCode: 301 },
+      { matchType: "exact", fromPattern: "/import-dup", toTarget: "/target-d", statusCode: 301 },
+    ],
+  });
+  assert.equal(partialRes.status, 207);
+  const partialBody = (await partialRes.json()) as {
+    created: Array<{ fromPattern: string }>;
+    failed: Array<{ index: number; code: string }>;
+  };
+  assert.equal(partialBody.created.length, 1);
+  assert.equal(partialBody.created[0]?.fromPattern, "/import-dup");
+  assert.equal(partialBody.failed.length, 1);
+  assert.deepEqual(partialBody.failed[0], { index: 1, code: "REDIRECT_CONFLICT", message: partialBody.failed[0]?.message });
+  assert.match(partialBody.failed[0]?.message ?? "", /already exists/);
+
+  // 5. An unexpected error before the import runs (e.g. authorize() throwing) is a 500, not a 207.
+  const origAuthorize = deps.authorize;
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+  try {
+    const errRes = await post({ rules: [{ matchType: "exact", fromPattern: "/import-e", toTarget: "/target-e", statusCode: 301 }] });
+    assert.equal(errRes.status, 500);
+    assert.deepEqual(await errRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+  } finally {
+    deps.authorize = origAuthorize;
+  }
+});
+
 test("admin redirects get-by-id route: workspace mismatch, found, not found, unexpected error", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
