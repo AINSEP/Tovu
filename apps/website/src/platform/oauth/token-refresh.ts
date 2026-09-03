@@ -56,7 +56,9 @@ export interface TokenRefreshPort {
   refresh(key: string, refreshToken: string): Promise<OAuthTokenSet>;
   /** Seals and persists the rotated set. Must complete before the new token is handed out. */
   persist(key: string, tokens: OAuthTokenSet): Promise<void>;
-  /** Records the durable, operator-actionable terminal state. Called at most once per transition. */
+  /** Records the durable, operator-actionable terminal state. Called at most once per transition.
+   *  May itself throw (a secret-store re-seal can exhaust its own retry budget) — callers must treat
+   *  the write as best-effort and never let its failure stand in for the reauth error it precedes. */
   markNeedsReauth(key: string, reason: string): Promise<void>;
   /**
    * Cross-process compare-and-set. `true` means this process may refresh; `false` means another
@@ -81,18 +83,20 @@ export interface TokenRefresher {
   /**
    * Returns a usable access token for `key`, refreshing first if it is at or near expiry.
    *
-   * @throws {OAuthError} `OAUTH_INVALID_GRANT` when the connection needs re-authorization (already
-   *   recorded via `markNeedsReauth` before this throws), or `OAUTH_PROVIDER_UNREACHABLE` when the
-   *   refresh could not be attempted and no usable token remains. Both terminal.
+   * @throws {OAuthError} `OAUTH_INVALID_GRANT` when the connection needs re-authorization
+   *   (`markNeedsReauth` is attempted first, best-effort — its own failure is attached as `cause`
+   *   rather than replacing this error), or `OAUTH_PROVIDER_UNREACHABLE` when the refresh could not
+   *   be attempted and no usable token remains. Both terminal.
    */
   getAccessToken(key: string): Promise<string>;
   /** In-flight refreshes, for tests and for an operational counter. */
   inFlightCount(): number;
 }
 
-function needsReauthError(reason: string): OAuthError {
+function needsReauthError(reason: string, options: { readonly cause?: unknown } = {}): OAuthError {
   return new OAuthError("OAUTH_INVALID_GRANT", `this connection needs to be re-authorized (${reason})`, {
     operatorAction: "Reconnect this server in Settings → External MCP.",
+    cause: options.cause,
   });
 }
 
@@ -135,11 +139,35 @@ export function createTokenRefresher(deps: TokenRefresherDeps): TokenRefresher {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
   const inFlight = new Map<string, Promise<string>>();
 
+  /**
+   * Calls `port.markNeedsReauth`, but never lets ITS failure stand in for the reauth signal it
+   * exists to record. The write can itself throw — see `external-mcp-oauth.ts`'s `setOAuthStatus`,
+   * whose clear-token re-seal rethrows once its bounded retry budget is exhausted — and every
+   * caller downstream of `getAccessToken` branches on the reauth error's CLASS
+   * (`isOAuthError(error) && error.code === "OAUTH_INVALID_GRANT"`), not on whatever incidental
+   * error the write happened to fail with. Letting the write's error escape here would silently
+   * swap out the "stop retrying" signal for one none of those callers recognize, so the model would
+   * keep hammering a connection that can never succeed. The write is therefore best-effort, exactly
+   * like `external-mcp-oauth.ts`'s `reportAuthFailure` guards the identical call: its failure is
+   * returned so the caller can carry it as `cause`, never thrown in place of the reauth error.
+   */
+  const markNeedsReauthBestEffort = async (key: string, reason: string): Promise<unknown> => {
+    try {
+      await deps.port.markNeedsReauth(key, reason);
+      return undefined;
+    } catch (error) {
+      return error;
+    }
+  };
+
   /** The refresh itself, run by exactly one caller per key per rotation. */
   const performRefresh = async (key: string, current: OAuthTokenSet): Promise<string> => {
     if (current.refreshToken === null) {
-      await deps.port.markNeedsReauth(key, "the provider issued no refresh token and the access token has expired");
-      throw needsReauthError("no refresh token");
+      const writeFailure = await markNeedsReauthBestEffort(
+        key,
+        "the provider issued no refresh token and the access token has expired",
+      );
+      throw needsReauthError("no refresh token", { cause: writeFailure });
     }
 
     let rotated: OAuthTokenSet;
@@ -150,8 +178,9 @@ export function createTokenRefresher(deps: TokenRefresherDeps): TokenRefresher {
       // alone — see this file's header.
       const terminal = isOAuthError(error) && (error.code === "OAUTH_INVALID_GRANT" || error.code === "OAUTH_ACCESS_DENIED");
       if (terminal) {
-        await deps.port.markNeedsReauth(key, "the provider rejected the stored refresh token");
-        throw needsReauthError("the provider rejected the stored refresh token");
+        const reason = "the provider rejected the stored refresh token";
+        const writeFailure = await markNeedsReauthBestEffort(key, reason);
+        throw needsReauthError(reason, { cause: writeFailure });
       }
       throw error;
     }

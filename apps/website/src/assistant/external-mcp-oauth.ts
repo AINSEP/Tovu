@@ -676,10 +676,14 @@ async function setOAuthStatus(
   // function's callers already has a place that reacts to `ExternalMcpSecretStoreUnconfiguredError`
   // without inventing a new one — `disconnect()`'s admin route already maps it to a 503
   // `SECRET_STORE_UNCONFIGURED`, `reportAuthFailure` already carries an unexpected `setOAuthStatus`
-  // failure as `cause` on its terminal error, and `markNeedsReauth`'s only path (a stale refresh,
-  // resolved at boot) already folds any resolution failure into the reason string an operator sees in
-  // the admin tab's boot report. Any OTHER error (a genuine bug, not an unopenable or unsealable blob)
-  // still propagates from either step — this is a documented, targeted degrade, not a blanket swallow.
+  // failure as `cause` on its terminal error, and `markNeedsReauth`'s two call sites in
+  // `token-refresh.ts`'s `performRefresh` treat this write as best-effort the same way — its failure
+  // is carried as `cause` on the `OAUTH_INVALID_GRANT` error they throw next, never left to propagate
+  // in that error's place. (An earlier version of this comment claimed that path "already folds" a
+  // write failure into the boot report; it did not — the failure escaped unguarded and displaced the
+  // reauth signal every downstream caller branches on. Both call sites now guard it explicitly.) Any
+  // OTHER error (a genuine bug, not an unopenable or unsealable blob) still propagates from either
+  // step — this is a documented, targeted degrade, not a blanket swallow.
   let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
   let clearedWholesale = false;
   if (options.clearToken === true) {

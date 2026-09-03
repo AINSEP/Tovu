@@ -178,6 +178,53 @@ test("a provider answering invalid_grant transitions the connection to needs_rea
   assert.equal(double.persisted.length, 0);
 });
 
+test("a re-seal failure while marking needs_reauth still surfaces the REAUTH error, not the write's own error", async () => {
+  // Models `external-mcp-oauth.ts`'s `setOAuthStatus`: once its clear-token re-seal retries are
+  // exhausted it rethrows its own error class, not an `OAuthError`. That must never displace the
+  // `OAUTH_INVALID_GRANT` signal every downstream caller (e.g. `tokenResolver.resolveAccessToken`
+  // at `external-mcp-oauth.ts:925`) branches on to stop retrying a dead connection.
+  const clock = createTestClock("2026-08-25T12:04:00.000Z");
+  const resealFailure = new Error("secret store unconfigured: re-seal retries exhausted");
+  const double = makePort({
+    refresh: async () => {
+      throw new OAuthError("OAUTH_INVALID_GRANT", "refused", { operatorAction: "reconnect" });
+    },
+  });
+  const port: TokenRefreshPort = {
+    ...double.port,
+    markNeedsReauth: async (key, reason) => {
+      double.needsReauth.push({ key, reason });
+      throw resealFailure;
+    },
+  };
+  const refresher = createTokenRefresher({ clock, port });
+
+  const error = await assertOAuthRejects(() => refresher.getAccessToken(KEY), "OAUTH_INVALID_GRANT");
+
+  assert.equal(error.message, "this connection needs to be re-authorized (the provider rejected the stored refresh token)");
+  assert.equal(error.retryable, false);
+  assert.equal(error.cause, resealFailure, "the write's own failure must be carried as `cause`, never thrown in place of the reauth error");
+});
+
+test("a re-seal failure while marking needs_reauth (no-refresh-token case) still surfaces the REAUTH error", async () => {
+  const clock = createTestClock("2026-08-25T12:04:00.000Z");
+  const resealFailure = new Error("secret store unconfigured: re-seal retries exhausted");
+  const double = makePort({ initial: tokens({ refreshToken: null }) });
+  const port: TokenRefreshPort = {
+    ...double.port,
+    markNeedsReauth: async (key, reason) => {
+      double.needsReauth.push({ key, reason });
+      throw resealFailure;
+    },
+  };
+  const refresher = createTokenRefresher({ clock, port });
+
+  const error = await assertOAuthRejects(() => refresher.getAccessToken(KEY), "OAUTH_INVALID_GRANT");
+
+  assert.equal(error.message, "this connection needs to be re-authorized (no refresh token)");
+  assert.equal(error.cause, resealFailure);
+});
+
 test("a TRANSIENT refresh failure does NOT mark the connection needs_reauth", async () => {
   const clock = createTestClock("2026-08-25T12:04:00.000Z");
   const double = makePort({
