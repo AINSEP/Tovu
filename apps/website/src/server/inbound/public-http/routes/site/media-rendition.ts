@@ -1,4 +1,4 @@
-import type { Request } from "express";
+import type { Request, Response } from "express";
 
 import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import type { PostRecord } from "#src/features/post/index";
@@ -190,10 +190,115 @@ async function resolveMediaAccessDecision(
   return { gated: true, allowed };
 }
 
+/**
+ * Reads and coerces the `:assetId`/`:transformSpec` route params to strings, matching Express's
+ * always-string-or-undefined param shape. Isolated purely to keep the two nullish-coalescing
+ * defaults out of the handler's own branch count (each `??` costs a cyclomatic-complexity point
+ * just like a default-parameter assignment does) — no behavior beyond a straight string read.
+ */
+function readRenditionRouteParams(req: Request): { assetId: string; transformSpec: string } {
+  return {
+    assetId: String(req.params.assetId ?? ""),
+    transformSpec: String(req.params.transformSpec ?? ""),
+  };
+}
+
+/**
+ * Resolves the access gate, fetches (or generates) the rendition, and writes the final HTTP
+ * response — every outcome branch {@link registerMediaRenditionRoute}'s handler previously held
+ * inline. Extracted verbatim (pure extract-method: same checks, same order, same early returns)
+ * so the route handler's own cognitive-complexity count only has to account for the malformed-URL
+ * guard above it, not this function's outcome fan-out too.
+ *
+ * @complexity O(1) plus {@link resolveMediaAccessDecision}'s own O(p) cost over the workspace's
+ * published posts.
+ */
+async function sendMediaRenditionResult(
+  deps: MediaRenditionRouteDeps,
+  req: Request,
+  res: Response,
+  assetId: string,
+  transformName: string,
+  version: number
+): Promise<void> {
+  try {
+    const access = await resolveMediaAccessDecision(deps, req, assetId);
+    if (!access.allowed) {
+      // ADR-030 §4 gate (2026-09-03 sweep): the SAME "rendition not found" 404 an unknown
+      // assetId already gets below — a gated asset must be indistinguishable from one that
+      // doesn't exist, matching `9bf661e9`'s content-API fix. `private, no-store`, never the
+      // short-TTL `public` header the plain not-found branch below uses: this outcome depends on
+      // the caller's own session cookie, so a shared/CDN cache must never replay it to a
+      // DIFFERENT visitor (see `MediaRenditionRouteDeps`'s own doc).
+      res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
+      return;
+    }
+
+    const result = await resolveMediaRendition({
+      deps: {
+        mediaRepo: deps.mediaRepo,
+        blobRepo: deps.assetBlobRepo,
+        renditionRepo: deps.assetRenditionRepo,
+        transformRepo: deps.transformDefinitionRepo,
+        blobStore: deps.blobStore,
+        imageTransformer: deps.imageTransformer,
+        clock: deps.clock,
+        idGen: deps.idGen,
+      },
+      input: { workspaceId: deps.workspaceId, assetId, transformName, version },
+    });
+
+    if (result.outcome === "gone") {
+      // ADR-027 §4: a purged/gone asset is `410 no-store`. See
+      // `rendition-service.ts`'s doc comment for the disclosed
+      // trashed-stands-in-for-purged mapping this build uses.
+      res.status(410).set("Cache-Control", "no-store").end();
+      return;
+    }
+
+    if (result.outcome === "not-found") {
+      // Not-yet-generated-and-not-generatable-anonymously (or a wholly
+      // unknown assetId/transform) -> short-TTL 404, never the long-lived
+      // immutable cache header.
+      res.status(404).set("Cache-Control", "public, max-age=60").json({ error: "rendition not found" });
+      return;
+    }
+
+    res
+      .status(200)
+      // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
+      // request's session cookie), so it must never be handed the long-lived, shared/CDN-facing
+      // `immutable` header below — the next, possibly unentitled, visitor to hit a public/shared
+      // cache would be served this same cached response. Ungated media (the overwhelming common
+      // case) keeps the original immutable header unchanged.
+      .set("Cache-Control", access.gated ? "private, no-store" : "public, max-age=31536000, immutable")
+      .set("Content-Type", result.contentType)
+      .send(Buffer.from(result.bytes));
+  } catch (err) {
+    if (err instanceof ImageTransformUnavailableError) {
+      // The transform is valid and generation was allowed, but the real pixel-operation
+      // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
+      // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
+      res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
+      return;
+    }
+    if (err instanceof ImageSourceCorruptError) {
+      // The asset and transform are both valid, but the STORED bytes cannot actually be
+      // decoded/re-encoded by the pixel pipeline (a corrupt or codec-rejected blob — see that
+      // error's own doc for how bytes can pass this package's upload allowlist and its
+      // magic-byte sniff while still failing here). A data condition on this one asset, not a
+      // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
+      // the stored blob must not stay masked by a long-lived negative cache entry).
+      res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
+      return;
+    }
+    res.status(500).json({ error: "internal error" });
+  }
+}
+
 export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
-    const assetId = String(req.params.assetId ?? "");
-    const transformSpec = String(req.params.transformSpec ?? "");
+    const { assetId, transformSpec } = readRenditionRouteParams(req);
     const parsed = resolveTransformSpec(assetId, transformSpec);
 
     if ("errorMessage" in parsed) {
@@ -202,80 +307,7 @@ export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, d
     }
 
     const { transformName, version } = parsed;
-
-    try {
-      const access = await resolveMediaAccessDecision(deps, req, assetId);
-      if (!access.allowed) {
-        // ADR-030 §4 gate (2026-09-03 sweep): the SAME "rendition not found" 404 an unknown
-        // assetId already gets below — a gated asset must be indistinguishable from one that
-        // doesn't exist, matching `9bf661e9`'s content-API fix. `private, no-store`, never the
-        // short-TTL `public` header the plain not-found branch below uses: this outcome depends on
-        // the caller's own session cookie, so a shared/CDN cache must never replay it to a
-        // DIFFERENT visitor (see `MediaRenditionRouteDeps`'s own doc).
-        res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
-        return;
-      }
-
-      const result = await resolveMediaRendition({
-        deps: {
-          mediaRepo: deps.mediaRepo,
-          blobRepo: deps.assetBlobRepo,
-          renditionRepo: deps.assetRenditionRepo,
-          transformRepo: deps.transformDefinitionRepo,
-          blobStore: deps.blobStore,
-          imageTransformer: deps.imageTransformer,
-          clock: deps.clock,
-          idGen: deps.idGen,
-        },
-        input: { workspaceId: deps.workspaceId, assetId, transformName, version },
-      });
-
-      if (result.outcome === "gone") {
-        // ADR-027 §4: a purged/gone asset is `410 no-store`. See
-        // `rendition-service.ts`'s doc comment for the disclosed
-        // trashed-stands-in-for-purged mapping this build uses.
-        res.status(410).set("Cache-Control", "no-store").end();
-        return;
-      }
-
-      if (result.outcome === "not-found") {
-        // Not-yet-generated-and-not-generatable-anonymously (or a wholly
-        // unknown assetId/transform) -> short-TTL 404, never the long-lived
-        // immutable cache header.
-        res.status(404).set("Cache-Control", "public, max-age=60").json({ error: "rendition not found" });
-        return;
-      }
-
-      res
-        .status(200)
-        // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
-        // request's session cookie), so it must never be handed the long-lived, shared/CDN-facing
-        // `immutable` header below — the next, possibly unentitled, visitor to hit a public/shared
-        // cache would be served this same cached response. Ungated media (the overwhelming common
-        // case) keeps the original immutable header unchanged.
-        .set("Cache-Control", access.gated ? "private, no-store" : "public, max-age=31536000, immutable")
-        .set("Content-Type", result.contentType)
-        .send(Buffer.from(result.bytes));
-    } catch (err) {
-      if (err instanceof ImageTransformUnavailableError) {
-        // The transform is valid and generation was allowed, but the real pixel-operation
-        // adapter can't run in this environment (disclosed `sharp`-not-installed blocker — see
-        // `image-transformer.sharp.ts`). Service-unavailable, not a routine 404/410/500.
-        res.status(503).set("Cache-Control", "no-store").json({ error: err.message });
-        return;
-      }
-      if (err instanceof ImageSourceCorruptError) {
-        // The asset and transform are both valid, but the STORED bytes cannot actually be
-        // decoded/re-encoded by the pixel pipeline (a corrupt or codec-rejected blob — see that
-        // error's own doc for how bytes can pass this package's upload allowlist and its
-        // magic-byte sniff while still failing here). A data condition on this one asset, not a
-        // server fault — 422, never the opaque catch-all 500, and never cached (a future fix to
-        // the stored blob must not stay masked by a long-lived negative cache entry).
-        res.status(422).set("Cache-Control", "no-store").json({ error: "source image could not be processed" });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
-    }
+    await sendMediaRenditionResult(deps, req, res, assetId, transformName, version);
   });
 };
 
