@@ -185,3 +185,64 @@ test("sendBatch() loops send() once per message, preserving result[i] <-> messag
   assert.equal(http.calls[0].body ? (JSON.parse(http.calls[0].body) as { to: string }).to : "", "one@example.com");
   assert.equal(http.calls[2].body ? (JSON.parse(http.calls[2].body) as { to: string }).to : "", "three@example.com");
 });
+
+test("send() forwards replyTo, html, and custom headers when provided", async () => {
+  const http = new FakeHttpClient();
+  const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test" });
+  await adapter.send(
+    makeMessage({
+      replyTo: { email: "support@example.com", name: "Support" },
+      html: "<p>Hello</p>",
+      headers: { "X-Custom": "val" },
+    }),
+    SEND_OPTIONS
+  );
+  const body = JSON.parse(http.calls[0].body ?? "{}") as Record<string, unknown>;
+  assert.equal(body.reply_to, "Support <support@example.com>");
+  assert.equal(body.html, "<p>Hello</p>");
+  assert.deepEqual(body.headers, { "X-Custom": "val" });
+});
+
+test("send() falls back to opts.idempotencyKey if response JSON does not have string id", async () => {
+  const http = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test" });
+  const res = await adapter.send(makeMessage(), { ...SEND_OPTIONS, idempotencyKey: "fallback-key" });
+  assert.equal(res.ok, true);
+  if (res.ok) assert.equal(res.providerMessageId, "fallback-key");
+});
+
+test("send() handles 409 conflict as retryable, and empty bodyText falls back to HTTP status message", async () => {
+  const http409 = new FakeHttpClient([{ status: 409, headers: {}, bodyText: "" }]);
+  const adapter = new HttpApiMailerAdapter(http409, { apiKey: "re_test" });
+  const res = await adapter.send(makeMessage(), SEND_OPTIONS);
+  assert.deepEqual(res, {
+    ok: false,
+    retryable: true,
+    errorCode: "HTTP_409",
+    message: "Resend responded with HTTP 409",
+  });
+});
+
+test("send() handles non-Error thrown during transport", async () => {
+  const http = new FakeHttpClient([
+    () => {
+      throw "string exception";
+    },
+  ]);
+  const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test" });
+  const res = await adapter.send(makeMessage(), SEND_OPTIONS);
+  assert.deepEqual(res, {
+    ok: false,
+    retryable: true,
+    errorCode: "TRANSPORT_ERROR",
+    message: "string exception",
+  });
+});
+
+test("send() uses timeoutMs from options when specified", async () => {
+  const http = new FakeHttpClient();
+  const adapter = new HttpApiMailerAdapter(http, { apiKey: "re_test", timeoutMs: 5000 });
+  await adapter.send(makeMessage(), { ...SEND_OPTIONS, timeoutMs: 2500 });
+  assert.equal(http.calls[0].timeoutMs, 2500);
+});
+
