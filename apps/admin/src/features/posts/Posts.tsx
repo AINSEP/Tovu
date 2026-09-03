@@ -1,4 +1,4 @@
-import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
@@ -8,13 +8,13 @@ import { navigate } from "../../lib/router";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import {
   postRowMenuItems,
-  sortPosts,
-  nextPostSortState,
-  postSortCaretGlyph,
-  lexicalPostSortButtonLabel,
-  updatedSortHeaderLabel,
+  comparePostsByTitle,
+  comparePostsBySlug,
+  comparePostsByStatus,
+  comparePostsByUpdated,
+  postColumnSortLabel,
+  updatedColumnSortLabel,
   DEFAULT_POST_SORT,
-  type PostSortState,
 } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -77,10 +77,13 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // from (this file's own `PostsProps` doc comment) — this is the canonical example of the
   // exception, not an oversight to "finish" later.
   //
-  // 2026-09-02: generalized from a single Updated-only direction to `PostSortState`, which also
-  // names the active column — Title/Slug/Status became sortable too (`rules.ts`'s multi-column sort
-  // block), and only one column is ever active at a time.
-  const [sort, setSort] = useState<PostSortState>(DEFAULT_POST_SORT);
+  // 2026-09-02: generalized from a single Updated-only direction to `DataTableSortState`, which
+  // also names the active column — Title/Slug/Status became sortable too — and only one column is
+  // ever active at a time. Migrated onto `DataTable`'s own shared sort mechanism the same day: this
+  // state and its setter are now passed straight through as `sort`/`onSortChange` below, and
+  // `DataTable` itself applies each column's comparator, computes the next click's state, and
+  // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
+  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
@@ -89,14 +92,17 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // `rows={posts}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
   if (!posts) return null;
 
-  // Sorted once so both `rows` and the per-row RowMenu handles below walk the SAME order — post ids
-  // are stable and unique, so they disambiguate one row's menu from another's regardless of which
-  // column/direction `sort` is currently facing.
-  const sortedPosts = sortPosts(posts, sort);
-  const rowMenuHandles = buildAgentListHandles(
+  // `DataTable` now sorts internally from `sort` + each column's own comparator — `posts` is passed
+  // through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
+  // built once from `posts`' own stable order and looked up BY ID in each cell below, rather than by
+  // render position: `buildAgentListHandles`'s own contract derives a handle from each id's slug, not
+  // its position, specifically so "the same control keeps the same handle even if rows are later
+  // reordered" (its own doc) — which is exactly what re-sorting the table does.
+  const postHandles = buildAgentListHandles(
     "posts-row",
-    sortedPosts.map((post) => post.id),
+    posts.map((post) => post.id),
   );
+  const rowMenuHandleById = new Map(posts.map((post, index) => [post.id, postHandles[index]]));
 
   return (
     <div className="page">
@@ -114,8 +120,10 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <DataTable
-        rows={sortedPosts}
+        rows={posts}
         rowKey={(post) => post.id}
+        sort={sort}
+        onSortChange={setSort}
         empty={
           <div className="card">
             <div className="empty-state">
@@ -127,37 +135,18 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
         columns={[
           {
             key: "title",
-            // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02): a
-            // plain button toggling `sort` — `DataTable`'s `<th>` doesn't expose an `aria-sort` prop
-            // (see its own file header: "no sorting" was a deliberate scope cut for that shared
-            // component), so the accessible state lives on each button's own `aria-label` instead,
-            // not just the ▲/▼/⇅ glyph, which is `aria-hidden`.
-            header: (
-              <button
-                type="button"
-                className="sortable-column-header"
-                onClick={() => setSort((s) => nextPostSortState(s, "title"))}
-                aria-label={lexicalPostSortButtonLabel("Title", "title", sort)}
-              >
-                {t("Title")}
-                <span aria-hidden="true">{postSortCaretGlyph("title", sort)}</span>
-              </button>
-            ),
+            header: t("Title"),
+            // Sortable headers (2026-08-10, Updated only; generalized to all four 2026-09-02;
+            // migrated onto `DataTable`'s own shared sort mechanism 2026-09-02) — `DataTable` now
+            // renders the button, caret, and `aria-sort` itself from this descriptor; only the
+            // domain-specific comparator and label wording stay here (`rules.ts`).
+            sort: { compare: comparePostsByTitle, label: (direction) => postColumnSortLabel("Title", direction) },
             cell: (post) => <a href={`/admin/posts/${post.slug}`}>{post.title}</a>,
           },
           {
             key: "slug",
-            header: (
-              <button
-                type="button"
-                className="sortable-column-header"
-                onClick={() => setSort((s) => nextPostSortState(s, "slug"))}
-                aria-label={lexicalPostSortButtonLabel("Slug", "slug", sort)}
-              >
-                Slug
-                <span aria-hidden="true">{postSortCaretGlyph("slug", sort)}</span>
-              </button>
-            ),
+            header: "Slug",
+            sort: { compare: comparePostsBySlug, label: (direction) => postColumnSortLabel("Slug", direction) },
             cell: (post) => (
               <a href={siteUrl(`/${post.slug}`)} target="_blank" rel="noreferrer">
                 /{post.slug}
@@ -166,41 +155,25 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
           },
           {
             key: "status",
-            header: (
-              <button
-                type="button"
-                className="sortable-column-header"
-                onClick={() => setSort((s) => nextPostSortState(s, "status"))}
-                aria-label={lexicalPostSortButtonLabel("Status", "status", sort)}
-              >
-                {t("Status")}
-                <span aria-hidden="true">{postSortCaretGlyph("status", sort)}</span>
-              </button>
-            ),
+            header: t("Status"),
+            sort: { compare: comparePostsByStatus, label: (direction) => postColumnSortLabel("Status", direction) },
             cell: (post) => <span className={`status status-${post.status}`}>{post.status}</span>,
           },
           {
             key: "updated",
-            header: (
-              <button
-                type="button"
-                className="sortable-column-header"
-                onClick={() => setSort((s) => nextPostSortState(s, "updated"))}
-                aria-label={updatedSortHeaderLabel(sort)}
-              >
-                {t("Updated")}
-                <span aria-hidden="true">{postSortCaretGlyph("updated", sort)}</span>
-              </button>
-            ),
+            header: t("Updated"),
+            // "desc" (newest first) is this column's own starting direction, unlike the other
+            // three's ascending default — unchanged from the pre-existing Updated-only feature.
+            sort: { compare: comparePostsByUpdated, defaultDirection: "desc", label: updatedColumnSortLabel },
             cell: (post) => formatTimestamp(post.updatedAt),
           },
           {
             key: "actions",
             header: t("More"),
-            cell: (post, index) => (
+            cell: (post) => (
               <RowMenu
                 triggerLabel={`Actions for "${post.title}"`}
-                agentHandle={`${rowMenuHandles[index]}-menu`}
+                agentHandle={`${rowMenuHandleById.get(post.id)}-menu`}
                 items={postRowMenuItems(
                   post,
                   {

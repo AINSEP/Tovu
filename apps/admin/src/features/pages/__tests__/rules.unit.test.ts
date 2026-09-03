@@ -3,19 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import {
   DEFAULT_PAGE_SORT,
-  lexicalPageSortButtonLabel,
-  nextPageSortState,
+  comparePagesByStatus,
+  comparePagesBySlug,
+  comparePagesByTitle,
+  comparePagesByUpdated,
+  pageColumnSortLabel,
   pageRowMenuItems,
-  pageSortCaretGlyph,
-  sortPages,
-  sortPagesByStatus,
-  sortPagesBySlug,
-  sortPagesByTitle,
-  sortPagesByUpdated,
   themePageRowMenuItems,
-  updatedSortButtonLabel,
-  updatedSortHeaderLabel,
-  type PageSortState,
+  updatedPageColumnSortLabel,
 } from "../rules";
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
 
@@ -159,233 +154,121 @@ describe("themePageRowMenuItems", () => {
  * identical sort functions. "My Pages" had no sort code before this pass.
  */
 
-describe("sortPagesByUpdated", () => {
+/**
+ * Sort dispatch, the header-click transition, the caret glyph, and multi-column-cancels-previous
+ * behavior all moved onto `DataTable`'s own shared mechanism (2026-09-02 migration — see `rules.ts`'s
+ * "Column sort" section, and `Pages.unit.test.tsx`'s "Title/Slug/Status column sort" describe block,
+ * which still exercises every one of those through the real rendered table). What's left testable
+ * here, independent of any table, is each column's own comparator direction and its accessible-name
+ * phrasing — mirrors `posts/__tests__/rules.unit.test.ts`'s identical section.
+ */
+describe("comparePagesByUpdated", () => {
   const oldest = page({ id: "pg-old", updatedAt: "2026-01-01T00:00:00.000Z" });
   const middle = page({ id: "pg-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
   const newest = page({ id: "pg-new", updatedAt: "2026-08-10T00:00:00.000Z" });
 
-  it("'newest' sorts most-recently-updated first", () => {
-    expect(sortPagesByUpdated([middle, oldest, newest], "newest").map((p) => p.id)).toEqual(["pg-new", "pg-mid", "pg-old"]);
+  it("ascending order (DataTable's 'asc') sorts least-recently-updated first", () => {
+    expect([middle, oldest, newest].sort(comparePagesByUpdated).map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
   });
 
-  it("'oldest' sorts least-recently-updated first", () => {
-    expect(sortPagesByUpdated([middle, oldest, newest], "oldest").map((p) => p.id)).toEqual(["pg-old", "pg-mid", "pg-new"]);
-  });
-
-  it("returns [] for an empty list in either direction", () => {
-    expect(sortPagesByUpdated([], "newest")).toEqual([]);
-    expect(sortPagesByUpdated([], "oldest")).toEqual([]);
-  });
-
-  it("does not mutate the input array", () => {
-    const input = [middle, oldest, newest];
-    const original = [...input];
-    sortPagesByUpdated(input, "newest");
-    expect(input).toEqual(original);
+  it("negating it (DataTable's 'desc') sorts most-recently-updated first", () => {
+    expect([middle, oldest, newest].sort((a, b) => -comparePagesByUpdated(a, b)).map((p) => p.id)).toEqual([
+      "pg-new",
+      "pg-mid",
+      "pg-old",
+    ]);
   });
 });
 
-describe("updatedSortButtonLabel", () => {
-  it("states 'newest first' and offers oldest-first as the next action when direction is newest", () => {
-    const label = updatedSortButtonLabel("newest");
+describe("updatedPageColumnSortLabel", () => {
+  it("states 'not sorted by updated date' and offers newest-first when direction is null", () => {
+    const label = updatedPageColumnSortLabel(null);
+    expect(label).toMatch(/not sorted by updated date/i);
+    expect(label).toMatch(/newest first/i);
+  });
+
+  it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
+    const label = updatedPageColumnSortLabel("desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
-  it("states 'oldest first' and offers newest-first as the next action when direction is oldest", () => {
-    const label = updatedSortButtonLabel("oldest");
+  it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
+    const label = updatedPageColumnSortLabel("asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
-  it("the two directions produce different labels", () => {
-    expect(updatedSortButtonLabel("newest")).not.toBe(updatedSortButtonLabel("oldest"));
+  it("all three states produce different labels", () => {
+    expect(new Set([updatedPageColumnSortLabel(null), updatedPageColumnSortLabel("asc"), updatedPageColumnSortLabel("desc")]).size).toBe(3);
   });
 });
 
-describe("sortPagesByTitle / sortPagesBySlug", () => {
+describe("comparePagesByTitle / comparePagesBySlug", () => {
   const a = page({ id: "pg-a", title: "Alpha", slug: "alpha" });
   const b = page({ id: "pg-b", title: "Bravo", slug: "bravo" });
   const c = page({ id: "pg-c", title: "Charlie", slug: "charlie" });
 
   for (const [name, fn] of [
-    ["sortPagesByTitle", sortPagesByTitle],
-    ["sortPagesBySlug", sortPagesBySlug],
+    ["comparePagesByTitle", comparePagesByTitle],
+    ["comparePagesBySlug", comparePagesBySlug],
   ] as const) {
     describe(name, () => {
-      it("'asc' sorts A-to-Z", () => {
-        expect(fn([c, a, b], "asc").map((p) => p.id)).toEqual(["pg-a", "pg-b", "pg-c"]);
+      it("sorts A-to-Z ascending", () => {
+        expect([c, a, b].sort(fn).map((p) => p.id)).toEqual(["pg-a", "pg-b", "pg-c"]);
       });
 
-      it("'desc' sorts Z-to-A", () => {
-        expect(fn([c, a, b], "desc").map((p) => p.id)).toEqual(["pg-c", "pg-b", "pg-a"]);
-      });
-
-      it("returns [] for an empty list in either direction", () => {
-        expect(fn([], "asc")).toEqual([]);
-        expect(fn([], "desc")).toEqual([]);
-      });
-
-      it("does not mutate the input array", () => {
-        const input = [c, a, b];
-        const original = [...input];
-        fn(input, "asc");
-        expect(input).toEqual(original);
+      it("negating it sorts Z-to-A", () => {
+        expect([c, a, b].sort((x, y) => -fn(x, y)).map((p) => p.id)).toEqual(["pg-c", "pg-b", "pg-a"]);
       });
     });
   }
 });
 
-describe("sortPagesByStatus", () => {
+describe("comparePagesByStatus", () => {
   // Exactly two pages with different statuses — see `posts/rules.ts`'s own test for why a third,
   // necessarily-tied row would test `Array#sort`'s stability rather than this comparator.
   const draft = page({ id: "pg-draft", status: "draft" });
   const published = page({ id: "pg-published", status: "published" });
 
-  it("'asc' sorts draft before published", () => {
-    expect(sortPagesByStatus([published, draft], "asc").map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
+  it("ascending sorts draft before published", () => {
+    expect([published, draft].sort(comparePagesByStatus).map((p) => p.id)).toEqual(["pg-draft", "pg-published"]);
   });
 
-  it("'desc' sorts published before draft", () => {
-    expect(sortPagesByStatus([draft, published], "desc").map((p) => p.id)).toEqual(["pg-published", "pg-draft"]);
-  });
-
-  it("returns [] for an empty list in either direction", () => {
-    expect(sortPagesByStatus([], "asc")).toEqual([]);
-    expect(sortPagesByStatus([], "desc")).toEqual([]);
-  });
-
-  it("does not mutate the input array", () => {
-    const input = [published, draft];
-    const original = [...input];
-    sortPagesByStatus(input, "asc");
-    expect(input).toEqual(original);
+  it("negating it sorts published before draft", () => {
+    expect([draft, published].sort((a, b) => -comparePagesByStatus(a, b)).map((p) => p.id)).toEqual([
+      "pg-published",
+      "pg-draft",
+    ]);
   });
 });
 
-describe("sortPages (dispatcher)", () => {
-  const a = page({ id: "pg-a", title: "Alpha", slug: "alpha", status: "draft", updatedAt: "2026-01-01T00:00:00.000Z" });
-  const b = page({ id: "pg-b", title: "Bravo", slug: "bravo", status: "published", updatedAt: "2026-08-01T00:00:00.000Z" });
-
-  it("dispatches 'title' to sortPagesByTitle", () => {
-    expect(sortPages([b, a], { column: "title", direction: "asc" }).map((p) => p.id)).toEqual(["pg-a", "pg-b"]);
-  });
-
-  it("dispatches 'slug' to sortPagesBySlug", () => {
-    expect(sortPages([b, a], { column: "slug", direction: "asc" }).map((p) => p.id)).toEqual(["pg-a", "pg-b"]);
-  });
-
-  it("dispatches 'status' to sortPagesByStatus", () => {
-    expect(sortPages([b, a], { column: "status", direction: "asc" }).map((p) => p.id)).toEqual(["pg-a", "pg-b"]);
-  });
-
-  it("dispatches 'updated' to sortPagesByUpdated, mapping 'desc' to newest-first", () => {
-    expect(sortPages([a, b], { column: "updated", direction: "desc" }).map((p) => p.id)).toEqual(["pg-b", "pg-a"]);
-  });
-
-  it("dispatches 'updated' to sortPagesByUpdated, mapping 'asc' to oldest-first", () => {
-    expect(sortPages([b, a], { column: "updated", direction: "asc" }).map((p) => p.id)).toEqual(["pg-a", "pg-b"]);
-  });
-
-  it("DEFAULT_PAGE_SORT reproduces Updated/newest-first, consistent with Posts' own default", () => {
-    expect(sortPages([a, b], DEFAULT_PAGE_SORT).map((p) => p.id)).toEqual(["pg-b", "pg-a"]);
-  });
-
-  it("does not mutate the input array", () => {
-    const input = [b, a];
-    const original = [...input];
-    sortPages(input, { column: "title", direction: "asc" });
-    expect(input).toEqual(original);
+describe("DEFAULT_PAGE_SORT", () => {
+  it("is Updated, newest-first, consistent with Posts' own default", () => {
+    expect(DEFAULT_PAGE_SORT).toEqual({ column: "updated", direction: "desc" });
   });
 });
 
-describe("nextPageSortState", () => {
-  it("clicking a column that isn't active makes it active at its default direction, cancelling the previous column", () => {
-    const current: PageSortState = { column: "updated", direction: "desc" };
-    expect(nextPageSortState(current, "title")).toEqual({ column: "title", direction: "asc" });
-  });
-
-  it("clicking the already-active lexicographic column toggles asc -> desc", () => {
-    const current: PageSortState = { column: "title", direction: "asc" };
-    expect(nextPageSortState(current, "title")).toEqual({ column: "title", direction: "desc" });
-  });
-
-  it("clicking the already-active lexicographic column toggles desc -> asc", () => {
-    const current: PageSortState = { column: "title", direction: "desc" };
-    expect(nextPageSortState(current, "title")).toEqual({ column: "title", direction: "asc" });
-  });
-
-  it("switching TO Updated from another column defaults to 'desc' (newest first)", () => {
-    const current: PageSortState = { column: "title", direction: "asc" };
-    expect(nextPageSortState(current, "updated")).toEqual({ column: "updated", direction: "desc" });
-  });
-
-  it("clicking the already-active Updated column toggles desc -> asc", () => {
-    const current: PageSortState = { column: "updated", direction: "desc" };
-    expect(nextPageSortState(current, "updated")).toEqual({ column: "updated", direction: "asc" });
-  });
-});
-
-describe("pageSortCaretGlyph", () => {
-  it("shows the neutral both-direction glyph for a column that isn't the active sort", () => {
-    expect(pageSortCaretGlyph("title", { column: "updated", direction: "desc" })).toBe(" ⇅");
-  });
-
-  it("shows an upward caret for the active column sorted ascending", () => {
-    expect(pageSortCaretGlyph("title", { column: "title", direction: "asc" })).toBe(" ▲");
-  });
-
-  it("shows a downward caret for the active column sorted descending", () => {
-    expect(pageSortCaretGlyph("title", { column: "title", direction: "desc" })).toBe(" ▼");
-  });
-
-  it("the three states are all distinct", () => {
-    const notActive = pageSortCaretGlyph("title", { column: "updated", direction: "desc" });
-    const asc = pageSortCaretGlyph("title", { column: "title", direction: "asc" });
-    const desc = pageSortCaretGlyph("title", { column: "title", direction: "desc" });
-    expect(new Set([notActive, asc, desc]).size).toBe(3);
-  });
-});
-
-describe("lexicalPageSortButtonLabel", () => {
-  it("states 'not sorted' and names the ascending action when the column isn't active", () => {
-    const label = lexicalPageSortButtonLabel("Title", "title", { column: "updated", direction: "desc" });
+describe("pageColumnSortLabel", () => {
+  it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
+    const label = pageColumnSortLabel("Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
-  it("states 'ascending' and offers descending as the next action when the column is active ascending", () => {
-    const label = lexicalPageSortButtonLabel("Title", "title", { column: "title", direction: "asc" });
+  it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
+    const label = pageColumnSortLabel("Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
-  it("states 'descending' and offers ascending as the next action when the column is active descending", () => {
-    const label = lexicalPageSortButtonLabel("Title", "title", { column: "title", direction: "desc" });
+  it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
+    const label = pageColumnSortLabel("Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    const notSorted = lexicalPageSortButtonLabel("Title", "title", { column: "updated", direction: "desc" });
-    const asc = lexicalPageSortButtonLabel("Title", "title", { column: "title", direction: "asc" });
-    const desc = lexicalPageSortButtonLabel("Title", "title", { column: "title", direction: "desc" });
-    expect(new Set([notSorted, asc, desc]).size).toBe(3);
-  });
-});
-
-describe("updatedSortHeaderLabel", () => {
-  it("states 'not sorted by updated date' when another column is active", () => {
-    const label = updatedSortHeaderLabel({ column: "title", direction: "asc" });
-    expect(label).toMatch(/not sorted by updated date/i);
-    expect(label).toMatch(/newest first/i);
-  });
-
-  it("delegates to updatedSortButtonLabel('newest') when active and 'desc'", () => {
-    expect(updatedSortHeaderLabel({ column: "updated", direction: "desc" })).toBe(updatedSortButtonLabel("newest"));
-  });
-
-  it("delegates to updatedSortButtonLabel('oldest') when active and 'asc'", () => {
-    expect(updatedSortHeaderLabel({ column: "updated", direction: "asc" })).toBe(updatedSortButtonLabel("oldest"));
+    expect(new Set([pageColumnSortLabel("Title", null), pageColumnSortLabel("Title", "asc"), pageColumnSortLabel("Title", "desc")]).size).toBe(3);
   });
 });

@@ -1,4 +1,4 @@
-import type { RowMenuItem } from "@jini-ai/admin/react";
+import type { DataTableSortDirection, DataTableSortState, RowMenuItem } from "@jini-ai/admin/react";
 
 import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -161,169 +161,71 @@ export function pageSaveSuccessMessage(t: (locale: string, key: string) => strin
 }
 
 // ---------------------------------------------------------------------------
-// Multi-column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own multi-column sort block
-// exactly, same "twin screens" convention as the rest of this file (this file's own header). "My
-// Pages" had no sort code at all before this pass, so every export below is new; the shape (types,
-// function names swapped Post->Page, the same "updated" newest/oldest wording) is copied from Posts
-// rather than invented independently, so an operator sees identical sort behavior on both screens.
+// Column sort (2026-09-02) — mirrors `features/posts/rules.ts`'s own column-sort block exactly, same
+// "twin screens" convention as the rest of this file (this file's own header). "My Pages" had no
+// sort code at all before this pass; migrated onto `DataTable`'s own shared sort mechanism the same
+// day this landed, so it never shipped its own hand-rolled dispatcher/caret/next-state logic — see
+// `posts/rules.ts`'s identical section for the full rationale. Only the domain-specific pieces live
+// here: each column's ascending comparator, the Updated column's non-default starting direction, and
+// every column's accessible-name phrasing.
 // ---------------------------------------------------------------------------
-
-/** Which end of `updatedAt` the Pages list's "Updated" column header sorts toward — same two-value
- *  shape as `posts/rules.ts`'s `PostUpdatedSortDirection`, kept as its own type per this file's
- *  existing "mirror, don't share" convention (see `PageRowMenuHandlers` above). */
-export type PageUpdatedSortDirection = "newest" | "oldest";
-
-/**
- * The Pages list's own "Updated" comparator — same `Date.parse` approach as `posts/rules.ts`'s
- * `sortPostsByUpdated` (a text column carries no schema guarantee against a future non-`Z`
- * UTC-offset value, which string-sorts wrong against `Z`-form values).
- *
- * @complexity Time: O(n log n) in `pages.length` (a single `Array#sort`); space: O(n) for the copy —
- * the input is never mutated.
- */
-export function sortPagesByUpdated(pages: readonly AdminPost[], direction: PageUpdatedSortDirection): AdminPost[] {
-  const sign = direction === "newest" ? -1 : 1;
-  return [...pages].sort((a, b) => sign * (Date.parse(a.updatedAt) - Date.parse(b.updatedAt)));
-}
-
-/**
- * The Updated column header button's accessible name when it IS the active sort — states the
- * current direction and what activating the button does next, mirroring `posts/rules.ts`'s
- * `updatedSortButtonLabel` verbatim.
- */
-export function updatedSortButtonLabel(direction: PageUpdatedSortDirection): string {
-  return direction === "newest"
-    ? "Sorted by updated date, newest first. Activate to sort oldest first."
-    : "Sorted by updated date, oldest first. Activate to sort newest first.";
-}
-
-/** The four Pages list columns with click-to-sort behavior. */
-export type PageSortColumn = "title" | "slug" | "status" | "updated";
-
-/** Ascending/descending — the direction for the three lexicographic columns (Title, Slug, Status).
- *  See `posts/rules.ts`'s `PostSortDirection` for why this stays distinct from
- *  {@link PageUpdatedSortDirection}. */
-export type PageSortDirection = "asc" | "desc";
-
-/** The Pages list's full sort state — exactly one column drives the sort at a time. `updated` still
- *  sorts via {@link sortPagesByUpdated}'s own "newest"/"oldest" vocabulary internally (see
- *  {@link sortPages}); `"desc"` maps to "newest first" so the default below reads as newest-first,
- *  matching `posts/rules.ts`'s own default. */
-export interface PageSortState {
-  column: PageSortColumn;
-  direction: PageSortDirection;
-}
 
 /** The Pages list's default sort on first load — Updated, newest first, matching `posts/rules.ts`'s
  *  own `DEFAULT_POST_SORT` so switching between the two screens shows a consistent starting order. */
-export const DEFAULT_PAGE_SORT: PageSortState = { column: "updated", direction: "desc" };
+export const DEFAULT_PAGE_SORT: DataTableSortState = { column: "updated", direction: "desc" };
+
+/** `status` is exactly `"draft" | "published"` (`post.ts`), so plain alphabetical order already
+ *  equals domain order — no custom rank table needed. Ascending-only, matching
+ *  `DataTableColumnSort.compare`'s own contract: `DataTable` negates this for `"desc"`. */
+export function comparePagesByTitle(a: AdminPost, b: AdminPost): number {
+  return a.title.localeCompare(b.title);
+}
+
+/** @see comparePagesByTitle — same contract, compared on `slug` instead of `title`. */
+export function comparePagesBySlug(a: AdminPost, b: AdminPost): number {
+  return a.slug.localeCompare(b.slug);
+}
+
+/** @see comparePagesByTitle — same contract, compared on `status` instead of `title`. */
+export function comparePagesByStatus(a: AdminPost, b: AdminPost): number {
+  return a.status.localeCompare(b.status);
+}
 
 /**
- * The three lexicographic column comparators. `status` is exactly `"draft" | "published"`
- * (`post.ts`), so plain alphabetical order already equals domain order — no custom rank table
- * needed.
- *
- * @complexity Time: O(n log n) in `pages.length`; space: O(n) for the copy — never mutates the input.
+ * Ascending order = oldest-first; `DataTable` negates it for `"desc"` (newest-first), which is also
+ * this column's own starting direction (its `defaultDirection` in `Pages.tsx`'s column definition) —
+ * same reasoning as `posts/rules.ts`'s `comparePostsByUpdated`. `Date.parse`, not a string compare —
+ * `updatedAt` is ISO-8601 **text** with no schema guarantee against a future non-`Z` UTC-offset
+ * value, which string-sorts wrong against `Z`-form values.
  */
-export function sortPagesByTitle(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
-  const sign = direction === "asc" ? 1 : -1;
-  return [...pages].sort((a, b) => sign * a.title.localeCompare(b.title));
-}
-
-/** @complexity Same as {@link sortPagesByTitle}, compared on `slug` instead of `title`. */
-export function sortPagesBySlug(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
-  const sign = direction === "asc" ? 1 : -1;
-  return [...pages].sort((a, b) => sign * a.slug.localeCompare(b.slug));
-}
-
-/** @complexity Same as {@link sortPagesByTitle}, compared on `status` instead of `title`. */
-export function sortPagesByStatus(pages: readonly AdminPost[], direction: PageSortDirection): AdminPost[] {
-  const sign = direction === "asc" ? 1 : -1;
-  return [...pages].sort((a, b) => sign * a.status.localeCompare(b.status));
+export function comparePagesByUpdated(a: AdminPost, b: AdminPost): number {
+  return Date.parse(a.updatedAt) - Date.parse(b.updatedAt);
 }
 
 /**
- * Applies whichever column {@link PageSortState} currently names — the single dispatch point
- * `Pages.tsx` calls instead of switching on `sort.column` itself. `"updated"` translates the generic
- * `direction` into `sortPagesByUpdated`'s own "newest"/"oldest" vocabulary (`"desc"` = newest first).
- *
- * The `default` falls back to returning a shallow copy unsorted rather than throwing — same
- * defensive posture `posts/rules.ts`'s `sortPosts` takes, unreachable from any caller that stays
- * within `PageSortColumn`'s own type.
- *
- * @complexity Delegates to the named column's own comparator — see each for its own complexity.
- */
-export function sortPages(pages: readonly AdminPost[], sort: PageSortState): AdminPost[] {
-  switch (sort.column) {
-    case "title":
-      return sortPagesByTitle(pages, sort.direction);
-    case "slug":
-      return sortPagesBySlug(pages, sort.direction);
-    case "status":
-      return sortPagesByStatus(pages, sort.direction);
-    case "updated":
-      return sortPagesByUpdated(pages, sort.direction === "desc" ? "newest" : "oldest");
-    default:
-      return [...pages];
-  }
-}
-
-/**
- * The header-click transition: activating the CURRENTLY active column's header toggles its
- * direction; activating any other column's header makes THAT column active at its default
- * direction, cancelling whatever was active before — only one column is ever active. Default
- * direction on switching to a new column is always its "first" end: ascending for the three
- * lexicographic columns, `"desc"` (newest-first) for Updated.
- *
- * @complexity Time/space: O(1).
- */
-export function nextPageSortState(current: PageSortState, clickedColumn: PageSortColumn): PageSortState {
-  if (current.column === clickedColumn) {
-    return { column: clickedColumn, direction: current.direction === "asc" ? "desc" : "asc" };
-  }
-  return { column: clickedColumn, direction: clickedColumn === "updated" ? "desc" : "asc" };
-}
-
-/** The caret glyph for a sortable column header — `aria-hidden`; the real accessible state lives on
- *  the button's own `aria-label` (see the label functions below, and `Pages.tsx`'s column defs).
- *  `"⇅"` — a neutral, ALWAYS-visible both-direction glyph — when `column` isn't the active sort, so
- *  an unsorted column still visibly reads as clickable rather than only revealing that fact after
- *  the first click; `"▲"`/`"▼"` once it is. */
-export function pageSortCaretGlyph(column: PageSortColumn, sort: PageSortState): string {
-  if (sort.column !== column) return " ⇅";
-  return sort.direction === "asc" ? " ▲" : " ▼";
-}
-
-/**
- * Same accessible-name contract as `updatedSortButtonLabel` above (states the CURRENT sort state on
- * this column, and what activating the button does next), generalized to the three lexicographic
- * columns. Unlike `updatedSortButtonLabel`, this also covers "not currently the active column".
+ * The accessible name for a lexicographic column's (Title/Slug/Status) sort control, in every state
+ * `DataTable` can ask for — mirrors `posts/rules.ts`'s `postColumnSortLabel` verbatim. `direction` is
+ * `null` when a different column is currently active — `DataTable` resolves that itself.
  *
  * `columnName` is a fixed English label supplied by the caller (`Pages.tsx`), not the translated
- * header text — matching `updatedSortButtonLabel`'s own precedent of hardcoded English regardless of
+ * header text — matching this feature's pre-existing precedent of hardcoded English regardless of
  * admin locale.
  *
  * @complexity Time/space: O(1).
  */
-export function lexicalPageSortButtonLabel(columnName: string, column: PageSortColumn, sort: PageSortState): string {
-  if (sort.column !== column) {
-    return `Not sorted by ${columnName}. Activate to sort ascending.`;
-  }
-  return sort.direction === "asc"
+export function pageColumnSortLabel(columnName: string, direction: DataTableSortDirection | null): string {
+  if (direction === null) return `Not sorted by ${columnName}. Activate to sort ascending.`;
+  return direction === "asc"
     ? `Sorted by ${columnName}, ascending. Activate to sort descending.`
     : `Sorted by ${columnName}, descending. Activate to sort ascending.`;
 }
 
-/**
- * The Updated column header's accessible name for every sort state, including "not currently the
- * active column". Delegates to `updatedSortButtonLabel` for the "is active" half so that function's
- * own wording stays authoritative in one place.
- *
- * @complexity Time/space: O(1).
- */
-export function updatedSortHeaderLabel(sort: PageSortState): string {
-  if (sort.column !== "updated") {
-    return "Not sorted by updated date. Activate to sort newest first.";
-  }
-  return updatedSortButtonLabel(sort.direction === "desc" ? "newest" : "oldest");
+/** Same contract as {@link pageColumnSortLabel}, phrased in the Updated column's own "newest"/
+ *  "oldest" vocabulary rather than generic "ascending"/"descending" — mirrors `posts/rules.ts`'s
+ *  `updatedColumnSortLabel` verbatim. */
+export function updatedPageColumnSortLabel(direction: DataTableSortDirection | null): string {
+  if (direction === null) return "Not sorted by updated date. Activate to sort newest first.";
+  return direction === "desc"
+    ? "Sorted by updated date, newest first. Activate to sort oldest first."
+    : "Sorted by updated date, oldest first. Activate to sort newest first.";
 }

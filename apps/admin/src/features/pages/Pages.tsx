@@ -1,4 +1,4 @@
-import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
+import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
@@ -8,13 +8,13 @@ import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import {
   pageRowMenuItems,
-  sortPages,
-  nextPageSortState,
-  pageSortCaretGlyph,
-  lexicalPageSortButtonLabel,
-  updatedSortHeaderLabel,
+  comparePagesByTitle,
+  comparePagesBySlug,
+  comparePagesByStatus,
+  comparePagesByUpdated,
+  pageColumnSortLabel,
+  updatedPageColumnSortLabel,
   DEFAULT_PAGE_SORT,
-  type PageSortState,
 } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
@@ -128,9 +128,10 @@ export function Pages(props: PagesProps) {
   // lazy-initializer contract — this must NOT re-resolve on every render, or a later in-page
   // `writePagesTabToUrl` call would immediately fight with it.
   const [activeTab, setActiveTab] = useState<PagesTabId>(() => resolvePagesTabFromUrl());
-  // Same "My Pages" sort state as `Posts.tsx`'s `sort` (2026-09-02, multi-column sort pass) — one
-  // active column at a time, local chrome state per the same owner ruling above.
-  const [sort, setSort] = useState<PageSortState>(DEFAULT_PAGE_SORT);
+  // Same "My Pages" sort state as `Posts.tsx`'s `sort` (2026-09-02, multi-column sort pass; migrated
+  // onto `DataTable`'s own shared sort mechanism the same day) — one active column at a time, local
+  // chrome state per the same owner ruling above, passed straight through as `sort`/`onSortChange`.
+  const [sort, setSort] = useState<DataTableSortState>(DEFAULT_PAGE_SORT);
 
   function selectTab(id: PagesTabId) {
     setActiveTab(id);
@@ -173,8 +174,10 @@ export function Pages(props: PagesProps) {
         <>
           {error ? <div className="notice error">{error}</div> : null}
           <DataTable
-            rows={sortPages(pages, sort)}
+            rows={pages}
             rowKey={(page) => page.id}
+            sort={sort}
+            onSortChange={setSort}
             empty={
               <div className="card">
                 <div className="empty-state">
@@ -186,36 +189,18 @@ export function Pages(props: PagesProps) {
             columns={[
               {
                 key: "title",
-                // Sortable headers (2026-09-02, ported from `Posts.tsx`'s identical block): a plain
-                // button toggling `sort` — `DataTable`'s `<th>` doesn't expose an `aria-sort` prop
-                // (see its own file header), so the accessible state lives on each button's own
-                // `aria-label`, not just the ▲/▼/⇅ glyph, which is `aria-hidden`.
-                header: (
-                  <button
-                    type="button"
-                    className="sortable-column-header"
-                    onClick={() => setSort((s) => nextPageSortState(s, "title"))}
-                    aria-label={lexicalPageSortButtonLabel("Title", "title", sort)}
-                  >
-                    {t("Title")}
-                    <span aria-hidden="true">{pageSortCaretGlyph("title", sort)}</span>
-                  </button>
-                ),
+                header: t("Title"),
+                // Sortable headers (2026-09-02, ported from `Posts.tsx`'s identical block; migrated
+                // onto `DataTable`'s own shared sort mechanism the same day) — `DataTable` now
+                // renders the button, caret, and `aria-sort` itself from this descriptor; only the
+                // domain-specific comparator and label wording stay here (`rules.ts`).
+                sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel("Title", direction) },
                 cell: (page) => <a href={`/admin/pages/${page.slug}`}>{page.title}</a>,
               },
               {
                 key: "slug",
-                header: (
-                  <button
-                    type="button"
-                    className="sortable-column-header"
-                    onClick={() => setSort((s) => nextPageSortState(s, "slug"))}
-                    aria-label={lexicalPageSortButtonLabel("Slug", "slug", sort)}
-                  >
-                    Slug
-                    <span aria-hidden="true">{pageSortCaretGlyph("slug", sort)}</span>
-                  </button>
-                ),
+                header: "Slug",
+                sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel("Slug", direction) },
                 cell: (page) => (
                   <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
                     /{page.slug}
@@ -224,32 +209,16 @@ export function Pages(props: PagesProps) {
               },
               {
                 key: "status",
-                header: (
-                  <button
-                    type="button"
-                    className="sortable-column-header"
-                    onClick={() => setSort((s) => nextPageSortState(s, "status"))}
-                    aria-label={lexicalPageSortButtonLabel("Status", "status", sort)}
-                  >
-                    {t("Status")}
-                    <span aria-hidden="true">{pageSortCaretGlyph("status", sort)}</span>
-                  </button>
-                ),
+                header: t("Status"),
+                sort: { compare: comparePagesByStatus, label: (direction) => pageColumnSortLabel("Status", direction) },
                 cell: (page) => <span className={`status status-${page.status}`}>{page.status}</span>,
               },
               {
                 key: "updated",
-                header: (
-                  <button
-                    type="button"
-                    className="sortable-column-header"
-                    onClick={() => setSort((s) => nextPageSortState(s, "updated"))}
-                    aria-label={updatedSortHeaderLabel(sort)}
-                  >
-                    {t("Updated")}
-                    <span aria-hidden="true">{pageSortCaretGlyph("updated", sort)}</span>
-                  </button>
-                ),
+                header: t("Updated"),
+                // "desc" (newest first) is this column's own starting direction, unlike the other
+                // three's ascending default — unchanged from the pre-existing Updated-only feature.
+                sort: { compare: comparePagesByUpdated, defaultDirection: "desc", label: updatedPageColumnSortLabel },
                 cell: (page) => formatTimestamp(page.updatedAt),
               },
               {

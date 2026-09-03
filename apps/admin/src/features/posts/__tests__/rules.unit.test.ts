@@ -2,25 +2,20 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_POST_SORT,
+  comparePostsByStatus,
+  comparePostsBySlug,
+  comparePostsByTitle,
+  comparePostsByUpdated,
   degradeUnplayableEmbedsForRawPreview,
   droppedUri,
   handleImageDrop,
-  lexicalPostSortButtonLabel,
-  nextPostSortState,
+  postColumnSortLabel,
   postRowMenuItems,
-  postSortCaretGlyph,
   readFileAsDataUrl,
-  sortPosts,
-  sortPostsByStatus,
-  sortPostsBySlug,
-  sortPostsByTitle,
-  sortPostsByUpdated,
   titleNodeText,
   toolbarBtnClass,
-  updatedSortButtonLabel,
-  updatedSortHeaderLabel,
+  updatedColumnSortLabel,
   withTitleNode,
-  type PostSortState,
 } from "../rules";
 import type { AdminPost } from "@/lib/api";
 
@@ -164,92 +159,78 @@ describe("toolbarBtnClass", () => {
   });
 });
 
-describe("sortPostsByUpdated", () => {
+/**
+ * Sort dispatch, the header-click transition, the caret glyph, and multi-column-cancels-previous
+ * behavior all moved onto `DataTable`'s own shared mechanism (2026-09-02 migration — see `rules.ts`'s
+ * "Column sort" section, and `Posts.unit.test.tsx`'s "Title/Slug/Status column sort" describe block,
+ * which still exercises every one of those through the real rendered table). What's left testable
+ * here, independent of any table, is each column's own comparator direction and its accessible-name
+ * phrasing — the two things `DataTable` cannot supply generically and still asks this module for.
+ */
+describe("comparePostsByUpdated", () => {
   const oldest = post({ id: "p-old", updatedAt: "2026-01-01T00:00:00.000Z" });
   const middle = post({ id: "p-mid", updatedAt: "2026-06-01T00:00:00.000Z" });
   const newest = post({ id: "p-new", updatedAt: "2026-08-10T00:00:00.000Z" });
 
-  it("'newest' sorts most-recently-updated first", () => {
-    const result = sortPostsByUpdated([middle, oldest, newest], "newest");
-    expect(result.map((p) => p.id)).toEqual(["p-new", "p-mid", "p-old"]);
-  });
-
-  it("'oldest' sorts least-recently-updated first", () => {
-    const result = sortPostsByUpdated([middle, oldest, newest], "oldest");
+  it("ascending order (DataTable's ' asc') sorts least-recently-updated first", () => {
+    const result = [middle, oldest, newest].sort(comparePostsByUpdated);
     expect(result.map((p) => p.id)).toEqual(["p-old", "p-mid", "p-new"]);
   });
 
-  it("does not mutate the input array", () => {
-    const input = [middle, oldest, newest];
-    const original = [...input];
-    sortPostsByUpdated(input, "newest");
-    expect(input).toEqual(original);
-  });
-
-  it("returns [] for an empty list in either direction", () => {
-    expect(sortPostsByUpdated([], "newest")).toEqual([]);
-    expect(sortPostsByUpdated([], "oldest")).toEqual([]);
-  });
-
-  it("is stable-ish for a single row", () => {
-    expect(sortPostsByUpdated([oldest], "newest")).toEqual([oldest]);
+  it("negating it (DataTable's 'desc') sorts most-recently-updated first", () => {
+    const result = [middle, oldest, newest].sort((a, b) => -comparePostsByUpdated(a, b));
+    expect(result.map((p) => p.id)).toEqual(["p-new", "p-mid", "p-old"]);
   });
 });
 
-describe("updatedSortButtonLabel", () => {
-  it("states 'newest first' and offers oldest-first as the next action when direction is newest", () => {
-    const label = updatedSortButtonLabel("newest");
+describe("updatedColumnSortLabel", () => {
+  it("states 'not sorted by updated date' and offers newest-first when direction is null (a different column is active)", () => {
+    const label = updatedColumnSortLabel(null);
+    expect(label).toMatch(/not sorted by updated date/i);
+    expect(label).toMatch(/newest first/i);
+  });
+
+  it("states 'newest first' and offers oldest-first as the next action when direction is 'desc'", () => {
+    const label = updatedColumnSortLabel("desc");
     expect(label).toMatch(/newest first/i);
     expect(label).toMatch(/oldest first/i);
   });
 
-  it("states 'oldest first' and offers newest-first as the next action when direction is oldest", () => {
-    const label = updatedSortButtonLabel("oldest");
+  it("states 'oldest first' and offers newest-first as the next action when direction is 'asc'", () => {
+    const label = updatedColumnSortLabel("asc");
     expect(label).toMatch(/oldest first/i);
     expect(label).toMatch(/newest first/i);
   });
 
-  it("the two directions produce different labels", () => {
-    expect(updatedSortButtonLabel("newest")).not.toBe(updatedSortButtonLabel("oldest"));
+  it("all three states produce different labels", () => {
+    expect(new Set([updatedColumnSortLabel(null), updatedColumnSortLabel("asc"), updatedColumnSortLabel("desc")]).size).toBe(3);
   });
 });
 
-describe("sortPostsByTitle / sortPostsBySlug", () => {
+describe("comparePostsByTitle / comparePostsBySlug", () => {
   const a = post({ id: "p-a", title: "Alpha", slug: "alpha" });
   const b = post({ id: "p-b", title: "Bravo", slug: "bravo" });
   const c = post({ id: "p-c", title: "Charlie", slug: "charlie" });
 
   for (const [name, fn] of [
-    ["sortPostsByTitle", sortPostsByTitle],
-    ["sortPostsBySlug", sortPostsBySlug],
+    ["comparePostsByTitle", comparePostsByTitle],
+    ["comparePostsBySlug", comparePostsBySlug],
   ] as const) {
     describe(name, () => {
-      it("'asc' sorts A-to-Z", () => {
-        const result = fn([c, a, b], "asc");
+      it("sorts A-to-Z ascending", () => {
+        const result = [c, a, b].sort(fn);
         expect(result.map((p) => p.id)).toEqual(["p-a", "p-b", "p-c"]);
       });
 
-      it("'desc' sorts Z-to-A", () => {
-        const result = fn([c, a, b], "desc");
+      it("negating it sorts Z-to-A", () => {
+        const result = [c, a, b].sort((x, y) => -fn(x, y));
         expect(result.map((p) => p.id)).toEqual(["p-c", "p-b", "p-a"]);
-      });
-
-      it("returns [] for an empty list in either direction", () => {
-        expect(fn([], "asc")).toEqual([]);
-        expect(fn([], "desc")).toEqual([]);
-      });
-
-      it("does not mutate the input array", () => {
-        const input = [c, a, b];
-        const original = [...input];
-        fn(input, "asc");
-        expect(input).toEqual(original);
       });
     });
   }
 });
 
-describe("sortPostsByStatus", () => {
+describe("comparePostsByStatus", () => {
   // Exactly two posts with different statuses — `status` only has two possible values
   // ("draft" | "published"), so a third row would necessarily tie with one of these and the
   // resulting order among ties would depend on `Array#sort`'s stability rather than on this
@@ -257,154 +238,45 @@ describe("sortPostsByStatus", () => {
   const draft = post({ id: "p-draft", status: "draft" });
   const published = post({ id: "p-published", status: "published" });
 
-  it("'asc' sorts draft before published (alphabetical, which happens to equal domain order)", () => {
-    expect(sortPostsByStatus([published, draft], "asc").map((p) => p.id)).toEqual(["p-draft", "p-published"]);
+  it("ascending sorts draft before published (alphabetical, which happens to equal domain order)", () => {
+    expect([published, draft].sort(comparePostsByStatus).map((p) => p.id)).toEqual(["p-draft", "p-published"]);
   });
 
-  it("'desc' sorts published before draft", () => {
-    expect(sortPostsByStatus([draft, published], "desc").map((p) => p.id)).toEqual(["p-published", "p-draft"]);
-  });
-
-  it("returns [] for an empty list in either direction", () => {
-    expect(sortPostsByStatus([], "asc")).toEqual([]);
-    expect(sortPostsByStatus([], "desc")).toEqual([]);
-  });
-
-  it("does not mutate the input array", () => {
-    const input = [published, draft];
-    const original = [...input];
-    sortPostsByStatus(input, "asc");
-    expect(input).toEqual(original);
+  it("negating it sorts published before draft", () => {
+    expect([draft, published].sort((a, b) => -comparePostsByStatus(a, b)).map((p) => p.id)).toEqual([
+      "p-published",
+      "p-draft",
+    ]);
   });
 });
 
-describe("sortPosts (dispatcher)", () => {
-  const a = post({ id: "p-a", title: "Alpha", slug: "alpha", status: "draft", updatedAt: "2026-01-01T00:00:00.000Z" });
-  const b = post({ id: "p-b", title: "Bravo", slug: "bravo", status: "published", updatedAt: "2026-08-01T00:00:00.000Z" });
-
-  it("dispatches 'title' to sortPostsByTitle", () => {
-    expect(sortPosts([b, a], { column: "title", direction: "asc" }).map((p) => p.id)).toEqual(["p-a", "p-b"]);
-  });
-
-  it("dispatches 'slug' to sortPostsBySlug", () => {
-    expect(sortPosts([b, a], { column: "slug", direction: "asc" }).map((p) => p.id)).toEqual(["p-a", "p-b"]);
-  });
-
-  it("dispatches 'status' to sortPostsByStatus", () => {
-    expect(sortPosts([b, a], { column: "status", direction: "asc" }).map((p) => p.id)).toEqual(["p-a", "p-b"]);
-  });
-
-  it("dispatches 'updated' to sortPostsByUpdated, mapping 'desc' to newest-first", () => {
-    expect(sortPosts([a, b], { column: "updated", direction: "desc" }).map((p) => p.id)).toEqual(["p-b", "p-a"]);
-  });
-
-  it("dispatches 'updated' to sortPostsByUpdated, mapping 'asc' to oldest-first", () => {
-    expect(sortPosts([b, a], { column: "updated", direction: "asc" }).map((p) => p.id)).toEqual(["p-a", "p-b"]);
-  });
-
-  it("DEFAULT_POST_SORT reproduces the pre-existing Updated/newest-first default", () => {
-    expect(sortPosts([a, b], DEFAULT_POST_SORT).map((p) => p.id)).toEqual(["p-b", "p-a"]);
-  });
-
-  it("does not mutate the input array", () => {
-    const input = [b, a];
-    const original = [...input];
-    sortPosts(input, { column: "title", direction: "asc" });
-    expect(input).toEqual(original);
+describe("DEFAULT_POST_SORT", () => {
+  it("is Updated, newest-first — unchanged from the pre-existing Updated-only default", () => {
+    expect(DEFAULT_POST_SORT).toEqual({ column: "updated", direction: "desc" });
   });
 });
 
-describe("nextPostSortState", () => {
-  it("clicking a column that isn't active makes it active at its default direction, cancelling the previous column", () => {
-    const current: PostSortState = { column: "updated", direction: "desc" };
-    expect(nextPostSortState(current, "title")).toEqual({ column: "title", direction: "asc" });
-  });
-
-  it("clicking the already-active lexicographic column toggles asc -> desc", () => {
-    const current: PostSortState = { column: "title", direction: "asc" };
-    expect(nextPostSortState(current, "title")).toEqual({ column: "title", direction: "desc" });
-  });
-
-  it("clicking the already-active lexicographic column toggles desc -> asc", () => {
-    const current: PostSortState = { column: "title", direction: "desc" };
-    expect(nextPostSortState(current, "title")).toEqual({ column: "title", direction: "asc" });
-  });
-
-  it("switching TO Updated from another column defaults to 'desc' (newest first)", () => {
-    const current: PostSortState = { column: "title", direction: "asc" };
-    expect(nextPostSortState(current, "updated")).toEqual({ column: "updated", direction: "desc" });
-  });
-
-  it("clicking the already-active Updated column toggles desc -> asc", () => {
-    const current: PostSortState = { column: "updated", direction: "desc" };
-    expect(nextPostSortState(current, "updated")).toEqual({ column: "updated", direction: "asc" });
-  });
-});
-
-describe("postSortCaretGlyph", () => {
-  it("shows the neutral both-direction glyph for a column that isn't the active sort", () => {
-    const sort: PostSortState = { column: "updated", direction: "desc" };
-    expect(postSortCaretGlyph("title", sort)).toBe(" ⇅");
-  });
-
-  it("shows an upward caret for the active column sorted ascending", () => {
-    const sort: PostSortState = { column: "title", direction: "asc" };
-    expect(postSortCaretGlyph("title", sort)).toBe(" ▲");
-  });
-
-  it("shows a downward caret for the active column sorted descending", () => {
-    const sort: PostSortState = { column: "title", direction: "desc" };
-    expect(postSortCaretGlyph("title", sort)).toBe(" ▼");
-  });
-
-  it("the three states are all distinct", () => {
-    const notActive = postSortCaretGlyph("title", { column: "updated", direction: "desc" });
-    const asc = postSortCaretGlyph("title", { column: "title", direction: "asc" });
-    const desc = postSortCaretGlyph("title", { column: "title", direction: "desc" });
-    expect(new Set([notActive, asc, desc]).size).toBe(3);
-  });
-});
-
-describe("lexicalPostSortButtonLabel", () => {
-  it("states 'not sorted' and names the ascending action when the column isn't active", () => {
-    const label = lexicalPostSortButtonLabel("Title", "title", { column: "updated", direction: "desc" });
+describe("postColumnSortLabel", () => {
+  it("states 'not sorted' and names the ascending action when direction is null (the column isn't active)", () => {
+    const label = postColumnSortLabel("Title", null);
     expect(label).toMatch(/not sorted by title/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
-  it("states 'ascending' and offers descending as the next action when the column is active ascending", () => {
-    const label = lexicalPostSortButtonLabel("Title", "title", { column: "title", direction: "asc" });
+  it("states 'ascending' and offers descending as the next action when direction is 'asc'", () => {
+    const label = postColumnSortLabel("Title", "asc");
     expect(label).toMatch(/sorted by title, ascending/i);
     expect(label).toMatch(/activate to sort descending/i);
   });
 
-  it("states 'descending' and offers ascending as the next action when the column is active descending", () => {
-    const label = lexicalPostSortButtonLabel("Title", "title", { column: "title", direction: "desc" });
+  it("states 'descending' and offers ascending as the next action when direction is 'desc'", () => {
+    const label = postColumnSortLabel("Title", "desc");
     expect(label).toMatch(/sorted by title, descending/i);
     expect(label).toMatch(/activate to sort ascending/i);
   });
 
   it("all three states produce different labels", () => {
-    const notSorted = lexicalPostSortButtonLabel("Title", "title", { column: "updated", direction: "desc" });
-    const asc = lexicalPostSortButtonLabel("Title", "title", { column: "title", direction: "asc" });
-    const desc = lexicalPostSortButtonLabel("Title", "title", { column: "title", direction: "desc" });
-    expect(new Set([notSorted, asc, desc]).size).toBe(3);
-  });
-});
-
-describe("updatedSortHeaderLabel", () => {
-  it("states 'not sorted by updated date' when another column is active", () => {
-    const label = updatedSortHeaderLabel({ column: "title", direction: "asc" });
-    expect(label).toMatch(/not sorted by updated date/i);
-    expect(label).toMatch(/newest first/i);
-  });
-
-  it("delegates to updatedSortButtonLabel('newest') when active and 'desc'", () => {
-    expect(updatedSortHeaderLabel({ column: "updated", direction: "desc" })).toBe(updatedSortButtonLabel("newest"));
-  });
-
-  it("delegates to updatedSortButtonLabel('oldest') when active and 'asc'", () => {
-    expect(updatedSortHeaderLabel({ column: "updated", direction: "asc" })).toBe(updatedSortButtonLabel("oldest"));
+    expect(new Set([postColumnSortLabel("Title", null), postColumnSortLabel("Title", "asc"), postColumnSortLabel("Title", "desc")]).size).toBe(3);
   });
 });
 
