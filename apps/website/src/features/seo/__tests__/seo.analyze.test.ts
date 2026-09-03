@@ -66,9 +66,22 @@ test("analyzeEntry: a missing description produces an issue", async () => {
   assert.ok(analysis.score < 100);
 });
 
+test("analyzeEntry: a missing title produces an issue and lowers score", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      bodyJson: { type: "doc", content: [] },
+      seoExtJson: JSON.stringify({ title: "" }),
+    }),
+  ]);
+  const analysis = await analyzeEntry(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.ok(analysis.issues.some((issue) => issue.field === "title" && issue.code === "missing_title"));
+  assert.equal(analysis.score, 60);
+});
+
 test("analyzeEntry: carries the fully-resolved SeoMeta in `resolved`", async () => {
   const deps = await makeDeps([seedPost()]);
   const analysis = await analyzeEntry(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.equal(analysis.resolved.title, "Hello World");
   assert.equal(analysis.entryId, "post-1");
 });
+

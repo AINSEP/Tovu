@@ -258,3 +258,66 @@ test("getEntryMeta: schemaType override changes the emitted jsonLd @type", async
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.equal(meta.jsonLd[0]!["@type"], "NewsArticle");
 });
+
+test("getEntryMeta: explicit site default noindex and nofollow apply when no overrides exist", async () => {
+  const deps = await makeDeps([seedPost()]);
+  await setSeoSettings(deps.settingsDeps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: "caller-1",
+    patch: { defaultRobots: { noindex: true, nofollow: true } },
+  });
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.robots.noindex, true);
+  assert.equal(meta.robots.nofollow, true);
+});
+
+test("getEntryMeta: nofollow override true wins over site default false", async () => {
+  const deps = await makeDeps([seedPost({ seoExtJson: JSON.stringify({ nofollow: true }) })]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.robots.nofollow, true);
+});
+
+test("getEntryMeta: malformed seoExtJson parses safely into empty overrides", async () => {
+  const deps = await makeDeps([seedPost({ seoExtJson: "{not-valid-json" })]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.title, "Hello World");
+});
+
+test("getEntryMeta: decodes numeric hex and decimal html entities, and preserves unknown entities", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      bodyFormat: "html",
+      bodyHtml: "<p>It&#39;s &#x22;great&#x22; &lt;rock&gt; &amp; &unknown;</p>",
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.description, `It's "great" <rock> & &unknown;`);
+});
+
+test("getEntryMeta: all openGraph and twitter field overrides are respected", async () => {
+  const deps = await makeDeps([
+    seedPost({
+      kind: "page",
+      seoExtJson: JSON.stringify({
+        ogTitle: "Custom OG Title",
+        ogDescription: "Custom OG Desc",
+        ogType: "profile",
+        twitterTitle: "Custom Twitter Title",
+        twitterDescription: "Custom Twitter Desc",
+        twitterCard: "summary",
+        twitterImage: "https://cdn.example.com/tw.png",
+      }),
+    }),
+  ]);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.openGraph.title, "Custom OG Title");
+  assert.equal(meta.openGraph.description, "Custom OG Desc");
+  assert.equal(meta.openGraph.type, "profile");
+  assert.equal(meta.twitter.title, "Custom Twitter Title");
+  assert.equal(meta.twitter.description, "Custom Twitter Desc");
+  assert.equal(meta.twitter.card, "summary");
+  assert.equal(meta.twitter.image, "https://cdn.example.com/tw.png");
+  assert.equal(meta.jsonLd[0]!["name"], "Hello World");
+});
+
