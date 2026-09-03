@@ -274,3 +274,93 @@ test("admin redirects update route: workspace mismatch, update happy path, undef
     deps.redirectRepo.findById = origFindById;
   }
 });
+
+test("admin redirects get-by-id route: workspace mismatch, found, not found, unexpected error", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await deps.redirectRepo.save({
+    record: {
+      id: "get-1",
+      workspaceId: WORKSPACE_ID,
+      matchType: "exact",
+      fromPattern: "/old-get",
+      toTarget: "/new-get",
+      statusCode: 301,
+      status: "active",
+      override: false,
+      priority: 0,
+      source: "manual",
+      createdByPrincipal: "system",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+      version: 1,
+    },
+    revision: {
+      redirectId: "get-1",
+      workspaceId: WORKSPACE_ID,
+      seq: 1,
+      state: {
+        id: "get-1",
+        workspaceId: WORKSPACE_ID,
+        matchType: "exact",
+        fromPattern: "/old-get",
+        toTarget: "/new-get",
+        statusCode: 301,
+        status: "active",
+        override: false,
+        priority: 0,
+        source: "manual",
+        createdByPrincipal: "system",
+        createdAt: "2026-07-13T00:00:00.000Z",
+        updatedAt: "2026-07-13T00:00:00.000Z",
+        version: 1,
+      },
+      tombstoned: false,
+      actorId: "system",
+      recordedAt: "2026-07-13T00:00:00.000Z",
+    },
+  });
+
+  // 1. Workspace mismatch -> 404
+  const mismatchRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/wrong-ws/redirects/get-1`, {
+    headers: { cookie },
+  });
+  assert.equal(mismatchRes.status, 404);
+  const mismatchJson = await mismatchRes.json();
+  assert.equal(mismatchJson.error, "workspace was not found");
+
+  // 2. Found -> 200
+  const foundRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/get-1`, {
+    headers: { cookie },
+  });
+  assert.equal(foundRes.status, 200);
+  const foundJson = (await foundRes.json()) as { data: { id: string; fromPattern: string; toTarget: string } };
+  assert.equal(foundJson.data.id, "get-1");
+  assert.equal(foundJson.data.fromPattern, "/old-get");
+  assert.equal(foundJson.data.toTarget, "/new-get");
+
+  // 3. Not found -> 404
+  const notFoundRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/does-not-exist`, {
+    headers: { cookie },
+  });
+  assert.equal(notFoundRes.status, 404);
+  const notFoundJson = (await notFoundRes.json()) as { code: string };
+  assert.equal(notFoundJson.code, "REDIRECT_NOT_FOUND");
+
+  // 4. Unexpected error -> 500
+  const origFindById = deps.redirectRepo.findById.bind(deps.redirectRepo);
+  deps.redirectRepo.findById = async () => {
+    throw new Error("unexpected error");
+  };
+  try {
+    const errorRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/redirects/get-1`, {
+      headers: { cookie },
+    });
+    assert.equal(errorRes.status, 500);
+    const errorJson = (await errorRes.json()) as { code: string };
+    assert.equal(errorJson.code, "INTERNAL_ERROR");
+  } finally {
+    deps.redirectRepo.findById = origFindById;
+  }
+});
