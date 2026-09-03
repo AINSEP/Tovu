@@ -130,7 +130,7 @@ interface stubs in `src/newsletter/ports.ts`/`types.ts`.
 | EC-03 | Unsubscribe link double-clicked — idempotent success | pending | pending | PENDING |
 | EC-04 | Outbox crash mid-batch — dedup ledger prevents double real send | pending | pending | PENDING |
 | EC-05 | Launch gate flips unmet mid-send — in-flight completes, no new batches | pending | pending | PENDING |
-| EC-06 | Concurrent schedule — version-conflict rejection | pending | pending | PENDING |
+| EC-06 | Concurrent schedule — version-conflict rejection | `apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/update-campaign.test.ts` | `update-campaign: a stale expectedVersion from a losing concurrent PATCH -> 409 NEWSLETTER_CONFLICT, no mutation` | VERIFIED |
 | EC-07 | SubscriberDirectoryPort returns null — silently excluded from snapshot | pending | pending | PENDING |
 | EC-08 | Import with unknown subscriberId — rejected per-row | pending | pending | PENDING |
 | EC-09 | Feedback event for a different module — ignored | pending | pending | PENDING |

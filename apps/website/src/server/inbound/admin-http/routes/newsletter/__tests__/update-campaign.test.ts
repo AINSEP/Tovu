@@ -218,3 +218,99 @@ for (const nonDraftStatus of ["scheduled", "sending", "sent", "paused", "cancele
     assert.equal(stored?.subject, campaign.subject, "the rejected PATCH must not have mutated the stored campaign");
   });
 }
+
+// -------------------------------------------------------------------------------------------
+// EC-06 (traceability.spec.md) — optimistic concurrency on `expectedVersion`. behavior.spec.md
+// §6.1: "the loser always receives NEWSLETTER_CONFLICT, never a silent no-op success." The write
+// chokepoint (`campaign-write-service.ts`'s `saveCampaign`) already enforces this; these tests
+// prove the route actually forwards the field, since an omitted forward makes the check a
+// permanent no-op for every caller that goes through HTTP.
+// -------------------------------------------------------------------------------------------
+
+test("update-campaign: a stale expectedVersion from a losing concurrent PATCH -> 409 NEWSLETTER_CONFLICT, no mutation", async (t) => {
+  const { app, deps } = buildApp();
+  const campaign = await seedCampaign(deps, { id: "camp-occ-stale" });
+
+  // Winner's PATCH lands first and advances the version.
+  const winner = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
+    subject: "Winner's edit",
+    expectedVersion: campaign.version,
+  });
+  assert.equal(winner.status, 200, JSON.stringify(winner.json));
+
+  // Loser's PATCH carries the now-stale version it read before the winner's write.
+  const loser = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
+    subject: "Loser's edit",
+    expectedVersion: campaign.version,
+  });
+  assert.equal(loser.status, 409, JSON.stringify(loser.json));
+  assert.equal((loser.json as { code?: string }).code, "NEWSLETTER_CONFLICT");
+
+  const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+  assert.equal(stored?.subject, "Winner's edit", "the loser's stale-version PATCH must not have overwritten the winner's edit");
+});
+
+test("update-campaign: a matching expectedVersion succeeds and advances the version", async (t) => {
+  const { app, deps } = buildApp();
+  const campaign = await seedCampaign(deps, { id: "camp-occ-match" });
+  const { status, json } = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
+    subject: "Updated with a correct version",
+    expectedVersion: campaign.version,
+  });
+  assert.equal(status, 200, JSON.stringify(json));
+  const body = json as { data: { subject: string; version: number } };
+  assert.equal(body.data.subject, "Updated with a correct version");
+  assert.equal(body.data.version, campaign.version + 1);
+});
+
+test("update-campaign: an omitted expectedVersion still succeeds (backward compatibility — the field remains optional)", async (t) => {
+  const { app, deps } = buildApp();
+  const campaign = await seedCampaign(deps, { id: "camp-occ-omitted" });
+  const { status, json } = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
+    subject: "Updated without sending expectedVersion at all",
+  });
+  assert.equal(status, 200, JSON.stringify(json));
+  const body = json as { data: { subject: string; version: number } };
+  assert.equal(body.data.subject, "Updated without sending expectedVersion at all");
+  assert.equal(body.data.version, campaign.version + 1);
+});
+
+for (const [label, invalidValue] of [
+  ["a string", "1"],
+  ["a negative number", -1],
+] as const) {
+  test(`update-campaign: expectedVersion as ${label} -> 400 VALIDATION_ERROR, write service never called`, async (t) => {
+    const { app, deps } = buildApp();
+    const campaign = await seedCampaign(deps, { id: `camp-occ-invalid-${label.replace(/\s+/g, "-")}` });
+    const { status, json } = await patch(t, app, `/api/admin/v1/workspaces/${WORKSPACE_ID}/newsletter/campaigns/${campaign.id}`, {
+      subject: "Should never be applied",
+      expectedVersion: invalidValue,
+    });
+    assert.equal(status, 400, JSON.stringify(json));
+    const body = json as { code?: string; error?: string };
+    assert.equal(body.code, "VALIDATION_ERROR");
+    assert.equal(body.error, "expectedVersion must be a non-negative integer when provided");
+
+    const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+    assert.equal(stored?.subject, campaign.subject, "an invalid expectedVersion must reject before any write");
+  });
+}
+
+test("update-campaign: expectedVersion as NaN -> 400 VALIDATION_ERROR (direct-invoke, since JSON can't carry a literal NaN over HTTP)", async () => {
+  const { app, deps } = buildApp();
+  const campaign = await seedCampaign(deps, { id: "camp-occ-invalid-nan" });
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = { id: "test-principal" };
+  await handler(
+    { params: { workspaceId: WORKSPACE_ID, id: campaign.id }, body: { subject: "Should never be applied", expectedVersion: NaN } },
+    res
+  );
+  assert.equal(capture.statusCode, 400, JSON.stringify(capture.jsonBody));
+  const body = capture.jsonBody as { code?: string; error?: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+  assert.equal(body.error, "expectedVersion must be a non-negative integer when provided");
+
+  const stored = await deps.newsletterCampaignRepo.findById({ workspaceId: WORKSPACE_ID, id: campaign.id });
+  assert.equal(stored?.subject, campaign.subject, "an invalid expectedVersion must reject before any write");
+});

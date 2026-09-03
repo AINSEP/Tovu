@@ -133,8 +133,18 @@ bodyJson:
 
 ### Endpoint: `UPDATE_CAMPAIGN` (`PATCH /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id`)
 - Path Params: `workspaceId`, `id` (both `uuid`, required).
-- Body: all fields from `CREATE_CAMPAIGN`'s body, each optional. Rejected with
-  `NEWSLETTER_CAMPAIGN_NOT_EDITABLE` if the campaign's `status` is not `draft`/`scheduled`.
+- Body: all fields from `CREATE_CAMPAIGN`'s body, each optional, plus:
+```yaml
+expectedVersion:
+  type: number
+  required: false
+  # EC-06 optimistic concurrency. Omitted = no version check (backward compatible with callers
+  # that predate this field). When present, must be a non-negative integer; a mismatch against
+  # the campaign's current version is rejected with NEWSLETTER_CONFLICT (409) rather than
+  # silently overwriting a concurrent edit.
+```
+  Rejected with `NEWSLETTER_CAMPAIGN_NOT_EDITABLE` if the campaign's `status` is not
+  `draft`/`scheduled`.
 
 ### Endpoint: `SCHEDULE_CAMPAIGN` (`POST /api/admin/v1/workspaces/:workspaceId/newsletter/campaigns/:id/schedule`)
 - Path Params: `workspaceId`, `id`.

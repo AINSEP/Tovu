@@ -12,10 +12,13 @@ const CAMPAIGN_STRING_FIELD_NAMES = ["subject", "preheader", "fromName", "fromEm
 
 /**
  * Validates the PATCH body: each of `CAMPAIGN_STRING_FIELD_NAMES` must be a string when present,
- * and `bodyJson` (see the module doc's disclosed gap) must be a non-null object when present. Every
- * field is optional — this is a partial update. Returns the first violation's message, or `null`.
+ * `bodyJson` (see the module doc's disclosed gap) must be a non-null object when present, and
+ * `expectedVersion` (EC-06) must be a non-negative integer when present. Every field is optional —
+ * this is a partial update, and `expectedVersion`'s absence specifically means "skip the
+ * optimistic-concurrency check" per `saveCampaign`'s own contract. Returns the first violation's
+ * message, or `null`.
  *
- * @complexity O(1) — iterates a fixed 6-entry field list.
+ * @complexity O(1) — iterates a fixed 6-entry field list plus two additional fixed checks.
  */
 function validateCampaignPatchBody(body: Record<string, unknown>): string | null {
   for (const name of CAMPAIGN_STRING_FIELD_NAMES) {
@@ -26,6 +29,12 @@ function validateCampaignPatchBody(body: Record<string, unknown>): string | null
   }
   if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null)) {
     return "bodyJson must be an object when provided";
+  }
+  if (
+    body.expectedVersion !== undefined &&
+    (typeof body.expectedVersion !== "number" || !Number.isInteger(body.expectedVersion) || body.expectedVersion < 0)
+  ) {
+    return "expectedVersion must be a non-negative integer when provided";
   }
   return null;
 }
@@ -58,6 +67,15 @@ function mergeCampaignPatchFields(
  * function's type — it always overwrites, never merges), so this route reads the existing campaign
  * first and merges any omitted field from its current value before calling `saveCampaign` — a
  * route-layer responsibility, not a change to the write chokepoint's own logic.
+ *
+ * `expectedVersion` (optional number, EC-06) is forwarded to `saveCampaign` as-is — never merged
+ * into `fields` like the six string fields above, since it is a precondition on the write, not a
+ * value being written. `saveCampaign`'s own `input.expectedVersion !== undefined` guard is what
+ * makes omitting it legal (a caller that never sends it is unaffected); this route only needs to
+ * validate the shape (a non-negative integer, same 400 `VALIDATION_ERROR` shape as the other
+ * fields) and pass through, since the actual conflict check and `NEWSLETTER_CONFLICT` (409) already
+ * live at the chokepoint (`campaign-write-service.ts`) and are already mapped to a response by
+ * `mapNewsletterErrorToResponse`.
  *
  * DISCLOSED GAP (found while wiring, not fixed): api.spec.md describes `UPDATE_CAMPAIGN` as valid
  * "while `draft`/`scheduled`", but `saveCampaign`'s actual guard (`campaign-write-service.ts`) only
@@ -107,6 +125,7 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
           workspaceId: deps.workspaceId,
           id,
           actorId: getAuthedPrincipal(res).id,
+          expectedVersion: typeof body.expectedVersion === "number" ? body.expectedVersion : undefined,
           fields: mergeCampaignPatchFields(body, existing),
         },
       });
