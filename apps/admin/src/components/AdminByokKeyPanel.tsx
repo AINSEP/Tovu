@@ -99,10 +99,18 @@ export interface AdminByokKeyFooterProps {
  * than the full `stored` record, so this function has no dependency on `AdminExecutionCredential`'s
  * shape beyond the one field it reads.
  */
-export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"], isStored: boolean): string | null {
-  if (status === "saving") return "Saving…";
-  if (status === "saved") return "Saved to the server, encrypted.";
-  if (status === "idle") return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
+export function resolveByokFooterStatusLine(saveState: AdminByokSaveState, isStored: boolean): string | null {
+  if (saveState.status === "saving") return "Saving…";
+  // Takes the whole `saveState` rather than just `.status` so it can read `keyWritten` — the one
+  // field that separates "a key was sealed" from "the key was deliberately left alone". See
+  // `AdminByokSaveState`'s own doc for why answering both with the same sentence read to the owner
+  // as the panel accepting a blank key.
+  if (saveState.status === "saved") {
+    return saveState.keyWritten ? "Saved to the server, encrypted." : "Settings saved. Your stored key was left unchanged.";
+  }
+  if (saveState.status === "idle") {
+    return isStored ? "Stored on the server, encrypted. Paste a new key to replace it." : "Paste your key, then press Save key.";
+  }
   return null;
 }
 
@@ -117,7 +125,7 @@ export function resolveByokFooterStatusLine(status: AdminByokSaveState["status"]
 export function AdminByokKeyFooter({ controller, agentHandle: handle }: AdminByokKeyFooterProps) {
   const { saveState, canSaveKey, stored } = controller;
   const saving = saveState.status === "saving";
-  const statusLine = resolveByokFooterStatusLine(saveState.status, stored?.isSet ?? false);
+  const statusLine = resolveByokFooterStatusLine(saveState, stored?.isSet ?? false);
 
   return (
     <div className="assistant-key-footer">

@@ -136,7 +136,7 @@ describe("useAdminExecutionCredential — save success", () => {
       expect.objectContaining({ apiKey: "sk-typed-key", protocol: "anthropic", model: "claude-sonnet-4-5" }),
     );
     expect(onByokChange).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "" }));
-    expect(result.current.saveState).toEqual({ status: "saved" });
+    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: true });
     expect(result.current.apiKeyStoredExternally).toBe(true);
     expect(result.current.apiKeyPlaceholder).toBe("••••abcd");
     rerender({ b: byok({ apiKey: "sk-typed-key" }) }); // no-op, keeps the linter quiet about unused rerender
@@ -157,6 +157,48 @@ describe("useAdminExecutionCredential — save success", () => {
     expect("apiKey" in patch).toBe(false);
     // Nothing was typed, so there is nothing to clear back out of the form.
     expect(onByokChange).not.toHaveBeenCalled();
+  });
+
+  it("reports a keyless save as keyWritten:false, so the footer cannot claim a key was stored", async () => {
+    // The owner-reported bug (2026-09-02): with a key already stored the field is empty ON PURPOSE
+    // (it is a write-only credential shown as a mask), so "Save key" stays enabled — and pressing it
+    // answered "Saved to the server, encrypted." That sentence is about a KEY, and no key was sent:
+    // the PUT above omits `apiKey` entirely. The stored key is never harmed, but the operator is
+    // told their blank field was saved AS the key, which is why this read as "it let me save a
+    // blank key". `keyWritten` is what lets the footer say which of the two writes actually
+    // happened; the stored key staying byte-identical is asserted alongside it.
+    getAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••mw4w" }) });
+    setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••mw4w", model: "claude-opus-5" }) });
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "", model: "claude-opus-5" }), onByokChange: vi.fn() }),
+    );
+    await waitFor(() => expect(result.current.stored?.isSet).toBe(true));
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+
+    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: false });
+    // The property that actually matters: the same key is still there, unchanged.
+    expect(result.current.apiKeyPlaceholder).toBe("••••mw4w");
+    expect(result.current.apiKeyStoredExternally).toBe(true);
+  });
+
+  it("reports a real typed save as keyWritten:true", async () => {
+    // The other half of the same seam — without this, `keyWritten` could be hardcoded `false` and
+    // the test above would still pass while the footer went silent about genuine key writes.
+    getAdminExecutionCredential.mockResolvedValueOnce({ data: unsetView() }).mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
+    setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange: vi.fn() }),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+
+    expect(result.current.saveState).toEqual({ status: "saved", keyWritten: true });
   });
 
   it("saveKey is a no-op when nothing is typed and nothing is stored", async () => {

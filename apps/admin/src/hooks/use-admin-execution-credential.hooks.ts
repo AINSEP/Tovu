@@ -54,7 +54,19 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
 export type AdminByokSaveState =
   | { status: "idle" }
   | { status: "saving" }
-  | { status: "saved" }
+  /**
+   * `keyWritten` distinguishes the TWO different writes this one button performs, because they
+   * deserve different sentences.
+   *
+   * With a key already stored the field is empty on purpose — it is a write-only credential
+   * rendered as a `••••abcd` mask — so `saveKey` omits `apiKey` and only the protocol/model fields
+   * are written. Reporting that as "Saved to the server, encrypted." tells the operator their blank
+   * field was stored AS the key, which is exactly how the bug was reported: "it lets me save a
+   * blank key." Nothing was ever at risk (the omitted field is what protects the stored key), but
+   * the footer said otherwise. `false` means "the settings were saved and the stored key was left
+   * alone"; `true` means a key really was transmitted and sealed.
+   */
+  | { status: "saved"; keyWritten: boolean }
   | { status: "error"; message: string };
 
 /** Overrides layered on the shared default (`lib/api.ts`'s `describeApiError`), mirroring
@@ -205,7 +217,9 @@ export function useAdminExecutionCredential(
       };
       const view = await port.saveAdminExecutionCredential(patch);
       setStored(view);
-      setSaveState({ status: "saved" });
+      // `Boolean(apiKey)` mirrors the `...(apiKey ? { apiKey } : {})` spread that built the patch, so
+      // the reported outcome can never disagree with what was actually sent.
+      setSaveState({ status: "saved", keyWritten: Boolean(apiKey) });
       // Tells every other mounted copy of this credential (the other settings screen, the dock) to
       // re-read — see this file's "Cross-mount staleness" doc above.
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
@@ -237,7 +251,9 @@ export function useAdminExecutionCredential(
       clearLegacyLocalCredential();
       setStored(view);
       setLegacyKey(null);
-      setSaveState({ status: "saved" });
+      // A migration always carries a key (guarded by the `!legacyKey` return above), so this branch
+      // is unconditionally a real key write.
+      setSaveState({ status: "saved", keyWritten: true });
       // Same cross-mount notification `saveKey` above sends — a migration is a write to the same row.
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
     } catch (error) {

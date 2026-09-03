@@ -200,7 +200,10 @@ test.describe("blank-key save guard", () => {
     ).toBeEnabled();
 
     await saveButton(page, "Save key").click();
-    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./, {
+    // NOT "Saved to the server, encrypted." — that sentence is about a key, and this save carried
+    // none (the PUT omits `apiKey`). Answering it here is what the owner read as the panel
+    // accepting a blank key; the footer now reports which of the two writes actually happened.
+    await expect(keySaveLine(page)).toHaveText(/Settings saved\. Your stored key was left unchanged\./, {
       timeout: 15_000,
     });
 
@@ -238,7 +241,7 @@ test.describe("blank-key save guard", () => {
 
     // Success, not a validation error: the whitespace must be omitted from the patch entirely,
     // exactly as an empty field is.
-    await expect(keySaveLine(page)).toHaveText(/Saved to the server, encrypted\./, {
+    await expect(keySaveLine(page)).toHaveText(/Settings saved\. Your stored key was left unchanged\./, {
       timeout: 15_000,
     });
     await expect(page.locator(".save-error")).toHaveCount(0);

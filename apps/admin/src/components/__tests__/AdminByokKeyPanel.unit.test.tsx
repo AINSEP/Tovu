@@ -97,8 +97,16 @@ describe("AdminByokKeyFooter", () => {
   });
 
   it("shows the saved confirmation immediately after a successful save", () => {
-    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saved" } })} />);
+    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saved", keyWritten: true } })} />);
     expect(screen.getByText(/saved to the server, encrypted\./i)).toBeInTheDocument();
+  });
+
+  it("reports a keyless save honestly rather than claiming the key was stored", () => {
+    // The rendered counterpart of the `resolveByokFooterStatusLine` case below — this is the exact
+    // DOM the owner was reading when they reported the panel "let them save a blank key".
+    render(<AdminByokKeyFooter controller={controller({ saveState: { status: "saved", keyWritten: false } })} />);
+    expect(screen.getByText(/your stored key was left unchanged/i)).toBeInTheDocument();
+    expect(screen.queryByText(/saved to the server, encrypted\./i)).not.toBeInTheDocument();
   });
 
   it("surfaces a save error", () => {
@@ -112,20 +120,31 @@ describe("resolveByokFooterStatusLine", () => {
   // the rendered-component tests above already pin the same four cases end-to-end; this exercises
   // the status/isStored combinations without a render at all.
   it("reports 'Saving…' while saving, regardless of isStored", () => {
-    expect(resolveByokFooterStatusLine("saving", false)).toBe("Saving…");
-    expect(resolveByokFooterStatusLine("saving", true)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving" }, false)).toBe("Saving…");
+    expect(resolveByokFooterStatusLine({ status: "saving" }, true)).toBe("Saving…");
   });
 
   it("reports the saved confirmation once saved", () => {
-    expect(resolveByokFooterStatusLine("saved", false)).toBe("Saved to the server, encrypted.");
+    expect(resolveByokFooterStatusLine({ status: "saved", keyWritten: true }, false)).toBe("Saved to the server, encrypted.");
+  });
+
+  it("does NOT claim the key was saved when the save carried no key", () => {
+    // Owner-reported bug (2026-09-02): an empty field with a key already stored is the normal
+    // returning-operator state, so "Save key" is deliberately enabled — but `saveKey` omits `apiKey`
+    // from the PUT, so the write that happened was to the protocol/model fields, NOT to the key.
+    // Answering "Saved to the server, encrypted." there tells the operator their blank field was
+    // stored as the credential. The line must say what actually happened instead.
+    const line = resolveByokFooterStatusLine({ status: "saved", keyWritten: false }, true);
+    expect(line).not.toBe("Saved to the server, encrypted.");
+    expect(line).toBe("Settings saved. Your stored key was left unchanged.");
   });
 
   it("distinguishes 'stored' from 'never stored' while idle", () => {
-    expect(resolveByokFooterStatusLine("idle", true)).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
-    expect(resolveByokFooterStatusLine("idle", false)).toBe("Paste your key, then press Save key.");
+    expect(resolveByokFooterStatusLine({ status: "idle" }, true)).toBe("Stored on the server, encrypted. Paste a new key to replace it.");
+    expect(resolveByokFooterStatusLine({ status: "idle" }, false)).toBe("Paste your key, then press Save key.");
   });
 
   it("returns null on error — the footer renders the error via a separate element", () => {
-    expect(resolveByokFooterStatusLine("error", false)).toBeNull();
+    expect(resolveByokFooterStatusLine({ status: "error", message: "boom" }, false)).toBeNull();
   });
 });
