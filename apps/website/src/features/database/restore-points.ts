@@ -124,6 +124,15 @@ export interface RestorePointSavePort {
   }): Promise<void>;
 }
 
+/** Same narrow shape as `recovery/restore-points.ts`'s `CreateRestorePointRepoPort.findByIdempotencyKey()`
+ * (AC-11's `(site_id, idempotency_key)` lookup), declared independently here for the identical
+ * "keep `features/recovery` at arm's length" reason `RestorePointSavePort` above documents. Both
+ * concrete repos backing this route (`SqliteRestorePointsRepo`, `InMemoryRestorePointsRepo`) already
+ * implement this method; only the route's own dependency type was narrower. */
+export interface RestorePointIdempotencyLookupPort {
+  findByIdempotencyKey(key: string): Promise<{ restorePointId: string; idempotencyKey: string } | null>;
+}
+
 /**
  * Lists every restore point recorded for this site, newest-first (the port's own contract —
  * `db/sqlite/database-journal-repo.ts`'s `SqliteRestorePointsRepo.list()` already orders this

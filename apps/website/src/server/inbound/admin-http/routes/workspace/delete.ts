@@ -7,8 +7,17 @@ import type { WorkspaceRouteRegistrar } from "./deps.js";
  * DELETE workspaces/:workspaceId — `DELETE_WORKSPACE` (SPEC-044 REQ-05/INV-03, AC-06).
  * `:workspaceId` must equal the caller's own workspace (INV-04, checked before authorization, and
  * before the last-workspace guard — EC-04: an unauthorized caller learns nothing about workspace
- * count). Gated by `workspace.manage`. Always refuses in v1 (`LAST_WORKSPACE`) — see
- * `features/workspace/delete.ts`'s header for why that is correct, guarded behavior.
+ * count). Gated by `workspace.manage`.
+ *
+ * `deleteWorkspace`'s INV-03 guard (`@jini-ai/cms/workspace`'s `delete.ts`) refuses only when the
+ * target is the install's LAST remaining workspace ROW (`repo.list().length <= 1`) — it does not
+ * check the row against this process's own fixed `deps.workspaceId`. In v1 this route always
+ * refuses in practice only because a v1 install always has exactly one workspace row today; the
+ * moment a second, addressable workspace row exists, an admin can create it and then successfully
+ * DELETE this process's own `deps.workspaceId`, leaving the running app pointed at a workspace id
+ * that no longer resolves. Not a privilege-escalation path (still gated by `workspace.manage`), but
+ * the guarantee is row-count-based, not identity-based — see this dispatch's report for the open
+ * recommendation on whether the guard should additionally refuse `deps.workspaceId` specifically.
  */
 export const registerAdminWorkspaceDeleteRoute: WorkspaceRouteRegistrar = (app, deps) => {
   app.delete("/api/admin/v1/workspaces/:workspaceId", async (req, res) => {

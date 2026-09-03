@@ -1,12 +1,29 @@
 import type { Express, Response } from "express";
 import { randomUUID } from "node:crypto";
 
-import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "#src/features/database/restore-points";
+import {
+  listRestorePoints,
+  createRestorePoint,
+  RestorePointUnavailableError,
+  ValidationError,
+  type RestorePointCostClass,
+} from "#src/features/database/restore-points";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
-/** This route's three writable POST body fields, read off an untyped body in one place.
- *  @complexity O(1). */
+/**
+ * This route's three writable POST body fields, read off an untyped body in one place.
+ *
+ * `idempotencyKey` omission (line below, `randomUUID()`) is a deliberate opt-out, not a bug: no
+ * caller in this codebase sends `idempotencyKey` today (the admin UI never does), so making it
+ * required would turn every existing real call into a 400 for a body shape no one currently
+ * requests updating. A caller that wants retry-safety must supply its own key; one that omits it
+ * gets a fresh key per request and is treated as "not asking for idempotency," matching the
+ * `findExistingRestorePointSummary` check below, which only ever short-circuits a key the caller
+ * chose to repeat.
+ *
+ * @complexity O(1).
+ */
 function parseRestorePointCreateBody(rawBody: unknown): { trigger: string; costAck: boolean; idempotencyKey: string } {
   const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
@@ -31,6 +48,46 @@ function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: numb
     watermarkAtCapture: captured?.watermarkAtCapture ?? null,
     artifactRef: captured?.artifactRef,
   };
+}
+
+/**
+ * AC-11 idempotency check — if `idempotencyKey` already names a persisted restore point, reconstructs
+ * the same `{id, costClass, kind}` summary shape a fresh create returns, instead of re-running the
+ * real (costly) `capture()` and inserting a second ledger row. Must be called BEFORE `capture()`,
+ * not merely before `save()` — checking only before the insert still burns a real backup on every
+ * retry.
+ *
+ * Pairs the narrow `findByIdempotencyKey` lookup with the same `list()` read the GET route already
+ * serves, rather than widening `findByIdempotencyKey`'s own return shape — no change needed to
+ * either concrete repo (`SqliteRestorePointsRepo`/`InMemoryRestorePointsRepo` already implement
+ * both methods). Mirrors `features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup` for the
+ * identical accepted O(n) tradeoff (restore points are an operator-curated, low-volume list).
+ *
+ * Two concurrent requests sharing the same key can still both miss this lookup and both capture —
+ * this check alone does not close that race. The `(site_id, idempotency_key)` unique index on the
+ * `restore_points` table (`database-journal-schema.ts`) prevents a second row from being persisted,
+ * but does not prevent a second real capture from running; closing that fully needs an in-process
+ * lock, which is out of scope here (see this dispatch's report).
+ *
+ * @complexity O(1) lookup plus O(n) over the restore-points list only when a repeat key is found.
+ */
+async function findExistingRestorePointSummary(
+  repo: DatabaseRecoveryRouteDeps["restorePointsRepo"],
+  idempotencyKey: string
+): Promise<{ id: string; costClass: RestorePointCostClass; kind: string } | undefined> {
+  const existing = await repo.findByIdempotencyKey(idempotencyKey);
+  if (!existing) return undefined;
+
+  const items = await repo.list();
+  const row = items.find((item) => item.id === existing.restorePointId);
+  // Defensive: the idempotency index just resolved this id, so a missing row here would mean the
+  // two reads observed inconsistent state, not a legitimate "not found" — surface it as an error
+  // rather than silently falling through to re-capture (which is what this function exists to
+  // prevent).
+  if (!row) {
+    throw new Error(`restore point '${existing.restorePointId}' has a known idempotency key but no persisted row`);
+  }
+  return { id: row.id, costClass: row.costClass as RestorePointCostClass, kind: row.kind };
 }
 
 /** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
@@ -112,6 +169,15 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
       }
 
       const { trigger, costAck, idempotencyKey } = parseRestorePointCreateBody(req.body);
+
+      // AC-11: a repeat idempotencyKey returns the ORIGINAL restore point — checked before any
+      // capability/cost-gate work and, critically, before `capture()` below, since the whole point
+      // is to never re-run the real (costly) backup on a retry.
+      const existingSummary = await findExistingRestorePointSummary(deps.restorePointsRepo, idempotencyKey);
+      if (existingSummary) {
+        res.status(201).json({ restorePoint: existingSummary });
+        return;
+      }
 
       const capabilities = await deps.dbOps.getCapabilities();
       let captured: { artifactRef: string; watermarkAtCapture: number } | undefined;

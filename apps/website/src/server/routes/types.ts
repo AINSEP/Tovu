@@ -76,6 +76,7 @@ import type { LedgerReadPort } from "../../features/database/timeline.js";
 import type {
   RestorePointListPort,
   RestorePointSavePort,
+  RestorePointIdempotencyLookupPort,
 } from "../../features/database/restore-points.js";
 import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
 import type {
@@ -590,8 +591,10 @@ export interface DatabaseRecoveryDeps {
   databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
   /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
    * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
-   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
-  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
+   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`.
+   * Widened with `RestorePointIdempotencyLookupPort` (AC-11 idempotency-key fix) — both concrete
+   * repos already implement `findByIdempotencyKey`; only this declaration was narrower. */
+  restorePointsRepo: RestorePointListPort & RestorePointSavePort & RestorePointIdempotencyLookupPort;
   /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
    * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
    * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s

@@ -238,6 +238,44 @@ test("database restore-points routes: POST 500s with the thrown message when per
   assert.deepEqual(await res.json(), { error: "save failed", code: "INTERNAL_ERROR" });
 });
 
+test("database restore-points routes: POST is idempotent — a repeat idempotencyKey returns the original restore point without capturing or persisting again (AC-11)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  let captureCalls = 0;
+  const originalCapture = deps.dbOps.captureRestorePoint.bind(deps.dbOps);
+  deps.dbOps.captureRestorePoint = async (input) => {
+    captureCalls += 1;
+    return originalCapture(input);
+  };
+
+  const first = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ trigger: "manual", idempotencyKey: "dup-key-1" }),
+  });
+  assert.equal(first.status, 201);
+  const firstBody = (await first.json()) as { restorePoint: { id: string; costClass: string; kind: string } };
+  assert.equal(captureCalls, 1);
+
+  const second = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ trigger: "manual", idempotencyKey: "dup-key-1" }),
+  });
+  assert.equal(second.status, 201);
+  const secondBody = (await second.json()) as { restorePoint: { id: string; costClass: string; kind: string } };
+
+  // The repeat call must not re-run the real (costly) capture, and must return the ORIGINAL
+  // restore point rather than minting a second one.
+  assert.equal(captureCalls, 1, "a repeat idempotencyKey must not trigger a second capture");
+  assert.deepEqual(secondBody, firstBody);
+
+  const listRes = await fetch(`${baseUrl}/api/admin/v1/database/restore-points`, { headers: { cookie } });
+  const listed = (await listRes.json()) as { items: unknown[] };
+  assert.equal(listed.items.length, 1, "a repeat idempotencyKey must not persist a second ledger row");
+});
+
 test("database restore-points routes: POST 500s with a generic message when a non-Error is thrown", async (t) => {
   const deps: RouteDeps = createRouteDeps();
   deps.dbOps.getCapabilities = async () => {
