@@ -13,8 +13,8 @@ import { defaultAdminExecutionCredentialPort } from "./admin-execution-credentia
 import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
 
 /**
- * @file State for the admin's own BYOK credential — the "Save key" control and the one-time
- * `localStorage`-to-server migration prompt, shared verbatim by `SettingsUi.tsx`'s Execution tab
+ * @file State for the admin's own BYOK credential — the "Save key" and "Save settings" controls and
+ * the one-time `localStorage`-to-server migration prompt, shared verbatim by `SettingsUi.tsx`'s Execution tab
  * and `AiAssistant.tsx`'s `AdminExecutionMode` (both render `ExecutionTab` over the SAME ledger
  * namespace and now the same server-side credential row; per `AdminExecutionMode`'s own "must never
  * disagree" comment about `useStoredCredential`, the two mounts cannot be allowed to diverge here
@@ -24,9 +24,20 @@ import type { AdminExecutionCredentialPort } from "./admin-execution-credential-
  * `features/ai-assistant/hooks/use-visitor-credential-form.hooks.ts`: explicit save only, the field
  * clears on success, a failed save never touches what is already stored/local. The two differ where
  * the underlying screens differ — this one does not own the whole BYOK form (only the "Save key"
- * affordance under it, since `ExecutionTab` owns the provider chips and other fields via the
- * existing `core.execution` ledger slice) and it additionally owns the migration prompt, which the
- * visitor screen has no equivalent of (there was never a browser-local visitor key to migrate).
+ * affordance under the key field and the "Save settings" affordance at the foot of the card, since
+ * `ExecutionTab` owns the provider chips and the fields themselves via the existing `core.execution`
+ * ledger slice) and it additionally owns the migration prompt, which the visitor screen has no
+ * equivalent of (there was never a browser-local visitor key to migrate).
+ *
+ * ## One button per patch (owner ruling, 2026-09-02)
+ *
+ * There used to be ONE control here, writing the key and the row's non-secret companion fields
+ * together. That overload is what made the screen lie: pressing it with a blank field sent a patch
+ * with no `apiKey` at all and still answered "Saved to the server, encrypted." Patching the message
+ * left the cause in place, and disabling the button on a blank field broke the only way to save a
+ * model change. The split closes both: `saveKey` writes `{ apiKey }`, `saveSettings` writes the
+ * non-secret fields and never an `apiKey` property, and each carries its own save state so neither
+ * can report the other's work.
  *
  * ## Cross-mount staleness (disclosed residual, closed here)
  *
@@ -98,7 +109,16 @@ export interface AdminExecutionCredentialController {
    *  `apiKeyPlaceholder`. Always a placeholder, never a value: `byok.apiKey` is untouched by this
    *  controller until an explicit save succeeds. */
   apiKeyPlaceholder: string | undefined;
+  /** The "Save key" button's own save state — and the migration prompt's, which writes the same
+   *  key. Never advanced by {@link saveSettings}; see {@link settingsSaveState}. */
   saveState: AdminByokSaveState;
+  /** The "Save settings" button's own save state, deliberately separate from {@link saveState}.
+   *
+   *  One shared state is what made the old single control dishonest: its status line said "Saved to
+   *  the server, encrypted." after a press that sent no key at all. Two buttons that write two
+   *  disjoint patches need two answers, so each owns its own status line and neither can report the
+   *  other's work. */
+  settingsSaveState: AdminByokSaveState;
   /** Whether {@link saveKey} would do anything right now — the same "is there a key in the field"
    *  guard `saveKey` itself applies, exposed so the Save key button can disable correctly without
    *  duplicating the rule.
@@ -109,18 +129,40 @@ export interface AdminExecutionCredentialController {
   canSaveKey: boolean;
   /**
    * Explicit save, called ONLY from a "Save key" button press — never from any debounced or
-   * automatic path. Sends the CURRENT `byok` fields (protocol/providerId/baseUrl/model/maxTokens)
-   * on every call, with `apiKey` included when the field holds a non-empty value and omitted
-   * (server's "leave the stored key alone" contract) otherwise — same shape
-   * `use-visitor-credential-form.hooks.ts`'s `saveCredential` sends for the sibling site credential,
-   * so the stored row's non-secret companion fields (used server-side as the turn-execution
-   * fallback for an empty-field browser) stay in sync with whatever the operator has selected as of
-   * this Save press.
+   * automatic path. Writes the KEY and nothing else: the patch is `{ apiKey }`, with no
+   * protocol/providerId/baseUrl/model/maxTokens riding along.
    *
-   * A no-op when the field is empty AND nothing is stored yet (there is nothing meaningful to
-   * write — see {@link canSaveKey}).
+   * That narrowing (owner ruling, 2026-09-02) is the fix for a whole defect class rather than one
+   * bug. A control that wrote two different things could not honestly report what it had just done,
+   * and the "which of my two jobs did I do" bookkeeping that answer needed was itself the thing that
+   * let an `apiKey: ""` reach the server. A button with one job needs no bookkeeping. The
+   * non-secret fields moved to {@link saveSettings}.
+   *
+   * A no-op when the field is empty — see {@link canSaveKey}.
    */
   saveKey: () => Promise<void>;
+  /**
+   * Explicit save, called ONLY from a "Save settings" button press. Writes
+   * protocol/providerId/baseUrl/model/maxTokens and NEVER an `apiKey` property — not even an empty
+   * string, which the server rejects (400) and which is precisely the write the old overloaded
+   * control could make.
+   *
+   * ## Why this is not a second writer for the ledger's values
+   *
+   * The same protocol/baseUrl/model the operator edits here ALSO live in the `core.execution`
+   * settings ledger, written on their own debounced path by `use-admin-execution-mode.hooks.ts`'s
+   * `useSettingsSlice`. Two stores, deliberately (see `execution-settings.ts`'s
+   * `loadAdminExecutionCredential` doc): the ledger holds the live values this browser's form shows,
+   * while the credential ROW holds a snapshot the SERVER reads when a browser sends no credential of
+   * its own — `byok-credential.ts`'s `createStoredExecutionCredentialPort`, which treats a row with
+   * no `model` as unusable.
+   *
+   * Before the split, that snapshot was refreshed as a side effect of every key save. With
+   * {@link saveKey} narrowed to the key, this button is the ONLY thing that writes it. Each of the
+   * two stores still has exactly one writer; what changed is that the credential row's writer is now
+   * a control the operator can see and press, rather than a hidden passenger on a different button.
+   */
+  saveSettings: () => Promise<void>;
   /** A pre-server-store `localStorage` key this browser still holds, or `null` when there is
    *  nothing to migrate (never had one, already migrated, or the prompt was dismissed this
    *  session). Non-`null` is what a caller renders the migration banner on. */
@@ -147,6 +189,7 @@ export function useAdminExecutionCredential(
 ): AdminExecutionCredentialController {
   const [stored, setStored] = useState<AdminExecutionCredential | null>(null);
   const [saveState, setSaveState] = useState<AdminByokSaveState>({ status: "idle" });
+  const [settingsSaveState, setSettingsSaveState] = useState<AdminByokSaveState>({ status: "idle" });
   const [legacyKey, setLegacyKey] = useState<string | null>(null);
   const [legacyDismissed, setLegacyDismissed] = useState(false);
 
@@ -202,14 +245,10 @@ export function useAdminExecutionCredential(
     if (!hasTypedAdminKey(apiKey)) return; // nothing typed — there is no key to write
     setSaveState({ status: "saving" });
     try {
-      const patch: AdminExecutionCredentialPatch = {
-        protocol: byok.protocol,
-        providerId: byok.providerId,
-        baseUrl: byok.baseUrl,
-        model: byok.model,
-        ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
-        ...(apiKey ? { apiKey } : {}),
-      };
+      // The key ALONE. Every other field is `saveSettings`'s, and building the patch from one
+      // literal (rather than spreading `byok` and deleting) is what makes that readable at a glance
+      // — there is no branch here that could let another field through.
+      const patch: AdminExecutionCredentialPatch = { apiKey };
       const view = await port.saveAdminExecutionCredential(patch);
       setStored(view);
       setSaveState({ status: "saved" });
@@ -217,9 +256,34 @@ export function useAdminExecutionCredential(
       // re-read — see this file's "Cross-mount staleness" doc above.
       publishSettingsRefresh([EXECUTION_NAMESPACE]);
       // Clear the field once the key is safely stored — see this file's `onByokChange` doc.
-      if (apiKey) onByokChange({ ...byok, apiKey: "" });
+      onByokChange({ ...byok, apiKey: "" });
     } catch (error) {
       setSaveState({ status: "error", message: describeAdminExecutionCredentialError(error, "failed to save the key") });
+    }
+  }
+
+  async function saveSettings(): Promise<void> {
+    setSettingsSaveState({ status: "saving" });
+    try {
+      // No `apiKey` key at all, under any condition — see this controller's `saveSettings` doc. The
+      // field's contents are not consulted here, so there is no state of the form in which this
+      // patch can grow one.
+      const patch: AdminExecutionCredentialPatch = {
+        protocol: byok.protocol,
+        providerId: byok.providerId,
+        baseUrl: byok.baseUrl,
+        model: byok.model,
+        ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
+      };
+      const view = await port.saveAdminExecutionCredential(patch);
+      setStored(view);
+      setSettingsSaveState({ status: "saved" });
+      publishSettingsRefresh([EXECUTION_NAMESPACE]);
+    } catch (error) {
+      setSettingsSaveState({
+        status: "error",
+        message: describeAdminExecutionCredentialError(error, "failed to save the settings"),
+      });
     }
   }
 
@@ -261,8 +325,10 @@ export function useAdminExecutionCredential(
     apiKeyStoredExternally: stored?.isSet === true,
     apiKeyPlaceholder: stored?.isSet ? (stored.masked ?? undefined) : undefined,
     saveState,
+    settingsSaveState,
     canSaveKey: hasTypedAdminKey(byok.apiKey),
     saveKey,
+    saveSettings,
     legacyKey: legacyDismissed ? null : legacyKey,
     migrateLegacyKey,
     dismissLegacyPrompt,

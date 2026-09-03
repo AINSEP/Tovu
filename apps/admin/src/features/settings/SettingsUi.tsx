@@ -82,7 +82,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { ComposioKeyField } from "./ComposioKeyField";
 import { connectorsDependencies } from "./connectors-port";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { TOVU_ADMIN_VERSION } from "../../lib/app-version";
 import { t as tCapability } from "./settings-capabilities-i18n";
 import { SETTINGS_DIALOG_DICTIONARIES as CMS_SETTINGS_DIALOG_DICTIONARIES } from "@jini-ai/cms/settings";
@@ -316,13 +316,17 @@ export function SettingsUi(props: SettingsUiProps) {
             // about whose CLIs these are.
             localCliScopeLabel="Detected on the Tovu server, not on your own computer."
             // The admin's own BYOK credential is encrypted server-side and write-only
-            // (2026-08-05) — these three keep the shared `ByokProviderForm` honest about
+            // (2026-08-05) — these four keep the shared `ByokProviderForm` honest about
             // that: an empty key field is not a missing value when one is already stored,
-            // the masked placeholder answers "which key", and the footer is the ONLY
-            // control that can persist it. See `hooks/use-admin-execution-credential.hooks.ts`.
+            // the masked placeholder answers "which key", and the two footers are the ONLY
+            // controls that can persist anything. They write DISJOINT patches — the key
+            // footer writes the key, the form footer writes protocol/base URL/model/max
+            // tokens — so neither can claim the other's work. See
+            // `hooks/use-admin-execution-credential.hooks.ts`.
             apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
             apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
             apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
+            formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
           />
         </>
       ),

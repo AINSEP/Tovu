@@ -2,7 +2,13 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import { AdminByokKeyFooter, AdminByokMigrationPrompt, resolveByokFooterStatusLine } from "../AdminByokKeyPanel";
+import {
+  AdminByokKeyFooter,
+  AdminByokMigrationPrompt,
+  AdminByokSettingsFooter,
+  resolveByokFooterStatusLine,
+  resolveByokSettingsStatusLine,
+} from "../AdminByokKeyPanel";
 import type { AdminExecutionCredentialController } from "../../hooks/use-admin-execution-credential.hooks";
 
 /**
@@ -18,8 +24,10 @@ function controller(overrides: Partial<AdminExecutionCredentialController> = {})
     apiKeyStoredExternally: false,
     apiKeyPlaceholder: undefined,
     saveState: { status: "idle" },
+    settingsSaveState: { status: "idle" },
     canSaveKey: false,
     saveKey: vi.fn(),
+    saveSettings: vi.fn(),
     legacyKey: null,
     migrateLegacyKey: vi.fn(),
     dismissLegacyPrompt: vi.fn(),
@@ -127,5 +135,53 @@ describe("resolveByokFooterStatusLine", () => {
 
   it("returns null on error — the footer renders the error via a separate element", () => {
     expect(resolveByokFooterStatusLine("error", false)).toBeNull();
+  });
+});
+
+describe("AdminByokSettingsFooter", () => {
+  it("wires the Save settings button to saveSettings and never to saveKey", async () => {
+    const user = userEvent.setup();
+    const c = controller({ canSaveKey: true });
+    render(<AdminByokSettingsFooter controller={c} />);
+
+    await user.click(screen.getByRole("button", { name: /save settings/i }));
+    expect(c.saveSettings).toHaveBeenCalledTimes(1);
+    // The whole point of the split: this control cannot reach the key path at all.
+    expect(c.saveKey).not.toHaveBeenCalled();
+  });
+
+  it("is enabled even with a blank key field — settings are not the key", () => {
+    render(<AdminByokSettingsFooter controller={controller({ canSaveKey: false })} />);
+    expect(screen.getByRole("button", { name: /save settings/i })).toBeEnabled();
+  });
+
+  it("disables itself only while its own save is in flight, not while the key is saving", () => {
+    render(<AdminByokSettingsFooter controller={controller({ saveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: /save settings/i })).toBeEnabled();
+
+    render(<AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saving" } })} />);
+    expect(screen.getByRole("button", { name: /saving/i })).toBeDisabled();
+  });
+
+  it("never claims a key was saved — its confirmation names the settings only", () => {
+    render(<AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "saved" } })} />);
+    expect(screen.getByText("Settings saved.")).toBeInTheDocument();
+    expect(screen.queryByText(/encrypted/i)).not.toBeInTheDocument();
+  });
+
+  it("surfaces its own save error", () => {
+    render(
+      <AdminByokSettingsFooter controller={controller({ settingsSaveState: { status: "error", message: "boom" } })} />,
+    );
+    expect(screen.getByText("boom")).toBeInTheDocument();
+  });
+});
+
+describe("resolveByokSettingsStatusLine", () => {
+  it("reports progress and a settings-only confirmation, and nothing otherwise", () => {
+    expect(resolveByokSettingsStatusLine("saving")).toBe("Saving…");
+    expect(resolveByokSettingsStatusLine("saved")).toBe("Settings saved.");
+    expect(resolveByokSettingsStatusLine("idle")).toBeNull();
+    expect(resolveByokSettingsStatusLine("error")).toBeNull();
   });
 });

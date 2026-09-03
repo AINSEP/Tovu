@@ -132,9 +132,9 @@ describe("useAdminExecutionCredential — save success", () => {
       await result.current.saveKey();
     });
 
-    expect(setAdminExecutionCredential).toHaveBeenCalledWith(
-      expect.objectContaining({ apiKey: "sk-typed-key", protocol: "anthropic", model: "claude-sonnet-4-5" }),
-    );
+    // The key and NOTHING else, since the two-button split (2026-09-02). protocol/model moved to
+    // `saveSettings` — see the "two buttons write disjoint patches" block at the end of this file.
+    expect(setAdminExecutionCredential).toHaveBeenCalledWith({ apiKey: "sk-typed-key" });
     expect(onByokChange).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "" }));
     expect(result.current.saveState).toEqual({ status: "saved" });
     expect(result.current.apiKeyStoredExternally).toBe(true);
@@ -151,9 +151,9 @@ describe("useAdminExecutionCredential — save success", () => {
     // No capability is lost. The admin's protocol/model/baseUrl live in the `core.execution` LEDGER
     // and are persisted by `use-admin-execution-mode.hooks.ts`'s `useSettingsSlice` on their own
     // save path — changing a model without retyping a key still works, it just never depended on
-    // this button. What no longer happens is the refresh of the credential ROW's companion columns
-    // (the server-side fallback for an empty-field browser); those are still written on every real
-    // key save.
+    // this button. The credential ROW's companion columns (the server-side fallback for an
+    // empty-field browser) are written by `saveSettings`, the second button of the 2026-09-02 split;
+    // they no longer ride along on a key save at all.
     getAdminExecutionCredential.mockResolvedValue({ data: setView() }); // already stored
     const onByokChange = vi.fn();
     const { result } = renderHook(() => useWiredAdminExecutionCredential({ byok: byok({ apiKey: "", model: "claude-opus-5" }), onByokChange }));
@@ -407,7 +407,7 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
       await result.current.saveKey();
     });
 
-    expect(port.saveCalls).toEqual([expect.objectContaining({ apiKey: "sk-typed", protocol: "anthropic" })]);
+    expect(port.saveCalls).toEqual([{ apiKey: "sk-typed" }]);
     expect(onByokChange).toHaveBeenCalledWith(expect.objectContaining({ apiKey: "" }));
     expect(result.current.apiKeyStoredExternally).toBe(true);
     expect(setAdminExecutionCredential).not.toHaveBeenCalled();
@@ -451,5 +451,84 @@ describe("injected port — useAdminExecutionCredential with no lib/api mock", (
     expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
     expect(result.current.legacyKey).toBeNull();
     expect(setAdminExecutionCredential).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The two-button split (owner ruling, 2026-09-02). One overloaded control used to write the key AND
+ * the row's non-secret companion fields, which is why pressing it over a blank field could report
+ * "Saved to the server, encrypted." about a key that was never sent. Each button now writes exactly
+ * one thing, and these two cases are the contract for that: what each patch MUST carry, and — more
+ * importantly — what it must NOT.
+ */
+describe("useAdminExecutionCredential — the two buttons write disjoint patches", () => {
+  it("saveKey sends apiKey and NOTHING else — no protocol, providerId, baseUrl, model or maxTokens", async () => {
+    setAdminExecutionCredential.mockResolvedValue({ data: setView({ masked: "••••abcd" }) });
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({
+        byok: byok({ apiKey: "sk-typed-key", model: "claude-opus-5", baseUrl: "https://example.invalid", maxTokens: 4096 }),
+        onByokChange: vi.fn(),
+      }),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+
+    const [patch] = setAdminExecutionCredential.mock.calls[0] as [Record<string, unknown>];
+    expect(patch).toEqual({ apiKey: "sk-typed-key" });
+    expect(Object.keys(patch)).not.toContain("protocol");
+    expect(Object.keys(patch)).not.toContain("baseUrl");
+    expect(Object.keys(patch)).not.toContain("model");
+  });
+
+  it("saveSettings sends the non-secret fields and NEVER an apiKey property, even with a key sitting in the field", async () => {
+    // Asserted as an ABSENT property, not a falsy one: `apiKey: ""` satisfies a truthiness check
+    // while being exactly the write the server rejects (400) and exactly the write this button must
+    // never make. A typed key in the field is the adversarial case — the old overloaded control
+    // would have shipped it.
+    setAdminExecutionCredential.mockResolvedValue({ data: setView({ model: "claude-opus-5" }) });
+    const onByokChange = vi.fn();
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({
+        byok: byok({ apiKey: "sk-typed-key", model: "claude-opus-5", baseUrl: "https://example.invalid", maxTokens: 4096 }),
+        onByokChange,
+      }),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveSettings();
+    });
+
+    const [patch] = setAdminExecutionCredential.mock.calls[0] as [Record<string, unknown>];
+    expect(Object.keys(patch)).not.toContain("apiKey");
+    expect(patch).toEqual({
+      protocol: "anthropic",
+      providerId: "anthropic",
+      baseUrl: "https://example.invalid",
+      model: "claude-opus-5",
+      maxTokens: 4096,
+    });
+    expect(result.current.settingsSaveState).toEqual({ status: "saved" });
+    // The key field is the KEY button's business — a settings save must not clear what the operator
+    // is still holding there.
+    expect(onByokChange).not.toHaveBeenCalled();
+  });
+
+  it("saveSettings reports its own error without touching the key button's save state", async () => {
+    setAdminExecutionCredential.mockRejectedValue(new FakeApiError("boom", 500));
+    const { result } = renderHook(() =>
+      useWiredAdminExecutionCredential({ byok: byok({ apiKey: "sk-typed-key" }), onByokChange: vi.fn() }),
+    );
+    await waitFor(() => expect(result.current.stored).not.toBeNull());
+
+    await act(async () => {
+      await result.current.saveSettings();
+    });
+
+    expect(result.current.settingsSaveState).toEqual({ status: "error", message: "boom" });
+    expect(result.current.saveState).toEqual({ status: "idle" });
   });
 });

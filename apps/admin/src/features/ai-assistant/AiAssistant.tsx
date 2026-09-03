@@ -11,7 +11,7 @@ import {
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
 import { SeeMore } from "../../components/SeeMore/SeeMore";
-import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
+import { AdminByokKeyFooter, AdminByokMigrationPrompt, AdminByokSettingsFooter } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
@@ -304,12 +304,14 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         // changes, both must.
         localCliScopeLabel={t("Detected on the Tovu server, not on your own computer.")}
         // The admin's own BYOK credential is encrypted server-side and write-only (2026-08-05) —
-        // same three pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
-        // disagree" reason this file's own header already documents for `useStoredCredential`. See
+        // same four pass-through props `SettingsUi.tsx`'s mount sets, and for the same "must never
+        // disagree" reason this file's own header already documents for `useStoredCredential`. The
+        // two footers write DISJOINT patches (key vs. settings); see
         // `hooks/use-admin-execution-credential.hooks.ts`.
         apiKeyStoredExternally={adminCredential.apiKeyStoredExternally}
         apiKeyPlaceholder={adminCredential.apiKeyPlaceholder}
         apiKeyFooter={<AdminByokKeyFooter controller={adminCredential} />}
+        formFooter={<AdminByokSettingsFooter controller={adminCredential} />}
       />
       {/*
         Save feedback, which `SettingsUi.tsx` gets from its page chrome (`mergeSaveStates` across six
