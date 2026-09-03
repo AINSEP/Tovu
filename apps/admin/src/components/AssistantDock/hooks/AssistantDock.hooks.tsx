@@ -12,6 +12,7 @@ import {
 } from "@jini-ai/chat/react";
 import { isTerminalRunStatus, type ChatMessage } from "@jini-ai/chat/core";
 import { DEFAULT_PROVIDER_PRESETS, resolveSelectedPreset, type ExecutionConfig } from "@jini-ai/ui";
+import { buildSandboxProxyDataUrl } from "@jini-ai/ui/mcp-ui/surfaces";
 
 import { navigate } from "@/lib/router";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "@/lib/settings-refresh-bus";
@@ -1179,6 +1180,31 @@ export function resolveRunContext(
     ...(pluginRefIds && pluginRefIds.length > 0 ? { pluginRefIds } : {}),
     ...(typeof conversationId === "string" && conversationId.length > 0 ? { conversationId } : {}),
   };
+}
+
+/**
+ * Builds the MCP-UI sandbox proxy's iframe URL as a same-document `data:` URL, in place of a route
+ * served from this admin app's own origin (`GET /mcp-ui/sandbox-proxy.html`, `apps/website`'s
+ * `mcp-ui-sandbox-proxy-route.ts`). `@mcp-ui/client`'s `AppFrame` hardcodes `sandbox="allow-scripts
+ * allow-same-origin allow-forms"` on the iframe it creates — not configurable away by this app or by
+ * `@jini-ai/ui` — so a same-origin route means any third-party MCP server's HTML, once
+ * `document.write`-n into that iframe by the proxy script, gets this admin origin's cookies, storage,
+ * and same-origin fetches. A `data:` URL's origin is opaque under the URL Standard's own origin
+ * algorithm regardless of `allow-same-origin` (verified live against a real Chromium build,
+ * 2026-09-03 — see `@jini-ai/ui`'s `sandbox-proxy.ts` module doc), so switching to one closes that gap
+ * without needing a second host, DNS entry, or CORS change: `buildSandboxProxyDataUrl` bakes this
+ * admin app's own origin into the served script as a literal (never read back from the iframe's own
+ * URL), so the ready/resource-ready handshake still only accepts messages from this window's real
+ * parent.
+ *
+ * The old same-origin route stays mounted server-side (harmless, and it may still have other
+ * consumers), but this admin dock no longer points an iframe at it.
+ *
+ * @param hostOrigin - This admin app's own real origin — `globalThis.location.origin`, always, never
+ *   a value parsed back out of this document's own URL.
+ */
+export function buildAssistantMcpUiSandboxProxyUrl(hostOrigin: string): URL {
+  return new URL(buildSandboxProxyDataUrl(hostOrigin));
 }
 
 /**

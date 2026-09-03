@@ -2,6 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  buildAssistantMcpUiSandboxProxyUrl,
   extractResumeCapableAgentIds,
   getResumeCapableAgentIds,
   resetResumeCapableAgentIds,
@@ -59,6 +60,36 @@ describe("useComposerCapabilities", () => {
  * `listAgents`/`rescanAgents` actually keep the module-level set current as a side effect of the
  * SAME fetch `ChatPane`'s own agent picker already makes — not a second request.
  */
+/**
+ * @file Regression coverage for the MCP-UI sandbox-proxy admin-origin-authority fix (Codex
+ * gpt-5.6-sol xhigh adversarial review, 2026-09-03). `@mcp-ui/client`'s `AppFrame` hardcodes
+ * `sandbox="allow-scripts allow-same-origin allow-forms"` on the iframe it creates — before this fix,
+ * `AssistantDock.tsx` pointed that iframe at `/mcp-ui/sandbox-proxy.html`, a route served from this
+ * admin app's own origin, so any third-party MCP server's HTML written into it via the proxy's
+ * `document.write` got this admin origin's real cookies, storage, and same-origin fetches.
+ * `buildAssistantMcpUiSandboxProxyUrl` closes that by handing `AppFrame` a `data:` URL instead — a
+ * `data:` URL's origin is opaque under the URL Standard regardless of `allow-same-origin` (verified
+ * live against a real Chromium build — see this session's report and `@jini-ai/ui`'s `sandbox-proxy.ts`
+ * module doc). This test would fail against the pre-fix `@jini-ai/ui` (no `buildSandboxProxyDataUrl`
+ * export) and against the pre-fix `AssistantDock.tsx` (still building an `http(s):` same-origin URL).
+ */
+describe("buildAssistantMcpUiSandboxProxyUrl", () => {
+  const hostOrigin = "https://admin.example.com";
+
+  it("returns a data: URL, not a same-origin http(s) route — a data: URL's origin is always opaque", () => {
+    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    expect(url.protocol).toBe("data:");
+  });
+
+  it("bakes the given host origin into the served script instead of trusting window.location.origin", () => {
+    const url = buildAssistantMcpUiSandboxProxyUrl(hostOrigin);
+    const encoded = url.href.slice(url.href.indexOf(",") + 1);
+    const html = decodeURIComponent(encoded);
+    expect(html).toContain(`var hostOrigin = ${JSON.stringify(hostOrigin)};`);
+    expect(html).not.toContain("window.location.origin");
+  });
+});
+
 describe("extractResumeCapableAgentIds", () => {
   it("keeps only the agentIds whose carriesOwnMemory is exactly true", () => {
     const ids = extractResumeCapableAgentIds([

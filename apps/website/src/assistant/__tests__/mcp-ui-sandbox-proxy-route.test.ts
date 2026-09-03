@@ -16,19 +16,21 @@ import { MCP_UI_SANDBOX_PROXY_PATH, registerMcpUiSandboxProxyRoute } from "../mc
  * Every MCP-UI surface (`assistant_ask_choice`'s form included) failed to render because nothing
  * served this page — `@mcp-ui/client`'s `AppFrame` points an iframe at it and times out after 10s
  * with no response. These tests pin the route's contract directly against the byte-identical
- * `SANDBOX_PROXY_HTML` constant this route re-serves, and pin `MCP_UI_SANDBOX_PROXY_PATH` to the
- * literal `AssistantDock.tsx` hardcodes — see this route's own module doc for why that pairing has
- * no shared module to drift-proof it otherwise.
+ * `SANDBOX_PROXY_HTML` constant this route re-serves.
  *
- * That pinning reads `AssistantDock.tsx` off disk on purpose. An earlier version of this file
- * claimed to pin the two copies together while actually comparing the constant against a THIRD
- * hand-typed copy of the same string inside the test — which would have stayed green through any
- * edit to the real hardcode in `apps/admin`, i.e. through the exact silent drift the test exists to
- * catch. Reading the file is the only version of this assertion that is true.
+ * `AssistantDock.tsx` USED TO name this route's path directly (`new URL("/mcp-ui/sandbox-proxy.html",
+ * globalThis.location.origin)`), and an earlier version of this file pinned that hardcode by reading
+ * `AssistantDock.tsx` off disk. The 2026-09-03 admin-origin-authority fix moved the admin dock onto
+ * `buildAssistantMcpUiSandboxProxyUrl` (a `data:` URL) instead — see this route's own module doc's
+ * "Superseded" section — so that pinning no longer applies to this route at all. The test below
+ * replaces it: it pins that `AssistantDock.tsx` does NOT reintroduce the same-origin hardcode, reading
+ * `AssistantDock.tsx` off disk for the same reason the old pinning did (no shared module either side
+ * can import a literal from).
  */
 
-/** The one place `apps/admin` names this route's path; there is no module `apps/website` can import
- *  it from, so this test reads it out of the source. */
+/** The one place a same-origin hardcode of this route's path would reappear if the admin dock's fix
+ *  ever regressed; there is no module `apps/website` can import from `apps/admin` to check this via
+ *  types instead. */
 const ASSISTANT_DOCK_PATH = fileURLToPath(
   new URL("../../../../../apps/admin/src/components/AssistantDock/AssistantDock.tsx", import.meta.url),
 );
@@ -39,19 +41,24 @@ function buildApp(): express.Express {
   return app;
 }
 
-test("MCP_UI_SANDBOX_PROXY_PATH matches the literal apps/admin/.../AssistantDock.tsx hardcodes", () => {
+test("MCP_UI_SANDBOX_PROXY_PATH is unchanged", () => {
+  assert.equal(MCP_UI_SANDBOX_PROXY_PATH, "/mcp-ui/sandbox-proxy.html");
+});
+
+test("AssistantDock.tsx no longer builds its iframe URL as a same-origin route — the admin-origin-authority fix", () => {
   const dockSource = readFileSync(ASSISTANT_DOCK_PATH, "utf8");
 
-  const hardcoded = /new URL\("([^"]+)", globalThis\.location\.origin\)/.exec(dockSource);
-
-  assert.notEqual(
-    hardcoded,
-    null,
-    `AssistantDock.tsx no longer builds sandboxProxyUrl as new URL("<path>", globalThis.location.origin) — ` +
-      "this pinning cannot see the hardcode any more and must be rewritten, not deleted",
+  assert.ok(
+    !/new URL\("([^"]+)", globalThis\.location\.origin\)/.test(dockSource),
+    "AssistantDock.tsx has reintroduced a same-origin sandboxProxyUrl hardcode — this is exactly the " +
+      "admin-origin-authority gap the 2026-09-03 fix closed (see mcp-ui-sandbox-proxy-route.ts's " +
+      "module doc's Superseded section); it must build sandboxProxyUrl via " +
+      "buildAssistantMcpUiSandboxProxyUrl (a data: URL) instead",
   );
-  assert.equal(hardcoded?.[1], MCP_UI_SANDBOX_PROXY_PATH);
-  assert.equal(MCP_UI_SANDBOX_PROXY_PATH, "/mcp-ui/sandbox-proxy.html");
+  assert.ok(
+    dockSource.includes("buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin)"),
+    "AssistantDock.tsx must build sandboxProxyUrl via buildAssistantMcpUiSandboxProxyUrl",
+  );
 });
 
 test("GET returns 200, html content-type, and the exact SANDBOX_PROXY_HTML body", async (t) => {

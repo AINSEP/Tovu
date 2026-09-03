@@ -14,28 +14,29 @@ import { SANDBOX_PROXY_HTML } from "@jini-ai/ui/mcp-ui/surfaces";
  * then hands it the View's HTML via `ui/notifications/sandbox-resource-ready`. Nothing in Tovu ever
  * served such a page, so every MCP-UI surface (`assistant_ask_choice`'s form included) loaded an
  * iframe pointed at nothing, timed out after 10s waiting for a ready signal that would never come,
- * and never painted. `AssistantDock.tsx`'s `sandboxProxyUrl` prop names this exact route by path —
- * see the comment beside it there.
+ * and never painted.
  *
  * `@jini-ai/ui/mcp-ui/surfaces` (the React-free server entry — see its own module doc for why the
  * builders live outside the `react/` entry point) exports the proxy page's complete source as
  * {@link SANDBOX_PROXY_HTML}, built for exactly this kind of one-route wiring: `app.get(path, (_req,
  * res) => res.type('html').send(SANDBOX_PROXY_HTML))`. This module is that wiring for Tovu.
  *
- * ## Known, flagged tradeoff: same-origin, not isolated
+ * ## Superseded as `AssistantDock.tsx`'s sandbox proxy (2026-09-03) — kept mounted, no longer used there
  *
- * `SANDBOX_PROXY_HTML`'s own module doc spells out the real security tradeoff its single-hop,
- * `document.write`-based design makes: the proxy iframe carries `allow-same-origin`
- * (`AppFrame`'s own hardcoded default), and the guest View's HTML is `document.write`-n into that
- * same window — so the guest surface gets full same-origin access to whatever origin this page is
- * served from. Official MCP-UI guidance is explicit that a production sandbox proxy SHOULD be
- * served from an origin distinct from the host application's own, precisely so that access reaches
- * nothing sensitive. **Tovu serves this route from the same origin as the admin app itself** (this
- * is the website server, the same process that serves `/admin/*`), which does not honor that
- * guidance. This is a genuine, unresolved gap — moving the proxy to a separate origin is real
- * infrastructure work (a second host/subdomain, CORS/postMessage-origin changes on the client side)
- * outside the scope of standing the page up at all, and is left as an explicit follow-up rather than
- * silently accepted.
+ * This route used to be the one `AssistantDock.tsx`'s `sandboxProxyUrl` pointed at, and it carried a
+ * genuine, flagged security gap: served from the same origin as the admin app, combined with
+ * `@mcp-ui/client`'s hardcoded `allow-same-origin` sandbox flag, any third-party MCP server's HTML
+ * `document.write`-n into that iframe got this admin origin's real cookies, storage, and same-origin
+ * fetches — official MCP-UI guidance is explicit that a production sandbox proxy SHOULD be served
+ * from an origin distinct from the host application's own, precisely so that access reaches nothing
+ * sensitive, and this route did not honor that. `AssistantDock.tsx` now builds its iframe URL via
+ * `buildAssistantMcpUiSandboxProxyUrl` (`AssistantDock.hooks.tsx`) instead — a `data:` URL, which gets
+ * an opaque origin under the URL Standard's own origin algorithm regardless of `allow-same-origin` (no
+ * second host, DNS entry, or CORS change needed; see that function's own doc and this session's
+ * report). This route stays mounted rather than removed — it is still exactly correct same-origin
+ * infrastructure for any future consumer that genuinely wants that (e.g. a context with nothing
+ * sensitive at this origin to protect), and removing tested, working infrastructure is a bigger,
+ * separate change than closing the admin dock's own gap.
  *
  * ## Why unauthenticated and root-relative
  *

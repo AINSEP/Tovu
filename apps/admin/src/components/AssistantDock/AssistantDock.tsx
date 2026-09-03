@@ -25,6 +25,7 @@ import {
   // The bare hook names below are imported for their TYPE only (`typeof useX` on
   // `AssistantDockProps`) — every actual call in this component goes through the matching
   // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
+  buildAssistantMcpUiSandboxProxyUrl,
   useAssistantDockChrome,
   useAssistantTransport,
   useAssistantTransportSeam,
@@ -126,11 +127,12 @@ registerExtEventRenderer(MCP_UI_EXT_EVENT_NAME, (props) => (
   <OverflowAwareMcpUiSurfaceCard
     {...props}
     onToolCall={mcpUiToolCaller}
-    // Must match `src/assistant/mcp-ui-sandbox-proxy-route.ts`'s `MCP_UI_SANDBOX_PROXY_PATH`
-    // exactly — `src/server/` and `apps/admin/` are separate deployable apps, so there is no
-    // shared module either side can import this literal from (same reasoning `AG_UI_RUN_PATH`
-    // duplication uses).
-    sandboxProxyUrl={new URL("/mcp-ui/sandbox-proxy.html", globalThis.location.origin)}
+    // A same-document `data:` URL, not a route on this admin app's own origin — see
+    // `buildAssistantMcpUiSandboxProxyUrl`'s own doc (`AssistantDock.hooks.tsx`) for why: a
+    // same-origin route would hand any third-party MCP server's HTML this admin origin's full
+    // authority, because `@mcp-ui/client`'s `AppFrame` hardcodes `allow-same-origin` on the iframe
+    // it creates.
+    sandboxProxyUrl={buildAssistantMcpUiSandboxProxyUrl(globalThis.location.origin)}
   />
 ));
 
