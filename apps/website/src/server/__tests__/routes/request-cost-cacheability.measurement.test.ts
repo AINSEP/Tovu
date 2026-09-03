@@ -4,6 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
+import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes } from "../../inbound/public-http/routes/site/products.js";
 import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
@@ -14,8 +15,10 @@ import { startTestServer } from "../helpers/http-test-server.js";
 /**
  * @file Measurement instrument — deliverable A of the public-site request-cost audit
  * (TM-TOVU-2026-08-12-A follow-up: "if somebody deploys Tovu to a website, is it putting a lot of
- * stress on the server / costing a lot of money?"). MEASUREMENT-ONLY, NOT a correctness test. Run
- * with: `node --import tsx --test src/server/__tests__/routes/request-cost-cacheability.measurement.test.ts`
+ * stress on the server / costing a lot of money?"). The `A:` tests began measurement-only; they and
+ * the `B:` group added 2026-09-02 now also carry this repo's cache-header regression guards — the
+ * one place that asserts what `Cache-Control` each public route actually sends. Run with:
+ * `node --import tsx --test src/server/__tests__/routes/request-cost-cacheability.measurement.test.ts`
  *
  * Boots a real `node:http` server (`startTestServer`, the same helper every `*-site-serving.test.ts`
  * uses) over the real Express app wired to `createRouteDeps()`'s in-memory repos (the established
@@ -242,4 +245,111 @@ test("A: GET /sitemap.xml and /robots.txt — headers + cacheability", async (t)
   const sitemapAgain = await fetch(`${baseUrl}/sitemap.xml`, { headers: { cookie: "x=1" } });
   const bodyB = await sitemapAgain.text();
   assert.equal(bodyA, bodyB, "sitemap body must be identical regardless of cookie");
+});
+
+// ---------------------------------------------------------------------------
+// B: form-result cacheability regression guard (2026-09-02).
+//
+// `799a6b1f` kept submitted field values OUT of the query string ("Values never touch the query
+// string — a privacy requirement") and then sent the response body that repopulates those values
+// under `CACHE_CONTROL_PUBLIC_PAGE` with no `Vary`. Two consequences the assertions below pin:
+//   1. Shared-cache cross-visitor leak — `public` with no `Vary: Cookie` lets a CDN/proxy serve
+//      visitor A's re-populated name/email/message body to visitor B.
+//   2. The flash cookie's read-once contract is defeated by the HTTP cache — the cookie is cleared
+//      with `Max-Age=0`, but the body holding the values stays cacheable for 60s under a
+//      value-free URL, so a back-navigation re-serves them after the cookie is gone.
+// `Vary: Cookie` alone would close (1) and leave (2); `private, no-store` closes both.
+// ---------------------------------------------------------------------------
+
+/** The directive a response whose body carries Post/Redirect/Get form state must send INSTEAD of
+ *  {@link EXPECTED_CACHE_CONTROL}. Mirrors the literal `pages.ts` sets its own
+ *  `CACHE_CONTROL_PRIVATE_FORM_RESULT` constant to, the same independent-copy convention
+ *  {@link EXPECTED_CACHE_CONTROL} already documents. */
+const EXPECTED_CACHE_CONTROL_FORM_RESULT = "private, no-store";
+
+/** A hand-built PRG landing query — the real `form`/`form_status`/`form_errors` keys
+ *  `encodeFormSubmissionResultQuery` writes and `decodeFormSubmissionResultFromQuery` reads. */
+const VALIDATION_LANDING_QUERY = `form=contact&form_status=validation&form_errors=${encodeURIComponent(
+  JSON.stringify([{ field: "email", reason: "required" }])
+)}`;
+
+/** A `tovu_form_flash` cookie in the exact wire shape `forms-submit.ts`'s `setFormFlashCookie`
+ *  writes (`encodeURIComponent`-d JSON), so this exercises the real decode path rather than a
+ *  test-only stand-in. */
+function flashCookieHeader(values: Record<string, string>, slug = "contact"): string {
+  return `${FORM_FLASH_COOKIE_NAME}=${encodeURIComponent(JSON.stringify({ slug, values }))}`;
+}
+
+test("B: home — a PRG landing carrying form state must not be publicly cacheable", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/?${VALIDATION_LANDING_QUERY}`);
+  assert.equal(res.status, 200);
+  logRow("GET /?form_status=validation", summarizeCacheHeaders(res), "PRG landing on the home branch");
+  assert.equal(
+    res.headers.get("cache-control"),
+    EXPECTED_CACHE_CONTROL_FORM_RESULT,
+    "a response whose body was rewritten with this visitor's form result must never be stored by a shared cache"
+  );
+});
+
+test("B: static-theme marketing page — a PRG landing carrying form state must not be publicly cacheable", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/about?${VALIDATION_LANDING_QUERY}`);
+  assert.equal(res.status, 200);
+  logRow("GET /about?form_status=validation", summarizeCacheHeaders(res), "PRG landing on the marketing-page branch");
+  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL_FORM_RESULT, "the marketing-page branch splices the same form result in");
+});
+
+test("B: dynamic post page — a PRG landing carrying form state must not be publicly cacheable", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/the-weight-of-type?${VALIDATION_LANDING_QUERY}`);
+  assert.equal(res.status, 200);
+  logRow("GET /:slug?form_status=validation", summarizeCacheHeaders(res), "PRG landing on the generic post branch");
+  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL_FORM_RESULT, "the generic post branch splices the same form result in");
+});
+
+test("B: the flash cookie's read-once clear must not ride a publicly cacheable response", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  // No `form_*` query params at all — this is the arm where the merged RESULT is `undefined` but a
+  // flash cookie was still read and cleared. Caching this response publicly would let a shared cache
+  // replay the clearing `Set-Cookie` to other visitors, and pin a body produced while per-visitor
+  // state was in hand.
+  const res = await fetch(`${baseUrl}/`, {
+    headers: { cookie: flashCookieHeader({ name: "Ada Lovelace", email: "ada@example.com" }) },
+  });
+  assert.equal(res.status, 200);
+  logRow("GET / (flash cookie, no form_* query)", summarizeCacheHeaders(res), "read-once clear arm");
+  assert.match(
+    res.headers.get("set-cookie") ?? "",
+    /tovu_form_flash=;.*Max-Age=0/,
+    "precondition: the flash cookie really was read and cleared on THIS response"
+  );
+  assert.equal(
+    res.headers.get("cache-control"),
+    EXPECTED_CACHE_CONTROL_FORM_RESULT,
+    "a response that consumed the read-once flash cookie must not be stored — the cache would outlive the cookie it cleared"
+  );
+});
+
+test("B: the ordinary no-form path must STAY publicly cacheable — the fix is scoped, not blanket", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  for (const path of ["/", "/about", "/the-weight-of-type"]) {
+    const res = await fetch(`${baseUrl}${path}`);
+    assert.equal(res.status, 200);
+    assert.equal(
+      res.headers.get("cache-control"),
+      EXPECTED_CACHE_CONTROL,
+      `${path} carries no form state, so it must keep the owner-decided public directive — making every page private would forfeit Phase 2 entirely`
+    );
+  }
 });

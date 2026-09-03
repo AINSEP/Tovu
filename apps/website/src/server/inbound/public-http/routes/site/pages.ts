@@ -167,6 +167,30 @@ export const SITE_TITLE = "Tovu Demo Site";
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
 /**
+ * What those same four responses send INSTEAD of {@link CACHE_CONTROL_PUBLIC_PAGE} when the body
+ * carries THIS visitor's Post/Redirect/Get form state — `resolveFormSubmissionResult` decides which
+ * of the two applies, per request.
+ *
+ * The cacheability property {@link CACHE_CONTROL_PUBLIC_PAGE} documents ("identical for every
+ * anonymous visitor requesting the same URL") holds only up to the point
+ * `injectFormSubmissionResultIntoHtml` splices a result in. From there the body carries the
+ * visitor's own re-populated field text, which reached us through the private `HttpOnly`
+ * `tovu_form_flash` cookie precisely so it would never sit in a shareable URL (2026-08-31 fix).
+ * Sending that body as `public` with no `Vary` would move the exposure rather than close it: a CDN
+ * or proxy may serve visitor A's name/email/message to visitor B.
+ *
+ * `no-store`, not `Vary: Cookie`. `Vary` alone closes the shared-cache leak but leaves the response
+ * storable, which defeats the flash cookie's READ-ONCE contract by a second route: the cookie is
+ * cleared with `Max-Age=0` in this very response (`clearFormFlashCookie`), but a cached copy of the
+ * body would keep re-serving the same values for the full `max-age` under a value-free URL — a
+ * back-navigation or re-click resurrecting exactly what the clear was meant to retire.
+ *
+ * Deliberately NOT blanket: a request carrying no form state is the ordinary case and keeps the
+ * public directive, so this costs nothing for normal site traffic.
+ */
+const CACHE_CONTROL_PRIVATE_FORM_RESULT = "private, no-store";
+
+/**
  * `resolveActiveThemeId`/`resolveActiveTheme` moved out of this file 2026-08-16 — both were pure
  * `(deps) => value` queries with zero `req`/`res` coupling, and living here forced `export/
  * route-manifest.ts` to import a routing-layer file just to reuse them (a `check:architecture`-
@@ -1055,6 +1079,16 @@ function clearFormFlashCookie(req: Request, res: Response): void {
   res.setHeader("Set-Cookie", `${FORM_FLASH_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`);
 }
 
+/** {@link resolveFormSubmissionResult}'s two outputs: the result to splice into the HTML (if any),
+ *  and the `Cache-Control` this response must therefore send. Returned together, from the one place
+ *  that knows whether per-visitor form state was in play, so no render branch can splice a result in
+ *  and then pick the header independently — the defect this shape replaces
+ *  ({@link CACHE_CONTROL_PRIVATE_FORM_RESULT} documents it). */
+interface ResolvedFormSubmission {
+  readonly result: FormSubmissionRedirectResult | undefined;
+  readonly cacheControl: string;
+}
+
 /** Resolves this request's {@link FormSubmissionRedirectResult}, if any — the query-string half
  *  (`decodeFormSubmissionResultFromQuery`) plus, for a `"validation"` result, the same-slug flash
  *  cookie's field values (`mergeFormFlashIntoResult`) so the OTHER fields the visitor already typed
@@ -1064,11 +1098,18 @@ function clearFormFlashCookie(req: Request, res: Response): void {
  *  same "compute once, thread to every branch" shape `siteAssistantEnabled` already uses on the
  *  `/:slug` handler (ADR-054).
  * @complexity O(1) plus the bounded cost already documented on the functions it calls. */
-function resolveFormSubmissionResult(req: Request, res: Response): FormSubmissionRedirectResult | undefined {
+function resolveFormSubmissionResult(req: Request, res: Response): ResolvedFormSubmission {
   const queryResult = decodeFormSubmissionResultFromQuery(req.query);
   const flash = decodeFormFlashCookieValue(readRawCookie(req, FORM_FLASH_COOKIE_NAME));
   if (flash) clearFormFlashCookie(req, res);
-  return mergeFormFlashIntoResult(queryResult, flash);
+  const result = mergeFormFlashIntoResult(queryResult, flash);
+  // Both arms matter, and neither implies the other. `result` covers a PRG landing whose body gets
+  // rewritten. `flash` covers the case where the merge dropped it (no `form_*` params, or a
+  // different form's slug) yet a read-once cookie was still consumed and cleared ON THIS RESPONSE —
+  // storing that response would let a shared cache replay the clearing `Set-Cookie` to other
+  // visitors and outlive the cookie it retired.
+  const carriesFormState = result !== undefined || flash !== undefined;
+  return { result, cacheControl: carriesFormState ? CACHE_CONTROL_PRIVATE_FORM_RESULT : CACHE_CONTROL_PUBLIC_PAGE };
 }
 
 /**
@@ -1118,8 +1159,8 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // a JS-disabled submission; a request with none of those params is the ordinary case and this
       // is a no-op. Also reads (and clears) the validation flash cookie, if any — see
       // `resolveFormSubmissionResult`'s own doc.
-      const formSubmissionResult = resolveFormSubmissionResult(req, res);
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(injectFormSubmissionResultIntoHtml(html, formSubmissionResult));
+      const formSubmission = resolveFormSubmissionResult(req, res);
+      res.set("Cache-Control", formSubmission.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, formSubmission.result));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -1158,14 +1199,14 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // handler (ADR-054). A request with none of the `form_*` params (the ordinary case) decodes to
       // `undefined`, and `injectFormSubmissionResultIntoHtml` is a no-op for that. Also reads (and
       // clears) the validation flash cookie, if any — see `resolveFormSubmissionResult`'s own doc.
-      const formSubmissionResult = resolveFormSubmissionResult(req, res);
+      const formSubmission = resolveFormSubmissionResult(req, res);
 
       const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled);
       if (marketingResolution.kind === "responded") {
         res
-          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+          .set("Cache-Control", formSubmission.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, formSubmissionResult));
+          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, formSubmission.result));
         return;
       }
 
@@ -1174,17 +1215,17 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
       if (templateHtml !== undefined) {
         res
-          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+          .set("Cache-Control", formSubmission.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(templateHtml, formSubmissionResult));
+          .send(injectFormSubmissionResultIntoHtml(templateHtml, formSubmission.result));
         return;
       }
 
       const genericPostHtml = await renderGenericPostPage(deps, theme, post, posts, siteAssistantEnabled);
       res
-        .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+        .set("Cache-Control", formSubmission.cacheControl)
         .type("html")
-        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, formSubmissionResult));
+        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, formSubmission.result));
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
