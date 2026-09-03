@@ -242,7 +242,7 @@ function validateHeaderEntry(key: string, value: unknown): string {
   if (typeof value !== "string") {
     throw new CredentialedRequestValidationError(`header '${key}' must be a string value`);
   }
-  if (FORBIDDEN_REQUEST_HEADER_NAMES.has(key.toLowerCase())) {
+  if (FORBIDDEN_REQUEST_HEADER_NAMES.has(key.trim().toLowerCase())) {
     throw new CredentialedRequestValidationError(`header '${key}' may not be set by the caller — the server injects the real credential's own Authorization header itself`);
   }
   return value;

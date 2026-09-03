@@ -394,6 +394,31 @@ test("makeCredentialedRequest: a caller-supplied Cookie/Host/Proxy-Authorization
   assert.equal(httpClient.calls.length, 0);
 });
 
+test("makeCredentialedRequest: a forbidden header name with leading/trailing whitespace is still refused", async () => {
+  const writeDeps = await seedNameComAndFlyIo();
+  const httpClient = new FakeHttpClient();
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  for (const paddedForbidden of ["authorization ", " host", "\tcookie", "Proxy-Authorization "]) {
+    await assert.rejects(
+      () =>
+        makeCredentialedRequest(deps, {
+          workspaceId: WORKSPACE,
+          label: "name.com",
+          method: "GET",
+          url: "https://api.name.com/v4/domains",
+          headers: { [paddedForbidden]: "x" },
+        }),
+      (err: unknown) => {
+        assert.ok(err instanceof CredentialedRequestValidationError);
+        assert.equal((err as Error).message, `header '${paddedForbidden}' may not be set by the caller — the server injects the real credential's own Authorization header itself`);
+        return true;
+      }
+    );
+  }
+  assert.equal(httpClient.calls.length, 0);
+});
+
 test("makeCredentialedRequest: an unsupported method value is refused with the exact reason", async () => {
   const writeDeps = await seedNameComAndFlyIo();
   const httpClient = new FakeHttpClient();
