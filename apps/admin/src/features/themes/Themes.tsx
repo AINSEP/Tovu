@@ -4,6 +4,7 @@ import { Toast } from "@jini-ai/ui";
 import { type PresentationSettings, type ThemeTier } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -131,7 +132,7 @@ export interface ThemesProps {
    * returns `null` when the param is absent) — ADR-063, same `?tab=` deep-linking idiom
    * `Deployment.tsx`'s `tabId` prop already uses. `null` or an unrecognized value falls back to the
    * active theme's own tab group, same behavior this screen had before this prop existed (see
-   * {@link resolveActiveTabId}).
+   * {@link resolveThemesActiveTabId}).
    */
   tabId?: string | null;
   /**
@@ -144,22 +145,25 @@ export interface ThemesProps {
 }
 
 /**
- * Falls back to the active theme's own tab group for an absent or unrecognized `?tab=` value — same
- * "don't trust a raw query value" guard `Deployment.tsx`'s `resolveActiveTabId` applies, so a stale
- * link or typo opens on a sensible tab instead of a blank grid (an unrecognized id would otherwise
- * flow into `grouped[activeTab]`, which is `undefined` for anything but a real {@link ThemeTabGroup}
- * or {@link MARKETPLACE_TAB_ID}).
+ * Falls back to the active theme's own tab group for an absent or unrecognized `?tab=` value.
+ * Delegates the validate-or-fallback check to the shared `../../lib/resolve-active-tab-id` guard
+ * `Deployment.tsx`/`Security.tsx`/`SourceControl.tsx`/`Database.tsx` all use — this screen is the
+ * one caller with a dynamic (not fixed-constant) default, computed here via
+ * `defaultThemeTabGroup(settings, themeTiers)` before being handed in, so a stale link or typo
+ * opens on a sensible tab instead of a blank grid (an unrecognized id would otherwise flow into
+ * `grouped[activeTab]`, which is `undefined` for anything but a real {@link ThemeTabGroup} or
+ * {@link MARKETPLACE_TAB_ID}).
  *
  * @complexity Time/space: O(1) — fixed-size id list (four tab groups + Marketplace), not
  * caller-controlled.
  */
-function resolveActiveTabId(
+function resolveThemesActiveTabId(
   tabId: string | null | undefined,
   settings: PresentationSettings,
   themeTiers: Record<string, ThemeTier>,
 ): string {
   const validTabIds: readonly string[] = [...THEME_TAB_GROUPS, MARKETPLACE_TAB_ID];
-  return tabId && validTabIds.includes(tabId) ? tabId : defaultThemeTabGroup(settings, themeTiers);
+  return resolveActiveTabId(tabId, validTabIds, defaultThemeTabGroup(settings, themeTiers));
 }
 
 /**
@@ -382,7 +386,7 @@ function ThemeGrid({
 
 // `tabId` deliberately has no destructured default (unlike `useThemesHook`/`basePath` below) — this
 // package's ESLint `complexity` rule counts each default-parameter assignment as a branch, and this
-// screen was already at its ceiling. `resolveActiveTabId` already treats an omitted prop
+// screen was already at its ceiling. `resolveThemesActiveTabId` already treats an omitted prop
 // (`undefined`) the same as an explicit `null` (its `tabId && ...` check is falsy either way), so a
 // third default here would cost a complexity point for zero behavioral benefit.
 export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/themes" }: ThemesProps) {
@@ -415,10 +419,10 @@ export function Themes({ useThemesHook = useWiredThemes, tabId, basePath = "/the
 
   const grouped = groupThemesByTabGroup(themes, themeTiers);
   // Derived straight from the `?tab=` prop (ADR-063) — no local `useState` override anymore.
-  // `resolveActiveTabId` folds in the same "fall back to the active theme's own tab group" default
-  // `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and additionally
-  // guards against an unrecognized/stale query value (see that function's own doc).
-  const activeTab = resolveActiveTabId(tabId, settings, themeTiers);
+  // `resolveThemesActiveTabId` folds in the same "fall back to the active theme's own tab group"
+  // default `manualTab ?? defaultThemeTabGroup(...)` used before this prop existed, and
+  // additionally guards against an unrecognized/stale query value (see that function's own doc).
+  const activeTab = resolveThemesActiveTabId(tabId, settings, themeTiers);
   // `?? []` is load-bearing now. It used to be safe to index directly because the Marketplace tab
   // was `disabled`, so `activeTab` provably named a real `ThemeTabGroup`. Enabling that tab made
   // `MARKETPLACE_TAB_ID` reachable here, and `grouped["marketplace"]` is `undefined` — the branch

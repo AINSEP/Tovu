@@ -8,6 +8,7 @@ import { useWiredMigrateForwardSection, type MigrateForwardSectionController } f
 import { useWiredSchemaStateSection } from "./hooks/use-schema-state-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t, planReadyMessage } from "./database-i18n";
 
@@ -59,13 +60,12 @@ import { t, planReadyMessage } from "./database-i18n";
 const DATABASE_TAB_IDS = ["timeline", "restore-points", "migrate-forward"] as const;
 type DatabaseTabId = (typeof DATABASE_TAB_IDS)[number];
 
-/** Falls back to the first tab for an absent or unrecognized `?tab=` value — same "don't trust a
- *  raw query value" guard `Deployment.tsx`'s `resolveActiveTabId` and `SettingsUi.tsx`'s
- *  `requestedTabId` both apply, for the same reason (a stale link or a typo must not blank the
- *  panel).
- *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-function resolveActiveTabId(tabId: string | null | undefined): DatabaseTabId {
-  return tabId && (DATABASE_TAB_IDS as readonly string[]).includes(tabId) ? (tabId as DatabaseTabId) : "timeline";
+/** Falls back to the first tab for an absent or unrecognized `?tab=` value. Delegates to the
+ *  shared `../../lib/resolve-active-tab-id` guard — same "don't trust a raw query value" reason
+ *  `Deployment.tsx`/`Security.tsx`/`SourceControl.tsx`/`Themes.tsx` and `SettingsUi.tsx`'s own
+ *  `requestedTabId` all apply (a stale link or a typo must not blank the panel). */
+function resolveDatabaseTabId(tabId: string | null | undefined): DatabaseTabId {
+  return resolveActiveTabId(tabId, DATABASE_TAB_IDS, "timeline");
 }
 
 const KIND_OPTIONS = [
@@ -451,13 +451,13 @@ function databaseTabPanel(activeTabId: DatabaseTabId) {
 
 export interface DatabaseProps {
   /** The `?tab=` query value from `panels.tsx`'s `database` route (`URLSearchParams.get` returns
-   *  `null` when the param is absent). See {@link resolveActiveTabId}. */
+   *  `null` when the param is absent). See {@link resolveDatabaseTabId}. */
   tabId?: string | null;
 }
 
 export function Database(props: DatabaseProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveActiveTabId(props.tabId);
+  const activeTabId = resolveDatabaseTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
     { id: "timeline", label: t(locale, "Timeline") },

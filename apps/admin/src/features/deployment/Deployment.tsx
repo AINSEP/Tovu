@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./deployment-i18n";
 import { OverviewTab } from "./OverviewTab";
@@ -39,12 +40,13 @@ import { FullSiteIcon, HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } f
 const DEPLOYMENT_TAB_IDS = ["overview", "static-site", "full-site", "dockerfile", "history"] as const;
 type DeploymentTabId = (typeof DEPLOYMENT_TAB_IDS)[number];
 
-/** Falls back to the first tab for an absent or unrecognized `?tab=` value — same "don't trust a
- *  raw query value" guard `SettingsUi.tsx`'s `requestedTabId` and `WidgetInstanceEditor`'s `?type=`
- *  both apply, for the same reason (a stale link or a typo must not blank the panel).
- *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-function resolveActiveTabId(tabId: string | null | undefined): DeploymentTabId {
-  return tabId && (DEPLOYMENT_TAB_IDS as readonly string[]).includes(tabId) ? (tabId as DeploymentTabId) : "overview";
+/** Falls back to the first tab for an absent or unrecognized `?tab=` value. Delegates to the
+ *  shared `../../lib/resolve-active-tab-id` guard `Security.tsx`/`SourceControl.tsx`/
+ *  `Database.tsx`/`Themes.tsx` all use — same reason `SettingsUi.tsx`'s `requestedTabId` and
+ *  `WidgetInstanceEditor`'s `?type=` both apply their own guard (a stale link or a typo must not
+ *  blank the panel). */
+function resolveDeploymentTabId(tabId: string | null | undefined): DeploymentTabId {
+  return resolveActiveTabId(tabId, DEPLOYMENT_TAB_IDS, "overview");
 }
 
 /** Dispatches the one active tab's panel as a flat if-chain — same shape `ThemeExplore.tsx`'s
@@ -62,7 +64,7 @@ function deploymentTabPanel(activeTabId: DeploymentTabId) {
 
 export interface DeploymentProps {
   /** The `?tab=` query value from `panels.tsx`'s `deployment` route (`URLSearchParams.get` returns
-   *  `null` when the param is absent). See {@link resolveActiveTabId}. */
+   *  `null` when the param is absent). See {@link resolveDeploymentTabId}. */
   tabId?: string | null;
 }
 
@@ -70,7 +72,7 @@ export function Deployment(props: DeploymentProps) {
   // No hook file of its own — this shell owns no fetch/state (each tab owns its own), matching
   // `Database.tsx`'s own carve-out for a top-level screen with nothing to inject.
   const locale = useAdminLocale();
-  const activeTabId = resolveActiveTabId(props.tabId);
+  const activeTabId = resolveDeploymentTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
     {

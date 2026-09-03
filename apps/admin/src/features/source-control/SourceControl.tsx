@@ -2,6 +2,7 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./source-control-i18n";
 import { ProvidersTab } from "./ProvidersTab";
@@ -27,7 +28,7 @@ import { useWiredSourceControlCredentials } from "./hooks/use-source-control-cre
  * `deployment/Deployment.tsx`, does. This file now mirrors `Deployment.tsx`'s shell exactly — same
  * `TabBar` (not `@jini-ai/ui`'s `SettingsDialogShell`, for the identical reason that file's own
  * header gives: a dialog-shaped shell bundling its own sidebar plus a kicker/title/subtitle header
- * fights a page's own `.page-header`), same {@link resolveActiveTabId} guard against a junk `?tab=`
+ * fights a page's own `.page-header`), same {@link resolveSourceControlTabId} guard against a junk `?tab=`
  * value, same `navigate(..., { replace: true })` on tab switch so the URL stays a correct deep link
  * without growing back-button history one entry per click.
  *
@@ -47,19 +48,19 @@ import { useWiredSourceControlCredentials } from "./hooks/use-source-control-cre
 const SOURCE_CONTROL_TAB_IDS = ["providers"] as const;
 type SourceControlTabId = (typeof SOURCE_CONTROL_TAB_IDS)[number];
 
-/** Falls back to the one tab for an absent or unrecognized `?tab=` value — same "don't trust a raw
- *  query value" guard `Deployment.tsx`'s own `resolveActiveTabId` applies, for the same reason (a
- *  stale link or a typo must not blank the panel). Kept as a real function rather than inlined even
- *  with one tab today: `Deployment.tsx` started at five tabs where this guard mattered immediately,
- *  and a second real tab landing here later should not have to reintroduce it.
- *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-function resolveActiveTabId(tabId: string | null | undefined): SourceControlTabId {
-  return tabId && (SOURCE_CONTROL_TAB_IDS as readonly string[]).includes(tabId) ? (tabId as SourceControlTabId) : "providers";
+/** Falls back to the one tab for an absent or unrecognized `?tab=` value. Delegates to the shared
+ *  `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`Security.tsx`/`Database.tsx`/
+ *  `Themes.tsx` all use, for the same reason (a stale link or a typo must not blank the panel).
+ *  Kept as a real function rather than inlined even with one tab today: `Deployment.tsx` started
+ *  at five tabs where this guard mattered immediately, and a second real tab landing here later
+ *  should not have to reintroduce it. */
+function resolveSourceControlTabId(tabId: string | null | undefined): SourceControlTabId {
+  return resolveActiveTabId(tabId, SOURCE_CONTROL_TAB_IDS, "providers");
 }
 
 export interface SourceControlProps {
   /** The `?tab=` query value from `panels.tsx`'s `source-control` route (`URLSearchParams.get`
-   *  returns `null` when the param is absent). See {@link resolveActiveTabId}. */
+   *  returns `null` when the param is absent). See {@link resolveSourceControlTabId}. */
   tabId?: string | null;
   /** DI seam for tests, threaded through to {@link ProvidersTab} — same convention
    *  `DeploymentProps` would carry if this shell owned any fetch/state of its own. It does not (each
@@ -70,7 +71,7 @@ export interface SourceControlProps {
 
 export function SourceControl(props: SourceControlProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveActiveTabId(props.tabId);
+  const activeTabId = resolveSourceControlTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
     {

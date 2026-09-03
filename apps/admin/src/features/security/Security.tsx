@@ -2,6 +2,7 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
+import { resolveActiveTabId } from "../../lib/resolve-active-tab-id";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
@@ -59,15 +60,15 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 const SECURITY_TAB_IDS = ["access-tokens"] as const;
 type SecurityTabId = (typeof SECURITY_TAB_IDS)[number];
 
-/** Falls back to the one tab for an absent or unrecognized `?tab=` value — same guard
- *  `Deployment.tsx`'s/`SourceControl.tsx`'s own `resolveActiveTabId` apply.
- *  @complexity O(1) — fixed-size id list, not caller-controlled. */
-function resolveActiveTabId(tabId: string | null | undefined): SecurityTabId {
-  return tabId && (SECURITY_TAB_IDS as readonly string[]).includes(tabId) ? (tabId as SecurityTabId) : "access-tokens";
+/** Falls back to the one tab for an absent or unrecognized `?tab=` value. Delegates to the shared
+ *  `../../lib/resolve-active-tab-id` guard `Deployment.tsx`/`SourceControl.tsx`/`Database.tsx`/
+ *  `Themes.tsx` all use. */
+function resolveSecurityTabId(tabId: string | null | undefined): SecurityTabId {
+  return resolveActiveTabId(tabId, SECURITY_TAB_IDS, "access-tokens");
 }
 
 export interface SecurityProps {
-  /** The `?tab=` query value from `panels.tsx`'s `security` route. See {@link resolveActiveTabId}. */
+  /** The `?tab=` query value from `panels.tsx`'s `security` route. See {@link resolveSecurityTabId}. */
   tabId?: string | null;
   /** DI seam for tests, threaded through to {@link AccessTokensTab} — same convention
    *  `SourceControlProps.useSourceControlCredentialsHook` follows. */
@@ -76,7 +77,7 @@ export interface SecurityProps {
 
 export function Security(props: SecurityProps) {
   const locale = useAdminLocale();
-  const activeTabId = resolveActiveTabId(props.tabId);
+  const activeTabId = resolveSecurityTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
     {
