@@ -151,6 +151,46 @@ test("makeCredentialedRequest: a 401 on a credential that ALREADY has a stored u
   assert.equal(result.authDiagnostic!.hint, undefined, "must NOT suggest 'add a username' when one is already saved");
 });
 
+test("makeCredentialedRequest: a 401 on a self-describing-scheme token (FlyV1) reports schemeSent as the scheme actually sent, with NO hint — a different, unguessable cause since the scheme was already correct (2026-09-03, the Fly.io incident)", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  assert.ok(result.authDiagnostic);
+  assert.equal(result.authDiagnostic!.schemeSent, "FlyV1");
+  assert.equal(result.authDiagnostic!.usernameStored, false);
+  assert.equal(result.authDiagnostic!.hint, undefined, "a self-describing scheme was already sent correctly — the Bearer-hint hypothesis does not apply");
+  assert.equal(result.authDiagnostic!.remedyToolId, undefined);
+});
+
+test("makeCredentialedRequest: a self-describing-scheme token WITH a leftover saved username still reports the scheme it actually sent (FlyV1), not Basic — schemeSent never drifts from buildAuthorizationHeader's own precedence", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value", username: "leftover-username" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 401, headers: {}, bodyText: "unauthorized" }]);
+  const deps = makeDeps(httpClient, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  assert.equal(result.authDiagnostic!.schemeSent, "FlyV1");
+  assert.equal(result.authDiagnostic!.usernameStored, true);
+  assert.equal(result.authDiagnostic!.hint, undefined);
+});
+
 test("makeCredentialedRequest: a 200 response carries no authDiagnostic at all", async () => {
   const writeDeps = await seedWithoutUsername();
   const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "ok" }]);

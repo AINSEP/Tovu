@@ -260,6 +260,107 @@ test("makeCredentialedRequest: fly.io's own credential resolves to fly.io's own 
 });
 
 // ---------------------------------------------------------------------------------------------
+// Self-describing token schemes (2026-09-03) — the Fly.io incident: fly.io's own token starts with
+// its own literal scheme word (`FlyV1`), and `Authorization: Bearer <the same token unmodified>` is
+// affirmatively rejected by Fly's own API while `Authorization: FlyV1 <rest>` is accepted — see
+// `credentialed-request.ts`'s header, "Self-describing token schemes", for the live verification.
+// Every fixture below uses a SYNTHETIC token (`FlyV1fake_test_token_value`), never a real credential.
+// ---------------------------------------------------------------------------------------------
+
+test("makeCredentialedRequest: a token starting with the FlyV1 self-describing scheme is sent as `FlyV1 <rest>`, not `Bearer FlyV1<rest>`", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  const sent = httpClient.calls[0]!;
+  assert.equal(sent.headers.Authorization, "FlyV1 fake_test_token_value");
+  assert.notEqual(sent.headers.Authorization, "Bearer FlyV1fake_test_token_value");
+});
+
+test("makeCredentialedRequest: an ordinary opaque token with no recognized scheme prefix is still sent as `Bearer <token>`, unchanged", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "generic",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    connection: { token: "opaque_token_with_an_underscore_in_it" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "generic", method: "GET", url: "https://api.example.com/v1/ping" });
+
+  assert.equal(httpClient.calls[0]!.headers.Authorization, "Bearer opaque_token_with_an_underscore_in_it");
+});
+
+test("makeCredentialedRequest: a saved username does not affect the Basic-auth path when the token has no recognized scheme prefix", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "generic",
+    category: "general",
+    baseUrl: "https://api.example.com",
+    connection: { token: "opaque-secret-token", username: "generic-user" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "generic", method: "GET", url: "https://api.example.com/v1/ping" });
+
+  assert.equal(httpClient.calls[0]!.headers.Authorization, `Basic ${Buffer.from("generic-user:opaque-secret-token").toString("base64")}`);
+});
+
+test("makeCredentialedRequest: a self-describing-scheme token takes priority over a saved username — it is sent as FlyV1, never Basic", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value", username: "leftover-username" },
+  });
+  const httpClient = new FakeHttpClient([{ status: 200, headers: {}, bodyText: "{}" }]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  const sent = httpClient.calls[0]!;
+  assert.equal(sent.headers.Authorization, "FlyV1 fake_test_token_value");
+  assert.ok(!sent.headers.Authorization!.startsWith("Basic "), "a self-describing scheme must never be displaced by a saved username");
+});
+
+test("makeCredentialedRequest: a reflecting response still redacts the full self-describing token, in both the header and the body", async () => {
+  const writeDeps = makeWriteDeps();
+  await createCustomCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "fly.io",
+    category: "ops",
+    baseUrl: "https://api.fly.io",
+    connection: { token: "FlyV1fake_test_token_value" },
+  });
+  const httpClient = new FakeHttpClient([
+    { status: 200, headers: { "X-Reflected-Auth": "FlyV1 fake_test_token_value" }, bodyText: '{"echo":"FlyV1fake_test_token_value"}' },
+  ]);
+  const deps = makeDeps({ httpClient }, writeDeps);
+
+  const result = await makeCredentialedRequest(deps, { workspaceId: WORKSPACE, label: "fly.io", method: "GET", url: "https://api.fly.io/v1/apps/my-app" });
+
+  assert.equal(result.headers["X-Reflected-Auth"], undefined);
+  assert.ok(!result.bodyText.includes("FlyV1fake_test_token_value"));
+  assert.ok(!result.bodyText.includes("fake_test_token_value"));
+});
+
+// ---------------------------------------------------------------------------------------------
 // Multi-host binding (`additionalHosts`, 2026-08-31) — the owner's explicit ask, previously
 // uncovered.
 // ---------------------------------------------------------------------------------------------

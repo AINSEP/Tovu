@@ -2,6 +2,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import type { ToolFailureDiagnostic } from "../../contracts/core/tool-failure-diagnostics.js";
 import type { SecretSealerPort } from "../webhooks/index.js";
+import { detectSelfDescribingAuthScheme } from "./providers/index.js";
 import { CustomCredentialNotFoundError, describeCredentialByLabel, resolveCustomCredentialByLabel } from "./store.js";
 import { allowedOriginsFor, type CustomCredentialSetRepoPort, type CustomProviderConnectionInput } from "./types.js";
 import type { HttpClientPort } from "../../platform/http/index.js";
@@ -46,22 +47,28 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  *
  * The live incident this addition exists for: name.com's API accepts ONLY HTTP Basic
  * `username:token` (confirmed live — `Bearer` gets 401, `-u "user:token"` gets 200), and
- * {@link buildAuthorizationHeader} only ever sends Basic when the saved connection carries a
- * `username`. A credential saved without one 401'd on every single call with no explanation, and the
- * owner had to go hunt through the Access Tokens UI by hand to work out why. Both entry points now
- * attach {@link AuthFailureDiagnostic} to a 401/403 outcome — {@link verifyCustomCredential}'s
- * `"invalid"` result, and {@link makeCredentialedRequest}'s executed result for that status.
+ * {@link buildAuthorizationHeader} sent Basic only when the saved connection carried a `username`
+ * (a third case, a token's own self-describing scheme, was added 2026-09-03 — see "Self-describing
+ * token schemes" below). A credential saved without one 401'd on every single call with no
+ * explanation, and the owner had to go hunt through the Access Tokens UI by hand to work out why.
+ * Both entry points now attach {@link AuthFailureDiagnostic} to a 401/403 outcome —
+ * {@link verifyCustomCredential}'s `"invalid"` result, and {@link makeCredentialedRequest}'s executed
+ * result for that status.
  *
  * The diagnostic is two STRUCTURED FACTS, always present on a 401/403 regardless of cause
  * (`schemeSent`, `usernameStored`), plus an optional `hint` carrying the one HYPOTHESIS this module
  * can honestly make — never a claim. That hypothesis is narrow on purpose: `schemeSent === "Bearer"`
- * (equivalently `usernameStored === false`, since {@link buildAuthorizationHeader} sends Basic iff a
- * username is stored) is the ONLY shape where "this provider might need a saved username" is a fair
- * guess — and even then, ONLY on a 401. A 401/403 on a credential that ALREADY has a stored username
- * is a completely different, un-guessable problem from here — a wrong username, an expired/revoked
- * token, missing scopes, or the provider's own policy — so `hint` is deliberately omitted in that
- * case rather than repeating advice that has already been tried and failed; asserting "add a
- * username" there would be actively misleading, not merely unhelpful.
+ * is the ONLY shape where "this provider might need a saved username" is a fair guess — and even
+ * then, ONLY on a 401. (Before 2026-09-03 this was equivalent to `usernameStored === false`, since
+ * {@link buildAuthorizationHeader} only ever sent Basic or Bearer; that equivalence no longer holds
+ * now that a token can carry its own self-describing scheme — see "Self-describing token schemes"
+ * below — so `schemeSent` is the fact this module actually gates the hint on, not `usernameStored`.)
+ * A 401/403 on a credential that ALREADY has a stored username, or whose token embeds its own
+ * scheme, is a completely different, un-guessable problem from here — a wrong username, an
+ * expired/revoked token, missing scopes, the provider's own policy, or (for a self-describing token)
+ * simply a bad credential sent with the correct scheme — so `hint` is deliberately omitted in those
+ * cases rather than repeating advice that has already been tried and failed or does not apply;
+ * asserting "add a username" there would be actively misleading, not merely unhelpful.
  *
  * **401 vs 403 (2026-09-03 — the GitHub incident this addition fixes).** The scheme-swap hypothesis
  * above shipped for status 401 and 403 alike, on the reasoning that both are "the provider rejected
@@ -82,6 +89,34 @@ import type { HttpClientPort } from "../../platform/http/index.js";
  * GitHub's. A 403 still reports the two structured facts (never hides them) but carries no `hint` —
  * the module has no honest hypothesis to offer there, matching the same "omit rather than mislead"
  * discipline the stored-username case already used.
+ *
+ * **Self-describing token schemes (2026-09-03 — the Fly.io incident this addition fixes).** Every
+ * case above assumes {@link buildAuthorizationHeader} always sends either `Bearer <token>` or
+ * `Basic <username:token>` — an assumption a saved fly.io credential breaks: fly.io's own token
+ * string is self-describing, e.g. `FlyV1fm2_...` (a macaroon), and `FlyV1` is not incidental
+ * content — it IS the correct `Authorization` HTTP scheme name, with the rest of the token string as
+ * the value. See `./providers/fly-io.ts`'s own header for the full live verification.
+ *
+ * {@link resolveAuthorizationScheme} is the one place THIS module decides which of the three shapes
+ * (self-describing, Basic, Bearer) to send; {@link buildAuthorizationHeader} and
+ * {@link buildAuthFailureDiagnostic} both call it rather than each re-deriving the precedence, so the
+ * scheme a 401/403 diagnostic REPORTS can never drift from the scheme that was actually SENT.
+ * RECOGNIZING a self-describing scheme, however, is deliberately NOT this module's own logic:
+ * {@link detectSelfDescribingAuthScheme} delegates to `./providers/index.ts`, a small per-vendor
+ * registry (one file per provider, e.g. `./providers/fly-io.ts`) rather than an inline allow-list
+ * living here. A first pass of this fix special-cased `"FlyV1"` directly in this file; that was
+ * rejected in review because it does not scale — every future vendor with the same quirk would mean
+ * editing this shared file and growing a shared conditional a new vendor has no reason to know
+ * exists. See `./providers/index.ts`'s header for the full registry design, including why dispatch
+ * there is try-each-in-turn (recognize by the token's own content) rather than keyed by the
+ * credential's saved host — this module's job stays exactly "ask the registry, then apply the fixed
+ * three-way precedence below," never "know which vendors exist."
+ *
+ * A self-describing scheme takes priority over a saved `username` (Basic auth): if a token embeds its
+ * own scheme, the token itself dictates its own transport — a stored username on that same credential
+ * would be a leftover from before the scheme was recognized, not a signal to prefer Basic instead. No
+ * saved credential exercises this combination as of this writing (fly.io's own saved credential has
+ * no username), so this is a forward-looking precedence decision, not a fix for a live conflict.
  *
  * Neither function reinterprets or hides the provider's own response: {@link makeCredentialedRequest}'s
  * `bodyText` is unaffected by this addition, and this diagnostic is additive alongside it, never a
@@ -417,18 +452,54 @@ function validateOptionalBody(raw: unknown): string | undefined {
   return raw;
 }
 
-/** HTTP Basic (base64 `username:token`) when the saved connection carries a `username` — the same
- *  convention `store.ts`'s own `CustomProviderConnectionInput.username` doc documents ("only needed
- *  if this provider authenticates a token against a username"); Bearer otherwise. Never logged, and
- *  never returned from this module — used only as an outbound request header value.
+/** The three shapes {@link buildAuthorizationHeader} can send for one connection — see
+ *  {@link resolveAuthorizationScheme}'s own doc for the precedence order this discriminates.
+ *  `"self-describing"`'s `scheme` is a plain `string`, not a closed literal union: it is whatever
+ *  scheme word the matching entry in {@link CUSTOM_CREDENTIAL_AUTH_SCHEME_PROVIDERS} returned, and
+ *  that registry is meant to grow without this file changing — see `./providers/index.ts`'s header. */
+type ResolvedAuthorizationScheme =
+  | { readonly kind: "self-describing"; readonly scheme: string; readonly value: string }
+  | { readonly kind: "basic"; readonly username: string; readonly token: string }
+  | { readonly kind: "bearer"; readonly token: string };
+
+/**
+ * Resolves which of the three shapes {@link buildAuthorizationHeader} sends for one connection, in
+ * the exact precedence this module applies: (1) a self-describing scheme when
+ * {@link detectSelfDescribingAuthScheme} (the `./providers/` registry — see this file's header,
+ * "Self-describing token schemes") recognizes the token itself — the token dictates its own
+ * transport, so this wins even over a saved username; (2) HTTP Basic (`username:token`, base64) when
+ * the connection carries a `username` — the same convention `store.ts`'s own
+ * `CustomProviderConnectionInput.username` doc documents ("only needed if this provider authenticates
+ * a token against a username"); (3) Bearer otherwise. Extracted so
+ * {@link buildAuthFailureDiagnostic} can report the scheme it ACTUALLY sent by calling this SAME
+ * function, rather than re-deriving the precedence a second time and risking it drifting from what
+ * {@link buildAuthorizationHeader} really does.
  *
- * @complexity O(1).
+ * @complexity O(1) beyond {@link detectSelfDescribingAuthScheme}'s own cost.
+ */
+function resolveAuthorizationScheme(connection: CustomProviderConnectionInput): ResolvedAuthorizationScheme {
+  const selfDescribing = detectSelfDescribingAuthScheme(connection.token);
+  if (selfDescribing) {
+    return { kind: "self-describing", scheme: selfDescribing.scheme, value: selfDescribing.value };
+  }
+  if (connection.username) {
+    return { kind: "basic", username: connection.username, token: connection.token };
+  }
+  return { kind: "bearer", token: connection.token };
+}
+
+/** Builds the outbound `Authorization` header value for one connection, per
+ *  {@link resolveAuthorizationScheme}'s precedence: a self-describing scheme when the token embeds
+ *  one, HTTP Basic when a `username` is saved, Bearer otherwise. Never logged, and never returned
+ *  from this module — used only as an outbound request header value.
+ *
+ * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
  */
 function buildAuthorizationHeader(connection: CustomProviderConnectionInput): string {
-  if (connection.username) {
-    return `Basic ${buildBasicAuthPayload(connection.username, connection.token)}`;
-  }
-  return `Bearer ${connection.token}`;
+  const resolved = resolveAuthorizationScheme(connection);
+  if (resolved.kind === "self-describing") return `${resolved.scheme} ${resolved.value}`;
+  if (resolved.kind === "basic") return `Basic ${buildBasicAuthPayload(resolved.username, resolved.token)}`;
+  return `Bearer ${resolved.token}`;
 }
 
 /** The bare base64 payload {@link buildAuthorizationHeader} wraps in `Basic <payload>` for a
@@ -459,22 +530,28 @@ const SET_USERNAME_TOOL_ID = "custom_credential_set_username";
  *  `extends` the general {@link ToolFailureDiagnostic} contract rather than merely resembling it. */
 export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
   /** Which scheme {@link buildAuthorizationHeader} actually sent for this call — never the header's
-   *  own value, only which of the two shapes it took. This module's own "what failed" fact (facet 1
-   *  of the general contract — see that file's header for why facts are not modeled there). */
-  readonly schemeSent: "Basic" | "Bearer";
+   *  own value, only which of the three shapes it took: a saved token's own self-describing scheme
+   *  word (e.g. `"FlyV1"` — see this file's header, "Self-describing token schemes"), `"Basic"`, or
+   *  `"Bearer"`. Typed as a plain `string`, not a closed literal union, because the self-describing
+   *  case is driven by `./providers/index.ts`'s open-ended vendor registry — see
+   *  {@link ResolvedAuthorizationScheme}'s own doc. This module's own "what failed" fact (facet 1 of
+   *  the general contract — see that file's header for why facts are not modeled there). */
+  readonly schemeSent: string;
   /** Whether this credential has a saved `username` at all — never the username's own value. This
    *  module's other "what failed" fact. */
   readonly usernameStored: boolean;
   /** Present ONLY for the one narrow, honestly-inferable case this module will ever suggest a fix
-   *  for: a 401 with `schemeSent === "Bearer"` (no saved username). Absent for every other
-   *  401/403 shape — a credential that already has a stored username hit a DIFFERENT wall this
-   *  module has no way to diagnose (wrong username, expired/revoked token, missing scopes, provider
-   *  policy), and repeating "add a username" there would be a false lead, not merely an unhelpful
-   *  one. Also absent on a 403 REGARDLESS of scheme/username (2026-09-03): 403 Forbidden covers
-   *  causes that have nothing to do with auth scheme (scopes, policy, a missing standard header),
-   *  and offering the scheme hypothesis there was confirmed live-wrong for GitHub — see this file's
-   *  header, "401 vs 403". Deliberately hedged wording ("may"/"might") when present — this is a
-   *  hypothesis for a human or agent to try, never an assertion of the actual cause. */
+   *  for: a 401 with `schemeSent === "Bearer"` (no saved username, and no self-describing scheme
+   *  matched). Absent for every other 401/403 shape — a credential that already has a stored
+   *  username, or whose token embeds its own scheme, hit a DIFFERENT wall this module has no way to
+   *  diagnose (wrong username, expired/revoked token, missing scopes, provider policy, or a bad
+   *  credential sent with the correct scheme), and repeating "add a username" there would be a false
+   *  lead, not merely an unhelpful one. Also absent on a 403 REGARDLESS of scheme/username
+   *  (2026-09-03): 403 Forbidden covers causes that have nothing to do with auth scheme (scopes,
+   *  policy, a missing standard header), and offering the scheme hypothesis there was confirmed
+   *  live-wrong for GitHub — see this file's header, "401 vs 403". Deliberately hedged wording
+   *  ("may"/"might") when present — this is a hypothesis for a human or agent to try, never an
+   *  assertion of the actual cause. */
   readonly hint?: string;
   /** Present exactly when `hint` is: {@link SET_USERNAME_TOOL_ID}, the one already-registered tool
    *  that can save the missing username `hint` describes. A pointer only — this module never calls
@@ -483,23 +560,27 @@ export interface AuthFailureDiagnostic extends ToolFailureDiagnostic {
 }
 
 /**
- * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome from the SAME `connection` object
- * {@link buildAuthorizationHeader} used to build the request that got rejected — so `schemeSent` is
- * always the scheme that was actually sent, never re-derived from a different source that could drift
- * from it. The two structured facts (`schemeSent`, `usernameStored`) are always returned; `hint` +
- * `remedyToolId` are added only for the one case this module can honestly diagnose: a 401 sent as
- * Bearer with no saved username. See this file's header, "401 vs 403", for why `status` gates the
- * hint at all and why a 403 never gets one, regardless of scheme.
+ * Builds {@link AuthFailureDiagnostic} for one 401/403 outcome by calling
+ * {@link resolveAuthorizationScheme} on the SAME `connection` object {@link buildAuthorizationHeader}
+ * used to build the request that got rejected — so `schemeSent` is always the scheme that was
+ * actually sent, never re-derived by a second, possibly-drifting copy of the precedence logic. The
+ * two structured facts (`schemeSent`, `usernameStored`) are always returned; `hint` + `remedyToolId`
+ * are added only for the one case this module can honestly diagnose: a 401 sent as Bearer (no saved
+ * username, and no self-describing scheme matched — see this file's header, "Self-describing token
+ * schemes"). See this file's header, "401 vs 403", for why `status` gates the hint at all and why a
+ * 403 never gets one, regardless of scheme.
  *
- * @complexity O(1).
+ * @complexity O(1) beyond {@link resolveAuthorizationScheme}'s own cost.
  */
 function buildAuthFailureDiagnostic(connection: CustomProviderConnectionInput, status: 401 | 403): AuthFailureDiagnostic {
   const usernameStored = connection.username !== undefined;
-  const schemeSent = usernameStored ? "Basic" : "Bearer";
-  if (usernameStored || status !== 401) {
-    // Either a different, un-guessable failure (a username IS already saved), or a 403 — Forbidden
-    // covers causes unrelated to auth scheme (scopes, provider policy, a missing standard header),
-    // so offering the scheme hypothesis here would be a false lead, not a hedge.
+  const resolved = resolveAuthorizationScheme(connection);
+  const schemeSent = resolved.kind === "self-describing" ? resolved.scheme : resolved.kind === "basic" ? "Basic" : "Bearer";
+  if (resolved.kind !== "bearer" || status !== 401) {
+    // Either a different, un-guessable failure (a username IS already saved, or the token embeds its
+    // own scheme and was sent correctly), or a 403 — Forbidden covers causes unrelated to auth scheme
+    // (scopes, provider policy, a missing standard header), so offering the scheme hypothesis here
+    // would be a false lead, not a hedge.
     return { schemeSent, usernameStored };
   }
   return {
@@ -767,21 +848,28 @@ export async function makeCredentialedRequest(deps: CredentialedRequestDeps, inp
   const url = resolveAllowedRequestUrl(input.url, allowedOriginsFor({ baseUrl, additionalHosts }));
   const audit = deps.audit ?? new ConsoleCredentialedRequestAuditLog();
   const bodyBytes = body !== undefined ? Buffer.byteLength(body, "utf8") : 0;
+  const resolvedScheme = resolveAuthorizationScheme(connection);
   const authorizationHeader = buildAuthorizationHeader(connection);
   // Everything a reflecting/echo endpoint could hand back that must never reach the model — the
   // exact Authorization value this call sent, the credential's own raw token, and — for a Basic-auth
-  // connection (one with a saved `username`) — the bare base64 `username:token` payload ON ITS OWN,
-  // with no "Basic " scheme prefix. That third value is NOT a substring of either of the first two:
-  // it is a substring of `authorizationHeader` only when the "Basic " prefix is also present, and it
-  // is not `connection.token` at all (it is the base64 encoding of `username:token` together) — so
-  // without listing it explicitly, an endpoint that echoes just the bare payload back would slip
-  // past both {@link redactResponseHeaders} and {@link resolveRedactedResponseBody} undetected. See
-  // this file's header, "The token never reaches the model", and {@link buildBasicAuthPayload}'s own
-  // doc for why this is derived rather than duplicated. Every entry here is matched as a SUBSTRING
-  // (see {@link redactResponseHeaders}), never by exact equality.
-  const responseSecrets: readonly string[] = connection.username
-    ? [authorizationHeader, connection.token, buildBasicAuthPayload(connection.username, connection.token)]
-    : [authorizationHeader, connection.token];
+  // connection (one with a saved `username`, AND no self-describing scheme that took priority over
+  // it — see this file's header, "Self-describing token schemes") — the bare base64
+  // `username:token` payload ON ITS OWN, with no "Basic " scheme prefix. That third value is NOT a
+  // substring of either of the first two: it is a substring of `authorizationHeader` only when the
+  // "Basic " prefix is also present, and it is not `connection.token` at all (it is the base64
+  // encoding of `username:token` together) — so without listing it explicitly, an endpoint that
+  // echoes just the bare payload back would slip past both {@link redactResponseHeaders} and
+  // {@link resolveRedactedResponseBody} undetected. Gated on `resolvedScheme.kind === "basic"` rather
+  // than the looser `connection.username` truthiness check so this list only ever contains a payload
+  // that was actually sent — a credential with both a self-describing token AND a leftover saved
+  // username never sends Basic, so there is no such payload to leak or to list. See this file's
+  // header, "The token never reaches the model", and {@link buildBasicAuthPayload}'s own doc for why
+  // this is derived rather than duplicated. Every entry here is matched as a SUBSTRING (see
+  // {@link redactResponseHeaders}), never by exact equality.
+  const responseSecrets: readonly string[] =
+    resolvedScheme.kind === "basic"
+      ? [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)]
+      : [authorizationHeader, connection.token];
 
   let response;
   try {
