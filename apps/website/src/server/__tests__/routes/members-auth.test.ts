@@ -186,6 +186,77 @@ test("T005: POST request-magic-link succeeds (200) for the seeded owner (wildcar
   assert.equal(body.delivered, true);
 });
 
+test("POST request-magic-link with redirectPath succeeds (200)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members/request-magic-link`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: JSON.stringify({ email: "redirect@example.com", redirectPath: "/account" }),
+    }
+  );
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { delivered: true };
+  assert.equal(body.delivered, true);
+});
+
+test("POST request-magic-link returns 400 for invalid email", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members/request-magic-link`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: JSON.stringify({ email: "not-an-email" }),
+    }
+  );
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.ok(body.error.includes("not a valid email address"));
+});
+
+test("POST request-magic-link returns 404 for mismatched workspaceId", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/other-workspace-id/members/request-magic-link`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: JSON.stringify({ email: "someone@example.com" }),
+    }
+  );
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "workspace was not found");
+});
+
+test("POST request-magic-link returns 500 on unexpected internal error", async (t) => {
+  const { app, deps } = buildTestApp();
+  deps.memberRepo.findByEmail = async () => {
+    throw new Error("unexpected db error");
+  };
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/members/request-magic-link`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: ownerCookie },
+      body: JSON.stringify({ email: "valid@example.com" }),
+    }
+  );
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "internal error");
+});
+
 /**
  * REQ-10/AC-20 regression proof: `disable.ts` was already correctly gated before this
  * remediation — re-confirm no behavior change (T009's "no regression on the one route
