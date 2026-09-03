@@ -85,7 +85,7 @@ import path from "node:path";
 
 import { and, eq } from "drizzle-orm";
 
-import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { customCredentialSets } from "../../apps/website/src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
@@ -274,11 +274,15 @@ async function countPending(
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
 
   if (!args.apply) {
-    // Constructed unconditionally but touches no env var until `sealer.open` is actually called — a
-    // dry run never calls it, so a dry run needs no `TOVU_INTEGRATIONS_ROOT_KEY` at all.
+    // Read-only open: plain `openContentDb` unconditionally runs pending migrations and writes the
+    // bootstrap watermark row before a caller's own `--dry-run` check ever runs (and would silently
+    // CREATE `args.dbPath` if it did not already exist) — `openContentDbReadOnly` opens the file in
+    // SQLite's own `readonly` connection mode, so neither can happen. Constructed unconditionally but
+    // touches no env var until `sealer.open` is actually called — a dry run never calls it, so a dry
+    // run needs no `TOVU_INTEGRATIONS_ROOT_KEY` at all.
+    const db = openContentDbReadOnly(args.dbPath);
     const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
     const sealer = new AesGcmSecretSealer(keyring);
     const result = await runCustomCredentialUsernameBackfill({ db, sealer, keyring }, { apply: false });
@@ -287,6 +291,8 @@ async function main(): Promise<void> {
     );
     return;
   }
+
+  const db = openContentDb(args.dbPath);
 
   // Constructed before the pending check (moved up from after it): `countPending` now needs to
   // decrypt to tell a genuinely pending row from a token-only one, and a fully-migrated database

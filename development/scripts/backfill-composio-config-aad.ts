@@ -39,7 +39,7 @@ import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 import { eq } from "drizzle-orm";
 
-import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { composioConfig } from "../../apps/website/src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
@@ -154,15 +154,21 @@ async function main(): Promise<void> {
   // Prove the database is really there BEFORE opening it: `openContentDb` creates and
   // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
   const dbPath = resolveExistingDbPath(args.dbPath);
-  const db = openContentDb(dbPath);
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
 
   if (!args.apply) {
+    // Read-only open: a dry run must never migrate or write the bootstrap watermark row (this
+    // file's own header, "Safety" — deferred to `backfill-media-provider-credential-aad.ts`).
+    const db = openContentDbReadOnly(dbPath);
+    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+    const sealer = new AesGcmSecretSealer(keyring);
     const result = await runComposioConfigAadBackfill({ db, sealer, keyring }, { apply: false });
     console.log(`DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`);
     return;
   }
+
+  const db = openContentDb(dbPath);
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
 
   const pendingCount = loadPendingRows(db).length;
   if (pendingCount === 0) {

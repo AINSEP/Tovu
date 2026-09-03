@@ -27,6 +27,12 @@
  * captured (`SqliteDbOpsAdapter`) — skipped entirely when there is nothing pending, matching
  * `backfill-vendor-credentials.ts`'s own posture.
  *
+ * A dry run opens the database through `openContentDbReadOnly`, never plain `openContentDb`: the
+ * latter unconditionally runs pending migrations and writes the bootstrap watermark row before a
+ * caller's own `--dry-run` check ever runs, so it is not actually read-only. `openContentDbReadOnly`
+ * opens the file in SQLite's own `readonly` connection mode — a write from anywhere in this process
+ * fails at the driver level, not just by this script's own discipline.
+ *
  * Idempotent and resumable, per row: each row is updated the instant it is verified (not batched),
  * so a crash or `Ctrl-C` mid-run leaves every already-updated row at `aad_version = 1` (done) and
  * every not-yet-reached row at `aad_version = 0` (still pending, exactly as it was) — a re-run picks
@@ -65,7 +71,7 @@ import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 import { and, eq } from "drizzle-orm";
 
-import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { mediaProviderCredentials } from "../../apps/website/src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
@@ -191,17 +197,23 @@ async function main(): Promise<void> {
   // Prove the database is really there BEFORE opening it: `openContentDb` creates and
   // migrates on open, so a wrong path would otherwise yield an empty db and a false all-clear.
   const dbPath = resolveExistingDbPath(args.dbPath);
-  const db = openContentDb(dbPath);
-  // Constructed unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually
-  // called — a dry run below never calls either, so a dry run needs no `TOVU_INTEGRATIONS_ROOT_KEY`.
-  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
-  const sealer = new AesGcmSecretSealer(keyring);
 
   if (!args.apply) {
+    // Read-only open: a dry run must never migrate or write the bootstrap watermark row (see
+    // `openContentDbReadOnly`'s own doc, and this file's "Safety" section above). Constructed
+    // unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually called —
+    // a dry run below never calls either, so it needs no `TOVU_INTEGRATIONS_ROOT_KEY`.
+    const db = openContentDbReadOnly(dbPath);
+    const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+    const sealer = new AesGcmSecretSealer(keyring);
     const result = await runMediaProviderCredentialAadBackfill({ db, sealer, keyring }, { apply: false });
     console.log(`DRY RUN: ${result.migrated} row(s) would be migrated, ${result.total} total pending. Re-run with --apply to write.`);
     return;
   }
+
+  const db = openContentDb(dbPath);
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
 
   const pendingCount = loadPendingRows(db).length;
   if (pendingCount === 0) {

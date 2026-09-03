@@ -89,6 +89,31 @@ export function openContentDb(filePath: string, seed?: ContentDbSeedData, recove
 }
 
 /**
+ * Open an EXISTING content.db strictly for reading — no migration, no watermark row, no write of
+ * any kind. Unlike {@link openContentDb}, which unconditionally calls `migrate()` (applies any
+ * migration not yet recorded against this file, a genuine schema write) and `ensureWatermarkRow()`
+ * (an `INSERT OR IGNORE`, a genuine row write) before a caller ever gets to check its own
+ * `--dry-run` flag, this function cannot perform either: `better-sqlite3`'s own `readonly: true`
+ * connection mode rejects any write at the SQLite level, not just at this module's call sites — the
+ * same guarantee a `--dry-run` script needs and `openContentDb` structurally cannot give it (see the
+ * `development/scripts/backfill-*-aad.ts` family and `backfill-custom-credential-usernames.ts`,
+ * each of which now opens its dry-run path through this function instead).
+ *
+ * A caller that needs to read a column only a not-yet-applied migration would add gets a loud SQLite
+ * error here ("no such column"), never a silent auto-migration — the correct trade for a function
+ * whose entire contract is "never writes".
+ *
+ * @throws If `filePath` does not already exist (`fileMustExist: true` — there is nothing to
+ *   "create" in a read-only open), or whatever `better-sqlite3` throws for a malformed/locked file.
+ * @complexity O(1) — one connection open, no migration sweep.
+ */
+export function openContentDbReadOnly(filePath: string): ContentDb {
+  const sqlite = new Database(filePath, { readonly: true, fileMustExist: true });
+  sqlite.pragma("busy_timeout = 5000");
+  return drizzle(sqlite, { schema }) as ContentDb;
+}
+
+/**
  * SPEC-016 (`core/gated-mutations/watermark.ts`) — guarantees the `database_write_watermark`
  * singleton row (`id=1`) exists, independent of any demo-seed data. `INSERT OR IGNORE` keeps this
  * idempotent across restarts on a persisted db, matching `seedContentDb`'s own "never re-seed an
