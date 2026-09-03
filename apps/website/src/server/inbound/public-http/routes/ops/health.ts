@@ -1,5 +1,6 @@
 import type { Express } from "express";
 
+import type { BootModuleResult, ModuleLifecycleStatus } from "#src/server/runtime/lifecycle/boot-lifecycle";
 import { getReadinessSnapshot, isAssistantDaemonKnownFailed } from "#src/server/runtime/lifecycle/readiness-state";
 
 /** These 3 routes need no `RouteDeps` at all (health is dependency-free; readyz reads the
@@ -47,12 +48,16 @@ export const registerReadyzRoute: NoDepsRouteRegistrar = (app) => {
       res.json({ ready: true, ...daemonField });
       return;
     }
+    // The type predicate (rather than a plain boolean filter) narrows `m.lifecycle` for the `.map`
+    // below: the filter already guarantees `status !== "ready"`, so a `.lifecycle.status === "ready"
+    // ? null : ...` fallback in the map would be unreachable dead code — this makes that guarantee
+    // visible to the type checker instead of re-deriving it at runtime.
     const failures = snapshot.modules
-      .filter((m) => m.criticality === "critical" && m.lifecycle.status !== "ready")
-      .map((m) => ({
-        name: m.name,
-        reasonCode: m.lifecycle.status === "ready" ? null : m.lifecycle.reasonCode,
-      }));
+      .filter(
+        (m): m is BootModuleResult & { lifecycle: Exclude<ModuleLifecycleStatus, { status: "ready" }> } =>
+          m.criticality === "critical" && m.lifecycle.status !== "ready"
+      )
+      .map((m) => ({ name: m.name, reasonCode: m.lifecycle.reasonCode }));
     res.status(503).json({ ready: false, failures, ...daemonField });
   });
 };
