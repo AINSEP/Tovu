@@ -47,12 +47,15 @@ import { pathToFileURL } from "node:url";
  * zero security value. `.db`/`.sqlite` files are NOT in that skip list and ARE scanned.
  *
  * ## Allowlist
- * A small, (file + pattern)-scoped allowlist (`ALLOWLIST` below) covers known, individually
- * verified-safe fixtures that legitimately share a real credential's shape — in practice this is
- * only ever needed for Google's fixed-length format (the other nine known fixtures are already
- * excluded by length, no allowlist needed) plus two pre-existing, already-confirmed-inert PEM
- * blobs. Scoping by (file, pattern name) — not just by file — means a real credential later added
- * to an allowlisted file under a DIFFERENT pattern is still caught.
+ * A small, (file + pattern + exact matched value)-scoped allowlist (`ALLOWLIST` below) covers
+ * known, individually verified-safe fixtures that legitimately share a real credential's shape —
+ * in practice this is only ever needed for Google's fixed-length format (the other nine known
+ * fixtures are already excluded by length, no allowlist needed) plus pre-existing,
+ * already-confirmed-inert PEM blobs. Scoping includes the exact matched VALUE, not just
+ * (file, pattern name): a real credential later added to an allowlisted file under a DIFFERENT
+ * pattern is still caught, and — the gap this used to have — so is a DIFFERENT real credential of
+ * the SAME pattern later added to that same file, since its matched text won't equal the
+ * allowlisted value.
  *
  * Usage: npx tsx apps/website/src/features/webhooks/secret-scan-guard.ts
  * Exit codes: 0 = no un-allowlisted credential-shaped string found in any tracked file. 1 = at
@@ -84,6 +87,12 @@ export interface SecretPattern {
 // literal three times.
 const PEM_PATTERN_NAME = "PEM private key block";
 
+// Built at runtime, matching __tests__/secret-scan-guard.test.ts's own PEM fixture technique: the
+// literal PEM header text, written whole, is itself a tracked credential-shaped string that this
+// file's own repo-wide scan would flag, so the two ALLOWLIST entries below reference this instead
+// of writing that text out directly.
+const PEM_HEADER_VALUE = ["-----BEGIN", "PRIVATE", "KEY-----"].join(" ");
+
 // Character classes intentionally match each vendor's real alphabet; see file header for why every
 // exact-length pattern is lookaround-anchored rather than a bare `{n}`.
 export const SECRET_PATTERNS: readonly SecretPattern[] = [
@@ -104,33 +113,40 @@ interface AllowlistEntry {
   /** Repo-root-relative path, forward slashes, matching how `git ls-files` reports it. */
   readonly file: string;
   readonly patternName: string;
+  /** The exact matched substring this entry covers. Required — see file header's Allowlist
+   *  section for why (file, patternName) alone is too broad. */
+  readonly value: string;
   readonly reason: string;
 }
 
 // Every entry here was individually verified NOT to be a real credential (2026-09-02 security
-// audit that shipped with this check) before being added. Scoped to (file, pattern) — see header.
+// audit that shipped with this check) before being added. Scoped to (file, pattern, value) — see
+// header.
 const ALLOWLIST: readonly AllowlistEntry[] = [
   {
     file: "development/e2e/byok-google-tool-schema.spec.ts",
     patternName: "Google API key (AIza)",
+    value: "AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-0000000000",
     reason:
-      "Synthetic FAKE_GEMINI_KEY fixture (44 chars, self-identifying 'Test-Fake' body) exceeds the real 39-char AIza length — see file header's exact-length-trap note for why this needs an explicit allowlist entry despite the lookaround anchor being correct.",
+      "Synthetic FAKE_GEMINI_KEY fixture (44 chars, self-identifying 'Test-Fake' body) exceeds the real 39-char AIza length — see file header's exact-length-trap note for why this needs an explicit allowlist entry despite the lookaround anchor being correct. (In practice this pattern's lookaround means this value never actually matches, since 44 valid-charset chars follow the AIza prefix; the entry is kept as documentation and a backstop.)",
   },
   {
     file: "apps/admin/.certs.disabled/localhost-key.pem",
     patternName: PEM_PATTERN_NAME,
+    value: PEM_HEADER_VALUE,
     reason:
       "mkcert-issued localhost dev TLS private key. Confirmed inert 2026-09-02: apps/admin/vite.config.ts reads from .certs/, not .certs.disabled/, and no tracked source references the .certs.disabled path. Throwaway, regenerable via `mkcert localhost 127.0.0.1 ::1`, not a real secret.",
   },
   {
     file: "ADS-memory/reports/swarm-consensus/offloads/2026-08-12-deploy/sonnet5-round3.md",
     patternName: PEM_PATTERN_NAME,
+    value: PEM_HEADER_VALUE,
     reason: "Design-report code sample explicitly labeled '(test fixture)' — not real key material.",
   },
 ];
 
-function isAllowlisted(file: string, patternName: string): boolean {
-  return ALLOWLIST.some((e) => e.file === file && e.patternName === patternName);
+export function isAllowlisted(file: string, patternName: string, value: string): boolean {
+  return ALLOWLIST.some((e) => e.file === file && e.patternName === patternName && e.value === value);
 }
 
 function listTrackedFiles(): string[] {
@@ -142,6 +158,10 @@ export interface SecretScanHit {
   readonly patternName: string;
   /** Character offset within the scanned text where the match starts. */
   readonly index: number;
+  /** The exact matched substring — the allowlist is scoped to this, not just (file, patternName),
+   *  so a NEW different secret matching the same pattern in an already-allowlisted file is still
+   *  caught (see file header's Allowlist section). */
+  readonly value: string;
 }
 
 /** Core scanner, unit-testable directly against synthetic text (no filesystem, no git).
@@ -153,7 +173,7 @@ export function scanTextForSecrets(text: string): SecretScanHit[] {
     const re = new RegExp(pattern.source, flags);
     let match: RegExpExecArray | null;
     while ((match = re.exec(text)) !== null) {
-      hits.push({ patternName: name, index: match.index });
+      hits.push({ patternName: name, index: match.index, value: match[0] });
       if (match[0].length === 0) re.lastIndex += 1; // guard against zero-length matches looping
     }
   }
@@ -197,7 +217,7 @@ export function scanRepoForSecrets(): SecretScanViolation[] {
     const text = buf.toString("latin1");
 
     for (const hit of scanTextForSecrets(text)) {
-      if (isAllowlisted(relFile, hit.patternName)) continue;
+      if (isAllowlisted(relFile, hit.patternName, hit.value)) continue;
       violations.push({
         file: relFile,
         patternName: hit.patternName,
@@ -224,8 +244,8 @@ function main(): void {
     "\nA credential-shaped string was found in a tracked file. If it is real: revoke/rotate it " +
       "immediately, then remove it from the file (a history rewrite is a separate, human-approved " +
       "step — this check cannot and does not do that). If it is a fixture that legitimately needs " +
-      "this shape, add a (file, pattern)-scoped ALLOWLIST entry in secret-scan-guard.ts with a " +
-      "reason, or — preferably — shorten/mutate the fixture so it no longer matches a real " +
+      "this shape, add a (file, pattern, exact-value)-scoped ALLOWLIST entry in secret-scan-guard.ts " +
+      "with a reason, or — preferably — shorten/mutate the fixture so it no longer matches a real " +
       "credential's exact length.",
   );
   process.exit(1);

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { scanTextForSecrets, scanRepoForSecrets } from "../secret-scan-guard.js";
+import { scanTextForSecrets, scanRepoForSecrets, isAllowlisted } from "../secret-scan-guard.js";
 
 /**
  * @file Two things, matching `seal-aad-invariant.test.ts`'s own split (see that file for why):
@@ -105,5 +105,37 @@ test("REGRESSION: the real tracked repo has zero un-allowlisted credential-shape
     violations,
     [],
     `expected zero credential-shaped strings in tracked files, got: ${JSON.stringify(violations, null, 2)}`,
+  );
+});
+
+/**
+ * @file (continued) The two tests below close a gap a Codex adversarial review found on
+ * 2026-09-03: `isAllowlisted` used to key only on (file, patternName). Once a file was allowlisted
+ * for a pattern, ANY string matching that pattern anywhere in that file was silently allowed —
+ * including a genuinely different, real secret added later. It now also requires the exact matched
+ * value to equal the allowlisted one.
+ */
+
+test("ALLOWLIST SCOPING: the exact reviewed fixture value in its allowlisted (file, pattern) pair IS allowlisted", () => {
+  assert.equal(
+    isAllowlisted(
+      "development/e2e/byok-google-tool-schema.spec.ts",
+      "Google API key (AIza)",
+      "AIzaTest-FAKE-GEMINI-KEY-NOT-REAL-0000000000",
+    ),
+    true,
+  );
+});
+
+test("ALLOWLIST SCOPING: a DIFFERENT value matching the same allowlisted (file, pattern) pair is NOT allowlisted", () => {
+  // This is the exact gap the old (file, patternName)-only scoping had: a real credential added
+  // later to an already-allowlisted file, matching the same pattern, used to pass silently.
+  assert.equal(
+    isAllowlisted(
+      "development/e2e/byok-google-tool-schema.spec.ts",
+      "Google API key (AIza)",
+      "TOTALLY-DIFFERENT-VALUE-THAT-IS-NOT-THE-REVIEWED-FIXTURE",
+    ),
+    false,
   );
 });
