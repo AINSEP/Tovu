@@ -77,6 +77,21 @@ test("multiple workspace rows, no selector: resolveWorkspace returns the OLDEST 
   }
 });
 
+test("multiple workspace rows, tie in createdAt: resolveWorkspace breaks ties by id", () => {
+  const db = openContentDb(":memory:");
+  db.insert(workspaces).values({ id: "ws-z", name: "Z", slug: "z", createdAt: "2026-07-28T00:00:00.000Z" }).run();
+  db.insert(workspaces).values({ id: "ws-a", name: "A", slug: "a", createdAt: "2026-07-28T00:00:00.000Z" }).run();
+
+  const originalWarn = console.warn;
+  console.warn = () => {};
+  try {
+    const resolved = resolveWorkspace({ db });
+    assert.equal(resolved.id, "ws-a", "when createdAt is tied, id comparison breaks tie deterministically");
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test("multiple workspace rows, explicit workspaceId: resolveWorkspace returns the matching row even when it is not the oldest", () => {
   const db = openContentDb(":memory:");
   db.insert(workspaces).values({ id: "ws-older", name: "Older", slug: "older", createdAt: "2026-07-28T00:00:00.000Z" }).run();
