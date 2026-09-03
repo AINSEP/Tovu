@@ -87,7 +87,7 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
         parts.unshift(terminal);
         break;
       }
-      const parent = current.parentElement;
+      const parent: Element | null = current.parentElement;
       if (!parent) {
         parts.unshift(current.tagName.toLowerCase());
         break;
