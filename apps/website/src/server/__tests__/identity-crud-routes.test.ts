@@ -309,6 +309,11 @@ test("AC-01 (route-parity): every new mutating route requires authentication (40
     ["PATCH", "/api/admin/v1/workspaces/workspace-local/policies/some-id"],
     ["DELETE", "/api/admin/v1/workspaces/workspace-local/policies/some-id"],
     ["POST", "/api/admin/v1/workspaces/workspace-local/policies/some-id/permissions"],
+    // ASSIGN_ROLE/ATTACH_POLICY were missing from this route-parity list (coverage-gap sweep,
+    // 2026-09-03) despite being the two RBAC-grant-writing routes in this file — added so an
+    // authentication regression on either is caught here, not just by their own suites.
+    ["POST", "/api/admin/v1/workspaces/workspace-local/users/some-id/roles"],
+    ["POST", "/api/admin/v1/workspaces/workspace-local/users/some-id/policies"],
   ];
 
   for (const [method, path] of routes) {
