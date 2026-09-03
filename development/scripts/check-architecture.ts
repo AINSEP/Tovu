@@ -119,11 +119,10 @@ function roundPct(value: number): number {
  * "the actual defect" (an import reaching into `src/server/**` from outside it), which is a
  * structural coupling violation in the same family as propagation cost and module cycles.
  *
- * Flip `ENFORCE_HARD_CONSTRAINT_TIERS` to `true` to make only `HARD_CONSTRAINT_METRICS` able to
- * fail the build; a `RATCHET_METRICS` regression then prints as a non-blocking WARNING instead
- * of failing. Left `false`, every metric below is equally load-bearing — today's behavior,
- * unchanged, so turning tiers on is an explicit opt-in rather than a silent side effect of this
- * change.
+ * `ENFORCE_HARD_CONSTRAINT_TIERS` gates this: `true` makes only `HARD_CONSTRAINT_METRICS` able to
+ * fail the build, with a `RATCHET_METRICS` regression printing as a non-blocking WARNING instead
+ * of failing. `false` makes every metric below equally load-bearing, with no WARNING tier. See the
+ * comment below for why this is turned on.
  */
 /**
  * TURNED ON 2026-08-19, and the two sets below were SWAPPED at the same time, because a day of
@@ -839,8 +838,8 @@ function main(): void {
   const regressed = checks.filter((c) => c.verdict === "regressed");
   const improved = checks.filter((c) => c.verdict === "improved");
 
-  // Under ENFORCE_HARD_CONSTRAINT_TIERS=false (today's default) these are identical to
-  // `regressed`/`cyclesRegressed` — nothing here changes gating unless the owner opts in.
+  // ENFORCE_HARD_CONSTRAINT_TIERS is true (today's default, since 2026-08-19). If it were false,
+  // these would be identical to `regressed`/`cyclesRegressed` — every metric blocking, no WARNING tier.
   const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
   const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
   const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
