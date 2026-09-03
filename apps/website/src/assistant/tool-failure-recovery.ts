@@ -424,7 +424,7 @@ async function collectRecoveryDecision(input: {
  *  fields plus, when one was asked for and answered, the human's own value under that field's key —
  *  never anything else from the delivered surface response (see this file's header, "What it never
  *  does"). */
-function buildRemedyInput(plan: RemedyPlan, decision: RecoveryDecision): Record<string, unknown> {
+function buildRemedyInput(plan: RemedyPlan, decision: Extract<RecoveryDecision, { proceed: true }>): Record<string, unknown> {
   const remedyInput: Record<string, unknown> = { ...plan.carryForward };
   if (plan.askFor && decision.answerValue !== undefined) remedyInput[plan.askFor.key] = decision.answerValue;
   return remedyInput;
