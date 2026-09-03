@@ -73,6 +73,26 @@ describe("AdminExecutionMode — useAdminExecutionCredentialHook injection", () 
     expect(screen.getByText(/We found a saved key in this browser/)).toBeInTheDocument();
   });
 
+  it("mounts BOTH save footers into the REAL ExecutionTab slots when BYOK mode is selected", () => {
+    // The real composition, not a replica: `AdminByokKeyFooter` and `AdminByokSettingsFooter` are
+    // handed to `@jini-ai/ui`'s `ExecutionTab` as `apiKeyFooter`/`formFooter`, and `ExecutionTab`
+    // forwards them to `ByokProviderForm`'s two slots. A unit test of either footer alone would pass
+    // with the prop never wired through — this is what proves the pass-through exists at both hops.
+    //
+    // `mode: "byok"` because the default is `local-cli`, which renders the CLI grid and no card.
+    render(
+      <AdminExecutionMode
+        useAdminExecutionModeHook={() =>
+          fakeExecutionModeController({ execution: makeSlice<ExecutionConfig>({ ...DEFAULT_EXECUTION_CONFIG, mode: "byok" }) })
+        }
+        useAdminExecutionCredentialHook={() => fakeAdminExecutionCredentialController()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Save key" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save settings" })).toBeInTheDocument();
+  });
+
   it("still renders normally when the credential hook is left at its default", () => {
     render(<AdminExecutionMode useAdminExecutionModeHook={() => fakeExecutionModeController()} />);
     // No migration prompt (nothing to fake a legacy key with), but the execution form itself renders.
