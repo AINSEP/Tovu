@@ -11,25 +11,41 @@ type ExistingCampaign = NonNullable<Awaited<ReturnType<NewsletterCampaignRepoPor
 const CAMPAIGN_STRING_FIELD_NAMES = ["subject", "preheader", "fromName", "fromEmail", "replyTo", "listId"] as const;
 
 /**
- * Validates the PATCH body: each of `CAMPAIGN_STRING_FIELD_NAMES` must be a string when present,
- * `bodyJson` (see the module doc's disclosed gap) must be a non-null object when present, and
- * `expectedVersion` (EC-06) must be a non-negative integer when present. Every field is optional —
- * this is a partial update, and `expectedVersion`'s absence specifically means "skip the
- * optimistic-concurrency check" per `saveCampaign`'s own contract. Returns the first violation's
- * message, or `null`.
+ * Checks that each of `CAMPAIGN_STRING_FIELD_NAMES` is a string when present. Returns the first
+ * violation's message, or `null`.
  *
- * @complexity O(1) — iterates a fixed 6-entry field list plus two additional fixed checks.
+ * @complexity O(1) — iterates a fixed 6-entry field list.
  */
-function validateCampaignPatchBody(body: Record<string, unknown>): string | null {
+function findInvalidStringField(body: Record<string, unknown>): string | null {
   for (const name of CAMPAIGN_STRING_FIELD_NAMES) {
     const value = body[name];
     if (value !== undefined && typeof value !== "string") {
       return `${name} must be a string when provided`;
     }
   }
+  return null;
+}
+
+/**
+ * Checks that `bodyJson` (see the module doc's disclosed gap) is a non-null object when present.
+ *
+ * @complexity O(1).
+ */
+function validateBodyJsonField(body: Record<string, unknown>): string | null {
   if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null)) {
     return "bodyJson must be an object when provided";
   }
+  return null;
+}
+
+/**
+ * Checks that `expectedVersion` (EC-06) is a non-negative integer when present.
+ * `expectedVersion`'s absence specifically means "skip the optimistic-concurrency check" per
+ * `saveCampaign`'s own contract.
+ *
+ * @complexity O(1).
+ */
+function validateExpectedVersionField(body: Record<string, unknown>): string | null {
   if (
     body.expectedVersion !== undefined &&
     (typeof body.expectedVersion !== "number" || !Number.isInteger(body.expectedVersion) || body.expectedVersion < 0)
@@ -37,6 +53,16 @@ function validateCampaignPatchBody(body: Record<string, unknown>): string | null
     return "expectedVersion must be a non-negative integer when provided";
   }
   return null;
+}
+
+/**
+ * Validates the PATCH body by running the field validators in order and returning the first
+ * violation's message, or `null`. Every field is optional — this is a partial update.
+ *
+ * @complexity O(1) — delegates to three fixed-cost validators.
+ */
+function validateCampaignPatchBody(body: Record<string, unknown>): string | null {
+  return findInvalidStringField(body) ?? validateBodyJsonField(body) ?? validateExpectedVersionField(body);
 }
 
 /**
