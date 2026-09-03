@@ -796,10 +796,26 @@ function sealerThatOpensAFutureSchemaVersion(inner: SecretSealerPort): SecretSea
 
 /** A keyring with no active key. Only `activeKey()` breaks: `AesGcmSecretSealer.open` re-derives
  *  from `sealed.keyId` via `derive()`, so reads keep working and the ONLY failing step is the
- *  re-seal. */
+ *  re-seal. Never recovers — models a sustained outage, not a blip. */
 function keyringWithNoActiveKey(inner: KeyringPort): KeyringPort {
   return {
     activeKey: () => Promise.reject(new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set")),
+    deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
+    derive: (input) => inner.derive(input),
+  };
+}
+
+/** Like {@link keyringWithNoActiveKey}, but `activeKey()` only rejects `failures` times and then
+ *  defers to the real keyring — a blip the clear-token retry is meant to ride out, not a sustained
+ *  outage. */
+function keyringWhoseActiveKeyFailsThenRecovers(inner: KeyringPort, failures: number): KeyringPort {
+  let calls = 0;
+  return {
+    activeKey: () => {
+      calls += 1;
+      if (calls <= failures) return Promise.reject(new Error("TOVU_INTEGRATIONS_ROOT_KEY is not set"));
+      return inner.activeKey();
+    },
     deriveSigningSecret: (input) => inner.deriveSigningSecret(input),
     derive: (input) => inner.derive(input),
   };
@@ -857,21 +873,41 @@ test("disconnect still clears an UNOPENABLE blob and reaches disconnected — a 
   );
 });
 
-test("disconnect does NOT wipe the client secret when only the KEYRING re-seal leg fails — the secret was just read successfully", async () => {
+test("a re-seal that fails once and then recovers is retried transparently — the clear still succeeds", async () => {
   const base = await makeHarness({ script: CONNECTED_SCRIPT });
   await connect(base.service);
-  // The sealer stays real, so the blob OPENS: the only step that can fail is the re-seal. Unlike
-  // `sealerThatCannotOpen` above, this is NOT "already unrecoverable" — the secret was just decrypted
-  // in this very call, so wholesale-nulling it would destroy something still known-good.
-  const service = serviceWithBrokenDependency(base, { keyring: keyringWithNoActiveKey(base.keyring) });
+  // Fails once, well inside the retry budget, then behaves like the real keyring.
+  const service = serviceWithBrokenDependency(base, { keyring: keyringWhoseActiveKeyFailsThenRecovers(base.keyring, 1) });
 
   await service.disconnect({ serverId: SERVER });
 
   const row = await readRow(base.repo);
   assert.equal(row.oauthStatus, "disconnected");
-  assert.notEqual(row.sealedOAuth, null, "a failed RE-seal must not destroy a secret this call proved it could still read");
   const payload = await openExternalMcpOAuthPayload(base.sealer, row);
-  assert.equal(payload.clientSecret, "s3cr3t", "the client secret must survive a transient re-seal failure");
+  assert.equal(payload.tokens, undefined, "a transient blip must not stop the token from actually being cleared once retried");
+  assert.equal(payload.clientSecret, "s3cr3t");
+});
+
+test("disconnect does NOT wipe the client secret when the KEYRING re-seal leg keeps failing, and surfaces the failure instead of reporting a false success", async () => {
+  const base = await makeHarness({ script: CONNECTED_SCRIPT });
+  await connect(base.service);
+  // The sealer stays real, so the blob OPENS: the only step that can fail is the re-seal. Unlike
+  // `sealerThatCannotOpen` above, this is NOT "already unrecoverable" — the secret was just decrypted
+  // in this very call, so wholesale-nulling it would destroy something still known-good. It never
+  // recovers, so the bounded retry exhausts and the failure must surface rather than be swallowed
+  // into a status update ("disconnected") the stored blob does not actually match.
+  const service = serviceWithBrokenDependency(base, { keyring: keyringWithNoActiveKey(base.keyring) });
+
+  await assert.rejects(
+    () => service.disconnect({ serverId: SERVER }),
+    (error: unknown) => error instanceof ExternalMcpSecretStoreUnconfiguredError,
+  );
+
+  const row = await readRow(base.repo);
+  assert.equal(row.oauthStatus, "connected", "a call that never wrote anything must not claim the row moved to disconnected");
+  const payload = await openExternalMcpOAuthPayload(base.sealer, row);
+  assert.equal(payload.clientSecret, "s3cr3t", "the client secret must survive an exhausted re-seal retry, same as a transient one");
+  assert.equal(payload.tokens?.accessToken, "at-1", "nothing was written, so the (still live) token is untouched too");
 });
 
 test("markNeedsReauth records the durable state even when the blob became unopenable mid-session", async () => {

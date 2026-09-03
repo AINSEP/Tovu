@@ -82,6 +82,16 @@ const CONNECT_TIMEOUT_MS = 15_000;
 const REFRESH_LEASE_MS = 45_000;
 
 /**
+ * Attempts `setOAuthStatus`'s clear-token re-seal is given before it gives up.
+ *
+ * Small and fixed, no backoff: a keyring write that fails because its active key briefly could not
+ * be resolved usually succeeds on the very next try, so this exists to smooth over that blip rather
+ * than to ride out a sustained outage — a re-seal still failing after this many immediate retries is
+ * treated as a real, reportable failure, not something to keep retrying indefinitely.
+ */
+const CLEAR_TOKEN_RESEAL_ATTEMPTS = 3;
+
+/**
  * The terminal, non-retryable failure a federated tool returns once its connection needs
  * re-authorization.
  *
@@ -658,12 +668,18 @@ async function setOAuthStatus(
   // (this is what keeps `markNeedsReauth`, `disconnect()`, and the device-poll terminal path from
   // wedging on a blob that is already dead). If OPEN succeeds but the RE-SEAL fails, the secret was
   // just read successfully — it is NOT lost, only the write-back (a transient keyring/active-key
-  // problem, say) failed. Wholesale-nulling in that case would destroy a secret this call proves is
-  // still recoverable, for a failure a retry may not even repeat. So a re-seal failure leaves
-  // `sealedOAuth` untouched instead: the row keeps its current blob, `clearToken` simply is not
-  // honored on THIS call, and the status change below still applies. Any OTHER error (a genuine bug,
-  // not an unopenable or unsealable blob) still propagates from either step — this is a documented,
-  // targeted degrade, not a blanket swallow.
+  // problem, say) failed, so it is retried a few times — bounded, no backoff — before giving up.
+  // Wholesale-nulling would destroy a secret this call proves is still recoverable, so it is never the
+  // outcome here; but silently leaving `sealedOAuth` untouched and reporting success would leave the
+  // row's `oauthStatus` claiming a state (e.g. `disconnected`) the stored blob does not actually match,
+  // with nothing to say so. So once the retry budget is exhausted, this rethrows instead: each of this
+  // function's callers already has a place that reacts to `ExternalMcpSecretStoreUnconfiguredError`
+  // without inventing a new one — `disconnect()`'s admin route already maps it to a 503
+  // `SECRET_STORE_UNCONFIGURED`, `reportAuthFailure` already carries an unexpected `setOAuthStatus`
+  // failure as `cause` on its terminal error, and `markNeedsReauth`'s only path (a stale refresh,
+  // resolved at boot) already folds any resolution failure into the reason string an operator sees in
+  // the admin tab's boot report. Any OTHER error (a genuine bug, not an unopenable or unsealable blob)
+  // still propagates from either step — this is a documented, targeted degrade, not a blanket swallow.
   let cleared: Awaited<ReturnType<typeof sealExternalMcpOAuthPayload>> | null = null;
   let clearedWholesale = false;
   if (options.clearToken === true) {
@@ -675,17 +691,15 @@ async function setOAuthStatus(
       clearedWholesale = true;
     }
     if (existing !== undefined) {
-      try {
-        cleared = await sealExternalMcpOAuthPayload(
-          deps,
-          record,
-          existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret },
-        );
-      } catch (error) {
-        if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
-        // Deliberately no fallback here — see the block comment above: the secret is known-good, so
-        // leaving `sealedOAuth` out of the upsert (the `{}` branch below) is the non-destructive
-        // outcome, not `clearedWholesale`.
+      const clientSecret = existing.clientSecret === undefined ? {} : { clientSecret: existing.clientSecret };
+      for (let attempt = 1; ; attempt += 1) {
+        try {
+          cleared = await sealExternalMcpOAuthPayload(deps, record, clientSecret);
+          break;
+        } catch (error) {
+          if (!(error instanceof ExternalMcpSecretStoreUnconfiguredError)) throw error;
+          if (attempt >= CLEAR_TOKEN_RESEAL_ATTEMPTS) throw error;
+        }
       }
     }
   }
