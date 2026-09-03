@@ -1798,14 +1798,25 @@ function renderWidgetPlaceholder(): string {
  * normalized to each render function's `number | null` / `string | null` contract before
  * delegating, same "own it once, reuse everywhere" split `renderImageTag`'s own doc describes.
  */
+/** Shape-narrows `renderWidgetMediaImage`'s optional sizing/class props from raw `JsonValue` to each
+ *  render function's own `number | null` / `string | null` contract — pulled out so this one
+ *  three-field narrowing step stops being three of `renderWidgetMediaImage`'s own branches (complexity-
+ *  debt sweep, 2026-09-03; that function was at cyclomatic 11 against this repo's 9 ceiling). No
+ *  behavior change: same "wrong-typed value degrades to null, never a lie" rule as before. */
+function normalizeMediaDimensions(props: JsonObject): { width: number | null; height: number | null; cssClass: string | null } {
+  return {
+    width: typeof props.width === "number" ? props.width : null,
+    height: typeof props.height === "number" ? props.height : null,
+    cssClass: typeof props.cssClass === "string" ? props.cssClass : null,
+  };
+}
+
 function renderWidgetMediaImage(props: JsonObject): string {
   const assetId = props.assetId;
   if (typeof assetId !== "string" || !isPlausibleMediaRefId(assetId)) {
     return renderWidgetPlaceholder();
   }
-  const width = typeof props.width === "number" ? props.width : null;
-  const height = typeof props.height === "number" ? props.height : null;
-  const cssClass = typeof props.cssClass === "string" ? props.cssClass : null;
+  const { width, height, cssClass } = normalizeMediaDimensions(props);
   const alt = str(props.alt);
 
   if (typeof props.contentType === "string" && props.contentType.startsWith("video/")) {

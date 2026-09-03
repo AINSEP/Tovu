@@ -1398,6 +1398,51 @@ test("decodeFormSubmissionResultFromQuery: malformed/hostile query input degrade
   assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors.length : -1, 20);
 });
 
+test("decodeFormSubmissionResultFromQuery -> injectFormSubmissionResultIntoHtml: a hand-crafted hostile form_errors query value round-trips as raw text and is only ever escaped at the HTML sink, never double-escaped or left raw", () => {
+  // Simulates an attacker hitting a page directly with a hand-crafted `form_errors` query string
+  // (not one this app's own redirect produced) whose `reason` carries an HTML-breaking payload, and
+  // whose `field` carries a lookalike-but-wrong name — this exercises readFieldErrorsFromQuery's
+  // JSON.parse path end-to-end through injectFormSubmissionResultIntoHtml's actual HTML sink,
+  // instead of constructing the already-parsed { field, reason } object directly as the tests above
+  // do.
+  const html = renderWidgetIr({
+    componentId: "contact-form",
+    props: {
+      slug: "contact",
+      fields: [{ id: "email", label: "Email", type: "email", required: true }],
+      successMessage: null,
+    },
+  });
+
+  const hostileReason = '"><script>alert(1)</script>';
+  const query = {
+    form: "contact",
+    form_status: "validation",
+    form_errors: JSON.stringify([
+      { field: "email", reason: hostileReason },
+      { field: "__proto__", reason: "should never match any real field slot" },
+      { field: "no-such-field", reason: "stale/forged field name is a silent no-op" },
+    ]),
+  };
+
+  const decoded = decodeFormSubmissionResultFromQuery(query);
+  assert.equal(decoded?.kind, "validation");
+  // Decoded value is the RAW, unescaped string — proves this module's own "escape at the sink, not
+  // at the decode boundary" rule, not merely that the final HTML happens to be safe.
+  assert.equal(decoded?.kind === "validation" ? decoded.fieldErrors[0]?.reason : undefined, hostileReason);
+  // `__proto__` as a field name is read as a plain data property, never used to write through an
+  // object's prototype — Object.prototype itself is untouched by decoding this query.
+  assert.equal(Object.prototype.hasOwnProperty.call({}, "polluted"), false);
+
+  const updated = injectFormSubmissionResultIntoHtml(html, decoded);
+  assert.doesNotMatch(updated, /<script>alert\(1\)<\/script>/, "the hostile reason must never reach the response as live markup");
+  assert.match(
+    updated,
+    /<div class="widget-form-field-error" data-field="email" id="widget-contact-email-error">&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/div>/,
+    "the email field's error slot must show the reason, HTML-escaped"
+  );
+});
+
 // ---------------------------------------------------------------------------
 // Validation flash cookie (2026-08-31 field-wipe fix) — OPEN BUG B from the 2026-08-31 handoff: a
 // failed validation used to wipe EVERY typed value, not just the invalid field, because PRG's fresh
@@ -1753,6 +1798,29 @@ test("renderSite (Slice 2, media): a malformed media-image IR (missing assetId �
   });
 
   assert.doesNotMatch(html, /<img/);
+  assert.match(html, /widget-placeholder/);
+});
+
+test("renderSite (Slice 2, media): a valid assetId with no resolvable transformName (non-video) degrades to the placeholder rather than a malformed <img> — the branch normalizeMediaDimensions's extraction left in renderWidgetMediaImage, not covered by the missing-assetId case above", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
+
+  const html = await renderSite({
+    theme,
+    route: "post",
+    siteTitle: "T",
+    posts: [post],
+    post,
+    pageHtmlEmbeds: htmlEmbeds({
+      // assetId is valid and present; transformName/version are absent and contentType is not "video/*"
+      // — must still fall through to the placeholder, not throw or emit a malformed /m/ URL.
+      media: new Map([["asset-1", { componentId: "media-image", props: { assetId: "asset-1", alt: "x" } }]]),
+    }),
+  });
+
+  assert.doesNotMatch(html, /<img/);
+  assert.doesNotMatch(html, /<video/);
   assert.match(html, /widget-placeholder/);
 });
 

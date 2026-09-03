@@ -253,6 +253,24 @@ function queryStringValue(value: unknown): string {
  *  hitting a page directly with a hand-crafted query string, not only via our own redirect.
  * @complexity O(n) in the decoded array's length, itself capped at {@link FORM_RESULT_MAX_FIELD_ERRORS}
  * before this function ever sees it. */
+/** Shape-narrows ONE decoded `form_errors` array entry to a `{field, reason}` pair, or `null` when it
+ *  isn't one — split out of {@link readFieldErrorsFromQuery}'s own loop body (complexity-debt sweep,
+ *  2026-09-03; that function was at cyclomatic 10 / cognitive 12 against this repo's 9 ceilings) so
+ *  the per-entry decode decision is its own unit instead of four of the loop's own branches. Same
+ *  untrusted-input discipline as before: a non-object entry, or one with no non-empty `field`, is
+ *  simply skipped by the caller — never a thrown error. Neither `field` nor `reason` is escaped here;
+ *  both remain raw decoded strings until they reach an actual HTML sink ({@link showFieldErrors}),
+ *  same "escape at the sink, not at the boundary" rule every other query/cookie decoder in this file
+ *  follows.
+ * @complexity O(1). */
+function parseFieldErrorEntry(entry: unknown): { field: string; reason: string } | null {
+  const o = isPlainObject(entry) ? entry : undefined;
+  const field = o ? queryStringValue(o.field) : "";
+  if (!field) return null;
+  const reason = o ? queryStringValue(o.reason) : "";
+  return { field: field.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN), reason: reason.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN) };
+}
+
 function readFieldErrorsFromQuery(raw: unknown): Array<{ field: string; reason: string }> {
   const rawString = queryStringValue(raw);
   if (!rawString || rawString.length > FORM_RESULT_MAX_FIELD_STRING_LEN * FORM_RESULT_MAX_FIELD_ERRORS) return [];
@@ -265,11 +283,8 @@ function readFieldErrorsFromQuery(raw: unknown): Array<{ field: string; reason: 
   if (!Array.isArray(parsed)) return [];
   const errors: Array<{ field: string; reason: string }> = [];
   for (const entry of parsed.slice(0, FORM_RESULT_MAX_FIELD_ERRORS)) {
-    const o = isPlainObject(entry) ? entry : undefined;
-    const field = o ? queryStringValue(o.field) : "";
-    if (!field) continue;
-    const reason = o ? queryStringValue(o.reason) : "";
-    errors.push({ field: field.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN), reason: reason.slice(0, FORM_RESULT_MAX_FIELD_STRING_LEN) });
+    const parsedEntry = parseFieldErrorEntry(entry);
+    if (parsedEntry) errors.push(parsedEntry);
   }
   return errors;
 }

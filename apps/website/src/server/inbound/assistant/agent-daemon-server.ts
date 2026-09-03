@@ -718,22 +718,39 @@ const onStarted: RunStartHandler = ({ request, run, lifecycle: runLifecycle }) =
       if (pluginPromptPrefix === null) return;
       prompt = assemblePromptWithPluginPrefix(prompt, pluginPromptPrefix);
 
-      const agentId = request.agentId ?? DEFAULT_AGENT_ID;
-      // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
-      // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
-      // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
-      // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
-      // makes `resolveResumeSessionField` a no-op below, so this run then starts cold rather than
-      // this handler minting a session id itself.
-      const storedSessionId =
-        conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
-      // The H2 fix: refusing to resume when another run for this conversation is already live
-      // means at most one process ever holds `--resume <id>` for that CLI session at a time,
-      // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
-      // two runs' `end` events can still race each other for the store's last write — see
-      // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
-      // tracker needs no special handling across a daemon restart.
-      const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun(conversationId, run.id);
+      // Extracted as its own function (complexity-debt sweep, 2026-09-03 — this handler's async
+      // continuation was at cyclomatic 11 against this repo's 9 ceiling) so `onStarted`'s own branch
+      // count reflects sequencing, not this defaulting decision's own branches. Declared and called
+      // right here, inline, rather than hoisted to module scope: this file's own wiring test
+      // (`agent-daemon-server.session-resume-wiring.unit.test.ts`, which proves ordering by reading
+      // this file's raw SOURCE, not by importing it — see that file's own doc for why) asserts that
+      // `routeDeps.agentSessions.getSessionId(`/`liveRunTracker.hasConcurrentLiveRun(` appear, in
+      // this relative order, strictly before `agentExecutor.run` below; keeping this function's body
+      // here instead of moving it elsewhere in the module preserves that ordering byte-for-byte.
+      async function resolveSessionResumeState(): Promise<{
+        readonly agentId: string;
+        readonly storedSessionId: string | null;
+        readonly hasConcurrentLiveRun: boolean;
+      }> {
+        const agentId = request.agentId ?? DEFAULT_AGENT_ID;
+        // Resolved AFTER attachments/prompt, same "no ordering dependency either way" reasoning as
+        // the plugin prefix above. Looked up unconditionally (unlike before the H2-context-loss fix
+        // below, which needs to know whether a session exists even when `hasConcurrentLiveRun` will
+        // refuse to use it) — `null` (no conversationId at all, or nothing on record yet) is what
+        // makes `resolveResumeSessionField` a no-op below, so this run then starts cold rather than
+        // this handler minting a session id itself.
+        const storedSessionId =
+          conversationId !== undefined ? await routeDeps.agentSessions.getSessionId(conversationId, agentId) : null;
+        // The H2 fix: refusing to resume when another run for this conversation is already live
+        // means at most one process ever holds `--resume <id>` for that CLI session at a time,
+        // closing the two-live-`--resume`-processes-on-one-transcript-file hazard even though the
+        // two runs' `end` events can still race each other for the store's last write — see
+        // `agent-run-concurrency.ts`'s own module doc for the full reasoning and why an in-process
+        // tracker needs no special handling across a daemon restart.
+        const hasConcurrentLiveRun = conversationId !== undefined && liveRunTracker.hasConcurrentLiveRun(conversationId, run.id);
+        return { agentId, storedSessionId, hasConcurrentLiveRun };
+      }
+      const { agentId, storedSessionId, hasConcurrentLiveRun } = await resolveSessionResumeState();
 
       // H2-context-loss fix: H2 alone silently drops conversation history for a
       // `carriesOwnMemory` agent — see `wouldForcedColdStartLoseConversationContext`'s own doc for
