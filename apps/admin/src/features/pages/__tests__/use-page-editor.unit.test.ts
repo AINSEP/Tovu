@@ -229,7 +229,10 @@ describe("dirty (the F07 regression: metadata-only edits used to be invisible)",
     const page = { ...HTML_PAGE, bodyHtml: "<h2>A</h2><p>B</p>" };
     const { result } = await mountLoaded("landing", page);
     expect(result.current.dirty).toBe(false);
-    expect(result.current.view).toBe("preview");
+    // "visual" since the 2026-09-02 tab merge — this used to be "preview", the same default surface
+    // under its old name. What this test is actually about (the HTML tab's reformat never marking
+    // the page dirty) is unchanged; it just needs to start from a tab that is not "html".
+    expect(result.current.view).toBe("visual");
 
     act(() => {
       result.current.setView("html");
@@ -601,5 +604,78 @@ describe("frameRef / paneWidth (preview-scale regression — frame mounts after 
     });
 
     expect(result.current.paneWidth).toBe(1131);
+  });
+});
+
+/**
+ * Merged Visual tab (2026-09-02) — "Interactive" and "Preview" collapsed into one tab whose Edit
+ * toggle picks which renderer mounts. The controller owns three new pieces of state for it, and the
+ * defaults are the product decision: the tab opens in EDIT mode (inline editing is why the surface
+ * exists at all) against the theme's default colour mode (which is what the page actually publishes
+ * as — `curl localhost:3000/<slug>` returns `<html data-theme="dark">` for every shipped theme).
+ */
+describe("merged Visual tab state (tab merge, 2026-09-02)", () => {
+  function fakeDeps(page: unknown) {
+    return {
+      port: createFakePageEditorPort({
+        page: page as Parameters<typeof createFakePageEditorPort>[0]["page"],
+      }),
+      themeCanvasPort: createFakeThemeCanvasPort(),
+      navigate: vi.fn(),
+      t: (locale: string, key: string) => `${locale}:${key}`,
+      locale: "en",
+    };
+  }
+
+  it("opens on the Visual tab, in edit mode, in the theme's default colour mode", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", fakeDeps(HTML_PAGE)));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    expect(result.current.view).toBe("visual");
+    expect(result.current.editing).toBe(true);
+    expect(result.current.themeMode).toBe("dark");
+  });
+
+  it("setEditing flips between the canvas and the iframe preview without touching the view", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", fakeDeps(HTML_PAGE)));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setEditing(false));
+    expect(result.current.editing).toBe(false);
+    expect(result.current.view).toBe("visual");
+
+    act(() => result.current.setEditing(true));
+    expect(result.current.editing).toBe(true);
+  });
+
+  it("setThemeMode records the operator's colour choice", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", fakeDeps(HTML_PAGE)));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setThemeMode("light"));
+    expect(result.current.themeMode).toBe("light");
+  });
+
+  // The HTML tab's pretty-print effect fires on the transition INTO "html". That effect keys off the
+  // view name, so renaming "preview" to "visual" must not have broken it.
+  it("still pretty-prints on the transition into the HTML tab", async () => {
+    const { result } = renderHook(() => usePageEditor("landing", fakeDeps(HTML_PAGE)));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => result.current.setHtml("<div><p>hi</p></div>"));
+    act(() => result.current.setView("html"));
+
+    expect(result.current.draftHtml).toContain("\n");
+    expect(result.current.dirty).toBe(true);
+  });
+
+  // `PageEditor.tsx` renders copy through a translator bound once by this hook, the same shape
+  // `usePostEditor` hands `PostEditor.tsx` — so the component never imports `useAdminLocale` itself.
+  it("exposes a translator already bound to the injected locale", async () => {
+    const deps = fakeDeps(HTML_PAGE);
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    expect(result.current.t("Visual")).toBe("en:Visual");
   });
 });

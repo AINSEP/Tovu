@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { AdminPost } from "@/lib/api";
+import type { Translate } from "@/lib/dictionary-translator";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../page-editor-i18n";
@@ -13,6 +14,7 @@ import type { ThemeCanvasPort } from "./theme-canvas-port.hooks";
 import {
   resolveCanvasTemplateChoice,
   useThemeCanvasStyling,
+  type ThemeCanvasMode,
   type ThemeCanvasStylingState,
 } from "./use-theme-canvas-styling.hooks";
 
@@ -32,11 +34,23 @@ import {
  * string is what gets injected, not the hook reference; see that function's own doc.
  */
 
-/** The three things the editor's main pane can show. Preview is the default — the HTML source is
- *  for when the operator wants to see or hand-edit what the assistant produced, and Interactive is
- *  a GrapesJS-backed surface for clicking into rendered text and editing it in place (text editing
- *  and basic formatting only — see `@jini-ai/admin/react`'s `InteractiveHtmlEditor`). */
-export type PageEditorView = "preview" | "html" | "interactive";
+/**
+ * The two things the editor's main pane can show. `visual` is the default.
+ *
+ * **Tab merge (2026-09-02).** This used to be three: `preview`, `interactive` and `html`. The first
+ * two are now one `visual` tab whose {@link PageEditorController.editing} flag picks the renderer —
+ * the GrapesJS canvas when on, the full-chrome iframe when off. They merged because they had stopped
+ * differing in the way tabs are supposed to differ: since `75970524` gave the canvas the same
+ * `page-shell.html` wrapper the live render got in `ed1dd2e9`, both surfaces render the identical
+ * `<main><article>` chain, the same 720px column and the same card grid inside the content area. Two
+ * tabs for "the same content region, one of them typeable" is a mode, not a view.
+ *
+ * What still genuinely differs is kept, not merged: the preview renderer draws the page's real
+ * chrome (nav, footer) by iframing the published route, and the canvas draws only the editable
+ * content region. That is deliberate — nobody should inline-edit the site nav — which is exactly why
+ * this is an Edit toggle over two renderers rather than one renderer that grew an editable mode.
+ */
+export type PageEditorView = "visual" | "html";
 
 /**
  * Viewport widths the preview renders AT, independent of how much room the pane actually has.
@@ -87,6 +101,33 @@ export interface PageEditorController {
   setDraftHtml: (value: string) => void;
   view: PageEditorView;
   setView: (value: PageEditorView) => void;
+  /**
+   * Which renderer the merged `visual` tab mounts: the GrapesJS canvas when `true`, the full-chrome
+   * iframe preview when `false`. Defaults to `true` — inline editing is the reason that surface
+   * exists, so the tab opens ready to type rather than needing a click first.
+   *
+   * Independent of {@link PageEditorController.view} rather than folded back into it, so switching
+   * to the HTML tab and back returns the operator to the mode they were in. Meaningless while
+   * `view === "html"`, where neither renderer is mounted.
+   */
+  editing: boolean;
+  setEditing: (value: boolean) => void;
+  /**
+   * Which of the active theme's two token sets the editing canvas renders against — see
+   * {@link ThemeCanvasMode}. Defaults to `"dark"`, the default set, which is what the page actually
+   * publishes as (`curl localhost:3000/<slug>` returns `<html data-theme="dark">`, and every shipped
+   * theme's `theme.json` declares `defaultMode: "dark"`).
+   *
+   * Canvas only. The preview renderer iframes a cross-origin document in dev (`:5173` vs `:3000`)
+   * whose colour mode is decided by the site's own `theme-toggle.js` reading THAT origin's
+   * `localStorage["tovu-theme:relay"]` — which is why an operator who once clicked the site's own
+   * toggle sees a light preview beside a dark canvas for the same published page. The admin has no
+   * handle on that storage, so `PageEditor.tsx` hides this control in preview mode rather than
+   * offering a button that cannot act. Making the preview obey a chosen mode needs a mode override
+   * on the site's own render route, which is outside this feature.
+   */
+  themeMode: ThemeCanvasMode;
+  setThemeMode: (value: ThemeCanvasMode) => void;
   device: PagePreviewDevice;
   setDevice: (value: PagePreviewDevice) => void;
   /**
@@ -141,6 +182,11 @@ export interface PageEditorController {
   confirmingDelete: boolean;
   setConfirmingDelete: (value: boolean) => void;
   deleting: boolean;
+  /** Bound translator — `key` already resolved against the injected locale, so `PageEditor.tsx`
+   *  never imports `useAdminLocale`/`PAGE_EDITOR_DICT` itself. Same shape `usePostEditor` hands
+   *  `PostEditor.tsx` (`use-post-editor.hooks.ts`'s own `t`), which is this app's documented
+   *  preference over threading a locale to every call site (`lib/dictionary-translator.ts`). */
+  t: Translate;
 }
 
 export interface PageEditorDependencies {
@@ -188,7 +234,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   const [activeThemeApiVersion, setActiveThemeApiVersion] = useState<2 | undefined>(undefined);
   const [html, setHtml] = useState("");
   const [savedHtml, setSavedHtml] = useState("");
-  const [view, setView] = useState<PageEditorView>("preview");
+  const [view, setView] = useState<PageEditorView>("visual");
+  // Tab merge (2026-09-02) — see `editing`'s and `themeMode`'s docs on `PageEditorController` for why
+  // these two defaults are what they are.
+  const [editing, setEditing] = useState(true);
+  const [themeMode, setThemeMode] = useState<ThemeCanvasMode>("dark");
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -400,6 +450,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     activeThemeApiVersion,
     themeCanvasPort,
     resolveCanvasTemplateChoice(templateChoice, page?.bodyFormat ?? "doc"),
+    themeMode,
   );
 
   return {
@@ -421,6 +472,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     setDraftHtml,
     view,
     setView,
+    editing,
+    setEditing,
+    themeMode,
+    setThemeMode,
     device,
     setDevice,
     frameRef: setFrameNode,
@@ -443,6 +498,11 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     confirmingDelete,
     setConfirmingDelete,
     deleting,
+    // Bound here rather than in `useWiredPageEditor` so a test injecting its own `t`/`locale` (see
+    // `use-page-editor.unit.test.ts`'s `fakeDeps`) sees the same binding the real screen does.
+    // Rebuilt per render — a plain closure over two values, cheaper than the `useCallback` that
+    // would be needed to keep it stable, and nothing downstream uses it as a dependency.
+    t: (key: string) => t(locale, key),
   };
 }
 

@@ -1,6 +1,8 @@
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
+import { agentHandle } from "@jini-ai/agentic";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
+import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import {
   PAGE_PREVIEW_WIDTHS,
@@ -8,21 +10,32 @@ import {
   type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
+import type { ThemeCanvasMode, ThemeCanvasStylingState } from "./hooks/use-theme-canvas-styling.hooks";
 
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
  *
  * **There is no Tiptap here, and there never will be.** A Page is a bespoke HTML document; the
- * editing surfaces are the rendered preview, the raw HTML behind it, and — the "Interactive" tab —
- * a GrapesJS-backed visual surface for clicking into rendered text and editing it in place
- * (`@jini-ai/admin/react`'s `InteractiveHtmlEditor`). GrapesJS does not contradict the "no Tiptap"
- * invariant: it edits and exports raw HTML directly, `html`/`setHtml` above stay the single source
- * of truth, and there is no parallel structured-document format the way Tiptap's `bodyJson` would
- * be — text editing and basic formatting only this pass, not Gutenberg-style block manipulation.
- * Posts keep Tiptap in `features/posts/PostEditor.tsx`, which this screen replaces for `kind:
- * "page"` entries — that screen was previously reached for Pages too, differing only by a
+ * editing surfaces are the raw HTML tab and — the merged "Visual" tab — either a rendered preview of
+ * the real published route or a GrapesJS-backed surface for clicking into rendered text and editing
+ * it in place (`@jini-ai/admin/react`'s `InteractiveHtmlEditor`). GrapesJS does not contradict the
+ * "no Tiptap" invariant: it edits and exports raw HTML directly, `html`/`setHtml` above stay the
+ * single source of truth, and there is no parallel structured-document format the way Tiptap's
+ * `bodyJson` would be — text editing and basic formatting only this pass, not Gutenberg-style block
+ * manipulation. Posts keep Tiptap in `features/posts/PostEditor.tsx`, which this screen replaces for
+ * `kind: "page"` entries — that screen was previously reached for Pages too, differing only by a
  * `kindLabel === "page"` ternary on its heading while still mounting the Tiptap toolbar over a
  * document Tiptap would silently mangle.
+ *
+ * **Tab merge (2026-09-02).** "Interactive" and "Preview" used to be two of three tabs; they are now
+ * one, and {@link PageEditorController.editing} decides which renderer it mounts. See
+ * `PageEditorView`'s own doc (`hooks/use-page-editor.hooks.ts`) for why they merged. Neither
+ * renderer was rewritten to do it: `PagePreview` and `InteractiveHtmlEditor` are the same two
+ * components, composed under one tab instead of two, which is what keeps the merge revertible as a
+ * single commit. The controls follow their renderer — the device-width switcher shows only in
+ * preview mode (it scales a fixed-width box `PagePreview` owns and the canvas has no equivalent),
+ * the colour-mode switcher only in edit mode (the preview iframe is cross-origin and cannot be
+ * driven from here) — because a control that renders where it cannot act reads as broken.
  *
  * The chat that drives generation is NOT in this component. It is the workspace assistant dock,
  * which `App.tsx` renders outside the route switch and ADR-049 pins to never unmount — so it is the
@@ -43,10 +56,31 @@ const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
   { key: "mobile", label: "Mobile" },
 ];
 
+/**
+ * The two tabs, HTML first so the merged Visual tab sits where "Preview" used to (rightmost) —
+ * "Visual", not "Preview", because the tab is editable by default and calling an editing surface a
+ * preview would be a lie, and not "Interactive" because it also holds the read-only full-chrome
+ * render. Labels are English source strings resolved through `t` at render time, per this app's
+ * "the copy string IS its own i18n key" convention.
+ */
 const VIEWS: ReadonlyArray<{ key: PageEditorView; label: string }> = [
   { key: "html", label: "HTML" },
-  { key: "interactive", label: "Interactive" },
-  { key: "preview", label: "Preview" },
+  { key: "visual", label: "Visual" },
+];
+
+/** The merged Visual tab's Edit toggle, as the same two-button `.segmented` shape every other
+ *  control on this toolbar uses. Two labelled states rather than one pressable "Edit" button: both
+ *  halves of the merge stay named, so an operator can see what the other state gives them. */
+const EDIT_MODES: ReadonlyArray<{ editing: boolean; label: string }> = [
+  { editing: true, label: "Edit" },
+  { editing: false, label: "Preview" },
+];
+
+/** The canvas colour-mode control's two states — see `ThemeCanvasMode` for why "Dark" names the
+ *  theme's DEFAULT token set and what would make that label wrong. */
+const THEME_MODES: ReadonlyArray<{ key: ThemeCanvasMode; label: string }> = [
+  { key: "dark", label: "Dark" },
+  { key: "light", label: "Light" },
 ];
 
 /**
@@ -132,51 +166,104 @@ function PageEditorHeader({
 }
 
 /**
- * The toolbar's right-hand group — the device-width control (preview view only) and the template
- * picker. Extracted out of `PageEditor` for the same reason `PageEditorHeader` above was: this is
- * where nearly all of the remaining branching in that component's render lived (the preview-only
- * visibility check, the html-format check, and the has-templates check nested inside it), and as a
- * top-level function its branches are scored in their own scope instead of accumulating onto
- * `PageEditor`'s.
+ * The merged Visual tab's two mode controls: the Edit toggle (always, in that tab) and the one
+ * switcher that belongs to whichever renderer the toggle selected — device width for the iframe
+ * preview, canvas colour mode for the GrapesJS canvas.
  *
- * Device-width control and template picker share this one row (owner feedback, 2026-08-11: "move the
- * UI for the template dropdown where the desktop tablet mobile is right now ... so it's all one row"
- * — the picker's own standalone row above is gone). `.page-editor-toolbar-end` is a plain grouping
- * wrapper (`pages.css`) so `.page-editor-toolbar`'s existing `justify-content: space-between` still
- * only has to place two things: the view tabs on the left, this group on the right.
+ * Exactly one of those two switchers is ever mounted, and neither is ever mounted disabled. Each acts
+ * on machinery only its own renderer has: `PAGE_PREVIEW_WIDTHS` works by rendering the document at a
+ * fixed width inside a CSS-scaled box that `PagePreview` alone owns, and the colour mode works by
+ * choosing which token set `useThemeCanvasStyling` puts on the canvas document's `:root`. Shown in
+ * the wrong mode, either one would be a control an operator could click with no effect — which is
+ * why they are hidden rather than disabled (`ThemeCanvasMode`'s doc has the cross-origin detail for
+ * why the colour mode genuinely cannot reach the preview iframe).
  *
- * The template picker mirrors `PostEditor.tsx`'s own `.editor-template-picker` markup/classes
- * verbatim. Rendered only for an `"html"`-format Page: a `"doc"`-format Page (pre-conversion legacy
- * row) has no render path that would honor a template choice yet (`isEligibleForTemplateBranch`
- * requires `bodyFormat: "html"`), so showing the picker on one would let an operator set a value with
- * no visible effect.
- *
- * UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template when
- * unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForTemplateBranch`'s doc for the
- * full reasoning: "no template chosen" is a Page's normal, fully-working state (render its own body),
- * not an absence-of-decision needing a UI default to stay honest.
+ * A separate function from {@link PageEditorTemplatePicker} below because they answer to different
+ * state: this group appears only in the `visual` tab and re-renders on every mode click, while the
+ * picker is tab-independent and keyed off the page's `bodyFormat`. Splitting them also keeps each
+ * one's branches scored in its own scope rather than accumulating onto `PageEditor`'s, the same
+ * reason `PageEditorHeader` above was extracted.
  */
-function PageEditorToolbarEnd({
-  view,
+function PageEditorVisualControls({
+  editing,
+  setEditing,
   device,
   setDevice,
-  bodyFormat,
-  availableTemplates,
-  templateChoice,
-  setTemplateChoice,
+  themeMode,
+  setThemeMode,
+  t,
 }: {
-  view: PageEditorView;
+  editing: boolean;
+  setEditing: (value: boolean) => void;
   device: PagePreviewDevice;
   setDevice: (value: PagePreviewDevice) => void;
-  bodyFormat: "doc" | "html" | undefined;
-  availableTemplates: string[];
-  templateChoice: string | null;
-  setTemplateChoice: (value: string) => void;
+  themeMode: ThemeCanvasMode;
+  setThemeMode: (value: ThemeCanvasMode) => void;
+  t: Translate;
 }) {
   return (
-    <div className="page-editor-toolbar-end">
-      {view === "preview" ? (
-        <div className="segmented" role="group" aria-label="Preview width">
+    <>
+      <div
+        className="segmented"
+        role="group"
+        aria-label={t("Edit mode")}
+        {...agentHandle("page-edit-mode", {
+          role: "button",
+          label:
+            "Whether the Visual tab is editable. Edit shows the in-place editing canvas for the " +
+            "page's own content region; Preview shows the published page with its real nav and " +
+            "footer, read-only. Switching is instant and discards nothing.",
+        })}
+      >
+        {EDIT_MODES.map((entry) => (
+          <button
+            key={entry.label}
+            type="button"
+            aria-pressed={editing === entry.editing}
+            className={editing === entry.editing ? "is-active" : undefined}
+            onClick={() => setEditing(entry.editing)}
+          >
+            {t(entry.label)}
+          </button>
+        ))}
+      </div>
+      {editing ? (
+        <div
+          className="segmented"
+          role="group"
+          aria-label={t("Colour mode")}
+          {...agentHandle("page-colour-mode", {
+            role: "button",
+            label:
+              "Which of the theme's colour modes the editing canvas renders against. Dark is the " +
+              "theme's default and is how the page actually publishes. Affects the canvas only, " +
+              "never the saved HTML.",
+          })}
+        >
+          {THEME_MODES.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              aria-pressed={themeMode === entry.key}
+              className={themeMode === entry.key ? "is-active" : undefined}
+              onClick={() => setThemeMode(entry.key)}
+            >
+              {t(entry.label)}
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="segmented"
+          role="group"
+          aria-label={t("Preview width")}
+          {...agentHandle("page-preview-width", {
+            role: "button",
+            label:
+              "The viewport width the preview renders AT, independent of how much room the pane " +
+              "has — the document is rendered at this width and scaled down to fit.",
+          })}
+        >
           {DEVICES.map((entry) => (
             <button
               key={entry.key}
@@ -190,33 +277,137 @@ function PageEditorToolbarEnd({
           ))}
           <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
         </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * The template picker, mirroring `PostEditor.tsx`'s own `.editor-template-picker` markup/classes
+ * verbatim. Rendered only for an `"html"`-format Page: a `"doc"`-format Page (pre-conversion legacy
+ * row) has no render path that would honor a template choice yet (`isEligibleForTemplateBranch`
+ * requires `bodyFormat: "html"`), so showing the picker on one would let an operator set a value with
+ * no visible effect.
+ *
+ * Tab-independent, unlike {@link PageEditorVisualControls}: the choice feeds the public render, the
+ * preview iframe AND the canvas's own wrapper derivation, so it is as relevant while hand-editing
+ * HTML as while looking at the result.
+ *
+ * UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template when
+ * unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForTemplateBranch`'s doc for the
+ * full reasoning: "no template chosen" is a Page's normal, fully-working state (render its own body),
+ * not an absence-of-decision needing a UI default to stay honest.
+ */
+function PageEditorTemplatePicker({
+  availableTemplates,
+  templateChoice,
+  setTemplateChoice,
+}: {
+  availableTemplates: string[];
+  templateChoice: string | null;
+  setTemplateChoice: (value: string) => void;
+}) {
+  return (
+    <div className="editor-template-picker">
+      <label className="a11y-label-wrap">
+        <span className="visually-hidden">Template</span>
+      </label>
+      {availableTemplates.length > 0 ? (
+        <select
+          value={templateChoice ?? ""}
+          // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
+          // unlike Posts, it behaves identically to `null` at render time — see
+          // `isEligibleForTemplateBranch`'s doc).
+          onChange={(e) => setTemplateChoice(e.target.value)}
+          {...agentHandle("page-template-choice", {
+            role: "field",
+            label:
+              "Which theme page template this page renders through on the public site — set with " +
+              'page.select_option, not click. "No template chosen" is a Page\'s normal state: it ' +
+              "renders its own body through the theme's page shell.",
+          })}
+        >
+          {availableTemplates.map((template) => (
+            <option key={template} value={template}>
+              {template}
+            </option>
+          ))}
+          <option value="">No template chosen</option>
+        </select>
+      ) : (
+        <select
+          disabled
+          value=""
+          {...agentHandle("page-template-choice", {
+            role: "field",
+            label: "The active theme declares no page templates, so there is nothing to choose here.",
+          })}
+        >
+          <option value="">No templates for this theme</option>
+        </select>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The toolbar's right-hand group — {@link PageEditorVisualControls} in the `visual` tab, plus the
+ * template picker for an html-format page.
+ *
+ * Device-width control and template picker share this one row (owner feedback, 2026-08-11: "move the
+ * UI for the template dropdown where the desktop tablet mobile is right now ... so it's all one row"
+ * — the picker's own standalone row above is gone). `.page-editor-toolbar-end` is a plain grouping
+ * wrapper (`pages.css`) so `.page-editor-toolbar`'s existing `justify-content: space-between` still
+ * only has to place two things: the view tabs on the left, this group on the right. It already
+ * wraps its own children (`flex-wrap: wrap`), which is what absorbs the merge's one extra control at
+ * narrow widths without the tabs above having to move.
+ */
+function PageEditorToolbarEnd({
+  view,
+  editing,
+  setEditing,
+  device,
+  setDevice,
+  themeMode,
+  setThemeMode,
+  bodyFormat,
+  availableTemplates,
+  templateChoice,
+  setTemplateChoice,
+  t,
+}: {
+  view: PageEditorView;
+  editing: boolean;
+  setEditing: (value: boolean) => void;
+  device: PagePreviewDevice;
+  setDevice: (value: PagePreviewDevice) => void;
+  themeMode: ThemeCanvasMode;
+  setThemeMode: (value: ThemeCanvasMode) => void;
+  bodyFormat: "doc" | "html" | undefined;
+  availableTemplates: string[];
+  templateChoice: string | null;
+  setTemplateChoice: (value: string) => void;
+  t: Translate;
+}) {
+  return (
+    <div className="page-editor-toolbar-end">
+      {view === "visual" ? (
+        <PageEditorVisualControls
+          editing={editing}
+          setEditing={setEditing}
+          device={device}
+          setDevice={setDevice}
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
+          t={t}
+        />
       ) : null}
       {bodyFormat === "html" ? (
-        <div className="editor-template-picker">
-          <label className="a11y-label-wrap">
-            <span className="visually-hidden">Template</span>
-          </label>
-          {availableTemplates.length > 0 ? (
-            <select
-              value={templateChoice ?? ""}
-              // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
-              // unlike Posts, it behaves identically to `null` at render time — see
-              // `isEligibleForTemplateBranch`'s doc).
-              onChange={(e) => setTemplateChoice(e.target.value)}
-            >
-              {availableTemplates.map((template) => (
-                <option key={template} value={template}>
-                  {template}
-                </option>
-              ))}
-              <option value="">No template chosen</option>
-            </select>
-          ) : (
-            <select disabled value="">
-              <option value="">No templates for this theme</option>
-            </select>
-          )}
-        </div>
+        <PageEditorTemplatePicker
+          availableTemplates={availableTemplates}
+          templateChoice={templateChoice}
+          setTemplateChoice={setTemplateChoice}
+        />
       ) : null}
     </div>
   );
@@ -242,6 +433,10 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     setDraftHtml,
     view,
     setView,
+    editing,
+    setEditing,
+    themeMode,
+    setThemeMode,
     device,
     setDevice,
     frameRef,
@@ -256,6 +451,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     confirmingDelete,
     setConfirmingDelete,
     deleting,
+    t,
   } = usePageEditorHook(routeSlug);
 
   if (error && !page) return <div className="notice error">{error}</div>;
@@ -311,7 +507,17 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
       </div>
 
       <div className="page-editor-toolbar">
-        <div className="segmented" role="tablist" aria-label="Editor view">
+        <div
+          className="segmented"
+          role="tablist"
+          aria-label={t("Editor view")}
+          {...agentHandle("page-view", {
+            role: "button",
+            label:
+              "Which editing surface this page shows: HTML is the raw source, Visual is the " +
+              "rendered page — editable or read-only depending on this screen's Edit toggle.",
+          })}
+        >
           {VIEWS.map((entry) => (
             <button
               key={entry.key}
@@ -321,48 +527,31 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
               className={view === entry.key ? "is-active" : undefined}
               onClick={() => setView(entry.key)}
             >
-              {entry.label}
+              {t(entry.label)}
             </button>
           ))}
         </div>
-        {/* Device-width control and template picker share the toolbar's right-hand side — see
+        {/* Mode controls and template picker share the toolbar's right-hand side — see
             `PageEditorToolbarEnd`'s own doc for the layout history and the template-picker's rules. */}
         <PageEditorToolbarEnd
           view={view}
+          editing={editing}
+          setEditing={setEditing}
           device={device}
           setDevice={setDevice}
+          themeMode={themeMode}
+          setThemeMode={setThemeMode}
           bodyFormat={page.bodyFormat}
           availableTemplates={availableTemplates}
           templateChoice={templateChoice}
           setTemplateChoice={setTemplateChoice}
+          t={t}
         />
       </div>
 
-      {view === "preview" ? (
-        <PagePreview
-          html={html}
-          width={PAGE_PREVIEW_WIDTHS[device]}
-          slug={slug}
-          status={status}
-          dirty={dirty}
-          contentDirty={contentDirty}
-          templatePreviewUrl={templatePreviewUrl}
-          frameRef={frameRef}
-          paneWidth={paneWidth}
-        />
-      ) : view === "interactive" ? (
-        // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
-        // header for why it reads `html` once at mount rather than reacting to later prop changes.
-        // `canvasStyling` is read once at mount for that same reason, which is why this waits for it
-        // to settle instead of mounting an unstyled canvas that could never pick the theme up
-        // afterwards. The wait is normally invisible: `preview` is this screen's default tab, so the
-        // theme's token files have already loaded by the time anyone clicks Interactive.
-        canvasStyling.status === "pending" ? (
-          <div className="notice">Loading the theme's styles…</div>
-        ) : (
-          <InteractiveHtmlEditor html={html} onChange={setHtml} canvasStyling={canvasStyling.styling} />
-        )
-      ) : (
+      {/* The merged Visual tab's two renderers, unchanged from when they were two tabs — see this
+          file's header. `editing` picks between them; `view` only decides whether either mounts. */}
+      {view === "html" ? (
         <textarea
           className="page-html-source"
           value={draftHtml}
@@ -377,6 +566,26 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           aria-label="Page HTML"
           placeholder="This page has no HTML yet. Ask the assistant to build it, or write some here."
         />
+      ) : editing ? (
+        <PageEditorCanvas
+          html={html}
+          setHtml={setHtml}
+          canvasStyling={canvasStyling}
+          themeMode={themeMode}
+          t={t}
+        />
+      ) : (
+        <PagePreview
+          html={html}
+          width={PAGE_PREVIEW_WIDTHS[device]}
+          slug={slug}
+          status={status}
+          dirty={dirty}
+          contentDirty={contentDirty}
+          templatePreviewUrl={templatePreviewUrl}
+          frameRef={frameRef}
+          paneWidth={paneWidth}
+        />
       )}
 
       <ConfirmDialog
@@ -390,6 +599,54 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
         onCancel={() => setConfirmingDelete(false)}
       />
     </div>
+  );
+}
+
+/**
+ * The merged Visual tab's editing half — the GrapesJS canvas, gated on its styling having settled.
+ *
+ * `InteractiveHtmlEditor` reads BOTH `html` and `canvasStyling` once at mount and never reacts to a
+ * later prop change (see its own file header), which is what makes the two things below load-bearing
+ * rather than incidental:
+ *
+ * 1. **The pending gate.** Mounting before the theme's token files settle leaves the canvas unstyled
+ *    (browser-default Times on white) for the rest of its life, no matter what arrives afterwards.
+ *    Since the tab merge this is now the FIRST thing the screen shows — `visual` + `editing` are both
+ *    defaults — so the notice below is visible on a cold load rather than only after a tab click.
+ * 2. **`key={themeMode}`.** Changing the colour mode produces new `canvasStyling`, which a mounted
+ *    editor would ignore. Keying on the mode is what forces the remount that actually applies it.
+ *    Nothing is lost by remounting: `html`/`setHtml` in `usePageEditor` are the single source of
+ *    truth, and the fresh editor re-parses the current working copy. (The mode change also drives
+ *    `canvasStyling` through a `pending` beat of its own — see `useThemeCanvasStyling` — so this key
+ *    is belt-and-braces for the case where a cached fetch settles inside the same commit.)
+ *
+ * Extracted as its own function rather than left inline for the same reason every other piece of
+ * this file was: the pending branch scores in its own scope instead of on `PageEditor`'s, which is
+ * already at three render branches after the merge.
+ */
+function PageEditorCanvas({
+  html,
+  setHtml,
+  canvasStyling,
+  themeMode,
+  t,
+}: {
+  html: string;
+  setHtml: (value: string) => void;
+  canvasStyling: ThemeCanvasStylingState;
+  themeMode: ThemeCanvasMode;
+  t: Translate;
+}) {
+  if (canvasStyling.status === "pending") {
+    return <div className="notice">{t("Loading the theme's styles…")}</div>;
+  }
+  return (
+    <InteractiveHtmlEditor
+      key={themeMode}
+      html={html}
+      onChange={setHtml}
+      canvasStyling={canvasStyling.styling}
+    />
   );
 }
 

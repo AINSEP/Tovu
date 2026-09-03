@@ -64,6 +64,28 @@ describe("tokensToCanvasCss", () => {
     );
   });
 
+  // Light mode on the canvas (tab merge, 2026-09-02). GrapesJS owns the canvas document's `<html>`
+  // and never sets `data-theme`, so the site's own `:root[data-theme="light"]` selector can never
+  // match in there — which is exactly why the Interactive canvas could only ever show the theme's
+  // default (dark) mode. Light mode therefore promotes the light tokens onto bare `:root`, after the
+  // default block, reproducing the same last-wins cascade the real page gets from the attribute
+  // selector while still letting a token the light set omits resolve from the default one.
+  it("promotes light tokens onto bare :root in light mode, after the default block", () => {
+    const css = tokensToCanvasCss(DARK, LIGHT, "light");
+    expect(css).toBe(':root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}:root{--bg:#f6f9f8;--fg:#09140f;}');
+    expect(css).not.toContain('data-theme="light"');
+    expect(css.lastIndexOf("#f6f9f8")).toBeGreaterThan(css.lastIndexOf("oklch(9% 0.004 250)"));
+  });
+
+  it("is byte-identical to the pre-merge output in dark mode, the default", () => {
+    expect(tokensToCanvasCss(DARK, LIGHT, "dark")).toBe(tokensToCanvasCss(DARK, LIGHT));
+    expect(tokensToCanvasCss(DARK, LIGHT, "dark")).toContain(':root[data-theme="light"]{');
+  });
+
+  it("light mode on a theme with no light token file leaves the default block alone", () => {
+    expect(tokensToCanvasCss(DARK, undefined, "light")).toBe(tokensToCanvasCss(DARK, undefined, "dark"));
+  });
+
   it("emits only the :root block for a theme that ships no light variant", () => {
     expect(tokensToCanvasCss(DARK, undefined)).toBe(":root{--bg:oklch(9% 0.004 250);--fg:oklch(96% 0.003 250);}");
   });
@@ -138,6 +160,25 @@ describe("useThemeCanvasStyling", () => {
 
     await waitFor(() => expect(result.current.status).toBe("ready"));
     expect(result.current).toEqual({ status: "ready", styling: {} });
+  });
+
+  it("resolves the light token set onto :root when asked for light mode", async () => {
+    const port = createFakeThemeCanvasPort({
+      tokensByUrl: {
+        "/theme-assets/basic/tokens.json": DARK,
+        "/theme-assets/basic/tokens.light.json": LIGHT,
+      },
+    });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, null, "light"));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current).toEqual({
+      status: "ready",
+      styling: {
+        stylesheets: ["/theme-assets/basic/css/theme.css"],
+        css: tokensToCanvasCss(DARK, LIGHT, "light"),
+      },
+    });
   });
 
   it("reads the tokens through the injected port, never through fetch", async () => {

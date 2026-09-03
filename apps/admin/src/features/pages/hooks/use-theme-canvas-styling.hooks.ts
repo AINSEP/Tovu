@@ -127,24 +127,55 @@ function isSafeToken([name, value]: [string, string]): boolean {
 }
 
 /**
+ * Which of a theme's two token sets the canvas renders against.
+ *
+ * `"dark"` selects the theme's DEFAULT set (`tokens.json`) — named "dark" because every theme this
+ * repo ships declares `defaultMode: "dark"` (`basic`, `basic-2`, `tailark-dusk`,
+ * `tailark-quartz-dark`, `tailark-quartz-libre`), so for all of them the default set IS the dark
+ * one and that is the word an operator recognises from the site's own theme-toggle button. A theme
+ * declaring `defaultMode: "light"` would make this label wrong; correcting it would mean reading
+ * `defaultMode` out of the theme's `theme.json` (fetchable at `/theme-assets/{id}/theme.json`) and
+ * labelling the control from it. Recorded as a known limitation, not fetched here — no such theme
+ * exists yet, and the extra request would buy nothing today.
+ *
+ * `"light"` selects `tokens.light.json`, which is a fixed filename in the theme contract (see
+ * {@link themeLightTokensUrl}) rather than a mode name derived from the manifest.
+ */
+export type ThemeCanvasMode = "dark" | "light";
+
+/**
  * Builds the `:root` custom-property block the canvas needs, mirroring what
  * `features/theme/static-render.ts`'s `tokensToRootCss` emits into every real rendered page —
- * default-mode tokens on bare `:root`, light-mode tokens behind `[data-theme="light"]`. The canvas
- * document sets no `data-theme`, so it renders in the theme's default mode, exactly as an
- * un-toggled first visit to the live site does.
+ * default-mode tokens on bare `:root`, light-mode tokens behind `[data-theme="light"]`.
+ *
+ * The canvas document sets no `data-theme` (GrapesJS owns its `<html>` and the host has no hook to
+ * stamp an attribute on it), so in the default `"dark"` mode this renders the theme's default mode,
+ * exactly as an un-toggled first visit to the live site does. That is also why `"light"` cannot work
+ * by relying on the attribute selector: it would never match. Light mode instead promotes the light
+ * tokens onto bare `:root`, emitted AFTER the default block — the same last-wins cascade the real
+ * page gets from `[data-theme="light"]`, and a token the light set omits still resolves from the
+ * default one rather than disappearing.
  *
  * @param tokens - The theme's default-mode tokens (`tokens.json`).
- * @param lightTokens - The theme's light-mode tokens, or `undefined` when it ships none.
+ * @param lightTokens - The theme's light-mode tokens, or `undefined` when it ships none — in which
+ *   case `"light"` mode is a no-op and this returns exactly the default-mode CSS.
+ * @param mode - Which set the canvas should render against. Defaults to `"dark"`, whose output is
+ *   byte-identical to this function's pre-merge output.
  * @returns One CSS string. Empty when `tokens` holds nothing usable, which the caller treats as
  *   "this theme cannot style the canvas" rather than emitting an empty rule.
  * @complexity O(n) in the total number of tokens.
  */
-export function tokensToCanvasCss(tokens: ThemeTokens, lightTokens: ThemeTokens | undefined): string {
+export function tokensToCanvasCss(
+  tokens: ThemeTokens,
+  lightTokens: ThemeTokens | undefined,
+  mode: ThemeCanvasMode = "dark",
+): string {
   const block = (selector: string, entries: [string, string][]) =>
     entries.length === 0 ? "" : `${selector}{${entries.map(([k, v]) => `${k}:${v};`).join("")}}`;
   const defaultBlock = block(":root", Object.entries(tokens).filter(isSafeToken));
   if (!defaultBlock) return "";
-  return defaultBlock + block(':root[data-theme="light"]', Object.entries(lightTokens ?? {}).filter(isSafeToken));
+  const lightSelector = mode === "light" ? ":root" : ':root[data-theme="light"]';
+  return defaultBlock + block(lightSelector, Object.entries(lightTokens ?? {}).filter(isSafeToken));
 }
 
 /** Pending until the token fetch settles, because `InteractiveHtmlEditor` reads its canvas styling
@@ -178,6 +209,12 @@ const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {
  *   failure along this path (fetch rejects, no marker found, markup unparseable) degrades to no
  *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
  *   its absence reproduces the exact pre-existing "no wrapper" canvas.
+ * @param mode - Which of the theme's two token sets to render against (see {@link ThemeCanvasMode}).
+ *   Appended as a 5th, DEFAULTED parameter for the same reason `templateChoice` was: the existing
+ *   4-argument call sites keep compiling and behaving byte-for-byte as before. Changing this re-runs
+ *   the fetches — they are static assets the browser has already cached, and the resulting `pending`
+ *   beat is what unmounts and remounts the canvas, which is the only way `InteractiveHtmlEditor`
+ *   (which reads its styling once at mount) can pick up a new mode at all.
  * @returns The current {@link ThemeCanvasStylingState}.
  * @complexity Two-or-three requests per theme (three when `templateChoice` is set), no retry loop;
  *   O(n) in the token count to build the CSS, O(m) in the template markup's size to derive the wrapper.
@@ -187,6 +224,7 @@ export function useThemeCanvasStyling(
   apiVersion: 2 | undefined,
   port: ThemeCanvasPort,
   templateChoice: string | null = null,
+  mode: ThemeCanvasMode = "dark",
 ): ThemeCanvasStylingState {
   const [state, setState] = useState<ThemeCanvasStylingState>({ status: "pending" });
 
@@ -211,7 +249,7 @@ export function useThemeCanvasStyling(
     ])
       .then(([tokens, lightTokens, markup]) => {
         if (cancelled) return;
-        const css = tokensToCanvasCss(tokens, lightTokens);
+        const css = tokensToCanvasCss(tokens, lightTokens, mode);
         if (!css) {
           setState(NO_CANVAS_STYLING);
           return;
@@ -230,7 +268,7 @@ export function useThemeCanvasStyling(
     return () => {
       cancelled = true;
     };
-  }, [themeId, apiVersion, port, templateChoice]);
+  }, [themeId, apiVersion, port, templateChoice, mode]);
 
   return state;
 }
@@ -243,12 +281,14 @@ export function useThemeCanvasStyling(
  * @param themeId - See {@link useThemeCanvasStyling}.
  * @param apiVersion - See {@link useThemeCanvasStyling}.
  * @param templateChoice - See {@link useThemeCanvasStyling}.
+ * @param mode - See {@link useThemeCanvasStyling}.
  * @returns The current {@link ThemeCanvasStylingState}.
  */
 export function useWiredThemeCanvasStyling(
   themeId: string | null,
   apiVersion: 2 | undefined,
   templateChoice: string | null = null,
+  mode: ThemeCanvasMode = "dark",
 ): ThemeCanvasStylingState {
-  return useThemeCanvasStyling(themeId, apiVersion, defaultThemeCanvasPort, templateChoice);
+  return useThemeCanvasStyling(themeId, apiVersion, defaultThemeCanvasPort, templateChoice, mode);
 }
