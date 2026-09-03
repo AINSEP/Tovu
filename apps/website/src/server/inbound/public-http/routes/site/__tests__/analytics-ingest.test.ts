@@ -241,6 +241,58 @@ test("analytics-ingest: `req.ip ?? req.socket.remoteAddress ?? \"\"` double fall
   assert.equal(hit.path, "/forced-ip-fallback");
 });
 
+test("analytics-ingest: `req.hostname ?? \"\"` fallback, forced via a direct handler call with hostname left undefined -- still 204s and the fallback host reaches resolveWorkspaceForHost", async (t) => {
+  // Same technique and same justification as the `req.ip` double-fallback test above: Express
+  // requires a `Host` header to populate `req.hostname` in practice (every real fetch()/http.request
+  // call sends one automatically), so no real network request can leave it undefined. This is
+  // reachable only via a malformed/HTTP-1.0-shaped request with no Host header at all, or via a
+  // direct handler call — the only way to actually exercise the `??` fallback in `parseBeacon(req.body,
+  // req.hostname ?? "")`.
+  let resolvedHost: string | undefined;
+  const base = createRouteDeps();
+  const sink = new LocalBufferSink();
+  const deps: IngestHitDeps = {
+    clock: base.clock,
+    ids: base.idGen,
+    sink,
+    config: base.analyticsConfig,
+    resolveWorkspaceForHost: async (host: string) => {
+      resolvedHost = host;
+      return base.workspaceId;
+    },
+    rootKeySeed: "test-seed",
+  };
+  const app = express();
+  app.use(express.json());
+  registerAnalyticsIngestRoute(app, deps);
+  const handler = extractHandler(app, "/_analytics/e");
+
+  let statusCode: number | undefined;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    end() {
+      return res;
+    },
+  };
+  const req = {
+    body: { path: "/forced-hostname-fallback" },
+    ip: "127.0.0.1",
+    socket: { remoteAddress: "127.0.0.1" },
+    hostname: undefined,
+    get: () => undefined,
+  };
+
+  await handler(req, res);
+
+  assert.equal(statusCode, 204);
+  assert.equal(resolvedHost, "", "req.hostname undefined -> the ?? fallback passes an empty string through, never `undefined`");
+  const hit = sink.all()[0];
+  assert.ok(hit, "the beacon must still be accepted when req.hostname is undefined and raw.host is absent");
+});
+
 test("analytics-ingest: a sink failure is swallowed — still 204s, never leaks the error to the caller", async (t) => {
   const sink = new LocalBufferSink();
   sink.accept = async () => {

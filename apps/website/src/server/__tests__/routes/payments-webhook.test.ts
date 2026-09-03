@@ -10,7 +10,7 @@
  */
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer } from "node:http";
+import http, { createServer } from "node:http";
 import fs from "node:fs";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -18,12 +18,15 @@ import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
+import express from "express";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/platform/http/index";
 import { InMemoryPaymentCredentials } from "#src/features/plugins/lipay/credentials";
 import { activateLipay, type LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 import { createLipayGateway, signLipayWebhook } from "#src/features/plugins/lipay/providers/lipay-gateway";
 import { createApp, createRouteDeps } from "../../runtime/composition/app.js";
+import { registerPaymentsWebhookRoute } from "../../inbound/public-http/routes/site/payments-webhook.js";
+import { startTestServer } from "../helpers/http-test-server.js";
 
 const WORKSPACE_ID = "workspace-1";
 const WEBHOOK_SECRET = "whsec_route_test";
@@ -213,6 +216,168 @@ test("payments webhook: an unregistered provider is a 404 and an unsigned reques
   });
 
   cleanup(db, dir);
+});
+
+// ---------------------------------------------------------------------------------------------
+// `statusForError`/`flattenHeaders` branch coverage — standalone `registerPaymentsWebhookRoute`
+// around a fake `LipayApi`, the same technique `route-async-guards.test.ts` uses for this exact
+// route (`resolveLipay` is the seam the route itself defines; it needs no real, DB-backed lipay
+// instance or HMAC signing to reach these branches, which live entirely in THIS file's own
+// `statusForError`/`flattenHeaders` helpers, downstream of `handleWebhook`'s return value).
+// ---------------------------------------------------------------------------------------------
+
+function withFakeLipay(handleWebhook: LipayApi["handleWebhook"]): { app: express.Express } {
+  const fakeLipay = { handleWebhook } as unknown as LipayApi;
+  const app = express();
+  registerPaymentsWebhookRoute(app, { resolveLipay: () => fakeLipay });
+  return { app };
+}
+
+test("payments webhook: statusForError maps NO_CREDENTIALS_CONFIGURED to 503", async (t) => {
+  const { app } = withFakeLipay(async () => ({
+    accepted: false,
+    processed: 0,
+    duplicates: 0,
+    error: { code: "NO_CREDENTIALS_CONFIGURED", message: "no credentials configured for this provider", retryable: false },
+  }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(res.status, 503);
+  assert.equal((await res.json()).code, "NO_CREDENTIALS_CONFIGURED");
+});
+
+test("payments webhook: statusForError falls back to 400 for an error code it doesn't special-case (e.g. DECLINED)", async (t) => {
+  const { app } = withFakeLipay(async () => ({
+    accepted: false,
+    processed: 0,
+    duplicates: 0,
+    error: { code: "DECLINED", message: "the card was declined", retryable: false },
+  }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).code, "DECLINED");
+});
+
+test("payments webhook: a content-type that doesn't match application/json leaves req.body untouched by express.raw, so rawBody falls back to an empty buffer", async (t) => {
+  // This route is registered BEFORE the blanket `express.json()` (this file's own header) precisely
+  // so a matching delivery's exact bytes survive; the flip side, documented in this route's own
+  // `rawBody` comment, is that a delivery with the WRONG content-type never gets parsed into a
+  // buffer at all -- proven here directly rather than via a real signature failure.
+  let capturedRawBody: Buffer | undefined;
+  const { app } = withFakeLipay(async ({ rawBody }) => {
+    capturedRawBody = rawBody;
+    return { accepted: false, processed: 0, duplicates: 0, error: { code: "SIGNATURE_INVALID", message: "bad signature", retryable: false } };
+  });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
+    method: "POST",
+    headers: { "content-type": "text/plain" },
+    body: "not a json content-type",
+  });
+  assert.equal(res.status, 401);
+  assert.ok(capturedRawBody, "handleWebhook must still be called, with a Buffer");
+  assert.equal(capturedRawBody!.length, 0, "a content-type mismatch means express.raw never populated req.body, so rawBody falls back to an empty buffer");
+});
+
+test("payments webhook: a duplicate request header (Set-Cookie sent twice) arrives as an array and is joined with \", \", never silently dropped", async (t) => {
+  let capturedHeaders: Record<string, string> | undefined;
+  const { app } = withFakeLipay(async ({ headers }) => {
+    capturedHeaders = headers;
+    return { accepted: true, processed: 1, duplicates: 0 };
+  });
+  const baseUrl = await startTestServer(app, t);
+  const { port } = new URL(baseUrl);
+
+  const payload = JSON.stringify({ type: "test.event" });
+  const status = await new Promise<number>((resolve, reject) => {
+    const req = http.request(
+      {
+        host: "127.0.0.1",
+        port,
+        method: "POST",
+        path: "/payments/webhook/lipay",
+        headers: {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(payload),
+          "set-cookie": ["a=1", "b=2"],
+        },
+      },
+      (res) => {
+        res.resume();
+        res.on("end", () => resolve(res.statusCode ?? 0));
+      }
+    );
+    req.on("error", reject);
+    req.end(payload);
+  });
+
+  assert.equal(status, 200);
+  assert.equal(capturedHeaders?.["set-cookie"], "a=1, b=2", "a repeated header is joined, providers are HTTP clients not browsers (this file's own flattenHeaders comment)");
+});
+
+/** Express's own (internal, untyped) per-route layer shape — same technique
+ *  `analytics-ingest.test.ts`/`comments-submit.test.ts` use to call a registered handler DIRECTLY.
+ *  Needed only for `flattenHeaders`'s `if (value === undefined) continue` guard: Node's real
+ *  `IncomingMessage.headers` never contains an explicit `undefined` value for any key a real request
+ *  produces (TypeScript's own `IncomingHttpHeaders` type allows it only because `Object.entries`
+ *  indexing is technically total, not because the runtime object ever has one) -- this guard exists
+ *  for that TYPE, and for whatever hand-built `req`-shaped object a caller might one day construct,
+ *  which is exactly what this test constructs. */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: express.Express, routePath: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === routePath);
+  if (!layer?.route) throw new Error(`route '${routePath}' was not found in the router stack`);
+  return layer.route.stack[layer.route.stack.length - 1].handle;
+}
+
+test("payments webhook: flattenHeaders skips a header entry whose value is `undefined`, forced via a direct handler call -- never crashes, never writes \"undefined\" into the flattened headers", async () => {
+  let capturedHeaders: Record<string, string> | undefined;
+  const { app } = withFakeLipay(async ({ headers }) => {
+    capturedHeaders = headers;
+    return { accepted: true, processed: 1, duplicates: 0 };
+  });
+  const handler = extractHandler(app, "/payments/webhook/:providerId");
+
+  let statusCode: number | undefined;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json() {
+      return res;
+    },
+  };
+  const req = {
+    params: { providerId: "lipay" },
+    body: Buffer.from("{}"),
+    headers: { "content-type": "application/json", "x-forced-undefined": undefined },
+  };
+
+  await handler(req, res);
+
+  assert.equal(statusCode, 200);
+  assert.equal(capturedHeaders?.["x-forced-undefined"], undefined, "an undefined-valued header entry is skipped, never coerced into a literal \"undefined\" string");
+  assert.equal(capturedHeaders?.["content-type"], "application/json", "every OTHER header still flattens normally");
 });
 
 test("payments webhook: an install without lipay composed reports 503 rather than 404", async () => {

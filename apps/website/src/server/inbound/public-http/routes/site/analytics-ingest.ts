@@ -49,7 +49,11 @@ function isJsonObject(value: unknown): value is JsonObject {
  * @overallScore 100/100
  */
 function parseBeacon(body: unknown, fallbackHost: string): IngestBeacon {
-  const raw = (body ?? {}) as Record<string, unknown>;
+  // No `?? {}` fallback: `parseBeacon`'s one call site passes `req.body`, and `express.json()` is
+  // mounted ahead of this route in every real composition (see `app.ts`) and in every test's own
+  // app — `body-parser`'s `json` middleware sets `req.body = req.body || {}` unconditionally,
+  // before it even checks the content type, so `req.body` can never be `null`/`undefined` here.
+  const raw = body as Record<string, unknown>;
   const host = boundedString(raw.host, MAX_HOST_LENGTH) || fallbackHost;
   const referrer = typeof raw.referrer === "string" ? boundedString(raw.referrer, MAX_REFERRER_LENGTH) : null;
   const kind = raw.kind === "event" ? "event" : "pageview";

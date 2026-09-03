@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createServer } from "node:http";
+import http, { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
@@ -9,7 +9,7 @@ import express from "express";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/contracts/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/features/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/features/forms/rate-limit-profile";
-import type { FormDefinitionRecord, FieldDescriptor } from "#src/features/forms/index";
+import type { FormDefinitionRecord, FieldDescriptor, FormDefinitionRepoPort } from "#src/features/forms/index";
 import { createRateLimiter } from "#src/contracts/core/rate-limit/rate-limit";
 import { registerFormsSubmitRoute } from "../../inbound/public-http/routes/site/forms-submit.js";
 import { decodeFormFlashCookieValue, FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
@@ -37,9 +37,9 @@ function makeDefinition(overrides: Partial<FormDefinitionRecord> = {}): FormDefi
   };
 }
 
-async function startTestApp() {
-  const definitionRepo = new InMemoryFormDefinitionRepo();
-  const submissionRepo = new InMemoryFormSubmissionRepo();
+async function startTestApp(overrides: { definitionRepo?: FormDefinitionRepoPort; submissionRepo?: InMemoryFormSubmissionRepo } = {}) {
+  const definitionRepo = overrides.definitionRepo ?? new InMemoryFormDefinitionRepo();
+  const submissionRepo = overrides.submissionRepo ?? new InMemoryFormSubmissionRepo();
   const clock = { nowIso: () => NOW };
   let counter = 0;
   const idGen = { newId: () => `id-${++counter}` };
@@ -63,7 +63,23 @@ async function startTestApp() {
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;
-  return { server, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo };
+  return { server, app, baseUrl: `http://127.0.0.1:${address.port}`, definitionRepo, submissionRepo };
+}
+
+/** Stands in for a repo/DB failure none of `submitForm`'s three typed error classes model (e.g. the
+ *  DB itself being unreachable) -- a `Proxy` over the real in-memory repo so every OTHER method keeps
+ *  its real, working behavior, same technique `route-async-guards.test.ts` uses across this suite. */
+function withThrowingMethod<T extends object>(real: T, methodName: keyof T): T {
+  return new Proxy(real, {
+    get(target, prop, receiver) {
+      if (prop === methodName) {
+        return async () => {
+          throw new Error(`simulated repo failure in ${String(prop)}`);
+        };
+      }
+      return Reflect.get(target, prop, receiver);
+    },
+  });
 }
 
 test("POST /forms/:slug/submit: AC-07/REQ-05 — no Authorization header required, returns 201", async (t) => {
@@ -437,4 +453,206 @@ test("POST /forms/:slug/submit: the JSON API path is completely unaffected by th
   });
   assert.equal(res.status, 400);
   assert.equal(res.headers.get("set-cookie"), null);
+});
+
+// ---------------------------------------------------------------------------
+// Remaining branch coverage — reachable input shapes and defensive edges none of the tests above
+// happen to exercise.
+// ---------------------------------------------------------------------------
+
+test("POST /forms/:slug/submit: boundBody passes a non-string field value through UNTRUNCATED (a JSON caller can send a number/boolean, not just strings) -- validateSubmissionPayload then rejects it by type", async (t) => {
+  const { server, baseUrl, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: 123 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; details: { fieldErrors: Array<{ field: string; reason: string }> } };
+  assert.equal(body.code, "FORMS_SUBMISSION_VALIDATION_ERROR");
+  assert.deepEqual(body.details.fieldErrors, [{ field: "name", reason: "must be a string" }]);
+});
+
+test("POST /forms/:slug/submit: `(req.get(\"accept\") ?? \"\").includes(\"text/html\")` fallback, reached only via a raw request that sends NO Accept header at all -- fetch() always injects a default one, so every other test in this file takes the other side", async (t) => {
+  const { server, baseUrl, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+  const { port } = new URL(baseUrl);
+
+  const payload = JSON.stringify({ name: "Ada" });
+  const status = await new Promise<number>((resolve, reject) => {
+    const req = http.request(
+      {
+        host: "127.0.0.1",
+        port,
+        method: "POST",
+        path: "/forms/contact/submit",
+        headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) },
+      },
+      (res) => {
+        res.resume();
+        res.on("end", () => resolve(res.statusCode ?? 0));
+      }
+    );
+    req.on("error", reject);
+    req.end(payload);
+  });
+  assert.equal(status, 201, "no Accept header -> wantsHtmlResponse's `??` fallback is `\"\"`, `.includes(\"text/html\")` is false, so the untouched JSON contract is kept");
+});
+
+test("POST /forms/:slug/submit: Accept: text/html + a Referer that isn't a valid URL at all is caught, not thrown -- falls back to '/' the same as an absent Referer", async (t) => {
+  const { server, baseUrl, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    redirect: "manual",
+    headers: {
+      "content-type": "application/json",
+      accept: "text/html",
+      referer: "not a valid url at all",
+    },
+    body: JSON.stringify({ name: "Ada" }),
+  });
+  assert.equal(res.status, 303);
+  const location = new URL(res.headers.get("location") ?? "", baseUrl);
+  assert.equal(location.pathname, "/", "new URL(referer) throwing is caught and degrades to the same fallback as a missing Referer");
+});
+
+test("POST /forms/:slug/submit: an extremely long slug alone exceeds the flash cookie's 3000-byte budget -- setFormFlashCookie's `if (!json) return` skips the cookie entirely rather than emitting a broken header", async (t) => {
+  // `buildFormFlashValues` must actually produce a NON-empty `values` object here -- otherwise
+  // `setFormFlashCookieForValidationFailure`'s own earlier `if (Object.keys(values).length === 0)
+  // return;` short-circuits before `setFormFlashCookie` is ever called, and this test would prove
+  // nothing about the branch it targets. So "email" is present (populates `values`) while the
+  // required "name" is omitted (forces the validation failure) and the SLUG alone is long enough
+  // that even that one field can't fit under the byte budget.
+  const hugeSlug = "a".repeat(3100);
+  const { server, baseUrl, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(
+    makeDefinition({
+      slug: hugeSlug,
+      fields: [
+        { id: "name", label: "Name", type: "text", required: true },
+        { id: "email", label: "Email", type: "email", required: false },
+      ],
+    })
+  );
+
+  const res = await fetch(`${baseUrl}/forms/${hugeSlug}/submit`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html" },
+    body: "email=ada%40example.com", // "name" omitted -> validation failure; "email" populates `values`
+  });
+  assert.equal(res.status, 303);
+  assert.equal(
+    res.headers.get("set-cookie"),
+    null,
+    "the slug alone is long enough that even one flash field doesn't fit under the byte budget, so encodeFormFlashCookieValue returns undefined"
+  );
+});
+
+test("POST /forms/:slug/submit: Accept: text/html + a validation failure whose form definition disappears between submitForm's own lookup and this route's own second lookup (a race) degrades to no flash cookie, never throws", async (t) => {
+  const real = new InMemoryFormDefinitionRepo();
+  await real.create(makeDefinition());
+  let calls = 0;
+  const racyRepo: FormDefinitionRepoPort = {
+    findById: (required) => real.findById(required),
+    findBySlug: (required) => {
+      calls += 1;
+      // Call 1 is submitForm's own internal lookup (must succeed so validation actually fails);
+      // call 2 is this route's OWN second lookup in setFormFlashCookieForValidationFailure -- made
+      // to race a deletion/disable that happened in between.
+      return calls === 1 ? real.findBySlug(required) : Promise.resolve(null);
+    },
+    list: (required) => real.list(required),
+    create: (record) => real.create(record),
+    update: (record) => real.update(record),
+  };
+  const { server, baseUrl } = await startTestApp({ definitionRepo: racyRepo });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    redirect: "manual",
+    headers: { "content-type": "application/x-www-form-urlencoded", accept: "text/html" },
+    body: "",
+  });
+  assert.equal(res.status, 303);
+  assert.equal(calls, 2, "both lookups must have happened for this to be a real regression test of the race");
+  assert.equal(res.headers.get("set-cookie"), null, "`definition?.fields ?? []` degrades to an empty field list rather than throwing when the second lookup returns null");
+});
+
+test("POST /forms/:slug/submit: an error submitForm never actually raises today (a plain, untyped repo failure) still degrades to a generic 500 INTERNAL_ERROR, not an unhandled rejection", async (t) => {
+  const realSubmissionRepo = new InMemoryFormSubmissionRepo();
+  const brokenSubmissionRepo = withThrowingMethod(realSubmissionRepo, "create");
+  const { server, baseUrl, definitionRepo } = await startTestApp({ submissionRepo: brokenSubmissionRepo as InMemoryFormSubmissionRepo });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  const res = await fetch(`${baseUrl}/forms/contact/submit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: "Ada" }),
+  });
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "INTERNAL_ERROR");
+});
+
+test("POST /forms/:slug/submit: `req.get(\"host\") ?? \"localhost\"` and `req.params.slug ?? \"\"` fallbacks, forced via a direct handler call -- Host is mandated by HTTP/1.1 but not enforced by Express, so no real request can omit it", async (t) => {
+  const { server, app, definitionRepo } = await startTestApp();
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  await definitionRepo.create(makeDefinition());
+
+  interface ExpressHandlerLayer {
+    route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+  }
+  interface ExpressAppWithRouter {
+    _router: { stack: ExpressHandlerLayer[] };
+  }
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === "/forms/:slug/submit");
+  if (!layer?.route) throw new Error("route not found in router stack");
+  const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+
+  let redirectStatus: number | undefined;
+  let redirectLocation: string | undefined;
+  const res = {
+    redirect(status: number, location: string) {
+      redirectStatus = status;
+      redirectLocation = location;
+      return res;
+    },
+    status() {
+      return res;
+    },
+    json() {
+      return res;
+    },
+    setHeader() {
+      return res;
+    },
+  };
+  const req = {
+    params: {}, // no :slug at all -> req.params.slug ?? "" fallback
+    body: {},
+    protocol: "http",
+    get: (name: string) => (name === "accept" ? "text/html" : undefined), // no host, no referer
+  };
+
+  await handler(req, res);
+
+  // slug "" -> FormDefinitionNotFoundError -> a redirect with kind "error"; the fallback host value
+  // itself never appears in the final Location (only pathname+search do), so this test's evidence
+  // that the branch ran is that the handler completes and redirects at all rather than throwing
+  // while building `new URL("/", \`${req.protocol}://${req.get("host") ?? "localhost"}\`)`.
+  assert.equal(redirectStatus, 303);
+  const location = new URL(redirectLocation ?? "", "http://localhost");
+  assert.equal(location.searchParams.get("form_status"), "error");
 });
