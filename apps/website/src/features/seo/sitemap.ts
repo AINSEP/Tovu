@@ -1,4 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
+import { resolvePostMemberAccess } from "../members/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { ResolveSeoImageRefDeps } from "./media.js";
@@ -47,12 +48,33 @@ export interface SeoSitemapDeps {
   media: ResolveSeoImageRefDeps;
 }
 
+/**
+ * Whether an anonymous, unauthenticated crawler could actually read this post — the sitemap's own
+ * visibility bar. `sitemap.xml` has no per-visitor concept at all (it is a single cache-backed
+ * document served identically to every requester, ADR-PIPE-008 Decision §5/§7 above), so "would
+ * THIS caller be let in" collapses to the one case that matters here: would ANY anonymous caller.
+ * `resolvePostMemberAccess(json).visibility === "public"` is exactly that: every other visibility
+ * (`members`/`paid`/`tiers`, and the fail-closed `unknown_visibility` default for malformed JSON)
+ * denies an unauthenticated `MemberContext` in `access-resolver.ts`'s own `decide()` — this is the
+ * same decision restated without needing that resolver's session/subscription/tier repo ports,
+ * which this cache-backed, session-blind build path has no reason to carry.
+ *
+ * @complexity O(1) — `resolvePostMemberAccess` is one `JSON.parse` of a small, editorial string.
+ */
+function isPubliclyVisible(post: { memberAccessJson?: string | null }): boolean {
+  return resolvePostMemberAccess(post.memberAccessJson).visibility === "public";
+}
+
 async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
   const posts = [...(await deps.postRepo.list({ workspaceId }))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   const entries: SitemapEntry[] = [];
   for (const post of posts) {
     if (post.status !== "published") continue;
+    // ADR-030 §4 (2026-09-03 sweep): a members/paid/tiers-gated post must not advertise its
+    // canonical URL or existence to crawlers here, the same way it was already excluded from the
+    // ungated home-page listing (`pages.ts`'s `filterVisiblePosts`).
+    if (!isPubliclyVisible(post)) continue;
     const meta = await getEntryMeta(deps, { workspaceId, entryId: post.id });
     if (meta.robots.noindex) continue;
     entries.push({ loc: meta.canonical, lastmod: post.updatedAt });

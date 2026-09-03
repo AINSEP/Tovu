@@ -1,3 +1,4 @@
+import { resolvePostMemberAccess } from "#src/features/members/index";
 import type { PostRepoPort } from "#src/features/post/index";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
@@ -61,6 +62,13 @@ const LLMS_TXT_SUMMARY =
  * unpublished, or never created in this environment is silently omitted rather than linked as a
  * dead 404, so the list self-heals instead of drifting stale.
  *
+ * 2026-09-03 member-gating sweep hardening: also drops a curated slug whose post IS published but
+ * gated (`memberAccessJson` visibility other than `public`). Currently inert — none of the 6
+ * curated slugs are gated in any real environment today — but `llms.txt` is the same kind of
+ * single, cache-backed, session-blind document `sitemap.xml` is (no per-caller branching at all),
+ * so it needs the identical structural check `sitemap.ts`'s own `isPubliclyVisible` uses, not just
+ * a status check, so a future gated curated page can't silently start leaking its URL here.
+ *
  * @complexity O(n) in `CURATED_DOCS`'s fixed, small size — one indexed `findBySlug` lookup per
  *   entry, no nested iteration.
  */
@@ -68,7 +76,9 @@ async function resolveLiveDocs(deps: { postRepo: PostRepoPort; workspaceId: stri
   const live: CuratedDocEntry[] = [];
   for (const entry of CURATED_DOCS) {
     const post = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug: entry.slug });
-    if (post && post.status === "published") live.push(entry);
+    if (post && post.status === "published" && resolvePostMemberAccess(post.memberAccessJson).visibility === "public") {
+      live.push(entry);
+    }
   }
   return live;
 }

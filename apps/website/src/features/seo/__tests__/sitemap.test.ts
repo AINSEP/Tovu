@@ -72,6 +72,40 @@ test("buildSitemap: excludes drafts and effective-noindex entries, includes only
   assert.ok(entries[0]!.loc.includes("published-visible"));
 });
 
+test("buildSitemap: a members/paid/tiers-gated published post is excluded — a crawler must not be told a gated post's URL/existence exists (ADR-030 §4, 2026-09-03 sweep)", async () => {
+  const deps = await makeDeps([
+    post({ id: "a", slug: "public-post", status: "published" }),
+    post({ id: "b", slug: "members-only-post", status: "published", memberAccessJson: JSON.stringify({ visibility: "members" }) }),
+    post({ id: "c", slug: "paid-only-post", status: "published", memberAccessJson: JSON.stringify({ visibility: "paid" }) }),
+    post({ id: "d", slug: "tiers-only-post", status: "published", memberAccessJson: JSON.stringify({ visibility: "tiers", tierIds: ["t-1"] }) }),
+  ]);
+
+  const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+  assert.equal(entries.length, 1, "only the ungated post may appear");
+  assert.ok(entries[0]!.loc.includes("public-post"));
+  for (const gatedSlug of ["members-only-post", "paid-only-post", "tiers-only-post"]) {
+    assert.ok(
+      !entries.some((e) => e.loc.includes(gatedSlug)),
+      `${gatedSlug} must not appear in the sitemap`
+    );
+  }
+});
+
+test("buildSitemap: a post with malformed memberAccessJson fails CLOSED (excluded), same as resolvePostMemberAccess's own fail-closed contract", async () => {
+  const deps = await makeDeps([post({ id: "a", slug: "malformed-access-post", status: "published", memberAccessJson: "{not json" })]);
+
+  const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(entries, []);
+});
+
+test("buildSitemap: a post with a NULL memberAccessJson (every pre-existing row) is treated as public, unchanged from pre-gating behavior", async () => {
+  const deps = await makeDeps([post({ id: "a", slug: "legacy-ungated-post", status: "published", memberAccessJson: null })]);
+
+  const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+  assert.equal(entries.length, 1);
+  assert.ok(entries[0]!.loc.includes("legacy-ungated-post"));
+});
+
 test("buildSitemap: entries are ordered by keyset id ascending (behavior.spec.md §2.2)", async () => {
   const deps = await makeDeps([
     post({ id: "c", slug: "c-post" }),

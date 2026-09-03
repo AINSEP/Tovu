@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -6,6 +7,9 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { registerTransform, uploadMedia, trashMedia, ImageSourceCorruptError } from "../../features/media/index.js";
+import type { PostRecord } from "../../features/post/index.js";
+import type { MemberSessionRecord } from "../../features/members/index.js";
+import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
 
 /**
  * @file Route-level tests for the new public, unauthenticated
@@ -77,6 +81,40 @@ async function registerOne(
     deps: { clock: deps.clock, idGen: deps.idGen, transformRepo: deps.transformDefinitionRepo },
     input: { workspaceId: deps.workspaceId, name, params, owner: "core" },
   });
+}
+
+/** Same shape `content-post-get-by-slug.test.ts`'s own `makePost` uses. */
+function makePost(overrides: Partial<PostRecord> & Pick<PostRecord, "id" | "slug">, workspaceId: string): PostRecord {
+  return {
+    workspaceId,
+    title: "Untitled",
+    bodyJson: { type: "doc", content: [] },
+    status: "published",
+    kind: "post",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  };
+}
+
+/** Embeds `assetId` as a ref-based TipTap `image` node — the one shape
+ *  `media-rendition.ts`'s own `collectImageAssetIds` walk recognizes. */
+function imageBody(assetId: string): PostRecord["bodyJson"] {
+  return { type: "doc", content: [{ type: "image", attrs: { assetId, transformName: "public" } }] };
+}
+
+const RAW_MEMBER_TOKEN = "test-raw-member-session-token-for-media-rendition-gating";
+function activeMemberSession(workspaceId: string): MemberSessionRecord {
+  return {
+    id: "session-media-rendition-gating-test",
+    workspaceId,
+    memberId: "member-media-rendition-gating-test-1",
+    tokenHash: createHash("sha256").update(RAW_MEMBER_TOKEN).digest("hex"),
+    createdAt: "2026-09-03T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
 }
 
 test("media rendition route: an already-generated rendition serves 200 with the immutable long-lived Cache-Control", async () => {
@@ -175,5 +213,101 @@ test("media rendition route: unknown assetId is a 404, and a malformed transform
 
     const malformed = await fetch(`${baseUrl}/m/does-not-exist/thumb-missing-version-marker/a.jpg`);
     assert.equal(malformed.status, 400);
+  });
+});
+
+// --- member-gating regression suite (ADR-030 §4, 2026-09-03 sweep) --------------------------
+// Closes the last hole the 2026-09-02/03 gating passes (`7fb47f55`, `9bf661e9`) left open: an
+// image embedded in a members-only post's body stayed directly fetchable by URL even after the
+// post itself 404'd to an anonymous caller. See `media-rendition.ts`'s `resolveMediaAccessDecision`
+// for the derivation this uses (no asset->post foreign key exists; the gate walks published
+// posts' `bodyJson` instead).
+
+test("media rendition route: an anonymous caller is 404'd for a rendition whose ONLY referencing post is members-only, and an entitled signed-in member still gets it", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "gated-hero-bytes", "gated-hero.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-gated", slug: "gated-post", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const anonRes = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`);
+    assert.equal(anonRes.status, 404, "an anonymous caller must not read media embedded only in a members-only post");
+    assert.equal(anonRes.headers.get("cache-control"), "private, no-store", "a per-viewer denial must never be shared-cached");
+    const anonBody = (await anonRes.json()) as { error: string };
+    assert.equal(anonBody.error, "rendition not found", "must be indistinguishable from an unknown assetId");
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const memberRes = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/hero.webp`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+    });
+    assert.equal(memberRes.status, 200, "an entitled signed-in member must still get the real media");
+    assert.equal(
+      memberRes.headers.get("cache-control"),
+      "private, no-store",
+      "a gated asset's 200 must never get the long-lived shared/CDN cache header"
+    );
+    const bytes = new Uint8Array(await memberRes.arrayBuffer());
+    assert.ok(bytes.byteLength > 0);
+  });
+});
+
+test("media rendition route: an unrelated or malformed cookie header does not grant member access to a gated asset", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "gated-bytes-unrelated-cookie", "gated2.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-gated-cookie", slug: "gated-post-cookie", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/g.webp`, {
+      headers: { cookie: "malformed_cookie_with_no_equals_sign; some_other_cookie=some_value" },
+    });
+    assert.equal(res.status, 404, "a malformed or unrelated cookie header must not be mistaken for a member session");
+  });
+});
+
+test("media rendition route: an asset referenced only by a DRAFT (unpublished) post remains unrestricted for an anonymous caller — a draft's own content is never public either way", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "draft-only-bytes", "draft.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-draft", slug: "draft-post", status: "draft", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/d.webp`);
+    assert.equal(res.status, 200, "a draft-only reference must not gate the asset");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  });
+});
+
+test("media rendition route: an asset embedded in BOTH a public post and a members-only post is still servable to an anonymous caller (most-permissive-of-referrers — the bytes are already public through the public post)", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "shared-asset-bytes", "shared.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(makePost({ id: "p-public", slug: "public-post", bodyJson: imageBody(media.id) }, deps.workspaceId));
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-gated-shared", slug: "gated-post-shared", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/s.webp`);
+    assert.equal(res.status, 200);
+    assert.equal(
+      res.headers.get("cache-control"),
+      "public, max-age=31536000, immutable",
+      "visible to everyone through the public post — ordinary immutable caching is correct here"
+    );
   });
 });

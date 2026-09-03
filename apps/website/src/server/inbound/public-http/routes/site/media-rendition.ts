@@ -1,7 +1,12 @@
+import type { Request } from "express";
+
 import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
+import type { PostRecord } from "#src/features/post/index";
+import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
 import { parseRangeHeader } from "#src/server/inbound/admin-http/range";
-import type { MediaRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
+import type { MediaRenditionRouteDeps, MediaRenditionRouteRegistrar } from "#src/server/inbound/admin-http/routes/media/deps";
 import { DISALLOWED_INLINE_CONTENT_TYPES, resolveMediaOriginalBlob, sendMediaOriginalResponse } from "#src/server/inbound/admin-http/routes/media/original";
+import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 
 /**
  * @file Public, unauthenticated media rendition serving route (ADR-027 §4
@@ -51,7 +56,141 @@ function resolveTransformSpec(
   return { transformName, version };
 }
 
-export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
+/** Local copy of `pages.ts`'s own (file-private) `isPlainObject`/`collectImageAssetIds` walk —
+ *  duplicated rather than imported, same "each side owns its own copy of a small pure helper"
+ *  precedent `9bf661e9`'s content-API gating fix already followed for `readRawCookie`/
+ *  `createMemberAccessResolver` below. Walks a TipTap-shaped `bodyJson` tree collecting every
+ *  ref-based `image` node's `assetId` (ADR-027 §4's `{assetId, transformName}` shape); a legacy
+ *  `src`-only node contributes nothing, matching `render.ts`'s own `image` case, which never reads
+ *  `src` at all once a ref shape exists. */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function collectImageAssetIds(node: unknown, out: Set<string>): void {
+  if (Array.isArray(node)) {
+    for (const child of node) collectImageAssetIds(child, out);
+    return;
+  }
+  if (!isPlainObject(node)) return;
+  if (node.type === "image" && isPlainObject(node.attrs) && typeof node.attrs.assetId === "string") {
+    out.add(node.attrs.assetId);
+  }
+  if (Array.isArray(node.content)) collectImageAssetIds(node.content, out);
+}
+
+/**
+ * Finds every PUBLISHED post whose `bodyJson` embeds `assetId` — the derivation this route uses in
+ * place of a hand-maintained asset->post foreign key. There is no such column anywhere in this
+ * codebase (`MediaRecord`, `@jini-ai/cms/media`, carries no post/owner reference at all); deriving
+ * the relationship from the one place it's actually authored (a post's own body) is the same choice
+ * `resolveMediaAssetMetadataForRender` (`pages.ts`) already made for the unrelated width/height/class
+ * override lookup, rather than adding a second, independently-writable copy of the same fact.
+ *
+ * DRAFT posts are deliberately excluded: an asset referenced only by an unpublished draft (or a
+ * freshly uploaded asset not yet embedded anywhere) must stay reachable — see
+ * `MediaRenditionRouteDeps`'s own doc for why the admin composer needs that. A draft's own content
+ * is never served to the public any other way either (`getPublishedPostBySlug` already excludes
+ * it), so excluding drafts from this scan opens no new leak.
+ *
+ * @complexity O(p) over the workspace's published posts, each behind an already-in-memory
+ * `bodyJson` walk (no additional I/O per post) — the same `postRepo.list` + linear scan shape
+ * `buildSitemap`'s `computeSitemapEntries` and `pages.ts`'s `filterVisiblePosts` already use at
+ * this codebase's disclosed single-workspace scale.
+ */
+async function findPublishedPostsReferencingAsset(
+  deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId">,
+  assetId: string
+): Promise<PostRecord[]> {
+  const posts = await deps.postRepo.list({ workspaceId: deps.workspaceId });
+  const referencing: PostRecord[] = [];
+  for (const post of posts) {
+    if (post.status !== "published") continue;
+    const ids = new Set<string>();
+    collectImageAssetIds(post.bodyJson, ids);
+    if (ids.has(assetId)) referencing.push(post);
+  }
+  return referencing;
+}
+
+/** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
+ *  mounted anywhere in this app, same reasoning `9bf661e9`'s content-API fix already gives for its
+ *  own copy. `req.headers` is optional-chained for the same direct-invocation-test reason that
+ *  file's copy documents. */
+function readRawCookie(req: Request, name: string): string | undefined {
+  const header = req.headers?.cookie;
+  if (!header) return undefined;
+  for (const part of header.split(";")) {
+    const eq = part.indexOf("=");
+    if (eq === -1) continue;
+    if (part.slice(0, eq).trim() === name) return decodeURIComponent(part.slice(eq + 1).trim());
+  }
+  return undefined;
+}
+
+/** Route-local duplicate of `pages.ts`'s own `createMemberAccessResolver` — built per request from
+ *  `deps`, never a module-level singleton, same "tests inject their own in-memory repos per
+ *  composition" reason that file's own doc gives. */
+function createMemberAccessResolver(
+  deps: Pick<MediaRenditionRouteDeps, "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo">
+): MemberAccessResolver {
+  return new DefaultMemberAccessResolver({
+    sessions: deps.memberSessionRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    tiers: deps.memberTierRepo,
+  });
+}
+
+/**
+ * Whether `assetId` is gated at all, and — if it is — whether THIS request's caller may read it.
+ *
+ * `gated: false` ("no need to consult who's asking, always allow") covers TWO cases: no published
+ * post references this asset at all (freshly uploaded, only in a draft, or a legacy/unreferenced
+ * asset — nothing to gate on), and an asset referenced by at least one `visibility: "public"` post.
+ * The second case matters for mixed-visibility embeds: `decidePublicAccess` (`access-resolver.ts`)
+ * never consults `context` at all, so if even ONE referencing post is public, the outcome is
+ * identical for every visitor regardless of session — exactly the property that makes the
+ * route's ordinary long-lived, shared-cacheable response safe, and checking it FIRST also skips
+ * the session/subscription/tier repo round trip entirely for the common "referenced by an ordinary
+ * public post" case.
+ *
+ * `gated: true` (every referencing post requires SOME entitlement check) allows if the caller may
+ * read ANY ONE of them — most-permissive-of-referrers when the same asset is embedded in posts of
+ * mixed gated visibility (e.g. both `members` and `paid`). That is a deliberate choice, not an
+ * oversight: if a post the caller CAN read embeds this exact asset, the bytes are already reachable
+ * to them through that post's own rendered page, so denying the direct asset URL would only break
+ * that post's own display for an entitled visitor without hiding anything from anyone the gate was
+ * meant to stop.
+ *
+ * @complexity O(p) — see {@link findPublishedPostsReferencingAsset}; `decide` itself is pure O(1)
+ * per referencing post.
+ */
+async function resolveMediaAccessDecision(
+  deps: MediaRenditionRouteDeps,
+  req: Request,
+  assetId: string
+): Promise<{ gated: boolean; allowed: boolean }> {
+  const referencingPosts = await findPublishedPostsReferencingAsset(deps, assetId);
+  const hasPubliclyVisibleReferrer = referencingPosts.some(
+    (post) => resolvePostMemberAccess(post.memberAccessJson).visibility === "public"
+  );
+  if (referencingPosts.length === 0 || hasPubliclyVisibleReferrer) {
+    return { gated: false, allowed: true };
+  }
+
+  const resolver = createMemberAccessResolver(deps);
+  const context = await resolver.resolveContext({
+    workspaceId: deps.workspaceId,
+    sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
+    nowIso: new Date().toISOString(),
+  });
+  const allowed = referencingPosts.some(
+    (post) => resolver.decide({ access: resolvePostMemberAccess(post.memberAccessJson), context }).allowed
+  );
+  return { gated: true, allowed };
+}
+
+export const registerMediaRenditionRoute: MediaRenditionRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
     const assetId = String(req.params.assetId ?? "");
     const transformSpec = String(req.params.transformSpec ?? "");
@@ -65,6 +204,18 @@ export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
     const { transformName, version } = parsed;
 
     try {
+      const access = await resolveMediaAccessDecision(deps, req, assetId);
+      if (!access.allowed) {
+        // ADR-030 §4 gate (2026-09-03 sweep): the SAME "rendition not found" 404 an unknown
+        // assetId already gets below — a gated asset must be indistinguishable from one that
+        // doesn't exist, matching `9bf661e9`'s content-API fix. `private, no-store`, never the
+        // short-TTL `public` header the plain not-found branch below uses: this outcome depends on
+        // the caller's own session cookie, so a shared/CDN cache must never replay it to a
+        // DIFFERENT visitor (see `MediaRenditionRouteDeps`'s own doc).
+        res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
+        return;
+      }
+
       const result = await resolveMediaRendition({
         deps: {
           mediaRepo: deps.mediaRepo,
@@ -97,7 +248,12 @@ export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
 
       res
         .status(200)
-        .set("Cache-Control", "public, max-age=31536000, immutable")
+        // `access.gated`: a gated asset's ALLOW outcome is per-viewer (it depended on this
+        // request's session cookie), so it must never be handed the long-lived, shared/CDN-facing
+        // `immutable` header below — the next, possibly unentitled, visitor to hit a public/shared
+        // cache would be served this same cached response. Ungated media (the overwhelming common
+        // case) keeps the original immutable header unchanged.
+        .set("Cache-Control", access.gated ? "private, no-store" : "public, max-age=31536000, immutable")
         .set("Content-Type", result.contentType)
         .send(Buffer.from(result.bytes));
     } catch (err) {
@@ -155,14 +311,27 @@ export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
  * existing design intent (every publicly-served image passes through `sharp`) intact; widening
  * this route to other types later is a deliberate future decision, not a side effect of this one.
  *
+ * ADR-030 §4 gate (2026-09-03 sweep): {@link resolveMediaAccessDecision} runs before the blob is
+ * even fetched, same as {@link registerMediaRenditionRoute} above — a denied caller gets the SAME
+ * "video rendition not found" 404 the not-a-video branch below already uses, so a gated video is
+ * indistinguishable from one that was never a video at all. No cache-header special-casing is
+ * needed on the ALLOW path here: {@link sendMediaOriginalResponse} already sends `private, no-store`
+ * unconditionally for every successful response, gated or not.
+ *
  * @complexity O(1) plus the byte copy for a partial range (inherited from
- * {@link sendMediaOriginalResponse}).
+ * {@link sendMediaOriginalResponse}), plus {@link resolveMediaAccessDecision}'s own O(p) cost.
  */
-export const registerMediaOriginalVideoRoute: MediaRouteRegistrar = (app, deps) => {
+export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/original", async (req, res) => {
     const assetId = String(req.params.assetId ?? "");
 
     try {
+      const access = await resolveMediaAccessDecision(deps, req, assetId);
+      if (!access.allowed) {
+        res.status(404).set("Cache-Control", "private, no-store").json({ error: "video rendition not found" });
+        return;
+      }
+
       const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId: assetId });
       if (!resolved) {
         return;

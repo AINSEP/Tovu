@@ -55,6 +55,30 @@ test("GET /llms.txt: a curated slug that exists but is not published is omitted,
   assert.doesNotMatch(body, /\/quickstart\)/, "a draft post at a curated slug must not be linked as a live doc");
 });
 
+test("GET /llms.txt: a curated slug that is published but member-gated is omitted, same as a draft or nonexistent one (ADR-030 §4 hardening, 2026-09-03 sweep)", async (t) => {
+  const postRepo = new InMemoryPostRepo([
+    curatedDraftPost({ status: "published", memberAccessJson: JSON.stringify({ visibility: "members" }) }),
+  ]);
+  const app = buildLlmsOnlyApp({ postRepo });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/llms.txt`);
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.doesNotMatch(body, /\/quickstart\)/, "a gated post at a curated slug must not be linked as a live doc, even though it is published");
+});
+
+test("GET /llms.txt: a curated slug that is published and ungated (NULL memberAccessJson) is still listed, unchanged from pre-gating behavior", async (t) => {
+  const postRepo = new InMemoryPostRepo([curatedDraftPost({ status: "published", memberAccessJson: null })]);
+  const app = buildLlmsOnlyApp({ postRepo });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/llms.txt`);
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.match(body, /\/quickstart\)/);
+});
+
 test("GET /llms.txt: a post-read failure is caught and reported as a plain-text 500, not an uncaught rejection", async (t) => {
   // Mutate the real repo instance's own `findBySlug`, rather than spreading it into a plain
   // object -- `InMemoryPostRepo`'s methods live on its prototype, so a spread would silently drop

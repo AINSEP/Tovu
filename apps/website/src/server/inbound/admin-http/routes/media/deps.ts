@@ -31,6 +31,30 @@ export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & Cloc
 export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
 
 /**
+ * Widened (not narrowed) slice for the TWO public routes this file's `MediaRouteRegistrar`
+ * also types (`routes/site/media-rendition.ts`'s `registerMediaRenditionRoute`/
+ * `registerMediaOriginalVideoRoute`) — deliberately kept separate from {@link MediaRouteDeps}
+ * rather than widening that shared type, so the 5 ADMIN media routes (list/upload/update/
+ * trash/delete/original — all still typed against `MediaRouteDeps` above) never gain unused
+ * `postRepo`/member-repo fields on their own composition surface.
+ *
+ * The 2026-09-03 member-gating sweep (this file's own sibling routes were never gated — see
+ * `routes/site/pages.ts` ADR-030 §4, and `9bf661e9`'s content-API fix) found that these two
+ * PUBLIC, unauthenticated routes serve an asset's bytes purely by `assetId`, with no
+ * member-gating hook at all: an image/video embedded in a members-only post's body stayed
+ * directly fetchable by URL even after the post itself 404s to an anonymous caller.
+ * `postRepo` is the derivation seam that closes this — `media-rendition.ts` walks published
+ * posts' `bodyJson` for the requested `assetId` (mirroring `pages.ts`'s own
+ * `collectImageAssetIds` walk) rather than requiring a new asset->post foreign key, and the
+ * three member repo ports are the same `MemberAccessResolver` construction ingredients
+ * `pages.ts`/`get-by-slug.ts` already use.
+ */
+export type MediaRenditionRouteDeps = MediaRouteDeps &
+  Pick<RouteDeps, "postRepo" | "memberSessionRepo" | "memberSubscriptionRepo" | "memberTierRepo">;
+
+export type MediaRenditionRouteRegistrar = (app: Express, deps: MediaRenditionRouteDeps) => void;
+
+/**
  * Slice for the two media-PROVIDER-credential routes (`get-providers.ts`/`put-providers.ts`).
  *
  * Kept separate from `MediaRouteDeps` above rather than widening it: those 7 routes move asset

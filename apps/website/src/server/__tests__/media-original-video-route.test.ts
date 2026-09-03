@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
@@ -6,6 +7,9 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../runtime/composition/app.js";
 import { trashMedia, uploadMedia } from "../../features/media/index.js";
+import type { PostRecord } from "../../features/post/index.js";
+import type { MemberSessionRecord } from "../../features/members/index.js";
+import { InMemoryMemberSessionRepo } from "../../features/members/index.js";
 
 /**
  * @file Route-level tests for the new public, unauthenticated `GET /m/{assetId}/original` route
@@ -62,6 +66,40 @@ function mp4Bytes(payload: string): Uint8Array {
   return b;
 }
 
+/** Same shape `content-post-get-by-slug.test.ts`'s own `makePost` uses. */
+function makePost(overrides: Partial<PostRecord> & Pick<PostRecord, "id" | "slug">, workspaceId: string): PostRecord {
+  return {
+    workspaceId,
+    title: "Untitled",
+    bodyJson: { type: "doc", content: [] },
+    status: "published",
+    kind: "post",
+    bodyFormat: "doc",
+    bodyHtml: null,
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  };
+}
+
+/** Embeds `assetId` as a ref-based TipTap `image` node — the one shape
+ *  `media-rendition.ts`'s own `collectImageAssetIds` walk recognizes. */
+function imageBody(assetId: string): PostRecord["bodyJson"] {
+  return { type: "doc", content: [{ type: "image", attrs: { assetId } }] };
+}
+
+const RAW_MEMBER_TOKEN = "test-raw-member-session-token-for-media-original-gating";
+function activeMemberSession(workspaceId: string): MemberSessionRecord {
+  return {
+    id: "session-media-original-gating-test",
+    workspaceId,
+    memberId: "member-media-original-gating-test-1",
+    tokenHash: createHash("sha256").update(RAW_MEMBER_TOKEN).digest("hex"),
+    createdAt: "2026-09-03T00:00:00.000Z",
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
+}
+
 test("media original video route: a real mp4 serves 200 with the sniffed video content type and the exact uploaded bytes", async () => {
   await withServer(async (baseUrl, deps) => {
     const bytes = mp4Bytes("hero-clip-bytes");
@@ -115,6 +153,49 @@ test("media original video route: an unknown assetId 404s", async () => {
   await withServer(async (baseUrl) => {
     const res = await fetch(`${baseUrl}/m/does-not-exist/original`);
     assert.equal(res.status, 404);
+  });
+});
+
+test("media original video route: an anonymous caller is 404'd for a video whose ONLY referencing post is members-only, and an entitled signed-in member still gets it (ADR-030 §4, 2026-09-03 sweep)", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const bytes = mp4Bytes("gated-clip-bytes");
+    const { media } = await uploadOne(deps, bytes, "gated-hero.mp4", "video/mp4");
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-gated-video", slug: "gated-video-post", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const anonRes = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(anonRes.status, 404, "an anonymous caller must not read video embedded only in a members-only post");
+    assert.equal(anonRes.headers.get("cache-control"), "private, no-store", "a per-viewer denial must never be shared-cached");
+    const anonBody = (await anonRes.json()) as { error: string };
+    assert.equal(anonBody.error, "video rendition not found", "must be indistinguishable from a non-video/unknown asset");
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const memberRes = await fetch(`${baseUrl}/m/${media.id}/original`, {
+      headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` },
+    });
+    assert.equal(memberRes.status, 200, "an entitled signed-in member must still get the real video");
+    const body = new Uint8Array(await memberRes.arrayBuffer());
+    assert.deepEqual(body, bytes);
+  });
+});
+
+test("media original video route: an asset referenced only by a DRAFT post remains unrestricted for an anonymous caller", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const bytes = mp4Bytes("draft-only-clip");
+    const { media } = await uploadOne(deps, bytes, "draft.mp4", "video/mp4");
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-draft-video", slug: "draft-video-post", status: "draft", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/original`);
+    assert.equal(res.status, 200);
   });
 });
 

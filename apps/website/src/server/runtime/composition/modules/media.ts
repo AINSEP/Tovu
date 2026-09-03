@@ -6,7 +6,7 @@ import { registerAdminMediaPutProvidersRoute } from "#src/server/inbound/admin-h
 import { registerAdminMediaTrashRoute } from "#src/server/inbound/admin-http/routes/media/trash";
 import { registerAdminMediaUpdateRoute } from "#src/server/inbound/admin-http/routes/media/update";
 import { registerAdminMediaUploadRoute } from "#src/server/inbound/admin-http/routes/media/upload";
-import type { MediaProviderRouteDeps, MediaRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
+import type { MediaProviderRouteDeps, MediaRenditionRouteDeps, MediaRouteDeps } from "#src/server/inbound/admin-http/routes/media/deps";
 import { registerMediaOriginalVideoRoute, registerMediaRenditionRoute } from "#src/server/inbound/public-http/routes/site/media-rendition";
 import type { ServerModuleHandle } from "./types.js";
 
@@ -45,8 +45,14 @@ import type { ServerModuleHandle } from "./types.js";
  * established by `modules/forms.ts`/`modules/integrations.ts` — this module does not construct
  * `SharpImageTransformer`/`InMemoryImageTransformer` itself; the composition root
  * (`server/app.ts`/`server/deps.ts`) still selects which concrete adapter `imageTransformer` is.
+ *
+ * 2026-09-03 member-gating sweep: the deps parameter widened from `MediaRouteDeps` alone to also
+ * include `MediaRenditionRouteDeps`'s `postRepo`/member-repo fields, needed by
+ * `registerMediaRenditionRoute`/`registerMediaOriginalVideoRoute` (see that type's own doc). No
+ * new plumbing at the call site: `server/app.ts` already passes this factory the full `routeDeps`
+ * object, which has carried `postRepo` and the three member repos since ADR-030.
  */
-export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps): ServerModuleHandle {
+export function createMediaModule(deps: MediaRouteDeps & MediaProviderRouteDeps & MediaRenditionRouteDeps): ServerModuleHandle {
   return {
     name: "media",
     registerRoutes: (app) => {
