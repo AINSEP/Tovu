@@ -38,11 +38,7 @@ export function registerAdminEntryUpdateRoute(app: Express, deps: ContentTypesRo
         return;
       }
 
-      // `req.body` is never nullish here: the composition root's blanket `express.json()`
-      // (`runtime/composition/app.ts`) runs `body-parser`, which sets `req.body = req.body || {}`
-      // unconditionally before any content-type check (`node_modules/body-parser/lib/types/
-      // json.js:105-108`) — so a `?? {}` fallback can never actually fire through real HTTP.
-      const body = req.body;
+      const body = req.body ?? {};
       if (typeof body.expectedVersion !== "number") {
         res.status(400).json({ error: "'expectedVersion' (number) is required", code: "VALIDATION_ERROR" });
         return;

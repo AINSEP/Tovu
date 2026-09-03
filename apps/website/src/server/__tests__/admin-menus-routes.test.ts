@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 
 import express from "express";
 
@@ -666,6 +666,58 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + bl
   assert.equal(forcedRes.status, 200);
   const forcedBody = (await forcedRes.json()) as { purged: boolean };
   assert.equal(forcedBody.purged, true);
+});
+
+/**
+ * `req.params.workspaceId ?? ""` / `req.params.menuId ?? ""` / `parseMenuTreeRequestBody`'s own
+ * `(rawBody ?? {})` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): Express
+ * guarantees a matched `:param` is always populated, and real `body-parser` always assigns
+ * `req.body`, so the right side of every `??` below is unreachable through any real HTTP request.
+ * Restored 2026-09-03 after being wrongly deleted as "unreachable dead code" -- the repo's
+ * established answer is to KEEP the guard and exercise it with a hand-built `req` that
+ * deliberately violates those contracts.
+ */
+test("update menu tree: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, body: { items: [] } }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { error: string }).error, "workspace was not found");
+});
+
+test("update menu tree: `parseMenuTreeRequestBody`'s `(rawBody ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
+  const { app, deps } = buildTestApp();
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+
+  // No `body` key at all -> `(rawBody ?? {})` fallback; `{}.items` is not an array, so this reaches
+  // the batch-shape guard rather than throwing on a property access of `undefined`.
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { error: string }).error, "items must be an array");
+});
+
+test("update menu tree: `req.params.menuId ?? \"\"` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: deps.workspaceId }, body: { items: [] } }, res); // no menuId
+
+  // An empty menuId resolves nothing -- the ordinary not-found mapping, proof the `?? ""` fallback
+  // produced a real (if unmatched) lookup key rather than throwing.
+  assert.equal(capture.statusCode, 404);
 });
 
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {

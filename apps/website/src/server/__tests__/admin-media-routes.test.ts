@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { registerAdminMediaDeleteRoute } from "../inbound/admin-http/routes/media/delete.js";
@@ -525,5 +525,61 @@ test("admin media routes: delete returns 404 for wrong workspace id and non-exis
   } finally {
     deps.mediaRepo.findById = originalFind;
   }
+});
+
+/**
+ * `req.params.workspaceId ?? ""` / `req.params.mediaId ?? ""` (used twice: the authorize() call's
+ * `entityId` and the update input's `id`) / `parseMediaMetadataPatch`'s own `(rawBody ?? {})`
+ * (extractRouteHandler's own doc, `helpers/http-test-server.ts`): Express guarantees a matched
+ * `:param` is always populated, and real `body-parser` always assigns `req.body`, so the right side
+ * of every `??` below is unreachable through any real HTTP request. Restored 2026-09-03 after being
+ * wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard
+ * and exercise it with a hand-built `req` that deliberately violates those contracts.
+ */
+test("update media: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call", async () => {
+  const { app } = buildTestApp();
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/media/:mediaId");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { error: string }).error, "workspace was not found");
+});
+
+test("update media: `req.params.mediaId ?? \"\"` fallback (both the authorize() entityId and the update input id), forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/media/:mediaId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res); // no mediaId at all
+
+  assert.equal(capture.statusCode, 404);
+});
+
+test("update media: `parseMediaMetadataPatch`'s `(rawBody ?? {})` fallback, forced via a direct handler call with req.body omitted entirely", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "patch", "/api/admin/v1/workspaces/:workspaceId/media/:mediaId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  // No `body` key at all -> `(rawBody ?? {})` fallback; every field then reads as omitted rather
+  // than throwing on a property access of `undefined`.
+  await handler({ params: { workspaceId: deps.workspaceId, mediaId: "media-does-not-exist" } }, res);
+
+  assert.equal(capture.statusCode, 404);
 });
 

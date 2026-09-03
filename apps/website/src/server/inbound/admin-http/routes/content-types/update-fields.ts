@@ -55,11 +55,7 @@ export function registerAdminContentTypeUpdateFieldsRoute(app: Express, deps: Co
         return;
       }
 
-      // `req.body` is always populated here — `express.json()` is mounted ahead of every admin
-      // route (composition/app.ts) and unconditionally sets `req.body = req.body || {}` before any
-      // handler runs (body-parser's own `types/json.js`), so a `?? {}` fallback can never observe
-      // an absent body through real HTTP. Removed rather than covered with an artificial test.
-      const body = req.body;
+      const body = req.body ?? {};
       if (typeof body.expectedVersion !== "number") {
         res.status(400).json({ error: "'expectedVersion' (number) is required", code: "VALIDATION_ERROR" });
         return;

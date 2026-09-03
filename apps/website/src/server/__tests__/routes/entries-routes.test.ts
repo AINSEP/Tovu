@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminContentTypeRegisterRoute } from "../../inbound/admin-http/routes/content-types/register.js";
@@ -805,4 +805,48 @@ test("entries routes: unpublishing a draft entry that was never published succee
   // TARGET is `published` (`write-service.ts`'s `transitionEntryStatus`) — for an unpublish target
   // it's left untouched, so it stays null here rather than being back-filled.
   assert.equal(body.entry.publishedAt, null);
+});
+
+/**
+ * `req.body ?? {}` (extractRouteHandler's own doc, `helpers/http-test-server.ts`): real
+ * `body-parser` always assigns `req.body` (as `{}` at worst) before any handler runs, so the right
+ * side of this `??` is unreachable through any real HTTP request. Restored 2026-09-03 after being
+ * wrongly deleted as "unreachable dead code" -- the repo's established answer is to KEEP the guard
+ * and exercise it with a hand-built `req` that deliberately violates that contract, the same way a
+ * `default: throw` exhaustiveness guard is tested.
+ */
+test("entries update: `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/entries/:id");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { id: "entry-does-not-exist" } }, res); // no `body` key at all -> `req.body ?? {}` fallback
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("entries lifecycle: `req.body ?? {}` fallback, forced via a direct handler call past auth with a real seeded principal", async () => {
+  const { app, deps } = buildTestApp();
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/entries/:id/lifecycle");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { id: "entry-does-not-exist" } }, res); // no `body` key at all -> `req.body ?? {}` fallback
+
+  assert.equal(capture.statusCode, 400);
+  assert.equal((capture.jsonBody as { code: string }).code, "VALIDATION_ERROR");
 });

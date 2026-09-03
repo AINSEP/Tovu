@@ -21,18 +21,14 @@ function parseOptionalNullableField<T>(raw: unknown, convert: (value: unknown) =
 
 /**
  * Reads the seven metadata fields `updateMediaMetadata` accepts off an untyped request body,
- * applying the two field-level parse rules above.
- *
- * `rawBody` is always an object here — `express.json()` sits ahead of every admin route
- * (composition/app.ts) and unconditionally sets `req.body = req.body || {}` before any handler
- * runs (body-parser's own `types/json.js`), so this function's one real caller (`req.body` below)
- * can never hand it `undefined`. The prior `rawBody ?? {}` default was accordingly dead through
- * any real HTTP request; removed rather than covered with an artificial direct-invoke test.
+ * applying the two field-level parse rules above. A missing body coerces to `{}` so every field
+ * reads as omitted rather than throwing on a property access — the pre-extraction route made the
+ * same allowance via `req.body?.field`.
  *
  * @complexity O(1) — reads seven fixed properties.
  */
 function parseMediaMetadataPatch(rawBody: unknown) {
-  const body = rawBody as Record<string, unknown>;
+  const body = (rawBody ?? {}) as Record<string, unknown>;
   return {
     title: parseOptionalStringField(body.title),
     alt: parseOptionalStringField(body.alt),
@@ -51,11 +47,7 @@ function parseMediaMetadataPatch(rawBody: unknown) {
  */
 export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/media/:mediaId", async (req, res) => {
-    // No `?? ""` fallback on either `req.params` read in this handler: Express only invokes a
-    // route's handler once every `:param` segment in its path matched a non-empty path segment, so
-    // `workspaceId`/`mediaId` are always populated strings here — the same guarantee
-    // `admin-post-page-delete-routes.test.ts` documents for `pages/delete.ts`'s `pageId`.
-    if (req.params.workspaceId !== deps.workspaceId) {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
       return;
     }
@@ -67,7 +59,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
         permission: "media.update",
         workspaceId: deps.workspaceId,
         entityType: "media",
-        entityId: req.params.mediaId,
+        entityId: String(req.params.mediaId ?? ""),
       });
       if (!authResult.allowed) {
         res.status(403).json({
@@ -82,7 +74,7 @@ export const registerAdminMediaUpdateRoute: MediaRouteRegistrar = (app, deps) =>
         deps: { clock: deps.clock, mediaRepo: deps.mediaRepo },
         input: {
           workspaceId: deps.workspaceId,
-          id: req.params.mediaId,
+          id: String(req.params.mediaId ?? ""),
           ...parseMediaMetadataPatch(req.body),
         },
       });
