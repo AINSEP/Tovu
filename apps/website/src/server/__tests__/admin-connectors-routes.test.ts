@@ -11,7 +11,7 @@ import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
 import { createConnectorsModule } from "../runtime/composition/modules/connectors.js";
 import type { RouteDeps } from "../routes/types.js";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { bootAuthenticated, startTestServer, extractRouteHandler, createCapturingResponse } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the 5 Composio connector routes — real Express app, real session
@@ -356,6 +356,52 @@ test("cancel: workspace mismatch is 404, denies 403 FORBIDDEN without admin.inte
   const errRes = await fetch(`${baseUrl}${BASE}/github/cancel`, { method: "POST", headers: { cookie } });
   assert.equal(errRes.status, 500);
   assert.deepEqual(await errRes.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("GET /connectors/statuses: a workspace id that is not this site's is 404", async (t) => {
+  const { app } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await get(baseUrl, "/api/admin/v1/workspaces/not-this-site/connectors/statuses", cookie);
+  assert.equal(res.status, 404);
+  assert.equal((await res.json()).error, "workspace was not found");
+});
+
+test("GET /connectors/statuses: denies 403 FORBIDDEN without admin.integrations.manage", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+
+  const res = await get(baseUrl, STATUSES_PATH, cookie);
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string; details: { permission: string; reason: string } };
+  assert.equal(body.code, "FORBIDDEN");
+  assert.deepEqual(body.details, { permission: "admin.integrations.manage", reason: "test_denied" });
+});
+
+test("GET /connectors/statuses: an unexpected error surfaces via sendConnectorError as a generic 500", async (t) => {
+  const { app, deps } = await buildTestApp(t);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  deps.authorize = async () => {
+    throw new Error("boom");
+  };
+
+  const res = await get(baseUrl, STATUSES_PATH, cookie);
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("GET /connectors/statuses: req.params.workspaceId is always populated by Express for a matched route (defensive ?? \"\" fallback is unreachable through real HTTP)", async (t) => {
+  const { app } = await buildTestApp(t);
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/connectors/statuses");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
 test("a missing master secret is a 503 SECRET_STORE_UNCONFIGURED, not a 500", async (t) => {

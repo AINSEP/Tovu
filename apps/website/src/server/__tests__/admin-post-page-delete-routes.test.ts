@@ -4,7 +4,9 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../runtime/composition/app.js";
+import { createApp, createRouteDeps } from "../runtime/composition/app.js";
+import type { RouteDeps } from "../routes/types.js";
+import { extractRouteHandler, createCapturingResponse } from "./helpers/http-test-server.js";
 
 /**
  * @file The human-facing half of the delete feature: `DELETE /posts/:postId` and
@@ -35,6 +37,31 @@ async function startServer(t: { after: (fn: () => Promise<void>) => void }) {
   const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
 
   return { baseUrl, cookie };
+}
+
+/** Same as {@link startServer}, but also hands back the real `RouteDeps` the app was built from --
+ *  needed by the coverage-gap tests below that monkey-patch `authorize`/`changeSets.insert` to
+ *  force the `pages/delete.ts` route's ForbiddenError/rollback/500 branches, which no fixture data
+ *  alone can reach. */
+async function startServerWithDeps(t: { after: (fn: () => Promise<void>) => void }): Promise<{ baseUrl: string; cookie: string; deps: RouteDeps }> {
+  const deps = createRouteDeps();
+  const server = createServer(createApp(deps));
+  server.listen(0);
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { port } = server.address() as AddressInfo;
+  const baseUrl = `http://127.0.0.1:${port}`;
+
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: "admin", password: "tovu-dev" }),
+  });
+  assert.equal(login.status, 200);
+  const cookie = login.headers.get("set-cookie")?.split(";")[0] ?? "";
+
+  return { baseUrl, cookie, deps };
 }
 
 async function createRow(
@@ -211,4 +238,117 @@ test("DELETE post: the delete is REVERSIBLE — reverting its change set restore
   assert.equal(payload.post.title, "Recoverable", "the restore must be lossless");
   assert.equal(payload.post.slug, "recoverable");
   assert.equal(payload.post.status, "published");
+});
+
+test("DELETE page: a workspace id that is not this site's is 404, before any command runs", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const { id } = await createRow(baseUrl, cookie, "pages", { title: "Wrong Workspace Target" });
+
+  const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-a-workspace/pages/${id}`, {
+    method: "DELETE",
+    headers: { cookie },
+  });
+  assert.equal(response.status, 404);
+  assert.equal((await response.json()).error, "workspace was not found");
+
+  // And the page itself must be untouched.
+  const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { headers: { cookie } });
+  assert.equal(stillThere.status, 200, "a mismatched-workspace delete must not have trashed the page");
+});
+
+test("DELETE page: reusing an Idempotency-Key on the delete route itself returns DUPLICATE_COMMAND", async (t) => {
+  const { baseUrl, cookie } = await startServer(t);
+  const { id } = await createRow(baseUrl, cookie, "pages", { title: "Delete Twice Same Key" });
+
+  const request = { method: "DELETE" as const, headers: { cookie, "Idempotency-Key": "page-delete-idempotency-retry" } };
+  const first = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, request);
+  assert.equal(first.status, 200, await first.text());
+
+  const second = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, request);
+  assert.equal(second.status, 409);
+  const body = (await second.json()) as { code: string; changeSetId: string };
+  assert.equal(body.code, "DUPLICATE_COMMAND");
+  assert.ok(body.changeSetId);
+});
+
+test("DELETE page: denies 403 FORBIDDEN when authorize() rejects content.write", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { id } = await createRow(baseUrl, cookie, "pages", { title: "Forbidden Target" });
+
+  const originalAuthorize = deps.authorize;
+  deps.authorize = async () => ({ allowed: false, reason: "test_denied" });
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { method: "DELETE", headers: { cookie } });
+    assert.equal(response.status, 403);
+    const body = (await response.json()) as { code: string; details: { permission: string; reason: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.deepEqual(body.details, { permission: "content.write", reason: "test_denied" });
+  } finally {
+    deps.authorize = originalAuthorize;
+  }
+
+  // The refused call must not have trashed the page.
+  const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { headers: { cookie } });
+  assert.equal(stillThere.status, 200);
+});
+
+test("DELETE page: a change-set record failure AFTER the mutation applied is rolled back (the page is NOT left trashed) and surfaces as a 500", async (t) => {
+  const { baseUrl, cookie, deps } = await startServerWithDeps(t);
+  const { id } = await createRow(baseUrl, cookie, "pages", { title: "Rollback Target", status: "published" });
+
+  const originalInsert = deps.changeSets.insert.bind(deps.changeSets);
+  deps.changeSets.insert = async () => {
+    throw new Error("simulated change-set persistence failure");
+  };
+  try {
+    const response = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { method: "DELETE", headers: { cookie } });
+    assert.equal(response.status, 500);
+    assert.deepEqual(await response.json(), { error: "internal error" });
+  } finally {
+    deps.changeSets.insert = originalInsert;
+  }
+
+  // INV-01 (no mutation without a record): the compensating rollback must have restored the page,
+  // not left it trashed with no audit trail.
+  const afterRollback = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WS}/pages/${id}`, { headers: { cookie } });
+  assert.equal(afterRollback.status, 200, "a failed change-set record must roll the delete back, not leave the page trashed");
+  const restored = (await afterRollback.json()) as { post: { status: string } };
+  assert.equal(restored.post.status, "published", "the rollback must restore the exact pre-delete row");
+});
+
+test("DELETE page: req.params.pageId is always populated by Express for a matched route (defensive ?? \"\" fallback is unreachable through real HTTP)", async () => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  await deps.identityReady;
+  // `getAuthedPrincipal` normally runs behind `requireAdminSession`, which `extractRouteHandler`
+  // bypasses -- stand in with the REAL seeded owner principal (not a made-up id) so `authorize()`
+  // actually grants `content.write` and the handler proceeds past auth into the command, the same
+  // way it would for a real authenticated request.
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  // A hand-built req that violates Express's own routing contract on purpose (see
+  // `extractRouteHandler`'s doc) -- `params.pageId` omitted -- so the `?? ""` fallback actually
+  // executes, resolving to an id no page has -- `deletePost`'s ordinary not-found 404.
+  await handler({ params: { workspaceId: WS }, get: () => undefined }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.equal((capture.jsonBody as { code: string }).code, "ENTRY_NOT_FOUND");
+});
+
+test("DELETE page: req.params.workspaceId is likewise always populated by Express (its own ?? \"\" fallback is equally unreachable through real HTTP)", async () => {
+  const app = createApp();
+  const handler = extractRouteHandler(app, "delete", "/api/admin/v1/workspaces/:workspaceId/pages/:pageId");
+  const { res, capture } = createCapturingResponse();
+
+  await handler({ params: {}, get: () => undefined }, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
