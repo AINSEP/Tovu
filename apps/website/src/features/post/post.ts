@@ -109,6 +109,16 @@ export interface PostRecord {
    * collision, that always wins over the default regardless of which way the default is set.
    */
   overridesThemePage?: boolean | null;
+  /**
+   * Member-gating (2026-09-02 dispatch, ADR-030 §4) — the raw JSON-serialized
+   * `MemberContentAccess`, or `null`/absent when nobody has ever gated this entry. Kept as an
+   * opaque string here (not parsed) so `post`/its repo adapters stay ignorant of `members`' value
+   * shape, the same "owning feature parses its own ext column" contract {@link seoExtJson} already
+   * establishes — `features/members/access-resolver.ts`'s `resolvePostMemberAccess` owns the
+   * `JSON.parse` boundary and decodes `null`/absent as `{visibility: "public"}`. No admin-facing
+   * writer exists yet; see that file's module doc for what a future writer needs.
+   */
+  memberAccessJson?: string | null;
 }
 
 /**

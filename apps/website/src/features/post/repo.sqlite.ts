@@ -69,6 +69,7 @@ function toRecord(row: PostRow): PostRecord {
     deletedAt: row.deletedAt ?? null,
     templateChoice: row.templateChoice ?? null,
     overridesThemePage: row.overridesThemePage,
+    memberAccessJson: row.memberAccessJson ?? null,
     ...(ext !== undefined ? { ext } : {}),
   };
 }
@@ -127,6 +128,7 @@ export class SqlitePostRepo implements PostRepoPort {
       // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
       // resolver, which is the one place the current default policy is allowed to live.
       overridesThemePage: record.overridesThemePage ?? null,
+      memberAccessJson: record.memberAccessJson ?? null,
       ext: JSON.stringify(record.ext ?? {}),
     };
     this.db
@@ -149,6 +151,7 @@ export class SqlitePostRepo implements PostRepoPort {
           deletedAt: row.deletedAt,
           templateChoice: row.templateChoice,
           overridesThemePage: row.overridesThemePage,
+          memberAccessJson: row.memberAccessJson,
           ext: row.ext,
         },
       })

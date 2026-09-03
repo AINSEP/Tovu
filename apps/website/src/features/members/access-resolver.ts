@@ -17,10 +17,38 @@ import { createHash } from "node:crypto";
 
 import type { MemberAccessResolver } from "./ports.js";
 import type { MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports.js";
-import type { MemberAccessDecision, MemberContentAccess, MemberContext } from "./types.js";
+import type { MemberAccessDecision, MemberContentAccess, MemberContentVisibility, MemberContext } from "./types.js";
 
 /** Anonymous/invalid-session context — the fail-closed default. */
 const ANONYMOUS_CONTEXT: MemberContext = { isAuthenticated: false, activeTierIds: [], isPaid: false };
+
+/**
+ * Decodes a post's raw `memberAccessJson` column (`posts.ext` is NOT this value — see
+ * `schema.ts`'s doc on the column) into the `MemberContentAccess` {@link DefaultMemberAccessResolver.decide}
+ * expects. This is the one place that owns the `JSON.parse` boundary for the column, mirroring
+ * `features/seo/seo.ts`'s identical ownership of `seoExtJson`'s parse boundary — `post`/its repo
+ * adapters stay ignorant of this value's shape.
+ *
+ * `null`/`undefined`/`""` (every pre-existing row, and any row nobody has ever gated) decodes as
+ * `{visibility: "public"}` — the exact behavior every row already has today, so reading a
+ * never-gated post costs zero migration-time backfill.
+ *
+ * Malformed JSON deliberately does NOT fall back to `"public"` — that would fail OPEN on stored-data
+ * corruption, the opposite of this module's fail-closed design. It decodes to a `visibility` value
+ * outside the known union instead, so {@link DefaultMemberAccessResolver.decide}'s own fail-closed
+ * default (the `unknown_visibility` branch) denies it exactly like any other unrecognized value —
+ * no special-casing needed at this call site or that one.
+ *
+ * @complexity O(1) — one `JSON.parse` of a small, editorial-sized string.
+ */
+export function resolvePostMemberAccess(raw: string | null | undefined): MemberContentAccess {
+  if (!raw) return { visibility: "public" };
+  try {
+    return JSON.parse(raw) as MemberContentAccess;
+  } catch {
+    return { visibility: "malformed_member_access_json" as MemberContentVisibility };
+  }
+}
 
 /**
  * SHA-256 hex digest of a raw bearer token. Shared shape with `write-service.ts`'s

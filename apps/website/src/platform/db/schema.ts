@@ -127,6 +127,24 @@ export const posts = sqliteTable(
      * theme data no migration can see; this migration touches zero existing values.
      */
     overridesThemePage: integer("overrides_theme_page", { mode: "boolean" }),
+    /**
+     * Member-gating (2026-09-02 dispatch, ADR-030 §4) — the raw JSON-serialized
+     * `MemberContentAccess` (`{visibility: "public"|"members"|"paid"|"tiers", tierIds?}`), or
+     * `NULL` when nobody has ever gated this entry. Nullable, additive, no backfill: every
+     * pre-existing row reads back as `NULL`, which `features/members/access-resolver.ts`'s
+     * `resolvePostMemberAccess` decodes as `{visibility: "public"}` — the exact behavior every row
+     * already has today — mirroring `seoExtJson`/`templateChoice`/`overridesThemePage`'s identical
+     * nullable-no-backfill precedent above. Deliberately NOT the pre-existing `ext` column: `ext` is
+     * the plugin extension-field bag, written ONLY by the `content.entry.beforeSave` hook-merge step
+     * (CIC U-004) — `members` is a core Tier-2 feature, not a plugin, so it cannot write there any
+     * more than `seo` could (which is why SEO got its own `seoExtJson` column instead of reusing
+     * `ext`, the same precedent this column follows). Kept as an opaque string here (not parsed) so
+     * `post`/its repo adapters stay ignorant of `members`' value shape, the same "owning feature
+     * parses its own ext column" contract `seoExtJson` already establishes (see `post.ts`'s own doc
+     * on that field). No admin-facing writer exists yet (2026-09-02) — see `access-resolver.ts`'s
+     * module doc for what that follow-up needs.
+     */
+    memberAccessJson: text("member_access_json"),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),

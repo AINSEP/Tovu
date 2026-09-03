@@ -12,8 +12,12 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
  * the other's cookie"). `SameSite=Lax`, not `Strict`: the member arrives via
  * a top-level navigation from an email client, exactly the case
  * `SameSite=Strict` would break.
+ *
+ * Exported (2026-09-02 member-gating dispatch) so the public site's read-path gate
+ * (`routes/site/pages.ts`) reads the SAME literal this route sets, rather than a second
+ * hand-copied string that could silently drift from it.
  */
-const MEMBER_SESSION_COOKIE = "tovu_member_session";
+export const MEMBER_SESSION_COOKIE = "tovu_member_session";
 
 function setMemberSessionCookie(res: Response, rawToken: string, expiresAtIso: string): void {
   const maxAgeSeconds = Math.max(0, Math.floor((new Date(expiresAtIso).getTime() - Date.now()) / 1000));

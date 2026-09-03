@@ -4,6 +4,13 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
+import {
+  DefaultMemberAccessResolver,
+  resolvePostMemberAccess,
+  type MemberAccessDecision,
+  type MemberAccessResolver,
+  type MemberContext,
+} from "#src/features/members/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   renderStaticPage,
@@ -49,6 +56,7 @@ import {
   type MediaAssetRenderMeta,
 } from "../../http/site/render.js";
 import { isHttpsRequest } from "../oauth/public-origin.js";
+import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
 
 /**
@@ -170,8 +178,8 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
 
 /**
  * What those same four responses send INSTEAD of {@link CACHE_CONTROL_PUBLIC_PAGE} when the body
- * carries THIS visitor's Post/Redirect/Get form state — `resolveFormSubmissionResult` decides which
- * of the two applies, per request.
+ * carries THIS visitor's Post/Redirect/Get form state — {@link resolvePerVisitorResponse} decides
+ * which directive applies, per request, for this and every other per-visitor trigger.
  *
  * The cacheability property {@link CACHE_CONTROL_PUBLIC_PAGE} documents ("identical for every
  * anonymous visitor requesting the same URL") holds only up to the point
@@ -191,6 +199,37 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * public directive, so this costs nothing for normal site traffic.
  */
 const CACHE_CONTROL_PRIVATE_FORM_RESULT = "private, no-store";
+
+/**
+ * The SECOND thing those same four responses send INSTEAD of {@link CACHE_CONTROL_PUBLIC_PAGE}:
+ * this request carried a `tovu_member_session` cookie, so the body was rendered with THIS visitor's
+ * member entitlements in hand (2026-09-02, ADR-030 §4 gating).
+ *
+ * A real hole opened by the member gating, not one it inherited. {@link CACHE_CONTROL_PUBLIC_PAGE}'s
+ * own doc block rests on a property that was empirically true when it was written — "the output is
+ * identical for every anonymous visitor requesting the same URL," proven by diffing real responses
+ * across different cookies. `filterVisiblePosts` falsifies exactly that property: the `posts` list
+ * `renderSite` prints into the home grid and the "more dispatches" region is now cookie-dependent, so
+ * a shared cache storing a signed-in member's copy would replay gated titles and links to anonymous
+ * visitors for the full `max-age` (and five more minutes stale). That is the precise exposure gating
+ * the listing exists to close — reintroduced by the CDN rather than by the renderer.
+ *
+ * Deliberately the SAME literal as {@link CACHE_CONTROL_PRIVATE_FORM_RESULT}, and deliberately its
+ * own named constant rather than a reuse of that one: the two decisions are independent (a visitor
+ * can carry either cookie, both, or neither) and read as different reasons at the call site, but both
+ * mean "never store this." That constant's own doc block already reasons through the `no-store` vs
+ * `Vary: Cookie` choice in full and it applies here unchanged — `Vary: Cookie` closes the
+ * cross-visitor leak but leaves the response STORABLE, which is not enough for a body whose contents
+ * are an entitlement decision.
+ *
+ * Triggered on cookie PRESENCE, never on "the filter actually removed something." A
+ * content-dependent trigger would make the header itself a side channel — an attacker could learn
+ * whether gated content exists at a URL by watching the directive flip — and would be fragile besides
+ * (a member with nothing filtered on this request still received a per-visitor body). A visitor
+ * carrying no member cookie is the ordinary case and keeps {@link CACHE_CONTROL_PUBLIC_PAGE}
+ * byte-for-byte, so normal site traffic pays nothing for this.
+ */
+const CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE = "private, no-store";
 
 /**
  * `resolveActiveThemeId`/`resolveActiveTheme` moved out of this file 2026-08-16 — both were pure
@@ -1143,6 +1182,87 @@ function readRawCookie(req: Request, name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * This route family's `MemberAccessResolver` (ADR-030 §4), built per request from the three member
+ * repo ports already on `RouteDeps`. Deliberately NOT a module-level singleton: `deps` is
+ * per-composition (every test in `__tests__/` injects its own in-memory repos through
+ * `createRouteDeps` overrides), so a singleton would capture whichever composition happened to
+ * construct first and then answer every later request from the wrong workspace's data.
+ */
+function createMemberAccessResolver(deps: RouteDeps): MemberAccessResolver {
+  return new DefaultMemberAccessResolver({
+    sessions: deps.memberSessionRepo,
+    subscriptions: deps.memberSubscriptionRepo,
+    tiers: deps.memberTierRepo,
+  });
+}
+
+/**
+ * Turns this request's member-session cookie into a validated {@link MemberContext}. Reads the
+ * cookie through `readRawCookie` above (no `cookie-parser` is mounted anywhere in this app) using
+ * `complete-sign-in.ts`'s exported {@link MEMBER_SESSION_COOKIE} rather than a second copy of the
+ * literal — the sign-in route that SETS the cookie and this route that READS it must never be able
+ * to disagree about its name.
+ *
+ * No cookie, an unknown/revoked/expired token, or a forged one all resolve to the same anonymous
+ * context: `resolveContext` validates the token hash against the session repo and never trusts a
+ * client-supplied claim, so none of those cases is distinguishable from "not signed in" here.
+ */
+async function resolveMemberContextForRequest(
+  req: Request,
+  deps: RouteDeps,
+  resolver: MemberAccessResolver
+): Promise<MemberContext> {
+  return resolver.resolveContext({
+    workspaceId: deps.workspaceId,
+    sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
+    nowIso: new Date().toISOString(),
+  });
+}
+
+/**
+ * The gate decision for ONE post — the whole {@link MemberAccessDecision}, deliberately not a
+ * boolean. `decision.teaser` and `decision.reason` are the named seam a future teaser /
+ * sign-in-prompt render reads (`sign_in_required` and `upgrade_required` are different pages for a
+ * visitor); collapsing this to `boolean` at the call site would discard exactly the information
+ * that follow-up needs and force it to re-derive the decision a second time. Today every
+ * `!allowed` decision renders the same plain 404 — see the `/:slug` handler's own comment.
+ *
+ * `resolvePostMemberAccess` owns the `JSON.parse` boundary for the column, and fails CLOSED:
+ * malformed JSON decodes to a visibility outside the known union, which `decide`'s default branch
+ * denies as `unknown_visibility`. A `NULL` column (every pre-existing row) decodes as
+ * `{visibility: "public"}`, so an ungated post behaves exactly as it does today.
+ */
+function decidePostMemberAccess(
+  resolver: MemberAccessResolver,
+  post: PostRecord,
+  context: MemberContext
+): MemberAccessDecision {
+  return resolver.decide({ access: resolvePostMemberAccess(post.memberAccessJson), context });
+}
+
+/**
+ * Drops every post this visitor may not read from a LIST bound for a theme render.
+ *
+ * Gating only the direct `/:slug` fetch would be protection that looks real and isn't: `renderSite`
+ * hands `posts` to the theme's home/entry-grid and "more dispatches" regions, which print each
+ * post's title and link. A gated post whose own page 404s would still advertise its existence,
+ * title, and URL on the ungated home page — which is why the regression suite asserts the listing
+ * separately from the single-post 404, with a public positive-control post proving the list renders
+ * at all.
+ *
+ * @complexity O(n) over the already-bounded published-post list; `decide` is pure and does no I/O
+ * (the one I/O step, session/entitlement resolution, happened once in
+ * {@link resolveMemberContextForRequest} before this is called).
+ */
+function filterVisiblePosts(
+  resolver: MemberAccessResolver,
+  posts: readonly PostRecord[],
+  context: MemberContext
+): PostRecord[] {
+  return posts.filter((post) => decidePostMemberAccess(resolver, post, context).allowed);
+}
+
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
  *  GET has read it, a later plain reload of the same page must NOT resurrect the same stale values.
  *  Attributes mirror what `forms-submit.ts`'s `setFormFlashCookie` set it with; matching them isn't
@@ -1153,26 +1273,41 @@ function clearFormFlashCookie(req: Request, res: Response): void {
   res.setHeader("Set-Cookie", `${FORM_FLASH_COOKIE_NAME}=; HttpOnly; Path=/; Max-Age=0; SameSite=Lax${secureAttr}`);
 }
 
-/** {@link resolveFormSubmissionResult}'s two outputs: the result to splice into the HTML (if any),
- *  and the `Cache-Control` this response must therefore send. Returned together, from the one place
- *  that knows whether per-visitor form state was in play, so no render branch can splice a result in
- *  and then pick the header independently — the defect this shape replaces
+/** {@link resolvePerVisitorResponse}'s two outputs: the form result to splice into the HTML (if
+ *  any), and the `Cache-Control` this response must therefore send. Returned together, from the one
+ *  place that knows whether ANY per-visitor state was in play, so no render branch can splice
+ *  per-visitor content in and then pick the header independently — the defect this shape replaces
  *  ({@link CACHE_CONTROL_PRIVATE_FORM_RESULT} documents it). */
-interface ResolvedFormSubmission {
+interface PerVisitorResponse {
   readonly result: FormSubmissionRedirectResult | undefined;
   readonly cacheControl: string;
 }
 
-/** Resolves this request's {@link FormSubmissionRedirectResult}, if any — the query-string half
- *  (`decodeFormSubmissionResultFromQuery`) plus, for a `"validation"` result, the same-slug flash
- *  cookie's field values (`mergeFormFlashIntoResult`) so the OTHER fields the visitor already typed
- *  survive the Post/Redirect/Get round trip instead of coming back wiped (2026-08-31 fix). The flash
- *  cookie is READ-ONCE: whether or not one was present, it is cleared on `res` right here, in the
- *  same response that reads it. Resolved once per request and reused across every render branch —
- *  same "compute once, thread to every branch" shape `siteAssistantEnabled` already uses on the
- *  `/:slug` handler (ADR-054).
- * @complexity O(1) plus the bounded cost already documented on the functions it calls. */
-function resolveFormSubmissionResult(req: Request, res: Response): ResolvedFormSubmission {
+/**
+ * Resolves everything about this request that makes its response PER-VISITOR rather than shared:
+ * the {@link FormSubmissionRedirectResult} to splice into the HTML, if any, AND the one
+ * `Cache-Control` directive the response must therefore send.
+ *
+ * The form half: the query-string result (`decodeFormSubmissionResultFromQuery`) plus, for a
+ * `"validation"` result, the same-slug flash cookie's field values (`mergeFormFlashIntoResult`) so
+ * the OTHER fields the visitor already typed survive the Post/Redirect/Get round trip instead of
+ * coming back wiped (2026-08-31 fix). The flash cookie is READ-ONCE: whether or not one was present,
+ * it is cleared on `res` right here, in the same response that reads it.
+ *
+ * Resolved ONCE per request and threaded to every render branch — the same "compute once, thread to
+ * every branch" shape `siteAssistantEnabled` already uses on the `/:slug` handler (ADR-054). That is
+ * load-bearing for the header, not just tidy: this is the single place that knows whether ANY
+ * per-visitor state was in play, so no render branch can splice per-visitor content in and then pick
+ * its own directive independently. See {@link CACHE_CONTROL_PRIVATE_FORM_RESULT} for the defect that
+ * split ownership produced the first time.
+ *
+ * Named for what it resolves, not for forms alone (was `resolveFormSubmissionResult`): the
+ * member-session arm below is a second, entirely independent per-visitor trigger, and a request may
+ * carry both cookies at once.
+ *
+ * @complexity O(1) plus the bounded cost already documented on the functions it calls.
+ */
+function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorResponse {
   const queryResult = decodeFormSubmissionResultFromQuery(req.query);
   const flash = decodeFormFlashCookieValue(readRawCookie(req, FORM_FLASH_COOKIE_NAME));
   if (flash) clearFormFlashCookie(req, res);
@@ -1182,8 +1317,18 @@ function resolveFormSubmissionResult(req: Request, res: Response): ResolvedFormS
   // different form's slug) yet a read-once cookie was still consumed and cleared ON THIS RESPONSE —
   // storing that response would let a shared cache replay the clearing `Set-Cookie` to other
   // visitors and outlive the cookie it retired.
-  const carriesFormState = result !== undefined || flash !== undefined;
-  return { result, cacheControl: carriesFormState ? CACHE_CONTROL_PRIVATE_FORM_RESULT : CACHE_CONTROL_PUBLIC_PAGE };
+  if (result !== undefined || flash !== undefined) {
+    return { result, cacheControl: CACHE_CONTROL_PRIVATE_FORM_RESULT };
+  }
+  // The member arm, checked on cookie PRESENCE alone — see
+  // {@link CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE}'s own doc for why not on "the filter dropped
+  // something." Ordering between the two private arms is cosmetic (both resolve to the same
+  // never-store literal); what matters is that `public` is reachable ONLY when NEITHER trigger
+  // fired, so a request carrying both cookies can never fall back to it through either path.
+  if (readRawCookie(req, MEMBER_SESSION_COOKIE) !== undefined) {
+    return { result, cacheControl: CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE };
+  }
+  return { result, cacheControl: CACHE_CONTROL_PUBLIC_PAGE };
 }
 
 /**
@@ -1196,14 +1341,21 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [{ posts }, activeThemeId, siteAssistantEnabled] = await Promise.all([
+      const memberAccessResolver = createMemberAccessResolver(deps);
+      const [{ posts }, activeThemeId, siteAssistantEnabled, memberContext] = await Promise.all([
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         resolveActiveThemeId(deps),
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
         // route that calls `renderSite` resolves this the same way (see `pages.ts`'s other handler
         // and `products.ts`'s two handlers).
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
+
+      // ADR-030 §4 — the home listing is gated too, not just each post's own page. See
+      // `filterVisiblePosts`'s own doc for why filtering only `/:slug` would be protection that
+      // looks real and isn't.
+      const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
 
       const theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
@@ -1221,7 +1373,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         theme,
         route: "home",
         siteTitle: SITE_TITLE,
-        posts,
+        posts: visiblePosts,
         widgets,
         mediaTransformVersions,
         extraHead,
@@ -1231,10 +1383,11 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // Post/Redirect/Get result for a form widget on the home page (2026-08-31 fix, generalized
       // the same day) — `forms-submit.ts` redirects back here with `?form=...&form_status=...` after
       // a JS-disabled submission; a request with none of those params is the ordinary case and this
-      // is a no-op. Also reads (and clears) the validation flash cookie, if any — see
-      // `resolveFormSubmissionResult`'s own doc.
-      const formSubmission = resolveFormSubmissionResult(req, res);
-      res.set("Cache-Control", formSubmission.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, formSubmission.result));
+      // is a no-op. Also reads (and clears) the validation flash cookie, if any, and decides this
+      // response's `Cache-Control` — including the member-session arm, which matters here because
+      // `visiblePosts` above made this body cookie-dependent. See `resolvePerVisitorResponse`'s doc.
+      const perVisitor = resolvePerVisitorResponse(req, res);
+      res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
     } catch {
       res.status(500).type("html").send("<h1>Site error</h1>");
     }
@@ -1249,11 +1402,18 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
-      const [activeThemeId, { posts }, siteAssistantEnabled] = await Promise.all([
+      const memberAccessResolver = createMemberAccessResolver(deps);
+      const [activeThemeId, { posts }, siteAssistantEnabled, memberContext] = await Promise.all([
         resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
         isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
+        resolveMemberContextForRequest(req, deps, memberAccessResolver),
       ]);
+
+      // Same ADR-030 §4 listing filter the `GET /` handler applies — this list feeds the generic
+      // post page's "more dispatches"/related regions, which print titles and links exactly like
+      // the home grid does.
+      const visiblePosts = filterVisiblePosts(memberAccessResolver, posts, memberContext);
 
       theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
@@ -1272,34 +1432,53 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // "compute once, thread to every branch" shape `siteAssistantEnabled` already uses on this
       // handler (ADR-054). A request with none of the `form_*` params (the ordinary case) decodes to
       // `undefined`, and `injectFormSubmissionResultIntoHtml` is a no-op for that. Also reads (and
-      // clears) the validation flash cookie, if any — see `resolveFormSubmissionResult`'s own doc.
-      const formSubmission = resolveFormSubmissionResult(req, res);
+      // clears) the validation flash cookie, if any, and decides this response's `Cache-Control` —
+      // including the member-session arm, which matters here because `visiblePosts` above made this
+      // body cookie-dependent. See `resolvePerVisitorResponse`'s own doc.
+      const perVisitor = resolvePerVisitorResponse(req, res);
 
       const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled);
       if (marketingResolution.kind === "responded") {
         res
-          .set("Cache-Control", formSubmission.cacheControl)
+          .set("Cache-Control", perVisitor.cacheControl)
           .type("html")
-          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, formSubmission.result));
+          .send(injectFormSubmissionResultIntoHtml(marketingResolution.html, perVisitor.result));
         return;
       }
 
       const post = await resolvePostAfterMarketingCheck(deps, slug, marketingResolution);
 
-      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
-      if (templateHtml !== undefined) {
-        res
-          .set("Cache-Control", formSubmission.cacheControl)
-          .type("html")
-          .send(injectFormSubmissionResultIntoHtml(templateHtml, formSubmission.result));
+      // ADR-030 §4 — the single-post gate. Kept as the whole `MemberAccessDecision`, not a boolean:
+      // `decision.reason` (`sign_in_required` vs `upgrade_required`) and `decision.teaser` are the
+      // named seam a future teaser / sign-in-prompt render reads, and collapsing them here would
+      // force that follow-up to re-derive the decision a second time. Today every `!allowed` outcome
+      // renders one thing — the SAME plain 404 a slug with no post at all gets, produced by the same
+      // `handlePostNotFoundOnSlugRoute` rather than a second hand-rolled 404, so a gated post is
+      // indistinguishable from a nonexistent one and the response leaks no existence signal.
+      //
+      // Placed BEFORE `renderTemplateBranchIfEligible` deliberately: that branch is a complete second
+      // render path (`renderViaTemplate` -> `renderStaticPage`) that would otherwise serve the gated
+      // body straight past a gate that only guarded the generic path below.
+      const decision = decidePostMemberAccess(memberAccessResolver, post, memberContext);
+      if (!decision.allowed) {
+        await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
         return;
       }
 
-      const genericPostHtml = await renderGenericPostPage(deps, theme, post, posts, siteAssistantEnabled);
+      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
+      if (templateHtml !== undefined) {
+        res
+          .set("Cache-Control", perVisitor.cacheControl)
+          .type("html")
+          .send(injectFormSubmissionResultIntoHtml(templateHtml, perVisitor.result));
+        return;
+      }
+
+      const genericPostHtml = await renderGenericPostPage(deps, theme, post, visiblePosts, siteAssistantEnabled);
       res
-        .set("Cache-Control", formSubmission.cacheControl)
+        .set("Cache-Control", perVisitor.cacheControl)
         .type("html")
-        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, formSubmission.result));
+        .send(injectFormSubmissionResultIntoHtml(genericPostHtml, perVisitor.result));
     } catch (err) {
       if (err instanceof PostNotFoundError) {
         await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);

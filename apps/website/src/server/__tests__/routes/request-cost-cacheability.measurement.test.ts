@@ -5,6 +5,7 @@ import express from "express";
 
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { FORM_FLASH_COOKIE_NAME } from "../../inbound/public-http/http/site/render.js";
+import { MEMBER_SESSION_COOKIE } from "../../inbound/public-http/routes/members/complete-sign-in.js";
 import { registerSiteRoutes } from "../../inbound/public-http/routes/site/pages.js";
 import { registerProductRoutes } from "../../inbound/public-http/routes/site/products.js";
 import { registerStoreRoutes } from "../../inbound/public-http/routes/site/store.js";
@@ -352,4 +353,84 @@ test("B: the ordinary no-form path must STAY publicly cacheable — the fix is s
       `${path} carries no form state, so it must keep the owner-decided public directive — making every page private would forfeit Phase 2 entirely`
     );
   }
+});
+
+// ---------------------------------------------------------------------------
+// B: member-session cacheability regression guard (2026-09-02, ADR-030 §4 gating).
+//
+// A real hole opened by the member-gating wiring, not a pre-existing one restored. Once
+// `filterVisiblePosts` runs on `GET /` and `GET /:slug`, the rendered body VARIES BY THE
+// `tovu_member_session` COOKIE: a signed-in member's home grid and "more dispatches" region list
+// gated entries an anonymous visitor must never see. Sending that body as `public, max-age=60,
+// stale-while-revalidate=300` with no `Vary` lets a CDN replay a member's body — gated titles and
+// links included — to anonymous visitors for a minute (five, stale). That defeats precisely what
+// gating the listing was for: a gated post whose own page 404s would still be advertised, only now
+// by the cache instead of by the renderer.
+//
+// `private, no-store`, matching the form-result decision immediately above rather than `Vary:
+// Cookie` — see `pages.ts`'s `CACHE_CONTROL_PRIVATE_FORM_RESULT` doc block for why `Vary` closes the
+// shared-cache leak but leaves the response STORABLE.
+// ---------------------------------------------------------------------------
+
+/** The directive a response produced with THIS visitor's member session in hand must send INSTEAD of
+ *  {@link EXPECTED_CACHE_CONTROL}. Mirrors the literal `pages.ts` sets its own sibling
+ *  `CACHE_CONTROL_PRIVATE_MEMBER_RESPONSE` constant to — same independent-copy convention
+ *  {@link EXPECTED_CACHE_CONTROL} and {@link EXPECTED_CACHE_CONTROL_FORM_RESULT} already document.
+ *  Same string as the form-result directive by design (both mean "never store this"), asserted
+ *  through its own named constant so a later divergence in either decision stays legible here. */
+const EXPECTED_CACHE_CONTROL_MEMBER_RESPONSE = "private, no-store";
+
+/** A `tovu_member_session` cookie whose token matches NO stored session. Deliberately unrecognized:
+ *  the directive must be decided on cookie PRESENCE, never on whether the session validated or on
+ *  whether the filter actually dropped anything this time — a content-dependent trigger leaks the
+ *  answer through response timing and header variance. An unrecognized token also keeps every page
+ *  below a plain public 200 (`resolveContext` maps it to the anonymous context), so these assertions
+ *  read the header on the SAME rendered bodies the anonymous control gets. */
+const UNRECOGNIZED_MEMBER_SESSION_COOKIE = `${MEMBER_SESSION_COOKIE}=not-a-real-member-session-token`;
+
+test("B: a member-session response must not be publicly cacheable — anonymous must stay public, and both cookies must not regress", async (t) => {
+  const { app } = buildPublicSiteApp();
+  const baseUrl = await startTestServer(app, t);
+
+  // All three render branches that now thread a member-filtered `posts` list or sit behind the
+  // member gate: home, the static-theme marketing page, and the generic dynamic post page.
+  for (const path of ["/", "/about", "/the-weight-of-type"]) {
+    const memberRes = await fetch(`${baseUrl}${path}`, { headers: { cookie: UNRECOGNIZED_MEMBER_SESSION_COOKIE } });
+    assert.equal(memberRes.status, 200, `precondition: ${path} must still render for a cookie-bearing visitor`);
+    logRow(`GET ${path} (member session cookie)`, summarizeCacheHeaders(memberRes), "member-gated per-visitor body");
+    assert.equal(
+      memberRes.headers.get("cache-control"),
+      EXPECTED_CACHE_CONTROL_MEMBER_RESPONSE,
+      `${path} was rendered with a member session in hand, so its body varies by cookie and a shared cache must never store it`
+    );
+
+    // Anonymous control on the SAME URL — proves the fix is scoped to per-visitor responses and did
+    // not simply make every public page private, forfeiting the Phase 2 CDN decision.
+    const anonRes = await fetch(`${baseUrl}${path}`);
+    assert.equal(anonRes.status, 200);
+    assert.equal(
+      anonRes.headers.get("cache-control"),
+      EXPECTED_CACHE_CONTROL,
+      `${path} carries no member session, so it must keep the owner-decided public directive byte-for-byte`
+    );
+  }
+
+  // Both cookies at once. Two independent per-visitor triggers reach the same one resolver, so this
+  // pins that neither can overwrite the other back to `public` — the failure mode a second,
+  // branch-local header computation would have produced.
+  const bothRes = await fetch(`${baseUrl}/?${VALIDATION_LANDING_QUERY}`, {
+    headers: { cookie: `${flashCookieHeader({ name: "Ada Lovelace", email: "ada@example.com" })}; ${UNRECOGNIZED_MEMBER_SESSION_COOKIE}` },
+  });
+  assert.equal(bothRes.status, 200);
+  logRow("GET / (member session + form flash)", summarizeCacheHeaders(bothRes), "both per-visitor triggers at once");
+  assert.notEqual(
+    bothRes.headers.get("cache-control"),
+    EXPECTED_CACHE_CONTROL,
+    "a request carrying BOTH a member session and a form flash must never fall back to the public directive"
+  );
+  assert.equal(
+    bothRes.headers.get("cache-control"),
+    EXPECTED_CACHE_CONTROL_FORM_RESULT,
+    "both triggers resolve to the same never-store directive; neither path may overwrite the other"
+  );
 });

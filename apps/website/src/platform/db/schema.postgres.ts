@@ -27,6 +27,7 @@ export const adminExecutionCredentials = pgTable("admin_execution_credentials", 
   sealedNonce: text("sealed_nonce"),
   sealedAlg: text("sealed_alg"),
   masked: text("masked"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -282,6 +283,7 @@ export const composioConfig = pgTable("composio_config", {
   keyTail: text("key_tail"),
   authConfigIds: text("auth_config_ids"),
   keyGeneration: bigint("key_generation", { mode: "number" }).notNull().default(0),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -297,6 +299,7 @@ export const composioConnectorCredentials = pgTable("composio_connector_credenti
   sealedCiphertext: text("sealed_ciphertext"),
   sealedNonce: text("sealed_nonce"),
   sealedAlg: text("sealed_alg"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -520,6 +523,8 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   oauthSealedCiphertext: text("oauth_sealed_ciphertext"),
   oauthSealedNonce: text("oauth_sealed_nonce"),
   oauthSealedAlg: text("oauth_sealed_alg"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
+  oauthAadVersion: bigint("oauth_aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -605,6 +610,7 @@ export const mediaProviderCredentials = pgTable("media_provider_credentials", {
   sealedNonce: text("sealed_nonce"),
   sealedAlg: text("sealed_alg"),
   keyTail: text("key_tail"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -864,6 +870,7 @@ export const posts = pgTable("posts", {
   deletedAt: text("deleted_at"),
   templateChoice: text("template_choice"),
   overridesThemePage: boolean("overrides_theme_page"),
+  memberAccessJson: text("member_access_json"),
 }, (t) => [
     check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),
@@ -1134,6 +1141,7 @@ export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
   sealedNonce: text("sealed_nonce"),
   sealedAlg: text("sealed_alg"),
   masked: text("masked"),
+  aadVersion: bigint("aad_version", { mode: "number" }).notNull().default(0),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [

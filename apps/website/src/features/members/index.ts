@@ -84,6 +84,7 @@ export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.co
 
 export {
   DefaultMemberAccessResolver,
+  resolvePostMemberAccess,
   type MemberAccessResolverDeps,
 } from "./access-resolver.js";
 

@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `member_access_json` text;
