@@ -67,10 +67,10 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../src/platform/db/sqlite/db-ops.js";
-import { builtInThemesDir } from "../../src/server/runtime/composition/deps.js";
-import { discoverAllBuiltInThemes } from "../../src/features/theme/index.js";
+import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
+import { builtInThemesDir } from "../../apps/website/src/server/runtime/composition/deps.js";
+import { discoverAllBuiltInThemes } from "../../apps/website/src/features/theme/index.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 

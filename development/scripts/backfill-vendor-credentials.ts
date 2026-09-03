@@ -103,18 +103,18 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../src/platform/db/sqlite/db-ops.js";
-import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets } from "../../src/platform/db/schema.js";
-import { AesGcmSecretSealer } from "../../src/integrations/secret-sealer.aesgcm.js";
-import { EnvOrFileKeyring } from "../../src/integrations/keyring.env.js";
-import type { KeyringPort, SecretSealerPort } from "../../src/integrations/ports.js";
-import { buildPublishCredentialAad } from "../../src/features/deployments/publish-credentials/aad.js";
-import type { PublishProviderId } from "../../src/features/deployments/publish-credentials/types.js";
-import { buildSourceControlCredentialAad } from "../../src/features/source-control/aad.js";
-import type { SourceControlProviderId } from "../../src/features/source-control/types.js";
-import { buildVendorCredentialAad } from "../../src/features/vendor-credentials/aad.js";
-import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../src/features/vendor-credentials/types.js";
+import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
+import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets } from "../../apps/website/src/platform/db/schema.js";
+import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
+import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/ports.js";
+import { buildPublishCredentialAad } from "../../apps/website/src/features/deployments/publish-credentials/aad.js";
+import type { PublishProviderId } from "../../apps/website/src/features/deployments/publish-credentials/types.js";
+import { buildSourceControlCredentialAad } from "../../apps/website/src/features/source-control/aad.js";
+import type { SourceControlProviderId } from "../../apps/website/src/features/source-control/types.js";
+import { buildVendorCredentialAad } from "../../apps/website/src/features/vendor-credentials/aad.js";
+import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../apps/website/src/features/vendor-credentials/types.js";
 import { resolveLabel, type GroupState, type Origin } from "./backfill-vendor-credentials-helpers.js";
 
 // Re-exported so every caller keeps importing from this one file — see
