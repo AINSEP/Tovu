@@ -9,6 +9,7 @@ import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src
 import type { WidgetRenderIR } from "#src/features/widgets/types";
 import {
   injectExtraHeadIntoStaticPage,
+  renderBlockSeam,
   renderDocNode,
   renderHtmlPageBody,
   renderSite,
@@ -22,6 +23,7 @@ import {
   type FormSubmissionRedirectResult,
   type FormFlashPayload,
   type SiteProduct,
+  type SiteRenderContext,
 } from "../render.js";
 
 // A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
@@ -640,6 +642,266 @@ test("renderSite (Liquid tier): a menu widget's authored cssClass/rel/openInNewT
   });
   assert.match(html, /<li class="is-featured">/);
   assert.match(html, /<a href="\/docs" rel="nofollow" target="_blank">/);
+});
+
+// ---------------------------------------------------------------------------
+// Stored XSS fix (2026-09-03): `actionsHtml` (hero/cta buttons), `announcement`, `siteNav`, and
+// `siteFooterRich` used to build `<a href>` from operator-authored widget props via
+// `escapeHtml(str(o.href, "#"))` alone — NO `safeHref` call — so `href: "javascript:alert(1)"`
+// rendered verbatim into public HTML: any workspace member who can author a widget prop ran script
+// in every visitor's browser. `static-render.ts`'s own `safeHref` doc flagged this exact gap as a
+// "KNOWN GAP, not fixed here" for its sibling static-tier menu renderer before this fix closed it.
+// These mirror the C7 tests above (`renderLinkMark` -> `safeHref`) but drive the real declarative-
+// tier composition end-to-end (`renderSite` -> `renderComponentBlock` -> the named `COMPONENTS`
+// entry) instead of calling an internal function directly, and cover each of the seven fixed call
+// sites independently since they can regress independently.
+// ---------------------------------------------------------------------------
+
+const XSS_HOSTILE_HREFS = [
+  "javascript:alert(1)",
+  "JaVaScRiPt:alert(1)", // mixed case — a naive `startsWith("javascript:")` check would miss this
+  "data:text/html,<script>alert(1)</script>",
+  "vbscript:msgbox(1)",
+  "//evil.example", // protocol-relative — inherits the page's own scheme
+  "/\\evil.example", // backslash right after the leading "/" — a browser folds \ to / for http(s)
+];
+
+const XSS_LEGIT_HREFS = ["/about", "https://example.com", "mailto:x@y.com", "#anchor"];
+
+test("widget/declarative: hero actions button href (actionsHtml) — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/hero", props: { title: "T", actions: [{ href, label: "Go" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<a class="btn btn--primary" href="#">Go</a>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: hero actions button href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/hero", props: { title: "T", actions: [{ href, label: "Go" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<a class="btn btn--primary" href="${href}">Go</a>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: cta band actions button href (actionsHtml, second call site) — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/cta", props: { title: "T", actions: [{ href, label: "Go" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<a class="btn btn--primary" href="#">Go</a>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: cta band actions button href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/cta", props: { title: "T", actions: [{ href, label: "Go" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<a class="btn btn--primary" href="${href}">Go</a>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: announcement link href — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/announcement", props: { text: "Announcement", link: { href, label: "Go" } } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<a class="topbar__link" href="#">Go →</a>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: announcement link href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/announcement", props: { text: "Announcement", link: { href, label: "Go" } } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<a class="topbar__link" href="${href}">Go →</a>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav top-level item href — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/nav", props: { items: [{ label: "Item", href }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<li class="nav-item"><a class="nav-link" href="#">Item</a></li>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav top-level item href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/nav", props: { items: [{ label: "Item", href }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<li class="nav-item"><a class="nav-link" href="${href}">Item</a></li>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav nested child item href — hostile schemes collapse to '#' (independent of the parent item's own href)", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [
+        {
+          type: "component",
+          id: "tovu/nav",
+          props: { items: [{ label: "Parent", href: "/parent", children: [{ label: "Child", href }] }] },
+        },
+      ],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<li><a href="#">Child</a></li>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav nested child item href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [
+        {
+          type: "component",
+          id: "tovu/nav",
+          props: { items: [{ label: "Parent", href: "/parent", children: [{ label: "Child", href }] }] },
+        },
+      ],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<li><a href="${href}">Child</a></li>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav CTA button href — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/nav", props: { items: [], cta: { href, label: "Go" } } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<a class="btn btn--primary nav-cta" href="#">Go</a>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteNav CTA button href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/nav", props: { items: [], cta: { href, label: "Go" } } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<a class="btn btn--primary nav-cta" href="${href}">Go</a>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteFooterRich social link href — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/footer", props: { social: [{ href, label: "GH" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<a class="footer__social" href="#">GH</a>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteFooterRich social link href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/footer", props: { social: [{ href, label: "GH" }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<a class="footer__social" href="${href}">GH</a>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteFooterRich column link href — hostile schemes collapse to '#'", async () => {
+  for (const href of XSS_HOSTILE_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/footer", props: { columns: [{ title: "Col", links: [{ href, label: "Link" }] }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes('<li><a href="#">Link</a></li>'),
+      `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`
+    );
+  }
+});
+
+test("widget/declarative: siteFooterRich column link href — legitimate hrefs pass through unchanged", async () => {
+  for (const href of XSS_LEGIT_HREFS) {
+    const theme = declarativeTheme({
+      type: "doc",
+      content: [{ type: "component", id: "tovu/footer", props: { columns: [{ title: "Col", links: [{ href, label: "Link" }] }] } }],
+    });
+    const html = await renderSite({ theme, route: "home", siteTitle: "T", posts: [] });
+    assert.ok(
+      html.includes(`<li><a href="${href}">Link</a></li>`),
+      `expected legit href ${JSON.stringify(href)} to pass through, got: ${html}`
+    );
+  }
 });
 
 test("renderDocNode: a widgetEmbed node resolves through inlineResolved to its widget's IR (REQ-21) — the theme never sees a raw widgetEmbed reference", () => {

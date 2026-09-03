@@ -240,6 +240,14 @@ const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
  * {@link safeImageSrc}'s own `new URL(src).pathname` check replaced a shape-by-shape regex — and
  * stays correct against whatever equivalent shape is discovered next, rather than needing a new
  * `startsWith` exception bolted on per attack form.
+ *
+ * **`features/theme/static-render.ts` carries a deliberate DUPLICATE of this exact function** (its
+ * own menu-link `safeHref`, added 2026-09-03 alongside the identical fix for the static-tier menu
+ * renderers) — not a shared import, because `features/theme` must not deep-import this
+ * `server/inbound/` module (`check:boundaries`' no-deep-import rule). That copy takes `string`
+ * instead of `JsonValue | undefined` (its own callers already narrow to a real string first) but is
+ * otherwise byte-identical, including this `/…` branch's placeholder-origin resolution. If this
+ * function's logic changes, that copy must change too — it does not update itself.
  */
 function safeHref(value: JsonValue | undefined): string {
   if (typeof value !== "string") return "#";
@@ -1402,7 +1410,7 @@ function actionsHtml(actions: JsonValue[]): string {
       const o = obj(a);
       if (!o) return "";
       const kind = i === 0 ? "btn btn--primary" : "btn btn--ghost";
-      return `<a class="${kind}" href="${escapeHtml(str(o.href, "#"))}">${escapeHtml(str(o.label, "Learn more"))}</a>`;
+      return `<a class="${kind}" href="${escapeHtml(safeHref(o.href))}">${escapeHtml(str(o.label, "Learn more"))}</a>`;
     })
     .join("");
   return links ? `<div class="actions">${links}</div>` : "";
@@ -1423,7 +1431,7 @@ function announcement(_ctx: SiteRenderContext, props: JsonObject): string {
   if (!text) return "";
   const link = obj(props.link);
   const linkHtml = link
-    ? ` <a class="topbar__link" href="${escapeHtml(str(link.href, "#"))}">${escapeHtml(str(link.label, "Learn more"))} →</a>`
+    ? ` <a class="topbar__link" href="${escapeHtml(safeHref(link.href))}">${escapeHtml(str(link.label, "Learn more"))} →</a>`
     : "";
   return `<div class="topbar"><div class="wrap"><p class="topbar__text">${text}${linkHtml}</p></div></div>`;
 }
@@ -1437,14 +1445,14 @@ function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
       const o = obj(it);
       if (!o) return "";
       const label = escapeHtml(str(o.label));
-      const href = escapeHtml(str(o.href, "#"));
+      const href = escapeHtml(safeHref(o.href));
       const children = arr(o.children);
       if (children.length) {
         const sub = children
           .map((c) => {
             const co = obj(c);
             if (!co) return "";
-            return `<li><a href="${escapeHtml(str(co.href, "#"))}">${escapeHtml(str(co.label))}</a></li>`;
+            return `<li><a href="${escapeHtml(safeHref(co.href))}">${escapeHtml(str(co.label))}</a></li>`;
           })
           .join("");
         return `<li class="nav-item has-children"><a class="nav-link" href="${href}">${label}${caret}</a><ul class="nav-dropdown">${sub}</ul></li>`;
@@ -1454,7 +1462,7 @@ function siteNav(ctx: SiteRenderContext, props: JsonObject): string {
     .join("");
   const cta = obj(props.cta);
   const ctaHtml = cta
-    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml(str(cta.href, "#"))}">${escapeHtml(str(cta.label, "Get started"))}</a>`
+    ? `<a class="btn btn--primary nav-cta" href="${escapeHtml(safeHref(cta.href))}">${escapeHtml(str(cta.label, "Get started"))}</a>`
     : "";
   return `<header class="site-header"><div class="wrap nav"><a class="brand" href="/">${brand}</a><input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu"/><label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label><nav class="nav-menu"><ul class="nav-list">${items}</ul>${ctaHtml}</nav></div></header>`;
 }
@@ -1474,7 +1482,7 @@ function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
     .map((s) => {
       const o = obj(s);
       if (!o) return "";
-      return `<a class="footer__social" href="${escapeHtml(str(o.href, "#"))}">${escapeHtml(str(o.label))}</a>`;
+      return `<a class="footer__social" href="${escapeHtml(safeHref(o.href))}">${escapeHtml(str(o.label))}</a>`;
     })
     .join("");
   const cols = arr(props.columns)
@@ -1485,7 +1493,7 @@ function siteFooterRich(ctx: SiteRenderContext, props: JsonObject): string {
         .map((l) => {
           const lo = obj(l);
           if (!lo) return "";
-          return `<li><a href="${escapeHtml(str(lo.href, "#"))}">${escapeHtml(str(lo.label))}</a></li>`;
+          return `<li><a href="${escapeHtml(safeHref(lo.href))}">${escapeHtml(str(lo.label))}</a></li>`;
         })
         .join("");
       return `<div class="footer__col"><h4>${escapeHtml(str(o.title))}</h4><ul>${links}</ul></div>`;
