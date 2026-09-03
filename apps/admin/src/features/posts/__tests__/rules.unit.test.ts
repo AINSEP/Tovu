@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   DEFAULT_POST_SORT,
+  buildPostRowMenuHandleMap,
   comparePostsByStatus,
   comparePostsBySlug,
   comparePostsByTitle,
@@ -91,6 +92,33 @@ describe("postRowMenuItems", () => {
   it("translates labels to Spanish when locale is es", () => {
     const items = postRowMenuItems(post({ status: "published" }), handlers, "es");
     expect(items.map((i) => i.label)).toEqual(["Editar", "Desactivar", "Eliminar"]);
+  });
+});
+
+describe("buildPostRowMenuHandleMap", () => {
+  it("returns an empty map for null (not-yet-loaded) posts", () => {
+    expect(buildPostRowMenuHandleMap(null).size).toBe(0);
+  });
+
+  it("returns an empty map for an empty list", () => {
+    expect(buildPostRowMenuHandleMap([]).size).toBe(0);
+  });
+
+  it("keys the handle by post id, not by array position", () => {
+    const a = post({ id: "a" });
+    const b = post({ id: "b" });
+    const map = buildPostRowMenuHandleMap([a, b]);
+    expect(map.get("a")).toBe("posts-row-a");
+    expect(map.get("b")).toBe("posts-row-b");
+  });
+
+  it("keeps each post's handle stable when the list is reordered", () => {
+    const a = post({ id: "a" });
+    const b = post({ id: "b" });
+    const forward = buildPostRowMenuHandleMap([a, b]);
+    const reordered = buildPostRowMenuHandleMap([b, a]);
+    expect(reordered.get("a")).toBe(forward.get("a"));
+    expect(reordered.get("b")).toBe(forward.get("b"));
   });
 });
 

@@ -3,6 +3,7 @@ import type { RowMenuItem } from "@jini-ai/admin/react";
 import type { EditorView } from "@tiptap/pm/view";
 
 import type { AdminPost } from "../../lib/api";
+import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { POSTS_DICT } from "./posts-i18n";
 
 /**
@@ -57,6 +58,25 @@ export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers,
   }
   items.push({ key: "delete", label: t("Delete"), destructive: true, onSelect: () => handlers.onDelete(post) });
   return items;
+}
+
+/**
+ * Row-menu agent handle for every post, keyed by post id. `Posts.tsx` looks a row's handle up BY
+ * ID rather than by render position, so a row keeps the same handle even after the table re-sorts
+ * (`buildAgentListHandles`'s own contract derives a handle from each id's position in THIS array,
+ * not the table's current render order). `null` (list not loaded yet) returns an empty map rather
+ * than throwing, so the caller can memoize this unconditionally above its own loading-state early
+ * return without special-casing the not-yet-loaded render.
+ *
+ * @complexity Time/space: O(n) in post count.
+ */
+export function buildPostRowMenuHandleMap(posts: AdminPost[] | null): Map<string, string> {
+  if (!posts) return new Map();
+  const handles = buildAgentListHandles(
+    "posts-row",
+    posts.map((post) => post.id),
+  );
+  return new Map(posts.map((post, index) => [post.id, handles[index]!]));
 }
 
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the

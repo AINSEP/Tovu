@@ -1,13 +1,13 @@
 import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
-import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import {
   postRowMenuItems,
+  buildPostRowMenuHandleMap,
   comparePostsByTitle,
   comparePostsBySlug,
   comparePostsByStatus,
@@ -85,24 +85,23 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
 
+  // `DataTable` sorts internally from `sort` + each column's own comparator — `posts` is passed
+  // through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
+  // built once from `posts`' own stable order and looked up BY ID in each cell below, rather than by
+  // render position: `buildPostRowMenuHandleMap`'s own contract derives a handle from each id's slug,
+  // not its position, specifically so "the same control keeps the same handle even if rows are later
+  // reordered" (its own doc) — which is exactly what re-sorting the table does. Memoized on `posts`
+  // alone (a hook, called unconditionally, above both early returns below — a conditional `useMemo`
+  // call would violate the Rules of Hooks) so re-sorting or any other unrelated re-render (`sort`,
+  // `locale`) does not rebuild this map and hand `RowMenu` a new handle-string identity every time.
+  const rowMenuHandleById = useMemo(() => buildPostRowMenuHandleMap(posts), [posts]);
+
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
   // Unreachable in practice — `postsListNotice` already returns a non-null notice whenever `posts`
   // is null — but restores the narrowing TS lost by moving that check behind a function call, so
   // `rows={posts}` below type-checks as `AdminPost[]` without an `as`/`!` assertion.
   if (!posts) return null;
-
-  // `DataTable` now sorts internally from `sort` + each column's own comparator — `posts` is passed
-  // through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
-  // built once from `posts`' own stable order and looked up BY ID in each cell below, rather than by
-  // render position: `buildAgentListHandles`'s own contract derives a handle from each id's slug, not
-  // its position, specifically so "the same control keeps the same handle even if rows are later
-  // reordered" (its own doc) — which is exactly what re-sorting the table does.
-  const postHandles = buildAgentListHandles(
-    "posts-row",
-    posts.map((post) => post.id),
-  );
-  const rowMenuHandleById = new Map(posts.map((post, index) => [post.id, postHandles[index]]));
 
   return (
     <div className="page">

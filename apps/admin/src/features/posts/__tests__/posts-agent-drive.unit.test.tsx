@@ -110,4 +110,22 @@ describe("driving the Posts RowMenu through page.* verbs", () => {
     // Post p1's own item, not p2's — p2's menu was never opened.
     expect(bodyHandles).not.toContain("posts-row-p2-menu-item-edit");
   });
+
+  it("recomputes row-menu handles when the posts list changes across a re-render, not just on first render", async () => {
+    // Regression coverage for `Posts.tsx`'s `rowMenuHandleById` `useMemo` — a missing/wrong
+    // dependency array (e.g. `[]` instead of `[posts]`) would leave this map stuck on the FIRST
+    // render's single-post list. `rowMenuHandleById.get(post.id)` then returns `undefined` for any
+    // row added afterward, producing a literal `"undefined-menu"` handle instead of a real one.
+    const { container, rerender } = render(<Posts usePostsHook={() => controller({ posts: [POST] })} />);
+    await screen.findByText("Hello World");
+
+    rerender(<Posts usePostsHook={() => controller({ posts: [POST, SECOND_POST] })} />);
+    await screen.findByText("Second Post");
+
+    const driver = createDomPageDriver({ root: container, pages: {} });
+    const handles = await handlesOf(driver);
+    expect(handles).toContain("posts-row-p1-menu");
+    expect(handles).toContain("posts-row-p2-menu");
+    expect(handles).not.toContain("undefined-menu");
+  });
 });
