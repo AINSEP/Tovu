@@ -206,35 +206,56 @@ function lineNumberAt(text: string, index: number): number {
   return line;
 }
 
+/** One tracked file's (or historical blob's) already-read, latin1-decoded content, ready to scan. */
+interface ScannableContent {
+  readonly text: string;
+  readonly isBinary: boolean;
+}
+
+/** Reads one tracked file's content for scanning, or `null` if it should be skipped: a skipped
+ *  binary-media extension, missing from disk (e.g. removed locally but not yet staged as
+ *  deleted), not a regular file, or over the size cap (see file header). */
+function readScannableFile(relFile: string): ScannableContent | null {
+  const ext = path.extname(relFile).toLowerCase();
+  if (SKIP_EXTENSIONS.has(ext)) return null;
+
+  const absFile = path.join(REPO_ROOT, relFile);
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(absFile);
+  } catch {
+    return null;
+  }
+  if (!stat.isFile() || stat.size > MAX_SCAN_BYTES) return null;
+
+  const buf = fs.readFileSync(absFile);
+  return { text: buf.toString("latin1"), isBinary: buf.subarray(0, 8000).includes(0) };
+}
+
+/** Scans one already-read file's content for secret-shaped hits, filtering out allowlisted ones
+ *  and shaping each remaining hit into a reportable {@link SecretScanViolation}. Shared by the
+ *  tip scan ({@link scanRepoForSecrets}) and the history scan ({@link scanGitHistoryForSecrets}). */
+function scanContentForViolations(file: string, content: ScannableContent): SecretScanViolation[] {
+  const violations: SecretScanViolation[] = [];
+  for (const hit of scanTextForSecrets(content.text)) {
+    if (isAllowlisted(file, hit.patternName, hit.value)) continue;
+    violations.push({
+      file,
+      patternName: hit.patternName,
+      line: content.isBinary ? "binary" : lineNumberAt(content.text, hit.index),
+    });
+  }
+  return violations;
+}
+
 /** Real-repo scan: every tracked file (per `git ls-files`), latin1-decoded so binary content is
  *  scanned byte-for-byte alongside text (see file header). */
 export function scanRepoForSecrets(): SecretScanViolation[] {
   const violations: SecretScanViolation[] = [];
   for (const relFile of listTrackedFiles()) {
-    const ext = path.extname(relFile).toLowerCase();
-    if (SKIP_EXTENSIONS.has(ext)) continue;
-
-    const absFile = path.join(REPO_ROOT, relFile);
-    let stat: fs.Stats;
-    try {
-      stat = fs.statSync(absFile);
-    } catch {
-      continue; // e.g. a tracked file removed locally but not yet staged as deleted
-    }
-    if (!stat.isFile() || stat.size > MAX_SCAN_BYTES) continue;
-
-    const buf = fs.readFileSync(absFile);
-    const isBinary = buf.subarray(0, 8000).includes(0);
-    const text = buf.toString("latin1");
-
-    for (const hit of scanTextForSecrets(text)) {
-      if (isAllowlisted(relFile, hit.patternName, hit.value)) continue;
-      violations.push({
-        file: relFile,
-        patternName: hit.patternName,
-        line: isBinary ? "binary" : lineNumberAt(text, hit.index),
-      });
-    }
+    const content = readScannableFile(relFile);
+    if (!content) continue;
+    violations.push(...scanContentForViolations(relFile, content));
   }
   return violations;
 }
@@ -249,13 +270,10 @@ interface HistoricalBlob {
 /** Every blob object reachable from any local branch or tag, deduped by blob SHA (a content hash,
  *  so identical file content is scanned exactly once regardless of how many commits or paths
  *  reference it). See file header's History scanning section. */
-function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
-  const objectsOut = execFileSync("git", ["rev-list", "--objects", "--all"], {
-    cwd: repoRoot,
-    encoding: "utf8",
-    maxBuffer: 256 * 1024 * 1024,
-  });
-
+/** Parses `git rev-list --objects --all` output into a sha -> first-seen-path map. Commit objects
+ *  (listed with no path suffix) are skipped; only the first path seen per sha is kept (content,
+ *  not path, is what {@link listHistoricalBlobs} dedupes on). */
+function parseObjectPaths(objectsOut: string): Map<string, string> {
   const pathBySha = new Map<string, string>();
   for (const line of objectsOut.split("\n")) {
     if (!line) continue;
@@ -265,9 +283,31 @@ function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
     const relPath = line.slice(spaceIdx + 1);
     if (relPath && !pathBySha.has(sha)) pathBySha.set(sha, relPath);
   }
+  return pathBySha;
+}
+
+/** Parses `git cat-file --batch-check` output, keeping only blob objects — `rev-list --objects`
+ *  also lists tree objects (which carry a path but aren't scannable file content). */
+function filterBlobShas(typeCheckOut: string, pathBySha: ReadonlyMap<string, string>): HistoricalBlob[] {
+  const blobs: HistoricalBlob[] = [];
+  for (const line of typeCheckOut.split("\n")) {
+    if (!line) continue;
+    const [sha, type] = line.split(" ");
+    if (type === "blob") blobs.push({ sha, path: pathBySha.get(sha)! });
+  }
+  return blobs;
+}
+
+function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
+  const objectsOut = execFileSync("git", ["rev-list", "--objects", "--all"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
+  });
+
+  const pathBySha = parseObjectPaths(objectsOut);
   if (pathBySha.size === 0) return [];
 
-  // rev-list --objects also lists tree objects (with a path); filter to blobs only.
   const shas = [...pathBySha.keys()];
   const typeCheckOut = execFileSync("git", ["cat-file", "--batch-check=%(objectname) %(objecttype)"], {
     cwd: repoRoot,
@@ -276,13 +316,7 @@ function listHistoricalBlobs(repoRoot: string): HistoricalBlob[] {
     maxBuffer: 256 * 1024 * 1024,
   });
 
-  const blobs: HistoricalBlob[] = [];
-  for (const line of typeCheckOut.split("\n")) {
-    if (!line) continue;
-    const [sha, type] = line.split(" ");
-    if (type === "blob") blobs.push({ sha, path: pathBySha.get(sha)! });
-  }
-  return blobs;
+  return filterBlobShas(typeCheckOut, pathBySha);
 }
 
 /** Reads every listed blob's content in one `git cat-file --batch` pass, latin1-decoded (same
@@ -322,29 +356,27 @@ const NUL_CHAR = String.fromCharCode(0);
  *  recoverable from `git log`/`git show` while `scanRepoForSecrets` (tip-only) reports clean.
  *  `repoRoot` defaults to this repo but is overridable so tests can point it at a throwaway repo
  *  instead of mutating real history. */
+/** Converts one historical blob's raw latin1-decoded content into {@link ScannableContent}, or
+ *  `null` when it's missing (shouldn't happen — `readBlobContents` was given this exact sha) or
+ *  over the size cap (see file header's size-cap rationale). */
+function toScannableBlob(text: string | undefined): ScannableContent | null {
+  if (text === undefined || text.length > MAX_SCAN_BYTES) return null;
+  return { text, isBinary: text.slice(0, 8000).includes(NUL_CHAR) };
+}
+
 export function scanGitHistoryForSecrets(options?: { readonly repoRoot?: string }): SecretScanViolation[] {
   const repoRoot = options?.repoRoot ?? REPO_ROOT;
-  const violations: SecretScanViolation[] = [];
 
   const blobs = listHistoricalBlobs(repoRoot).filter(
     (b) => !SKIP_EXTENSIONS.has(path.extname(b.path).toLowerCase()),
   );
   const contents = readBlobContents(repoRoot, blobs.map((b) => b.sha));
 
+  const violations: SecretScanViolation[] = [];
   for (const { path: relPath, sha } of blobs) {
-    const text = contents.get(sha);
-    if (text === undefined || text.length > MAX_SCAN_BYTES) continue;
-
-    const isBinary = text.slice(0, 8000).includes(NUL_CHAR);
-
-    for (const hit of scanTextForSecrets(text)) {
-      if (isAllowlisted(relPath, hit.patternName, hit.value)) continue;
-      violations.push({
-        file: relPath,
-        patternName: hit.patternName,
-        line: isBinary ? "binary" : lineNumberAt(text, hit.index),
-      });
-    }
+    const content = toScannableBlob(contents.get(sha));
+    if (!content) continue;
+    violations.push(...scanContentForViolations(relPath, content));
   }
   return violations;
 }

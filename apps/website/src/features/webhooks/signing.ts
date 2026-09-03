@@ -94,30 +94,54 @@ export function verifySignature(input: VerifySignatureInput): boolean {
   });
 }
 
-/** Parsed `t=`/`v1=` pairs from a `Tovu-Signature` header. `null` when the header is malformed. */
-function parseSignatureHeader(header: string): { timestamp: number; signatures: string[] } | null {
-  let timestamp: number | undefined;
-  const signatures: string[] = [];
+interface SignatureHeaderPart {
+  readonly key: string;
+  readonly value: string;
+}
 
+/** Splits `t=1,v1=a,v1=b` into `{key,value}` parts, skipping any segment with no `=`. */
+function parseHeaderParts(header: string): SignatureHeaderPart[] {
+  const parts: SignatureHeaderPart[] = [];
   for (const rawPart of header.split(",")) {
     const part = rawPart.trim();
     const eq = part.indexOf("=");
     if (eq === -1) continue;
+    parts.push({ key: part.slice(0, eq).trim(), value: part.slice(eq + 1).trim() });
+  }
+  return parts;
+}
 
-    const key = part.slice(0, eq).trim();
-    const value = part.slice(eq + 1).trim();
+interface SignatureHeaderAccumulator {
+  timestamp?: number;
+  signatures: string[];
+}
 
-    if (key === "t") {
-      const parsedTimestamp = Number(value);
-      if (!Number.isFinite(parsedTimestamp)) return null;
-      timestamp = parsedTimestamp;
-    } else if (key === "v1") {
-      signatures.push(value);
-    }
+/** Applies one `key=value` header part to the running accumulator. Returns `false` when this part
+ *  makes the whole header malformed and parsing must stop immediately — matches the original
+ *  single-pass parser's fail-fast behavior: an unparseable `t=` value fails the header right away
+ *  (regardless of ordering relative to other parts), while multiple valid `t=` parts let the LAST
+ *  one win (each overwrites `acc.timestamp` in encounter order). */
+function applyHeaderPart(acc: SignatureHeaderAccumulator, part: SignatureHeaderPart): boolean {
+  if (part.key === "t") {
+    const parsedTimestamp = Number(part.value);
+    if (!Number.isFinite(parsedTimestamp)) return false;
+    acc.timestamp = parsedTimestamp;
+  } else if (part.key === "v1") {
+    acc.signatures.push(part.value);
+  }
+  return true;
+}
+
+/** Parsed `t=`/`v1=` pairs from a `Tovu-Signature` header. `null` when the header is malformed. */
+function parseSignatureHeader(header: string): { timestamp: number; signatures: string[] } | null {
+  const acc: SignatureHeaderAccumulator = { signatures: [] };
+
+  for (const part of parseHeaderParts(header)) {
+    if (!applyHeaderPart(acc, part)) return null;
   }
 
-  if (timestamp === undefined || signatures.length === 0) return null;
-  return { timestamp, signatures };
+  if (acc.timestamp === undefined || acc.signatures.length === 0) return null;
+  return { timestamp: acc.timestamp, signatures: acc.signatures };
 }
 
 /**

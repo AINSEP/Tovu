@@ -133,6 +133,34 @@ export function findSealCallsInSource(sourceText: string, displayPath: string): 
   return violations;
 }
 
+function buildSealViolation(
+  reason: SealViolation["reason"],
+  displayPath: string,
+  line: number,
+  text: string,
+): SealViolation {
+  return { file: displayPath, line, text, reason };
+}
+
+/** Finds the `aad` property among a `.seal()` call's object-literal properties. Returns
+ *  `"unresolved"` when a spread makes it impossible to statically know whether `aad` is
+ *  included (fail-closed — see file header), or `null` when no `aad` property is present. */
+function findAadProperty(
+  properties: ts.NodeArray<ts.ObjectLiteralElementLike>,
+): ts.ObjectLiteralElementLike | "unresolved" | null {
+  for (const prop of properties) {
+    if (ts.isSpreadAssignment(prop)) return "unresolved";
+    if (prop.name && ts.isIdentifier(prop.name) && prop.name.text === "aad") return prop;
+  }
+  return null;
+}
+
+function isLiterallyUndefined(prop: ts.ObjectLiteralElementLike): boolean {
+  return (
+    ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.initializer) && prop.initializer.text === "undefined"
+  );
+}
+
 function checkSealCallArguments(
   call: ts.CallExpression,
   source: ts.SourceFile,
@@ -143,22 +171,15 @@ function checkSealCallArguments(
   const text = call.getText(source).replace(/\s+/g, " ").trim();
 
   if (call.arguments.length !== 1 || !ts.isObjectLiteralExpression(call.arguments[0])) {
-    return { file: displayPath, line, text, reason: "unresolved-argument-shape" };
+    return buildSealViolation("unresolved-argument-shape", displayPath, line, text);
   }
 
-  for (const prop of call.arguments[0].properties) {
-    if (ts.isSpreadAssignment(prop)) {
-      // Can't statically know whether the spread includes `aad` — fail closed rather than guess.
-      return { file: displayPath, line, text, reason: "unresolved-argument-shape" };
-    }
-    if (!prop.name || !ts.isIdentifier(prop.name) || prop.name.text !== "aad") continue;
-    if (ts.isPropertyAssignment(prop) && ts.isIdentifier(prop.initializer) && prop.initializer.text === "undefined") {
-      return { file: displayPath, line, text, reason: "aad-literally-undefined" };
-    }
-    return null; // `aad` present with a real value, or shorthand `{ aad }` — compliant.
-  }
+  const aadProp = findAadProperty(call.arguments[0].properties);
+  if (aadProp === "unresolved") return buildSealViolation("unresolved-argument-shape", displayPath, line, text);
+  if (aadProp === null) return buildSealViolation("missing-aad", displayPath, line, text);
+  if (isLiterallyUndefined(aadProp)) return buildSealViolation("aad-literally-undefined", displayPath, line, text);
 
-  return { file: displayPath, line, text, reason: "missing-aad" };
+  return null; // `aad` present with a real value, or shorthand `{ aad }` — compliant.
 }
 
 /** Real-repo scan: every non-test `.ts`/`.tsx` file under `scanRoot`, reported paths relative to

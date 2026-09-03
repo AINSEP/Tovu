@@ -251,13 +251,7 @@ export async function processDueDeliveries(
   optional: ProcessDueDeliveriesOptional = {}
 ): Promise<ProcessDueDeliveriesResult> {
   const { deliveryRepo, subscriptionRepo, envelopeStore, httpClient, signer, clock } = required.deps;
-  const {
-    batchSize = 20,
-    hooks = [],
-    requestTimeoutMs = 10_000,
-    maxAttempts = MAX_DELIVERY_ATTEMPTS,
-    random,
-  } = optional;
+  const { batchSize, hooks, requestTimeoutMs, maxAttempts, random } = resolveProcessDueDeliveriesOptions(optional);
 
   const nowIso = clock.nowIso();
   const claimed = await deliveryRepo.claimPending({ batchSize, nowIso });
@@ -274,39 +268,76 @@ export async function processDueDeliveries(
       requestTimeoutMs,
     });
 
-    if (outcome.ok) {
-      await deliveryRepo.markDelivered({
-        workspaceId: row.workspaceId,
-        id: row.id,
-        responseStatus: outcome.responseStatus,
-        deliveredAtIso: clock.nowIso(),
-      });
-      result.delivered += 1;
-      continue;
-    }
-
-    const isExhausted = row.attempts >= maxAttempts;
-    const nextStatus = isExhausted ? "dead" : "failed";
-    const failedAtIso = clock.nowIso();
-    const nextAttemptAt = isExhausted
-      ? failedAtIso
-      : addMsToIso(failedAtIso, computeBackoffMs(row.attempts, { random }));
-
-    await deliveryRepo.markFailed({
-      workspaceId: row.workspaceId,
-      id: row.id,
-      error: outcome.error,
-      responseStatus: outcome.responseStatus,
-      nextStatus,
-      nextAttemptAt,
-      deadAtIso: isExhausted ? failedAtIso : undefined,
-    });
-
-    if (isExhausted) result.dead += 1;
-    else result.failed += 1;
+    const disposition = await recordDeliveryOutcome(row, outcome, { deliveryRepo, clock, maxAttempts, random });
+    result[disposition] += 1;
   }
 
   return result;
+}
+
+interface ResolvedProcessDueDeliveriesOptions {
+  batchSize: number;
+  hooks: readonly WebhookBeforeDispatchHook[];
+  requestTimeoutMs: number;
+  maxAttempts: number;
+  random?: () => number;
+}
+
+/** Applies `processDueDeliveries`' documented defaults to the caller-supplied optional bag —
+ *  extracted purely so the defaulting decisions don't count against the orchestrator's own
+ *  complexity budget (see the batch's complexity-refactor brief on default-parameter cost). */
+function resolveProcessDueDeliveriesOptions(
+  optional: ProcessDueDeliveriesOptional
+): ResolvedProcessDueDeliveriesOptions {
+  const {
+    batchSize = 20,
+    hooks = [],
+    requestTimeoutMs = 10_000,
+    maxAttempts = MAX_DELIVERY_ATTEMPTS,
+    random,
+  } = optional;
+  return { batchSize, hooks, requestTimeoutMs, maxAttempts, random };
+}
+
+type DeliveryDisposition = "delivered" | "failed" | "dead";
+
+/** Persists one claimed row's attempt outcome (mark delivered, or compute backoff/dead-letter and
+ *  mark failed) and reports which bucket the caller's result tally should credit. Pure sequencing
+ *  in `processDueDeliveries` calls this once per claimed row; extracting it is what let the loop
+ *  body stop carrying the mark-delivered/backoff/dead-letter branching itself. */
+async function recordDeliveryOutcome(
+  row: WebhookDeliveryRecord,
+  outcome: DeliveryAttemptOutcome,
+  deps: { deliveryRepo: WebhookDeliveryRepoPort; clock: ClockPort; maxAttempts: number; random?: () => number }
+): Promise<DeliveryDisposition> {
+  if (outcome.ok) {
+    await deps.deliveryRepo.markDelivered({
+      workspaceId: row.workspaceId,
+      id: row.id,
+      responseStatus: outcome.responseStatus,
+      deliveredAtIso: deps.clock.nowIso(),
+    });
+    return "delivered";
+  }
+
+  const isExhausted = row.attempts >= deps.maxAttempts;
+  const nextStatus = isExhausted ? "dead" : "failed";
+  const failedAtIso = deps.clock.nowIso();
+  const nextAttemptAt = isExhausted
+    ? failedAtIso
+    : addMsToIso(failedAtIso, computeBackoffMs(row.attempts, { random: deps.random }));
+
+  await deps.deliveryRepo.markFailed({
+    workspaceId: row.workspaceId,
+    id: row.id,
+    error: outcome.error,
+    responseStatus: outcome.responseStatus,
+    nextStatus,
+    nextAttemptAt,
+    deadAtIso: isExhausted ? failedAtIso : undefined,
+  });
+
+  return isExhausted ? "dead" : "failed";
 }
 
 type DeliveryAttemptOutcome =
