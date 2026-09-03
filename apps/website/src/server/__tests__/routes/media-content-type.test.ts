@@ -88,14 +88,21 @@ function mp4Bytes(): Uint8Array {
   return b;
 }
 
+/** Minimal EBML header (`content-type-sniffer.ts`'s `EBML_SIGNATURE`) — enough for the sniffer to
+ *  label these bytes `video/webm`, the same shape `mp4Bytes()` above uses for `video/mp4`. */
+function webmBytes(): Uint8Array {
+  return new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4]);
+}
+
 test("admin media list: carries the content type sniffed from the uploaded bytes", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
   const pngId = await uploadRawBytes(baseUrl, cookie, { filename: "hero.png", bytes: PNG_BYTES });
-  // Declared `image/png` on purpose — `video/*` is not an uploadable type at all (see the
-  // allowlist test at the bottom of this file), so real video bytes can only enter the library
-  // under an image declaration. The sniffer types them correctly regardless.
+  // Declared `image/png` on purpose even though `video/mp4` is itself an allowed declared type
+  // now (see the allowlist test at the bottom of this file) — this test's point is that the LIST
+  // reports the SNIFFED type regardless of what was declared at upload, so declaring the "wrong"
+  // allowed type here is what actually exercises that invariant.
   const mp4Id = await uploadRawBytes(baseUrl, cookie, { filename: "clip.mp4", bytes: mp4Bytes() });
 
   const types = await listMediaContentTypes(baseUrl, cookie);
@@ -214,23 +221,24 @@ test("admin media list: backfills and persists the content type of a row that pr
 });
 
 /**
- * Pins a real, pre-existing product gap this work surfaced but deliberately did NOT fix: the
- * upload allowlist (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s `media-service.ts`) is
- * IMAGES-ONLY — `image/jpeg`, `image/png`, `image/webp`, `image/gif`. There is no `video/*` entry,
- * so picking a real `.mp4` in the admin's file input (where the browser sets `File.type` to
- * `video/mp4`) is rejected at the door with a 400.
+ * Pins the upload allowlist's current shape (`DEFAULT_ALLOWED_MIME_TYPES` in `@jini-ai/cms`'s
+ * `media-service.ts`, Jini commit `18b629c4`, owner-directed 2026-08-24): `image/jpeg`,
+ * `image/png`, `image/webp`, `image/gif`, `video/mp4`, `video/webm`. Picking a
+ * real `.mp4`/`.webm` in the admin's file input (where the browser sets `File.type` to
+ * `video/mp4`/`video/webm`) is therefore accepted with a 201, so the "Videos" tab has ordinary
+ * supply through the normal upload path.
  *
- * Consequence for the Media screen: the "Videos" tab now filters CORRECTLY, but will be empty in
- * any workspace whose assets all arrived through the ordinary upload path. Widening the allowlist
- * is an upload-POLICY change in a different package/repo (`/Users/la/Programming/Jini`), not a
- * filtering change, so it is out of this slice's scope — recorded here so the empty tab reads as a
- * known upstream constraint rather than a bug in the filter.
+ * This replaces a stale prior version of this test (`bf530b1f`, same day but ~6 hours earlier)
+ * that pinned `video/*` as REJECTED — accurate when written, but the allowlist was deliberately
+ * widened later that day and this test was never updated to match. SVG stays excluded regardless
+ * (never re-widened — it needs a sanitizer that doesn't exist yet, per `media-service.ts`'s own
+ * comment), so that's the negative case kept below instead.
  */
-test("admin media upload: video/* is rejected by the upload allowlist, so the Videos tab has no ordinary supply", async (t) => {
+test("admin media upload: video/mp4 and video/webm are accepted by the widened upload allowlist", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`, {
+  const mp4Res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({
@@ -239,7 +247,45 @@ test("admin media upload: video/* is rejected by the upload allowlist, so the Vi
       dataBase64: Buffer.from(mp4Bytes()).toString("base64"),
     }),
   });
+  assert.equal(mp4Res.status, 201);
+
+  const webmRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "clip.webm",
+      contentType: "video/webm",
+      dataBase64: Buffer.from(webmBytes()).toString("base64"),
+    }),
+  });
+  assert.equal(webmRes.status, 201);
+});
+
+/**
+ * The allowlist is a `Set` compared by exact string (`media-service.ts`'s
+ * `allowedMimeTypes.has(input.contentType)`) against the client-supplied `contentType` field in
+ * the JSON body — not the HTTP `Content-Type` header, and not the uploaded bytes. That match is
+ * strict: no case-folding and no parameter stripping, so `VIDEO/MP4` or `video/mp4; codecs=avc1`
+ * would themselves be rejected as unrecognized strings (fails closed, not a bypass). What DOES
+ * still reject on purpose is any type never added to the Set — `image/svg+xml` is the durable
+ * example, since SVG needs a sanitizer this pass doesn't have (`media-service.ts`'s file header).
+ * This is the allowlist's one remaining negative case now that `video/*` moved to the accepted
+ * side above.
+ */
+test("admin media upload: image/svg+xml is still rejected by the upload allowlist", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/media`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      filename: "icon.svg",
+      contentType: "image/svg+xml",
+      dataBase64: Buffer.from(new TextEncoder().encode("<svg></svg>")).toString("base64"),
+    }),
+  });
   assert.equal(res.status, 400);
   const payload = (await res.json()) as { error: string };
-  assert.equal(payload.error, "content type 'video/mp4' is not allowed for upload");
+  assert.equal(payload.error, "content type 'image/svg+xml' is not allowed for upload");
 });
