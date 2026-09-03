@@ -241,3 +241,149 @@ test("setEntrySeoOverrides: bumps the post's version (audit signal)", async () =
   const after = await repo.findById({ workspaceId: WORKSPACE, id: ENTRY_ID });
   assert.equal(after?.version, 4);
 });
+
+test("setEntrySeoOverrides: non-string value for string field throws SeoFieldValidationError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { title: 123 as unknown as string }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'title' must be a string")
+  );
+});
+
+test("setEntrySeoOverrides: non-string value for URL field throws SeoFieldValidationError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogImage: false as unknown as string }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogImage' must be a string")
+  );
+});
+
+test("setEntrySeoOverrides: URL field exceeding 2048 chars throws SeoFieldValidationError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogImage: "https://example.com/" + "a".repeat(2040) }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogImage' must be at most 2048 characters")
+  );
+});
+
+test("setEntrySeoOverrides: vbscript: and file: canonical schemes are rejected with SeoInvalidCanonicalUrlError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical: "vbscript:msgbox(1)" }, callerPrincipalId: "p1" },
+      }),
+    SeoInvalidCanonicalUrlError
+  );
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical: "file:///etc/passwd" }, callerPrincipalId: "p1" },
+      }),
+    SeoInvalidCanonicalUrlError
+  );
+});
+
+test("setEntrySeoOverrides: non-boolean value for boolean field throws SeoFieldValidationError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { noindex: "true" as unknown as boolean }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'noindex' must be a boolean")
+  );
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { nofollow: 0 as unknown as boolean }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'nofollow' must be a boolean")
+  );
+});
+
+test("setEntrySeoOverrides: invalid ogType and twitterCard values throw SeoFieldValidationError", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { ogType: "invalid_type" as unknown as "website" }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'ogType' must be one of")
+  );
+
+  await assert.rejects(
+    () =>
+      setEntrySeoOverrides({
+        deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+        input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { twitterCard: "invalid_card" as unknown as "summary" }, callerPrincipalId: "p1" },
+      }),
+    (err: unknown) => err instanceof SeoFieldValidationError && err.message.includes("'twitterCard' must be one of")
+  );
+});
+
+test("setEntrySeoOverrides: valid ogType and twitterCard values are accepted and saved", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+
+  const result = await setEntrySeoOverrides({
+    deps: { postRepo: repo, authorize: alwaysAllow, invalidateSitemapCache: noopInvalidate },
+    input: {
+      workspaceId: WORKSPACE,
+      entryId: ENTRY_ID,
+      patch: {
+        ogType: "article",
+        twitterCard: "summary_large_image",
+        nofollow: true,
+      },
+      callerPrincipalId: "p1",
+    },
+  });
+
+  assert.equal(result.overrides.ogType, "article");
+  assert.equal(result.overrides.twitterCard, "summary_large_image");
+  assert.equal(result.overrides.nofollow, true);
+});
+
+test("setEntrySeoOverrides: canonical change triggers sitemap cache invalidation", async () => {
+  const repo = new InMemoryPostRepo([seedPost()]);
+  let invalidatedFor: string | undefined;
+
+  await setEntrySeoOverrides({
+    deps: {
+      postRepo: repo,
+      authorize: alwaysAllow,
+      invalidateSitemapCache: (input) => {
+        invalidatedFor = input.workspaceId;
+      },
+    },
+    input: { workspaceId: WORKSPACE, entryId: ENTRY_ID, patch: { canonical: "https://example.com/canonical-post" }, callerPrincipalId: "p1" },
+  });
+
+  assert.equal(invalidatedFor, WORKSPACE);
+});
+
