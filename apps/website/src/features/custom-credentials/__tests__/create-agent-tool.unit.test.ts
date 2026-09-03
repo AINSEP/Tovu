@@ -421,3 +421,44 @@ test("optional label/baseUrl/category prefill hints on the model-issued call pre
   surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
   await pending;
 });
+
+// ---------------------------------------------------------------------------
+// 7. Category defaults to "general" when nothing pre-fills it — the required select must never
+//    render (or submit) blank
+// ---------------------------------------------------------------------------
+
+test("with no category prefill hint, the rendered form's Category select already has 'general' selected, not blank", async () => {
+  const { deps } = fakeRouteDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  const { ui, pending, exchangeId } = await raiseForm(createTool);
+  assert.match(ui.resource.text, /<option value="general" selected>general<\/option>/, "the Category field must start pre-selected on 'general', not on the blank required placeholder");
+
+  surfaceExchanges.deliver({ exchangeId, toolId: TOOL_ID, principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  await pending;
+});
+
+test("submit with no category hint at all: the credential is still created, landing on 'general' rather than being blocked", async () => {
+  const { deps, repo } = fakeRouteDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const createTool = tool(buildRegistrations(deps, surfaceExchanges), TOOL_ID);
+
+  // No `category` key in the model-issued call at all — the realistic "human typed 'save my fly.io
+  // token', model had no category guess" path this fix closes.
+  const { pending, exchangeId } = await raiseForm(createTool);
+  surfaceExchanges.deliver({
+    exchangeId,
+    toolId: TOOL_ID,
+    principalId: PRINCIPAL_ID,
+    params: { label: "fly.io", baseUrl: "https://api.fly.io", token: "a-fly-token" },
+  });
+
+  const result = (await pending) as { created: true; credential: { category: string } };
+  assert.equal(result.created, true, "an omitted category must never block the save");
+  assert.equal(result.credential.category, "general");
+
+  const rows = await repo.listByWorkspace({ workspaceId: WORKSPACE_ID });
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]!.category, "general");
+});

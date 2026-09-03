@@ -60,11 +60,12 @@ export function createCredentialSurfaceUri(exchangeId: string): UIResourceUri {
 
 /**
  * Renders the credential-creation form: label, base URL, category (a closed select drawn from
- * `CUSTOM_CREDENTIAL_CATEGORIES`), an optional username, and the masked token field — the ONLY place
- * the token exists outside the sealed ciphertext it becomes a moment later. It is typed directly into
- * this iframe and posted straight to `mcp-ui-tool-calls-route.ts`, never through the assistant's own
- * text channel. A prefilled `category` that does not match one of the fixed options simply starts
- * unselected (`renderSelect`'s own documented behavior) — never a rendering error.
+ * `CUSTOM_CREDENTIAL_CATEGORIES`, defaulting to `"general"` when unprefilled), an optional username,
+ * and the masked token field — the ONLY place the token exists outside the sealed ciphertext it
+ * becomes a moment later. It is typed directly into this iframe and posted straight to
+ * `mcp-ui-tool-calls-route.ts`, never through the assistant's own text channel. A prefilled `category`
+ * that does not match one of the fixed options simply starts unselected (`renderSelect`'s own
+ * documented behavior) — never a rendering error.
  *
  * @complexity O(1) — a fixed five-field form (`CUSTOM_CREDENTIAL_CATEGORIES.length` is a small,
  *   compile-time-fixed constant, so the category options list is effectively O(1) too).
@@ -104,7 +105,14 @@ export function buildCreateFormResource(spec: { exchangeId: string; prefill: Cre
         label: "Category",
         required: true,
         options: CUSTOM_CREDENTIAL_CATEGORIES.map((id) => ({ value: id })),
-        ...(prefill.category !== undefined ? { value: prefill.category } : {}),
+        // Defaults to "general" (the closed set's catch-all) when the model supplied no prefill hint —
+        // mirrors the admin Access Tokens page's own "Add custom provider" form
+        // (`apps/admin/src/features/security/hooks/use-access-tokens.hooks.ts`'s `emptyCustomAddForm`),
+        // which has always defaulted this field the same way. Without this, `renderSelect` (required +
+        // no `value`) renders a genuinely blank, blocking required select — a human with no obvious
+        // category for e.g. a fly.io token had nothing sensible to pick. Still freely changeable before
+        // submit; a bad/unrecognized prefill still starts unselected, per this file's own header.
+        value: prefill.category ?? "general",
       },
       {
         kind: "string",

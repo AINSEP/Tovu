@@ -513,7 +513,13 @@ interface CreateAnswerContext {
  * Every real field validation (non-empty label/baseUrl, a closed category, the `(workspaceId, label)`
  * uniqueness constraint) is left entirely to `store.ts`'s own `createCustomCredential` — this function
  * only special-cases a blank TOKEN locally (mirroring `handleSetTokenAnswer`'s identical local check),
- * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`.
+ * both for a friendlier message and so a known-blank submission never even reaches `sealConnection`,
+ * and a blank/missing `category` (see below), which defaults to `"general"` rather than reaching
+ * `store.ts`'s `validateCategory` at all — that function stays strict (rejects anything outside the
+ * fixed set), the default is chosen here, at the same call site `label`/`baseUrl`/`token` are already
+ * read at. Belt-and-suspenders alongside `custom-credential-create-ui.ts`'s own form default: that
+ * default lives in the rendered `<select>`'s pre-selected option, this one covers a submission that
+ * somehow arrives without it.
  *
  * The token itself lives in a single local `const` for the width of this function and is never
  * assigned to any field this function returns, logged, or otherwise retained — the property
@@ -533,7 +539,12 @@ async function handleCreateAnswer(answer: SurfaceMessage, ctx: CreateAnswerConte
 
   const label = typeof answer.params["label"] === "string" ? answer.params["label"] : "";
   const baseUrl = typeof answer.params["baseUrl"] === "string" ? answer.params["baseUrl"] : "";
-  const category = typeof answer.params["category"] === "string" ? answer.params["category"] : "";
+  const rawCategory = typeof answer.params["category"] === "string" ? answer.params["category"] : "";
+  // Defaults to "general" (the closed set's catch-all, same as the admin Access Tokens page's own
+  // "Add custom provider" form) rather than passing a blank string through to `store.ts`'s
+  // `validateCategory`, which would reject it outright and block the save on a required field the
+  // human had no obvious answer for.
+  const category = rawCategory.trim() === "" ? "general" : rawCategory;
   const rawUsername = typeof answer.params["username"] === "string" ? answer.params["username"] : "";
   const username = rawUsername.trim() === "" ? undefined : rawUsername;
   const token = typeof answer.params["token"] === "string" ? answer.params["token"] : "";
