@@ -28,13 +28,26 @@ import type { RouteDeps } from "#src/server/routes/types";
  * the connection. Before this, both controls sat permanently disabled next to a working key.
  *
  * The "never persisted" contract is untouched — nothing here writes — and the fallback is opt-in
- * per request, never implicit, so Settings → Execution mode (which sends the ADMIN's own
- * browser-local key) can never silently probe with the SITE's key. See `list-models.ts`'s own note
- * on why that opt-in must not be relaxed to "empty key ⇒ use the stored one".
+ * per request, never implicit, so Settings → Execution mode can never silently probe with the
+ * SITE's key. See `list-models.ts`'s own note on why that opt-in must not be relaxed to "empty key
+ * ⇒ use the stored one".
+ *
+ * `adminExecutionCredentialRepo` is the same read for the OTHER write-only credential — the calling
+ * admin's own `admin_execution_credentials` row, reached by the separate `useAdminStoredCredential`
+ * opt-in. It was added for the same symptom on the other screen: the admin's own key moved
+ * server-side (2026-08-05) while its probes still only knew how to send a key from the browser, so
+ * the AI Assistant tab's Model field reported "No API key — model discovery needs the key from this
+ * browser" beside a key the server holds and uses on every turn. Two stored credentials, two
+ * separate opt-ins, deliberately never one flag: they are different keys belonging to different
+ * subjects, and `stored-credential-probe.ts` keeps them apart.
  */
 export type AssistantExecutionRouteDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "siteAssistantCredentialRepo" | "siteAssistantSecretSealer"
+  | "workspaceId"
+  | "authorize"
+  | "siteAssistantCredentialRepo"
+  | "siteAssistantSecretSealer"
+  | "adminExecutionCredentialRepo"
 >;
 
 export type AssistantExecutionRouteRegistrar = (app: Express, deps: AssistantExecutionRouteDeps) => void;

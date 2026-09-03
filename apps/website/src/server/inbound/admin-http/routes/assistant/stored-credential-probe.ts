@@ -1,9 +1,20 @@
-import { resolveSiteAssistantApiKey } from "#src/assistant/index";
+import { resolveExecutionCredential, resolveSiteAssistantApiKey } from "#src/assistant/index";
 import type { AssistantExecutionRouteDeps } from "./execution-deps.js";
 
 /**
  * @file The single chokepoint deciding WHICH key a BYOK probe sends and WHERE it sends it, shared by
  * `test-connection.ts` and `list-models.ts`.
+ *
+ * ## Two stored credentials, two opt-ins
+ *
+ * There are exactly three keys a probe can carry, and this module is where that choice is made:
+ * the one typed into the request body, the workspace's SITE credential (`useStoredCredential`), and
+ * the calling admin's OWN execution credential (`useAdminStoredCredential`). The last two are
+ * separate flags on purpose and must never be merged into one "use whatever is stored": they are
+ * different secrets belonging to different subjects, and the screens that probe them are different
+ * screens. Collapsing them would let the AI Assistant tab silently probe the admin's personal key,
+ * or Settings → Execution mode silently probe the visitor's — the exact confusion ADR-058 §5 makes
+ * structural.
  *
  * ## The boundary this exists to hold
  *
@@ -82,10 +93,26 @@ export interface ResolveProbeCredentialInput {
   typedKey: string;
   /** `body.useStoredCredential === true`, already narrowed by the caller. Must stay an explicit
    *  opt-in and never be softened to "empty key ⇒ use the stored one": these routes are shared with
-   *  Settings → Execution mode, whose key is a DIFFERENT credential (the admin's own, browser-local),
-   *  and an implicit fallback would let an operator with an empty field silently probe with the
-   *  visitor credential. */
+   *  Settings → Execution mode, whose key is a DIFFERENT credential (the admin's own), and an
+   *  implicit fallback would let an operator with an empty field silently probe with the visitor
+   *  credential. */
   useStoredCredential: boolean;
+  /**
+   * `body.useAdminStoredCredential === true`. Opts in to the CALLING PRINCIPAL'S OWN
+   * `admin_execution_credentials` row — never another principal's, because the row is looked up by
+   * the session's `principalId` (passed here from `getAuthedPrincipal`), not by anything in the
+   * request.
+   *
+   * Same explicit-opt-in rule as `useStoredCredential`, for the same reason, and the two are
+   * deliberately not one flag — see this file's header.
+   *
+   * Defaults to `false`, so every existing caller is unaffected.
+   */
+  useAdminStoredCredential?: boolean;
+  /** The session principal, required only when `useAdminStoredCredential` is set. Must come from
+   *  `getAuthedPrincipal(res)` and NEVER from the request body: it is the whole reason this branch
+   *  can only ever open the caller's own row. */
+  principalId?: string;
 }
 
 /**
@@ -114,36 +141,80 @@ export async function resolveProbeCredential(
   if (input.typedKey.trim()) {
     return { ok: true, apiKey: input.typedKey, baseUrl: input.requestedBaseUrl };
   }
-  if (!input.useStoredCredential) {
+  if (!input.useStoredCredential && !input.useAdminStoredCredential) {
     return { ok: true, apiKey: "", baseUrl: input.requestedBaseUrl };
   }
 
-  const stored = await resolveSiteAssistantApiKey(
-    { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
-    { workspaceId: deps.workspaceId }
+  if (input.useAdminStoredCredential) {
+    return resolveStoredCredentialAgainstItsOwnEndpoint(
+      await resolveExecutionCredential(
+        // One sealing capability app-wide — `siteAssistantSecretSealer` is the same sealer
+        // `assistant-byok.ts` and `live-model-cache.ts` open this row with. See
+        // `routes/types.ts`'s `adminExecutionCredentialRepo` doc.
+        { repo: deps.adminExecutionCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+        { workspaceId: deps.workspaceId, principalId: String(input.principalId ?? "") }
+      ),
+      input.requestedBaseUrl,
+      "admin execution credential"
+    );
+  }
+
+  return resolveStoredCredentialAgainstItsOwnEndpoint(
+    await resolveSiteAssistantApiKey(
+      { repo: deps.siteAssistantCredentialRepo, sealer: deps.siteAssistantSecretSealer },
+      { workspaceId: deps.workspaceId }
+    ),
+    input.requestedBaseUrl,
+    "stored site assistant credential"
   );
+}
+
+/**
+ * The endpoint pin, shared by both stored-credential branches: a key the caller cannot read may
+ * only be sent to the endpoint the SERVER already recorded for it.
+ *
+ * Extracted rather than duplicated per credential because the rule is a property of "the caller
+ * cannot consent to this destination", not of which row the key came from — and a second copy is
+ * exactly how one of the two would eventually drift into accepting a body-supplied endpoint. Both
+ * stored credentials are write-only to the same permission, so both need it identically.
+ *
+ * @param stored - The resolved credential, or `null` for every "there is nothing to protect here"
+ *   outcome (no row, no key, missing master secret, corrupt ciphertext). `null` returns an empty key
+ *   against the requested endpoint, letting the provider return its own auth error — a truer message
+ *   than a synthesized one, and nothing is exposed because there is no secret in play.
+ * @param requestedBaseUrl - The endpoint from the request body. Compared, never sent.
+ * @param subject - How the credential is named in the two rejection messages.
+ * @returns The `(apiKey, baseUrl)` pair to put on the wire — always the SERVER's own stored
+ *   endpoint string, not the caller's, so the bytes sent are the ones the server approved.
+ * @complexity O(1) — two string normalizations and one comparison.
+ */
+function resolveStoredCredentialAgainstItsOwnEndpoint(
+  stored: { apiKey: string; baseUrl: string | null } | null,
+  requestedBaseUrl: string,
+  subject: string
+): ProbeCredentialResolution {
   if (!stored) {
-    return { ok: true, apiKey: "", baseUrl: input.requestedBaseUrl };
+    return { ok: true, apiKey: "", baseUrl: requestedBaseUrl };
   }
 
   if (!stored.baseUrl?.trim()) {
     return {
       ok: false,
       failure: {
-        error:
-          "the stored site assistant credential has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request",
+        error: `the ${subject} has no saved endpoint, so this probe has no approved destination — save a base URL for the credential first, or supply an apiKey in this request`,
         code: "STORED_CREDENTIAL_ENDPOINT_UNSET",
       },
     };
   }
 
-  if (normalizeEndpoint(stored.baseUrl) !== normalizeEndpoint(input.requestedBaseUrl)) {
+  if (normalizeEndpoint(stored.baseUrl) !== normalizeEndpoint(requestedBaseUrl)) {
     return {
       ok: false,
       failure: {
-        // Naming the stored endpoint leaks nothing: `get-site-credential.ts` already returns
-        // `baseUrl` in full to this exact permission. Only the key is write-only.
-        error: `the stored site assistant credential is saved for '${stored.baseUrl}' and cannot be probed against '${input.requestedBaseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
+        // Naming the stored endpoint leaks nothing: `get-site-credential.ts` and
+        // `get-execution-credential.ts` both already return `baseUrl` in full to this exact
+        // permission. Only the key is write-only.
+        error: `the ${subject} is saved for '${stored.baseUrl}' and cannot be probed against '${requestedBaseUrl}' — save the new endpoint first, or supply an apiKey for it in this request`,
         code: "STORED_CREDENTIAL_ENDPOINT_MISMATCH",
       },
     };

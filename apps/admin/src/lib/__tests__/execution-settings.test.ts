@@ -746,6 +746,46 @@ describe("createExecutionPort", () => {
     expect(listExecutionModels).toHaveBeenCalledWith(expect.objectContaining({ useStoredCredential: true }));
   });
 
+  it("listModels asks the server to use the ADMIN's own stored credential when useAdminStoredCredential is on", async () => {
+    // The regression this guards: the admin's own BYOK key moved server-side and write-only
+    // (2026-08-05), so `ExecutionTab`'s discovery effect was sending the empty browser field and the
+    // provider answered "No API key — model discovery needs the key from this browser". The visible
+    // symptom was the admin BYOK panel rendering a free-text Model box while the visitor panel beside
+    // it showed a live picker from the SAME component.
+    listExecutionModels.mockResolvedValue({ ok: true, models: ["gemini-3.6-flash"] });
+    const port = createExecutionPort({ useAdminStoredCredential: true });
+    await port.listModels?.({ protocol: "google", providerId: "google-gemini", apiKey: "", baseUrl: "", model: "" });
+
+    expect(listExecutionModels).toHaveBeenCalledWith(expect.objectContaining({ useAdminStoredCredential: true }));
+  });
+
+  it("useAdminStoredCredential does NOT imply useStoredCredential — the site's visitor key is a different row", async () => {
+    // Two stored credentials, two flags. If these ever collapse into one, the admin screens start
+    // probing (and discovering models for) the visitor credential — the boundary ADR-058 §5 makes
+    // structural. See `server/.../assistant/stored-credential-probe.ts`'s header.
+    listExecutionModels.mockResolvedValue({ ok: true, models: [] });
+    const port = createExecutionPort({ useAdminStoredCredential: true });
+    await port.listModels?.({ protocol: "google", providerId: "google-gemini", apiKey: "", baseUrl: "", model: "" });
+
+    expect(listExecutionModels).toHaveBeenCalledWith(expect.not.objectContaining({ useStoredCredential: expect.anything() }));
+  });
+
+  it("testConnection carries useAdminStoredCredential too, so both probes on the admin screens speak for the same key", async () => {
+    testExecutionConnection.mockResolvedValue({ ok: true, message: "ok" });
+    const port = createExecutionPort({ useAdminStoredCredential: true });
+    await port.testConnection({ protocol: "google", providerId: "google-gemini", apiKey: "", baseUrl: "", model: "m" });
+
+    expect(testExecutionConnection).toHaveBeenCalledWith(expect.objectContaining({ useAdminStoredCredential: true }));
+  });
+
+  it("omits useAdminStoredCredential entirely by default — no existing caller's request body changes", async () => {
+    listExecutionModels.mockResolvedValue({ ok: true, models: [] });
+    const port = createExecutionPort();
+    await port.listModels?.({ protocol: "openai", providerId: "openai", apiKey: "sk", baseUrl: "", model: "" });
+
+    expect(listExecutionModels).toHaveBeenCalledWith(expect.not.objectContaining({ useAdminStoredCredential: expect.anything() }));
+  });
+
   it("testAgent passes agentId and, when given, model through and returns the result verbatim", async () => {
     testExecutionAgent.mockResolvedValue({ ok: true, message: "Claude Code is usable" });
     const port = createExecutionPort();

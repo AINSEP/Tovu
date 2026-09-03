@@ -36,6 +36,10 @@ interface ListModelsRequestBody {
   apiVersion?: unknown;
   /** Opt in to probing with the workspace's STORED site credential instead of a key in this body. */
   useStoredCredential?: unknown;
+  /** Opt in to probing with the CALLING ADMIN's OWN stored execution credential. A different key
+   *  from `useStoredCredential`'s — see `stored-credential-probe.ts`'s header for why the two are
+   *  separate flags. */
+  useAdminStoredCredential?: unknown;
 }
 
 /**
@@ -110,16 +114,22 @@ export const registerAdminAssistantListModelsRoute: AssistantExecutionRouteRegis
        * `stored-credential-probe.ts`'s header for the boundary and the residual path it leaves.
        *
        * The opt-in is the other load-bearing part and must not be softened into "empty key ⇒ use
-       * the stored one". This route is shared: Settings → Execution mode calls it with the ADMIN's
-       * own browser-local key, and the AI Assistant tab calls it for the SITE's key. An implicit
-       * fallback would mean an operator on the Settings screen with an empty field silently probes
-       * — and discovers models for — the visitor credential, quietly crossing the exact boundary
-       * ADR-058 §5 exists to make structural. Two keys stay two keys, including here.
+       * the stored one". This route is shared: the admin execution screens call it for the ADMIN's
+       * own key, and the AI Assistant tab calls it for the SITE's key. An implicit fallback would
+       * mean an operator on one screen with an empty field silently probes — and discovers models
+       * for — the other screen's credential, quietly crossing the exact boundary ADR-058 §5 exists
+       * to make structural. Two keys stay two keys, including here, which is why they have two
+       * separate flags rather than one.
+       *
+       * `principalId` comes from the session, never the body: it is what makes the admin branch
+       * able to open only the caller's own row.
        */
       const credential = await resolveProbeCredential(deps, {
         requestedBaseUrl: baseUrl,
         typedKey: readOptionalString(body.apiKey, ""),
         useStoredCredential: body.useStoredCredential === true,
+        useAdminStoredCredential: body.useAdminStoredCredential === true,
+        principalId: principal.id,
       });
       if (!credential.ok) {
         res.status(400).json(credential.failure);

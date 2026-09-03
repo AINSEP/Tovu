@@ -215,12 +215,17 @@ function AdminAssistantSwitch({
  *
  * ## The port, and the one thing it must not do
  *
- * `createExecutionPort()` with NO arguments, deliberately — the same call `SettingsUi.tsx` makes.
+ * `createExecutionPort({ useAdminStoredCredential: true })` — the same call `SettingsUi.tsx` makes.
  * The `useStoredCredential: true` opt-in that {@link VisitorCredentialForm} passes must never appear
  * here: that flag makes the probe routes fall back to the SITE's server-side visitor credential, and
- * this screen is about the admin's own browser-local key. Opting in would silently test a different
- * key than the one this tab configures. See `lib/execution-settings.ts`'s comment on the flag's
- * default for the full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
+ * this screen is about the admin's own key. Opting in would silently test a different key than the
+ * one this tab configures.
+ *
+ * `useAdminStoredCredential` is the correct flag for that same key, which is server-side and
+ * write-only since 2026-08-05 — so the field this screen renders is legitimately empty and the
+ * probes had nothing to send. It is what makes the Model field a live picker here instead of the
+ * free-text box it fell back to. See `lib/execution-settings.ts`'s comments on both options for the
+ * full reasoning. State lives in `hooks/use-admin-execution-mode.hooks.ts`.
  */
 interface AdminExecutionModeProps {
   useAdminExecutionModeHook?: typeof useAdminExecutionMode;

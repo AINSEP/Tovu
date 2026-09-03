@@ -106,7 +106,23 @@ export interface SettingsUiController {
  */
 export function useSettingsUi(): SettingsUiController {
   const [modalOpen, setModalOpen] = useState(false);
-  const port = useRef(createExecutionPort());
+  // Same option, same reasoning as `features/ai-assistant/hooks/use-admin-execution-mode.hooks.ts`
+  // — this is the SECOND mount of `ExecutionTab` over the same `core.execution` ledger and the same
+  // stored credential, and the two must not drift in their port options.
+  const port = useRef(
+    createExecutionPort({
+      // Opts model discovery and "Test connection" into the ADMIN'S OWN server-side credential — the
+      // key this very screen configures, encrypted and write-only since 2026-08-05. Without it the
+      // probes were sent with the empty browser field and the provider (correctly) answered "No API
+      // key", so `ByokProviderForm` never reached `modelDiscovery.status === 'ok'` and rendered its
+      // free-text Model input instead of the live picker it already contains.
+      //
+      // NOT `useStoredCredential` — that is the SITE's visitor key, a different row belonging to a
+      // different subject, and opting into it here would silently probe the wrong credential. The two
+      // flags are separate for exactly this reason; see `lib/execution-settings.ts`'s option docs.
+      useAdminStoredCredential: true,
+    }),
+  );
   // Fresh, empty in-memory ports for the three inert-wrapped backend-less
   // tabs below (Media providers, Skills) — `useRef` so each mounts once, not
   // once per render. `{ skills: [] }` overrides `createFakeSkillsPort`'s own

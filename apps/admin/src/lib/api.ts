@@ -2457,10 +2457,14 @@ export const api = {
       method: "POST",
       body: JSON.stringify({}),
     }),
-  // `useStoredCredential` opts a probe into the workspace's encrypted server-side site credential
-  // when `apiKey` is empty — for the AI Assistant tab, whose key is write-only and so genuinely
-  // absent from the browser. Opt-in per request, never implicit: Settings → Execution mode sends a
-  // DIFFERENT (browser-local) key and must never fall through to the site's.
+  // `useStoredCredential` opts a probe into the workspace's encrypted server-side SITE credential
+  // when `apiKey` is empty — for the AI Assistant tab's visitor form, whose key is write-only and so
+  // genuinely absent from the browser. `useAdminStoredCredential` is the same opt-in for the OTHER
+  // write-only key: the calling admin's own execution credential, which moved server-side on
+  // 2026-08-05 and left these probes with nothing to send on the admin's own screens.
+  //
+  // Two flags, never one. Each is opt-in per request and never implicit, so neither screen can fall
+  // through to the other's key — see `stored-credential-probe.ts`'s header on the server.
   testExecutionConnection: (input: {
     protocol: string;
     baseUrl: string;
@@ -2468,6 +2472,7 @@ export const api = {
     model: string;
     apiVersion?: string;
     useStoredCredential?: boolean;
+    useAdminStoredCredential?: boolean;
   }) =>
     request<{ ok: boolean; message: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`, {
       method: "POST",
@@ -2484,6 +2489,7 @@ export const api = {
     apiKey: string;
     apiVersion?: string;
     useStoredCredential?: boolean;
+    useAdminStoredCredential?: boolean;
   }) =>
     request<{ ok: boolean; models: string[]; message?: string }>(`/workspaces/${WORKSPACE_ID}/assistant/execution/models`, {
       method: "POST",

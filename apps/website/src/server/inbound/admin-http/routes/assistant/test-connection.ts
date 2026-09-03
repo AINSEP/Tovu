@@ -13,6 +13,10 @@ interface TestConnectionRequestBody {
   apiVersion?: unknown;
   /** Opt in to testing with the workspace's STORED site credential instead of a key in this body. */
   useStoredCredential?: unknown;
+  /** Opt in to testing with the CALLING ADMIN's OWN stored execution credential. A different key
+   *  from `useStoredCredential`'s — see `stored-credential-probe.ts`'s header for why the two are
+   *  separate flags. */
+  useAdminStoredCredential?: unknown;
 }
 
 /** True if either required connection-target field is blank.
@@ -112,13 +116,16 @@ export const registerAdminAssistantTestConnectionRoute: AssistantExecutionRouteR
       }
 
       // Which key probes, and WHERE it is allowed to go — one chokepoint shared with
-      // `list-models.ts`. A typed key wins and travels to the endpoint its owner named; the stored
-      // site credential travels only to the endpoint the server already recorded for it, never to
-      // one this request body chose. See `stored-credential-probe.ts`'s header.
+      // `list-models.ts`. A typed key wins and travels to the endpoint its owner named; EITHER
+      // stored credential travels only to the endpoint the server already recorded for it, never to
+      // one this request body chose. `principalId` comes from the session, never the body — it is
+      // what scopes the admin branch to the caller's own row. See `stored-credential-probe.ts`.
       const credential = await resolveProbeCredential(deps, {
         requestedBaseUrl: baseUrl,
         typedKey: readOptionalString(body.apiKey, ""),
         useStoredCredential: body.useStoredCredential === true,
+        useAdminStoredCredential: body.useAdminStoredCredential === true,
+        principalId: principal.id,
       });
       if (!credential.ok) {
         res.status(400).json(credential.failure);

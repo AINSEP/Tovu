@@ -558,10 +558,27 @@ export interface CreateExecutionPortOptions {
    * optionally fall back to.)
    */
   useStoredCredential?: boolean;
+  /**
+   * When `true`, probes that receive no typed API key ask the server to use the CALLING ADMIN'S OWN
+   * stored execution credential — the other write-only key, and a different row from
+   * {@link CreateExecutionPortOptions.useStoredCredential}'s.
+   *
+   * Same symptom on the other screen. The admin's own key moved server-side on 2026-08-05, so
+   * `ExecutionTab`'s Model field asked the server to discover models with an empty key and got back
+   * "No API key — model discovery needs the key from this browser" — beside a stored key the server
+   * uses on every admin turn. The visible consequence was that the admin BYOK panel never reached
+   * `modelDiscovery.status === 'ok'`, so `ByokProviderForm` fell back to its free-text Model input
+   * while the visitor panel next to it showed a real live-model picker from the same component.
+   *
+   * The server scopes the row to the SESSION's principal, so this can only ever reach the caller's
+   * own credential. Deliberately a second flag rather than a widened `useStoredCredential`: see
+   * `server/inbound/admin-http/routes/assistant/stored-credential-probe.ts`'s header.
+   */
+  useAdminStoredCredential?: boolean;
 }
 
 export function createExecutionPort(options: CreateExecutionPortOptions = {}): ExecutionPort {
-  const { useStoredCredential = false } = options;
+  const { useStoredCredential = false, useAdminStoredCredential = false } = options;
   return {
     async detectLocalAgents() {
       return cachedDetection ?? cacheDetection(requestAgentDetection());
@@ -578,6 +595,7 @@ export function createExecutionPort(options: CreateExecutionPortOptions = {}): E
         apiKey: config.apiKey,
         model: config.model,
         ...(useStoredCredential ? { useStoredCredential: true } : {}),
+        ...(useAdminStoredCredential ? { useAdminStoredCredential: true } : {}),
       });
     },
     async testAgent(agentId: string, model?: string | undefined) {
@@ -593,6 +611,7 @@ export function createExecutionPort(options: CreateExecutionPortOptions = {}): E
         baseUrl: config.baseUrl,
         apiKey: config.apiKey,
         ...(useStoredCredential ? { useStoredCredential: true } : {}),
+        ...(useAdminStoredCredential ? { useAdminStoredCredential: true } : {}),
       });
       // `result.ok === false` here is ALWAYS "discovery could not reach/read the
       // provider" (auth failure, timeout, blocked base URL, unsupported protocol)
