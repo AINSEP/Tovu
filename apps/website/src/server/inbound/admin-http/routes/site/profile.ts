@@ -78,21 +78,13 @@ class SiteProfileQueryError extends Error {
 }
 
 /**
- * Parses `?sections=pages,theme` into the closed section vocabulary.
+ * Flattens `raw` (a query-string value Express hands back as a string or an array of strings when
+ * `?sections=` is repeated) into a comma-split, trimmed, non-empty name list.
  *
- * Rejects an unknown name rather than dropping it: a caller that asked for `secrets` and got a
- * response with no `secrets` key could not tell "no such section" from "that section was empty".
- * Express parses a repeated `?sections=a&sections=b` into an array, so both spellings are accepted
- * and normalized here rather than forcing the frontend to pick one.
- *
- * @param raw - `req.query.sections`, whatever Express produced for it.
- * @returns The requested names, or `undefined` when the caller did not scope the request.
- * @throws {SiteProfileQueryError} On a non-string/array value or an unknown section name.
+ * @throws {SiteProfileQueryError} If any part of `raw` is not a string.
  * @complexity O(S) in the requested-section count.
- * @example parseSections("pages,theme"); // => ["pages", "theme"]
  */
-export function parseSections(raw: unknown): SiteProfileSectionName[] | undefined {
-  if (raw === undefined) return undefined;
+function splitRequestedSectionNames(raw: unknown): string[] {
   const parts = Array.isArray(raw) ? raw : [raw];
   const names: string[] = [];
   for (const part of parts) {
@@ -104,8 +96,18 @@ export function parseSections(raw: unknown): SiteProfileSectionName[] | undefine
       if (trimmed !== "") names.push(trimmed);
     }
   }
-  if (names.length === 0) return undefined;
+  return names;
+}
 
+/**
+ * Rejects any name outside the closed section vocabulary rather than dropping it: a caller that
+ * asked for `secrets` and got a response with no `secrets` key could not tell "no such section"
+ * from "that section was empty".
+ *
+ * @throws {SiteProfileQueryError} On the first unknown name.
+ * @complexity O(S) in the requested-section count.
+ */
+function assertKnownSectionNames(names: string[]): asserts names is SiteProfileSectionName[] {
   const known = new Set<string>(SITE_PROFILE_SECTION_NAMES);
   for (const name of names) {
     if (!known.has(name)) {
@@ -114,7 +116,26 @@ export function parseSections(raw: unknown): SiteProfileSectionName[] | undefine
       );
     }
   }
-  return names as SiteProfileSectionName[];
+}
+
+/**
+ * Parses `?sections=pages,theme` into the closed section vocabulary.
+ *
+ * Express parses a repeated `?sections=a&sections=b` into an array, so both spellings are accepted
+ * and normalized here rather than forcing the frontend to pick one.
+ *
+ * @param raw - `req.query.sections`, whatever Express produced for it.
+ * @returns The requested names, or `undefined` when the caller did not scope the request.
+ * @throws {SiteProfileQueryError} On a non-string/array value or an unknown section name.
+ * @complexity O(S) in the requested-section count.
+ * @example parseSections("pages,theme"); // => ["pages", "theme"]
+ */
+export function parseSections(raw: unknown): SiteProfileSectionName[] | undefined {
+  if (raw === undefined) return undefined;
+  const names = splitRequestedSectionNames(raw);
+  if (names.length === 0) return undefined;
+  assertKnownSectionNames(names);
+  return names;
 }
 
 /**

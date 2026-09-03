@@ -3,7 +3,34 @@ import { PluginEnabledError, PluginNotUninstallableError, uninstallPlugin } from
 import { PluginUninstallPathError } from "#src/server/runtime/composition/plugin-runtime";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import type { Response } from "express";
 import type { PluginsRouteRegistrar } from "./deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendPluginUninstallError(res: Response, err: unknown): void {
+  if (err instanceof PluginNotFoundError) {
+    res.status(404).json({ error: err.message, code: "PLUGIN_NOT_FOUND" });
+    return;
+  }
+
+  if (err instanceof PluginNotUninstallableError) {
+    res.status(422).json({ error: err.message, code: "PLUGIN_NOT_UNINSTALLABLE" });
+    return;
+  }
+
+  if (err instanceof PluginEnabledError) {
+    res.status(409).json({ error: err.message, code: "PLUGIN_ENABLED" });
+    return;
+  }
+
+  if (err instanceof PluginUninstallPathError) {
+    res.status(400).json({ error: err.message, code: "PLUGIN_ID_INVALID" });
+    return;
+  }
+
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+}
 
 /**
  * @file `PLUGIN_UNINSTALL` — `DELETE /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
@@ -59,27 +86,7 @@ export const registerPluginUninstallRoute: PluginsRouteRegistrar = (app, deps) =
 
       res.json({ pluginId, clearedWorkspaceIds: result.clearedWorkspaceIds });
     } catch (err) {
-      if (err instanceof PluginNotFoundError) {
-        res.status(404).json({ error: err.message, code: "PLUGIN_NOT_FOUND" });
-        return;
-      }
-
-      if (err instanceof PluginNotUninstallableError) {
-        res.status(422).json({ error: err.message, code: "PLUGIN_NOT_UNINSTALLABLE" });
-        return;
-      }
-
-      if (err instanceof PluginEnabledError) {
-        res.status(409).json({ error: err.message, code: "PLUGIN_ENABLED" });
-        return;
-      }
-
-      if (err instanceof PluginUninstallPathError) {
-        res.status(400).json({ error: err.message, code: "PLUGIN_ID_INVALID" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendPluginUninstallError(res, err);
     }
   });
 };

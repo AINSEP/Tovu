@@ -6,7 +6,38 @@ import {
   rejectOversizedJsonBody,
 } from "#src/server/inbound/shared/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
+import type { Response } from "express";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendPageCreateError(res: Response, err: unknown): void {
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({
+      error: err.message,
+      code: "FORBIDDEN",
+      details: { permission: err.permission, reason: err.reason },
+    });
+    return;
+  }
+
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+    return;
+  }
+
+  if (err instanceof PostValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+
+  if (err instanceof PostConflictError) {
+    res.status(409).json({ error: err.message, code: "SLUG_CONFLICT" });
+    return;
+  }
+
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST a new blank draft page — mirrors `posts/create.ts` (same command-gateway
@@ -76,31 +107,7 @@ export const registerAdminPageCreateRoute: ContentRouteRegistrar = (app, deps) =
 
         res.status(201).json(toAdminPostResponse(result.post));
       } catch (err) {
-        if (err instanceof ForbiddenError) {
-          res.status(403).json({
-            error: err.message,
-            code: "FORBIDDEN",
-            details: { permission: err.permission, reason: err.reason },
-          });
-          return;
-        }
-
-        if (err instanceof DuplicateCommandError) {
-          res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
-          return;
-        }
-
-        if (err instanceof PostValidationError) {
-          res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-          return;
-        }
-
-        if (err instanceof PostConflictError) {
-          res.status(409).json({ error: err.message, code: "SLUG_CONFLICT" });
-          return;
-        }
-
-        res.status(500).json({ error: "internal error" });
+        sendPageCreateError(res, err);
       }
     }
   );
