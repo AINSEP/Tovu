@@ -670,3 +670,139 @@ test("entries routes: list surfaces a non-Error throw as 500 (INTERNAL_ERROR) wi
   assert.equal(body.code, "INTERNAL_ERROR");
   assert.equal(body.error, "internal error");
 });
+
+// --- Publish/unpublish idempotency (2026-09-03 owner ruling on SPEC-020-state.spec.md vs
+// AC-45/api.spec.md): PUBLISH_ENTRY/UNPUBLISH_ENTRY are idempotent state assertions, not a strict
+// FSM — `write-service.ts`'s `transitionEntryStatus` has no `current.status === target.status`
+// guard, so every call (first or repeat) re-runs the full write: version bump, `publishedAt`
+// (re)stamp, a new `EntryRevision`, and a fresh outbox event. These tests pin that behavior so it
+// isn't "fixed" into a rejecting guard later, and so propagation isn't silently dropped on a
+// repeat call. See the amended precondition/failure-handling cells at SPEC-020-state.spec.md's
+// `PUBLISH_ENTRY`/`UNPUBLISH_ENTRY` rows for the governing contract. ---
+
+/** Counts pending `entry.published`/`entry.unpublished` outbox rows for one entry, using the real
+ *  `OutboxPort.claimPending` surface (`@jini-ai/cms/core`) rather than reaching into the in-memory
+ *  outbox's private storage — the same surface `processOutbox` itself uses to drain the queue. */
+async function countPendingEntryEvents(deps: RouteDeps, entryId: string, eventName: string): Promise<number> {
+  const farFuture = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+  const claimed = await deps.outbox.claimPending(1000, farFuture);
+  return claimed.filter((row) => row.event.name === eventName && (row.event.payload as { entryId?: string }).entryId === entryId).length;
+}
+
+test("entries routes: republishing an already-published, unchanged entry succeeds and re-fires the full publish effect set, not a silent no-op", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const firstPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
+  });
+  assert.equal(firstPublish.status, 200);
+  const first = (await firstPublish.json()) as { entry: { status: string; version: number; publishedAt: string | null } };
+  assert.equal(first.entry.status, "published");
+  assert.equal(first.entry.version, 2);
+  assert.ok(first.entry.publishedAt);
+
+  const secondPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: first.entry.version }),
+  });
+  // AC-45/api.spec.md govern: no "already published" error code exists in the error table, so this
+  // must succeed (200), not reject — the owner's 2026-09-03 ruling on the contradicting
+  // SPEC-020-state.spec.md draft.
+  assert.equal(secondPublish.status, 200);
+  const second = (await secondPublish.json()) as { entry: { status: string; version: number; publishedAt: string | null } };
+  assert.equal(second.entry.status, "published");
+  // The write pipeline re-ran in full, not a no-op: version keeps advancing and publishedAt is
+  // re-stamped to the new call's `now` (never null, never before the first publish's stamp).
+  assert.equal(second.entry.version, 3);
+  assert.ok(second.entry.publishedAt);
+  assert.ok(new Date(second.entry.publishedAt as string).getTime() >= new Date(first.entry.publishedAt as string).getTime());
+
+  // The redundant publish enqueued its OWN outbox event rather than being skipped — proves
+  // downstream propagation (SEO/search/webhook consumers, whenever wired) sees the repeat action.
+  const publishedEventCount = await countPendingEntryEvents(deps, entry.id, "entry.published");
+  assert.equal(publishedEventCount, 2, "each publish call — first and redundant — must enqueue its own entry.published event");
+});
+
+test("entries routes: an entry's content edit while it is already published is visible immediately, and republishing afterward does not lose or revert it", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  const before = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "before" }] }] };
+  const after = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "AFTER" }] }] };
+
+  const createRes = await fetch(`${baseUrl}/api/admin/v1/entries`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ type: "recipe", slug: "republish-edit", title: "Eggs", bodyJson: before }),
+  });
+  const created = (await createRes.json()) as { entry: { id: string; version: number } };
+
+  const publishRes = await fetch(`${baseUrl}/api/admin/v1/entries/${created.entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: created.entry.version }),
+  });
+  assert.equal(publishRes.status, 200);
+  const published = (await publishRes.json()) as { entry: { version: number } };
+
+  // Entries have no separate draft/live copy — `updateEntry` mutates the SAME row `publishEntry`
+  // flips `status` on, regardless of current status (REQ-28: only a tombstoned owning type blocks
+  // it). So an edit made while an entry is already published is live immediately, with no
+  // republish required to propagate it.
+  const updateRes = await fetch(`${baseUrl}/api/admin/v1/entries/${created.entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Scrambled Eggs", bodyJson: after, expectedVersion: published.entry.version }),
+  });
+  assert.equal(updateRes.status, 200);
+  const updated = (await updateRes.json()) as { entry: { version: number; status: string } };
+  assert.equal(updated.entry.status, "published", "editing a published entry's content must not change its status");
+
+  const listAfterEditRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
+  const listedAfterEdit = (await listAfterEditRes.json()) as { items: Array<{ id: string; title: string; bodyJson: unknown }> };
+  const rowAfterEdit = listedAfterEdit.items.find((i) => i.id === created.entry.id);
+  assert.equal(rowAfterEdit?.title, "Scrambled Eggs", "the edit must be visible before any republish call");
+  assert.deepEqual(rowAfterEdit?.bodyJson, after, "the edit must be visible before any republish call");
+
+  const republishRes = await fetch(`${baseUrl}/api/admin/v1/entries/${created.entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "publish", expectedVersion: updated.entry.version }),
+  });
+  assert.equal(republishRes.status, 200);
+
+  const listAfterRepublishRes = await fetch(`${baseUrl}/api/admin/v1/entries?type=recipe`, { headers: { cookie } });
+  const listedAfterRepublish = (await listAfterRepublishRes.json()) as { items: Array<{ id: string; title: string; bodyJson: unknown }> };
+  const rowAfterRepublish = listedAfterRepublish.items.find((i) => i.id === created.entry.id);
+  assert.equal(rowAfterRepublish?.title, "Scrambled Eggs", "republishing must not revert the edited content");
+  assert.deepEqual(rowAfterRepublish?.bodyJson, after, "republishing must not revert the edited content");
+});
+
+test("entries routes: unpublishing a draft entry that was never published succeeds — unpublish asserts 'not publicly visible', not a status-in-{published} FSM guard", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+  assert.equal(entry.version, 1);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ op: "unpublish", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 200);
+  const body = (await res.json()) as { entry: { status: string; version: number; publishedAt: string | null } };
+  assert.equal(body.entry.status, "unpublished");
+  assert.equal(body.entry.version, 2);
+  // A draft's `publishedAt` was already null; unpublish only sets `publishedAt = now` when the
+  // TARGET is `published` (`write-service.ts`'s `transitionEntryStatus`) — for an unpublish target
+  // it's left untouched, so it stays null here rather than being back-filled.
+  assert.equal(body.entry.publishedAt, null);
+});
