@@ -106,6 +106,31 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
   };
 }
 
+/** `fields[key] ?? ""` as a named helper — same rationale as `MenuEditor.tsx`'s `orEmpty`:
+ *  ESLint's cyclomatic-complexity rule counts each `??` as its own branch, and
+ *  {@link toOAuthWriteBody}/{@link toWriteBody} each default many fields this way. Naming it moves
+ *  the count out of both functions' own scope without changing what either produces — every field
+ *  still falls back to the same `""` for the same absent value it did before. */
+function fieldOrEmpty(fields: Record<string, string>, key: string): string {
+  return fields[key] ?? "";
+}
+
+/** `value.trim() === "" ? {} : { [key]: value }` as a named helper. The store reads the PRESENCE
+ *  of these keys (not just their value) to decide whether a save touched OAuth identity or a
+ *  tri-state field like `env` — see {@link toOAuthWriteBody}'s own doc — so the omit-when-blank
+ *  convention must stay byte-for-byte the same; this only moves each call site's ternary branch
+ *  out of the caller's own complexity count. */
+function omitIfBlank<K extends string>(key: K, value: string): { [P in K]?: string } {
+  return (value.trim() === "" ? {} : { [key]: value }) as { [P in K]?: string };
+}
+
+/** `value === undefined ? {} : { [key]: value }` as a named helper — same rationale as
+ *  {@link omitIfBlank}, for the two fields (`label`, `oauth`) whose tri-state is "was this
+ *  argument passed at all", not "is this string blank". */
+function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } {
+  return (value === undefined ? {} : { [key]: value }) as { [P in K]?: V };
+}
+
 /** Builds the OAuth block for a save, or `undefined` when the draft's effective auth mode isn't
  *  `oauth` — matching the store's own `resolveOAuthFields`, which ignores the whole block outside
  *  that mode. `grant`/`clientId`/`scopes`/`tokenEnvName` are sent as-is: {@link toItem} round-trips
@@ -119,21 +144,16 @@ function toItem(server: AdminExternalMcpServer): SourceConfigItem {
  *  @complexity O(1). */
 function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuthInput | undefined {
   if (resolveExternalMcpEffectiveAuthMode(fields) !== "oauth") return undefined;
-  const providerId = fields.oauthProviderId ?? "";
-  const authorizationEndpoint = fields.oauthAuthorizationEndpoint ?? "";
-  const tokenEndpoint = fields.oauthTokenEndpoint ?? "";
-  const deviceAuthorizationEndpoint = fields.oauthDeviceAuthorizationEndpoint ?? "";
-  const clientSecret = fields.oauthClientSecret ?? "";
   return {
-    ...(providerId.trim() === "" ? {} : { providerId }),
-    grant: fields.oauthGrant ?? "",
-    clientId: fields.oauthClientId ?? "",
-    scopes: fields.oauthScopes ?? "",
-    tokenEnvName: fields.oauthTokenEnvName ?? "",
-    ...(authorizationEndpoint.trim() === "" ? {} : { authorizationEndpoint }),
-    ...(tokenEndpoint.trim() === "" ? {} : { tokenEndpoint }),
-    ...(deviceAuthorizationEndpoint.trim() === "" ? {} : { deviceAuthorizationEndpoint }),
-    ...(clientSecret.trim() === "" ? {} : { clientSecret }),
+    ...omitIfBlank("providerId", fieldOrEmpty(fields, "oauthProviderId")),
+    grant: fieldOrEmpty(fields, "oauthGrant"),
+    clientId: fieldOrEmpty(fields, "oauthClientId"),
+    scopes: fieldOrEmpty(fields, "oauthScopes"),
+    tokenEnvName: fieldOrEmpty(fields, "oauthTokenEnvName"),
+    ...omitIfBlank("authorizationEndpoint", fieldOrEmpty(fields, "oauthAuthorizationEndpoint")),
+    ...omitIfBlank("tokenEndpoint", fieldOrEmpty(fields, "oauthTokenEndpoint")),
+    ...omitIfBlank("deviceAuthorizationEndpoint", fieldOrEmpty(fields, "oauthDeviceAuthorizationEndpoint")),
+    ...omitIfBlank("clientSecret", fieldOrEmpty(fields, "oauthClientSecret")),
   };
 }
 
@@ -148,24 +168,23 @@ function toOAuthWriteBody(fields: Record<string, string>): AdminExternalMcpOAuth
  * @overallScore 100
  */
 function toWriteBody(fields: Record<string, string>, enabled: boolean, label?: string): AdminExternalMcpServerInput {
-  const env = fields.env ?? "";
   const oauth = toOAuthWriteBody(fields);
   return {
-    ...(label !== undefined ? { label } : {}),
+    ...includeIfDefined("label", label),
     transport: fields.transport || "stdio",
     enabled,
-    command: fields.command ?? "",
-    url: fields.url ?? "",
-    args: fields.args ?? "",
-    allowedToolNames: fields.allowedToolNames ?? "",
+    command: fieldOrEmpty(fields, "command"),
+    url: fieldOrEmpty(fields, "url"),
+    args: fieldOrEmpty(fields, "args"),
+    allowedToolNames: fieldOrEmpty(fields, "allowedToolNames"),
     // Resent in full on every save, same as `allowedToolNames` just above — NOT tri-state like
     // `env` below, because the store always returns this list in the clear and the tab can always
     // resend it. The server's own C-006 check rejects a name here absent from `allowedToolNames`.
-    writeAllowedToolNames: fields.writeAllowedToolNames ?? "",
+    writeAllowedToolNames: fieldOrEmpty(fields, "writeAllowedToolNames"),
     authMode: resolveExternalMcpEffectiveAuthMode(fields),
     // Blank means "untouched", never "clear" — see this file's header.
-    ...(env.trim() === "" ? {} : { env }),
-    ...(oauth ? { oauth } : {}),
+    ...omitIfBlank("env", fieldOrEmpty(fields, "env")),
+    ...includeIfDefined("oauth", oauth),
   };
 }
 

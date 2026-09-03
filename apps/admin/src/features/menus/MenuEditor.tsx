@@ -1,6 +1,6 @@
 import { agentHandle } from "@jini-ai/agentic";
 
-import type { AdminMenuItem, AdminMenuTarget } from "../../lib/api";
+import type { AdminMenuItem, AdminMenuItemAttrs, AdminMenuTarget } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 
@@ -52,6 +52,29 @@ function countDescendants(item: AdminMenuItem): number {
  */
 function orEmpty(value: string | undefined): string {
   return value ?? "";
+}
+
+/** Boolean counterpart to {@link orEmpty}, same rationale — see {@link attrsOrDefaults}. */
+function orFalse(value: boolean | undefined): boolean {
+  return value ?? false;
+}
+
+/**
+ * Same rationale as {@link orEmpty} above: five `attrs?.field ?? default` fallbacks inlined
+ * directly in {@link MenuItemAttrsFields}'s JSX pushed its cyclomatic complexity from a base of
+ * ~6 (five sibling fields + the disclosure) to 11 — each `?.` and `??` is its own branch. Naming
+ * the defaulting removes that count from the component's own scope without changing what any
+ * field renders; every caller still sees the same fallback for the same absent value.
+ */
+function attrsOrDefaults(attrs: AdminMenuItemAttrs | undefined): Required<AdminMenuItemAttrs> {
+  const a = attrs ?? {};
+  return {
+    cssClass: orEmpty(a.cssClass),
+    icon: orEmpty(a.icon),
+    description: orEmpty(a.description),
+    rel: orEmpty(a.rel),
+    openInNewTab: orFalse(a.openInNewTab),
+  };
 }
 
 export function targetForKind(required: { kind: AdminMenuTargetKind; prev: AdminMenuTarget }): AdminMenuTarget {
@@ -164,7 +187,7 @@ export function MenuItemAttrsFields({
   onChange: (path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) => void;
   t: Translate;
 }) {
-  const attrs = item.attrs;
+  const attrs = attrsOrDefaults(item.attrs);
 
   return (
     <details className="menu-item-advanced">
@@ -173,7 +196,7 @@ export function MenuItemAttrsFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("CSS class")}</span>
           <input
-            value={attrs?.cssClass ?? ""}
+            value={attrs.cssClass}
             placeholder={t("CSS class")}
             onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, cssClass: e.target.value } }))}
           />
@@ -181,7 +204,7 @@ export function MenuItemAttrsFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Icon")}</span>
           <input
-            value={attrs?.icon ?? ""}
+            value={attrs.icon}
             placeholder={t("Icon")}
             onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, icon: e.target.value } }))}
           />
@@ -189,7 +212,7 @@ export function MenuItemAttrsFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Description")}</span>
           <input
-            value={attrs?.description ?? ""}
+            value={attrs.description}
             placeholder={t("Description")}
             onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, description: e.target.value } }))}
           />
@@ -197,7 +220,7 @@ export function MenuItemAttrsFields({
         <label className="a11y-label-wrap">
           <span className="visually-hidden">{t("Link rel")}</span>
           <input
-            value={attrs?.rel ?? ""}
+            value={attrs.rel}
             placeholder={t("Link rel")}
             onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, rel: e.target.value } }))}
           />
@@ -205,7 +228,7 @@ export function MenuItemAttrsFields({
         <label className="menu-item-advanced-checkbox">
           <input
             type="checkbox"
-            checked={attrs?.openInNewTab ?? false}
+            checked={attrs.openInNewTab}
             onChange={(e) => onChange(path, (it) => ({ ...it, attrs: { ...it.attrs, openInNewTab: e.target.checked } }))}
           />
           {t("Open in new tab")}

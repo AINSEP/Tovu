@@ -62,6 +62,22 @@ export interface EmbedInsertControlProps {
  * are literal choices this menu makes (never caller data), so they're appended directly as
  * `<base>-media`/`-form`/`-menu`/`-widget`, and `WidgetAddControl` gets `<base>-widget-control` as
  * ITS OWN base once "Widget…" is picked. */
+
+/** `{...(base ? agentHandle(\`${base}-<suffix>\`, opts) : {})}` as a named helper — same
+ *  complexity-budget rationale as `WidgetPickerDialog.tsx`'s identical helper: each of this menu's
+ *  four conditional agent-handle spreads was its own nested branch in `EmbedMenu`'s own cognitive
+ *  complexity count. `{}` (no markup) when `base` is unset, same as every inline occurrence it
+ *  replaces. */
+function handleSpread(base: string | undefined, suffix: string, opts: { role: string; label: string }): Record<string, unknown> {
+  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+}
+
+/** `base ? \`${base}-<suffix>\` : undefined` as a named helper — same rationale as
+ *  {@link handleSpread}, for the sub-handle string handed to `WidgetAddControl` as its own base. */
+function subHandle(base: string | undefined, suffix: string): string | undefined {
+  return base ? `${base}-${suffix}` : undefined;
+}
+
 function EmbedMenu(props: {
   open: boolean;
   widgetMode: boolean;
@@ -84,7 +100,7 @@ function EmbedMenu(props: {
             role="menuitem"
             className="tb-btn"
             onClick={onPickMedia}
-            {...(base ? agentHandle(`${base}-media`, { role: "button", label: "Insert an existing media asset" }) : {})}
+            {...handleSpread(base, "media", { role: "button", label: "Insert an existing media asset" })}
           >
             Media
           </button>
@@ -93,7 +109,7 @@ function EmbedMenu(props: {
             role="menuitem"
             className="tb-btn"
             onClick={onPickForm}
-            {...(base ? agentHandle(`${base}-form`, { role: "button", label: "Insert a contact form" }) : {})}
+            {...handleSpread(base, "form", { role: "button", label: "Insert a contact form" })}
           >
             Form
           </button>
@@ -102,7 +118,7 @@ function EmbedMenu(props: {
             role="menuitem"
             className="tb-btn"
             onClick={onPickMenu}
-            {...(base ? agentHandle(`${base}-menu`, { role: "button", label: "Insert a menu" }) : {})}
+            {...handleSpread(base, "menu", { role: "button", label: "Insert a menu" })}
           >
             Menu
           </button>
@@ -111,17 +127,13 @@ function EmbedMenu(props: {
             role="menuitem"
             className="tb-btn"
             onClick={onEnterWidgetMode}
-            {...(base ? agentHandle(`${base}-widget`, { role: "button", label: "Insert any other widget type" }) : {})}
+            {...handleSpread(base, "widget", { role: "button", label: "Insert any other widget type" })}
           >
             Widget…
           </button>
         </>
       ) : (
-        <WidgetAddControl
-          triggerLabel="Insert widget"
-          onResolved={onWidgetResolved}
-          agentHandle={base ? `${base}-widget-control` : undefined}
-        />
+        <WidgetAddControl triggerLabel="Insert widget" onResolved={onWidgetResolved} agentHandle={subHandle(base, "widget-control")} />
       )}
     </span>
   );

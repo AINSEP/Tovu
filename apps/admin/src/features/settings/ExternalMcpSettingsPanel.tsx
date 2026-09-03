@@ -88,6 +88,98 @@ const DRAFT_TEST_SCOPE = "__draft__";
  * deliberately not routed around.
  */
 
+/** The "Add server" form, split out from `ExternalMcpSettingsPanel` purely to keep that
+ *  component's own cognitive complexity under the gate — same conditional rendering, same two
+ *  presence-only prop spreads (`submitError`, the draft's own `testResult`), just out of the
+ *  parent's nesting scope. `null` while the form is closed, same as the inline ternary it replaces. */
+function ExternalMcpAddFormSection(props: {
+  open: boolean;
+  fieldSpecs: ReturnType<typeof buildExternalMcpFieldSpecs>;
+  addForm: ReturnType<typeof useWiredSourceConfigAddForm<SourceConfigItem>>;
+  canTest: boolean;
+  testing: boolean;
+  testResult: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>["testResults"][string];
+  onTest: () => void;
+}) {
+  if (!props.open) return null;
+  const { fieldSpecs, addForm, canTest, testing, testResult, onTest } = props;
+  return (
+    <SourceConfigAddForm
+      fieldSpecs={fieldSpecs}
+      values={addForm.values}
+      validation={addForm.validation}
+      submitAttempted={addForm.submitAttempted}
+      submitting={addForm.submitting}
+      {...(addForm.submitError ? { submitError: addForm.submitError } : {})}
+      onFieldChange={addForm.setField}
+      onTrustChange={() => {}}
+      onSubmit={() => void addForm.submit()}
+      canTest={canTest}
+      testing={testing}
+      {...(testResult ? { testResult } : {})}
+      onTest={onTest}
+      addLabel="Add server"
+      agentHandle={EXTERNAL_MCP_ADD_FORM_HANDLE}
+    />
+  );
+}
+
+/** The loading / empty-state / configured-server-list body, split out for the same
+ *  complexity-budget reason as {@link ExternalMcpAddFormSection} above — the triple-branch
+ *  loading/empty/list ternary plus the per-card `testResult` presence-spread inside `.map()` were
+ *  the parent's deepest nesting. Same three branches, same props, same "no card update" wiring. */
+function ExternalMcpSourcesSection(props: {
+  list: ReturnType<typeof useWiredSourceConfigList<SourceConfigItem>>;
+  cardHandles: string[];
+  t: ReturnType<typeof useT>;
+}) {
+  const { list, cardHandles, t } = props;
+
+  if (list.loading) {
+    return (
+      <div className="source-config-list-loading" role="status">
+        {t("Loading…")}
+      </div>
+    );
+  }
+
+  if (list.sources.length === 0) {
+    return (
+      <div className="external-mcp-empty">
+        <p className="external-mcp-empty-title">{t("No MCP servers configured.")}</p>
+        <p className="external-mcp-empty-hint">
+          {t('Click "Add server" to get started — pick a local command or a hosted server.')}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="source-config-list-items">
+      {list.sources.map((source, index) => (
+        <SourceConfigItemCard
+          key={source.id}
+          source={source}
+          agentHandle={cardHandles[index]}
+          fieldSpecs={buildExternalMcpFieldSpecs(source.fields)}
+          capabilities={list.capabilities}
+          removing={list.isPending(source.id, "remove")}
+          refreshing={list.isPending(source.id, "refresh")}
+          settingTrust={list.isPending(source.id, "trust")}
+          testing={list.isPending(source.id, "test")}
+          updating={list.isPending(source.id, "update")}
+          onRefresh={() => void list.refresh(source.id)}
+          onRemove={() => void list.remove(source.id)}
+          onTrustChange={() => {}}
+          onTest={() => void list.test(source.id)}
+          onUpdate={(patch) => void list.update(source.id, patch)}
+          {...(list.testResults[source.id] ? { testResult: list.testResults[source.id] } : {})}
+        />
+      ))}
+    </div>
+  );
+}
+
 export interface ExternalMcpSettingsPanelProps {
   dependencies: SourceConfigDependencies<SourceConfigItem>;
   /** Footer save-status pill text (e.g. the restart notice). Omit to render no footer at all. */
@@ -160,61 +252,17 @@ export function ExternalMcpSettingsPanel({ dependencies, saveStatusLabel }: Exte
         </div>
       ) : null}
 
-      {formOpen ? (
-        <SourceConfigAddForm
-          fieldSpecs={addFormFieldSpecs}
-          values={addForm.values}
-          validation={addForm.validation}
-          submitAttempted={addForm.submitAttempted}
-          submitting={addForm.submitting}
-          {...(addForm.submitError ? { submitError: addForm.submitError } : {})}
-          onFieldChange={addForm.setField}
-          onTrustChange={() => {}}
-          onSubmit={() => void addForm.submit()}
-          canTest={list.capabilities.canTest}
-          testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
-          {...(list.testResults[DRAFT_TEST_SCOPE] ? { testResult: list.testResults[DRAFT_TEST_SCOPE] } : {})}
-          onTest={() => void list.test(undefined, addForm.values)}
-          addLabel="Add server"
-          agentHandle={EXTERNAL_MCP_ADD_FORM_HANDLE}
-        />
-      ) : null}
+      <ExternalMcpAddFormSection
+        open={formOpen}
+        fieldSpecs={addFormFieldSpecs}
+        addForm={addForm}
+        canTest={list.capabilities.canTest}
+        testing={list.isPending(DRAFT_TEST_SCOPE, "test")}
+        testResult={list.testResults[DRAFT_TEST_SCOPE]}
+        onTest={() => void list.test(undefined, addForm.values)}
+      />
 
-      {list.loading ? (
-        <div className="source-config-list-loading" role="status">
-          {t("Loading…")}
-        </div>
-      ) : list.sources.length === 0 ? (
-        <div className="external-mcp-empty">
-          <p className="external-mcp-empty-title">{t("No MCP servers configured.")}</p>
-          <p className="external-mcp-empty-hint">
-            {t('Click "Add server" to get started — pick a local command or a hosted server.')}
-          </p>
-        </div>
-      ) : (
-        <div className="source-config-list-items">
-          {list.sources.map((source, index) => (
-            <SourceConfigItemCard
-              key={source.id}
-              source={source}
-              agentHandle={cardHandles[index]}
-              fieldSpecs={buildExternalMcpFieldSpecs(source.fields)}
-              capabilities={list.capabilities}
-              removing={list.isPending(source.id, "remove")}
-              refreshing={list.isPending(source.id, "refresh")}
-              settingTrust={list.isPending(source.id, "trust")}
-              testing={list.isPending(source.id, "test")}
-              updating={list.isPending(source.id, "update")}
-              onRefresh={() => void list.refresh(source.id)}
-              onRemove={() => void list.remove(source.id)}
-              onTrustChange={() => {}}
-              onTest={() => void list.test(source.id)}
-              onUpdate={(patch) => void list.update(source.id, patch)}
-              {...(list.testResults[source.id] ? { testResult: list.testResults[source.id] } : {})}
-            />
-          ))}
-        </div>
-      )}
+      <ExternalMcpSourcesSection list={list} cardHandles={cardHandles} t={t} />
 
       {saveStatusLabel ? (
         <div className="external-mcp-footer">

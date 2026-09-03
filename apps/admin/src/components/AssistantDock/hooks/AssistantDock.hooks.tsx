@@ -1153,6 +1153,27 @@ export function useMessagesChangeHandler(
   );
 }
 
+/** `value === undefined ? {} : { [key]: value }` as a named helper — same complexity-budget
+ *  rationale as `use-external-mcp.hooks.ts`'s `includeIfDefined`: moves this branch out of
+ *  {@link resolveRunContext}'s own scope without changing what it sends on the wire. */
+function includeIfDefined<K extends string, V>(key: K, value: V | undefined): { [P in K]?: V } {
+  return (value === undefined ? {} : { [key]: value }) as { [P in K]?: V };
+}
+
+/** `typeof value === "string" && value.length > 0 ? { [key]: value } : {}` as a named helper —
+ *  same rationale as {@link includeIfDefined}: each of {@link resolveRunContext}'s "send only when
+ *  a real value is present" string fields was its own two-branch (`&&` + ternary) contributor to
+ *  that function's own complexity. Same value, same "absent means default" behavior. */
+function includeIfNonEmptyString<K extends string>(key: K, value: string | undefined): { [P in K]?: string } {
+  return (typeof value === "string" && value.length > 0 ? { [key]: value } : {}) as { [P in K]?: string };
+}
+
+/** Same rationale as {@link includeIfNonEmptyString}, for `pluginRefIds` — a non-empty readonly
+ *  array rather than a non-empty string. */
+function includeIfNonEmptyArray<K extends string, V>(key: K, value: readonly V[] | undefined): { [P in K]?: readonly V[] } {
+  return (value && value.length > 0 ? { [key]: value } : {}) as { [P in K]?: readonly V[] };
+}
+
 /**
  * Builds the per-call run context the daemon reads `frontendBindToken`/`model` out of
  * (`assistant-transport.ts`'s `contextRef` wiring). Omits each key entirely when absent, rather
@@ -1196,18 +1217,18 @@ export function resolveRunContext(
   conversationId?: string;
 } {
   return {
-    ...(bindToken === undefined ? {} : { frontendBindToken: bindToken }),
-    ...(typeof model === "string" && model.length > 0 ? { model } : {}),
+    ...includeIfDefined("frontendBindToken", bindToken),
+    ...includeIfNonEmptyString("model", model),
     // The Execution tab's persisted "Reasoning effort" pick, carried on exactly the same terms as
     // `model` — including the empty-string omission, since `""` is the ledger's own "no explicit
     // effort" and sending it would mean the same thing as sending nothing while looking like a
     // real selection on the wire.
-    ...(typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {}),
+    ...includeIfNonEmptyString("reasoning", reasoning),
     // Omitted entirely when empty, same "absent means none" convention as the two fields above —
     // a run with no pinned plugin carries no key for it, matching `attachmentIds`'s own posture in
     // `assistant-transport.ts`'s `buildLocalCliContextRef`.
-    ...(pluginRefIds && pluginRefIds.length > 0 ? { pluginRefIds } : {}),
-    ...(typeof conversationId === "string" && conversationId.length > 0 ? { conversationId } : {}),
+    ...includeIfNonEmptyArray("pluginRefIds", pluginRefIds),
+    ...includeIfNonEmptyString("conversationId", conversationId),
   };
 }
 

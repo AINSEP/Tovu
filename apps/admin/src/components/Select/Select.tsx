@@ -221,6 +221,28 @@ export function resolveSelectTriggerLabel(selectedOption: SelectOption | null, p
   return { text: placeholder ?? "Select…", className: "select-trigger-label is-placeholder" };
 }
 
+/** The trigger `<button>`'s `aria-activedescendant` — the currently highlighted option's id while
+ *  open, `undefined` otherwise. Pulled out of `Select`'s own body for the same complexity-budget
+ *  reason as `resolveSelectTriggerLabel` above; same value, same two-branch condition. */
+function resolveSelectTriggerActiveDescendant(
+  open: boolean,
+  highlightedIndex: number,
+  optionId: (index: number) => string,
+): string | undefined {
+  return open && highlightedIndex >= 0 ? optionId(highlightedIndex) : undefined;
+}
+
+/** The trigger `<button>`'s own `data-agent-*` spread — `{}` when `Select` published no base
+ *  handle. Pulled out for the same reason as {@link resolveSelectTriggerActiveDescendant}: the
+ *  `??` fallback chain for the handle's label lives here instead of in `Select`'s own scope. */
+function resolveSelectTriggerHandleProps(
+  base: string | undefined,
+  ariaLabel: string | undefined,
+  placeholder: string | undefined,
+): Record<string, unknown> {
+  return base ? agentHandle(base, { role: "button", label: ariaLabel ?? placeholder ?? "Select an option" }) : {};
+}
+
 export function Select(props: SelectProps) {
   const { value, onChange, options, placeholder, id, disabled, useDropdown = useSelectDropdown, agentHandle: base } = props;
   const ariaLabel = props["aria-label"];
@@ -255,7 +277,7 @@ export function Select(props: SelectProps) {
   }
 
   const triggerLabel = resolveSelectTriggerLabel(selectedOption, placeholder);
-  const activeDescendant = open && highlightedIndex >= 0 ? optionId(highlightedIndex) : undefined;
+  const activeDescendant = resolveSelectTriggerActiveDescendant(open, highlightedIndex, optionId);
   // One handle per FILTERED option, recomputed as the search query narrows the list — an option
   // dropped by the current query has no rendered row to attach a handle to, so it is simply absent
   // this render rather than holding a handle nothing resolves to. `undefined` (not an empty array)
@@ -279,7 +301,7 @@ export function Select(props: SelectProps) {
         disabled={disabled}
         onClick={() => (open ? closePanel({ refocusTrigger: false }) : openPanel())}
         onKeyDown={handleTriggerKeyDown}
-        {...(base ? agentHandle(base, { role: "button", label: ariaLabel ?? placeholder ?? "Select an option" }) : {})}
+        {...resolveSelectTriggerHandleProps(base, ariaLabel, placeholder)}
       >
         <span className={triggerLabel.className}>{triggerLabel.text}</span>
         <span className="select-trigger-chevron" aria-hidden="true" />

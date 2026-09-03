@@ -52,6 +52,20 @@ import {
  * `t` directly — same carve-out `Database.tsx`'s local subcomponents use.
  */
 
+/** The "Restore capability: <cost class>" notice at the top of the screen, split out from
+ * `Recovery` itself purely to keep `Recovery`'s own complexity under the gate — same
+ * no-state, props-driven shape as `DegradedBannerView` below it. */
+function RestoreCapabilityNotice(props: { locale: string; status: AdminRecoveryStatus }) {
+  const { locale, status } = props;
+  const explanation = costClassExplanation(status.costClass, locale);
+  return (
+    <div className="notice">
+      {t(locale, "Restore capability:")} <span className={`status status-${status.costClass}`}>{costClassLabel(status.costClass, locale)}</span>
+      {explanation ? <InfoTip label={explanation} /> : null}
+    </div>
+  );
+}
+
 function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus }) {
   const { locale, status } = props;
   const banner = status.banner;
@@ -385,10 +399,7 @@ export function Recovery({ useRecoveryHook = useWiredRecovery }: RecoveryProps =
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
-      <div className="notice">
-        {t("Restore capability:")} <span className={`status status-${status.costClass}`}>{costClassLabel(status.costClass, locale)}</span>
-        {costClassExplanation(status.costClass, locale) ? <InfoTip label={costClassExplanation(status.costClass, locale)!} /> : null}
-      </div>
+      <RestoreCapabilityNotice locale={locale} status={status} />
       <DegradedBannerView locale={locale} status={status} />
 
       {selected ? (

@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
-import type { AdminWidgetType } from "../../lib/api";
+import type { AdminWidget, AdminWidgetType } from "../../lib/api";
 import { WidgetConfigFields, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
-import { Select } from "../Select/Select";
+import { Select, type SelectOption } from "../Select/Select";
 import { useWidgetAddControl, useWidgetPickerDialog } from "./WidgetPickerDialog.hooks";
 
 /**
@@ -43,6 +43,29 @@ import { useWidgetAddControl, useWidgetPickerDialog } from "./WidgetPickerDialog
  * Omit `agentHandle` and no `data-agent-*` markup is emitted at all, including inside the two
  * composed components above — they only tag their own sub-elements when handed a base.
  */
+
+/** `{...(base ? agentHandle(\`${base}-<suffix>\`, opts) : {})}` as a named helper — same
+ *  complexity-budget rationale as `Select.tsx`'s `resolveSelectTriggerHandleProps`: this dialog
+ *  spreads a conditional agent-handle six times, and each was its own branch in
+ *  `WidgetPickerDialog`'s own cyclomatic count. `{}` (no markup) when `base` is unset, same as
+ *  every inline occurrence it replaces. */
+function handleSpread(base: string | undefined, suffix: string, opts: { role: string; label: string }): Record<string, unknown> {
+  return base ? agentHandle(`${base}-${suffix}`, opts) : {};
+}
+
+/** `base ? \`${base}-<suffix>\` : undefined` as a named helper — the sub-handle string handed to a
+ *  composed component (`Select`/`WidgetConfigFields`) rather than spread as `data-agent-*`
+ *  attributes directly. Same rationale as {@link handleSpread}. */
+function subHandle(base: string | undefined, suffix: string): string | undefined {
+  return base ? `${base}-${suffix}` : undefined;
+}
+
+/** `(instances ?? []).map(...)` as a named helper — moves that `??` branch, plus the map's own
+ *  shape conversion, out of `WidgetPickerDialog`'s own scope. Same value as the inline expression
+ *  it replaces: one `SelectOption` per loaded instance, empty while `instances` is still `null`. */
+function toExistingOptions(instances: AdminWidget[] | null): SelectOption[] {
+  return (instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }));
+}
 
 export interface WidgetPickerDialogProps {
   widgetType: AdminWidgetType;
@@ -109,15 +132,12 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
                   id={existingSelectId}
                   value={selectedExistingId}
                   onChange={setSelectedExistingId}
-                  options={(instances ?? []).map((instance) => ({ value: instance.id, label: instance.title }))}
+                  options={toExistingOptions(instances)}
                   placeholder="Choose a widget…"
-                  agentHandle={base ? `${base}-existing-select` : undefined}
+                  agentHandle={subHandle(base, "existing-select")}
                 />
               </div>
-              <button
-                type="submit"
-                {...(base ? agentHandle(`${base}-existing-submit`, { role: "button", label: "Use this widget" }) : {})}
-              >
+              <button type="submit" {...handleSpread(base, "existing-submit", { role: "button", label: "Use this widget" })}>
                 Use this widget
               </button>
             </form>
@@ -134,19 +154,16 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
                 ref={newTitleInputRef}
                 value={newTitle}
                 onChange={(e) => setNewTitle(e.target.value)}
-                {...(base ? agentHandle(`${base}-new-title`, { role: "field", label: "The new widget's title" }) : {})}
+                {...handleSpread(base, "new-title", { role: "field", label: "The new widget's title" })}
               />
             </div>
             <WidgetConfigFields
               widgetType={props.widgetType}
               config={newConfig}
               onChange={setNewConfig}
-              agentHandle={base ? `${base}-new-config` : undefined}
+              agentHandle={subHandle(base, "new-config")}
             />
-            <button
-              type="submit"
-              {...(base ? agentHandle(`${base}-new-submit`, { role: "button", label: "Create and place this widget" }) : {})}
-            >
+            <button type="submit" {...handleSpread(base, "new-submit", { role: "button", label: "Create and place this widget" })}>
               Create and place
             </button>
           </form>
@@ -158,7 +175,7 @@ export function WidgetPickerDialog({ useDialog = useWidgetPickerDialog, agentHan
               type="button"
               className="btn-secondary"
               onClick={props.onCancel}
-              {...(base ? agentHandle(`${base}-cancel`, { role: "button", label: "Close without placing a widget" }) : {})}
+              {...handleSpread(base, "cancel", { role: "button", label: "Close without placing a widget" })}
             >
               Cancel
             </button>

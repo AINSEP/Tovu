@@ -194,6 +194,29 @@ describe("useWidgetAddControl", () => {
     expect(props.onResolved).not.toHaveBeenCalled();
   });
 
+  it("closing the picker after a failed create clears the stale error, not just pickerType", async () => {
+    // Bug found during the 2026-09-03 admin complexity sweep: `error` was only ever set by
+    // `handleCreateNew`'s catch, never cleared anywhere — not on cancel, not on a later success.
+    // `WidgetShortcutPicker` (`EmbedInsertControl.tsx`) renders `error` as a SIBLING of the
+    // `pickerType`-gated dialog, not nested inside it, so a stale "failed to create widget"
+    // message stayed on screen forever after the very first failure, even once the dialog this
+    // error came from was long closed. `setPickerType(null)` is exactly what both `Cancel`
+    // (`WidgetPickerDialog.tsx`) and `WidgetShortcutPicker.onCancel` call.
+    fetchMock.mockResolvedValue(new Response("boom", { status: 500 }));
+    const props = controlProps();
+    const { result } = renderHook(() => useWidgetAddControl(props));
+    act(() => result.current.setPickerType("text"));
+
+    await act(async () => {
+      await result.current.handleCreateNew("Hero", { body: "" });
+    });
+    expect(result.current.error).toBeTruthy();
+
+    act(() => result.current.setPickerType(null));
+
+    expect(result.current.error).toBeNull();
+  });
+
   it("handleUseExisting always closes the picker and resolves with the given id", async () => {
     const props = controlProps();
     const { result } = renderHook(() => useWidgetAddControl(props));

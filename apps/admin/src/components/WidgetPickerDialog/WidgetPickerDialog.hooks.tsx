@@ -186,9 +186,23 @@ export function useWidgetAddControl(
   deps: { port: WidgetPickerPort } = { port: defaultWidgetPickerPort }
 ) {
   const { port } = deps;
-  const [pickerType, setPickerType] = useState<AdminWidgetType | null>(null);
+  const [pickerType, setPickerTypeRaw] = useState<AdminWidgetType | null>(null);
   const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
   const [error, setError] = useState<string | null>(null);
+
+  // Bug found live 2026-09-03: `error` was previously only ever SET (by `handleCreateNew`'s
+  // catch below), never cleared — not on Cancel, not on a later successful create/use-existing.
+  // `WidgetShortcutPicker` (`EmbedInsertControl.tsx`) renders `error` as a SIBLING of the
+  // `pickerType`-gated dialog, not nested inside it, so a stale "failed to create widget" message
+  // stayed on screen indefinitely after the very first failure, long after the dialog that
+  // produced it was closed. Every call site that opens OR closes the dialog goes through
+  // `setPickerType` (`WidgetPickerDialog.tsx`'s "Widget…"/Cancel, `EmbedInsertControl.tsx`'s
+  // Form/Menu shortcuts and their own Cancel), so clearing `error` here — rather than hunting down
+  // every call site individually — covers all of them, including any future one.
+  function setPickerType(next: AdminWidgetType | null) {
+    setError(null);
+    setPickerTypeRaw(next);
+  }
 
   async function handleCreateNew(title: string, config: Record<string, unknown>) {
     if (!pickerType) return;

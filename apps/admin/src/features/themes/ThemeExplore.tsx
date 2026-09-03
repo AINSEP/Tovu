@@ -190,6 +190,14 @@ function previewSrcFor(
   return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
 }
 
+/** `selectedFile?.collidingContent ?? null` as a named helper — pulled out of `ThemeExplore`'s
+ *  own render body purely to keep that component's cyclomatic complexity under the gate (each
+ *  `?.`/`??` is its own branch there). Same value passed to `ThemeExploreSlugCollisionWarning`
+ *  either way — see that component's own doc for what this decides. */
+function resolveCollidingContent(selectedFile: ThemeExploreFile | undefined): ThemeExploreSlugCollision | null {
+  return selectedFile?.collidingContent ?? null;
+}
+
 /**
  * The Preview tab's "nothing to show" message when no file is selected.
  *
@@ -1355,7 +1363,7 @@ export function ThemeExplore({
 
           {/* Slug-collision warning — see `ThemeExploreSlugCollisionWarning`'s own doc for why this
               is gated on `collidingContent` alone, independent of `selectedFile.published`. */}
-          <ThemeExploreSlugCollisionWarning collidingContent={selectedFile?.collidingContent ?? null} t={t} />
+          <ThemeExploreSlugCollisionWarning collidingContent={resolveCollidingContent(selectedFile)} t={t} />
 
           <ThemeExploreMainPane
             view={view}

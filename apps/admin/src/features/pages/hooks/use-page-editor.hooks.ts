@@ -143,6 +143,23 @@ export interface PageEditorController {
   deleting: boolean;
 }
 
+/** `contentDirty`'s own computation, named out of `usePageEditor`'s body purely to keep that
+ *  hook's own cyclomatic complexity under the gate — every `&&`/`||` in a boolean expression is
+ *  its own branch, and this one has five. Same title/slug/status/body comparison, same behavior.
+ *  See `PageEditorController.contentDirty`'s own doc for what this decides. */
+function computeContentDirty(
+  page: AdminPost | null,
+  draft: { title: string; slug: string; status: "draft" | "published"; html: string; savedHtml: string },
+): boolean {
+  if (page === null) return false;
+  return (
+    draft.title !== page.title ||
+    draft.slug !== page.slug ||
+    draft.status !== page.status ||
+    (page.bodyFormat === "html" && draft.html !== draft.savedHtml)
+  );
+}
+
 export interface PageEditorDependencies {
   port: PageEditorPort;
   /** Separate from `port` because it reaches a different surface entirely — a theme's static asset
@@ -371,12 +388,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   }, [page, locale, port, navigate, t]);
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
-  const contentDirty =
-    page !== null &&
-    (title !== page.title ||
-      slug !== page.slug ||
-      status !== page.status ||
-      (page.bodyFormat === "html" && html !== savedHtml));
+  const contentDirty = computeContentDirty(page, { title, slug, status, html, savedHtml });
 
   // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
   // expression rather than state or a `useMemo`.

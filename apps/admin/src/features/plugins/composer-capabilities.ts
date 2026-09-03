@@ -146,12 +146,68 @@ export function emptyComposerCapabilityProjection(): ComposerCapabilityProjectio
 }
 
 /**
- * Composes every source's capabilities into one grouped catalog plus a selection-lookup index.
- *
  * Fails closed on a duplicate item id, across sources or within one — the same hazard
  * `buildAssistantToolRegistrations` (`src/assistant/tool-registrations.ts`) already refuses for
  * the equivalent collision in the real tool registry. A silent second binding for the same id
- * would make selecting it non-deterministic depending on source order.
+ * would make selecting it non-deterministic depending on source order. Split out of
+ * {@link projectComposerCapabilities}'s loop body purely to keep that function's own cognitive
+ * complexity under the gate — same behavior, same error text, one less level of loop-nested `if`.
+ */
+function registerItemId(
+  byItemId: Map<string, TovuComposerCapability>,
+  capability: TovuComposerCapability,
+): void {
+  const existing = byItemId.get(capability.item.id);
+  if (existing) {
+    throw new Error(
+      `composer-capabilities: duplicate discovery item id "${capability.item.id}" ` +
+        `(groups "${existing.groupId}" and "${capability.groupId}")`,
+    );
+  }
+  byItemId.set(capability.item.id, capability);
+}
+
+/**
+ * Same "fail closed on a collision" posture as {@link registerItemId} — a silent second
+ * capability claiming the same plugin ref would make the chip tray's label lookup
+ * non-deterministic depending on source order, which is the exact hazard that guard already
+ * exists to prevent for item ids. No-op for a capability that never sets `pluginRefId` (most
+ * don't) — see {@link TovuComposerCapability.pluginRefId}'s own doc.
+ */
+function registerPluginRef(
+  byPluginRefId: Map<string, TovuComposerCapability>,
+  capability: TovuComposerCapability,
+): void {
+  if (!capability.pluginRefId) return;
+  const existingByRef = byPluginRefId.get(capability.pluginRefId);
+  if (existingByRef) {
+    throw new Error(
+      `composer-capabilities: duplicate pluginRefId "${capability.pluginRefId}" ` +
+        `(items "${existingByRef.item.id}" and "${capability.item.id}")`,
+    );
+  }
+  byPluginRefId.set(capability.pluginRefId, capability);
+}
+
+/** The capability's group, creating and ordering it on first sight — same behavior as the
+ *  inlined `let group = ...; if (!group) {...}` this replaces, extracted for the same
+ *  complexity-budget reason as {@link registerItemId}/{@link registerPluginRef}. */
+function getOrCreateGroup(
+  itemsByGroup: Map<string, { label: string; items: ComposerDiscoveryItem[] }>,
+  groupOrder: string[],
+  capability: TovuComposerCapability,
+): { label: string; items: ComposerDiscoveryItem[] } {
+  let group = itemsByGroup.get(capability.groupId);
+  if (!group) {
+    group = { label: capability.groupLabel, items: [] };
+    itemsByGroup.set(capability.groupId, group);
+    groupOrder.push(capability.groupId);
+  }
+  return group;
+}
+
+/**
+ * Composes every source's capabilities into one grouped catalog plus a selection-lookup index.
  *
  * @complexity O(n) in the total capability count across all sources.
  * @overallScore 100
@@ -168,36 +224,9 @@ export async function projectComposerCapabilities(
   const byPluginRefId = new Map<string, TovuComposerCapability>();
 
   for (const capability of capabilities) {
-    const existing = byItemId.get(capability.item.id);
-    if (existing) {
-      throw new Error(
-        `composer-capabilities: duplicate discovery item id "${capability.item.id}" ` +
-          `(groups "${existing.groupId}" and "${capability.groupId}")`,
-      );
-    }
-    byItemId.set(capability.item.id, capability);
-
-    if (capability.pluginRefId) {
-      const existingByRef = byPluginRefId.get(capability.pluginRefId);
-      if (existingByRef) {
-        // Same "fail closed on a collision" posture as the item-id guard above — a silent second
-        // capability claiming the same plugin ref would make the chip tray's label lookup
-        // non-deterministic depending on source order, which is the exact hazard that guard
-        // already exists to prevent for item ids.
-        throw new Error(
-          `composer-capabilities: duplicate pluginRefId "${capability.pluginRefId}" ` +
-            `(items "${existingByRef.item.id}" and "${capability.item.id}")`,
-        );
-      }
-      byPluginRefId.set(capability.pluginRefId, capability);
-    }
-
-    let group = itemsByGroup.get(capability.groupId);
-    if (!group) {
-      group = { label: capability.groupLabel, items: [] };
-      itemsByGroup.set(capability.groupId, group);
-      groupOrder.push(capability.groupId);
-    }
+    registerItemId(byItemId, capability);
+    registerPluginRef(byPluginRefId, capability);
+    const group = getOrCreateGroup(itemsByGroup, groupOrder, capability);
     group.items.push(capability.item);
   }
 
