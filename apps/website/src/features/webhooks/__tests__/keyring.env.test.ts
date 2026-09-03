@@ -116,3 +116,37 @@ test("missing root key throws and never returns a placeholder secret", async () 
     /no root key/
   );
 });
+
+test("activeKey returns default keyId or configured keyId", async () => {
+  const defaultKeyring = new EnvOrFileKeyring();
+  const defaultActive = await defaultKeyring.activeKey();
+  assert.equal(defaultActive.keyId, "v1");
+
+  const customKeyring = new EnvOrFileKeyring({ keyId: "v2-custom" });
+  const customActive = await customKeyring.activeKey();
+  assert.equal(customActive.keyId, "v2-custom");
+});
+
+test("invalid hex-encoded env var throws error", async () => {
+  const original = process.env[ENV_VAR];
+  try {
+    // Non-hex characters
+    process.env[ENV_VAR] = "not-hex-chars-at-all!!";
+    const keyring1 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
+    await assert.rejects(
+      () => keyring1.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
+      /must be a hex-encoded string/
+    );
+
+    // Odd length hex
+    process.env[ENV_VAR] = "abc";
+    const keyring2 = new EnvOrFileKeyring({ envVarName: ENV_VAR, allowFileFallback: false });
+    await assert.rejects(
+      () => keyring2.deriveSigningSecret({ workspaceId: "ws-1", subscriptionId: "sub-1", version: 1 }),
+      /must be a hex-encoded string/
+    );
+  } finally {
+    if (original === undefined) delete process.env[ENV_VAR];
+    else process.env[ENV_VAR] = original;
+  }
+});
