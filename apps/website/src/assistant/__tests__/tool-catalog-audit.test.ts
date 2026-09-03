@@ -49,7 +49,7 @@ function wrap(sink: ToolAttemptAuditSink) {
   );
 }
 
-test("INCIDENT FIX: a search_tools call is durably recorded with its exact query, limit, and ranked hit ids", async () => {
+test("INCIDENT FIX: a search_tools call is durably recorded with its query length, limit, and ranked hit ids — never the raw query text", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const catalog = wrap(sink);
 
@@ -71,14 +71,14 @@ test("INCIDENT FIX: a search_tools call is durably recorded with its exact query
   assert.equal(event.principalId, PRINCIPAL_ID);
   assert.equal(event.executionId, null);
   assert.deepEqual(JSON.parse(String(event.detail)), {
-    query: "form definition",
+    queryLength: "form definition".length,
     limit: 5,
     resultIds: hits.map((h) => h.id),
     resultCount: hits.length,
   });
 });
 
-test("a search_tools call that matches nothing still records the query and limit, with an empty resultIds array", async () => {
+test("a search_tools call that matches nothing still records the query length and limit, with an empty resultIds array", async () => {
   const sink = createInMemoryToolAttemptAuditSink();
   const catalog = wrap(sink);
 
@@ -86,7 +86,20 @@ test("a search_tools call that matches nothing still records the query and limit
 
   assert.deepEqual(hits, []);
   await Promise.resolve();
-  assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { query: "zzzzqqqwwwnothingmatchesthis", limit: 10, resultIds: [], resultCount: 0 });
+  assert.deepEqual(JSON.parse(String(sink.events[0].detail)), { queryLength: "zzzzqqqwwwnothingmatchesthis".length, limit: 10, resultIds: [], resultCount: 0 });
+});
+
+test("SECURITY: a search query containing a credential-shaped string is never stored verbatim in the durable audit detail — only its length", async () => {
+  const sink = createInMemoryToolAttemptAuditSink();
+  const catalog = wrap(sink);
+
+  const secretQuery = "does sk-ant-abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 still work";
+  catalog.search(secretQuery, 5);
+
+  await Promise.resolve();
+  const detail = String(sink.events[0].detail);
+  assert.equal(detail.includes("sk-ant-"), false, "the raw query text — and any secret it carries — must never enter the durable audit detail");
+  assert.deepEqual(JSON.parse(detail), { queryLength: secretQuery.length, limit: 5, resultIds: [], resultCount: 0 });
 });
 
 test("a describe_tool call records the requested id and whether it resolved", async () => {
@@ -129,7 +142,7 @@ test("ADVERSARIAL: a sink that throws cannot break a search or describe call —
 });
 
 test("searchToolsAuditDetail/describeToolAuditDetail are pure JSON builders", () => {
-  assert.equal(searchToolsAuditDetail("q", 10, [{ id: "a", description: "", source: "s", score: 1 }]), JSON.stringify({ query: "q", limit: 10, resultIds: ["a"], resultCount: 1 }));
+  assert.equal(searchToolsAuditDetail("q", 10, [{ id: "a", description: "", source: "s", score: 1 }]), JSON.stringify({ queryLength: 1, limit: 10, resultIds: ["a"], resultCount: 1 }));
   assert.equal(describeToolAuditDetail("a", null), JSON.stringify({ id: "a", found: false }));
 });
 

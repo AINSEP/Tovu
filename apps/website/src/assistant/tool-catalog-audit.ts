@@ -62,13 +62,15 @@ export const UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID = "unscoped-tool-catalog-route";
  *
  * `resultIds` carries ids only, in the exact rank order the caller received — never a hit's
  * description or score. An id is a stable, non-secret identifier by construction (every tool id is
- * itself part of the durable catalog); `query` is the one field here that is operator-supplied free
- * text and could in principle contain anything, which is accepted deliberately per this dispatch's
- * brief: the query text is exactly what makes a ranking miss diagnosable, and it is the search
- * question itself, not a tool's input payload — `tool-executor-audit.ts`'s `describeInput` redaction
- * exists for the latter, not for this.
+ * itself part of the durable catalog). The raw `query` text is deliberately NOT included: it is
+ * operator-supplied free text that could in principle contain anything — including a pasted secret —
+ * and {@link ToolAttemptEvent.detail}'s own contract (`features/tool-audit/types.ts`) is "Redacted
+ * metadata only — never raw input", the same rule `tool-executor-audit.ts`'s `describeInput` already
+ * follows for a tool's input (key names and array lengths, never values). `queryLength` is this
+ * field's value-free equivalent — enough to tell a blank or degenerate query apart from a real one
+ * without the durable audit trail ever retaining what was actually typed.
  *
- * @param query - The raw query string the caller supplied, unmodified.
+ * @param query - The raw query string the caller supplied — read only for its length, never stored.
  * @param limit - The limit actually used for this call. `null` only if a future caller genuinely
  * does not know its own resolved limit; both call sites wired today always know theirs.
  * @param hits - The ranked hits the catalog returned, in order.
@@ -77,7 +79,7 @@ export const UNSCOPED_TOOL_CATALOG_ROUTE_RUN_ID = "unscoped-tool-catalog-route";
  * @overallScore 100
  */
 export function searchToolsAuditDetail(query: string, limit: number | null, hits: readonly ToolCatalogSearchHit[]): string {
-  return JSON.stringify({ query, limit, resultIds: hits.map((hit) => hit.id), resultCount: hits.length });
+  return JSON.stringify({ queryLength: query.length, limit, resultIds: hits.map((hit) => hit.id), resultCount: hits.length });
 }
 
 /**
