@@ -349,6 +349,77 @@ test("backfill-custom-credential-usernames: a sealed payload with no username is
   fs.rmSync(scratch, { recursive: true, force: true });
 });
 
+test("backfill-custom-credential-usernames: a database whose ONLY NULL row is undecryptable is reported as FAILED, never as \"Nothing to migrate\"", async () => {
+  const scratch = tmpDir("backfill-custom-credential-usernames-only-corrupt-");
+  const dbPath = path.join(scratch, "content.db");
+  const rootKeyHex = randomBytes(32).toString("hex");
+
+  process.env.TOVU_INTEGRATIONS_ROOT_KEY = rootKeyHex;
+  const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
+  const sealer = new AesGcmSecretSealer(keyring);
+  const activeKey = await keyring.activeKey();
+
+  // A row this test corrupts after sealing it correctly, same fixture shape as the
+  // "skipped and counted, but its siblings still migrate" test above — but here there is no
+  // pending sibling. Pre-fix, `countPending` silently drops this row from its count (its own
+  // `catch { continue; }`), `pending` comes back 0, and `main()` prints "Nothing to migrate" and
+  // returns with exit 0 BEFORE the per-row apply loop (the only place that used to log a FAILED
+  // line) ever runs — an undecryptable row is invisible forever and the operator is told
+  // everything is fine.
+  const corruptId = "cred-only-corrupt";
+  const corruptSealed = await sealer.seal({
+    plaintext: JSON.stringify({ token: "FIXTURE_TO_BE_CORRUPTED", username: "will-never-be-read" }),
+    key: activeKey,
+    aad: buildCustomCredentialAad({ workspaceId: WORKSPACE, id: corruptId }),
+  });
+  const tamperedCiphertext = Buffer.from("this-is-not-the-real-ciphertext-and-will-fail-gcm-auth-tag-check").toString("base64");
+
+  const seedDb = openContentDb(dbPath);
+  seedDb.insert(workspaces).values({ id: WORKSPACE, name: WORKSPACE, slug: WORKSPACE, createdAt: NOW }).run();
+  seedDb
+    .insert(customCredentialSets)
+    .values({
+      id: corruptId,
+      workspaceId: WORKSPACE,
+      label: "only-corrupt",
+      category: "general",
+      baseUrl: "https://api.example.com",
+      additionalHostsJson: null,
+      username: null,
+      sealedKeyId: corruptSealed.keyId,
+      sealedCiphertext: tamperedCiphertext,
+      sealedNonce: corruptSealed.nonce,
+      sealedAlg: corruptSealed.alg,
+      createdAt: NOW,
+      updatedAt: NOW,
+    })
+    .run();
+  seedDb.$client.close();
+  delete process.env.TOVU_INTEGRATIONS_ROOT_KEY;
+
+  let threw = false;
+  let output = "";
+  try {
+    output = runScript(dbPath, rootKeyHex, ["--apply"]);
+  } catch (err) {
+    threw = true;
+    output = `${(err as { stdout?: string }).stdout ?? ""}`;
+  }
+
+  assert.equal(threw, true, "a database whose only NULL row cannot be decrypted must exit non-zero, never report success");
+  assert.doesNotMatch(output, /Nothing to migrate/, "an undecryptable row must never be reported as convergence/success");
+  assert.match(output, new RegExp(`FAILED \\(could not decrypt\\): workspace=${WORKSPACE} id=${corruptId}`));
+  assert.doesNotMatch(output, /RESTORE POINT CAPTURED/, "nothing here was ever going to be written, so no restore point should be captured");
+
+  const db = openContentDb(dbPath);
+  const row = db.select().from(customCredentialSets).all()[0]!;
+  assert.equal(row.username, null, "an undecryptable row must never have a guessed value written");
+  assert.equal(row.sealedCiphertext, tamperedCiphertext, "an undecryptable row's ciphertext must remain untouched");
+  db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
 test("backfill-custom-credential-usernames: countPending converges to 0 with a token-only row present, instead of reporting outstanding work forever", async () => {
   const scratch = tmpDir("backfill-custom-credential-usernames-convergence-");
   const dbPath = path.join(scratch, "content.db");

@@ -60,9 +60,13 @@
  * migrated, already-migrated, skipped (no username), or failed — see
  * `CustomCredentialUsernameBackfillResult`.
  *
- * The `--apply` process itself still exits non-zero if ANY row failed (so a partial run is visible to
- * a caller that only checks the exit code), but only AFTER every row has been processed — never a
- * short-circuit that stops the sweep partway through.
+ * The `--apply` process itself still exits non-zero if ANY row failed. The common case is the
+ * per-row apply loop below, which never short-circuits — it processes every row before exiting. But
+ * a row that fails to decrypt must never hide simply because it is the ONLY outstanding row in the
+ * table: `main()`'s own pending-count pass (`countPending`) now surfaces any row it could not
+ * decrypt directly — logged and counted toward the same non-zero exit — for the specific case where
+ * nothing else is pending and the apply loop below would otherwise never even run. See
+ * `countPending`'s own doc for why this path exists and what silent behavior it replaced.
  *
  * ## Usage
  *
@@ -79,7 +83,9 @@
  * against `NULL`, which needs no decryption — so it needs no env var.
  *
  * Exit codes: `0` on success, including "nothing to do" and "some rows had no username to migrate";
- * `1` if any row failed to decrypt (checked only after every row has been processed).
+ * `1` if any row failed to decrypt — normally checked only after every row has been processed by the
+ * apply loop, but if NO other row was pending (so the apply loop never runs at all) the pending-count
+ * pass itself reports the undecryptable row and exits `1` — see `countPending`.
  */
 import path from "node:path";
 
@@ -235,19 +241,39 @@ export async function runCustomCredentialUsernameBackfill(
  * The root key is resolved ONCE, unguarded, before the per-row loop: a systemic misconfiguration
  * (the key entirely missing) must fail loudly here exactly as `--apply` already always required,
  * never get swallowed into a false "nothing pending". A single row's OWN decrypt/parse failure
- * (corrupt ciphertext, or sealed under an old, since-rotated key) is caught per-row and not counted
- * as pending — it cannot converge no matter how many times this script re-runs against the same
- * key, and the apply loop's own per-row FAILED log line plus non-zero exit already surfaces it
- * (this file's "Failure isolation") the first time this row is actually attempted.
+ * (corrupt ciphertext, or sealed under an old, since-rotated key) is caught per-row and never counted
+ * toward `pending` — it cannot converge no matter how many times this script re-runs against the same
+ * key, same reasoning as the token-only case above. It is NOT discarded, though: it is returned in
+ * `unreadable` so `main()` can still report it. This matters specifically when the row is the ONLY
+ * one outstanding in the table — the per-row apply loop below only ever runs when `pending > 0`, so
+ * without `unreadable` a lone undecryptable row would make `main()` fall through to "Nothing to
+ * migrate" and exit `0`, permanently hiding a row this script could never even read. (An earlier
+ * version of this function did exactly that, via a bare `catch { continue; }` — see the audit note
+ * this fix responds to.)
  *
  * @complexity O(n) in the NULL-row count — one decrypt attempt per row, no nested iteration.
  */
+interface PendingCheckUnreadableRow {
+  readonly workspaceId: string;
+  readonly id: string;
+  /** `err.message` (or `String(err)`) only — never the ciphertext, never a decrypted value. */
+  readonly message: string;
+}
+
+interface PendingCheckResult {
+  readonly pending: number;
+  /** Rows this pass could not decrypt at all. Never counted toward `pending` (see this function's
+   *  doc), but reported so `main()` can surface them even when they are the only NULL rows in the
+   *  table and the per-row apply loop would otherwise never run to catch them. */
+  readonly unreadable: readonly PendingCheckUnreadableRow[];
+}
+
 async function countPending(
   db: ContentDb,
   deps: { sealer: SecretSealerPort; keyring: KeyringPort }
-): Promise<number> {
+): Promise<PendingCheckResult> {
   const rows = db.select().from(customCredentialSets).all().filter((row) => row.username === null);
-  if (rows.length === 0) return 0;
+  if (rows.length === 0) return { pending: 0, unreadable: [] };
 
   // Forces root-key resolution up front (cached for every derive/open call below) so a missing key
   // fails loudly here rather than masquerading as "every row is unreadable, so nothing is pending".
@@ -258,6 +284,7 @@ async function countPending(
   });
 
   let pending = 0;
+  const unreadable: PendingCheckUnreadableRow[] = [];
   for (const row of rows) {
     try {
       const plaintext = await deps.sealer.open({
@@ -265,11 +292,11 @@ async function countPending(
         aad: buildCustomCredentialAad({ workspaceId: row.workspaceId, id: row.id }),
       });
       if (extractUsername(plaintext) !== undefined) pending += 1;
-    } catch {
-      continue;
+    } catch (err) {
+      unreadable.push({ workspaceId: row.workspaceId, id: row.id, message: err instanceof Error ? err.message : String(err) });
     }
   }
-  return pending;
+  return { pending, unreadable };
 }
 
 async function main(): Promise<void> {
@@ -300,9 +327,27 @@ async function main(): Promise<void> {
   const keyring = new EnvOrFileKeyring({ allowFileFallback: false });
   const sealer = new AesGcmSecretSealer(keyring);
 
-  const pending = await countPending(db, { sealer, keyring });
-  if (pending === 0) {
+  const { pending, unreadable } = await countPending(db, { sealer, keyring });
+
+  if (pending === 0 && unreadable.length === 0) {
     console.log("Nothing to migrate — every custom_credential_sets row already has a username column value (or genuinely has none to backfill).");
+    return;
+  }
+
+  if (pending === 0) {
+    // No row is genuinely pending (writable), but the pending-count pass could not even READ every
+    // row — the case `unreadable` exists to catch (`countPending`'s own doc, and this file's
+    // "Failure isolation"). Falling through to "Nothing to migrate" here would make an undecryptable
+    // row permanently invisible, since the per-row apply loop below never runs when nothing is
+    // pending. Report every such row the same way the apply loop's own FAILED line would, and exit
+    // non-zero — but skip the restore point, since nothing here was ever going to be written.
+    for (const row of unreadable) {
+      console.log(`FAILED (could not decrypt): workspace=${row.workspaceId} id=${row.id}: ${row.message}`);
+    }
+    console.log(
+      `Done: 0 row(s) migrated, ${unreadable.length} failed, ${unreadable.length} total. No other row was pending, so no restore point was captured — nothing here was ever going to be written this run.`
+    );
+    process.exitCode = 1;
     return;
   }
 
