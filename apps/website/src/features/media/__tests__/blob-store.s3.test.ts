@@ -75,6 +75,14 @@ async function startFakeS3(): Promise<FakeS3Server> {
 
       if (req.method === "PUT") {
         const body = await readBody(req);
+        // Minimal conditional-write support — enough to prove `S3BlobStore.putIfAbsent()` sends
+        // `If-None-Match: *` and correctly interprets a real S3-compatible provider's 412 refusal,
+        // without depending on a real bucket (out of scope per this file's own header).
+        if (req.headers["if-none-match"] === "*" && objects.has(key)) {
+          res.writeHead(412);
+          res.end();
+          return;
+        }
         objects.set(key, body);
         const etag = `"${createHash("md5").update(body).digest("hex")}"`;
         res.writeHead(200, { etag });
@@ -193,6 +201,46 @@ test("S3BlobStore.exists() is true right after put() and false after remove()", 
     assert.equal(await store.exists({ storageKey }), true);
     await store.remove({ storageKey });
     assert.equal(await store.exists({ storageKey }), false);
+  } finally {
+    await fakeS3.close();
+  }
+});
+
+test("S3BlobStore.putIfAbsent() writes a fresh key and reports written: true", async () => {
+  const fakeS3 = await startFakeS3();
+  try {
+    const store = makeStore(fakeS3.baseUrl);
+    const bytes = new TextEncoder().encode("first writer");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+
+    const result = await store.putIfAbsent({ workspaceId: "ws-1", sha256, bytes });
+
+    assert.equal(result.written, true);
+    assert.deepEqual(Buffer.from(await store.get({ storageKey: result.storageKey })), Buffer.from(bytes));
+  } finally {
+    await fakeS3.close();
+  }
+});
+
+test("S3BlobStore.putIfAbsent() on an already-occupied key reports written: false and leaves the existing object untouched", async () => {
+  const fakeS3 = await startFakeS3();
+  try {
+    const store = makeStore(fakeS3.baseUrl);
+    const sha256 = createHash("sha256").update("shared key").digest("hex");
+    const firstBytes = new TextEncoder().encode("real production bytes, written first");
+    const secondBytes = new TextEncoder().encode("stock seed bytes — must not win");
+
+    const first = await store.putIfAbsent({ workspaceId: "ws-1", sha256, bytes: firstBytes });
+    assert.equal(first.written, true);
+
+    const second = await store.putIfAbsent({ workspaceId: "ws-1", sha256, bytes: secondBytes });
+    assert.equal(second.written, false, "a second putIfAbsent for the same key must not report a write");
+
+    assert.deepEqual(
+      Buffer.from(await store.get({ storageKey: first.storageKey })),
+      Buffer.from(firstBytes),
+      "the first writer's bytes must survive — the fake server's 412 must stop the second PUT from landing"
+    );
   } finally {
     await fakeS3.close();
   }

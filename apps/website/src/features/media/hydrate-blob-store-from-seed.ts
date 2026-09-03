@@ -2,7 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import { computeBlobStorageKey, type BlobStorePort } from "@jini-ai/cms/media";
+import type { BlobStorePort } from "@jini-ai/cms/media";
 
 /**
  * @file `hydrateBlobStoreFromSeed()` — fills in stock blob BYTES for `asset_blobs` rows a fresh
@@ -40,10 +40,20 @@ import { computeBlobStorageKey, type BlobStorePort } from "@jini-ai/cms/media";
  * unfixed on the very deploy meant to fix it. So the gate here applies the same underlying rule —
  * never touch something that might already be real, only fill in what is provably absent — at the
  * store's actual unit of identity: one content-addressed key at a time, via `BlobStorePort
- * .exists()`. An existing key, however it got there, is left exactly as it is; only a key genuinely
- * missing from the live store gets written. This also means the function is safe to run on EVERY
- * boot, not just a first one: every call after the first is an all-`skipped` no-op once the store
- * catches up.
+ * .putIfAbsent()`. An existing key, however it got there, is left exactly as it is; only a key
+ * genuinely missing from the live store gets written. This also means the function is safe to run
+ * on EVERY boot, not just a first one: every call after the first is an all-`skipped` no-op once
+ * the store catches up.
+ *
+ * This used to be a separate `exists()` check followed by a separate `put()` — a check-then-act
+ * pair with a real TOCTOU gap: a real uploader's write landing in that gap got silently overwritten
+ * by this function's stock seed bytes. `putIfAbsent()` collapses the two into one call the adapter
+ * itself makes atomic (`LocalFsBlobStore`'s `"wx"` open flag; `S3BlobStore`'s conditional
+ * `If-None-Match` PUT — see each adapter's own doc), closing the gap outright rather than narrowing
+ * it. Safe to do unconditionally specifically because this store is content-addressed: whichever
+ * writer's bytes end up stored for a given key, they are — short of a sha256 collision — the same
+ * bytes any other writer for that key would have written; `putIfAbsent` only needs to guarantee no
+ * concurrent writer's write gets torn or clobbered, not that this function's copy "wins".
  *
  * -----------------------------------------------------------------------------------------------
  * Why this goes through `BlobStorePort`, not a filesystem copy
@@ -54,8 +64,8 @@ import { computeBlobStorageKey, type BlobStorePort } from "@jini-ai/cms/media";
  * any operator who sets `TOVU_MEDIA_BLOB_STORE=s3`. Writing straight to a filesystem path would
  * silently stop working — with no error, just permanently-missing bytes on the very backend this
  * fix exists to protect against — the moment an operator makes that switch. Going through
- * `blobStore.exists()`/`blobStore.put()` instead means this function needs no change at all if the
- * backend changes: same two calls, whichever `BlobStorePort` implementation `deps.ts` handed it.
+ * `blobStore.putIfAbsent()` instead means this function needs no change at all if the backend
+ * changes: same one call, whichever `BlobStorePort` implementation `deps.ts` handed it.
  *
  * Architectural role:
  * Fire-and-forget async boot effect (unlike its two sync siblings above — `BlobStorePort` itself is
@@ -97,8 +107,8 @@ export interface HydrateBlobStoreFromSeedResult {
 export interface HydrateBlobStoreFromSeedRequired {
   /** The read-only stock upload payload shipped with the image (sibling of `content.seed.db`). */
   readonly seedUploadsDir: string;
-  /** The site's real, running blob store — only `exists`/`put` are needed. */
-  readonly blobStore: Pick<BlobStorePort, "exists" | "put">;
+  /** The site's real, running blob store — only `putIfAbsent` is needed. */
+  readonly blobStore: Pick<BlobStorePort, "putIfAbsent">;
 }
 
 /**
@@ -142,9 +152,9 @@ async function listSeedBlobRelativePaths(root: string, dir: string = root): Prom
  * @throws Never for a missing/malformed individual seed file (recorded in `failed` instead, so one
  *   bad file cannot block the rest); only for an error `listSeedBlobRelativePaths` itself does not
  *   treat as "no seed source" (e.g. a permissions failure reading the seed payload's own tree).
- * @complexity O(n) blob-store round trips (one `exists`, plus one `put` for each genuinely missing
- *   key) in the number of files under `seedUploadsDir` — bounded by how many blobs this site's seed
- *   ships, not by anything request-variable.
+ * @complexity O(n) blob-store round trips (one `putIfAbsent` per file) in the number of files under
+ *   `seedUploadsDir` — bounded by how many blobs this site's seed ships, not by anything
+ *   request-variable.
  */
 export async function hydrateBlobStoreFromSeed(
   required: HydrateBlobStoreFromSeedRequired
@@ -170,16 +180,17 @@ export async function hydrateBlobStoreFromSeed(
       continue;
     }
     const [, workspaceId, sha256] = match;
-    const storageKey = computeBlobStorageKey({ workspaceId, sha256 });
 
     try {
-      if (await blobStore.exists({ storageKey })) {
-        skipped++;
-        continue;
-      }
       const bytes = await readFile(join(seedUploadsDir, relativePath));
-      await blobStore.put({ workspaceId, sha256, bytes });
-      copied++;
+      // Single atomic call — see this file's header for why a separate `exists()` check first
+      // would reopen the exact TOCTOU gap this function used to have.
+      const { written } = await blobStore.putIfAbsent({ workspaceId, sha256, bytes });
+      if (written) {
+        copied++;
+      } else {
+        skipped++;
+      }
     } catch (err) {
       failed.push({ relativePath, error: err instanceof Error ? err.message : String(err) });
     }

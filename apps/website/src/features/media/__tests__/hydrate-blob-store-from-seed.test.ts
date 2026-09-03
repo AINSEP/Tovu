@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
-import { computeBlobStorageKey, InMemoryBlobStore } from "@jini-ai/cms/media";
+import { computeBlobStorageKey, InMemoryBlobStore, type PutBlobInput } from "@jini-ai/cms/media";
 
 import { hydrateBlobStoreFromSeed } from "../hydrate-blob-store-from-seed.js";
 
@@ -42,6 +42,69 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
     return await fn(dir);
   } finally {
     await rm(dir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * A `BlobStorePort` double that deterministically injects a concurrent writer's write into the
+ * exact TOCTOU gap `hydrateBlobStoreFromSeed()` used to have: `armConcurrentWrite()` arms a
+ * one-shot write that lands the moment `exists()` resolves or, once armed, the moment
+ * `putIfAbsent()` performs its own atomic check-and-set — modeling a real uploader's `put()`
+ * completing in the window between the hydrator's own existence check and its own write.
+ *
+ * This makes the race reproducible on demand instead of depending on real timing (flaky, and slow
+ * to trigger reliably): the OLD `exists()`-then-`put()` hydrator sees the key absent at check time,
+ * then unconditionally overwrites whatever landed in between; the FIXED hydrator only ever issues
+ * the single atomic `putIfAbsent()` call, which observes the concurrent write before deciding
+ * whether to write and correctly backs off.
+ */
+class RaceInjectingBlobStore {
+  private readonly bytesByKey = new Map<string, Uint8Array>();
+  private pendingConcurrentWrite: { storageKey: string; bytes: Uint8Array } | undefined;
+
+  armConcurrentWrite(storageKey: string, bytes: Uint8Array): void {
+    this.pendingConcurrentWrite = { storageKey, bytes };
+  }
+
+  private landPendingWriteIfArmed(): void {
+    if (!this.pendingConcurrentWrite) return;
+    const { storageKey, bytes } = this.pendingConcurrentWrite;
+    this.pendingConcurrentWrite = undefined;
+    this.bytesByKey.set(storageKey, bytes);
+  }
+
+  /** Mirrors the OLD hydrator's first half of the racy pair: check, THEN let the race land. */
+  async exists(input: { storageKey: string }): Promise<boolean> {
+    const existedAtCheckTime = this.bytesByKey.has(input.storageKey);
+    this.landPendingWriteIfArmed();
+    return existedAtCheckTime;
+  }
+
+  /** Mirrors the OLD hydrator's second half: an unconditional overwrite, exactly like
+   *  `LocalFsBlobStore`/`S3BlobStore`'s real `put()`. */
+  async put(input: PutBlobInput): Promise<{ storageKey: string }> {
+    const storageKey = computeBlobStorageKey(input);
+    this.bytesByKey.set(storageKey, input.bytes);
+    return { storageKey };
+  }
+
+  /** The FIXED path: one atomic call. Any armed concurrent write is modeled as landing
+   *  immediately before this call's own check-and-set, same as a real `"wx"`/`If-None-Match`
+   *  primitive would observe a competing writer's request that completed microseconds earlier. */
+  async putIfAbsent(input: PutBlobInput): Promise<{ storageKey: string; written: boolean }> {
+    const storageKey = computeBlobStorageKey(input);
+    this.landPendingWriteIfArmed();
+    if (this.bytesByKey.has(storageKey)) {
+      return { storageKey, written: false };
+    }
+    this.bytesByKey.set(storageKey, input.bytes);
+    return { storageKey, written: true };
+  }
+
+  async get(input: { storageKey: string }): Promise<Uint8Array> {
+    const bytes = this.bytesByKey.get(input.storageKey);
+    if (!bytes) throw new Error(`blob '${input.storageKey}' was not found`);
+    return bytes;
   }
 }
 
@@ -160,5 +223,32 @@ test("hydrateBlobStoreFromSeed: a malformed seed entry is reported, not thrown, 
     assert.ok(failure);
     assert.match(failure.relativePath, /not-a-blob\.txt$/);
     assert.deepEqual(Buffer.from(await store.get({ storageKey: seeded.storageKey })), Buffer.from(goodBytes));
+  });
+});
+
+test("hydrateBlobStoreFromSeed: REGRESSION — a concurrent production write landing in the exists->put gap must survive, not be clobbered by the seed", async () => {
+  await withTempDir(async (dir) => {
+    const workspaceId = `ws-${randomUUID()}`;
+    const seedBytes = new TextEncoder().encode("stock seed bytes — must never win this race");
+    const seeded = await writeSeedBlob(dir, { workspaceId, bytes: seedBytes });
+
+    const store = new RaceInjectingBlobStore();
+    const productionBytes = new TextEncoder().encode("real uploader's bytes, written mid-race");
+    // Arms a write that lands exactly inside the window this function's own check-then-act used to
+    // leave open — see `RaceInjectingBlobStore`'s own doc for exactly which call it fires on.
+    store.armConcurrentWrite(seeded.storageKey, productionBytes);
+
+    await hydrateBlobStoreFromSeed({ seedUploadsDir: dir, blobStore: store });
+
+    // Against the OLD exists()-then-put() implementation this fails: exists() observes the key
+    // absent (the race hasn't landed yet), the concurrent write then lands, and the hydrator's own
+    // put() unconditionally overwrites it with the stock seed bytes. Against the FIXED
+    // putIfAbsent()-only implementation, the concurrent write lands as part of the SAME atomic call
+    // that decides whether to write, so it is observed and the seed write correctly backs off.
+    assert.deepEqual(
+      Buffer.from(await store.get({ storageKey: seeded.storageKey })),
+      Buffer.from(productionBytes),
+      "a real write that lands during hydration must survive — the seed must never clobber it"
+    );
   });
 });

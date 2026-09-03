@@ -773,7 +773,8 @@ export function createSqliteRouteDeps(
   // `RouteDeps` (unlike `mediaTransformReady`) purely so a boot-integration test can await
   // deterministic completion instead of racing a fire-and-forget background copy; no route or
   // caller needs to gate on it — `hydrateBlobStoreFromSeed`'s own per-key gate makes every run after
-  // the first an all-`skipped` no-op.
+  // the first an all-`skipped` no-op. It calls `blobStore.putIfAbsent()` — one atomic call per key
+  // now, not a separate `exists()`/`put()` pair (see that file's header for the race that closes).
   const blobStore = resolveBlobStore(overrides?.uploadsDir ?? mediaUploadsDir());
   const blobHydrationReady = hydrateBlobStoreFromSeed({
     seedUploadsDir: builtInSeedUploadsDir(),

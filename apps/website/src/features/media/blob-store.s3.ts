@@ -131,6 +131,48 @@ export class S3BlobStore implements BlobStorePort {
     return { storageKey };
   }
 
+  /**
+   * `If-None-Match: *` makes this a conditional PUT: the object store itself refuses the write
+   * (HTTP 412) when the key is already occupied, so there is no separate `exists()` round trip and
+   * therefore no window between "check" and "write" for a concurrent writer to land in — same
+   * atomicity guarantee `LocalFsBlobStore.putIfAbsent`'s `"wx"` flag gets from the filesystem.
+   *
+   * Provider caveat (disclosed, not silently assumed): AWS S3 and Cloudflare R2 honor
+   * `If-None-Match: *` on `PUT`; some other S3-compatible providers this adapter's file header
+   * lists as supported (older MinIO, some DigitalOcean Spaces/Wasabi deployments) may not enforce
+   * it and could return 200 on an unconditional overwrite instead of 412 — in which case this
+   * degrades to `put()`'s own unconditional-overwrite behavior on those providers specifically,
+   * not a crash or silently wrong result. Local disk (`LocalFsBlobStore`, the default backend) is
+   * unaffected either way.
+   *
+   * @complexity O(1) — one signed HTTP request.
+   */
+  async putIfAbsent(input: PutBlobInput): Promise<{ storageKey: string; written: boolean }> {
+    const storageKey = computeBlobStorageKey(input);
+    let resp: Response;
+    try {
+      resp = await this.client.fetch(objectUrl(this.config, storageKey), {
+        method: "PUT",
+        headers: { "If-None-Match": "*" },
+        body: input.bytes as BodyInit,
+      });
+    } catch (err) {
+      throw new Error(`S3BlobStore.putIfAbsent: request failed for '${storageKey}' — ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (resp.status === 412) {
+      // Precondition Failed — an object already occupies this key. Content-addressed: whatever is
+      // there already carries the same sha256 this call would have written (see this method's own
+      // doc), so leaving it untouched is always correct.
+      return { storageKey, written: false };
+    }
+    if (!resp.ok) {
+      const body = await safeErrorBody(resp);
+      const bodySuffix = body ? ` — ${body}` : "";
+      throw new Error(`S3BlobStore.putIfAbsent: failed to write '${storageKey}' — HTTP ${resp.status}${bodySuffix}`);
+    }
+    return { storageKey, written: true };
+  }
+
   async get(input: { storageKey: string }): Promise<Uint8Array> {
     let resp: Response;
     try {
