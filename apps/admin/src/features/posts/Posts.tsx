@@ -1,5 +1,5 @@
 import { DataTable, type DataTableSortState, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
@@ -7,7 +7,6 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import {
   postRowMenuItems,
-  buildPostRowMenuHandleMap,
   comparePostsByTitle,
   comparePostsBySlug,
   comparePostsByStatus,
@@ -66,6 +65,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     createPost,
     disablePost,
     removePost,
+    rowMenuHandleById,
   } = usePostsHook();
   const locale = useWiredAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
@@ -84,17 +84,6 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   // `DataTable` itself applies each column's comparator, computes the next click's state, and
   // renders the caret/`aria-sort` — see `rules.ts`'s "Column sort" section for what's left here.
   const [sort, setSort] = useState<DataTableSortState>(DEFAULT_POST_SORT);
-
-  // `DataTable` sorts internally from `sort` + each column's own comparator — `posts` is passed
-  // through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
-  // built once from `posts`' own stable order and looked up BY ID in each cell below, rather than by
-  // render position: `buildPostRowMenuHandleMap`'s own contract derives a handle from each id's slug,
-  // not its position, specifically so "the same control keeps the same handle even if rows are later
-  // reordered" (its own doc) — which is exactly what re-sorting the table does. Memoized on `posts`
-  // alone (a hook, called unconditionally, above both early returns below — a conditional `useMemo`
-  // call would violate the Rules of Hooks) so re-sorting or any other unrelated re-render (`sort`,
-  // `locale`) does not rebuild this map and hand `RowMenu` a new handle-string identity every time.
-  const rowMenuHandleById = useMemo(() => buildPostRowMenuHandleMap(posts), [posts]);
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;

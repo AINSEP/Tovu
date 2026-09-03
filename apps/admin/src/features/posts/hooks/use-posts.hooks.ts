@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { type AdminPost } from "@/lib/api";
 import { navigate as defaultNavigate } from "@/lib/router";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
-import { POSTS_RESOURCE } from "../rules";
+import { POSTS_RESOURCE, buildPostRowMenuHandleMap } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
@@ -58,6 +58,23 @@ export interface PostsController {
   createPost: () => Promise<void>;
   disablePost: (post: AdminPost) => Promise<void>;
   removePost: () => Promise<void>;
+  /** Row-menu `agentHandle` lookup, keyed by post id rather than render position — see
+   *  {@link usePostRowMenuHandleMap}'s own doc for why. */
+  rowMenuHandleById: Map<string, string>;
+}
+
+/**
+ * `DataTable` sorts internally from `sort` + each column's own comparator — `posts` is passed
+ * through unsorted, and only `DataTable`'s own render order changes as `sort` changes. Handles are
+ * built once from `posts`' own stable order and looked up BY ID in each cell, rather than by render
+ * position: `buildPostRowMenuHandleMap`'s own contract derives a handle from each id's slug, not its
+ * position, specifically so "the same control keeps the same handle even if rows are later
+ * reordered" (its own doc) — which is exactly what re-sorting the table does. Memoized on `posts`
+ * alone so re-sorting or any other unrelated re-render (`sort`, `locale`) does not rebuild this map
+ * and hand `RowMenu` a new handle-string identity every time.
+ */
+export function usePostRowMenuHandleMap(posts: AdminPost[] | null): Map<string, string> {
+  return useMemo(() => buildPostRowMenuHandleMap(posts), [posts]);
 }
 
 export interface PostsListDependencies {
@@ -94,6 +111,8 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   }, [load]);
 
   useContentRefreshSubscription(POSTS_RESOURCE, load);
+
+  const rowMenuHandleById = usePostRowMenuHandleMap(posts);
 
   async function createPost() {
     setCreating(true);
@@ -167,6 +186,7 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     createPost,
     disablePost,
     removePost,
+    rowMenuHandleById,
   };
 }
 

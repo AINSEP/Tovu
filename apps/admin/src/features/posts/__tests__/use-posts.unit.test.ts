@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminPost } from "@/lib/api";
 import { publishContentRefresh, resetContentRefreshBus } from "@/lib/content-refresh-bus";
 import { createFakePostsListPort } from "../hooks/posts-list-dependencies.hooks";
-import { usePosts, useWiredPosts } from "../hooks/use-posts.hooks";
+import { usePosts, usePostRowMenuHandleMap, useWiredPosts } from "../hooks/use-posts.hooks";
 import { POSTS_RESOURCE } from "../rules";
 
 /**
@@ -280,5 +280,28 @@ describe("usePosts — content refresh bus", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     expect(listSpy).toHaveBeenCalledTimes(callsWhileMounted);
+  });
+});
+
+// `usePostRowMenuHandleMap` used to be a `useMemo` inline in `Posts.tsx`'s own component body
+// (2026-09-03 relocation pass, moving derived-logic computations out of `.tsx` files and into their
+// hooks). Direct test added here since the move is what makes it reachable outside a full
+// `<Posts />` render.
+describe("usePostRowMenuHandleMap", () => {
+  it("keys the handle by post id, matching buildPostRowMenuHandleMap", () => {
+    const { result } = renderHook(() => usePostRowMenuHandleMap([POST]));
+    expect(result.current.get(POST.id)).toBe(`posts-row-${POST.id}`);
+  });
+
+  it("returns an empty map for null posts", () => {
+    const { result } = renderHook(() => usePostRowMenuHandleMap(null));
+    expect(result.current.size).toBe(0);
+  });
+
+  it("is included on the controller usePosts/useWiredPosts return", async () => {
+    const port = createFakePostsListPort({ posts: [POST] });
+    const { result } = renderHook(() => usePosts({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.posts).toEqual([POST]));
+    expect(result.current.rowMenuHandleById.get(POST.id)).toBe(`posts-row-${POST.id}`);
   });
 });

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
+import { buildPostRowMenuHandleMap } from "../rules";
 import { navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
 
@@ -33,6 +34,7 @@ const POST: AdminPost = {
 const DRAFT_POST: AdminPost = { ...POST, id: "p2", title: "Draft Post", slug: "draft-post", status: "draft" };
 
 function controller(overrides: Partial<PostsController> = {}): PostsController {
+  const posts = overrides.posts !== undefined ? overrides.posts : [POST];
   return {
     posts: [POST],
     error: null,
@@ -43,6 +45,7 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     createPost: vi.fn(async () => {}),
     disablePost: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
+    rowMenuHandleById: buildPostRowMenuHandleMap(posts),
     ...overrides,
   };
 }
