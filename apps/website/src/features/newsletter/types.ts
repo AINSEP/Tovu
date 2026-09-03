@@ -13,10 +13,10 @@
  *
  * Grounding imports (typecheck against real code):
  * - `../core/ports` — UUID/ISODateTime/JsonObject/DomainEvent (ADR-007/009 spine).
- * - `../features/plugins/data-module` — the ADR-023 declared-schema shape core executes.
+ * - `../features/plugins` — the ADR-023 declared-schema shape core executes.
  */
 import type { DomainEvent, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { DataModuleDecl } from "../plugins/data-module.js";
+import type { DataModuleDecl } from "../plugins/index.js";
 
 /* ------------------------------------------------------------------------------------------------
  * 1. Campaign editorial state — reuses ADR-022 `entries` (content-type `newsletter_campaign`)

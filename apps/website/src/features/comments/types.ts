@@ -19,7 +19,7 @@
  * INTERFACES + TYPES ONLY — no feature logic lives here.
  */
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { ColumnType, DataModuleDecl } from "../plugins/data-module.js";
+import type { ColumnType, DataModuleDecl } from "../plugins/index.js";
 
 /**
  * Moderation lifecycle of a comment. The brief's three states (`pending`/`approved`/`spam`)

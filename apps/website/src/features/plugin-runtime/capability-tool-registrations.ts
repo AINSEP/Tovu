@@ -20,7 +20,7 @@ import type { PluginManifest, PluginManifestFieldDecl } from "./manifest.js";
 // deps.repo.save() call"), so a tool that reads a plugin's stored output back has nowhere else to
 // read it FROM. Read-only (`PostRepoPort.findById`/`PostRecord`/`PostNotFoundError` only) — this
 // file never imports anything that could write a post.
-import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/post.js";
+import { PostNotFoundError, type PostRecord, type PostRepoPort } from "../post/index.js";
 
 /**
  * @file Projects each ENABLED plugin-runtime plugin's own declared `fields[]` (manifest.ts,
