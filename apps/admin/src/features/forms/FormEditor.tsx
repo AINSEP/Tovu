@@ -89,7 +89,9 @@ function FieldAttributesDialog({
   });
   // One dialog is ever open at a time (`editingAttrsIndex` gates a single instance below), so this
   // needs no per-instance disambiguation — unlike the attribute rows inside it, which are a real
-  // repeated list and do need `buildAgentListHandles`'s uniqueness search.
+  // repeated list and do need `buildAgentListHandles`'s uniqueness search. Not `useMemo`d: `rows` is
+  // one field's own CSS-class/HTML-attribute rows (a handful at most), cheap enough that memoizing
+  // it was not judged worth the added indirection.
   const attrRowHandles = buildAgentListHandles("form-field-attrs-row", rows.map((row) => String(row._rowId)));
 
   return (
@@ -263,7 +265,9 @@ function FormFieldsEditor({
     useFormFieldsEditorHook({ fields, onChange });
   // Field ids are the form's own field vocabulary and are unique once saved, but a freshly-added
   // row starts with an empty id (see `rules.ts`'s `blankField`) — `buildAgentListHandles`'s
-  // position fallback covers that case the same way it covers any other unsluggable id.
+  // position fallback covers that case the same way it covers any other unsluggable id. Not
+  // `useMemo`d: one form's own field list is small and this is an O(n) pass, cheap enough that
+  // memoizing it was not judged worth the added indirection.
   const fieldHandles = buildAgentListHandles(
     "form-field",
     fields.map((field) => field.id),
@@ -577,7 +581,12 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
   if (submissions.length === 0) return <div className="empty-state">{t("No submissions yet.")}</div>;
 
   // Submission ids are stable and unique, so they're what disambiguates one row's "View" button
-  // from another's — same reasoning as every other list on this workstream.
+  // from another's — same reasoning as every other list on this workstream. Not `useMemo`d:
+  // computed after the three early returns above, so a `useMemo` here would need hoisting above
+  // them to keep hook order stable across renders — same constraint `Media.tsx` documents for its
+  // own post-early-return computation. `submissions` grows only on an explicit "Load more" click
+  // (`use-form-submissions.hooks.ts`'s cursor-append), so this O(n) pass tracks real data changes,
+  // not incidental re-renders.
   const viewHandles = buildAgentListHandles(
     "form-submission-view",
     submissions.map((s) => s.id),

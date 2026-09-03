@@ -411,6 +411,11 @@ function UsersTable({ users, roles, policies, actions, manage, t, locale }: User
     );
   }
 
+  // Not `useMemo`d: computed after the empty-state early return above, so a `useMemo` here would
+  // need hoisting above it to keep hook order stable across renders — same constraint `Media.tsx`
+  // documents for its own post-early-return computation. Not worth that indirection: these three
+  // maps/handles are a single O(n) pass each over one operator's own users/roles/policies (already
+  // built once per render rather than once per row, per this function's own doc comment above).
   const roleById = new Map<string, AdminRole>(roles.map((role) => [role.id, role]));
   const policyById = new Map<string, AdminPolicy>(policies.map((policy) => [policy.id, policy]));
   // Principal ids are stable and unique, so they disambiguate one row's Manage toggle from

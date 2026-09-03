@@ -658,7 +658,14 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
  *
  * `deleteState` (web-design pass, 2026-08-05): bundles the five `useTaxonomy` fields this list needs
  * to offer "Delete taxonomy"/"Delete term" and show a blocked-delete reason — passed as one object
- * rather than five more positional params now that this function's signature already has four. */
+ * rather than five more positional params now that this function's signature already has four.
+ *
+ * The `buildAgentListHandles`/`Map` calls below are not `useMemo`d: this is a plain helper, not a
+ * component (it is called conditionally from the `selected ? … : …` branch in `Taxonomy`'s render),
+ * so it has no hook access to begin with. Each call is O(n) over one operator's own taxonomies/terms
+ * (see `buildAgentListHandles`'s own `@complexity` doc) — cheap enough next to the list render it
+ * feeds that hoisting the computation up into `Taxonomy` to memoize it was not judged worth the
+ * added indirection. */
 function namespaceList(
   taxonomies: AdminTaxonomyWithTerms[],
   selectedTermId: string | null,
