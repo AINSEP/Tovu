@@ -9,7 +9,18 @@
  * `I18nProvider` mount is now locale-aware and translates that package's OWN chrome for free) — kept
  * here too, rather than cross-imported, because these five are literal prop VALUES this screen
  * hands to `ProviderChipGroup`/`VisitorCredentialKeyFooter` (not `t()` calls the library makes on
- * this screen's behalf), so this file has to know them either way. Values match verbatim.
+ * this screen's behalf), so this file has to know them either way. Values match verbatim. "Save"
+ * itself is no longer one of this screen's own labels (see below) but stays for the library chrome.
+ *
+ * ## The 2026-09-02 two-button split
+ *
+ * The visitor key form's single "Save" became "Save key" (writes the key) and "Save settings"
+ * (writes provider/base URL/model, never a key), so the copy moved with it in all 21 locales:
+ * "Save key", "Save settings" and "Settings saved." are new, "Not saved yet — press Save." is gone,
+ * and "Paste your key, check it with Show, then press Save." became "…then press Save key." Every
+ * translated string that names a button now names one that exists — a line telling an operator to
+ * press a control the screen no longer has is the same class of defect as a confirmation for a write
+ * that never happened.
  */
 export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
   es: {
@@ -53,6 +64,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "No configurado",
     Save: "Guardar",
     "Saving…": "Guardando…",
+    "Save key": "Guardar clave",
+    "Save settings": "Guardar configuración",
 
     // Visitor tab — key footer
     "Test Key": "Probar clave",
@@ -62,11 +75,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Verifica la clave con el proveedor y muestra los modelos que puede usar.",
     "Asking the provider which models this key allows…": "Preguntando al proveedor qué modelos permite esta clave…",
     "Saved to the server, encrypted.": "Guardada en el servidor, cifrada.",
-    "Not saved yet — press Save.": "Aún no guardada — presiona Guardar.",
+    "Settings saved.": "Configuración guardada.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Almacenada en el servidor, cifrada. Pega una clave nueva para reemplazarla.",
-    "Paste your key, check it with Show, then press Save.":
-      "Pega tu clave, compruébala con Mostrar y luego presiona Guardar.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Pega tu clave, compruébala con Mostrar y luego presiona Guardar clave.",
 
     // Admin tab — panel switch
     "Show the AI assistant on the admin site": "Mostrar el asistente de IA en el sitio de administración",
@@ -138,6 +151,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Belum dikonfigurasi",
     Save: "Simpan",
     "Saving…": "Menyimpan…",
+    "Save key": "Simpan kunci",
+    "Save settings": "Simpan pengaturan",
     "Test Key": "Uji Kunci",
     "Testing…": "Menguji…",
     "Key works — {count} models available.": "Kunci berfungsi — {count} model tersedia.",
@@ -145,11 +160,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Memeriksa kunci ke penyedia dan mencantumkan model yang dapat digunakannya.",
     "Asking the provider which models this key allows…": "Menanyakan ke penyedia model apa saja yang diizinkan kunci ini…",
     "Saved to the server, encrypted.": "Disimpan ke server, terenkripsi.",
-    "Not saved yet — press Save.": "Belum disimpan — tekan Simpan.",
+    "Settings saved.": "Pengaturan disimpan.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Disimpan di server, terenkripsi. Tempel kunci baru untuk menggantinya.",
-    "Paste your key, check it with Show, then press Save.":
-      "Tempel kunci Anda, periksa dengan Tampilkan, lalu tekan Simpan.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Tempel kunci Anda, periksa dengan Tampilkan, lalu tekan Simpan kunci.",
     "Show the AI assistant on the admin site": "Tampilkan asisten AI di situs admin",
     "Open. The assistant panel is showing on the right.": "Terbuka. Panel asisten ditampilkan di sebelah kanan.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -201,6 +216,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Nicht konfiguriert",
     Save: "Speichern",
     "Saving…": "Speichern…",
+    "Save key": "Schlüssel speichern",
+    "Save settings": "Einstellungen speichern",
     "Test Key": "Schlüssel testen",
     "Testing…": "Wird getestet…",
     "Key works — {count} models available.": "Schlüssel funktioniert — {count} Modelle verfügbar.",
@@ -208,11 +225,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Überprüft den Schlüssel beim Anbieter und listet die Modelle auf, die er verwenden kann.",
     "Asking the provider which models this key allows…": "Fragt den Anbieter, welche Modelle dieser Schlüssel zulässt…",
     "Saved to the server, encrypted.": "Verschlüsselt auf dem Server gespeichert.",
-    "Not saved yet — press Save.": "Noch nicht gespeichert — auf Speichern klicken.",
+    "Settings saved.": "Einstellungen gespeichert.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Verschlüsselt auf dem Server gespeichert. Fügen Sie einen neuen Schlüssel ein, um ihn zu ersetzen.",
-    "Paste your key, check it with Show, then press Save.":
-      "Fügen Sie Ihren Schlüssel ein, prüfen Sie ihn mit Anzeigen und klicken Sie dann auf Speichern.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Fügen Sie Ihren Schlüssel ein, prüfen Sie ihn mit Anzeigen und klicken Sie dann auf Schlüssel speichern.",
     "Show the AI assistant on the admin site": "KI-Assistenten im Admin-Bereich anzeigen",
     "Open. The assistant panel is showing on the right.": "Geöffnet. Das Assistenten-Panel wird rechts angezeigt.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -262,15 +279,18 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "未配置",
     Save: "保存",
     "Saving…": "保存中…",
+    "Save key": "保存密钥",
+    "Save settings": "保存设置",
     "Test Key": "测试密钥",
     "Testing…": "测试中…",
     "Key works — {count} models available.": "密钥可用 — 有 {count} 个模型可用。",
     "Checks the key against the provider and lists the models it can use.": "向提供商验证该密钥，并列出它可以使用的模型。",
     "Asking the provider which models this key allows…": "正在向提供商查询此密钥允许使用哪些模型…",
     "Saved to the server, encrypted.": "已加密保存到服务器。",
-    "Not saved yet — press Save.": "尚未保存 — 请点击保存。",
+    "Settings saved.": "设置已保存。",
     "Stored on the server, encrypted. Paste a new key to replace it.": "已加密存储在服务器上。粘贴新密钥即可替换。",
-    "Paste your key, check it with Show, then press Save.": "粘贴您的密钥，使用显示进行检查，然后点击保存。",
+    "Paste your key, check it with Show, then press Save key.":
+      "粘贴您的密钥，使用显示进行检查，然后点击保存密钥。",
     "Show the AI assistant on the admin site": "在管理后台显示 AI 助手",
     "Open. The assistant panel is showing on the right.": "打开。助手面板显示在右侧。",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -320,15 +340,18 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "尚未設定",
     Save: "儲存",
     "Saving…": "儲存中…",
+    "Save key": "儲存金鑰",
+    "Save settings": "儲存設定",
     "Test Key": "測試金鑰",
     "Testing…": "測試中…",
     "Key works — {count} models available.": "金鑰可用 — 有 {count} 個模型可用。",
     "Checks the key against the provider and lists the models it can use.": "向供應商驗證此金鑰，並列出它可以使用的模型。",
     "Asking the provider which models this key allows…": "正在向供應商查詢此金鑰允許使用哪些模型…",
     "Saved to the server, encrypted.": "已加密儲存至伺服器。",
-    "Not saved yet — press Save.": "尚未儲存 — 請按下儲存。",
+    "Settings saved.": "設定已儲存。",
     "Stored on the server, encrypted. Paste a new key to replace it.": "已加密儲存在伺服器上。貼上新金鑰即可取代。",
-    "Paste your key, check it with Show, then press Save.": "貼上您的金鑰，使用顯示進行檢查，然後按下儲存。",
+    "Paste your key, check it with Show, then press Save key.":
+      "貼上您的金鑰，使用顯示進行檢查，然後按下儲存金鑰。",
     "Show the AI assistant on the admin site": "在管理後台顯示 AI 助理",
     "Open. The assistant panel is showing on the right.": "開啟。助理面板顯示在右側。",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -380,6 +403,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Não configurado",
     Save: "Salvar",
     "Saving…": "Salvando…",
+    "Save key": "Salvar chave",
+    "Save settings": "Salvar configurações",
     "Test Key": "Testar chave",
     "Testing…": "Testando…",
     "Key works — {count} models available.": "A chave funciona — {count} modelos disponíveis.",
@@ -387,11 +412,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Verifica a chave com o provedor e lista os modelos que ela pode usar.",
     "Asking the provider which models this key allows…": "Perguntando ao provedor quais modelos esta chave permite…",
     "Saved to the server, encrypted.": "Salva no servidor, criptografada.",
-    "Not saved yet — press Save.": "Ainda não salva — clique em Salvar.",
+    "Settings saved.": "Configurações salvas.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Armazenada no servidor, criptografada. Cole uma nova chave para substituí-la.",
-    "Paste your key, check it with Show, then press Save.":
-      "Cole sua chave, verifique-a com Mostrar e depois clique em Salvar.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Cole sua chave, verifique-a com Mostrar e depois clique em Salvar chave.",
     "Show the AI assistant on the admin site": "Mostrar o assistente de IA no site de administração",
     "Open. The assistant panel is showing on the right.": "Aberto. O painel do assistente está sendo exibido à direita.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -443,6 +468,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Не настроено",
     Save: "Сохранить",
     "Saving…": "Сохранение…",
+    "Save key": "Сохранить ключ",
+    "Save settings": "Сохранить настройки",
     "Test Key": "Проверить ключ",
     "Testing…": "Проверка…",
     "Key works — {count} models available.": "Ключ работает — доступно моделей: {count}.",
@@ -450,11 +477,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Проверяет ключ у провайдера и выводит список моделей, которые он может использовать.",
     "Asking the provider which models this key allows…": "Запрашиваем у провайдера, какие модели разрешены этим ключом…",
     "Saved to the server, encrypted.": "Сохранено на сервере в зашифрованном виде.",
-    "Not saved yet — press Save.": "Ещё не сохранено — нажмите «Сохранить».",
+    "Settings saved.": "Настройки сохранены.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Хранится на сервере в зашифрованном виде. Вставьте новый ключ, чтобы заменить его.",
-    "Paste your key, check it with Show, then press Save.":
-      "Вставьте свой ключ, проверьте его с помощью «Показать», затем нажмите «Сохранить».",
+    "Paste your key, check it with Show, then press Save key.":
+      "Вставьте свой ключ, проверьте его с помощью «Показать», затем нажмите «Сохранить ключ».",
     "Show the AI assistant on the admin site": "Показывать ИИ-ассистента в админ-панели",
     "Open. The assistant panel is showing on the right.": "Открыто. Панель ассистента отображается справа.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -505,6 +532,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "پیکربندی نشده",
     Save: "ذخیره",
     "Saving…": "در حال ذخیره…",
+    "Save key": "ذخیره کلید",
+    "Save settings": "ذخیره تنظیمات",
     "Test Key": "آزمایش کلید",
     "Testing…": "در حال آزمایش…",
     "Key works — {count} models available.": "کلید کار می‌کند — {count} مدل در دسترس است.",
@@ -512,11 +541,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "کلید را نزد ارائه‌دهنده بررسی می‌کند و مدل‌هایی را که می‌تواند استفاده کند فهرست می‌کند.",
     "Asking the provider which models this key allows…": "در حال پرسیدن از ارائه‌دهنده که این کلید کدام مدل‌ها را مجاز می‌داند…",
     "Saved to the server, encrypted.": "به‌صورت رمزنگاری‌شده روی سرور ذخیره شد.",
-    "Not saved yet — press Save.": "هنوز ذخیره نشده — روی ذخیره بزنید.",
+    "Settings saved.": "تنظیمات ذخیره شد.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "به‌صورت رمزنگاری‌شده روی سرور ذخیره شده است. برای جایگزینی، کلید جدید را جای‌گذاری کنید.",
-    "Paste your key, check it with Show, then press Save.":
-      "کلید خود را جای‌گذاری کنید، با نمایش آن را بررسی کنید، سپس روی ذخیره بزنید.",
+    "Paste your key, check it with Show, then press Save key.":
+      "کلید خود را جای‌گذاری کنید، با نمایش آن را بررسی کنید، سپس روی ذخیره کلید بزنید.",
     "Show the AI assistant on the admin site": "نمایش دستیار هوش مصنوعی در سایت مدیریت",
     "Open. The assistant panel is showing on the right.": "باز. پنل دستیار در سمت راست نمایش داده می‌شود.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -567,6 +596,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "غير مهيَّأ",
     Save: "حفظ",
     "Saving…": "جارٍ الحفظ…",
+    "Save key": "حفظ المفتاح",
+    "Save settings": "حفظ الإعدادات",
     "Test Key": "اختبار المفتاح",
     "Testing…": "جارٍ الاختبار…",
     "Key works — {count} models available.": "المفتاح يعمل — يتوفر {count} من النماذج.",
@@ -574,11 +605,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "يتحقّق من المفتاح لدى المزوِّد ويسرد النماذج التي يمكنه استخدامها.",
     "Asking the provider which models this key allows…": "جارٍ سؤال المزوِّد عن النماذج التي يسمح بها هذا المفتاح…",
     "Saved to the server, encrypted.": "حُفظ على الخادم، مشفَّرًا.",
-    "Not saved yet — press Save.": "لم يُحفظ بعد — اضغط حفظ.",
+    "Settings saved.": "حُفظت الإعدادات.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "مخزَّن على الخادم، مشفَّرًا. الصق مفتاحًا جديدًا لاستبداله.",
-    "Paste your key, check it with Show, then press Save.":
-      "الصق مفتاحك، تحقّق منه باستخدام إظهار، ثم اضغط حفظ.",
+    "Paste your key, check it with Show, then press Save key.":
+      "الصق مفتاحك، تحقّق منه باستخدام إظهار، ثم اضغط حفظ المفتاح.",
     "Show the AI assistant on the admin site": "إظهار مساعد الذكاء الاصطناعي في موقع الإدارة",
     "Open. The assistant panel is showing on the right.": "مفتوح. لوحة المساعد تظهر على اليمين.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -628,6 +659,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "未設定",
     Save: "保存",
     "Saving…": "保存中…",
+    "Save key": "キーを保存",
+    "Save settings": "設定を保存",
     "Test Key": "キーをテスト",
     "Testing…": "テスト中…",
     "Key works — {count} models available.": "キーは有効です — 利用可能なモデル {count} 件。",
@@ -635,11 +668,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "プロバイダーに対してキーを確認し、使用できるモデルの一覧を表示します。",
     "Asking the provider which models this key allows…": "このキーで許可されているモデルをプロバイダーに問い合わせています…",
     "Saved to the server, encrypted.": "暗号化されてサーバーに保存済みです。",
-    "Not saved yet — press Save.": "まだ保存されていません — 保存を押してください。",
+    "Settings saved.": "設定を保存しました。",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "暗号化されてサーバーに保存されています。置き換えるには新しいキーを貼り付けてください。",
-    "Paste your key, check it with Show, then press Save.":
-      "キーを貼り付け、表示で確認してから保存を押してください。",
+    "Paste your key, check it with Show, then press Save key.":
+      "キーを貼り付け、表示で確認してから「キーを保存」を押してください。",
     "Show the AI assistant on the admin site": "管理サイトにAIアシスタントを表示する",
     "Open. The assistant panel is showing on the right.": "開いています。アシスタントパネルが右側に表示されています。",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -689,6 +722,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "구성되지 않음",
     Save: "저장",
     "Saving…": "저장 중…",
+    "Save key": "키 저장",
+    "Save settings": "설정 저장",
     "Test Key": "키 테스트",
     "Testing…": "테스트 중…",
     "Key works — {count} models available.": "키가 작동합니다 — 사용 가능한 모델 {count}개.",
@@ -696,11 +731,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "제공업체에 키를 확인하고 사용할 수 있는 모델 목록을 표시합니다.",
     "Asking the provider which models this key allows…": "이 키로 사용할 수 있는 모델을 제공업체에 문의하는 중…",
     "Saved to the server, encrypted.": "암호화되어 서버에 저장되었습니다.",
-    "Not saved yet — press Save.": "아직 저장되지 않았습니다 — 저장을 누르세요.",
+    "Settings saved.": "설정이 저장되었습니다.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "암호화되어 서버에 저장되어 있습니다. 교체하려면 새 키를 붙여넣으세요.",
-    "Paste your key, check it with Show, then press Save.":
-      "키를 붙여넣고 표시로 확인한 다음 저장을 누르세요.",
+    "Paste your key, check it with Show, then press Save key.":
+      "키를 붙여넣고 표시로 확인한 다음 ‘키 저장’을 누르세요.",
     "Show the AI assistant on the admin site": "관리자 사이트에 AI 어시스턴트 표시",
     "Open. The assistant panel is showing on the right.": "열림. 어시스턴트 패널이 오른쪽에 표시되고 있습니다.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -750,6 +785,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Nieskonfigurowano",
     Save: "Zapisz",
     "Saving…": "Zapisywanie…",
+    "Save key": "Zapisz klucz",
+    "Save settings": "Zapisz ustawienia",
     "Test Key": "Testuj klucz",
     "Testing…": "Testowanie…",
     "Key works — {count} models available.": "Klucz działa — dostępnych modeli: {count}.",
@@ -757,11 +794,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Sprawdza klucz u dostawcy i wyświetla listę modeli, których może użyć.",
     "Asking the provider which models this key allows…": "Sprawdzanie u dostawcy, jakie modele dopuszcza ten klucz…",
     "Saved to the server, encrypted.": "Zapisano na serwerze, zaszyfrowany.",
-    "Not saved yet — press Save.": "Jeszcze niezapisany — kliknij Zapisz.",
+    "Settings saved.": "Ustawienia zapisane.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Przechowywany na serwerze, zaszyfrowany. Wklej nowy klucz, aby go zastąpić.",
-    "Paste your key, check it with Show, then press Save.":
-      "Wklej swój klucz, sprawdź go za pomocą Pokaż, a następnie kliknij Zapisz.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Wklej swój klucz, sprawdź go za pomocą Pokaż, a następnie kliknij Zapisz klucz.",
     "Show the AI assistant on the admin site": "Pokaż asystenta AI w panelu administracyjnym",
     "Open. The assistant panel is showing on the right.": "Otwarty. Panel asystenta jest wyświetlany po prawej stronie.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -811,6 +848,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Nincs konfigurálva",
     Save: "Mentés",
     "Saving…": "Mentés…",
+    "Save key": "Kulcs mentése",
+    "Save settings": "Beállítások mentése",
     "Test Key": "Kulcs tesztelése",
     "Testing…": "Tesztelés…",
     "Key works — {count} models available.": "A kulcs működik — {count} modell érhető el.",
@@ -818,11 +857,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Ellenőrzi a kulcsot a szolgáltatónál, és felsorolja a használható modelleket.",
     "Asking the provider which models this key allows…": "Lekérdezés a szolgáltatótól, mely modelleket engedélyezi ez a kulcs…",
     "Saved to the server, encrypted.": "Titkosítva mentve a szerverre.",
-    "Not saved yet — press Save.": "Még nincs mentve — nyomja meg a Mentés gombot.",
+    "Settings saved.": "Beállítások mentve.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Titkosítva tárolva a szerveren. A cseréhez illesszen be egy új kulcsot.",
-    "Paste your key, check it with Show, then press Save.":
-      "Illessze be a kulcsát, ellenőrizze a Megjelenítéssel, majd nyomja meg a Mentés gombot.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Illessze be a kulcsát, ellenőrizze a Megjelenítéssel, majd nyomja meg a Kulcs mentése gombot.",
     "Show the AI assistant on the admin site": "Az AI asszisztens megjelenítése az adminisztrációs webhelyen",
     "Open. The assistant panel is showing on the right.": "Nyitva. Az asszisztens panel a jobb oldalon jelenik meg.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -872,6 +911,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Non configuré",
     Save: "Enregistrer",
     "Saving…": "Enregistrement…",
+    "Save key": "Enregistrer la clé",
+    "Save settings": "Enregistrer les paramètres",
     "Test Key": "Tester la clé",
     "Testing…": "Test en cours…",
     "Key works — {count} models available.": "La clé fonctionne — {count} modèles disponibles.",
@@ -879,11 +920,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Vérifie la clé auprès du fournisseur et liste les modèles qu'elle peut utiliser.",
     "Asking the provider which models this key allows…": "Interrogation du fournisseur sur les modèles autorisés par cette clé…",
     "Saved to the server, encrypted.": "Enregistrée sur le serveur, chiffrée.",
-    "Not saved yet — press Save.": "Pas encore enregistrée — cliquez sur Enregistrer.",
+    "Settings saved.": "Paramètres enregistrés.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Stockée sur le serveur, chiffrée. Collez une nouvelle clé pour la remplacer.",
-    "Paste your key, check it with Show, then press Save.":
-      "Collez votre clé, vérifiez-la avec Afficher, puis cliquez sur Enregistrer.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Collez votre clé, vérifiez-la avec Afficher, puis cliquez sur Enregistrer la clé.",
     "Show the AI assistant on the admin site": "Afficher l'assistant IA sur le site d'administration",
     "Open. The assistant panel is showing on the right.": "Ouvert. Le panneau de l'assistant s'affiche à droite.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -933,6 +974,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Не налаштовано",
     Save: "Зберегти",
     "Saving…": "Збереження…",
+    "Save key": "Зберегти ключ",
+    "Save settings": "Зберегти налаштування",
     "Test Key": "Перевірити ключ",
     "Testing…": "Перевірка…",
     "Key works — {count} models available.": "Ключ працює — доступно моделей: {count}.",
@@ -940,11 +983,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Перевіряє ключ у провайдера і виводить список моделей, які він може використовувати.",
     "Asking the provider which models this key allows…": "Запитуємо провайдера, які моделі дозволяє цей ключ…",
     "Saved to the server, encrypted.": "Збережено на сервері в зашифрованому вигляді.",
-    "Not saved yet — press Save.": "Ще не збережено — натисніть «Зберегти».",
+    "Settings saved.": "Налаштування збережено.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Зберігається на сервері в зашифрованому вигляді. Вставте новий ключ, щоб замінити його.",
-    "Paste your key, check it with Show, then press Save.":
-      "Вставте свій ключ, перевірте його за допомогою «Показати», потім натисніть «Зберегти».",
+    "Paste your key, check it with Show, then press Save key.":
+      "Вставте свій ключ, перевірте його за допомогою «Показати», потім натисніть «Зберегти ключ».",
     "Show the AI assistant on the admin site": "Показувати ШІ-асистента на сайті адміністрування",
     "Open. The assistant panel is showing on the right.": "Відкрито. Панель асистента відображається праворуч.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -994,6 +1037,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Yapılandırılmadı",
     Save: "Kaydet",
     "Saving…": "Kaydediliyor…",
+    "Save key": "Anahtarı kaydet",
+    "Save settings": "Ayarları kaydet",
     "Test Key": "Anahtarı test et",
     "Testing…": "Test ediliyor…",
     "Key works — {count} models available.": "Anahtar çalışıyor — {count} model kullanılabilir.",
@@ -1001,11 +1046,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Anahtarı sağlayıcıya karşı kontrol eder ve kullanabileceği modelleri listeler.",
     "Asking the provider which models this key allows…": "Bu anahtarın hangi modellere izin verdiği sağlayıcıya soruluyor…",
     "Saved to the server, encrypted.": "Sunucuya şifrelenerek kaydedildi.",
-    "Not saved yet — press Save.": "Henüz kaydedilmedi — Kaydet'e basın.",
+    "Settings saved.": "Ayarlar kaydedildi.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Sunucuda şifrelenerek saklanıyor. Değiştirmek için yeni bir anahtar yapıştırın.",
-    "Paste your key, check it with Show, then press Save.":
-      "Anahtarınızı yapıştırın, Göster ile kontrol edin, ardından Kaydet'e basın.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Anahtarınızı yapıştırın, Göster ile kontrol edin, ardından Anahtarı kaydet'e basın.",
     "Show the AI assistant on the admin site": "Yapay zeka asistanını yönetim sitesinde göster",
     "Open. The assistant panel is showing on the right.": "Açık. Asistan paneli sağda gösteriliyor.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -1055,6 +1100,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "ยังไม่ได้กำหนดค่า",
     Save: "บันทึก",
     "Saving…": "กำลังบันทึก…",
+    "Save key": "บันทึกคีย์",
+    "Save settings": "บันทึกการตั้งค่า",
     "Test Key": "ทดสอบคีย์",
     "Testing…": "กำลังทดสอบ…",
     "Key works — {count} models available.": "คีย์ใช้งานได้ — มีโมเดลที่ใช้ได้ {count} รายการ",
@@ -1062,11 +1109,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "ตรวจสอบคีย์กับผู้ให้บริการและแสดงรายการโมเดลที่ใช้ได้",
     "Asking the provider which models this key allows…": "กำลังสอบถามผู้ให้บริการว่าคีย์นี้อนุญาตให้ใช้โมเดลใดบ้าง…",
     "Saved to the server, encrypted.": "บันทึกลงเซิร์ฟเวอร์แบบเข้ารหัสแล้ว",
-    "Not saved yet — press Save.": "ยังไม่ได้บันทึก — กดบันทึก",
+    "Settings saved.": "บันทึกการตั้งค่าแล้ว",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "จัดเก็บบนเซิร์ฟเวอร์แบบเข้ารหัส วางคีย์ใหม่เพื่อแทนที่",
-    "Paste your key, check it with Show, then press Save.":
-      "วางคีย์ของคุณ ตรวจสอบด้วยแสดง แล้วกดบันทึก",
+    "Paste your key, check it with Show, then press Save key.":
+      "วางคีย์ของคุณ ตรวจสอบด้วยแสดง แล้วกดบันทึกคีย์",
     "Show the AI assistant on the admin site": "แสดงผู้ช่วย AI บนเว็บไซต์ผู้ดูแลระบบ",
     "Open. The assistant panel is showing on the right.": "เปิดอยู่ แผงผู้ช่วยแสดงอยู่ทางด้านขวา",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -1116,6 +1163,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "Non configurato",
     Save: "Salva",
     "Saving…": "Salvataggio…",
+    "Save key": "Salva chiave",
+    "Save settings": "Salva impostazioni",
     "Test Key": "Testa chiave",
     "Testing…": "Test in corso…",
     "Key works — {count} models available.": "La chiave funziona — {count} modelli disponibili.",
@@ -1123,11 +1172,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "Verifica la chiave con il provider ed elenca i modelli che può utilizzare.",
     "Asking the provider which models this key allows…": "Richiesta al provider dei modelli consentiti da questa chiave…",
     "Saved to the server, encrypted.": "Salvata sul server, crittografata.",
-    "Not saved yet — press Save.": "Non ancora salvata — premi Salva.",
+    "Settings saved.": "Impostazioni salvate.",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "Archiviata sul server, crittografata. Incolla una nuova chiave per sostituirla.",
-    "Paste your key, check it with Show, then press Save.":
-      "Incolla la tua chiave, verificala con Mostra, quindi premi Salva.",
+    "Paste your key, check it with Show, then press Save key.":
+      "Incolla la tua chiave, verificala con Mostra, quindi premi Salva chiave.",
     "Show the AI assistant on the admin site": "Mostra l'assistente IA sul sito di amministrazione",
     "Open. The assistant panel is showing on the right.": "Aperto. Il pannello dell'assistente viene mostrato a destra.",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -1179,6 +1228,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "कॉन्फ़िगर नहीं किया गया",
     Save: "सहेजें",
     "Saving…": "सहेजा जा रहा है…",
+    "Save key": "कुंजी सहेजें",
+    "Save settings": "सेटिंग्स सहेजें",
     "Test Key": "कुंजी टेस्ट करें",
     "Testing…": "टेस्ट हो रहा है…",
     "Key works — {count} models available.": "कुंजी काम कर रही है — {count} मॉडल उपलब्ध हैं।",
@@ -1186,11 +1237,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "यह कुंजी को प्रदाता के पास जांचता है और उन मॉडल की सूची दिखाता है जिन्हें यह उपयोग कर सकती है।",
     "Asking the provider which models this key allows…": "प्रदाता से पूछा जा रहा है कि यह कुंजी किन मॉडल की अनुमति देती है…",
     "Saved to the server, encrypted.": "सर्वर पर एन्क्रिप्टेड रूप से सहेजा गया।",
-    "Not saved yet — press Save.": "अभी तक सहेजा नहीं गया — सहेजें दबाएं।",
+    "Settings saved.": "सेटिंग्स सहेजी गईं।",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "सर्वर पर एन्क्रिप्टेड रूप से संग्रहीत। इसे बदलने के लिए एक नई कुंजी पेस्ट करें।",
-    "Paste your key, check it with Show, then press Save.":
-      "अपनी कुंजी पेस्ट करें, दिखाएं से इसकी जांच करें, फिर सहेजें दबाएं।",
+    "Paste your key, check it with Show, then press Save key.":
+      "अपनी कुंजी पेस्ट करें, दिखाएं से इसकी जांच करें, फिर कुंजी सहेजें दबाएं।",
     "Show the AI assistant on the admin site": "एडमिन साइट पर एआई सहायक दिखाएं",
     "Open. The assistant panel is showing on the right.": "खुला है। सहायक पैनल दाईं ओर दिखाया जा रहा है।",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -1242,6 +1293,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "کنفیگر نہیں کیا گیا",
     Save: "محفوظ کریں",
     "Saving…": "محفوظ ہو رہا ہے…",
+    "Save key": "کلید محفوظ کریں",
+    "Save settings": "ترتیبات محفوظ کریں",
     "Test Key": "کلید ٹیسٹ کریں",
     "Testing…": "ٹیسٹ ہو رہا ہے…",
     "Key works — {count} models available.": "کلید کام کر رہی ہے — {count} ماڈلز دستیاب ہیں۔",
@@ -1249,11 +1302,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "کلید کو فراہم کنندہ کے پاس چیک کرتی ہے اور ان ماڈلز کی فہرست دکھاتی ہے جو یہ استعمال کر سکتی ہے۔",
     "Asking the provider which models this key allows…": "فراہم کنندہ سے پوچھا جا رہا ہے کہ یہ کلید کن ماڈلز کی اجازت دیتی ہے…",
     "Saved to the server, encrypted.": "سرور پر خفیہ کاری کے ساتھ محفوظ ہو گئی۔",
-    "Not saved yet — press Save.": "ابھی تک محفوظ نہیں ہوئی — محفوظ کریں دبائیں۔",
+    "Settings saved.": "ترتیبات محفوظ ہو گئیں۔",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "سرور پر خفیہ کاری کے ساتھ محفوظ ہے۔ اسے بدلنے کے لیے نئی کلید پیسٹ کریں۔",
-    "Paste your key, check it with Show, then press Save.":
-      "اپنی کلید پیسٹ کریں، دکھائیں کے ذریعے اسے چیک کریں، پھر محفوظ کریں دبائیں۔",
+    "Paste your key, check it with Show, then press Save key.":
+      "اپنی کلید پیسٹ کریں، دکھائیں کے ذریعے اسے چیک کریں، پھر کلید محفوظ کریں دبائیں۔",
     "Show the AI assistant on the admin site": "ایڈمن سائٹ پر AI اسسٹنٹ دکھائیں",
     "Open. The assistant panel is showing on the right.": "کھلا ہے۔ اسسٹنٹ پینل دائیں جانب دکھایا جا رہا ہے۔",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":
@@ -1305,6 +1358,8 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Not configured": "কনফিগার করা হয়নি",
     Save: "সংরক্ষণ করুন",
     "Saving…": "সংরক্ষণ করা হচ্ছে…",
+    "Save key": "কী সংরক্ষণ করুন",
+    "Save settings": "সেটিংস সংরক্ষণ করুন",
     "Test Key": "কী পরীক্ষা করুন",
     "Testing…": "পরীক্ষা করা হচ্ছে…",
     "Key works — {count} models available.": "কী কাজ করছে — {count}টি মডেল উপলব্ধ।",
@@ -1312,11 +1367,11 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
       "প্রদানকারীর কাছে কী যাচাই করে এবং এটি যেসব মডেল ব্যবহার করতে পারে তার তালিকা দেখায়।",
     "Asking the provider which models this key allows…": "প্রদানকারীর কাছে জিজ্ঞাসা করা হচ্ছে এই কী কোন কোন মডেলের অনুমতি দেয়…",
     "Saved to the server, encrypted.": "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত হয়েছে।",
-    "Not saved yet — press Save.": "এখনও সংরক্ষিত হয়নি — সংরক্ষণ করুন চাপুন।",
+    "Settings saved.": "সেটিংস সংরক্ষিত হয়েছে।",
     "Stored on the server, encrypted. Paste a new key to replace it.":
       "এনক্রিপ্ট করে সার্ভারে সংরক্ষিত আছে। প্রতিস্থাপন করতে নতুন কী পেস্ট করুন।",
-    "Paste your key, check it with Show, then press Save.":
-      "আপনার কী পেস্ট করুন, দেখান দিয়ে এটি যাচাই করুন, তারপর সংরক্ষণ করুন চাপুন।",
+    "Paste your key, check it with Show, then press Save key.":
+      "আপনার কী পেস্ট করুন, দেখান দিয়ে এটি যাচাই করুন, তারপর কী সংরক্ষণ করুন চাপুন।",
     "Show the AI assistant on the admin site": "অ্যাডমিন সাইটে এআই সহকারী দেখান",
     "Open. The assistant panel is showing on the right.": "খোলা আছে। সহকারী প্যানেল ডানদিকে দেখানো হচ্ছে।",
     "Opens the assistant panel in this admin — the same thing the floating button in the bottom-right corner does.":

@@ -39,13 +39,23 @@ export type SaveState =
   | { status: "saved"; at: string | null }
   | { status: "error"; message: string };
 
-/** The four writers {@link saveVisitorCredential} needs, grouped rather than passed as four loose
- *  setters beside four loose values. A save either advances all of them or none. */
+/** The writers {@link saveVisitorKey} needs, grouped rather than passed as loose setters beside
+ *  loose values. A save either advances all of them or none.
+ *
+ *  `setDirty` is deliberately absent: `dirty` tracks unsaved SETTINGS, and a key write does not save
+ *  them — see {@link saveVisitorSettings}, which is the only thing that clears it. */
 export interface VisitorCredentialSaveWriters {
   setSaveState: (state: SaveState) => void;
   setStored: (stored: SiteAssistantCredential) => void;
-  setDirty: (dirty: boolean) => void;
   setConfig: (updater: (current: ByokConfig) => ByokConfig) => void;
+}
+
+/** {@link saveVisitorSettings}'s own writers — its own save state, the server's returned view, and
+ *  the `dirty` flag it is the sole clearer of. */
+export interface VisitorCredentialSettingsSaveWriters {
+  setSettingsSaveState: (state: SaveState) => void;
+  setStored: (stored: SiteAssistantCredential) => void;
+  setDirty: (dirty: boolean) => void;
 }
 
 export interface VisitorCredentialFormController {
@@ -58,14 +68,19 @@ export interface VisitorCredentialFormController {
   connectionTest: ConnectionTestState;
   /** The server's write-only view of what is currently stored (`isSet` + `masked`), never the key. */
   stored: SiteAssistantCredential | null;
+  /** The "Save key" button's own save state. Never advanced by {@link saveSettings}. */
   saveState: SaveState;
+  /** The "Save settings" button's own save state, deliberately separate from {@link saveState}: two
+   *  buttons writing two disjoint patches need two answers, and one shared state is exactly what let
+   *  a settings-only press report that a key had been stored. */
+  settingsSaveState: SaveState;
   /**
-   * True once the operator has actually changed something — what Save is enabled by.
+   * True once the operator has actually changed something — what "Save settings" is enabled by.
    *
    * State rather than a ref because a button's disabled-ness has to re-render on it. Set ONLY from
    * `editConfig`, so neither hydration nor discovery seeding a model counts as an edit; without
-   * that separation Save would light up on load offering to write back the values the server just
-   * sent, and — if the initial GET had failed — to write this form's hardcoded defaults over a
+   * that separation the button would light up on load offering to write back the values the server
+   * just sent, and — if the initial GET had failed — to write this form's hardcoded defaults over a
    * perfectly good stored credential.
    */
   dirty: boolean;
@@ -77,42 +92,48 @@ export interface VisitorCredentialFormController {
    *  filled/unfilled dot. */
   configuredPresetIds: Set<string>;
   selectPreset: (next: ProviderPreset) => void;
-  saveCredential: () => Promise<void>;
+  /** Writes the KEY only — see {@link saveVisitorKey}. */
+  saveKey: () => Promise<void>;
+  /** Writes provider/baseUrl/model only, never a key — see {@link saveVisitorSettings}. */
+  saveSettings: () => Promise<void>;
   runKeyTest: () => Promise<void>;
   runTestConnection: () => Promise<void>;
 }
 
 /**
- * The explicit save, extracted from the hook body per the complexity-pass extraction rule — a
- * top-level function, not a nested closure, so it actually leaves the hook's own scope instead of
- * only lowering its ESLint per-closure score (the "whole-hook" view the owner's tool takes rolls
- * every nested closure back in regardless of how small each one measures on its own). See
- * `VisitorCredentialForm`'s own doc comment in `AiAssistant.tsx` for the "why an explicit press,
- * not a debounce" reasoning this function implements; `apiKey.trim()` empty-field handling implements
- * `put-site-credential.ts`'s documented "leave the stored key alone" case.
+ * The "Save key" press — writes the KEY and nothing else.
+ *
+ * ## Why this is half of what it used to be (owner ruling, 2026-09-02)
+ *
+ * One control used to write the key AND provider/baseUrl/model together, mirroring the admin BYOK
+ * panel's identical overload. A button with two jobs cannot honestly report which one it just did:
+ * pressing it with an empty field sent a patch carrying no `apiKey` at all and still answered "Saved
+ * to the server, encrypted." The fix is not a better message, it is one job per button —
+ * {@link saveVisitorSettings} took the other half.
+ *
+ * A blank or whitespace-only field is a no-op, not a partial write. That is a real narrowing: the
+ * old guard let a blank field through whenever a key was already stored, on the strength of the
+ * OTHER fields being worth writing. Those fields have their own button now, so the only thing left
+ * to check is whether there is a key to send.
+ *
+ * Extracted as a top-level function, not a nested closure, per the complexity-pass extraction rule —
+ * see `VisitorCredentialForm`'s own doc comment in `AiAssistant.tsx` for the "why an explicit press,
+ * not a debounce" reasoning both halves implement.
  */
-export async function saveVisitorCredential(deps: {
+export async function saveVisitorKey(deps: {
   /** Injected, not imported — see {@link VisitorCredentialFormPort}. */
   api: VisitorCredentialFormPort;
-  /** The whole draft, rather than the four fields picked out of it: the patch is built from `config`
-   *  and nothing else, so restating its members here only invited them to drift apart. */
+  /** The whole draft, rather than the one field picked out of it, for symmetry with
+   *  {@link saveVisitorSettings} and so a future field cannot be forgotten at one call site. */
   config: ByokConfig;
-  hasStoredKey: boolean;
   writers: VisitorCredentialSaveWriters;
 }): Promise<void> {
-  const { config, hasStoredKey } = deps;
-  const { setSaveState, setStored, setDirty, setConfig } = deps.writers;
-  const apiKey = config.apiKey;
-  // No key typed AND none stored: the only thing a write could do is create a keyless row, which
-  // would make `isSet` lie about a credential that does not exist.
-  if (!apiKey.trim() && !hasStoredKey) return;
+  const { setSaveState, setStored, setConfig } = deps.writers;
+  const apiKey = deps.config.apiKey.trim();
+  if (!apiKey) return; // nothing typed — there is no key to write
 
-  const patch: SiteAssistantCredentialPatch = {
-    provider: config.protocol,
-    baseUrl: config.baseUrl,
-    model: config.model,
-  };
-  if (apiKey.trim()) patch.apiKey = apiKey.trim();
+  // The key ALONE, built from one literal so no branch here can let another field through.
+  const patch: SiteAssistantCredentialPatch = { apiKey };
 
   setSaveState({ status: "saving" });
   try {
@@ -122,13 +143,47 @@ export async function saveVisitorCredential(deps: {
     // claiming a key is stored when it is not.
     setStored(data);
     setSaveState({ status: "saved", at: data.updatedAt });
-    setDirty(false);
     // Clear the field once the key is safely stored. Leaving the plaintext sitting in a React
     // state tree after it has been persisted keeps it readable in devtools for no benefit, and the
     // masked placeholder now carries the "which key" answer the field would otherwise be giving.
-    if (patch.apiKey) setConfig((current) => ({ ...current, apiKey: "" }));
+    setConfig((current) => ({ ...current, apiKey: "" }));
   } catch (e) {
     setSaveState({ status: "error", message: describeApiError(e, "failed to save the key") });
+  }
+}
+
+/**
+ * The "Save settings" press — writes provider/baseUrl/model and NEVER an `apiKey` property.
+ *
+ * Not even an empty string: `put-site-credential.ts` rejects that with a 400, and it is precisely
+ * the write the old overloaded control could make. The field's contents are not read here at all, so
+ * there is no state of the form in which this patch can grow a key.
+ *
+ * `dirty` is cleared here and only here — it means "settings changed since they were last written",
+ * which is exactly the question this button answers. {@link saveVisitorKey} leaves it alone.
+ */
+export async function saveVisitorSettings(deps: {
+  api: VisitorCredentialFormPort;
+  config: ByokConfig;
+  writers: VisitorCredentialSettingsSaveWriters;
+}): Promise<void> {
+  const { config } = deps;
+  const { setSettingsSaveState, setStored, setDirty } = deps.writers;
+
+  const patch: SiteAssistantCredentialPatch = {
+    provider: config.protocol,
+    baseUrl: config.baseUrl,
+    model: config.model,
+  };
+
+  setSettingsSaveState({ status: "saving" });
+  try {
+    const { data } = await deps.api.setAssistantSiteCredential(patch);
+    setStored(data);
+    setSettingsSaveState({ status: "saved", at: data.updatedAt });
+    setDirty(false);
+  } catch (e) {
+    setSettingsSaveState({ status: "error", message: describeApiError(e, "failed to save the settings") });
   }
 }
 
@@ -282,6 +337,7 @@ export function useVisitorCredentialForm({
   /** The server's write-only view of what is currently stored (`isSet` + `masked`), never the key. */
   const [stored, setStored] = useState<SiteAssistantCredential | null>(null);
   const [saveState, setSaveState] = useState<SaveState>({ status: "idle" });
+  const [settingsSaveState, setSettingsSaveState] = useState<SaveState>({ status: "idle" });
 
   /**
    * True once the operator has actually changed something — what Save is enabled by.
@@ -366,18 +422,21 @@ export function useVisitorCredentialForm({
     };
   }, [stored?.isSet, baseUrl, protocol]);
 
-  // Nothing on this screen writes a credential except this function, called from the Save button.
-  // Why an explicit press rather than the debounce this used to be, and why `apiKey` is omitted
-  // when the field is empty — see `saveVisitorCredential`'s own doc comment above (moved WITH the
-  // function in the complexity-pass extraction, not summarised here).
+  // Nothing on this screen writes a credential except these two functions, called from the two Save
+  // buttons. Why an explicit press rather than the debounce this used to be, and why each patch
+  // carries what it carries — see `saveVisitorKey`/`saveVisitorSettings`'s own doc comments above
+  // (moved WITH the functions in the complexity-pass extraction, not summarised here).
   const hasStoredKey = hasStoredCredential(stored);
 
-  function saveCredential() {
-    return saveVisitorCredential({
+  function saveKey() {
+    return saveVisitorKey({ api: apiRef.current, config, writers: { setSaveState, setStored, setConfig } });
+  }
+
+  function saveSettings() {
+    return saveVisitorSettings({
       api: apiRef.current,
       config,
-      hasStoredKey,
-      writers: { setSaveState, setStored, setDirty, setConfig },
+      writers: { setSettingsSaveState, setStored, setDirty },
     });
   }
 
@@ -482,12 +541,14 @@ export function useVisitorCredentialForm({
     connectionTest,
     stored,
     saveState,
+    settingsSaveState,
     dirty,
     hasUsableKey: hasUsableKey(apiKey, stored),
     hasStoredKey,
     configuredPresetIds: configuredPresetIdsRule(config),
     selectPreset,
-    saveCredential,
+    saveKey,
+    saveSettings,
     runKeyTest,
     runTestConnection,
   };

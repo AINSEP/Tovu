@@ -47,7 +47,7 @@ export function hasUsableKey(apiKey: string, stored: SiteAssistantCredential | n
 }
 
 /** Whether the server currently has a credential stored for this site — the "leave the stored key
- *  alone" case `saveCredential` checks before refusing a keyless write.
+ *  alone" case `saveVisitorSettings` relies on when it writes a patch with no `apiKey`.
  *
  * @complexity Time/space: O(1).
  * @overallScore 100

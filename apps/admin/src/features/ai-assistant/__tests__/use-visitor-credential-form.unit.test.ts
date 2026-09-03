@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ByokConfig } from "@jini-ai/ui";
 
 import {
   api,
@@ -8,7 +9,8 @@ import {
   type SiteAssistantCredentialPatch,
 } from "@/lib/api";
 import {
-  saveVisitorCredential,
+  saveVisitorKey,
+  saveVisitorSettings,
   useWiredVisitorCredentialForm,
   useVisitorCredentialForm,
 } from "../hooks/use-visitor-credential-form.hooks";
@@ -331,8 +333,8 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   });
 });
 
-describe("useVisitorCredentialForm — saveCredential", () => {
-  it("is a no-op with no fetch call when the field is empty and nothing is stored", async () => {
+describe("useVisitorCredentialForm — saveKey", () => {
+  it("is a no-op with no fetch call when the field is empty", async () => {
     const setAssistantSiteCredential = vi.spyOn(api, "setAssistantSiteCredential");
     const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
@@ -340,14 +342,14 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     });
 
     await act(async () => {
-      await result.current.saveCredential();
+      await result.current.saveKey();
     });
 
     expect(setAssistantSiteCredential).not.toHaveBeenCalled();
     expect(result.current.saveState).toEqual({ status: "idle" });
   });
 
-  it("on success: updates stored, clears dirty, and clears the typed key from the field", async () => {
+  it("on success: updates stored and clears the typed key from the field, leaving dirty alone", async () => {
     vi.spyOn(api, "setAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••wxyz", updatedAt: "2026-08-06T00:00:00.000Z" }),
     });
@@ -359,12 +361,15 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     expect(result.current.dirty).toBe(true);
 
     await act(async () => {
-      await result.current.saveCredential();
+      await result.current.saveKey();
     });
 
     expect(result.current.stored?.isSet).toBe(true);
     expect(result.current.saveState).toEqual({ status: "saved", at: "2026-08-06T00:00:00.000Z" });
-    expect(result.current.dirty).toBe(false);
+    // `dirty` means "settings changed since they were last written", and a key write does not write
+    // them — clearing it here would have told the operator their unsaved model change was saved.
+    // Only `saveSettings` clears it (2026-09-02 two-button split).
+    expect(result.current.dirty).toBe(true);
     expect(result.current.config.apiKey).toBe("");
   });
 
@@ -377,14 +382,14 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-new-key" }));
 
     await act(async () => {
-      await result.current.saveCredential();
+      await result.current.saveKey();
     });
 
     expect(result.current.saveState).toEqual({ status: "error", message: "boom" });
     expect(result.current.config.apiKey).toBe("sk-new-key");
   });
 
-  it("omits apiKey from the write when the field is empty but a credential is already stored — the 'leave the stored key alone' case", async () => {
+  it("saveSettings omits apiKey when the field is empty but a credential is already stored — the 'leave the stored key alone' case", async () => {
     vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
     vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise(() => {})); // keep discovery quiet
     const setAssistantSiteCredential = vi
@@ -398,7 +403,7 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     act(() => result.current.editConfig({ ...result.current.config, model: "m1" }));
 
     await act(async () => {
-      await result.current.saveCredential();
+      await result.current.saveSettings();
     });
 
     const [patch] = setAssistantSiteCredential.mock.calls[0];
@@ -406,13 +411,12 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     expect(patch.model).toBe("m1");
   });
 
-  it("omits apiKey for a WHITESPACE-only field too, and never sends an empty string", async () => {
-    // Same "leave the stored key alone" contract as the test above, for the input that looks
-    // non-empty to a naive check. The visitor Save deliberately stays available here (it writes the
-    // whole config, so "change my model, keep my key" is a real thing to want) — which makes the
-    // payload, not the button, the only thing standing between a blank field and the stored key.
-    // Asserted as an absent PROPERTY, not a falsy value: `apiKey: ""` would satisfy a truthiness
-    // check while being exactly the write that must never happen.
+  it("never sends an empty string for a WHITESPACE-only field — saveKey writes nothing, saveSettings omits apiKey", async () => {
+    // The input that looks non-empty to a naive check, run against BOTH buttons. Since the split,
+    // two independent things stand between a blank-looking field and the stored key: Save key
+    // refuses to call the server at all, and Save settings has no `apiKey` in its patch to begin
+    // with. Asserted as an absent PROPERTY, not a falsy value: `apiKey: ""` would satisfy a
+    // truthiness check while being exactly the write that must never happen.
     vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m0" }) });
     vi.spyOn(api, "listExecutionModels").mockReturnValue(new Promise(() => {}));
     const setAssistantSiteCredential = vi
@@ -426,7 +430,13 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     act(() => result.current.editConfig({ ...result.current.config, apiKey: "   \t   ", model: "m1" }));
 
     await act(async () => {
-      await result.current.saveCredential();
+      await result.current.saveKey();
+    });
+
+    expect(setAssistantSiteCredential, "a whitespace-only field is not a key").not.toHaveBeenCalled();
+
+    await act(async () => {
+      await result.current.saveSettings();
     });
 
     const [patch] = setAssistantSiteCredential.mock.calls[0];
@@ -470,11 +480,12 @@ describe("useVisitorCredentialForm — editConfig", () => {
 });
 
 /**
- * The injected-port seam from the F05 coupling fix (audit `TM-20260810-01`). `saveVisitorCredential`
- * used to import the ambient `api` singleton directly, so the only way to exercise it was to
- * `vi.spyOn` that module — which every test above still does for the hook's other surfaces. These
- * assertions pass a fake in instead: no module mocking at all, which is the property that proves the
- * seam is a real dependency boundary rather than a rename.
+ * The injected-port seam from the F05 coupling fix (audit `TM-20260810-01`). The save handler used to
+ * import the ambient `api` singleton directly, so the only way to exercise it was to `vi.spyOn` that
+ * module — which every test above still does for the hook's other surfaces. These assertions pass a
+ * fake in instead: no module mocking at all, which is the property that proves the seam is a real
+ * dependency boundary rather than a rename. Retargeted onto `saveVisitorKey`/`saveVisitorSettings`
+ * by the 2026-09-02 two-button split; the seam itself is unchanged.
  */
 describe("VisitorCredentialFormPort injection", () => {
   function fakeApi(stored: SiteAssistantCredential) {
@@ -496,55 +507,66 @@ describe("VisitorCredentialFormPort injection", () => {
     };
   }
 
-  it("saveVisitorCredential writes through the injected port, never the ambient singleton", async () => {
+  const CONFIG: ByokConfig = {
+    protocol: "google",
+    providerId: "google-gemini",
+    apiKey: "  typed-key  ",
+    baseUrl: "https://example.test",
+    model: "gemini-flash-latest",
+  };
+
+  it("saveVisitorKey writes the trimmed key ALONE through the injected port, never the ambient singleton", async () => {
     // No `vi.spyOn(api, ...)` anywhere in this test: if the handler still reached for the module
     // singleton, this would hit the real client and the fake would record nothing.
     const fake = fakeApi(credential());
     const writes: string[] = [];
 
-    await saveVisitorCredential({
+    await saveVisitorKey({
       api: fake.port,
-      config: {
-        protocol: "google",
-        providerId: "google-gemini",
-        apiKey: "  typed-key  ",
-        baseUrl: "https://example.test",
-        model: "gemini-flash-latest",
-      },
-      hasStoredKey: false,
+      config: CONFIG,
       writers: {
         setSaveState: (state) => writes.push(`saveState:${state.status}`),
         setStored: () => writes.push("stored"),
-        setDirty: (dirty) => writes.push(`dirty:${String(dirty)}`),
         setConfig: () => writes.push("config"),
       },
     });
 
-    expect(fake.setCalls).toEqual([
-      { provider: "google", baseUrl: "https://example.test", model: "gemini-flash-latest", apiKey: "typed-key" },
-    ]);
-    expect(writes).toEqual(["saveState:saving", "stored", "saveState:saved", "dirty:false", "config"]);
+    expect(fake.setCalls).toEqual([{ apiKey: "typed-key" }]);
+    expect(writes).toEqual(["saveState:saving", "stored", "saveState:saved", "config"]);
   });
 
-  it("saveVisitorCredential reports the injected port's failure without touching storage", async () => {
+  it("saveVisitorSettings writes the non-secret fields ALONE through the injected port", async () => {
+    const fake = fakeApi(credential());
+    const writes: string[] = [];
+
+    await saveVisitorSettings({
+      api: fake.port,
+      config: CONFIG,
+      writers: {
+        setSettingsSaveState: (state) => writes.push(`settingsSaveState:${state.status}`),
+        setStored: () => writes.push("stored"),
+        setDirty: (dirty) => writes.push(`dirty:${String(dirty)}`),
+      },
+    });
+
+    expect(fake.setCalls).toEqual([
+      { provider: "google", baseUrl: "https://example.test", model: "gemini-flash-latest" },
+    ]);
+    expect(Object.keys(fake.setCalls[0] as object)).not.toContain("apiKey");
+    expect(writes).toEqual(["settingsSaveState:saving", "stored", "settingsSaveState:saved", "dirty:false"]);
+  });
+
+  it("saveVisitorKey reports the injected port's failure without touching storage", async () => {
     const states: string[] = [];
-    await saveVisitorCredential({
+    await saveVisitorKey({
       api: {
         getAssistantSiteCredential: () => Promise.reject(new Error("unused")),
         setAssistantSiteCredential: () => Promise.reject(new ApiError("boom", 500, "SERVER_ERROR")),
       },
-      config: {
-        protocol: "google",
-        providerId: "google-gemini",
-        apiKey: "typed-key",
-        baseUrl: "https://example.test",
-        model: "gemini-flash-latest",
-      },
-      hasStoredKey: false,
+      config: { ...CONFIG, apiKey: "typed-key" },
       writers: {
         setSaveState: (state) => states.push(state.status),
         setStored: () => states.push("stored-MUST-NOT-HAPPEN"),
-        setDirty: () => states.push("dirty-MUST-NOT-HAPPEN"),
         setConfig: () => states.push("config-MUST-NOT-HAPPEN"),
       },
     });
@@ -562,5 +584,78 @@ describe("VisitorCredentialFormPort injection", () => {
     expect(fake.getCallCount()).toBe(1);
     expect(result.current.stored?.masked).toBe("••••1234");
     expect(result.current.config.baseUrl).toBe("https://injected.test");
+  });
+});
+
+/**
+ * The two-button split (owner ruling, 2026-09-02) — the same change made to the admin's own BYOK
+ * panel, applied to this screen. One control used to write the key AND provider/baseUrl/model
+ * together, which is why its status line could say "Saved to the server, encrypted." about a press
+ * that sent no key. Each button now writes exactly one thing; these two cases pin what each patch
+ * must carry and, more importantly, what it must not.
+ */
+describe("useVisitorCredentialForm — the two buttons write disjoint patches", () => {
+  it("saveKey sends apiKey and NOTHING else — no provider, baseUrl or model", async () => {
+    const setAssistantSiteCredential = vi
+      .spyOn(api, "setAssistantSiteCredential")
+      .mockResolvedValue({ data: credential({ isSet: true, masked: "••••wxyz" }) });
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-new-key", model: "m1" }));
+
+    await act(async () => {
+      await result.current.saveKey();
+    });
+
+    const [patch] = setAssistantSiteCredential.mock.calls[0];
+    expect(patch).toEqual({ apiKey: "sk-new-key" });
+    expect(Object.keys(patch)).not.toContain("provider");
+    expect(Object.keys(patch)).not.toContain("baseUrl");
+    expect(Object.keys(patch)).not.toContain("model");
+  });
+
+  it("saveSettings sends provider/baseUrl/model and NEVER an apiKey property, even with a key typed", async () => {
+    // Absent PROPERTY, not a falsy value: `apiKey: ""` passes a truthiness check while being exactly
+    // the write the server rejects with a 400 and exactly the write this button must never make. A
+    // typed key is the adversarial case — the old single control would have shipped it.
+    const setAssistantSiteCredential = vi
+      .spyOn(api, "setAssistantSiteCredential")
+      .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => result.current.editConfig({ ...result.current.config, apiKey: "sk-still-in-the-field", model: "m1" }));
+
+    await act(async () => {
+      await result.current.saveSettings();
+    });
+
+    const [patch] = setAssistantSiteCredential.mock.calls[0];
+    expect(Object.keys(patch)).not.toContain("apiKey");
+    expect(patch).toEqual({ provider: "google", baseUrl: "https://generativelanguage.googleapis.com", model: "m1" });
+    expect(result.current.settingsSaveState).toMatchObject({ status: "saved" });
+    // The key the operator is still holding in the field is the key button's business.
+    expect(result.current.config.apiKey).toBe("sk-still-in-the-field");
+  });
+
+  it("a settings save clears dirty; a key save leaves the key's own state alone", async () => {
+    vi.spyOn(api, "setAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    act(() => result.current.editConfig({ ...result.current.config, model: "m1" }));
+    expect(result.current.dirty).toBe(true);
+
+    await act(async () => {
+      await result.current.saveSettings();
+    });
+
+    expect(result.current.dirty).toBe(false);
+    // Untouched: the key button never ran, so its status line must still say nothing happened.
+    expect(result.current.saveState).toEqual({ status: "idle" });
   });
 });

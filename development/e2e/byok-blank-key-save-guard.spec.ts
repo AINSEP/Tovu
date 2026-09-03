@@ -1,7 +1,7 @@
 import { test, expect, type Browser, type Page } from "@playwright/test";
 
 /**
- * @file "Save must not offer to write a key that isn't there" — on BOTH panels of
+ * @file "Save key must not offer to write a key that isn't there" — on BOTH panels of
  * `/admin/ai-assistant`, driven against a fresh in-memory database.
  *
  * ## The rule, and the trap inside it
@@ -12,37 +12,35 @@ import { test, expect, type Browser, type Page } from "@playwright/test";
  *   disabled. Whitespace counts as empty; `"   "` is not a credential.
  * - **A key already stored** — the field is empty ON PURPOSE. Both panels store their key
  *   server-side and write-only (ADR-058 for the visitor's, 2026-08-05 for the admin's), so the
- *   browser genuinely cannot render it and shows a `••••<last 4>` PLACEHOLDER instead. Here Save
- *   must stay enabled and must leave the stored key untouched, updating only the non-secret fields.
+ *   browser genuinely cannot render it and shows a `••••<last 4>` PLACEHOLDER instead. Here
+ *   "Save key" is STILL disabled — an empty field has no key to write — and, critically, the stored
+ *   key must be left completely untouched.
  *
- * Collapsing those two into "empty field ⇒ block the save" would be the worse bug: it would strand
- * an operator who wants to change their model or endpoint without re-pasting a key they cannot read
- * back. Collapsing them the other way — treating an empty field as a key — would overwrite a working
- * credential with nothing. This file pins both directions, because a fix for either one alone is
- * exactly how the other regresses.
+ * Treating an empty field as a key would overwrite a working credential with nothing, which is the
+ * direction this file exists to pin. The opposite worry — that disabling the button strands an
+ * operator who wants to change their model or endpoint without re-pasting a key they cannot read
+ * back — no longer applies: that is what the SECOND button, "Save settings", is for (owner ruling,
+ * 2026-09-02).
  *
- * ## Why the panels are asserted independently
+ * ## Why the panels are still asserted independently
  *
- * They do NOT share a code path. The visitor form's Save is gated in `AiAssistant.tsx`'s
- * `VisitorCredentialKeyFooter` (`!dirty || saving || (!apiKey.trim() && !hasStoredKey)`) and writes
- * through `saveVisitorCredential`; the admin form's "Save key" is gated by `canSaveKey`
- * (`hasTypedAdminKey` — NOT `hasUsableAdminKey`, whose stored-key arm answers a different question
- * and is still correct for `AssistantDock`'s `apiModeAvailable`) in
+ * They do NOT share a code path, even though they now agree on the rule. The visitor form's
+ * "Save key" is gated in `AiAssistant.tsx`'s `VisitorCredentialKeyFooter`
+ * (`!config.apiKey.trim() || saving`) and writes through `saveVisitorKey`; the admin form's is gated
+ * by `canSaveKey` (`hasTypedAdminKey` — NOT `hasUsableAdminKey`, whose stored-key arm answers a
+ * different question and is still correct for `AssistantDock`'s `apiModeAvailable`) in
  * `use-admin-execution-credential.hooks.ts` and writes through `saveKey`.
  *
- * The two buttons deliberately disagree about a blank field with a key stored: the visitor Save
- * writes the WHOLE config, so it stays enabled and omits `apiKey` from the payload; the admin Save
- * key writes only the key, so it disables. Asserting one rule against both is how this regresses.
- * Two guards, two buttons, two labels ("Save" vs "Save key"), two credential rows. A single fix
- * cannot cover both, so a single test must not be trusted to cover both either.
+ * Two guards, two credential rows, one shared rule. A single fix cannot cover both, so a single test
+ * must not be trusted to cover both either — that separation is the reason this section survives the
+ * labels converging on "Save key".
  *
- * ## The `dirty` nuance, and why the blank cases TYPE THEN CLEAR
+ * ## Why the blank cases TYPE THEN CLEAR
  *
- * The visitor Save is also disabled while the form is pristine. A test that merely loads the page
- * and asserts "Save is disabled" would pass without exercising the emptiness guard at all — it
- * would be measuring `!dirty`. So the blank cases here type a key and then clear it: that leaves the
- * form dirty with an empty field, which is both the operator's actual situation and the only state
- * in which the guard under test is the thing doing the disabling.
+ * Typing first is what makes "disabled" falsifiable: it proves the button CAN light up, so a later
+ * `toBeDisabled()` is measuring the emptiness guard rather than a component that never enables at
+ * all. It is also the operator's actual reported sequence — start pasting a key, change your mind,
+ * clear the field.
  *
  * ## One login for the whole file
  *
@@ -111,9 +109,10 @@ function keyField(page: Page) {
   return page.locator(".jini-byok-card .jini-field-input-row input");
 }
 
-/** `exact` on both: "Save" is a SUBSTRING of "Save key", so a loose match would silently assert
- *  against the wrong panel's button if the tabs ever rendered together. */
-function saveButton(page: Page, label: "Save" | "Save key") {
+/** `exact` on both: each card now carries TWO save buttons ("Save key" under the key field, "Save
+ *  settings" at the foot of the card), and a loose match would resolve either one — or, if the tabs
+ *  ever rendered together, the other panel's. */
+function saveButton(page: Page, label: "Save key" | "Save settings") {
   return page.getByRole("button", { name: label, exact: true });
 }
 
@@ -161,11 +160,11 @@ test.describe("blank-key save guard", () => {
     await expect(save, 'whitespace is not a credential — "   " must read as empty').toBeDisabled();
   });
 
-  test("VISITOR panel, nothing stored: Save is disabled for an empty field and for whitespace, enabled for a real key", async () => {
-    // Asserted independently of the admin panel above: different guard, different button, different
-    // credential row. See this file's header.
+  test("VISITOR panel, nothing stored: Save key is disabled for an empty field and for whitespace, enabled for a real key", async () => {
+    // Asserted independently of the admin panel above: different guard, different code path,
+    // different credential row — they merely agree on the rule. See this file's header.
     await openVisitorPanel(page);
-    const save = saveButton(page, "Save");
+    const save = saveButton(page, "Save key");
 
     await keyField(page).fill(FAKE_KEY);
     await expect(save).toBeEnabled({ timeout: 15_000 });
@@ -200,8 +199,9 @@ test.describe("blank-key save guard", () => {
 
     // DISABLED, and this is a reversal of what this spec asserted before (owner ruling, 2026-09-02).
     // Save key writes the key and nothing else, so a blank field has nothing to write. The earlier
-    // "keep it enabled for a model change" reasoning is obsolete: the admin's model/protocol are
-    // persisted by the `core.execution` settings slice on their own path, not by this button.
+    // "keep it enabled for a model change" reasoning is obsolete twice over: the admin's
+    // model/protocol are persisted by the `core.execution` settings slice on their own path, and the
+    // credential row's own copy of them is now written by the separate "Save settings" button.
     await expect(
       saveButton(page, "Save key"),
       "an empty field has no key to write — a stored key does not change that",
@@ -236,12 +236,11 @@ test.describe("blank-key save guard", () => {
   test("ADMIN panel, key already stored: a whitespace-only field never reaches the server as the new key", async () => {
     // The narrowest case, and the one a future refactor is most likely to break.
     //
-    // `saveKey` trims the field ONCE, at the top, and both decisions below read that same trimmed
-    // value: the `hasUsableAdminKey` gate AND the `...(apiKey ? { apiKey } : {})` that decides
-    // whether the patch carries a key at all. Those two reading the same value is the whole
-    // property. Split them — gate on the trimmed value, send the raw one — and a whitespace-only
-    // field with a key already stored puts "   " on the wire as the REPLACEMENT credential. Today
-    // that would still be caught, but only by the server's own
+    // `saveKey` trims the field ONCE, at the top, and that same trimmed value is both what the
+    // `hasTypedAdminKey` guard tests and what the patch carries. Those two reading one value is the
+    // whole property. Split them — gate on the trimmed value, send the raw one — and a
+    // whitespace-only field with a key already stored puts "   " on the wire as the REPLACEMENT
+    // credential. Today that would still be caught, but only by the server's own
     // `assertValidExecutionCredentialApiKey` ("apiKey must not be empty — use DELETE to clear it"),
     // one layer deeper than it should be and surfacing to the operator as a validation error from
     // pressing Save on a form that looked ready.

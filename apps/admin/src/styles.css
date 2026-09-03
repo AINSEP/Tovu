@@ -2771,6 +2771,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 
 .assistant-save-line { margin: 0; font-size: 12px; color: var(--jini-text-muted); }
 
+/* --- The form footer slot (`formFooter` on `ByokProviderForm`) ------------
+ * "Save settings", at the foot of the card under the fields it writes. Same column
+ * layout as the key footer above — it reuses `.assistant-key-actions` and
+ * `.assistant-save-line` for the row and the status line, so the two footers cannot
+ * drift apart visually while being two separate controls. */
+.assistant-settings-footer { display: flex; flex-direction: column; gap: 8px; }
+
 /* --- The admin's own BYOK migration prompt (`AdminByokKeyPanel.tsx`) ------
  * A `.notice` (global) with its own action row — reused rather than styled from scratch since the
  * two callers (Settings' modal presentation and the Admin tab's page-flow presentation) already

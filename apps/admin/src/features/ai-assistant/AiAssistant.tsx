@@ -443,8 +443,11 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  * /api/admin/v1/workspaces/:id/assistant/site-credential`), which encrypts at rest under a
  * deploy-time master secret rather than putting a secret in the ADR-028 settings ledger.
  *
- * Writing is an explicit Save press — see `hooks/use-visitor-credential-form.hooks.ts`'s
- * `saveCredential` for why the earlier debounced auto-save was removed (it made every keystroke in a
+ * Writing is an explicit press of one of TWO buttons — "Save key" writes the key, "Save settings"
+ * writes provider/base URL/model and never a key (owner ruling, 2026-09-02; the single overloaded
+ * Save could not honestly report which of its two jobs it had just done). See
+ * `hooks/use-visitor-credential-form.hooks.ts`'s `saveVisitorKey`/`saveVisitorSettings` for that
+ * split and for why the earlier debounced auto-save was removed (it made every keystroke in a
  * credential field a write, and destroyed a live key during development), and `dirty` for why a mount
  * or a hydration can never trigger one.
  *
@@ -463,11 +466,23 @@ export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
  *  this same file — is what actually moved the parent's score, not just its ESLint per-closure one. */
 type VisitorCredentialKeyFooterProps = Pick<
   VisitorCredentialFormController,
-  "config" | "dirty" | "saveState" | "stored" | "hasStoredKey" | "hasUsableKey" | "discovery" | "saveCredential" | "runKeyTest"
+  "config" | "saveState" | "stored" | "hasUsableKey" | "discovery" | "saveKey" | "runKeyTest"
 > & {
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct renders (no `t` passed) keep
-   *  finding "Save"/"Test Key" by their exact English accessible names. */
+   *  finding "Save key"/"Test Key" by their exact English accessible names. */
+  t?: (key: string) => string;
+};
+
+/** The "Save settings" control and its status line, at the foot of the shared BYOK card — the
+ *  sibling of {@link VisitorCredentialKeyFooter}, and separate from it for the same reason the admin
+ *  panel's two footers are separate: two buttons writing two disjoint patches belong beside the
+ *  fields each one writes, and neither may report the other's work. */
+type VisitorCredentialSettingsFooterProps = Pick<
+  VisitorCredentialFormController,
+  "dirty" | "settingsSaveState" | "saveSettings"
+> & {
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
   t?: (key: string) => string;
 };
 
@@ -492,10 +507,15 @@ export function visitorCredentialKeyStatusMessage(
   return null;
 }
 
-/** Save's status line — whether the last edit reached the server, and nothing else. One of five
- *  mutually exclusive messages keyed on `saveState.status` (plus `dirty`/`stored` for the three
- *  "idle" variants), pulled to a top-level pure function for the same reason as
+/** Save key's status line — whether the KEY reached the server, and nothing else. One of four
+ *  mutually exclusive messages keyed on `saveState.status` (plus `stored` for the two "idle"
+ *  variants), pulled to a top-level pure function for the same reason as
  *  {@link visitorCredentialKeyStatusMessage} above.
+ *
+ *  `dirty` is deliberately NOT read here any more (two-button split, 2026-09-02). It means "settings
+ *  changed since they were last written", which is {@link visitorCredentialSettingsStatusMessage}'s
+ *  question — under the KEY field it would have announced an unsaved model change as though the key
+ *  were the thing left unsaved.
  *
  *  The "WHICH key is stored" question lives in the field's own masked placeholder
  *  ({@link visitorCredentialApiKeyPlaceholder}), which is where an operator looks for it. That mask
@@ -509,27 +529,42 @@ export function visitorCredentialKeyStatusMessage(
  */
 export function visitorCredentialSaveStatusMessage(
   saveState: VisitorCredentialFormController["saveState"],
-  dirty: boolean,
   stored: VisitorCredentialFormController["stored"],
   t: Translate = (key) => key,
 ): string | null {
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
   if (saveState.status !== "idle") return null;
-  if (dirty) return t("Not saved yet — press Save.");
   if (stored?.isSet) return t("Stored on the server, encrypted. Paste a new key to replace it.");
-  return t("Paste your key, check it with Show, then press Save.");
+  return t("Paste your key, check it with Show, then press Save key.");
+}
+
+/**
+ * Save settings' own status line.
+ *
+ * Says "Settings saved." and never anything about encryption or the server holding a key: this
+ * button sends no `apiKey`, so borrowing {@link visitorCredentialSaveStatusMessage}'s "Saved to the
+ * server, encrypted." would recreate — under a new button — the exact false confirmation the split
+ * exists to remove.
+ *
+ * @param t - Same seam as its siblings above.
+ */
+export function visitorCredentialSettingsStatusMessage(
+  settingsSaveState: VisitorCredentialFormController["settingsSaveState"],
+  t: Translate = (key) => key,
+): string | null {
+  if (settingsSaveState.status === "saving") return t("Saving…");
+  if (settingsSaveState.status === "saved") return t("Settings saved.");
+  return null;
 }
 
 export function VisitorCredentialKeyFooter({
   config,
-  dirty,
   saveState,
   stored,
-  hasStoredKey,
   hasUsableKey,
   discovery,
-  saveCredential,
+  saveKey,
   runKeyTest,
   t: tProp,
 }: VisitorCredentialKeyFooterProps) {
@@ -540,15 +575,19 @@ export function VisitorCredentialKeyFooter({
   return (
     <div className="assistant-key-footer">
       <div className="assistant-key-actions">
-        {/* The ONLY control that writes a credential on this screen. Disabled until something
-            actually changed, so it never offers to re-write the values the server just sent. */}
+        {/* The ONLY control that writes the KEY on this screen (its sibling
+            `VisitorCredentialSettingsFooter` writes the other fields, and never a key).
+
+            Disabled whenever the field is blank, stored key or not: this button's only job is to
+            write the key, and an empty field has no key to write. A stored key does NOT re-enable
+            it — the same narrowing the admin panel's Save key already carries. */}
         <button
           type="button"
           className="btn-primary"
-          onClick={() => void saveCredential()}
-          disabled={!dirty || saveState.status === "saving" || (!config.apiKey.trim() && !hasStoredKey)}
+          onClick={() => void saveKey()}
+          disabled={!config.apiKey.trim() || saveState.status === "saving"}
         >
-          {saveState.status === "saving" ? t("Saving…") : t("Save")}
+          {saveState.status === "saving" ? t("Saving…") : t("Save key")}
         </button>
         {/*
           An explicit "Test Key" control, in addition to the debounced automatic discovery
@@ -594,10 +633,48 @@ export function VisitorCredentialKeyFooter({
         Settings screen gained the same fix rather than only this one.
       */}
 
-      {/* Save's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above for
-          the mask/placeholder reasoning. */}
-      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, dirty, stored, t)}</p>
+      {/* Save key's status line — see `visitorCredentialSaveStatusMessage`'s own doc comment above
+          for the mask/placeholder reasoning, and for why `dirty` is no longer read here. */}
+      <p className="assistant-save-line">{visitorCredentialSaveStatusMessage(saveState, stored, t)}</p>
       {saveState.status === "error" ? <div className="save-error">{saveState.message}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * The "Save settings" control and its status line, for `ByokProviderForm`'s `formFooter` slot — at
+ * the foot of the card, under Base URL / Max tokens / Model, which are the fields it writes.
+ *
+ * Gated on `dirty` exactly as the old single Save was: this is the button that could otherwise
+ * offer, on load, to write back the values the server just sent — or, if hydration had failed, this
+ * form's hardcoded defaults over a perfectly good stored credential. See the controller's `dirty`
+ * doc. It is NOT gated on the key field, because settings are not the key.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function VisitorCredentialSettingsFooter({
+  dirty,
+  settingsSaveState,
+  saveSettings,
+  t: tProp,
+}: VisitorCredentialSettingsFooterProps) {
+  const t = resolveT(tProp);
+  const statusLine = visitorCredentialSettingsStatusMessage(settingsSaveState, t);
+
+  return (
+    <div className="assistant-settings-footer">
+      <div className="assistant-key-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => void saveSettings()}
+          disabled={!dirty || settingsSaveState.status === "saving"}
+        >
+          {settingsSaveState.status === "saving" ? t("Saving…") : t("Save settings")}
+        </button>
+      </div>
+      {statusLine ? <p className="assistant-save-line">{statusLine}</p> : null}
+      {settingsSaveState.status === "error" ? <div className="save-error">{settingsSaveState.message}</div> : null}
     </div>
   );
 }
@@ -606,8 +683,8 @@ export function VisitorCredentialKeyFooter({
  *  operator is already looking, instead of in a sentence underneath. `undefined` (no placeholder)
  *  whenever nothing is stored or the server didn't send a mask.
  *
- *  Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveCredential`
- *  omits `apiKey` entirely and the stored key is left alone. A pre-filled value here would be a
+ *  Safe precisely BECAUSE it is a placeholder: `config.apiKey` stays empty, so `saveKey`
+ *  sends nothing at all and the stored key is left alone. A pre-filled value here would be a
  *  real value the save path would persist AS the key. Pulled to a top-level pure function per the
  *  complexity-pass extraction rule — one of the few remaining branch points in
  *  `VisitorCredentialForm` itself once {@link VisitorCredentialKeyFooter} moved out. */
@@ -635,12 +712,13 @@ export function VisitorCredentialForm({
     connectionTest,
     stored,
     saveState,
+    settingsSaveState,
     dirty,
     hasUsableKey,
-    hasStoredKey,
     configuredPresetIds,
     selectPreset,
-    saveCredential,
+    saveKey,
+    saveSettings,
     runKeyTest,
     runTestConnection,
   } = useVisitorCredentialFormHook();
@@ -741,10 +819,12 @@ export function VisitorCredentialForm({
       {/* `canTestConnection` left at its default (true): the probe is real here. It posts the typed
           key to the same admin route the Settings screen uses, so it answers "is this key good?"
 
-          `apiKeyFooter` is a slot added UPSTREAM in `@jini-ai/ui` for this screen rather than a fork
-          of the component — the standing decision on this workstream. It puts the three things that
-          are about the KEY (test it, see what it allows, know it saved) directly under the key field,
-          which is where the operator is looking when they have those questions. */}
+          `apiKeyFooter`/`formFooter` are slots added UPSTREAM in `@jini-ai/ui` for this screen rather
+          than a fork of the component — the standing decision on this workstream. The first puts the
+          things that are about the KEY (test it, see what it allows, know it saved) directly under
+          the key field, which is where the operator is looking when they have those questions; the
+          second puts "Save settings" under the fields IT writes, at the foot of the card. Two slots
+          because they are two buttons with two disjoint jobs. */}
       <ByokProviderForm
         config={config}
         onConfigChange={editConfig}
@@ -760,14 +840,20 @@ export function VisitorCredentialForm({
         apiKeyFooter={
           <VisitorCredentialKeyFooter
             config={config}
-            dirty={dirty}
             saveState={saveState}
             stored={stored}
-            hasStoredKey={hasStoredKey}
             hasUsableKey={hasUsableKey}
             discovery={discovery}
-            saveCredential={saveCredential}
+            saveKey={saveKey}
             runKeyTest={runKeyTest}
+            t={t}
+          />
+        }
+        formFooter={
+          <VisitorCredentialSettingsFooter
+            dirty={dirty}
+            settingsSaveState={settingsSaveState}
+            saveSettings={saveSettings}
             t={t}
           />
         }
