@@ -159,6 +159,50 @@ test("entries routes: create -> list -> update -> publish golden path (REQ-13/14
   assert.ok(published.entry.publishedAt);
 });
 
+/**
+ * 2026-09-03 outbox-drain audit fix — `entries/create.ts` and `entries/update.ts` previously never
+ * called `processOutbox` after a successful write, so `createEntry`'s `entry.created` and
+ * `updateEntry`'s `entry.updated` events sat pending in the outbox forever: no `bus.subscribe`d
+ * consumer (e.g. SEO's sitemap-cache invalidation, wired at `server/runtime/composition/app.ts`)
+ * ever received them, regardless of how many writes happened. Proven here against the REAL
+ * `InMemoryEventBus`/`InMemoryOutbox` pair `createRouteDeps()` composes, not a stub.
+ */
+test("entries routes: create drains the outbox so entry.created reaches bus subscribers immediately", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+
+  const delivered: unknown[] = [];
+  await deps.bus.subscribe("entry.created", async (event) => {
+    delivered.push(event);
+  });
+
+  await createRecipeEntry(baseUrl, cookie, "eggs");
+
+  assert.equal(delivered.length, 1, "entry.created must be delivered to bus subscribers right after a successful create, not left pending in the outbox");
+});
+
+test("entries routes: update drains the outbox so entry.updated reaches bus subscribers immediately", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerRecipeType(baseUrl, cookie);
+  const entry = await createRecipeEntry(baseUrl, cookie);
+
+  const delivered: unknown[] = [];
+  await deps.bus.subscribe("entry.updated", async (event) => {
+    delivered.push(event);
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "Scrambled Eggs", expectedVersion: entry.version }),
+  });
+  assert.equal(res.status, 200);
+
+  assert.equal(delivered.length, 1, "entry.updated must be delivered to bus subscribers right after a successful update, not left pending in the outbox");
+});
+
 test("entries routes: creating against a nonexistent content type is rejected CONTENT_TYPE_NOT_FOUND (INV-01)", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -376,15 +420,19 @@ test("entries routes: updating with an un-enveloped fieldsJson is rejected 400 V
   assert.equal(body.code, "VALIDATION_ERROR");
 });
 
-test("entries routes: update's write-service chokepoint re-check enforces FORBIDDEN even though the route's own pre-check passed", async (t) => {
-  // BUG WATCH (see final report): `update.ts`'s own pre-check calls `deps.authorize` with
-  // `entityType: "entry"`; `features/entries/write-service.ts`'s `resolveExistingEntryForTransition`
-  // (the chokepoint `updateEntry` shares with `publishEntry`/`unpublishEntry`) calls the SAME
-  // `deps.authorize` a second time but WITHOUT `entityType`. A real RBAC policy scoped to
-  // `resourceType: "entry"` would pass the route's own check and then be denied by the
-  // chokepoint's re-check — this mock reproduces that exact divergence (keyed on `entityType`
-  // presence, not a synthetic denial) to prove the chokepoint is what actually decides, and to
-  // exercise `statusFor`'s `ForbiddenError` branch, which no test previously reached.
+test("entries routes: update's write-service chokepoint re-check no longer diverges from the route's own pre-check (2026-09-03 RBAC audit fix)", async (t) => {
+  // FIXED 2026-09-03 (was a bug, not a spec): `update.ts`'s own pre-check calls `deps.authorize`
+  // with `entityType: "entry"`; `features/entries/write-service.ts`'s
+  // `resolveExistingEntryForTransition` (the chokepoint `updateEntry` shares with
+  // `publishEntry`/`unpublishEntry`) used to call the SAME `deps.authorize` a second time WITHOUT
+  // `entityType`. A real RBAC policy scoped to `resourceType: "entry"` passed the route's own
+  // check and was then wrongly denied by the chokepoint's re-check with `resource_scope_mismatch`
+  // — a spurious 403 for a correctly-scoped principal (owner/unscoped grants never hit this,
+  // which is why it went unnoticed). The chokepoint now passes `entityType: "entry"` too, matching
+  // the route exactly — this test (previously named "...enforces FORBIDDEN even though the
+  // route's own pre-check passed", which enshrined the divergence as expected behavior) now
+  // proves the SAME `entityType`-gated mock allows the request all the way through, since both
+  // layers agree.
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerRecipeType(baseUrl, cookie);
@@ -398,9 +446,9 @@ test("entries routes: update's write-service chokepoint re-check enforces FORBID
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ title: "New title", expectedVersion: entry.version }),
   });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(res.status, 200, "an entry-scoped grant must be allowed by both the route pre-check AND the chokepoint re-check");
+  const body = (await res.json()) as { entry: { title: string } };
+  assert.equal(body.entry.title, "New title");
 });
 
 test("entries routes: update surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
@@ -547,9 +595,10 @@ test("entries routes: lifecycle with a stale expectedVersion is rejected 409 VER
   assert.equal(body.code, "VERSION_CONFLICT");
 });
 
-test("entries routes: lifecycle's write-service chokepoint re-check enforces FORBIDDEN even though the route's own pre-check passed", async (t) => {
-  // Same divergence as update.ts's equivalent test — `publishEntry`/`unpublishEntry` share
-  // `resolveExistingEntryForTransition`'s entityType-less internal `authorize()` call.
+test("entries routes: lifecycle's write-service chokepoint re-check no longer diverges from the route's own pre-check (2026-09-03 RBAC audit fix)", async (t) => {
+  // Same fix as update.ts's equivalent test above — `publishEntry`/`unpublishEntry` share
+  // `resolveExistingEntryForTransition`, which now passes `entityType: "entry"` to `deps.authorize`
+  // the same way the route's own pre-check always has.
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   await registerRecipeType(baseUrl, cookie);
@@ -563,9 +612,9 @@ test("entries routes: lifecycle's write-service chokepoint re-check enforces FOR
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ op: "publish", expectedVersion: entry.version }),
   });
-  assert.equal(res.status, 403);
-  const body = (await res.json()) as { code: string };
-  assert.equal(body.code, "FORBIDDEN");
+  assert.equal(res.status, 200, "an entry-scoped grant must be allowed by both the route pre-check AND the chokepoint re-check");
+  const body = (await res.json()) as { entry: { status: string } };
+  assert.equal(body.entry.status, "published");
 });
 
 test("entries routes: lifecycle surfaces an authorize() Error as 500 (INTERNAL_ERROR) carrying its message", async (t) => {
@@ -695,6 +744,17 @@ test("entries routes: republishing an already-published, unchanged entry succeed
   await registerRecipeType(baseUrl, cookie);
   const entry = await createRecipeEntry(baseUrl, cookie);
 
+  // 2026-09-03 outbox-drain audit fix: `entries/lifecycle.ts` now calls `processOutbox` after
+  // every successful write, so a delivered `entry.published` event is no longer observable as a
+  // pending outbox row (see `countPendingEntryEvents`'s doc below) — it must be observed at the
+  // bus, the same way a real `bus.subscribe`d consumer (SEO's sitemap-cache invalidation) would.
+  const deliveredPublishedEvents: Array<{ payload: { entryId?: string } }> = [];
+  await deps.bus.subscribe("entry.published", async (event) => {
+    if ((event.payload as { entryId?: string }).entryId === entry.id) {
+      deliveredPublishedEvents.push(event as { payload: { entryId?: string } });
+    }
+  });
+
   const firstPublish = await fetch(`${baseUrl}/api/admin/v1/entries/${entry.id}/lifecycle`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
@@ -723,10 +783,17 @@ test("entries routes: republishing an already-published, unchanged entry succeed
   assert.ok(second.entry.publishedAt);
   assert.ok(new Date(second.entry.publishedAt as string).getTime() >= new Date(first.entry.publishedAt as string).getTime());
 
-  // The redundant publish enqueued its OWN outbox event rather than being skipped — proves
-  // downstream propagation (SEO/search/webhook consumers, whenever wired) sees the repeat action.
-  const publishedEventCount = await countPendingEntryEvents(deps, entry.id, "entry.published");
-  assert.equal(publishedEventCount, 2, "each publish call — first and redundant — must enqueue its own entry.published event");
+  // The redundant publish enqueued AND delivered its OWN outbox event rather than being skipped —
+  // proves downstream propagation (SEO/search/webhook consumers, whenever wired) actually sees the
+  // repeat action, not merely that a row was written and left stranded pending forever (the bug
+  // the 2026-09-03 outbox-drain audit fixed: this route previously never called `processOutbox`,
+  // so `bus.subscribe`d consumers never received ANY entries event, regardless of how many
+  // accumulated in the outbox).
+  assert.equal(deliveredPublishedEvents.length, 2, "each publish call — first and redundant — must enqueue AND deliver its own entry.published event");
+
+  // And nothing is left stranded: a drained event must not still be claimable as pending.
+  const stillPendingCount = await countPendingEntryEvents(deps, entry.id, "entry.published");
+  assert.equal(stillPendingCount, 0, "a delivered event must not remain in the outbox as pending");
 });
 
 test("entries routes: an entry's content edit while it is already published is visible immediately, and republishing afterward does not lose or revert it", async (t) => {

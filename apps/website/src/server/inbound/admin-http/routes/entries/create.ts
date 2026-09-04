@@ -9,6 +9,7 @@ import {
 } from "#src/features/entries/index";
 import { toEntryOutbox } from "#src/features/entries/index";
 import { createEntry } from "#src/features/entries/index";
+import { processOutbox } from "#src/contracts/core/events/index";
 import { authorizeOrRespond } from "#src/server/inbound/admin-http/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "../content-types/deps.js";
@@ -82,6 +83,13 @@ export function registerAdminEntryCreateRoute(app: Express, deps: ContentTypesRo
         res.status(status).json({ error: result.error.message, code });
         return;
       }
+
+      // 2026-09-03 outbox-drain audit fix — drains the outbox so `createEntry`'s `entry.created`
+      // event actually reaches `bus.subscribe`d consumers instead of sitting pending indefinitely
+      // (this composition root has no background outbox poller; mirrors `posts/update.ts`'s
+      // identical inline `processOutbox` call).
+      await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
       res.status(201).json(result.value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "internal error";

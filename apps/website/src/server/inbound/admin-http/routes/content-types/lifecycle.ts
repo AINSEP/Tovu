@@ -3,6 +3,7 @@ import type { Express } from "express";
 import { ContentTypeLifecycleError, ContentTypeNotFoundError, ForbiddenError, VersionConflictError } from "#src/features/content-types/index";
 import { CONTENT_TYPE_LIFECYCLE_OPS, parseContentTypeLifecycleOp } from "#src/features/content-types/index";
 import { toContentTypeOutbox } from "#src/features/content-types/index";
+import { processOutbox } from "#src/contracts/core/events/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentTypesRouteDeps } from "./deps.js";
 
@@ -78,6 +79,16 @@ export function registerAdminContentTypeLifecycleRoute(app: Express, deps: Conte
         res.status(status).json({ error: result.error.message, code });
         return;
       }
+
+      // 2026-09-03 outbox-drain audit fix — drains the outbox so a successful `deprecate`/
+      // `tombstone` transition's `content_type.deprecated`/`content_type.tombstoned` event
+      // actually reaches `bus.subscribe`d consumers instead of sitting pending indefinitely
+      // (this composition root has no background outbox poller; mirrors `posts/update.ts`'s
+      // identical inline `processOutbox` call). `reactivate` enqueues nothing, so this call is a
+      // harmless no-op drain on that branch — `@jini-ai/cms/content-types`'s `lifecycle.ts` file
+      // header explains why `reactivateContentType` never accepted an `outbox` dep at all.
+      await processOutbox({ outbox: deps.outbox, bus: deps.bus, clock: deps.clock });
+
       res.json(result.value);
     } catch (err) {
       const message = err instanceof Error ? err.message : "internal error";

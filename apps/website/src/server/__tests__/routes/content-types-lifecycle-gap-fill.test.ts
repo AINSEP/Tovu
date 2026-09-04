@@ -117,6 +117,39 @@ test("lifecycle: full deprecate -> reactivate -> deprecate -> tombstone cycle su
   assert.equal((tombstoned.json as { contentType: { status: string } }).contentType.status, "tombstone");
 });
 
+/**
+ * 2026-09-03 outbox-drain audit fix — this route previously never called `processOutbox` after a
+ * successful lifecycle write, so `deprecateContentType`'s `content_type.deprecated` and
+ * `tombstoneContentType`'s `content_type.tombstoned` events sat pending in the outbox forever: no
+ * `bus.subscribe`d consumer ever received them. Proven here against the REAL
+ * `InMemoryEventBus`/`InMemoryOutbox` pair `createRouteDeps()` composes, not a stub.
+ * `reactivateContentType` enqueues nothing at all (see `lifecycle.ts`'s own file header in
+ * `@jini-ai/cms/content-types`), so it is intentionally not asserted here.
+ */
+test("lifecycle: deprecate and tombstone drain the outbox so their events reach bus subscribers immediately", async (t) => {
+  const deps = createRouteDeps();
+  const { app } = buildTestApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await registerType(baseUrl, cookie, "drain_check_type");
+
+  const deliveredDeprecated: unknown[] = [];
+  const deliveredTombstoned: unknown[] = [];
+  await deps.bus.subscribe("content_type.deprecated", async (event) => {
+    deliveredDeprecated.push(event);
+  });
+  await deps.bus.subscribe("content_type.tombstoned", async (event) => {
+    deliveredTombstoned.push(event);
+  });
+
+  const deprecated = await lifecycle(baseUrl, cookie, "drain_check_type", "deprecate", 1);
+  assert.equal(deprecated.status, 200);
+  assert.equal(deliveredDeprecated.length, 1, "content_type.deprecated must be delivered right after a successful deprecate, not left pending in the outbox");
+
+  const tombstoned = await lifecycle(baseUrl, cookie, "drain_check_type", "tombstone", 2);
+  assert.equal(tombstoned.status, 200);
+  assert.equal(deliveredTombstoned.length, 1, "content_type.tombstoned must be delivered right after a successful tombstone, not left pending in the outbox");
+});
+
 test("lifecycle: tombstone from 'active' (never deprecated) is 409 CONTENT_TYPE_LIFECYCLE_ERROR (EC-09 'must deprecate first')", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
