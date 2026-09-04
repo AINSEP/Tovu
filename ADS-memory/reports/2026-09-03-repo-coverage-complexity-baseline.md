@@ -158,11 +158,52 @@ began; per the dispatch brief, a second run must not be started. Waiting for
 
 ## 5. Prioritised gap list
 
-TBD
+Recommendation only — Coordinator/owner decides.
+
+1. **Close the `apps/website/src/platform/*` complexity blind spot first.** It is the largest
+   (94 of 139 blind-spot files) and holds the two worst *live* (non-grandfathered) violations —
+   `topologicalTableCopyOrder` (cognitive 21) and `beginDeviceAuthorization` (cyclomatic 18, an
+   OAuth device-code flow — security-adjacent code with no complexity ceiling on it at all today).
+   Effort: baseline-and-ratchet in under an hour (§6), or fix in a few hours per the swarm precedent.
+2. **Add `cli/` and `contracts/` to `SCOPES`** at the same time — small (44 files combined), 5
+   violations, same mechanical change.
+3. **Fix or re-baseline the 3 admin files that drifted worse** (`App.tsx`, `api.ts`,
+   `assistant-transport.ts`, §3) — the debt list's own notes are now stale/wrong about their actual
+   complexity, which undermines the "delete once fixed" ratchet discipline the file documents.
+4. **Clean the 4 dead `SCOPES` strings** (`/widgets`, `/seo`, `/analytics`, `/media`) — no behavior
+   change, just removes a misleading trap for the next person reading this gate's source.
+5. **Coverage — see below.** Blocked on the in-flight run; cannot prioritize what isn't measured
+   yet.
 
 ## 6. Cost of a repo-wide gate
 
-TBD
+Verified: **21** `check:*` scripts exist in `package.json`; **13** run in `.github/workflows/ci.yml`
+(both counts match the brief exactly). CI itself is currently billing-blocked (see
+`project_tovu_ci_off_reenable_checklist.md`), so **any new gate is report-only until CI is
+re-enabled** — the same status 8 of the 21 existing `check:*` scripts are already in.
+
+Extending `check:src-complexity-drift`'s `SCOPES` array to close the `apps/website/src` blind
+spot (`cli/`, `contracts/`, `platform/*` minus `export/`, `index.ts`) is mechanically cheap — it's
+adding path strings to an existing array, the same pattern already used 9 times. Two real costs
+sit behind that one-line change:
+
+1. **Cleaning the 4 dead SCOPES strings** (`/widgets`, `/seo`, `/analytics`, `/media`) to their
+   real `features/*` paths, or removing them as redundant — trivial, ~5 minutes.
+2. **Disposing of the 24 non-grandfathered violations §2 found in the newly-covered area** before
+   the gate can go green without a mass baseline. Two paths, same as the precedent already in this
+   repo's own history (`src-complexity-debt.json`'s `_comment_2026-09-03_swarm_cleared`, an 11-batch
+   refactor swarm that cleared 67 of 68 entries the same day):
+   - **Baseline-and-ratchet** (fast): capture the 24 as a debt-list addition with justification
+     notes, same mechanism already in use — stops the bleeding immediately without fixing anything.
+     Rough effort: under an hour of agent time, no code risk.
+   - **Fix-worst-first** (slower, real debt reduction): the swarm precedent cleared ~68 violations
+     in a single session across many files: refactoring 24 is a smaller lift than that already-proven
+     batch. Rough effort: a few hours across several parallel refactor agents, with the standard
+     regression-test-first discipline this repo already enforces per function.
+
+`apps/admin/src` and `apps/site-chat/src` need no new gate work — both are already fully scanned;
+the only remaining cost there is fixing the drift found in §3 (3 admin files worse than recorded)
+or updating their notes to the current measured values, not new gate construction.
 
 ## Numbers not trusted / caveats
 
