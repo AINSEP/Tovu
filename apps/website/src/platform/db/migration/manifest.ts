@@ -685,26 +685,21 @@ export class TableCopyOrderCycleError extends Error {
   }
 }
 
+interface CopyOrderGraph {
+  /** referenced table -> tables that depend on it */
+  readonly dependents: Map<string, Set<string>>;
+  readonly inDegree: Map<string, number>;
+}
+
 /**
- * Kahn's-algorithm topological sort over an FK graph: table A is ordered before table B whenever B
- * declares a foreign key pointing at A ("referenced tables first"). Pure and synchronous over its
- * inputs — no import-time computation, no module-level constant — so a genuine cycle in the real
- * schema throws only for whichever caller (a test, a future copier) actually asks for the order, not
- * for every consumer of this module the moment it is imported. `computeCoreTableCopyOrder()` below is
- * the schema-derived convenience wrapper; this function is kept separately exported and testable
- * against synthetic edges so a cycle can be proven to throw without needing schema.ts to contain one.
- *
- * Self-referencing edges (`edge.selfReferencing`) are excluded from the ordering graph — a table
- * cannot be sequenced "before itself" — but that exclusion does NOT mean a self-referencing table
- * needs no special handling. It still appears exactly once in the returned order, and this function
- * says nothing about the ROW order WITHIN that one table's own copy: a copier must still insert that
- * table's rows in an order that satisfies its own FK (typically: parents before children, e.g. by
- * sorting on the referenced column), or defer/drop-and-revalidate just that one constraint for the
- * duration of that table's copy. That per-table obligation is real and is not discharged by this
- * function returning a table-level order at all.
+ * Builds `topologicalTableCopyOrder`'s Kahn's-algorithm inputs from the FK edges: for each
+ * non-self-referencing edge, records that `toExportName` has `fromExportName` as a dependent,
+ * incrementing `fromExportName`'s in-degree once per distinct table it depends on (a table with
+ * multiple FKs to the SAME target does not inflate its in-degree past 1 for that target — it only
+ * needs that target copied before it once, not once per FK column pointing there).
  */
-export function topologicalTableCopyOrder(allExportNames: readonly string[], edges: readonly ForeignKeyEdge[]): string[] {
-  const dependents = new Map<string, Set<string>>(); // referenced table -> tables that depend on it
+function buildCopyOrderGraph(allExportNames: readonly string[], edges: readonly ForeignKeyEdge[]): CopyOrderGraph {
+  const dependents = new Map<string, Set<string>>();
   const inDegree = new Map<string, number>(allExportNames.map((name) => [name, 0]));
   for (const edge of edges) {
     if (edge.selfReferencing) continue;
@@ -724,6 +719,42 @@ export function topologicalTableCopyOrder(allExportNames: readonly string[], edg
       inDegree.set(edge.fromExportName, (inDegree.get(edge.fromExportName) ?? 0) + 1);
     }
   }
+  return { dependents, inDegree };
+}
+
+/**
+ * Inserts `name` into `ready` (kept sorted ascending) at the first position whose current entry
+ * sorts after it — re-sorting on insert rather than sorting once at the end keeps the "process
+ * alphabetically among currently-ready tables" tie-break correct at every step of
+ * `topologicalTableCopyOrder`'s loop below, not just among the initial zero-in-degree set. Mutates
+ * `ready` in place.
+ */
+function insertIntoReadyQueue(ready: string[], name: string): void {
+  const insertAt = ready.findIndex((n) => n > name);
+  if (insertAt === -1) ready.push(name);
+  else ready.splice(insertAt, 0, name);
+}
+
+/**
+ * Kahn's-algorithm topological sort over an FK graph: table A is ordered before table B whenever B
+ * declares a foreign key pointing at A ("referenced tables first"). Pure and synchronous over its
+ * inputs — no import-time computation, no module-level constant — so a genuine cycle in the real
+ * schema throws only for whichever caller (a test, a future copier) actually asks for the order, not
+ * for every consumer of this module the moment it is imported. `computeCoreTableCopyOrder()` below is
+ * the schema-derived convenience wrapper; this function is kept separately exported and testable
+ * against synthetic edges so a cycle can be proven to throw without needing schema.ts to contain one.
+ *
+ * Self-referencing edges (`edge.selfReferencing`) are excluded from the ordering graph — a table
+ * cannot be sequenced "before itself" — but that exclusion does NOT mean a self-referencing table
+ * needs no special handling. It still appears exactly once in the returned order, and this function
+ * says nothing about the ROW order WITHIN that one table's own copy: a copier must still insert that
+ * table's rows in an order that satisfies its own FK (typically: parents before children, e.g. by
+ * sorting on the referenced column), or defer/drop-and-revalidate just that one constraint for the
+ * duration of that table's copy. That per-table obligation is real and is not discharged by this
+ * function returning a table-level order at all.
+ */
+export function topologicalTableCopyOrder(allExportNames: readonly string[], edges: readonly ForeignKeyEdge[]): string[] {
+  const { dependents, inDegree } = buildCopyOrderGraph(allExportNames, edges);
 
   const ready = [...allExportNames].filter((name) => inDegree.get(name) === 0).sort();
   const order: string[] = [];
@@ -734,14 +765,7 @@ export function topologicalTableCopyOrder(allExportNames: readonly string[], edg
     for (const dependent of dependents.get(next) ?? []) {
       const updated = (remaining.get(dependent) ?? 0) - 1;
       remaining.set(dependent, updated);
-      if (updated === 0) {
-        // Re-sort on insert rather than sorting once at the end: keeps the "process alphabetically
-        // among currently-ready tables" tie-break correct at every step, not just among the initial
-        // zero-in-degree set.
-        const insertAt = ready.findIndex((n) => n > dependent);
-        if (insertAt === -1) ready.push(dependent);
-        else ready.splice(insertAt, 0, dependent);
-      }
+      if (updated === 0) insertIntoReadyQueue(ready, dependent);
     }
   }
 
