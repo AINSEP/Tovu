@@ -63,6 +63,53 @@ test("classifyAddress: private/loopback/link-local/metadata/public per address f
   assert.equal(classifyAddress("::ffff:10.0.0.1"), "private");
 });
 
+// -------------------------------------------------------------------------------------------
+// Characterization tests for `classifyIpv4`'s exact range boundaries, pinned before an internal
+// refactor of that function (extraction only, no ranges added/removed/reordered).
+// -------------------------------------------------------------------------------------------
+
+test("classifyAddress: RFC1918 172.16/12 boundaries are exact, not off-by-one", () => {
+  assert.equal(classifyAddress("172.15.255.255"), "public"); // just below the private block
+  assert.equal(classifyAddress("172.16.0.0"), "private"); // first private address
+  assert.equal(classifyAddress("172.31.255.255"), "private"); // last private address
+  assert.equal(classifyAddress("172.32.0.0"), "public"); // just above the private block
+});
+
+test("classifyAddress: CGNAT (RFC 6598 100.64.0.0/10) is currently classified public — pinning current behavior, not endorsing it", () => {
+  // This function has no special case for shared address space today. If that changes, this
+  // test is expected to change with it — it exists so the change is deliberate, not incidental.
+  assert.equal(classifyAddress("100.64.0.0"), "public");
+  assert.equal(classifyAddress("100.100.0.1"), "public");
+  assert.equal(classifyAddress("100.127.255.255"), "public");
+});
+
+test("classifyAddress: reserved and multicast IPv4 ranges fail closed", () => {
+  assert.equal(classifyAddress("0.0.0.0"), "reserved");
+  assert.equal(classifyAddress("0.1.2.3"), "reserved");
+  assert.equal(classifyAddress("223.255.255.255"), "public"); // just below multicast
+  assert.equal(classifyAddress("224.0.0.1"), "reserved"); // multicast
+  assert.equal(classifyAddress("239.255.255.255"), "reserved"); // end of multicast
+  assert.equal(classifyAddress("240.0.0.1"), "reserved"); // reserved/future
+  assert.equal(classifyAddress("255.255.255.255"), "reserved"); // limited broadcast
+});
+
+test("classifyAddress: malformed input fails closed to reserved, never public", () => {
+  assert.equal(classifyAddress("not-an-ip"), "reserved");
+  assert.equal(classifyAddress("999.999.999.999"), "reserved");
+  assert.equal(classifyAddress(""), "reserved");
+  assert.equal(classifyAddress("10.0.0"), "reserved"); // incomplete IPv4
+});
+
+test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNAT target", async () => {
+  // End-to-end through resolvePinnedPeer (not just the classifier), pinned before its refactor.
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://100.64.0.1/" }));
+  assert.equal(response.bodyText, "ok");
+  assert.equal(transport.calls.length, 1);
+});
+
 test("rejects a private/loopback/link-local target pre-connect for each address family", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });

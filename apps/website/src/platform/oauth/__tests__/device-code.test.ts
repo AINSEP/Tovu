@@ -109,6 +109,20 @@ test("a provider that declares no device endpoint refuses the grant instead of g
   assert.equal(http.callCount(), 0);
 });
 
+test("an HTTP-level rejection with no provider error code still surfaces as OAUTH_PROVIDER_REJECTED", async () => {
+  // Pins the `!response.ok || typeof body.error === "string"` branch's non-error-field half
+  // before it moves into its own function.
+  const clock = createTestClock();
+  const http = createFetchDouble([{ status: 400, json: { message: "bad request" } }]);
+
+  const error = await assertOAuthRejects(
+    () => beginDeviceAuthorization({ provider: TEST_PROVIDER, clock, fetchFn: http.fetchFn }, { client: TEST_CLIENT }),
+    "OAUTH_PROVIDER_REJECTED",
+  );
+  assert.equal(error.message, "the authorization server refused the device authorization request (HTTP 400)");
+  assert.equal(error.providerErrorCode, undefined);
+});
+
 test("authorization_pending is the retryable outcome, and one call is one poll", async () => {
   const clock = createTestClock();
   const http = createFetchDouble([{ status: 400, json: { error: "authorization_pending" } }]);

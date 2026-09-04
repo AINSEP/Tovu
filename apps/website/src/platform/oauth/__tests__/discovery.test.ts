@@ -110,6 +110,23 @@ test("a supplied WWW-Authenticate header is used verbatim rather than guessing t
   }
 });
 
+test("the WWW-Authenticate challenge's own scope parameter wins over the resource's scopes_supported", async () => {
+  // Pins the `challengeScopes.length > 0 ? challengeScopes : metadata?.scopesSupported` branch
+  // before it moves into its own function — no existing test drove the challenge-wins half.
+  const fixture = await startDiscoveryFixture();
+  try {
+    const discovered = await discoverAuthorizationServer(
+      {},
+      { resourceUrl: fixture.resourceUrl, wwwAuthenticate: 'Bearer scope="offline_access"' },
+    );
+    // The fixture's protected-resource document advertises ["openid", "email", "offline_access"]
+    // (see "discovery walks..." above) — the narrower challenge scope must win over it.
+    assert.deepEqual(discovered.resourceScopes, ["offline_access"]);
+  } finally {
+    await fixture.close();
+  }
+});
+
 test("a resource that publishes no protected-resource metadata falls back to its own origin as the issuer", async () => {
   const fixture = await startDiscoveryFixture({ withoutProtectedResourceMetadata: true });
   try {
