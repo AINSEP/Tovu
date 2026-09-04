@@ -1,3 +1,5 @@
+import type { Request, Response } from "express";
+
 import { MediaValidationError, sniffContentType, uploadMedia } from "#src/features/media/index";
 import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import { toAdminMediaResponse } from "#src/server/inbound/admin-http/http/media";
@@ -7,7 +9,13 @@ import { parseOptionalStringField } from "./parse.js";
 /** The three required upload fields plus the three optional metadata fields, parsed off an untyped
  *  body in one place, or `null` if a required field is missing or the wrong shape. `dataBase64` must
  *  be a non-empty string — an absent or non-string value is rejected here rather than reaching
- *  `Buffer.from`.
+ *  `Buffer.from`. `alt`/`caption`/`credit` go through `parse.js`'s `parseOptionalStringField`, which
+ *  throws `MediaValidationError` for a non-string, non-null, non-undefined value — the caller MUST
+ *  invoke this inside a `try`/`catch` (or otherwise catch synchronously), not treat it as
+ *  throw-free the way the `null` return above is. On upload there is no existing value to preserve,
+ *  so an explicit `null` here is equivalent to omitting the field (both end up `""` — see
+ *  `uploadMedia`'s `input.alt?.trim() ?? ""`), unlike `update.ts`'s PATCH route where `null` clears
+ *  a possibly-non-empty existing value.
  *  @complexity O(1). */
 function parseUploadRequestFields(rawBody: unknown): {
   filename: string;
@@ -28,10 +36,42 @@ function parseUploadRequestFields(rawBody: unknown): {
     filename,
     contentType,
     dataBase64,
-    alt: parseOptionalStringField(body.alt),
-    caption: parseOptionalStringField(body.caption),
-    credit: parseOptionalStringField(body.credit),
+    alt: parseOptionalStringField(body.alt, "alt"),
+    caption: parseOptionalStringField(body.caption, "caption"),
+    credit: parseOptionalStringField(body.credit, "credit"),
   };
+}
+
+/**
+ * Runs {@link parseUploadRequestFields} and turns both of its failure modes — a thrown
+ * `MediaValidationError` (malformed `alt`/`caption`/`credit`) and a `null` return (a required field
+ * missing or the wrong shape) — into an already-written 400 response, returning `null` either way
+ * so the route handler can bail with one `if (!fields) return;` instead of nesting its own
+ * try/catch. Pulled out of the handler to stay under this repo's complexity ceiling, and because
+ * this synchronous parse call must be caught here rather than left to the handler's own try/catch
+ * further down: Express 4 does not catch a synchronous throw from an async handler outside a
+ * try/catch (see the `getAuthedPrincipal` comment below) — an uncaught throw here would hang the
+ * request instead of 400ing it.
+ *
+ * @complexity O(1).
+ */
+function parseUploadRequestFieldsOrRespond(
+  req: Request,
+  res: Response
+): ReturnType<typeof parseUploadRequestFields> {
+  let fields: ReturnType<typeof parseUploadRequestFields>;
+  try {
+    fields = parseUploadRequestFields(req.body);
+  } catch (err) {
+    res.status(err instanceof MediaValidationError ? 400 : 500).json({
+      error: err instanceof MediaValidationError ? err.message : "internal error",
+    });
+    return null;
+  }
+  if (!fields) {
+    res.status(400).json({ error: "filename, contentType, and dataBase64 are required" });
+  }
+  return fields;
 }
 
 /** Decodes base64 upload bytes, or `null` if `dataBase64` is not valid base64.
@@ -62,11 +102,8 @@ export const registerAdminMediaUploadRoute: MediaRouteRegistrar = (app, deps) =>
       return;
     }
 
-    const fields = parseUploadRequestFields(req.body);
-    if (!fields) {
-      res.status(400).json({ error: "filename, contentType, and dataBase64 are required" });
-      return;
-    }
+    const fields = parseUploadRequestFieldsOrRespond(req, res);
+    if (!fields) return;
     const { filename, contentType, dataBase64, alt, caption, credit } = fields;
 
     const bytes = decodeUploadBytes(dataBase64);
