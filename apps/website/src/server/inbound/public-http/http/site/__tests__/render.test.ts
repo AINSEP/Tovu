@@ -2318,6 +2318,46 @@ test("renderWidgetIr('post-content'): an empty title node (freshly synthesized, 
   assert.ok(!html.includes("widget-placeholder"));
 });
 
+// ---------------------------------------------------------------------------
+// `header` opt-out (2026-09-04) — a "content" marker's `header:false` (threaded here via
+// `resolver-service.ts`'s `resolveContentTypeEmbeds`, `props.header`) lets a template suppress the
+// `.post-detail-header` (<h1> + date byline) wrapper this function previously emitted
+// unconditionally. No-silent-behavior-change requirement: `props.header` absent renders
+// BYTE-IDENTICAL to the pre-existing output (every current template — about, docs, the listing
+// page, every kind:"post" detail page — omits this key and must keep its byline with zero edits).
+// ---------------------------------------------------------------------------
+
+const POST_CONTENT_BASE_PROPS = {
+  title: "Legacy Post",
+  bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] },
+};
+
+test("renderWidgetIr('post-content'): props.header ABSENT renders byte-identical to the pre-header-field output — the no-silent-behavior-change default", () => {
+  const html = renderWidgetIr({ componentId: "post-content", props: POST_CONTENT_BASE_PROPS });
+  assert.equal(html, `<div class="post-detail-header"><h1>Legacy Post</h1></div><div class="post-detail-body"><p>Body.</p></div>`);
+});
+
+test("renderWidgetIr('post-content'): props.header: true renders identically to header being absent", () => {
+  const html = renderWidgetIr({ componentId: "post-content", props: { ...POST_CONTENT_BASE_PROPS, header: true } });
+  assert.equal(html, `<div class="post-detail-header"><h1>Legacy Post</h1></div><div class="post-detail-body"><p>Body.</p></div>`);
+});
+
+test("renderWidgetIr('post-content'): props.header: false emits NO .post-detail-header node at all — the .post-detail-body is unchanged", () => {
+  const html = renderWidgetIr({ componentId: "post-content", props: { ...POST_CONTENT_BASE_PROPS, header: false } });
+  assert.equal(html, `<div class="post-detail-body"><p>Body.</p></div>`);
+  assert.ok(!html.includes("post-detail-header"));
+  assert.ok(!html.includes("<h1"));
+});
+
+test("renderWidgetIr('post-content'): props.header: false also suppresses the date byline (post-meta), not just the <h1> — the whole header block is one unit", () => {
+  const html = renderWidgetIr({
+    componentId: "post-content",
+    props: { ...POST_CONTENT_BASE_PROPS, updatedAt: "2026-08-11T00:00:00.000Z", header: false },
+  });
+  assert.equal(html, `<div class="post-detail-body"><p>Body.</p></div>`);
+  assert.ok(!html.includes("post-meta"));
+});
+
 /** A `depth`-deep chain of nested `bulletList > listItem`, bottoming out in one paragraph — the
  *  shape genuine repeated list-indentation produces, not an artificial malformed doc. Matches
  *  `request-cost-traversal.measurement.test.ts`'s own `deepDoc` helper (that file is measurement-

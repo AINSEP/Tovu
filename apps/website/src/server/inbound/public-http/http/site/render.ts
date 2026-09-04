@@ -1954,10 +1954,36 @@ function readMediaAssetMetadata(value: JsonValue | undefined): ReadonlyMap<strin
  * already calls — and stash it into `props` as plain JSON (`readMediaTransformVersions`/
  * `readMediaAssetMetadata` above reconstruct the `Map`s this function needs from that JSON).
  */
+/**
+ * The `.post-detail-header` block (`<h1>` + optional date byline), or `""` when the caller opted
+ * out via `header: false` (2026-09-04 — a "content" marker's own `header:false`, threaded here from
+ * `resolver-service.ts`'s `resolveContentTypeEmbeds`). Split out of {@link renderWidgetPostContent}
+ * so the opt-out's own branch lives at nesting depth 0 in a small function, rather than stacking a
+ * third ternary into a function that already carries two (the title-node back-compat fork, the
+ * date-label presence check) — see this repo's complexity ceiling.
+ *
+ * @complexity O(1) — string concatenation only, no loop or recursion.
+ */
+function renderPostDetailHeader(showHeader: boolean, titleHtml: string, dateLabel: string, updatedAt: string): string {
+  if (!showHeader) return "";
+  return (
+    `<div class="post-detail-header">` +
+    titleHtml +
+    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
+    `</div>`
+  );
+}
+
 function renderWidgetPostContent(props: JsonObject): string {
   const title = props.title;
   const bodyJson = props.bodyJson;
   if (typeof title !== "string" || bodyJson === undefined) return renderWidgetPlaceholder();
+  // `header` (2026-09-04): `false` only when a "content" marker explicitly opted out
+  // (`resolver-service.ts`'s `resolveContentTypeEmbeds` threads `ref.header` through unchanged) —
+  // absent, `true`, or any other value keeps emitting the header, matching the field's own
+  // default-true contract on `PageHtmlEmbedRef.header` so every pre-existing template (no `header`
+  // key at all) renders byte-identical to before this field existed.
+  const showHeader = props.header !== false;
   const updatedAt = typeof props.updatedAt === "string" ? props.updatedAt : "";
   const dateLabel = updatedAt ? new Date(updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
   // Back-compat fork (post-title-in-document feature, 2026-08-11): a migrated body's OWN title node
@@ -1971,10 +1997,7 @@ function renderWidgetPostContent(props: JsonObject): string {
   const mediaTransformVersions = readMediaTransformVersions(props.mediaTransformVersions as JsonValue | undefined);
   const mediaAssetMetadata = readMediaAssetMetadata(props.mediaAssetMetadata as JsonValue | undefined);
   return (
-    `<div class="post-detail-header">` +
-    titleHtml +
-    (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
-    `</div>` +
+    renderPostDetailHeader(showHeader, titleHtml, dateLabel, updatedAt) +
     `<div class="post-detail-body">${renderDocNode(bodyJson, EMPTY_INLINE_RESOLVED, mediaTransformVersions, mediaAssetMetadata)}</div>`
   );
 }
