@@ -116,18 +116,63 @@ Adapted into a Tovu `templated`-tier test fixture at
 `development/fixtures/theme-archive/minima/`; see its `NOTICE.md`.
 
 --------------------------------------------------------------------------------
+7. Tailark  (https://tailark.com)
+--------------------------------------------------------------------------------
+Licence:   NOT RECORDED IN THIS REPOSITORY. See the KNOWN GAPS note below --
+           this entry is attribution, not a licence claim.
+Copyright: The source pages carry a bare `(c) Tailark 2025 - Present` footer
+           credit. No other copyright or licence text was present in any of the
+           three exports.
+Text:      None. No Tailark licence file, SPDX identifier or terms URL exists
+           anywhere in this repository.
+
+Three Tovu `static`-tier themes are derived from captures of Tailark's own demo
+pages -- a real, actively maintained Tailwind/shadcn marketing-block product:
+
+  content/themes/static/tailark-dusk           (displayed as "Northbound")
+  content/themes/static/tailark-quartz-dark    ("Onyx")
+  content/themes/static/tailark-quartz-libre   ("Meridian")
+  sites/tovu-com/themes/static/tailark-dusk
+  sites/tovu-com/themes/static/tailark-quartz-dark
+  sites/tovu-com/themes/static/tailark-quartz-libre
+
+Each now carries its own `NOTICE.md` recording provenance in full. The important
+scoping fact, common to all three: **no Tailark code ships in any of them.** All
+three exports were incomplete Next.js captures whose compiled CSS was never
+included, so every stylesheet in these themes is hand-authored from scratch and
+every design token was pixel-sampled from the reference screenshots. What is
+derived from Tailark is the visual design and page structure, not source.
+
+`tailark-quartz-dark` and `tailark-quartz-libre` show strong evidence of coming
+from the paid **Tailark Pro** tier (`pro.tailark.com` links, a shared Vercel
+deployment id, live `cdn.sanity.io` CMS imagery); `tailark-dusk`'s tier could not
+be determined. The free `tailark/blocks` GitHub repository is separately MIT
+(copyright (c) 2025 Irung), but that covers a different product than these
+exports and must not be read as covering them.
+
+All real personal and company names in the sources -- including fabricated quotes
+attributed to real, identifiable people -- were replaced with fictional ones
+during porting. No external image is hotlinked by any of the three themes.
+
+--------------------------------------------------------------------------------
 KNOWN GAPS -- third-party material with no licence documentation in this repo
 --------------------------------------------------------------------------------
 
 These are recorded honestly rather than guessed at. They need the owner's
 attention before relying on this NOTICE as complete.
 
-(a) The `tailark-*` themes -- `content/themes/static/tailark-dusk` (displayed as
-    "Northbound"), `tailark-quartz-dark` ("Onyx") and `tailark-quartz-libre`
-    ("Meridian"), plus their per-site copies under `sites/tovu-com/themes/` --
-    carry NO `NOTICE.md` and no attribution of any kind, unlike the `basic` and
-    `basic-2` themes beside them, which do. Their directory names refer to an
-    external source, and `content/themes/static/tailark-dusk/css/theme.css`
-    contains a comment pointing at "NOTICE.md's 'Light mode added later'
-    section" -- a file that does not exist in that theme. Their provenance and
-    licence are therefore undetermined and are deliberately NOT asserted here.
+(a) Tailark (entry 7). Provenance is now fully recorded -- each of the three
+    themes carries a `NOTICE.md`, and the missing-attribution half of this gap is
+    closed. **The licence half is not.** Tailark's actual terms are not written
+    down anywhere in this repository: no licence file, no SPDX identifier, no
+    terms URL, and, for Tailark Pro specifically, a "derived kit" legal FAQ whose
+    answer text was never retrieved.
+
+    What the repository does hold is the owner's own confirmation, recorded in
+    commit `6d83d212` (2026-08-10), that Tailark redistribution terms are settled
+    and that they own/licence Tailark Pro. That commit removed the three themes'
+    original internal risk-tracking notes on that basis. This NOTICE records that
+    confirmation and does not reopen it -- but a confirmation is not the text it
+    rests on, and this repository cannot show a reader the terms these three
+    themes are redistributed under. Closing this properly means committing or
+    citing Tailark Pro's actual terms; only the owner can supply them.
