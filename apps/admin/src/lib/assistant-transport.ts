@@ -657,6 +657,47 @@ export interface CreateTovuAssistantTransportOptions {
   getResumeCapableAgentIds?: () => ReadonlySet<string>;
 }
 
+/**
+ * Resolves the prompt string `startRun`'s Local CLI branch sends: the full rendered transcript by
+ * default, or just the newest user turn when `input.agentId` is present in `resumeCapableAgentIds` —
+ * see `getResumeCapableAgentIds`'s own doc on {@link CreateTovuAssistantTransportOptions} for the
+ * full contract this mirrors. Pulled out of `startRun` (2026-09-04, complexity pass) as its own pure
+ * step. `options.getResumeCapableAgentIds?.()` is still called at the same point in `startRun` as
+ * before — only the "which agentIds carries own memory" branch itself moves here, so the "read fresh
+ * on every call" convention that doc argues for is unchanged.
+ */
+function resolveLocalCliPrompt(
+  input: StartRunInput,
+  latestUserPrompt: string,
+  resumeCapableAgentIds: ReadonlySet<string> | undefined,
+): string {
+  const carriesOwnMemory = input.agentId !== undefined && resumeCapableAgentIds?.has(input.agentId) === true;
+  return carriesOwnMemory ? latestUserPrompt : runPrompt(input.history);
+}
+
+/**
+ * Turns `startRun`'s Local CLI `POST /api/runs` response into either a thrown, detailed error or a
+ * subscribed run — the two outcomes once the request lands. Pulled out of `startRun` (2026-09-04,
+ * complexity pass) as its own step: `response.ok` in, `{runId}` or a thrown `Error` out. The
+ * `.text().catch(() => "")` is load-bearing, not decorative — see the inline comment below.
+ */
+async function finishLocalCliRun(
+  response: Response,
+  handlers: RunHandlers,
+  signal: AbortSignal | undefined,
+): Promise<{ runId: string }> {
+  if (!response.ok) {
+    // A response whose body stream errors out (e.g. a dropped connection) must not turn "the server
+    // rejected the request" into "the client crashed reading the rejection".
+    const detail = await response.text().catch(() => "");
+    throw new Error(`agent run failed to start (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
+  }
+
+  const { run } = (await response.json()) as { run: { id: string } };
+  subscribeToRun(run.id, handlers, signal);
+  return { runId: run.id };
+}
+
 export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}): ChatTransport {
   return {
     async startRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
@@ -693,12 +734,9 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         return startAgUiRun(input, handlers);
       }
 
-      // Local CLI path below. `carriesOwnMemory` is the one branch point this path adds over its
-      // pre-2026-09 shape — see `getResumeCapableAgentIds`'s own doc for the full contract and why
-      // an unresolved/absent agentId fails open to the full transcript rather than the bare message.
-      const carriesOwnMemory =
-        input.agentId !== undefined && options.getResumeCapableAgentIds?.().has(input.agentId) === true;
-      const prompt = carriesOwnMemory ? latestUserPrompt : runPrompt(input.history);
+      // Local CLI path below. `resolveLocalCliPrompt`'s own doc has the full contract for why an
+      // unresolved/absent agentId fails open to the full transcript rather than the bare message.
+      const prompt = resolveLocalCliPrompt(input, latestUserPrompt, options.getResumeCapableAgentIds?.());
       const contextRef = buildLocalCliContextRef(input, prompt);
 
       const response = await fetch(RUNS_URL, {
@@ -709,14 +747,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         signal: input.signal,
       });
 
-      if (!response.ok) {
-        const detail = await response.text().catch(() => "");
-        throw new Error(`agent run failed to start (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
-      }
-
-      const { run } = (await response.json()) as { run: { id: string } };
-      subscribeToRun(run.id, handlers, input.signal);
-      return { runId: run.id };
+      return finishLocalCliRun(response, handlers, input.signal);
     },
 
     async reattachRun(runId: string, handlers: RunHandlers, options?: ReattachRunOptions): Promise<void> {
