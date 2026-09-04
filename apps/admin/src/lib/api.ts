@@ -1665,6 +1665,29 @@ function errorName(value: unknown): string | undefined {
     : undefined;
 }
 
+/**
+ * Classifies a `fetch()` rejection cause and throws the appropriate translated error — the whole
+ * catch-block body {@link fetchOrThrowUnreachable} used to carry inline. Pulled into its own
+ * function (2026-09-04, complexity pass) purely to drop nesting: Cognitive Complexity charges extra
+ * for a construct nested inside another (here, three `if`s and a ternary all nested inside the
+ * `catch`), and that penalty is what pushed the caller to 10 against a 9 ceiling even though
+ * cyclomatic complexity (which does not weight nesting) was already within bounds at 7. Moving the
+ * SAME checks into a function of their own does not remove any branch — cyclomatic is unchanged —
+ * it only resets the nesting depth they're scored at. Always throws; never returns normally, exactly
+ * like the catch block it replaces.
+ */
+function throwTranslatedFetchFailure(cause: unknown): never {
+  if (errorName(cause) === "AbortError") throw cause;
+  if (errorName(cause) === "TimeoutError") {
+    const message = cause instanceof Error ? cause.message : String(cause);
+    throw new ApiError(timeoutApiMessage(), 0, REQUEST_TIMEOUT_CODE, { cause: message });
+  }
+  if (!(cause instanceof TypeError)) throw cause;
+  throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
+    cause: cause.message,
+  });
+}
+
 async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<Response> {
   // A caller-supplied signal (none exist today, but `AbortError` handling below already
   // anticipates one) is honored as-is; otherwise every request is bounded so a queued-forever
@@ -1673,15 +1696,7 @@ async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<
   try {
     return await fetch(url, { ...init, signal });
   } catch (cause) {
-    if (errorName(cause) === "AbortError") throw cause;
-    if (errorName(cause) === "TimeoutError") {
-      const message = cause instanceof Error ? cause.message : String(cause);
-      throw new ApiError(timeoutApiMessage(), 0, REQUEST_TIMEOUT_CODE, { cause: message });
-    }
-    if (!(cause instanceof TypeError)) throw cause;
-    throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
-      cause: cause.message,
-    });
+    return throwTranslatedFetchFailure(cause);
   }
 }
 
