@@ -177,6 +177,77 @@ test("hydrate reloads what a successful write persisted", async () => {
   });
 });
 
+test("hydrate against an empty table leaves the snapshot empty (missing row)", async () => {
+  const store = makeStore();
+  await store.hydrate();
+  assert.equal(store.get("connector-a"), undefined);
+});
+
+test("hydrate skips a row in the degenerate pre-credential state (sealed: null)", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    connectorId: "connector-pending",
+    accountLabel: null,
+    sealed: null,
+    aadVersion: 0,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const store = makeStore(repo);
+  await store.hydrate();
+  assert.equal(store.get("connector-pending"), undefined);
+});
+
+test("hydrate skips a row whose opened plaintext is not credential-shaped (an array, not an object)", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({
+    plaintext: JSON.stringify(["not", "an", "object"]),
+    key: await keyring.activeKey(),
+    aad: buildConnectorCredentialAad({ workspaceId: WORKSPACE, connectorId: "connector-malformed" }),
+  });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    connectorId: "connector-malformed",
+    accountLabel: "malformed",
+    sealed,
+    aadVersion: 1,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const store = makeStore(repo, keyring);
+  await store.hydrate();
+  assert.equal(store.get("connector-malformed"), undefined);
+});
+
+test("hydrate defaults a null accountLabel to the connectorId", async () => {
+  const repo = new InMemoryConnectorCredentialRepo();
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({
+    plaintext: JSON.stringify({ provider: "composio", token: "tok_unlabeled" }),
+    key: await keyring.activeKey(),
+    aad: buildConnectorCredentialAad({ workspaceId: WORKSPACE, connectorId: "connector-unlabeled" }),
+  });
+  await repo.upsert({
+    workspaceId: WORKSPACE,
+    connectorId: "connector-unlabeled",
+    accountLabel: null,
+    sealed,
+    aadVersion: 1,
+    createdAt: clock.nowIso(),
+    updatedAt: clock.nowIso(),
+  });
+
+  const store = makeStore(repo, keyring);
+  await store.hydrate();
+  assert.equal(store.get("connector-unlabeled")?.accountLabel, "connector-unlabeled");
+});
+
 // ---------------------------------------------------------------------------
 // AAD (2026-09-02 gap closure) — `composio_connector_credentials` used to seal with no additional
 // authenticated data at all, so a ciphertext was transplantable between connector rows. New writes

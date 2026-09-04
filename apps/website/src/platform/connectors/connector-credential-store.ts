@@ -89,6 +89,46 @@ function toMaterial(parsed: unknown): ConnectorCredentialMaterial | undefined {
 }
 
 /**
+ * Decrypts and validates one stored row into a {@link ConnectorCredentialRecord}, or `undefined`
+ * when the row cannot become one — the degenerate pre-credential state (`sealed: null`), a seal
+ * that fails to open (wrong aad, rotated root key, a hand-edited row), or plaintext that doesn't
+ * parse into credential-shaped material. Every failure is logged and swallowed here rather than
+ * thrown, matching {@link SnapshotConnectorCredentialStore.hydrate}'s documented "skip, don't fail"
+ * contract — extracted verbatim out of `hydrate`'s loop body so the loop stays flat.
+ */
+async function openConnectorCredentialRow(
+  row: ConnectorCredentialRow,
+  input: { workspaceId: UUID; sealer: SecretSealerPort }
+): Promise<ConnectorCredentialRecord | undefined> {
+  if (row.sealed === null) return undefined;
+  let credentials: ConnectorCredentialMaterial | undefined;
+  try {
+    // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
+    // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed
+    // with NO aad and must be opened the same way, or auth-tag verification fails closed.
+    const aad =
+      row.aadVersion === 1
+        ? buildConnectorCredentialAad({ workspaceId: input.workspaceId, connectorId: row.connectorId })
+        : undefined;
+    credentials = toMaterial(JSON.parse(await input.sealer.open({ sealed: row.sealed, aad })));
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error(
+      `composio credentials for "${row.connectorId}" could not be opened; treating the connector as disconnected: ${err instanceof Error ? err.message : String(err)}`
+    );
+    return undefined;
+  }
+  if (credentials === undefined) return undefined;
+  return {
+    schemaVersion: 1,
+    connectorId: row.connectorId,
+    accountLabel: row.accountLabel ?? row.connectorId,
+    credentials,
+    updatedAt: row.updatedAt,
+  };
+}
+
+/**
  * A `ConnectorCredentialStore` over a decrypted in-memory snapshot, persisting through a serialized
  * write queue.
  *
@@ -188,29 +228,8 @@ export function createSnapshotConnectorCredentialStore(
       const rows = await deps.repo.listByWorkspaceId(deps.workspaceId);
       records.clear();
       for (const row of rows) {
-        if (row.sealed === null) continue;
-        let credentials: ConnectorCredentialMaterial | undefined;
-        try {
-          // `aad` only when this row was sealed under one (`aadVersion === 1`) — a legacy row
-          // (`aadVersion === 0`, every row written before the 2026-09-02 AAD gap closure) was sealed
-          // with NO aad and must be opened the same way, or auth-tag verification fails closed.
-          const aad = row.aadVersion === 1 ? buildConnectorCredentialAad({ workspaceId: deps.workspaceId, connectorId: row.connectorId }) : undefined;
-          credentials = toMaterial(JSON.parse(await deps.sealer.open({ sealed: row.sealed, aad })));
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(
-            `composio credentials for "${row.connectorId}" could not be opened; treating the connector as disconnected: ${err instanceof Error ? err.message : String(err)}`
-          );
-          continue;
-        }
-        if (credentials === undefined) continue;
-        records.set(row.connectorId, {
-          schemaVersion: 1,
-          connectorId: row.connectorId,
-          accountLabel: row.accountLabel ?? row.connectorId,
-          credentials,
-          updatedAt: row.updatedAt,
-        });
+        const record = await openConnectorCredentialRow(row, { workspaceId: deps.workspaceId, sealer: deps.sealer });
+        if (record !== undefined) records.set(row.connectorId, record);
       }
     },
 
