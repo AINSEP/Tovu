@@ -216,3 +216,24 @@ test("decodeSqliteJsonb: a value ending EXACTLY at the container end is still va
   const exact = Buffer.from([0x4c, 0x17, 0x61, 0x17, 0x62]);
   assert.deepEqual(decodeSqliteJsonb(exact), { a: "b" }, "a value ending exactly at payloadEnd must decode");
 });
+
+// Characterization tests for `decodeScalarPayload`'s default branch and `decodeContainerPayload`'s
+// object-key-type guard, added ahead of a pure extract-function refactor of both (jsonb-column.ts)
+// so those two error paths are pinned before the code that produces them moves.
+
+test("decodeSqliteJsonb: rejects a JSON5-only element type (INT5) with a message naming it as JSON5-only", () => {
+  // Header byte (sizeNibble 0 << 4) | INT5(0x4) = 0x04, zero-length payload.
+  assert.throws(() => decodeSqliteJsonb(Buffer.from([0x04])), /JSON5-only/);
+});
+
+test("decodeSqliteJsonb: rejects an unrecognized element type code with a generic 'unknown' message", () => {
+  // 0xd is not assigned by the JSONB spec (see ELEMENT_TYPE) — header byte (sizeNibble 0 << 4) | 0xd.
+  assert.throws(() => decodeSqliteJsonb(Buffer.from([0x0d])), /unknown JSONB element type/);
+});
+
+test("decodeSqliteJsonb: rejects an object whose key element decodes to a non-string", () => {
+  // 0x2c  OBJECT, payload 2 bytes
+  //   0x13  INT, payload 1 byte
+  //     0x33  "3"   <- decodes to the number 3, used here as the object's "key"
+  assert.throws(() => decodeSqliteJsonb(Buffer.from([0x2c, 0x13, 0x33])), /non-string/);
+});
