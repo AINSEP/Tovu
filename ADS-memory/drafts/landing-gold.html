@@ -453,18 +453,17 @@
           Run your site by <span class="tvg-em">talking to it</span>.
         </h1>
         <p class="tvg-lede" data-kui="fade-up on:load delay:340ms">
-          Tovu runs on your own machine, out of one folder you can copy, version or hand to
-          someone else. Every capability the admin exposes is also a tool an assistant can call
-          — so an agent can find out what your site can do, and then do it.
+          Runs on your machine. One folder — copy it, version it, hand it over.
+          Every admin capability is a tool an agent can call.
         </p>
         <div class="tvg-cta" data-kui="fade-up on:load delay:460ms">
           <a class="tvg-btn tvg-btn-gold" href="/install" data-kui="magnetic radius:90 strength:0.2">
             Install Tovu <span class="arw" aria-hidden="true">-&gt;</span>
           </a>
-          <a class="tvg-btn tvg-btn-line" href="/docs">Read the docs</a>
+          <a class="tvg-btn tvg-btn-line" href="/docs">Docs</a>
         </div>
         <p class="tvg-note" data-kui="fade-up on:load delay:580ms">
-          npx tovu init my-site &nbsp;·&nbsp; then <a href="/quickstart">the five-minute quickstart</a>
+          npx tovu init my-site &nbsp;·&nbsp; then <a href="/quickstart">the quickstart</a>
         </p>
       </div>
 
@@ -502,16 +501,13 @@
       <div class="tvg-cols" data-kui="fade-up on:enter delay:160ms">
         <div>
           <p>
-            The assistant is not reading your screen or driving your buttons. It calls the same
-            operations the admin screens call, through the same permission checks, and every write
-            lands in the same change history a human edit would.
+            Not screen-reading. Same operations, same permissions, same history.
           </p>
         </div>
         <div>
           <p>
-            Which means the answer to <em>can it do that?</em> is not a roadmap question. If the
-            capability is in the admin, it is in the toolset, and the agent can discover it, read
-            its schema, and use it without anyone writing an integration first.
+            <em>Can it do that?</em> is not a roadmap question. If it is in the admin, it is in
+            the toolset — no integration to write.
           </p>
         </div>
       </div>
@@ -525,32 +521,31 @@
         <p class="tvg-idx">02 &nbsp;/&nbsp; The ledger</p>
         <h2>What the site can do, it can also be told to do.</h2>
         <p>
-          Fifteen documented capability areas ship in the box. Each one is a screen you can open,
-          and — for nearly all of them — a set of tools an assistant can call.
+          Each is a screen, and a set of tools.
         </p>
       </div>
 
       <div class="tvg-stat" data-kui="fade-up on:enter">
         <b data-kui="count-up to:15 on:enter 900ms">15</b>
-        <span>capability areas, listed in full below</span>
+        <span>capability areas, in the box</span>
       </div>
 
       <dl class="tvg-ledger" data-kui="fade-up on:enter delay:120ms">
-        <div class="tvg-row"><dt>Media</dt><dd>Uploads, renditions and image transforms.</dd></div>
-        <div class="tvg-row"><dt>Forms</dt><dd>Form definitions and the submissions they collect.</dd></div>
-        <div class="tvg-row"><dt>Members</dt><dd>Visitor accounts with magic-link sign-in.</dd></div>
-        <div class="tvg-row"><dt>Newsletter</dt><dd>Lists, double-opt-in subscriptions, campaigns and a send log.</dd></div>
-        <div class="tvg-row"><dt>Comments</dt><dd>Moderation queue, spam handling and per-site settings.</dd></div>
-        <div class="tvg-row"><dt>Redirects</dt><dd>Redirect rules, hit counts and bulk import.</dd></div>
+        <div class="tvg-row"><dt>Media</dt><dd>Uploads, renditions, image transforms.</dd></div>
+        <div class="tvg-row"><dt>Forms</dt><dd>Definitions and submissions.</dd></div>
+        <div class="tvg-row"><dt>Members</dt><dd>Visitor accounts, magic-link sign-in.</dd></div>
+        <div class="tvg-row"><dt>Newsletter</dt><dd>Lists, double opt-in, campaigns, send log.</dd></div>
+        <div class="tvg-row"><dt>Comments</dt><dd>Moderation queue, spam handling, per-site settings.</dd></div>
+        <div class="tvg-row"><dt>Redirects</dt><dd>Rules, hit counts, bulk import.</dd></div>
         <div class="tvg-row"><dt>SEO</dt><dd>Per-entry overrides, site-wide settings, sitemap regeneration.</dd></div>
-        <div class="tvg-row"><dt>Taxonomy</dt><dd>Taxonomies, terms, and tagging entries with them.</dd></div>
-        <div class="tvg-row"><dt>Widgets</dt><dd>Widget instances, region bindings and inline embeds.</dd></div>
-        <div class="tvg-row"><dt>Analytics</dt><dd>Page views and events, recorded into your own database.</dd></div>
-        <div class="tvg-row"><dt>Change sets</dt><dd>Grouped edit history you can read back and revert.</dd></div>
-        <div class="tvg-row"><dt>Deployments</dt><dd>Static export, a real Dockerfile, and publish targets.</dd></div>
-        <div class="tvg-row"><dt>External MCP</dt><dd>Register third-party MCP servers over OAuth or device code.</dd></div>
-        <div class="tvg-row"><dt>API keys</dt><dd>Scoped, revocable keys for programmatic access.</dd></div>
-        <div class="tvg-row"><dt>Agent plugins</dt><dd>Installable packages of agent instructions and tools.</dd></div>
+        <div class="tvg-row"><dt>Taxonomy</dt><dd>Taxonomies, terms, tagging.</dd></div>
+        <div class="tvg-row"><dt>Widgets</dt><dd>Instances, region bindings, inline embeds.</dd></div>
+        <div class="tvg-row"><dt>Analytics</dt><dd>Page views and events, in your own database.</dd></div>
+        <div class="tvg-row"><dt>Change sets</dt><dd>Grouped edit history you can revert.</dd></div>
+        <div class="tvg-row"><dt>Deployments</dt><dd>Static export, Dockerfile, publish targets.</dd></div>
+        <div class="tvg-row"><dt>External MCP</dt><dd>Third-party MCP servers.</dd></div>
+        <div class="tvg-row"><dt>API keys</dt><dd>Scoped, revocable keys.</dd></div>
+        <div class="tvg-row"><dt>Agent plugins</dt><dd>Installable agent instructions and tools.</dd></div>
       </dl>
     </div>
   </section>
@@ -562,15 +557,14 @@
         <p class="tvg-idx">03 &nbsp;/&nbsp; What is missing</p>
         <h2>The toolset has gaps <span class="tvg-hl" data-kui="highlight-sweep on:enter">on purpose</span>.</h2>
         <p>
-          Handing an agent your admin is only reasonable if the dangerous operations were never
-          handed over. They were not. These omissions are written into the tool catalogs, with the
-          reason attached.
+          The destructive operations were never handed over. Each omission is in the tool
+          catalog, with its reason.
         </p>
       </div>
       <ul class="tvg-missing" data-kui="fade-up on:enter delay:100ms">
         <li>
           <b>Comments</b>
-          <p>The moderation ladder moves a comment between states and every step is reversible. There is no purge tool. <em>Nothing in the toolset erases a comment.</em></p>
+          <p>Every moderation step is reversible. <em>Nothing in the toolset erases a comment.</em></p>
         </li>
         <li>
           <b>Members</b>
@@ -578,15 +572,15 @@
         </li>
         <li>
           <b>Forms</b>
-          <p>A form is retired by setting its status. <em>Disabling is the only retirement path an agent has.</em></p>
+          <p><em>Disabling is the only retirement path an agent has.</em></p>
         </li>
         <li>
           <b>Migrations &amp; imports</b>
-          <p><code>database_execute_migrate_forward</code> and <code>redirects_import</code> are in the catalog and marked never agent-callable. <em>They are human-confirmation-only.</em></p>
+          <p><code>database_execute_migrate_forward</code> and <code>redirects_import</code> are marked never agent-callable. <em>Human confirmation only.</em></p>
         </li>
         <li>
           <b>Publishing</b>
-          <p>Publishing to the public internet and pushing a commit both stop at a confirmation dialog. <em>The credential is write-scoped and the human presses the button.</em></p>
+          <p>Publishing and pushing both stop at a confirmation dialog. <em>The human presses the button.</em></p>
         </li>
       </ul>
     </div>
@@ -600,40 +594,38 @@
         <h2>Four tiers of theme, one contract.</h2>
         <p>
           A theme is a folder validated against a schema. Pick the tier by how much power the
-          author should have — the rendering contract is the same at every level.
+          author needs.
         </p>
       </div>
       <ol class="tvg-tiers" data-kui="fade-up on:enter delay:80ms">
         <li data-lvl="1" data-kui="lift distance:4px">
           <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <h3>declarative</h3>
-          <p>JSON block trees against a closed vocabulary. No logic, no scripting, nothing to sandbox.</p>
+          <p>JSON block trees. No logic, nothing to sandbox.</p>
           <span class="lvl">Tier 1 — data only</span>
         </li>
         <li data-lvl="2" data-kui="lift distance:4px">
           <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <h3>templated</h3>
-          <p>LiquidJS, rendered in a sandboxed worker. Real template logic, still no JavaScript.</p>
+          <p>LiquidJS in a sandboxed worker. Template logic, no JavaScript.</p>
           <span class="lvl">Tier 2 — sandboxed logic</span>
         </li>
         <li data-lvl="3" data-kui="lift distance:4px">
           <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <h3>handlebars</h3>
-          <p>The same sandboxed contract as templated, for authors who would rather write Handlebars.</p>
+          <p>The same sandbox, in Handlebars syntax.</p>
           <span class="lvl">Tier 3 — sandboxed logic</span>
         </li>
         <li data-lvl="4" data-kui="lift distance:4px">
           <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <h3>static</h3>
-          <p>Plain HTML, CSS and JavaScript. The theme this page is rendered through is one of these.</p>
+          <p>Plain HTML, CSS and JavaScript. This page is rendered through one.</p>
           <span class="lvl">Tier 4 — full control</span>
         </li>
       </ol>
       <p class="tvg-foot">
         A fifth tier, <span style="font-family:var(--font-mono)">code</span>, is reserved for signed
-        plugin JavaScript; no themes ship on it yet. The CLI validates, migrates and normalises theme
-        builds, and the assistant can list, read, rename and restore individual theme files —
-        <a href="/catalog">browse the catalog</a>.
+        plugin JavaScript; no themes ship on it yet. <a href="/catalog">Browse the catalog</a>.
       </p>
     </div>
   </section>
@@ -646,8 +638,7 @@
         <h2>It lives on your machine, in
           <span data-kui="underline-draw on:enter" style="--kui-sweep-color:var(--gold)">one folder</span>.</h2>
         <p>
-          The database, your uploads, your themes and your plugins are all under one directory.
-          Copy it, commit it, back it up, or hand it to someone else.
+          Database, uploads, themes and plugins, all in the same directory.
         </p>
       </div>
 
@@ -655,18 +646,18 @@
         <p class="tvg-term-bar">Terminal</p>
         <pre><code><span class="pr" aria-hidden="true">$ </span><span class="cmd">npx tovu init</span> my-site
 <span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu serve</span> my-site            <span class="rem"># site and admin on one port</span>
-<span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu export</span> my-site           <span class="rem"># render the public site to static files</span>
+<span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu export</span> my-site           <span class="rem"># static export</span>
 <span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu deploy config</span> --target fly <span class="rem"># or render, or railway</span></code></pre>
       </div>
 
       <div class="tvg-after">
         <div>
           <h3>docker</h3>
-          <p>A real multi-stage Dockerfile sits at the repo root. It runs as a non-root user and mounts your sites directory as a volume, so the container is disposable and your content is not.</p>
+          <p>A multi-stage Dockerfile at the repo root. The container is disposable; your content is not.</p>
         </div>
         <div>
           <h3>introspect</h3>
-          <p><code>tovu introspect</code> prints the whole command and tool manifest as JSON — the same manifest an agent reads to learn what this particular install can do.</p>
+          <p><code>tovu introspect</code> prints the command and tool manifest as JSON — the same one an agent reads.</p>
         </div>
       </div>
     </div>
@@ -678,8 +669,7 @@
       <p class="tvg-idx">06 &nbsp;/&nbsp; Start</p>
       <h2>Install it, then ask it what it can do.</h2>
       <p>
-        That is not a figure of speech. The install ships with the tool manifest already populated;
-        the first useful thing you can do is ask.
+        Not a figure of speech. The manifest ships populated.
       </p>
       <div class="tvg-cta">
         <a class="tvg-btn tvg-btn-black" href="/install">Install Tovu <span class="arw" aria-hidden="true">-&gt;</span></a>

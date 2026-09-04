@@ -685,21 +685,18 @@ main > article.post-detail .post-detail-header { display: none; }
           style="--kui-mask-bleed:0.1em">Operate your site by talking to it.</h1>
 
       <p class="xai-lede" data-kui="fade-up on:load delay:200ms">
-        Tovu is a self-hosted content platform. Every capability the admin
-        exposes &mdash; pages, themes, media, forms, members, plugins &mdash; is
-        also a tool an AI assistant can call. An agent can ask the site what it
-        is able to do, and then actually do it.
+        A self-hosted content platform. Every admin capability is also a tool
+        an agent can call.
       </p>
 
       <div class="xai-cta" data-kui="fade-up on:load delay:320ms">
-        <a class="xai-btn xai-btn-fill" href="/quickstart">Read the quickstart</a>
+        <a class="xai-btn xai-btn-fill" href="/quickstart">Quickstart</a>
         <a class="xai-btn xai-btn-ghost" href="/install" data-kui="border-draw on:hover">Install from source</a>
       </div>
 
       <p class="xai-body xai-hero-note" data-kui="fade-up on:load delay:420ms">
-        Tovu is at MVP. There is no package, no binary and no hosted plan yet
-        &mdash; you clone the repository and run it. That is the whole install
-        story, and this page will say so until it changes.
+        At MVP: no package, no binary, no hosted plan. You clone the repository
+        and run it.
       </p>
 
     </div>
@@ -721,17 +718,16 @@ main > article.post-detail .post-detail-header { display: none; }
 <pre><code><span class="tok-prompt">$</span> git clone https://github.com/leonaburime-ucla/Tovu.git
 <span class="tok-prompt">$</span> cd Tovu &amp;&amp; npm install
 
-<span class="tok-comment"># No build step needed — run the CLI's source through tsx.</span>
+<span class="tok-comment"># No build step — the CLI runs from source.</span>
 <span class="tok-prompt">$</span> npx tsx apps/website/src/cli/main.ts init my-site
 <span class="tok-prompt">$</span> npx tsx apps/website/src/cli/main.ts serve my-site
 
-<span class="tok-comment"># serve prints two addresses: your public site, and its admin.</span>
-<span class="tok-comment"># Nothing was uploaded. The site is a folder on your disk.</span></code></pre>
+<span class="tok-comment"># serve prints two addresses: the site, and its admin.</span>
+<span class="tok-comment"># Nothing uploaded. The site is a folder on your disk.</span></code></pre>
         </div>
         <figcaption class="xai-caption">
-          A terminal transcript of the four commands on the
-          <a class="xai-link" href="/install">install page</a>: clone the
-          repository, install dependencies, create a site, serve it.
+          The four commands from the
+          <a class="xai-link" href="/install">install page</a>.
         </figcaption>
       </figure>
     </div>
@@ -749,17 +745,13 @@ main > article.post-detail .post-detail-header { display: none; }
         </div>
         <div>
           <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
-            Tovu does not bolt a chat window onto an admin panel. Each
-            capability area is built once and exposed twice: as a screen a
-            person clicks, and as a typed tool an assistant calls. Both doors
-            open onto the same code, so they cannot drift apart.
+            No chat window bolted onto an admin panel. Each capability is built
+            once and exposed twice: a screen a person clicks, a typed tool an
+            agent calls.
           </p>
           <p class="xai-body" data-kui="fade-up on:enter delay:240ms">
-            That means an agent working on your site is not screen-scraping a
-            dashboard or guessing at an API. It reads the same tool definitions
-            the admin was built from, learns what this particular site can do,
-            and then does it &mdash; under the same permissions and the same
-            validation a human editor would hit.
+            Not screen-scraping, not guessing at an API. Same definitions, same
+            permissions, same validation.
           </p>
         </div>
       </div>
@@ -783,34 +775,34 @@ main > article.post-detail .post-detail-header { display: none; }
       <p class="xai-eyebrow" data-kui="fade-up on:enter">The tool surface</p>
       <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">What it can be asked to do.</h2>
       <p class="xai-lede" style="margin-top:20px" data-kui="fade-up on:enter delay:160ms">
-        Each area below ships tool definitions next to its admin screens.
+        Each ships tool definitions next to its admin screens.
       </p>
 
       <ul class="xai-index" data-kui-stagger="60ms">
         <li data-kui="fade-up on:enter"><dfn>Pages</dfn><p>Structure, templates and routing.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Posts</dfn><p>Drafts, publishing and search.</p></li>
-        <li data-kui="fade-up on:enter"><dfn>Media</dfn><p>Uploads, and generated assets.</p></li>
-        <li data-kui="fade-up on:enter"><dfn>Themes</dfn><p>Install, switch, and edit theme files.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Media</dfn><p>Uploads and generated assets.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Themes</dfn><p>Install, switch, edit files.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Forms</dfn><p>Definitions, fields and submissions.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Members</dfn><p>Accounts, roles and access.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Newsletter</dfn><p>Lists, issues and sends.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Comments</dfn><p>Threads and moderation.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Taxonomy</dfn><p>Categories, tags and terms.</p></li>
-        <li data-kui="fade-up on:enter"><dfn>Widgets</dfn><p>Reusable blocks, regions and embeds.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Widgets</dfn><p>Blocks, regions and embeds.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Redirects</dfn><p>Rules, status codes and hit counts.</p></li>
         <li data-kui="fade-up on:enter"><dfn>SEO</dfn><p>Metadata, overrides and sitemaps.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Deployments</dfn><p>Builds and static export.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Webhooks</dfn><p>Outbound event delivery.</p></li>
-        <li data-kui="fade-up on:enter"><dfn>External MCP</dfn><p>Connect third-party tool servers.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>External MCP</dfn><p>Third-party tool servers.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Credentials</dfn><p>Stored secrets, sealed at rest.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Recovery</dfn><p>Restore points and rollback.</p></li>
         <li data-kui="fade-up on:enter"><dfn>Plugins</dfn><p>Bundled and installed extensions.</p></li>
       </ul>
 
       <p class="xai-body" style="margin-top:32px" data-kui="fade-up on:enter">
-        The <a class="xai-link" href="/docs">documentation</a> covers each area,
-        and the <a class="xai-link" href="/catalog">catalog</a> lists what is
-        installable today.
+        The <a class="xai-link" href="/docs">documentation</a> covers each area;
+        the <a class="xai-link" href="/catalog">catalog</a> lists what is
+        installable.
       </p>
     </div>
   </section>
@@ -829,14 +821,11 @@ main > article.post-detail .post-detail-header { display: none; }
           <p class="xai-eyebrow" data-kui="fade-up on:enter">In practice</p>
           <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">Ask in plain language.</h2>
           <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
-            The assistant does not have a script for this. It looks at the tools
-            the site advertises, picks the two that apply, and calls them. Every
-            call is a normal, audited write &mdash; the same one the admin screen
-            would have made.
+            No script for this. It reads the tools the site advertises and picks
+            the two that apply.
           </p>
           <p class="xai-body" data-kui="fade-up on:enter delay:240ms">
-            Which also means the reverse is true: anything the assistant does,
-            you can find, review and undo in the admin afterwards.
+            Anything it does, you can find and undo in the admin.
           </p>
         </div>
 
@@ -865,15 +854,14 @@ main > article.post-detail .post-detail-header { display: none; }
               </ul>
               <div class="xai-bubble xai-bubble-agent">
                 Added a 301 from <code>/blog</code> to <code>/articles</code> and
-                regenerated the sitemap. The old URL now resolves instead of
-                returning a 404.
+                regenerated the sitemap.
               </div>
             </div>
 
           </div>
           <figcaption class="xai-caption">
-            A chat thread: a request in plain English, the two tools the
-            assistant chose, and what it reported back.
+            A request in plain English, the two tools the assistant chose, and
+            the reply.
           </figcaption>
         </figure>
       </div>
@@ -898,8 +886,8 @@ main > article.post-detail .post-detail-header { display: none; }
       <p class="xai-eyebrow" data-kui="fade-up on:enter">Themes</p>
       <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">Four ways to build a front end.</h2>
       <p class="xai-lede" style="margin-top:20px" data-kui="fade-up on:enter delay:160ms">
-        A theme declares which tier it is, and the renderer picks the engine to
-        match. Plain HTML is a first-class option, not a fallback.
+        A theme declares its tier; the renderer picks the engine. Plain HTML is
+        first-class, not a fallback.
       </p>
 
       <ul class="xai-tiers" data-kui-stagger="70ms">
@@ -914,14 +902,14 @@ main > article.post-detail .post-detail-header { display: none; }
           <article class="xai-tier" data-kui="lift on:hover">
             <h3>Templated</h3>
             <span class="xai-engine">liquidjs</span>
-            <p>Loops, conditionals and partials over your content.</p>
+            <p>Loops, conditionals and partials.</p>
           </article>
         </li>
         <li data-kui="fade-up on:enter">
           <article class="xai-tier" data-kui="lift on:hover">
             <h3>Handlebars</h3>
             <span class="xai-engine">handlebars</span>
-            <p>The same idea, in a syntax you may already have themes in.</p>
+            <p>The same idea, in a syntax you may already use.</p>
           </article>
         </li>
         <li data-kui="fade-up on:enter">
@@ -948,8 +936,7 @@ main > article.post-detail .post-detail-header { display: none; }
 }</code></pre>
         </div>
         <figcaption class="xai-caption">
-          A declarative theme is a tree of typed blocks rather than a template
-          file &mdash; which is what makes it safe for an assistant to edit.
+          A declarative theme is typed blocks, not a template file.
         </figcaption>
       </figure>
     </div>
@@ -968,15 +955,14 @@ main > article.post-detail .post-detail-header { display: none; }
         </div>
         <div>
           <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
-            A Tovu site is a directory. The database, the uploads, the themes and
-            the plugins all live inside it. Copy it, commit it, or hand it to
-            someone else &mdash; that is the whole migration story.
+            A site is a directory: database, uploads, themes, plugins. Copy it,
+            commit it, hand it over.
           </p>
           <ul class="xai-facts" data-kui-stagger="60ms">
             <li data-kui="fade-up on:enter">Node.js 24 or newer, git and npm. Nothing else.</li>
-            <li data-kui="fade-up on:enter">No Docker, and no database server to run.</li>
-            <li data-kui="fade-up on:enter">Each site carries its own SQLite database, in its own folder.</li>
-            <li data-kui="fade-up on:enter">No signup, no account and no hosted plan.</li>
+            <li data-kui="fade-up on:enter">No Docker, no database server.</li>
+            <li data-kui="fade-up on:enter">Each site carries its own SQLite database.</li>
+            <li data-kui="fade-up on:enter">No signup, no account, no hosted plan.</li>
           </ul>
         </div>
       </div>
@@ -991,9 +977,7 @@ main > article.post-detail .post-detail-header { display: none; }
       <div class="xai-card" data-kui="fade-up on:enter">
         <h2 class="xai-h3">Start with ten minutes.</h2>
         <p class="xai-body" style="margin-top:12px">
-          The quickstart goes from an empty folder to a published post. If you
-          would rather read first, the documentation explains how the pieces fit
-          together before you install anything.
+          The quickstart goes from an empty folder to a published post.
         </p>
         <div class="xai-cta" style="margin-top:24px">
           <a class="xai-btn xai-btn-fill" href="/quickstart">Quickstart</a>
