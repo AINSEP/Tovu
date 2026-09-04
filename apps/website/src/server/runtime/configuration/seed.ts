@@ -90,7 +90,26 @@ function doc(...kids: Node[]): JsonObject {
 // these explainer docs predate the `kind` field and were never re-classified).
 // `kind` is an optional 5th arg (not folded into a caller-supplied `PostRecord`
 // shape) so every existing call site below stays untouched.
-function seededPost(id: string, title: string, slug: string, body: JsonObject, kind: PostRecord["kind"] = "post"): PostRecord {
+//
+// `templateChoice` (2026-09-04 fix, optional 6th arg, same "existing call sites stay untouched"
+// shape) — needed because a `kind: "page"` row has NO "never chosen -> theme's first template"
+// fallback (`isEligibleForTemplateBranch`'s doc, `features/theme/static-render.ts`): an
+// untemplated Page falls through to the generic dynamic-post render, which for a `static`-tier
+// theme means Tovu's own placeholder `siteHeader`/`siteFooter` markup (`render.ts`'s
+// `fallbackSiteBody`), not the theme's real nav/footer. The seeded `"page-root"` row below is a
+// `kind: "page"` row and hit exactly this gap: the content-owned homepage rendered with zero
+// working internal links. `resolveStaticTierPageShellFallback` (the 2026-09-02 fix for the same
+// symptom) does not cover it either — that fallback is scoped to `bodyFormat: "html"` Pages only,
+// and every row this helper builds is `bodyFormat: "doc"` (see below). Passing an explicit
+// `templateChoice` is the same fix an admin's template picker already applies by hand.
+function seededPost(
+  id: string,
+  title: string,
+  slug: string,
+  body: JsonObject,
+  kind: PostRecord["kind"] = "post",
+  templateChoice?: string
+): PostRecord {
   return {
     id,
     workspaceId: seededWorkspace.id,
@@ -105,6 +124,7 @@ function seededPost(id: string, title: string, slug: string, body: JsonObject, k
     kind,
     updatedAt: "2026-07-07T00:00:00.000Z",
     version: 1,
+    ...(templateChoice !== undefined ? { templateChoice } : {}),
   };
 }
 
@@ -273,7 +293,20 @@ export const seededPosts: PostRecord[] = [
   seededPost("post-mornings", "Slow Mornings", "slow-mornings", morningsDoc),
   // Content-owned homepage — see `rootDoc`'s own comment above. `kind: "page"` (not "post") is
   // what gates the literal "/" slug (`post.ts`'s `ROOT_SLUG`/`resolveExplicitSlug`).
-  seededPost("page-root", "Home", "/", rootDoc, "page"),
+  //
+  // `templateChoice: "page-shell.html"` (2026-09-04 fix) — binds this row to the stock `basic`
+  // theme's own content-agnostic document shell (`content/themes/static/basic/render/pages/
+  // page-shell.html`: real nav + footer partials around one `{"type":"content"}` slot) so `GET /`
+  // renders inside the theme's actual site chrome instead of Tovu's generic placeholder
+  // header/footer. See `seededPost`'s own doc for the full regression this closes.
+  //
+  // Named `"page-shell.html"`, the theme's CURRENT (pre-rename) filename, not `"pages-default.html"`
+  // (the name `sites/tovu-com`'s already-renamed copy uses) — deliberately, because
+  // `content/themes/static/basic/` is the stock theme every `tovu init` installs, and it has not
+  // been renamed (see that dir's own history). `resolveTemplate`'s `LEGACY_TEMPLATE_FILENAME_ALIASES`
+  // (`features/theme/static-render.ts`) maps `"page-shell"` -> `"pages-default"` automatically, so
+  // this stays correct unmodified if the stock theme is ever renamed the same way later.
+  seededPost("page-root", "Home", "/", rootDoc, "page", "page-shell.html"),
 ];
 
 export const seededPresentation: PresentationSettingsRecord = {

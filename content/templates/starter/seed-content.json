@@ -1615,7 +1615,8 @@
       "status": "published",
       "kind": "page",
       "updatedAt": "2026-07-07T00:00:00.000Z",
-      "version": 1
+      "version": 1,
+      "templateChoice": "page-shell.html"
     }
   ],
   "presentation": {
