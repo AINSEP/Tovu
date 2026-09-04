@@ -20,7 +20,6 @@
     "about",
     "pricing",
     "docs",
-    "blog",
     "changelog",
     "download",
     "signin",
@@ -30,7 +29,8 @@
     "posts-default.html",
     "posts-sidebar.html",
     "pages-default.html",
-    "index"
+    "index",
+    "listing-default.html"
   ],
   "slots": {
     "nav": {
@@ -44,11 +44,5 @@
       }
     }
   },
-  "publishedPages": [
-    "about",
-    "blog",
-    "pricing",
-    "signin",
-    "signup"
-  ]
+  "publishedPages": []
 }
