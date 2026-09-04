@@ -66,6 +66,24 @@ test("a rejected fetch — nothing listening at the origin — becomes the same 
   expect(error.body?.cause).toBe("Failed to fetch");
 });
 
+// Pinned ahead of the 2026-09-04 complexity-reduction pass extracting `fetchOrThrowUnreachable`'s
+// catch-block classification into its own function: the "none of the above" fall-through was not
+// exercised by any existing suite before this. `fetch`/`undici` themselves never reject with
+// anything but `TypeError` for a reachability failure (see that function's own doc comment), but a
+// caller can stub one (as here) — this pins that such a value is rethrown untouched, not folded
+// into `ApiError` like the reachability cases above it.
+test("a fetch rejection that is neither AbortError, TimeoutError, nor TypeError is rethrown untouched", async () => {
+  const weird = new RangeError("something else entirely");
+  stubFetch(async () => {
+    throw weird;
+  });
+
+  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+
+  expect(error).toBe(weird);
+  expect(error).not.toBeInstanceOf(ApiError);
+});
+
 test("a caller-cancelled request is NOT reported as unreachable", async () => {
   const abort = new Error("The operation was aborted.");
   abort.name = "AbortError";
