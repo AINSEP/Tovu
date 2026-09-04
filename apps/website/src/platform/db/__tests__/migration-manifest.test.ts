@@ -837,6 +837,24 @@ test("topologicalTableCopyOrder excludes self-referencing edges from the orderin
   assert.equal(order.filter((n) => n === "tree").length, 1, "a self-referencing table must appear exactly once, not be dropped or duplicated");
 });
 
+/**
+ * Characterization test (pre-refactor pin): `topologicalTableCopyOrder` re-sorts a table into the
+ * READY QUEUE the moment its in-degree hits zero, rather than sorting once up front and then
+ * appending newly-ready tables to the end. This distinguishes it from a naive FIFO queue — those two
+ * strategies diverge on this exact input. Initial ready set (in-degree 0) is {a, m, z}, alphabetically
+ * a, m, z. Processing "a" makes "b" ready. A "sort once, append to end" queue would process the
+ * already-ready m, z before ever seeing b, yielding [a, m, z, b]. This function instead re-inserts
+ * "b" into its alphabetically-sorted position among the still-ready {m, z}, yielding [a, b, m, z] —
+ * "process alphabetically among currently-ready tables" holds at every step, not just the first.
+ */
+test("topologicalTableCopyOrder re-sorts a newly-ready table into its alphabetical position among already-ready tables, not just appended to the end (pins the insert-on-ready tie-break)", () => {
+  const edges: ForeignKeyEdge[] = [
+    { fromExportName: "b", fromSqlTableName: "b", toExportName: "a", toSqlTableName: "a", selfReferencing: false },
+  ];
+  const order = topologicalTableCopyOrder(["a", "m", "z", "b"], edges);
+  assert.deepEqual(order, ["a", "b", "m", "z"]);
+});
+
 test("collectForeignKeyEdges finds real foreign keys in the core schema, and none are self-referencing today", () => {
   const edges = collectForeignKeyEdges();
   assert.ok(edges.length > 10, `sanity: expected several FKs, got ${edges.length}`);
