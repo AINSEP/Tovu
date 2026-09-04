@@ -141,6 +141,21 @@ test("buildSitemap: a post with a NULL memberAccessJson (every pre-existing row)
   assert.ok(entries[0]!.loc.includes("legacy-ungated-post"));
 });
 
+test("buildSitemap: a trashed post that still carries status: 'published' is excluded (softDelete never clears status, so the status guard alone can't catch it)", async () => {
+  const deps = await makeDeps([
+    post({ id: "a", slug: "still-live-post", status: "published" }),
+    post({ id: "b", slug: "trashed-but-published-post", status: "published", deletedAt: "2026-09-04T00:00:00.000Z" }),
+  ]);
+
+  const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+  assert.equal(entries.length, 1, "only the non-trashed post may appear");
+  assert.ok(entries[0]!.loc.includes("still-live-post"));
+  assert.ok(
+    !entries.some((e) => e.loc.includes("trashed-but-published-post")),
+    "a trashed post must never appear in the sitemap, even though its status column still reads 'published'"
+  );
+});
+
 test("buildSitemap: entries are ordered by keyset id ascending (behavior.spec.md §2.2)", async () => {
   const deps = await makeDeps([
     post({ id: "c", slug: "c-post" }),

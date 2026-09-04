@@ -123,6 +123,21 @@ test("GET /llms.txt: a members-gated published page does not appear to an anonym
   );
 });
 
+test("GET /llms.txt: a trashed page that still carries status: 'published' does not appear (softDelete never clears status, ADR-030-adjacent 2026-09-04 fix)", async (t) => {
+  const postRepo = new InMemoryPostRepo([pagePost({ deletedAt: "2026-09-04T00:00:00.000Z" })]);
+  const app = buildLlmsOnlyApp({ postRepo });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/llms.txt`);
+  assert.equal(res.status, 200);
+  const body = await res.text();
+  assert.doesNotMatch(
+    body,
+    /guide-to-everything/,
+    "a trashed page must not be listed even though its own status column still reads 'published'"
+  );
+});
+
 test("GET /llms.txt: with NO verified origin registered, the page URL degrades to the bare relative path (disclosed fallback, no fabricated origin)", async (t) => {
   const postRepo = new InMemoryPostRepo([pagePost()]);
   const app = buildLlmsOnlyApp({ postRepo, originRegistry: new NoOriginRegistry() });

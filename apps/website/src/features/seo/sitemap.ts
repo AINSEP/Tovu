@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 import { resolvePostMemberAccess } from "../members/index.js";
-import type { PostRecord, PostRepoPort } from "../post/index.js";
+import { isTrashed, type PostRecord, type PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
@@ -93,6 +93,15 @@ export async function computeIndexableEntries(deps: SeoSitemapDeps, workspaceId:
   const entries: IndexableEntry[] = [];
   for (const post of posts) {
     if (post.status !== "published") continue;
+    // 2026-09-04 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it
+    // never clears `status`, so a post that was `published` when trashed stays `status:
+    // "published"` forever and the guard above alone can't catch it. `PostRepoPort.list()` is
+    // documented (and deliberately kept) trash-BLIND (see `PostRecord.deletedAt`'s own doc: "every
+    // trash-AWARE read filter lives in this file's own domain functions"), the same contract
+    // `listAdminPosts`/`listPublishedPosts`/`listAdminPages` (post.ts) already honor with their own
+    // `!isTrashed(post)` filter — this is that same filter, applied at this domain function's own
+    // trash-aware read boundary rather than widening the shared repo port.
+    if (isTrashed(post)) continue;
     // ADR-030 §4 (2026-09-03 sweep): a members/paid/tiers-gated post must not advertise its
     // canonical URL or existence to crawlers here, the same way it was already excluded from the
     // ungated home-page listing (`pages.ts`'s `filterVisiblePosts`).
