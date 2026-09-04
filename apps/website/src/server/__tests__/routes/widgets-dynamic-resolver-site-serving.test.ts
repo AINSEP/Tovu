@@ -5,6 +5,8 @@ import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createMenu } from "#src/features/navigation/index";
+import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
+import { seededPosts } from "#src/server/runtime/configuration/seed";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createWidgetsModule } from "../../runtime/composition/modules/widgets.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
@@ -47,6 +49,11 @@ function fakeThemeWithRegions(regions: string[]): DiscoveredTheme {
 function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   deps.themes = [theme];
+  // This suite tests the THEME's own `home` template regions (`fakeThemeWithRegions` above),
+  // reachable only when no Page claims the root slug — see `widgets-site-serving.test.ts`'s
+  // `buildTestApp` for the full rationale (same fix, same root cause: `seed.ts`'s `seededPosts`
+  // now includes a `kind: "page"` row at "/").
+  deps.postRepo = new InMemoryPostRepo(seededPosts.filter((post) => post.slug !== ROOT_SLUG));
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

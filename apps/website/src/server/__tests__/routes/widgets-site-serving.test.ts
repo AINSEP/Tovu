@@ -4,6 +4,8 @@ import test from "node:test";
 import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
+import { InMemoryPostRepo, ROOT_SLUG } from "#src/features/post/index";
+import { seededPosts } from "#src/server/runtime/configuration/seed";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { createWidgetsModule } from "../../runtime/composition/modules/widgets.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
@@ -43,6 +45,13 @@ function fakeThemeWithRegions(regions: string[]): DiscoveredTheme {
 function buildTestApp(theme: DiscoveredTheme): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   deps.themes = [theme];
+  // This suite tests the THEME's own `home` template regions (`fakeThemeWithRegions` above). Those
+  // are only reachable when no Page claims the root slug — `pages.ts`'s `registerSiteRoutes` "/"
+  // handler renders a claiming Page through the generic page-render path instead, which resolves no
+  // widget regions at all (see that handler's own comment). `createRouteDeps()`'s default seed
+  // (`seed.ts`'s `seededPosts`) now includes such a page, so drop it here to keep this suite's real
+  // subject — theme-declared home regions — reachable, without touching the seed default itself.
+  deps.postRepo = new InMemoryPostRepo(seededPosts.filter((post) => post.slug !== ROOT_SLUG));
   const app = express();
   app.use(express.json());
   registerAuthRoutes(app, deps);

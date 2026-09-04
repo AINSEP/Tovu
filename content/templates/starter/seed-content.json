@@ -1565,6 +1565,57 @@
       "kind": "post",
       "updatedAt": "2026-07-07T00:00:00.000Z",
       "version": 1
+    },
+    {
+      "id": "page-root",
+      "workspaceId": "workspace-local",
+      "title": "Home",
+      "slug": "/",
+      "bodyJson": {
+        "type": "doc",
+        "content": [
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "Welcome to your new Tovu site."
+              }
+            ]
+          },
+          {
+            "type": "paragraph",
+            "content": [
+              {
+                "type": "text",
+                "text": "This home page is real, editable content — open the admin's Pages panel to rewrite it. See "
+              },
+              {
+                "type": "text",
+                "text": "Welcome to Tovu",
+                "marks": [
+                  {
+                    "type": "link",
+                    "attrs": {
+                      "href": "/welcome"
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "text",
+                "text": " for a quick tour of what's already here."
+              }
+            ]
+          }
+        ]
+      },
+      "bodyFormat": "doc",
+      "bodyHtml": null,
+      "status": "published",
+      "kind": "page",
+      "updatedAt": "2026-07-07T00:00:00.000Z",
+      "version": 1
     }
   ],
   "presentation": {

@@ -86,9 +86,11 @@ function doc(...kids: Node[]): JsonObject {
 
 // NOTE: named `seededPost` (not `page`) to avoid colliding with the real
 // `PostKind` "page" value now that `kind` exists on `PostRecord` — every row
-// this helper builds is `kind: "post"` (see the file comment above: these
-// explainer docs predate the `kind` field and were never re-classified).
-function seededPost(id: string, title: string, slug: string, body: JsonObject): PostRecord {
+// this helper builds defaults to `kind: "post"` (see the file comment above:
+// these explainer docs predate the `kind` field and were never re-classified).
+// `kind` is an optional 5th arg (not folded into a caller-supplied `PostRecord`
+// shape) so every existing call site below stays untouched.
+function seededPost(id: string, title: string, slug: string, body: JsonObject, kind: PostRecord["kind"] = "post"): PostRecord {
   return {
     id,
     workspaceId: seededWorkspace.id,
@@ -100,7 +102,7 @@ function seededPost(id: string, title: string, slug: string, body: JsonObject): 
     bodyFormat: "doc",
     bodyHtml: null,
     status: "published",
-    kind: "post",
+    kind,
     updatedAt: "2026-07-07T00:00:00.000Z",
     version: 1,
   };
@@ -118,6 +120,24 @@ const welcomeDoc: JsonObject = doc(
   ),
   quote("Build the skateboard first, but make sure it actually rolls."),
   code("console.log('Tovu shell is live');"),
+);
+
+// --- Content-owned homepage (`post.ts`'s `ROOT_SLUG`) ---
+//
+// A `kind: "page"` row claiming the literal slug "/" so a fresh `tovu init` site (and every
+// dev/test boot that shares this module's seed) renders a real, authored home page instead of
+// always falling back to the active theme's own `index.html` — the theme's stock `basic` demo
+// page describes a fictional product named "Basic", which is misleading as a brand-new site's
+// front door. Kept deliberately short and honest (unlike the fictional stock demo) rather than
+// duplicating `welcomeDoc`'s longer walkthrough, which stays reachable at its own `/welcome` slug.
+
+const rootDoc: JsonObject = doc(
+  p("Welcome to your new Tovu site."),
+  p(
+    "This home page is real, editable content — open the admin's Pages panel to rewrite it. See ",
+    link("Welcome to Tovu", "/welcome"),
+    " for a quick tour of what's already here.",
+  ),
 );
 
 // --- Site explainer pages (content, not theme-baked) ---
@@ -251,6 +271,9 @@ export const seededPosts: PostRecord[] = [
   seededPost("post-self-hosting", "Self-Hosting — Coming Soon", "self-hosting", selfHostingDoc),
   seededPost("post-typography", "Field Notes: The Weight of Type", "the-weight-of-type", typographyDoc),
   seededPost("post-mornings", "Slow Mornings", "slow-mornings", morningsDoc),
+  // Content-owned homepage — see `rootDoc`'s own comment above. `kind: "page"` (not "post") is
+  // what gates the literal "/" slug (`post.ts`'s `ROOT_SLUG`/`resolveExplicitSlug`).
+  seededPost("page-root", "Home", "/", rootDoc, "page"),
 ];
 
 export const seededPresentation: PresentationSettingsRecord = {

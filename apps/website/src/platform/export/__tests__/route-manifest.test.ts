@@ -80,7 +80,11 @@ test("buildRouteManifest: includes home and every seeded published post/page, an
 
   const home = manifest.routes.find((r) => r.path === "/");
   assert.ok(home, "expected a '/' route");
-  assert.equal(home?.kind, "home");
+  // `server/seed.ts`'s `seededPosts` now includes a `kind: "page"` row claiming "/" (2026-09-04,
+  // `tovu init`'s content-owned-homepage seed) — see the dedicated test below ("a published page
+  // claiming slug '/' replaces the seeded home entry...") for the mechanism this exercises against
+  // real seed data instead of a hand-built fixture.
+  assert.equal(home?.kind, "page");
 
   // `server/seed.ts`'s `seededPosts` includes a published post at slug "welcome" — asserted by
   // path+kind (not by importing `seo/sitemap.ts` in any form) so this test can never pass merely
