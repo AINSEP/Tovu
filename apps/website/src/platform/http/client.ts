@@ -63,12 +63,17 @@ function classifyIpv4(ip: string): AddressClass {
   return "public";
 }
 
+/** The fe80::/10 link-local prefix, split out of {@link classifyIpv6} purely to keep that
+ *  function's own branch count under the repo's complexity ceiling — same four prefixes, same
+ *  order (mirrors {@link isRfc1918Private}'s split out of {@link classifyIpv4}). */
+function isFe80LinkLocal(ip: string): boolean {
+  return ip.startsWith("fe8") || ip.startsWith("fe9") || ip.startsWith("fea") || ip.startsWith("feb");
+}
+
 function classifyIpv6(ip: string): AddressClass {
   if (ip === "::1") return "loopback";
   if (ip === "::" || ip.startsWith("::0.") || ip === "::0") return "reserved";
-  if (ip.startsWith("fe8") || ip.startsWith("fe9") || ip.startsWith("fea") || ip.startsWith("feb")) {
-    return "link-local"; // fe80::/10
-  }
+  if (isFe80LinkLocal(ip)) return "link-local";
   if (ip.startsWith("fc") || ip.startsWith("fd")) return "private"; // fc00::/7 unique local
   return "public";
 }
