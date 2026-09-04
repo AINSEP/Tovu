@@ -84,6 +84,21 @@ describe("buildLocalCliContextRef", () => {
       model: "claude-opus-5",
     });
     expect(buildLocalCliContextRef(input({ context: { model: "" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { model: 42 } }), "p")).toEqual({ prompt: "p" });
+  });
+
+  // `reasoning` rides the same "opaque string, omit when absent" convention as `model` above. The
+  // end-to-end `startRun` suite below ("carries the reasoning effort through context when present")
+  // already covers this through a full fetch body, but pins it directly here too — same level of
+  // direct coverage every other field in this describe block gets, ahead of the complexity-reduction
+  // refactor pulling each field into its own helper.
+  test("includes reasoning only when it is a non-empty string", () => {
+    expect(buildLocalCliContextRef(input({ context: { reasoning: "max" } }), "p")).toEqual({
+      prompt: "p",
+      reasoning: "max",
+    });
+    expect(buildLocalCliContextRef(input({ context: { reasoning: "" } }), "p")).toEqual({ prompt: "p" });
+    expect(buildLocalCliContextRef(input({ context: { reasoning: 3 } }), "p")).toEqual({ prompt: "p" });
   });
 
   test("includes attachmentIds (mapped to their opaque path) only when attachments is non-empty", () => {
@@ -124,6 +139,29 @@ describe("buildLocalCliContextRef", () => {
     });
     expect(buildLocalCliContextRef(input({ context: { conversationId: "" } }), "p")).toEqual({ prompt: "p" });
     expect(buildLocalCliContextRef(input({ context: { conversationId: 42 } }), "p")).toEqual({ prompt: "p" });
+  });
+
+  // Guards against an extraction that handles each field correctly in isolation but drops or
+  // overwrites a sibling when several are present at once (e.g. an aggregator that returns early,
+  // or per-field helpers that don't compose via a plain merge).
+  test("includes every optional field simultaneously when all are present", () => {
+    expect(
+      buildLocalCliContextRef(
+        input({
+          context: { frontendBindToken: "tab-1", model: "claude-opus-5", reasoning: "max", pluginRefIds: ["ui-ux-design"], conversationId: "c1" },
+          attachments: [{ path: "attachment:1" }] as StartRunInput["attachments"],
+        }),
+        "p",
+      ),
+    ).toEqual({
+      prompt: "p",
+      frontendBindToken: "tab-1",
+      model: "claude-opus-5",
+      reasoning: "max",
+      attachmentIds: ["attachment:1"],
+      pluginRefIds: ["ui-ux-design"],
+      conversationId: "c1",
+    });
   });
 });
 
