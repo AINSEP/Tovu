@@ -218,6 +218,30 @@ async function isSameApiKey(input: {
 }
 
 /**
+ * Seals `apiKey` under the workspace-scoped AAD, translating any keyring/sealer failure (most
+ * commonly an unavailable `TOVU_INTEGRATIONS_ROOT_KEY`) into
+ * {@link ComposioConfigSecretStoreUnconfiguredError} rather than leaking the underlying error —
+ * extracted out of {@link saveComposioApiKey} so the seal-or-fail-closed branch doesn't count
+ * against that function's own complexity budget.
+ *
+ * @throws {ComposioConfigSecretStoreUnconfiguredError} the master secret is unavailable.
+ * @complexity O(1) — one keyring derivation, one seal.
+ */
+async function sealApiKeyOrThrow(
+  deps: Pick<ComposioConfigWriteDeps, "sealer" | "keyring">,
+  input: { workspaceId: UUID; apiKey: string }
+): Promise<SealedSecret> {
+  try {
+    const aad = buildComposioConfigAad({ workspaceId: input.workspaceId });
+    return await deps.sealer.seal({ plaintext: input.apiKey, key: await deps.keyring.activeKey(), aad });
+  } catch (err) {
+    throw new ComposioConfigSecretStoreUnconfiguredError(
+      `composio credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
+/**
  * Seals and stores a new Composio API key, replacing any existing one.
  *
  * Provisioned `authConfigIds` are DISCARDED when the key actually changes, matching
@@ -248,15 +272,7 @@ export async function saveComposioApiKey(
   const existing = await deps.repo.findByWorkspaceId(input.workspaceId);
   const now = deps.clock.nowIso();
 
-  let sealed: SealedSecret;
-  try {
-    const aad = buildComposioConfigAad({ workspaceId: input.workspaceId });
-    sealed = await deps.sealer.seal({ plaintext: apiKey, key: await deps.keyring.activeKey(), aad });
-  } catch (err) {
-    throw new ComposioConfigSecretStoreUnconfiguredError(
-      `composio credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
+  const sealed = await sealApiKeyOrThrow(deps, { workspaceId: input.workspaceId, apiKey });
 
   // `keyTail` (4 chars, see below) is a DISPLAY marker only, never an identity check — two
   // different keys can share the same last 4 characters, and treating that as "unchanged" would
