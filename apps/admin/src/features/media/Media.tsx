@@ -9,11 +9,11 @@ import { MEDIA_PROVIDER_CATALOG, PINNED_MEDIA_PROVIDER_IDS } from "./media-provi
 import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
 import { filterMediaByTab, hasUntypedMedia, mediaRowMenuItems } from "./rules";
-import { useWiredMedia } from "./hooks/use-media.hooks";
+import { useWiredMedia, type MediaController } from "./hooks/use-media.hooks";
 import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
-import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
+import { useMediaTabs, MEDIA_TABS, type MediaTabId } from "./hooks/use-media-tabs.hooks";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -670,6 +670,214 @@ export interface MediaProps {
 }
 
 /**
+ * Resolves `Media`'s two injectable-seam props to their real implementations when a caller passes
+ * neither — same "separately-scoped resolver" idiom `App.tsx`'s `resolveSessionHook`/
+ * `resolveDrawerHook` group uses and documents in full: ESLint's cyclomatic-complexity rule counts
+ * a default-parameter assignment inside a function's OWN body as one of that function's own
+ * branches, but not a call out to a resolver declared in its own scope.
+ */
+function resolveMediaHook(useMediaHook: typeof useWiredMedia | undefined): typeof useWiredMedia {
+  return useMediaHook ?? useWiredMedia;
+}
+function resolveMediaTabsHook(useMediaTabsHook: typeof useMediaTabs | undefined): typeof useMediaTabs {
+  return useMediaTabsHook ?? useMediaTabs;
+}
+
+/**
+ * The grid-or-empty-state half of the "all"/"images"/"videos" tabs — split out of `Media` for the
+ * same reason `MediaToolbar`/`MediaPurgeDialog` above already are: `visibleMedia.length === 0`'s
+ * nested tab-kind ternary was one of that component's own independent branches (and, per
+ * `sonarjs/no-nested-conditional`, a nested ternary in its own right); scored here in its own scope
+ * instead. Never rendered for the `media-providers` tab, so `activeTab` excludes it here even
+ * though `Media`'s own `activeTab` is the full `MediaTabId`.
+ */
+function MediaGridOrEmpty({
+  activeTab,
+  visibleMedia,
+  mediaExpandHandles,
+  editingId,
+  locale,
+  t,
+  onExpand,
+  onToggleEdit,
+  onTrash,
+  onRequestPurge,
+}: {
+  activeTab: Exclude<MediaTabId, "media-providers">;
+  visibleMedia: AdminMedia[];
+  mediaExpandHandles: string[];
+  editingId: string | null;
+  locale: string;
+  t: (key: string) => string;
+  onExpand: (index: number) => void;
+  onToggleEdit: (item: AdminMedia) => void;
+  onTrash: (item: AdminMedia) => void;
+  onRequestPurge: (item: AdminMedia | null) => void;
+}) {
+  if (visibleMedia.length === 0) {
+    if (activeTab === "all") {
+      return (
+        <div className="card">
+          <div className="empty-state">
+            <p>{t("No media uploaded yet.")}</p>
+            <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
+          </div>
+        </div>
+      );
+    }
+    return <MediaTypeEmptyState kind={activeTab} t={t} />;
+  }
+
+  return (
+    <div className="media-grid">
+      {visibleMedia.map((item, index) => (
+        <div className="media-card" key={item.id}>
+          <div className="media-card-preview">
+            <MediaPreview
+              item={item}
+              onExpand={() => onExpand(index)}
+              agentExpandHandle={`${mediaExpandHandles[index]}-expand`}
+              t={t}
+            />
+          </div>
+          <div className="media-card-body">
+            <p className="media-card-title" title={item.title}>
+              {item.title}
+            </p>
+            <div className="media-card-meta">
+              <span className={`status status-${item.status}`}>{item.status}</span>
+              <RowMenu
+                triggerLabel={`Actions for "${item.title}"`}
+                agentHandle={`${mediaExpandHandles[index]}-menu`}
+                items={mediaRowMenuItems(item, editingId, { onToggleEdit, onTrash, onRequestPurge }, locale)}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Everything the "all"/"images"/"videos" tabs render — split out of `Media` for the same
+ * "independent branches scored in their own scope" reasoning as `MediaToolbar`/`MediaPurgeDialog`/
+ * `MediaGridOrEmpty` above: the error notice, edit-panel, and untyped-note ternaries were three
+ * more of that component's own branches. Never rendered for the `media-providers` tab (see
+ * `Media`'s own render below), so `activeTab` excludes it here for the same reason
+ * `MediaGridOrEmpty` does.
+ *
+ * Takes `Media`'s own controller spread rather than 20 individual props (`{...controller}` at the
+ * call site below) — `media` is overridden with the already-null-checked value, since `Media` has
+ * already handled the `!media` loading state by the time this renders.
+ */
+function MediaLibraryPanel(
+  props: Omit<MediaController, "media"> & {
+    media: AdminMedia[];
+    activeTab: Exclude<MediaTabId, "media-providers">;
+    visibleMedia: AdminMedia[];
+    mediaExpandHandles: string[];
+  },
+) {
+  const {
+    media,
+    error,
+    activeTab,
+    visibleMedia,
+    mediaExpandHandles,
+    uploading,
+    altDraft,
+    setAltDraft,
+    fileInputRef,
+    upload,
+    editingId,
+    editingItem,
+    toggleEditing,
+    onMetadataSaved,
+    setEditingId,
+    trash,
+    pendingPurge,
+    setPendingPurge,
+    rowSavingId,
+    purge,
+    lightboxIndex,
+    setLightboxIndex,
+    t,
+    locale,
+  } = props;
+
+  return (
+    <>
+      {error ? <div className="notice error">{error}</div> : null}
+      <MediaToolbar
+        fileInputRef={fileInputRef}
+        altDraft={altDraft}
+        setAltDraft={setAltDraft}
+        upload={upload}
+        uploading={uploading}
+        t={t}
+      />
+
+      {/* `key` (2026-08-12 audit round 2, blocker F1 — domain 4, writing to the wrong record).
+          Without it this panel is a single reused instance: `toggleEditing` goes from item A's id
+          straight to item B's id (`setEditingId((id) => id === item.id ? null : item.id)` — it only
+          passes through `null` when you re-click the SAME row, and `mediaRowMenuItems` leaves every
+          other row's "Edit metadata" enabled while one is open), so React re-renders rather than
+          remounting. `useEditMediaPanel` seeds `draft` in a `useState` initializer, which runs once
+          per mount and never re-reads `item` — so `draft` stayed bound to A while `item` became B,
+          and `save()` PATCHed B's id with A's title/alt/caption/credit/dimensions. Two ordinary
+          clicks, no race, no adversarial input, and zero test coverage.
+          This surface was wrongly recorded as already covered by the `panels.tsx` `key=` sweep —
+          it is not router-driven, so that sweep never reached it. */}
+      {editingItem ? (
+        <EditMediaPanel
+          key={editingItem.id}
+          item={editingItem}
+          onSaved={onMetadataSaved}
+          onCancel={() => setEditingId(null)}
+          t={t}
+        />
+      ) : null}
+
+      {activeTab !== "all" && hasUntypedMedia(media) ? <UntypedMediaNote t={t} /> : null}
+
+      <MediaGridOrEmpty
+        activeTab={activeTab}
+        visibleMedia={visibleMedia}
+        mediaExpandHandles={mediaExpandHandles}
+        editingId={editingId}
+        locale={locale}
+        t={t}
+        onExpand={setLightboxIndex}
+        onToggleEdit={toggleEditing}
+        onTrash={trash}
+        onRequestPurge={setPendingPurge}
+      />
+
+      {/* `items` MUST be the same array the grid above maps, not the unfiltered `media`:
+          `lightboxIndex` is a positional index produced by that map, so handing the lightbox a
+          different array would open the wrong asset (and mis-clamp its prev/next arrows) on
+          every filtered tab. */}
+      <MediaLightbox
+        items={visibleMedia}
+        activeIndex={lightboxIndex}
+        onNavigate={setLightboxIndex}
+        onClose={() => setLightboxIndex(null)}
+        t={t}
+      />
+
+      <MediaPurgeDialog
+        pendingPurge={pendingPurge}
+        rowSavingId={rowSavingId}
+        onConfirm={purge}
+        onCancel={() => setPendingPurge(null)}
+        t={t}
+      />
+    </>
+  );
+}
+
+/**
  * The empty state for a tab whose filter matched nothing — distinct from the All tab's "No media
  * uploaded yet.", which would be a lie on a filtered tab holding a library full of other types.
  *
@@ -706,31 +914,19 @@ function UntypedMediaNote({ t }: { t: (key: string) => string }) {
   );
 }
 
-export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMediaTabs, tabId }: MediaProps = {}) {
-  const {
-    media,
-    error,
-    uploading,
-    altDraft,
-    setAltDraft,
-    fileInputRef,
-    upload,
-    editingId,
-    editingItem,
-    toggleEditing,
-    onMetadataSaved,
-    setEditingId,
-    trash,
-    pendingPurge,
-    setPendingPurge,
-    rowSavingId,
-    purge,
-    lightboxIndex,
-    setLightboxIndex,
-    t,
-    locale,
-  } = useMediaHook();
-  const { activeTab, setActiveTab } = useMediaTabsHook(tabId);
+export function Media(props: MediaProps) {
+  // No `MediaProps = {}` default on the parameter itself (same reasoning as `App.tsx`'s own
+  // `AppProps` — see that file's comment): every real call site is JSX (`<Media />` in
+  // `panels.tsx`/tests), and JSX's `createElement`/`jsx` runtime always constructs an actual props
+  // object — `{}` when no attributes are given, never `undefined` — so `Media` is never invoked
+  // with zero arguments the way a plain function call could be. `MediaProps`' three fields are all
+  // optional, so `{}` satisfies the type and this compiles the same as before for every existing
+  // call site.
+  const useMediaHook = resolveMediaHook(props.useMediaHook);
+  const useMediaTabsHook = resolveMediaTabsHook(props.useMediaTabsHook);
+  const controller = useMediaHook();
+  const { media, error, t } = controller;
+  const { activeTab, setActiveTab } = useMediaTabsHook(props.tabId);
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
@@ -801,110 +997,15 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
         // "all", "images" and "videos" all render the SAME grid, differing only in which items
         // reach it — one code path, so a card looks and behaves identically whichever tab it is
         // viewed from, and the lightbox/edit/row-menu wiring below cannot drift per tab.
-        <>
-          {error ? <div className="notice error">{error}</div> : null}
-          <MediaToolbar
-            fileInputRef={fileInputRef}
-            altDraft={altDraft}
-            setAltDraft={setAltDraft}
-            upload={upload}
-            uploading={uploading}
-            t={t}
-          />
-
-          {/* `key` (2026-08-12 audit round 2, blocker F1 — domain 4, writing to the wrong record).
-              Without it this panel is a single reused instance: `toggleEditing` goes from item A's id
-              straight to item B's id (`setEditingId((id) => id === item.id ? null : item.id)` — it only
-              passes through `null` when you re-click the SAME row, and `mediaRowMenuItems` leaves every
-              other row's "Edit metadata" enabled while one is open), so React re-renders rather than
-              remounting. `useEditMediaPanel` seeds `draft` in a `useState` initializer, which runs once
-              per mount and never re-reads `item` — so `draft` stayed bound to A while `item` became B,
-              and `save()` PATCHed B's id with A's title/alt/caption/credit/dimensions. Two ordinary
-              clicks, no race, no adversarial input, and zero test coverage.
-              This surface was wrongly recorded as already covered by the `panels.tsx` `key=` sweep —
-              it is not router-driven, so that sweep never reached it. */}
-          {editingItem ? (
-            <EditMediaPanel
-              key={editingItem.id}
-              item={editingItem}
-              onSaved={onMetadataSaved}
-              onCancel={() => setEditingId(null)}
-              t={t}
-            />
-          ) : null}
-
-          {activeTab !== "all" && hasUntypedMedia(media) ? <UntypedMediaNote t={t} /> : null}
-
-          {visibleMedia.length === 0 ? (
-            activeTab === "all" ? (
-              <div className="card">
-                <div className="empty-state">
-                  <p>{t("No media uploaded yet.")}</p>
-                  <p className="page-description">{t("Choose a file above and upload it to get started.")}</p>
-                </div>
-              </div>
-            ) : (
-              <MediaTypeEmptyState kind={activeTab} t={t} />
-            )
-          ) : (
-            <div className="media-grid">
-              {visibleMedia.map((item, index) => (
-                <div className="media-card" key={item.id}>
-                  <div className="media-card-preview">
-                    <MediaPreview
-                      item={item}
-                      onExpand={() => setLightboxIndex(index)}
-                      agentExpandHandle={`${mediaExpandHandles[index]}-expand`}
-                      t={t}
-                    />
-                  </div>
-                  <div className="media-card-body">
-                    <p className="media-card-title" title={item.title}>
-                      {item.title}
-                    </p>
-                    <div className="media-card-meta">
-                      <span className={`status status-${item.status}`}>{item.status}</span>
-                      <RowMenu
-                        triggerLabel={`Actions for "${item.title}"`}
-                        agentHandle={`${mediaExpandHandles[index]}-menu`}
-                        items={mediaRowMenuItems(
-                          item,
-                          editingId,
-                          {
-                            onToggleEdit: toggleEditing,
-                            onTrash: trash,
-                            onRequestPurge: setPendingPurge,
-                          },
-                          locale,
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* `items` MUST be the same array the grid above maps, not the unfiltered `media`:
-              `lightboxIndex` is a positional index produced by that map, so handing the lightbox a
-              different array would open the wrong asset (and mis-clamp its prev/next arrows) on
-              every filtered tab. */}
-          <MediaLightbox
-            items={visibleMedia}
-            activeIndex={lightboxIndex}
-            onNavigate={setLightboxIndex}
-            onClose={() => setLightboxIndex(null)}
-            t={t}
-          />
-
-          <MediaPurgeDialog
-            pendingPurge={pendingPurge}
-            rowSavingId={rowSavingId}
-            onConfirm={purge}
-            onCancel={() => setPendingPurge(null)}
-            t={t}
-          />
-        </>
+        // `activeTab` is narrowed here (TS control flow) to exclude "media-providers", matching
+        // `MediaLibraryPanel`'s own prop type.
+        <MediaLibraryPanel
+          {...controller}
+          media={media}
+          activeTab={activeTab}
+          visibleMedia={visibleMedia}
+          mediaExpandHandles={mediaExpandHandles}
+        />
       )}
     </div>
   );
