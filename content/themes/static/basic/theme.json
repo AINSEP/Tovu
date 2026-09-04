@@ -29,7 +29,8 @@
   "templates": [
     "blog-post.html",
     "blog-sidebar-template.html",
-    "page-shell.html"
+    "page-shell.html",
+    "index"
   ],
   "slots": {
     "nav": {

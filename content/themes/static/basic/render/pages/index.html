@@ -111,6 +111,16 @@
       <a href="pricing.html" class="btn btn-ghost btn-lg">See pricing</a>
     </div>
   </section>
+
+  <!-- Content-owned homepage (SPEC-0XX) — filled only when a `kind: "page"` row has claimed the
+       site's own "/" slug and this template was explicitly chosen for it (theme.json's `templates`
+       array lists "index" for exactly this). Every other request never reaches this marker at all:
+       `renderStaticTierHomePage` (server/http/site/render.ts) renders this file's OWN unmodified
+       bytes for the ordinary "no page claims /" case, bypassing content-marker resolution entirely,
+       so this section stays invisible dead markup on every site that hasn't authored such a page. -->
+  <section class="wrap post-detail" data-reveal>
+    <div data-embed-config='{"type":"content"}'></div>
+  </section>
 </main>
 
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>

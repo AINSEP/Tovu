@@ -29,7 +29,8 @@
   "templates": [
     "posts-default.html",
     "posts-sidebar.html",
-    "pages-default.html"
+    "pages-default.html",
+    "index"
   ],
   "slots": {
     "nav": {
