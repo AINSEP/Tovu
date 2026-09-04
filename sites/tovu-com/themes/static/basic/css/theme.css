@@ -168,9 +168,22 @@ p { margin: 0; color: var(--muted); }
    `scripts/vendor/kuinetic-LICENSE.md`), which injects its entire stylesheet itself at
    load. So if that script is blocked or fails, no kUInetic CSS exists at all and every
    element renders in its normal, fully visible resting state: the hidden state lives
-   only inside an `@keyframes ... from { opacity: 0 }` block, which applies while the
-   animation runs and never as a resting style. kUInetic's one rule that CAN hide
-   content before it animates —
+   only inside an `@keyframes ... from { opacity: 0 }` block, and with no kUInetic loaded
+   there is no animation to render that frame.
+
+   That guarantee covers the script-ABSENT case only. The earlier wording here went on to
+   claim the `from` block is "never a resting style" at all, which is wrong and is
+   corrected 2026-09-04: an `on:enter` element is compiled with `animation-fill-mode: both`
+   plus `animation-play-state: paused`, and a paused fill-both animation renders its `from`
+   frame — so between load and the observer firing the element really does rest at
+   `opacity: 0`. Harmless when the observer can fire; fatal when it cannot. `threshold` is
+   a fraction of the observed element's OWN area, so anything taller than
+   `viewport / threshold` never satisfies it and stays invisible for the life of the page.
+   Hence the rule the templates in `render/pages/` now follow: no `threshold:` token on any
+   element whose height the template does not bound. See NOTICE.md, "Why the page wrappers
+   carry no threshold:".
+
+   kUInetic's one rule that hides content in CSS alone —
    `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state])` — is opt-in
    behind a `data-kui-cloak` attribute on `<html>` that this theme deliberately never
    sets (the library only ever removes that attribute, never adds it). Progressive
