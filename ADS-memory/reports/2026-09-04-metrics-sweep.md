@@ -21,7 +21,38 @@ Metrics this run actually produces (per scope): `duplication`, `type_safety`, `d
 
 ## Scope 1 — `apps/site-chat/src`
 
-STATUS: pending
+STATUS: done. 9/13 metrics measured (complexity, cognitive_complexity, coverage skipped as
+directed; `hotspots` UNAVAILABLE because it needs the skipped `complexity` signal — expected).
+Raw output: `ADS-memory/.local-artifacts/metrics/2026-09-04-code-metrics-site-chat.{md,json}`.
+
+- **duplication** (jscpd): 1.998% duplicated lines (67/3354), 11 clone groups, all 8 largest
+  hits are inside `__tests__/site-assistant-transport.test.ts` (repeated test setup) or
+  `widget.css`. No production-code clone group. **Not actionable** — test-boilerplate and CSS
+  duplication under 2% is normal, not a finding.
+- **type_safety**: `explicit_any=0`, `non_null_assertion=1` (0 in production-only), `ts_ignore=0`,
+  `ts_expect_error=0`. Clean. Not actionable.
+- **dead_code** (knip, `--directory apps/site-chat` — correctly scoped, this app HAS its own
+  `package.json`): `unused_file_candidates=0`, `unused_export_candidates=2`, both exported
+  *types* in `src/client-directives.ts` (`ResolvedPublicTarget`, `ClientDirective`, lines 17/28).
+  At ~15% measured true-positive rate, 2 candidates is noise-floor — **not actionable without
+  manual verification**, and not worth spending verification time on for a 2-item result.
+- **coupling / blast_radius / api_surface**: 27 modules, 49 edges (3 via barrel), fan-out max 8
+  (`SiteAssistantWidget.tsx`), fan-in max 6 (external `assert/strict`, `node:test` — test
+  infra, not app coupling). Nothing structurally alarming for an app this size.
+- **circular_dependencies**: 0 cycles found; repo's dependency-cruiser config does declare a
+  cycle rule (`repo_config_has_cycle_rule: True`). Clean.
+- **churn**: 17 commits total in the 12-month window, 0 excluded as mechanical, 4 stale paths
+  excluded from the ranking (pre-restructure identities git couldn't follow — expected per the
+  documented trap, not a bug). Hottest file by substantive commits: `SiteAssistantWidget.tsx`
+  (7 commits, 309 lines churned) — this is "hot under its current name only," a ranking of past
+  activity, not a live risk signal on its own (no complexity cross-reference available since
+  complexity was skipped this run).
+- **change_coupling**: 0 pairs over the `min_co_changes=4` threshold. Nothing hidden. Clean.
+- **No third-party/vendored paths appeared** in any table (no `node_modules/.vite/deps`-style
+  fixture in this scope). No `drizzle` anywhere in site-chat, so trap #4 doesn't apply here.
+
+**Verdict for this scope: no actionable findings.** Everything measured is either clean or below
+noise floor.
 
 ## Scope 2 — `packages/sdk/src`
 
