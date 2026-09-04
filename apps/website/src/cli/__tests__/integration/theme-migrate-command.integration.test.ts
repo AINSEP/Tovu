@@ -73,6 +73,23 @@ test("tovu theme migrate <dir>: an already-migrated theme is a no-op and exits 0
   assert.match(second.stdout, /already schema v2/);
 });
 
+test("tovu theme migrate <dir>: a theme that fails staged-output verification exits 1 and prints validator + loadTheme findings plus the staged output path", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-migrate-verify-fail-"));
+  fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify({ id: path.basename(dir), name: "T", version: "1.0.0", tier: "declarative", description: "test theme" }), "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), '{"--bg":"#000"}', "utf8");
+  fs.writeFileSync(path.join(dir, "styles.css"), "body { margin: 0; }", "utf8");
+  fs.writeFileSync(path.join(dir, "templates", "home.json"), '{"type":"doc","content":[]}', "utf8");
+  // No templates/entry.json — required by loadTheme(), so the staged v2 output fails verification.
+
+  const result = runCli(["theme", "migrate", dir]);
+  assert.equal(result.status, 1, `stderr: ${result.stderr}`);
+  assert.match(result.stdout, /migration FAILED — staged output failed verification/);
+  assert.match(result.stdout, /\[loadTheme\] .*render\/pages\/entry\.json is required/);
+  assert.match(result.stdout, /staged output left for inspection at /);
+  assert.ok(!fs.existsSync(path.join(dir, "css")), "a failed migration must leave the real theme directory untouched");
+});
+
 test("tovu theme migrate <dir>: refusing an unrecognized file exits 1 (a finding, not a crash)", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-migrate-refuse-"));
   writeValidV1DeclarativeTheme(dir);
