@@ -1,0 +1,125 @@
+Tovu
+Copyright 2026 Leona Burime
+
+This product is licensed under the Apache License, Version 2.0. The full licence
+text is in the LICENSE file at the root of this repository.
+
+--------------------------------------------------------------------------------
+THIRD-PARTY COMPONENTS DISTRIBUTED WITH THIS REPOSITORY
+--------------------------------------------------------------------------------
+
+The Apache-2.0 licence above covers Tovu's own source. It does NOT cover the
+third-party files listed below, which are vendored into this repository and
+remain under their own licences. Each entry records the licence as stated by the
+component itself, in the licence file shipped alongside it.
+
+Third-party dependencies installed from a package registry (node_modules) are not
+listed here; their licences ship inside their own packages.
+
+--------------------------------------------------------------------------------
+1. Motion  (https://motion.dev)  -- version 13.0.0
+--------------------------------------------------------------------------------
+Licence:   MIT
+Copyright: Copyright (c) 2024 Motion B.V.
+Text:      the `LICENSE.md` file in each `vendor/` directory listed below.
+
+Vendored at:
+  content/themes/static/basic/scripts/vendor/motion.js
+  content/themes/static/basic-2/scripts/vendor/motion.js
+  content/themes/static/tailark-dusk/scripts/vendor/motion.js
+  content/themes/static/tailark-quartz-dark/scripts/vendor/motion.js
+  content/themes/static/tailark-quartz-libre/scripts/vendor/motion.js
+  content/themes/__original-themes__/static/basic/js/vendor/motion.js
+  sites/tovu-com/themes/static/basic/scripts/vendor/motion.js
+  sites/tovu-com/themes/static/basic-2/scripts/vendor/motion.js
+  sites/tovu-com/themes/static/tailark-dusk/scripts/vendor/motion.js
+  sites/tovu-com/themes/static/tailark-quartz-dark/scripts/vendor/motion.js
+  sites/tovu-com/themes/static/tailark-quartz-libre/scripts/vendor/motion.js
+  sites/tovu-com/themes/__original-themes__/static/basic/js/vendor/motion.js
+
+(The paths under `sites/` are per-site copies of the themes under `content/`;
+Tovu copies a theme into a site rather than inheriting it.)
+
+--------------------------------------------------------------------------------
+2. kUInetic  (https://kuinetic.com)  -- version 0.1.4
+--------------------------------------------------------------------------------
+Licence:   MIT
+Copyright: Copyright (c) 2026 AINSEP
+Text:      `kuinetic-LICENSE.md`, beside each vendored copy.
+
+Vendored at:
+  content/themes/static/basic/scripts/vendor/kuinetic.all.js
+  sites/tovu-com/themes/static/basic/scripts/vendor/kuinetic.all.js
+
+--------------------------------------------------------------------------------
+3. Remix Icon  (https://remixicon.com)  -- version 4.9.1
+--------------------------------------------------------------------------------
+Licence:   Remix Icon License 1.0, as stated in the header comment of
+           `apps/site-chat/public/remixicon.css`. This is Remix Icon's own
+           licence, NOT Apache-2.0 (Remix Icon moved off Apache-2.0 in the 4.x
+           series). No copy of that licence text ships in this repository --
+           see the note at the end of this file.
+Copyright: Copyright RemixIcon.com
+
+Vendored at:
+  apps/site-chat/public/remixicon.css
+  apps/site-chat/public/remixicon.woff2
+
+Copied verbatim from `@jini-ai/ui@0.1.2`
+(`packages/ui/src/react/components/remixicon-font/`), 2026-08-04.
+
+--------------------------------------------------------------------------------
+4. Start Bootstrap -- Clean Blog (Jekyll)
+    (https://github.com/StartBootstrap/startbootstrap-clean-blog-jekyll)
+--------------------------------------------------------------------------------
+Licence:   MIT
+Copyright: Copyright (c) 2013-2021 Start Bootstrap LLC
+Text:      development/fixtures/theme-archive/clean-blog/LICENSE
+
+Adapted (not copied verbatim) into a Tovu `templated`-tier test fixture at
+`development/fixtures/theme-archive/clean-blog/`; see its `NOTICE.md` for what
+was translated and what was left out.
+
+--------------------------------------------------------------------------------
+5. Start Bootstrap -- Grayscale
+    (https://github.com/StartBootstrap/startbootstrap-grayscale)
+--------------------------------------------------------------------------------
+Licence:   MIT
+Copyright: Copyright (c) 2013-2023 Start Bootstrap LLC
+Text:      development/fixtures/theme-archive/grayscale/LICENSE
+
+Adapted into a Tovu `declarative`-tier test fixture at
+`development/fixtures/theme-archive/grayscale/`; see its `NOTICE.md`.
+
+--------------------------------------------------------------------------------
+6. Jekyll Minima  (https://github.com/jekyll/minima)
+--------------------------------------------------------------------------------
+Licence:   MIT
+Copyright: Copyright (c) 2016-present Parker Moore and the minima contributors
+Text:      development/fixtures/theme-archive/minima/LICENSE.txt
+
+Adapted into a Tovu `templated`-tier test fixture at
+`development/fixtures/theme-archive/minima/`; see its `NOTICE.md`.
+
+--------------------------------------------------------------------------------
+KNOWN GAPS -- third-party material with no licence documentation in this repo
+--------------------------------------------------------------------------------
+
+These are recorded honestly rather than guessed at. They need the owner's
+attention before relying on this NOTICE as complete.
+
+(a) Remix Icon (entry 3). The licence NAME is stated in the vendored CSS header,
+    but the licence TEXT is not present anywhere in this repository. Apache-2.0
+    section 4(c) requires retaining attribution notices; a redistributor also
+    needs the actual terms. Fetch `License` from the Remix Icon repository and
+    commit it beside `apps/site-chat/public/remixicon.css`.
+
+(b) The `tailark-*` themes -- `content/themes/static/tailark-dusk` (displayed as
+    "Northbound"), `tailark-quartz-dark` ("Onyx") and `tailark-quartz-libre`
+    ("Meridian"), plus their per-site copies under `sites/tovu-com/themes/` --
+    carry NO `NOTICE.md` and no attribution of any kind, unlike the `basic` and
+    `basic-2` themes beside them, which do. Their directory names refer to an
+    external source, and `content/themes/static/tailark-dusk/css/theme.css`
+    contains a comment pointing at "NOTICE.md's 'Light mode added later'
+    section" -- a file that does not exist in that theme. Their provenance and
+    licence are therefore undetermined and are deliberately NOT asserted here.

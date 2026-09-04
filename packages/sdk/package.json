@@ -2,6 +2,7 @@
   "name": "@tovu/sdk",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Tovu plugin-author public SDK (SPEC-005 REQ-08, ADR-005 rule 1). The ONLY supported import surface for plugin `server/index.mjs` entry files — deep imports into `@tovu/core` are unsupported and blocked by the exports map below.",
   "type": "module",
   "main": "./dist/index.js",

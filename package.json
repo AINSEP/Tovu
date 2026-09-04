@@ -2,6 +2,7 @@
   "name": "tovu",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "description": "Tovu \u2014 the website product: CMS runtime (public site + per-site admin + content model).",
   "type": "module",
   "workspaces": [
