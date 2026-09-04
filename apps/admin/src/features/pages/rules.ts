@@ -27,6 +27,24 @@ import type { ThemePageRow } from "./hooks/use-theme-pages.hooks";
  */
 export const PAGES_RESOURCE = "pages";
 
+/**
+ * A page's public path on the live site, derived from its `slug` — mirrors
+ * `apps/website/src/platform/routing/routing.ts`'s `postPublicPath` exactly (same one-line
+ * `"/" -> "/"`, everything else -> `/${slug}` rule), re-implemented here rather than imported
+ * because `apps/admin` is a separately deployed SPA package with no dependency on
+ * `apps/website`'s server source.
+ *
+ * Exists because a Page can now claim the literal root slug `"/"` (`apps/website/src/features/
+ * post/post.ts`'s `ROOT_SLUG`, gated to `kind: "page"`), which a naive `/${slug}` template
+ * doubles into `"//"` — a broken link both as an href and as the visible text in `Pages.tsx`'s
+ * Slug column. `Posts.tsx` has no equivalent call because a Post can never hold `ROOT_SLUG`.
+ *
+ * @complexity O(1).
+ */
+export function pagePublicPath(slug: string): string {
+  return slug === "/" ? "/" : `/${slug}`;
+}
+
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
  *  state and navigation, and so a test can assert exactly which one a given row wires up — same
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */

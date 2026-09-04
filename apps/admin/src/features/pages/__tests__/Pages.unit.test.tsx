@@ -144,11 +144,35 @@ describe("populated table", () => {
     renderWith({ pages: [PAGE] });
     // The Pages editor, NOT the Posts one. A Page is a bespoke HTML document and is never
     // opened in Tiptap; this href is the guarantee, and it used to point at /admin/posts/{id}.
-    // Built from the slug (not the id) — the Pages editor URL is slug-based.
-    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/about");
+    // Built from the id (not the slug) — see the "root-slug page" test below for why.
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/pg1");
     expect(screen.getByRole("link", { name: "/about" })).toBeInTheDocument();
     expect(screen.getByText("published")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
+  });
+
+  /**
+   * Regression test — a Page can claim the literal root slug `"/"` (`post.ts`'s `ROOT_SLUG`,
+   * landed 2026-09-03). Before this fix, this row's Slug column read "//" (`/${"/"}"`) and both
+   * its edit links pointed at `/admin/pages//` / navigated to `/pages//`, which the admin
+   * router's `/:slug` pattern cannot match — the link silently did nothing. Must FAIL against the
+   * pre-fix code (slug-built hrefs) and pass now that both edit links use `page.id` and the site
+   * link goes through `pagePublicPath`.
+   */
+  it("renders a root-slug ('/') page's Slug column as '/' and its edit links by id, not slug", async () => {
+    const user = userEvent.setup();
+    const HOME_PAGE: AdminPost = { ...PAGE, id: "home-1", title: "Home", slug: "/" };
+    renderWith({ pages: [HOME_PAGE] });
+
+    const titleLink = screen.getByRole("link", { name: "Home" });
+    expect(titleLink).toHaveAttribute("href", "/admin/pages/home-1");
+
+    const slugLink = screen.getByRole("link", { name: "/" });
+    expect(slugLink).toHaveAttribute("href", "http://localhost:3000/");
+
+    await user.click(screen.getByRole("button", { name: 'Actions for "Home"' }));
+    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+    expect(navigate).toHaveBeenCalledWith("/pages/home-1");
   });
 });
 
@@ -240,12 +264,12 @@ describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
     expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
   });
 
-  it("Edit navigates to the Pages editor at /pages/{slug}, never the Posts editor", async () => {
+  it("Edit navigates to the Pages editor at /pages/{id}, never the Posts editor", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/about");
+    expect(navigate).toHaveBeenCalledWith("/pages/pg1");
   });
 
   it("Disable calls disablePage with the row", async () => {

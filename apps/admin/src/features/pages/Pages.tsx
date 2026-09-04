@@ -8,6 +8,7 @@ import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import {
   pageRowMenuItems,
+  pagePublicPath,
   comparePagesByTitle,
   comparePagesBySlug,
   comparePagesByStatus,
@@ -195,15 +196,24 @@ export function Pages(props: PagesProps) {
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
                 // domain-specific comparator and label wording stay here (`rules.ts`).
                 sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel("Title", direction) },
-                cell: (page) => <a href={`/admin/pages/${page.slug}`}>{page.title}</a>,
+                // The admin editor route (`panels.tsx`'s `/:slug` pattern) is keyed by `page.id`,
+                // not `page.slug` — a Page that has claimed the root slug `"/"` (`pagePublicPath`'s
+                // own doc, `rules.ts`) cannot be expressed as a single path segment in slug form at
+                // all, so the id is the only value that works for every page, not just the ordinary
+                // ones. `getAdminPostByIdOrSlug` (`apps/website/src/features/post/post.ts`) resolves
+                // an id just as reliably as a slug, so this is a lossless swap for every other page.
+                cell: (page) => <a href={`/admin/pages/${page.id}`}>{page.title}</a>,
               },
               {
                 key: "slug",
                 header: "Slug",
                 sort: { compare: comparePagesBySlug, label: (direction) => pageColumnSortLabel("Slug", direction) },
+                // The public site link and its visible text both go through `pagePublicPath` so the
+                // root-slug page reads "/" — a bare `/${page.slug}` template would render "//" and
+                // link nowhere real for that one page.
                 cell: (page) => (
-                  <a href={siteUrl(`/${page.slug}`)} target="_blank" rel="noreferrer">
-                    /{page.slug}
+                  <a href={siteUrl(pagePublicPath(page.slug))} target="_blank" rel="noreferrer">
+                    {pagePublicPath(page.slug)}
                   </a>
                 ),
               },
@@ -230,7 +240,8 @@ export function Pages(props: PagesProps) {
                     items={pageRowMenuItems(
                       page,
                       {
-                        onEdit: (p) => navigate(`/pages/${p.slug}`),
+                        // Same id-not-slug reasoning as the Title column's own edit link above.
+                        onEdit: (p) => navigate(`/pages/${p.id}`),
                         onDisable: disablePage,
                         onDelete: setPendingDelete,
                       },

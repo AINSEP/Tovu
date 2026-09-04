@@ -8,6 +8,7 @@ import {
   comparePagesByTitle,
   comparePagesByUpdated,
   pageColumnSortLabel,
+  pagePublicPath,
   pageRowMenuItems,
   themePageRowMenuItems,
   updatedPageColumnSortLabel,
@@ -240,6 +241,22 @@ describe("comparePagesByStatus", () => {
       "pg-published",
       "pg-draft",
     ]);
+  });
+});
+
+describe("pagePublicPath", () => {
+  it("renders the root slug as '/' rather than doubling it into '//'", () => {
+    expect(pagePublicPath("/")).toBe("/");
+  });
+
+  it("prefixes an ordinary slug with a single leading slash", () => {
+    expect(pagePublicPath("about")).toBe("/about");
+  });
+
+  it("does not special-case a slug that merely starts with a slash but isn't exactly '/'", () => {
+    // Not a real slug shape today (post.ts's isValidSlugFormat rejects it), but the function's own
+    // equality check (`slug === "/"`) is what matters here, not slug-format validation elsewhere.
+    expect(pagePublicPath("/about")).toBe("//about");
   });
 });
 
