@@ -72,6 +72,24 @@ const RESERVED_AUTHORIZATION_PARAMS: ReadonlySet<string> = new Set([
   "code_challenge_method",
 ]);
 
+/** Merges caller-supplied extra authorization parameters into `authorizationUrl`, refusing any that
+ *  collide with one Tovu owns. Split out of {@link beginAuthorizationCode} purely to keep that
+ *  function's own branch count under the repo's complexity ceiling — same reserved-name check, same
+ *  order, mutates the same URL. */
+function applyExtraAuthorizationParams(
+  authorizationUrl: URL,
+  extraAuthorizationParams: Readonly<Record<string, string>> | undefined,
+): void {
+  for (const [key, value] of Object.entries(extraAuthorizationParams ?? {})) {
+    if (RESERVED_AUTHORIZATION_PARAMS.has(key)) {
+      throw new OAuthError("OAUTH_INVALID_REQUEST", `'${key}' is set by Tovu and cannot be overridden for this provider`, {
+        operatorAction: "Remove that parameter from the provider's extra authorization parameters.",
+      });
+    }
+    authorizationUrl.searchParams.set(key, value);
+  }
+}
+
 function assertGrantSupported(provider: OAuthProviderDescriptor, grant: "authorization_code" | "device_code"): void {
   if (!provider.supportedGrants.includes(grant)) {
     throw new OAuthError("OAUTH_UNSUPPORTED_GRANT", `provider '${provider.providerId}' does not support the ${grant} grant`, {
@@ -130,14 +148,7 @@ export function beginAuthorizationCode(
     authorizationUrl.searchParams.set("code_challenge", pkce.codeChallenge);
     authorizationUrl.searchParams.set("code_challenge_method", pkce.codeChallengeMethod);
   }
-  for (const [key, value] of Object.entries(input.extraAuthorizationParams ?? {})) {
-    if (RESERVED_AUTHORIZATION_PARAMS.has(key)) {
-      throw new OAuthError("OAUTH_INVALID_REQUEST", `'${key}' is set by Tovu and cannot be overridden for this provider`, {
-        operatorAction: "Remove that parameter from the provider's extra authorization parameters.",
-      });
-    }
-    authorizationUrl.searchParams.set(key, value);
-  }
+  applyExtraAuthorizationParams(authorizationUrl, input.extraAuthorizationParams);
 
   return { authorizationUrl: authorizationUrl.toString(), state: entry.state, expiresAt: entry.expiresAt };
 }
