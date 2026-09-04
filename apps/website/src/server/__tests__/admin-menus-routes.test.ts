@@ -5,7 +5,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 
 import express from "express";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
+import { ALLOWED_HREF_SHAPES_DESCRIPTION, InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
 import type { MenuRepoPort } from "../../features/navigation/index.js";
 import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
@@ -385,8 +385,14 @@ test("update-tree: 400 MenuValidationError reached through the UPDATE path's own
   assert.equal(res.status, 400);
   const body = (await res.json()) as { error: string };
   // Jini `menu-service.ts`'s write-time href allowlist (replaced a scheme DENYLIST 2026-09-03) now
-  // reports "disallowed href", not "disallowed scheme" — see that file's `isAllowedMenuHref` doc.
-  assert.match(body.error, /disallowed href/);
+  // reports this LLM-caller-facing message instead of the old "disallowed scheme" text — see that
+  // file's `isAllowedHref`/`ALLOWED_HREF_SHAPES_DESCRIPTION` doc. Asserted against the imported
+  // constant (not a hand-typed copy of the shapes text) so this test cannot itself drift from the
+  // real message the way the old denylist/allowlist copies drifted from each other.
+  assert.equal(
+    body.error,
+    `url target href is not allowed: 'javascript:alert(1)'. Accepted shapes: ${ALLOWED_HREF_SHAPES_DESCRIPTION}.`
+  );
 
   // The rejected update must not have applied — still version 1, still empty.
   const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
