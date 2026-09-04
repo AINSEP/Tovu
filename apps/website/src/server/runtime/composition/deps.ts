@@ -925,7 +925,11 @@ export function createSqliteRouteDeps(
     seed: {
       workspaceId: workspaceId,
       origin: createVerifiedOrigin({
-        scheme: "http",
+        // The dev API server terminates TLS too as of 51c59f5c ("feat(dev): terminate TLS on the
+        // API dev server too") — both dev servers now agree on https, so this placeholder origin
+        // (fed into canonicalOrigin, and from there into redirects/newsletter links/site
+        // evidence) must match, the same drift class `site-url.ts`'s dev fallback had.
+        scheme: "https",
         host: "localhost",
         port: 3000,
         verifiedAt: clock.nowIso(),

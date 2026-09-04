@@ -11,7 +11,9 @@
  */
 export function siteUrl(path: string): string {
   if (import.meta.env.DEV) {
-    const origin = import.meta.env.VITE_TOVU_SITE_URL ?? "http://localhost:3000";
+    // The dev API server terminates TLS too as of 51c59f5c ("feat(dev): terminate TLS on the API
+    // dev server too") — both dev servers now agree on https, so this fallback must too.
+    const origin = import.meta.env.VITE_TOVU_SITE_URL ?? "https://localhost:3000";
     return `${origin}${path}`;
   }
   return path;

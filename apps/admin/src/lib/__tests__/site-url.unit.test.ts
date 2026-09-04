@@ -26,10 +26,10 @@ describe("siteUrl", () => {
     expect(siteUrl("/hello-world")).toBe("https://staging.example.com/hello-world");
   });
 
-  it("in dev with no VITE_TOVU_SITE_URL set, falls back to http://localhost:3000", () => {
+  it("in dev with no VITE_TOVU_SITE_URL set, falls back to https://localhost:3000 — the dev API server terminates TLS too (51c59f5c)", () => {
     vi.stubEnv("DEV", true);
     vi.stubEnv("VITE_TOVU_SITE_URL", undefined);
 
-    expect(siteUrl("/hello-world")).toBe("http://localhost:3000/hello-world");
+    expect(siteUrl("/hello-world")).toBe("https://localhost:3000/hello-world");
   });
 });

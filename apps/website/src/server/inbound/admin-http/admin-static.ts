@@ -113,7 +113,10 @@ export function registerAdminStatic(app: Express, required: { distDir: string })
       .status(503)
       .type("html")
       .send(
-        "<h1>Admin shell not built</h1><p>Run <code>npm run build</code> in <code>apps/admin</code>, or use the Vite dev server (<a href='http://localhost:5173'>localhost:5173</a>).</p>"
+        // Vite's dev server has been HTTPS-only (mkcert) since HTTP/2 landed there (51c59f5c) —
+        // a plain http:// link here would fail to connect, same class of bug this whole change
+        // fixes for `apps/admin/src/lib/site-url.ts`'s dev fallback.
+        "<h1>Admin shell not built</h1><p>Run <code>npm run build</code> in <code>apps/admin</code>, or use the Vite dev server (<a href='https://localhost:5173'>localhost:5173</a>).</p>"
       );
   });
 }
