@@ -38,6 +38,32 @@ function writeValidV1Theme(dir: string): void {
   fs.writeFileSync(path.join(dir, "templates", "entry.json"), "{}", "utf8");
 }
 
+/**
+ * A v2-strict theme package that is VALID but missing the `author`-profile-advisory fields (license,
+ * description) — see `validation/profiles.ts`'s `PUBLISH_ONLY_RULES`. Mirrors
+ * `validate-theme-package.test.ts`'s `writeMinimalV2Static`, kept local to this file since this test
+ * only needs to prove the CLI's warnings-section rendering, not the validator's own rule set.
+ */
+function writeValidV2ThemeMissingPolishFields(dir: string): void {
+  fs.mkdirSync(path.join(dir, "render", "pages"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "render", "partials"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "css"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "render", "pages", "index.html"), "<html></html>", "utf8");
+  fs.writeFileSync(path.join(dir, "render", "partials", "nav.html"), "<nav></nav>", "utf8");
+  fs.writeFileSync(path.join(dir, "css", "theme.css"), "body{}", "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  const manifest = {
+    apiVersion: 2,
+    id: path.basename(dir),
+    name: "My Theme",
+    version: "0.1.0",
+    tier: "static",
+    description: "",
+    partials: { nav: { source: "render/partials/nav.html" } },
+  };
+  fs.writeFileSync(path.join(dir, "theme.json"), JSON.stringify(manifest), "utf8");
+}
+
 test("tovu theme validate <dir>: a valid theme exits 0 and prints a human-readable VALID summary", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-validate-ok-"));
   writeValidV1Theme(dir);
@@ -67,6 +93,17 @@ test("tovu theme validate <dir>: an invalid theme exits 1 (a finding, not a cras
   assert.equal(result.status, 1, `stderr: ${result.stderr}`);
   assert.match(result.stdout, /INVALID/);
   assert.match(result.stdout, /must equal folder name/);
+});
+
+test("tovu theme validate <dir>: a valid theme missing author-profile-advisory fields exits 0 and prints a warnings section", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-cli-theme-validate-warn-"));
+  writeValidV2ThemeMissingPolishFields(dir);
+
+  const result = runCli(["theme", "validate", dir]);
+  assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+  assert.match(result.stdout, /VALID/);
+  assert.match(result.stdout, /warnings \(\d+\):/);
+  assert.match(result.stdout, /\[description-missing\]/);
 });
 
 test("tovu theme validate <dir> --profile <bad>: rejected as VALIDATION (exit 2), not a silent fallback", () => {
