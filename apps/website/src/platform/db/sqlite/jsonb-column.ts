@@ -182,6 +182,23 @@ function decodeJsonStringPayload(payloadUtf8: string): string {
 const JSON5_ONLY_ELEMENT_TYPES: ReadonlySet<number> = new Set([ELEMENT_TYPE.INT5, ELEMENT_TYPE.FLOAT5, ELEMENT_TYPE.TEXT5]);
 
 /**
+ * Builds the error for an element type `decodeScalarPayload` does not support. Split out purely
+ * to keep `decodeScalarPayload` itself under the repo's cyclomatic-complexity budget — folding
+ * this two-way message choice back into that function's `switch` is what pushed it over (10 vs.
+ * the ceiling of 9). Same two messages, same conditions, no behavior change.
+ */
+function unsupportedScalarElementTypeError(elementType: number, payloadStart: number): Error {
+  if (JSON5_ONLY_ELEMENT_TYPES.has(elementType)) {
+    return new Error(
+      `decodeSqliteJsonb: JSON5-only element type ${elementType} at offset ${payloadStart} is not supported ` +
+        "(this column's own writes only ever produce strict-JSON element types; a JSON5 spelling means this " +
+        "blob was not written through sqliteJsonb's toDriver)"
+    );
+  }
+  return new Error(`decodeSqliteJsonb: unknown JSONB element type ${elementType} at offset ${payloadStart}`);
+}
+
+/**
  * Decodes a leaf (non-container) element's payload into its JS value. Split out of
  * `decodeElement` purely to keep each function's branching under the repo's complexity budget —
  * this half has no recursion, the container half (ARRAY/OBJECT) is what needs it.
@@ -208,44 +225,49 @@ function decodeScalarPayload(elementType: number, buf: Buffer, payloadStart: num
       // Raw text carries no escape sequences at all (guaranteed by the producer) — used as-is.
       return buf.toString("utf8", payloadStart, payloadEnd);
     default:
-      if (JSON5_ONLY_ELEMENT_TYPES.has(elementType)) {
-        throw new Error(
-          `decodeSqliteJsonb: JSON5-only element type ${elementType} at offset ${payloadStart} is not supported ` +
-            "(this column's own writes only ever produce strict-JSON element types; a JSON5 spelling means this " +
-            "blob was not written through sqliteJsonb's toDriver)"
-        );
-      }
-      throw new Error(`decodeSqliteJsonb: unknown JSONB element type ${elementType} at offset ${payloadStart}`);
+      throw unsupportedScalarElementTypeError(elementType, payloadStart);
   }
 }
 
 /**
- * Decodes an ARRAY or OBJECT element's payload, recursing into `decodeElement` for each item
- * (or key/value pair).
+ * Decodes an ARRAY element's payload, recursing into `decodeElement` for each item. Split out of
+ * what used to be one combined ARRAY/OBJECT function purely to keep branching under the repo's
+ * cognitive-complexity budget — the combined version's `if (ARRAY) {...} else {...}` wrapped two
+ * unrelated loop-plus-guard bodies in one extra nesting level apiece, for no shared logic between
+ * them; each half here is exactly as nested as its own bounds-checking requires and no more.
  *
- * @throws {Error} if `elementType` is OBJECT and a key element decodes to a non-string.
- * @complexity O(n) in the number of bytes making up the container and its descendants.
+ * @throws {Error} if an item's payload runs past `payloadEnd`.
+ * @complexity O(n) in the number of bytes making up the array and its descendants.
  */
-function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: number, payloadEnd: number): unknown {
-  if (elementType === ELEMENT_TYPE.ARRAY) {
-    const items: unknown[] = [];
-    let cursor = payloadStart;
-    while (cursor < payloadEnd) {
-      const item = decodeElement(buf, cursor);
-      // Starting inside the container is not the same as FITTING inside it. Without this, an item whose
-      // payload runs past `payloadEnd` is absorbed and the cursor jumps beyond the end, exiting the loop
-      // quietly — the container silently swallows bytes belonging to its parent.
-      if (item.nextOffset > payloadEnd) {
-        throw new Error(
-          `decodeSqliteJsonb: array item at offset ${cursor} ends at ${item.nextOffset}, past its container's payload end ${payloadEnd} (overflowing element)`
-        );
-      }
-      items.push(item.value);
-      cursor = item.nextOffset;
+function decodeArrayPayload(buf: Buffer, payloadStart: number, payloadEnd: number): unknown[] {
+  const items: unknown[] = [];
+  let cursor = payloadStart;
+  while (cursor < payloadEnd) {
+    const item = decodeElement(buf, cursor);
+    // Starting inside the container is not the same as FITTING inside it. Without this, an item whose
+    // payload runs past `payloadEnd` is absorbed and the cursor jumps beyond the end, exiting the loop
+    // quietly — the container silently swallows bytes belonging to its parent.
+    if (item.nextOffset > payloadEnd) {
+      throw new Error(
+        `decodeSqliteJsonb: array item at offset ${cursor} ends at ${item.nextOffset}, past its container's payload end ${payloadEnd} (overflowing element)`
+      );
     }
-    return items;
+    items.push(item.value);
+    cursor = item.nextOffset;
   }
+  return items;
+}
 
+/**
+ * Decodes an OBJECT element's payload, recursing into `decodeElement` for each key and value.
+ * See `decodeArrayPayload` for why this is a separate function rather than one branch of a
+ * combined ARRAY/OBJECT decoder.
+ *
+ * @throws {Error} if a key element decodes to a non-string, if the payload ends right after a
+ *   key with no value element, or if a value's payload runs past `payloadEnd`.
+ * @complexity O(n) in the number of bytes making up the object and its descendants.
+ */
+function decodeObjectPayload(buf: Buffer, payloadStart: number, payloadEnd: number): Record<string, unknown> {
   const obj: Record<string, unknown> = {};
   let cursor = payloadStart;
   while (cursor < payloadEnd) {
@@ -276,6 +298,20 @@ function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: 
     cursor = val.nextOffset;
   }
   return obj;
+}
+
+/**
+ * Dispatches an ARRAY or OBJECT element's payload to the decoder for its kind. Kept as a thin
+ * wrapper (rather than inlining the ternary at `decodeElement`'s one call site) so the ARRAY/OBJECT
+ * choice reads the same way `decodeScalarPayload`'s dispatch does.
+ *
+ * @throws {Error} propagated from `decodeArrayPayload`/`decodeObjectPayload` — see those.
+ * @complexity O(n) in the number of bytes making up the container and its descendants.
+ */
+function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: number, payloadEnd: number): unknown {
+  return elementType === ELEMENT_TYPE.ARRAY
+    ? decodeArrayPayload(buf, payloadStart, payloadEnd)
+    : decodeObjectPayload(buf, payloadStart, payloadEnd);
 }
 
 /**
