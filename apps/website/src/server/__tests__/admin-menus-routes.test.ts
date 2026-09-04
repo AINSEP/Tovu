@@ -6,6 +6,7 @@ import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from 
 import express from "express";
 
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../features/navigation/index.js";
+import type { MenuRepoPort } from "../../features/navigation/index.js";
 import type { MenuRouteDeps } from "../inbound/admin-http/http/menus.js";
 import { createRouteDeps } from "../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../inbound/admin-http/dev-auth.js";
@@ -383,7 +384,9 @@ test("update-tree: 400 MenuValidationError reached through the UPDATE path's own
   });
   assert.equal(res.status, 400);
   const body = (await res.json()) as { error: string };
-  assert.match(body.error, /disallowed scheme/);
+  // Jini `menu-service.ts`'s write-time href allowlist (replaced a scheme DENYLIST 2026-09-03) now
+  // reports "disallowed href", not "disallowed scheme" — see that file's `isAllowedMenuHref` doc.
+  assert.match(body.error, /disallowed href/);
 
   // The rejected update must not have applied — still version 1, still empty.
   const stillThere = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/menus/${menu.id}`, {
@@ -718,6 +721,48 @@ test("update menu tree: `req.params.menuId ?? \"\"` fallback, forced via a direc
   // An empty menuId resolves nothing -- the ordinary not-found mapping, proof the `?? ""` fallback
   // produced a real (if unmatched) lookup key rather than throwing.
   assert.equal(capture.statusCode, 404);
+});
+
+/**
+ * `sendUpdateMenuTreeError`'s final `res.status(500).json({ error: "internal error" })` arm — the
+ * one branch none of the golden-path/permission/validation tests above reach, since every other
+ * failure this route can hit maps to a specific `Menu*Error`. Forced with a `menuRepo` stub whose
+ * `findById` throws a plain `Error`, so `updateMenuTree` (`menu-service.ts`) rejects with something
+ * that is none of `MenuValidationError`/`MenuConflictError`/`MenuNotFoundError` — the only way to
+ * reach the handler's default arm without a real storage failure.
+ */
+test("update menu tree: sendUpdateMenuTreeError's default 500 branch, forced via a repo that throws a non-Menu error", async () => {
+  const throwingMenuRepo: MenuRepoPort = {
+    findById: async () => {
+      throw new Error("boom: repo exploded");
+    },
+    findBySlug: async () => null,
+    list: async () => [],
+    save: async () => {},
+    remove: async () => {},
+  };
+  const deps: MenuRouteDeps = {
+    ...createRouteDeps(),
+    menuRepo: throwingMenuRepo,
+    navLocationBindingRepo: new InMemoryNavLocationBindingRepo(),
+  };
+  const app = express();
+  registerAdminMenuUpdateTreeRoute(app, deps);
+
+  await deps.identityReady;
+  const ownerUser = await deps.userRepo.findByUsername({ workspaceId: deps.workspaceId, username: "admin" });
+  assert.ok(ownerUser, "expected the seeded admin user");
+  const ownerPrincipal = await deps.principalRepo.findById({ workspaceId: deps.workspaceId, id: ownerUser.principalId });
+  assert.ok(ownerPrincipal, "expected the seeded admin principal");
+
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/menus/:menuId");
+  const { res, capture } = createCapturingResponse();
+  res.locals.principal = ownerPrincipal;
+
+  await handler({ params: { workspaceId: deps.workspaceId, menuId: "whatever" }, body: { items: [] } }, res);
+
+  assert.equal(capture.statusCode, 500);
+  assert.deepEqual(capture.jsonBody, { error: "internal error" });
 });
 
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/inbound/admin-http/routes/menus/*.ts after cutover", async () => {
