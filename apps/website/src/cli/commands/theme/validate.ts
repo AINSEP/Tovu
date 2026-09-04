@@ -5,6 +5,7 @@ import {
   validateThemePackage,
   type ThemeValidationFinding,
   type ThemeValidationProfile,
+  type ValidateThemePackageResult,
 } from "#src/features/theme/index";
 
 /**
@@ -33,6 +34,18 @@ function formatFinding(finding: ThemeValidationFinding): string {
   return `  [${finding.ruleId}]${location} ${finding.message}`;
 }
 
+/** The `--json`-off branch of `runThemeValidateCommand` — split out so that function's own
+ * cognitive complexity isn't compounded by nesting this printing logic inside its `if/else`. */
+function printHumanReadableResult(id: string, profile: string, result: ValidateThemePackageResult): void {
+  process.stdout.write(`theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n`);
+  if (result.errors.length > 0) {
+    process.stdout.write(`errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n`);
+  }
+  if (result.warnings.length > 0) {
+    process.stdout.write(`warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n`);
+  }
+}
+
 /**
  * Run `tovu theme validate <dir> [--profile <p>] [--json]`.
  *
@@ -53,13 +66,7 @@ export async function runThemeValidateCommand(input: RunThemeValidateCommandInpu
   if (input.json) {
     process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   } else {
-    process.stdout.write(`theme '${id}' (schema v${result.schemaVersion}, profile: ${profile}): ${result.valid ? "VALID" : "INVALID"}\n`);
-    if (result.errors.length > 0) {
-      process.stdout.write(`errors (${result.errors.length}):\n${result.errors.map(formatFinding).join("\n")}\n`);
-    }
-    if (result.warnings.length > 0) {
-      process.stdout.write(`warnings (${result.warnings.length}):\n${result.warnings.map(formatFinding).join("\n")}\n`);
-    }
+    printHumanReadableResult(id, profile, result);
   }
 
   if (!result.valid) {
