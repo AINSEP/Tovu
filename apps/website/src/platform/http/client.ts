@@ -43,14 +43,20 @@ export function classifyAddress(ip: string): AddressClass {
   return "reserved"; // unparsable — fail closed, never treat as public
 }
 
+/** The RFC1918 private ranges, split out of {@link classifyIpv4} purely to keep that function's
+ *  own branch count under the repo's complexity ceiling — same three ranges, same order. */
+function isRfc1918Private(a: number, b: number): boolean {
+  if (a === 10) return true;
+  if (a === 172) return b >= 16 && b <= 31;
+  return a === 192 && b === 168;
+}
+
 function classifyIpv4(ip: string): AddressClass {
   const octets = ip.split(".").map(Number);
   const [a, b] = octets;
 
   if (a === 127) return "loopback";
-  if (a === 10) return "private";
-  if (a === 172 && b >= 16 && b <= 31) return "private";
-  if (a === 192 && b === 168) return "private";
+  if (isRfc1918Private(a, b)) return "private";
   if (a === 169 && b === 254) return "link-local"; // includes 169.254.169.254 cloud metadata
   if (a === 0) return "reserved";
   if (a >= 224) return "reserved"; // multicast (224-239) + reserved/future (240-255)
@@ -108,41 +114,47 @@ function isCrossOrigin(a: URL, b: URL): boolean {
   return a.protocol !== b.protocol || a.hostname !== b.hostname || a.port !== b.port;
 }
 
-async function resolvePinnedPeer(
-  url: URL,
-  policy: EgressPolicy
-): Promise<PinnedPeer> {
+/** @throws {Error} on a disallowed scheme, or on credentials embedded in the target URL. */
+function assertAllowedTarget(url: URL, policy: EgressPolicy): void {
   if (!policy.allowedSchemes.includes(url.protocol.replace(":", ""))) {
     throw new Error(`scheme '${url.protocol}' is not in the allowed egress schemes`);
   }
   if (url.username || url.password) {
     throw new Error("credentials embedded in the target URL are not allowed");
   }
+}
+
+/** A literal IP address resolves to itself; a hostname goes through DNS. Order preserved from the
+ *  pre-extraction version: a literal IP never touches `lookup`. */
+async function resolveHostAddresses(hostname: string): Promise<string[]> {
+  if (isIP(hostname) !== 0) return [hostname];
+  const resolved = await lookup(hostname, { all: true, verbatim: true });
+  return resolved.map((entry) => entry.address);
+}
+
+/** @throws {Error} naming the first non-public resolved address, per {@link classifyAddress}. */
+function assertNoPrivateAddress(hostname: string, addresses: readonly string[]): void {
+  for (const address of addresses) {
+    const addressClass = classifyAddress(address);
+    if (addressClass !== "public") {
+      throw new Error(`egress to '${hostname}' (${address}) rejected: resolved address is ${addressClass}`);
+    }
+  }
+}
+
+async function resolvePinnedPeer(url: URL, policy: EgressPolicy): Promise<PinnedPeer> {
+  assertAllowedTarget(url, policy);
 
   const port = url.port ? Number(url.port) : url.protocol === "https:" ? 443 : 80;
   const isDevAllowlisted = policy.devHostAllowlist.includes(url.hostname);
 
-  let addresses: string[];
-  if (isIP(url.hostname) !== 0) {
-    addresses = [url.hostname];
-  } else {
-    const resolved = await lookup(url.hostname, { all: true, verbatim: true });
-    addresses = resolved.map((entry) => entry.address);
-  }
-
+  const addresses = await resolveHostAddresses(url.hostname);
   if (addresses.length === 0) {
     throw new Error(`could not resolve any address for host '${url.hostname}'`);
   }
 
   if (policy.denyPrivateAddresses && !isDevAllowlisted) {
-    for (const address of addresses) {
-      const addressClass = classifyAddress(address);
-      if (addressClass !== "public") {
-        throw new Error(
-          `egress to '${url.hostname}' (${address}) rejected: resolved address is ${addressClass}`
-        );
-      }
-    }
+    assertNoPrivateAddress(url.hostname, addresses);
   }
 
   return {
