@@ -133,6 +133,32 @@ test("send() maps EAUTH (bad credentials) to a non-retryable failure", async () 
   assert.deepEqual(result, { ok: false, retryable: false, errorCode: "EAUTH", message: "Invalid login" });
 });
 
+test("send() maps EENVELOPE (malformed envelope) to a non-retryable failure", async () => {
+  const transport = new FakeSmtpTransport([
+    () => {
+      const err = new Error("No recipients defined") as Error & { code: string };
+      err.code = "EENVELOPE";
+      throw err;
+    },
+  ]);
+  const adapter = new SmtpMailerAdapter(transport);
+  const result = await adapter.send(makeMessage(), SEND_OPTIONS);
+  assert.deepEqual(result, { ok: false, retryable: false, errorCode: "EENVELOPE", message: "No recipients defined" });
+});
+
+test("send() maps EMESSAGE (rejected message content) to a non-retryable failure", async () => {
+  const transport = new FakeSmtpTransport([
+    () => {
+      const err = new Error("Message content rejected") as Error & { code: string };
+      err.code = "EMESSAGE";
+      throw err;
+    },
+  ]);
+  const adapter = new SmtpMailerAdapter(transport);
+  const result = await adapter.send(makeMessage(), SEND_OPTIONS);
+  assert.deepEqual(result, { ok: false, retryable: false, errorCode: "EMESSAGE", message: "Message content rejected" });
+});
+
 test("send() maps ECONNECTION (transport failure, no server response) to a retryable failure", async () => {
   const transport = new FakeSmtpTransport([
     () => {

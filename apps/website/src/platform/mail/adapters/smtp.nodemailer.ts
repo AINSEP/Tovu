@@ -71,6 +71,13 @@ function toNodemailerAddress(address: EmailAddress): { name?: string; address: s
   return address.name ? { name: address.name, address: address.email } : { address: address.email };
 }
 
+/** `err.code` values nodemailer uses for a failure the server never got to respond to at all
+ *  (auth rejected, envelope malformed, message content rejected) — retrying as-is would just
+ *  reproduce the same rejection, unlike a transport hiccup. Named set instead of an inline
+ *  equality chain so {@link classifySmtpError} reads as one flat lookup rather than three
+ *  near-identical branches. */
+const NON_RETRYABLE_SMTP_CODES = new Set(["EAUTH", "EENVELOPE", "EMESSAGE"]);
+
 /**
  * Classifies a thrown `sendMail` error into a `MailerSendResult` failure. Prefers a real SMTP
  * reply code (`err.responseCode`, present when the server actually answered) over nodemailer's own
@@ -91,13 +98,11 @@ function classifySmtpError(err: unknown): MailerSendResult {
   }
 
   const code = hasStringField(err, "code") ? err.code : undefined;
-  if (code === "EAUTH" || code === "EENVELOPE" || code === "EMESSAGE") {
-    return { ok: false, retryable: false, errorCode: code, message };
-  }
   if (code !== undefined) {
     // ECONNECTION / ETIMEDOUT / ESOCKET / EDNS and any other pre-response transport failure —
-    // all transient by nature (nothing about the message itself was rejected).
-    return { ok: false, retryable: true, errorCode: code, message };
+    // all transient by nature (nothing about the message itself was rejected) — retryable is
+    // true for anything not in NON_RETRYABLE_SMTP_CODES.
+    return { ok: false, retryable: !NON_RETRYABLE_SMTP_CODES.has(code), errorCode: code, message };
   }
   return { ok: false, retryable: true, errorCode: "SMTP_UNKNOWN_ERROR", message };
 }
