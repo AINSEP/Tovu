@@ -1,0 +1,694 @@
+<!--
+  tovu.dev homepage — "gold" direction.
+  PAGE BODY ONLY. The theme shell (pages-default.html) supplies <html>/<head>/<body>,
+  the .site-header and the .site-footer. Do not add a doctype or wrapper document.
+
+  kUInetic is ALREADY loaded by pages-default.html
+  (<script src="../scripts/vendor/kuinetic.all.js">), so no script tag is added here.
+
+  Colour contract, decided once and applied everywhere:
+    --gold      #f8bc3c  brand FILL. Identical in both modes. Never a text colour on a light ground.
+    --gold-ink  brand as TEXT. #f8bc3c in dark (11.5:1 on --bg), #8a5d00 in light (5.7:1 on white).
+    --on-gold   #0a0a0b  text drawn ON gold. Always near-black. 11.5:1 either way.
+  White on gold is ~1.7:1 and appears nowhere on this page.
+-->
+<style>
+/* ---------------------------------------------------------------------------
+   0. Undo the article shell. pages-default.html drops page content inside
+      <article class="wrap post-detail">, which is a 720px reading column with
+      its own vertical padding. A landing page needs the full viewport width,
+      so the wrapper is neutralised here (this <style> lives in the page body,
+      so it is later in the cascade than theme.css and scoped to this page only).
+      .post-detail-header is the app-side <h1> + dated byline; this page supplies
+      its own <h1>, so the injected one is removed from the layout AND from the
+      accessibility tree (display:none), keeping exactly one h1. If the publisher
+      opts out with the "content" marker's header:false, this rule is a harmless
+      no-op.
+--------------------------------------------------------------------------- */
+.post-detail { max-width: none; padding: 0; }
+.post-detail-body { max-width: none; font-size: inherit; line-height: inherit; }
+.post-detail-header { display: none; }
+
+/* ---------------------------------------------------------------------------
+   1. Brand tokens. Black, white, gold — sampled from the owner's logo.
+      Redefined at :root so the inherited header and footer chrome adopt them
+      too. This theme has NO prefers-color-scheme handling: theme-toggle.js
+      treats "no data-theme attribute" as dark and only ever writes
+      data-theme="light". Adding a media query here would desync this page's
+      tokens from theme.css's, so there deliberately isn't one.
+--------------------------------------------------------------------------- */
+:root {
+  --bg: #0a0a0b;
+  --surface: #111113;
+  --surface-2: #191a1c;
+  --fg: #f7f7f8;
+  --muted: #9b9ba3;
+  --border: rgba(255,255,255,0.10);
+  /* .42, not .16: this token draws the theme-toggle's ring and other control
+     boundaries. At .16 the composite is 1.7:1 against --bg and fails WCAG
+     1.4.11 (3:1 for UI components); at .42 it measures 4.1:1. */
+  --border-strong: rgba(255,255,255,0.42);
+  --gold: #f8bc3c;
+  --gold-ink: #f8bc3c;
+  --on-gold: #0a0a0b;
+  --wash: rgba(248,188,60,0.10);
+  --chip: #f7e6bf;
+  --accent: var(--gold);
+  --accent-fg: var(--on-gold);
+}
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --surface: #f7f6f3;
+  --surface-2: #efede8;
+  --fg: #0a0a0b;
+  --muted: #56565c;
+  --border: rgba(10,10,11,0.12);
+  /* .55 for the same 3:1 reason as above — .34 measures only 2.3:1 on white. */
+  --border-strong: rgba(10,10,11,0.55);
+  /* The whole light-mode problem in one line: gold cannot be ink on white
+     (1.7:1), so the brand's TEXT form darkens to a same-hue amber (h~40deg,
+     5.7:1) while the FILL form above stays exactly #f8bc3c. */
+  --gold-ink: #8a5d00;
+  --wash: #fff7e6;
+  --chip: #f7e6bf;
+}
+
+/* ---------------------------------------------------------------------------
+   2. Inherited chrome, restyled to the gold brand.
+--------------------------------------------------------------------------- */
+.site-header.scrolled { border-bottom-color: color-mix(in srgb, var(--gold) 55%, transparent); }
+/* Square corners everywhere. The theme ships 18-22px pill buttons; this
+   direction is deliberately hard-edged, and the radius is the single change
+   that carries most of that difference. */
+.btn { border-radius: 2px; }
+.nav-actions .btn-solid { background: var(--gold); color: var(--on-gold); }
+.nav-actions .btn-solid:hover { background: color-mix(in srgb, var(--gold) 86%, #ffffff); opacity: 1; }
+.site-footer { border-top: 1px solid var(--border); position: relative; }
+.site-footer::before {
+  content: ""; position: absolute; inset: 0 auto auto 0;
+  width: 96px; height: 2px; background: var(--gold);
+}
+
+/* One focus treatment for the whole page, authored in plain CSS rather than
+   delegated to an effect library, so it survives kUInetic failing to load. */
+.tvg a:focus-visible,
+.tvg button:focus-visible,
+.tvg summary:focus-visible,
+.site-header a:focus-visible,
+.site-header button:focus-visible,
+.site-footer a:focus-visible {
+  outline: 2px solid var(--gold-ink);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+/* Inside the gold panel, --gold-ink IS the panel colour in dark mode and would
+   vanish. Near-black is 11.5:1 against gold in both modes. */
+.tvg-close a:focus-visible, .tvg-close button:focus-visible { outline-color: var(--on-gold); }
+
+/* ---------------------------------------------------------------------------
+   3. Page frame
+--------------------------------------------------------------------------- */
+.tvg {
+  --gutter: 24px;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+}
+.tvg *, .tvg *::before, .tvg *::after { box-sizing: border-box; }
+.tvg-inner { max-width: var(--container); margin: 0 auto; padding: 0 var(--gutter); }
+.tvg p { color: var(--muted); margin: 0; }
+/* NOTE: deliberately no `.tvg a { color: inherit }` here. theme.css already
+   declares `a { color: inherit }` at element specificity (0,0,1), which the
+   0,1,0 .tvg-btn-* colour rules below can beat. A class-scoped copy of it would
+   be 0,1,1 and would silently win over every button colour — which is exactly
+   how the gold CTA ended up drawing near-white text on gold (1.7:1) the first
+   time this page was rendered. */
+
+/* Reading-progress hairline. Sticky rather than fixed on purpose: the shell
+   animates a transform on the surrounding <article> (reveal.js), and a
+   transformed ancestor retargets position:fixed. Decorative and aria-hidden;
+   in browsers without scroll-driven animations it simply stays a full-width
+   gold rule under the header, which is a fine resting state. */
+.tvg-progress-track {
+  position: sticky; top: 70px; z-index: 40;
+  height: 2px; background: var(--border);
+}
+.tvg-progress {
+  display: block; height: 100%; width: 100%;
+  background: var(--gold);
+  transform-origin: left center;
+}
+
+/* ---------------------------------------------------------------------------
+   4. Section rhythm — the numbered-ledger motif.
+      Every band opens with a hairline, a solid gold square, a monospace index
+      and the heading. That index is the page's one repeating ornament; there
+      are no icon tiles and no card triptychs anywhere below.
+--------------------------------------------------------------------------- */
+.tvg-band { padding-block: 104px; border-top: 1px solid var(--border); }
+.tvg-band:first-of-type { border-top: 0; }
+.tvg-head { max-width: 62ch; margin-bottom: 56px; }
+/* `.tvg .tvg-idx`, not `.tvg-idx`: this is a <p>, and `.tvg p` (0,1,1) outranks a
+   bare class rule (0,1,0) — the index numbers rendered muted grey instead of gold. */
+.tvg .tvg-idx {
+  display: flex; align-items: center; gap: 10px;
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  color: var(--gold-ink);
+  text-transform: uppercase;
+  margin-bottom: 22px;
+}
+.tvg .tvg-idx::before { content: ""; width: 9px; height: 9px; background: var(--gold); flex: 0 0 auto; }
+.tvg-head h2 {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.6vw, 42px);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  font-weight: 500;
+  margin: 0 0 16px;
+  max-width: 22ch;
+}
+.tvg-head p { font-size: 17px; max-width: 58ch; }
+
+/* ---------------------------------------------------------------------------
+   5. Hero
+--------------------------------------------------------------------------- */
+.tvg-hero { padding-block: 92px 96px; }
+.tvg-hero-grid { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 64px; align-items: start; }
+/* Same <p>-vs-`.tvg p` specificity problem as .tvg-idx above. */
+.tvg .tvg-eyebrow {
+  display: inline-flex; align-items: center; gap: 9px;
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold-ink);
+  border: 1px solid color-mix(in srgb, var(--gold) 42%, transparent);
+  background: var(--wash);
+  padding: 8px 12px;
+  margin-bottom: 34px;
+}
+.tvg .tvg-eyebrow::before { content: ""; width: 7px; height: 7px; background: var(--gold); }
+.tvg h1 {
+  font-family: var(--font-display);
+  font-size: clamp(42px, 6.6vw, 78px);
+  line-height: 0.98;
+  letter-spacing: -0.038em;
+  font-weight: 500;
+  margin: 0 0 28px;
+  max-width: 13ch;
+}
+/* The brand-coloured word. In dark mode this is literal #f8bc3c on near-black
+   (11.5:1); in light mode it is the darkened amber on white (5.7:1). The rule
+   underneath is #f8bc3c in BOTH modes — a decorative fill, never the thing
+   carrying the meaning. */
+.tvg-em {
+  color: var(--gold-ink);
+  background-image: linear-gradient(var(--gold), var(--gold));
+  background-repeat: no-repeat;
+  background-size: 100% 4px;
+  background-position: 0 100%;
+  padding-bottom: 2px;
+}
+.tvg-lede { font-size: 19px; line-height: 1.55; max-width: 46ch; margin-bottom: 36px !important; }
+.tvg-cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.tvg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  height: 46px; padding: 0 22px;
+  border: 1px solid transparent; border-radius: 2px;
+  font: 500 15px/1 var(--font-body);
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.16s, color 0.16s, border-color 0.16s;
+}
+.tvg-btn-gold { background: var(--gold); color: var(--on-gold); }
+.tvg-btn-gold:hover { background: color-mix(in srgb, var(--gold) 84%, #ffffff); }
+.tvg-btn-line { border-color: var(--gold-ink); color: var(--fg); background: transparent; }
+.tvg-btn-line:hover { background: var(--wash); }
+.tvg-btn .arw { font-family: var(--font-mono); }
+.tvg-note { font: 12.5px/1.5 var(--font-mono); color: var(--muted); margin-top: 22px !important; }
+.tvg-note a, .tvg-foot a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; }
+
+/* The proof panel: the product's actual claim, shown rather than asserted. */
+.tvg-doors { border: 1px solid var(--border); background: var(--surface); padding: 26px 26px 8px; }
+.tvg-doors > h2 {
+  font: 500 11.5px/1 var(--font-mono);
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--gold-ink);
+  margin: 0 0 20px; font-family: var(--font-mono);
+}
+.tvg-doors table { width: 100%; border-collapse: collapse; }
+.tvg-doors th {
+  text-align: left; padding: 0 0 12px;
+  font: 500 11px/1.3 var(--font-mono);
+  letter-spacing: 0.09em; text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  vertical-align: bottom;
+}
+.tvg-doors th + th { padding-left: 16px; }
+.tvg-doors td { padding: 13px 0; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13.5px; }
+.tvg-doors tr:last-child td { border-bottom: 0; }
+.tvg-doors td + td { padding-left: 16px; font-family: var(--font-mono); font-size: 12.5px; color: var(--gold-ink); word-break: break-word; }
+
+/* ---------------------------------------------------------------------------
+   6. Premise band — a single wide statement, no cards.
+--------------------------------------------------------------------------- */
+.tvg-claim {
+  font-family: var(--font-display);
+  font-size: clamp(24px, 3vw, 34px);
+  line-height: 1.22;
+  letter-spacing: -0.022em;
+  color: var(--fg);
+  max-width: 26ch;
+  margin: 0 0 40px;
+  font-weight: 500;
+}
+.tvg-cols { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 44px; max-width: 900px; }
+.tvg-cols p { font-size: 16px; }
+.tvg-cols p + p { margin-top: 16px; }
+
+/* ---------------------------------------------------------------------------
+   7. Capability ledger
+--------------------------------------------------------------------------- */
+.tvg-stat { display: flex; align-items: baseline; gap: 16px; margin-bottom: 44px; }
+.tvg-stat b {
+  font-family: var(--font-display);
+  font-size: clamp(56px, 9vw, 104px);
+  line-height: 0.85;
+  letter-spacing: -0.05em;
+  font-weight: 500;
+  color: var(--gold-ink);
+  font-variant-numeric: tabular-nums;
+}
+/* Child combinator, not a descendant selector: count-up replaces the <b>'s
+   text with its own .kui-count-decorative / .kui-sr-only spans, and a bare
+   `.tvg-stat span` reached into them and overrode the numeral's size and colour. */
+.tvg-stat > span { font: 13px/1.5 var(--font-mono); color: var(--muted); max-width: 24ch; }
+.tvg-ledger {
+  counter-reset: cap;
+  display: grid; grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0 48px; margin: 0; padding: 0;
+  border-top: 1px solid var(--border);
+}
+/* Named areas rather than bare auto-placement: the ::before counter occupies
+   the first cell, so an auto-placed <dd> wrapped down into the 34px counter
+   column and broke every description onto one word per line. */
+.tvg-row {
+  counter-increment: cap;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-areas: "num term" ".   desc";
+  column-gap: 14px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tvg-row::before {
+  grid-area: num;
+  content: counter(cap, decimal-leading-zero);
+  font: 500 12px/1.7 var(--font-mono);
+  color: var(--gold-ink);
+  font-variant-numeric: tabular-nums;
+}
+.tvg-row dt { grid-area: term; font-size: 15.5px; font-weight: 500; color: var(--fg); margin: 0 0 4px; }
+.tvg-row dd { grid-area: desc; margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--muted); }
+
+/* ---------------------------------------------------------------------------
+   8. Reversibility band
+--------------------------------------------------------------------------- */
+/* Sits on a pale gold ground in BOTH modes and carries near-black text, so the
+   sweep can only ever move it between 16:1 and 13:1. That is the only safe way
+   to run highlight-sweep over a dark page: never let the swept colour land
+   behind light text. */
+.tvg-hl {
+  color: #0a0a0b;
+  background-color: var(--chip);
+  --kui-sweep-color: var(--gold);
+  padding: 0 0.14em;
+  /* Kept on one line: broken across two, the chip renders as two separate gold
+     boxes and the sweep runs twice. box-decoration-break is the fallback for
+     the narrow viewports where it has to wrap anyway. */
+  white-space: nowrap;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+@media (max-width: 520px) { .tvg-hl { white-space: normal; } }
+.tvg-missing { list-style: none; margin: 0; padding: 0; max-width: 860px; }
+.tvg-missing li {
+  display: grid; grid-template-columns: 130px 1fr; gap: 24px;
+  padding: 22px 0; border-top: 1px solid var(--border);
+}
+.tvg-missing li:last-child { border-bottom: 1px solid var(--border); }
+.tvg-missing b {
+  font: 500 11px/1.5 var(--font-mono);
+  letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--gold-ink);
+  padding-top: 3px;
+}
+.tvg-missing p { font-size: 15px; color: var(--fg); }
+.tvg-missing p code { font: 13px/1 var(--font-mono); color: var(--gold-ink); }
+.tvg-missing p em { color: var(--muted); font-style: normal; }
+
+/* ---------------------------------------------------------------------------
+   9. Theme tiers — a stepped scale, read left to right.
+--------------------------------------------------------------------------- */
+.tvg-tiers { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 1px; margin: 0; padding: 0; background: var(--border); border: 1px solid var(--border); }
+.tvg-tiers li { background: var(--bg); padding: 26px 22px 28px; display: flex; flex-direction: column; }
+.tvg-tier-bar { display: flex; gap: 3px; margin-bottom: 20px; }
+.tvg-tier-bar i { height: 4px; flex: 1; background: var(--border); }
+.tvg-tiers li[data-lvl="1"] .tvg-tier-bar i:nth-child(-n+1),
+.tvg-tiers li[data-lvl="2"] .tvg-tier-bar i:nth-child(-n+2),
+.tvg-tiers li[data-lvl="3"] .tvg-tier-bar i:nth-child(-n+3),
+.tvg-tiers li[data-lvl="4"] .tvg-tier-bar i:nth-child(-n+4) { background: var(--gold); }
+.tvg-tiers h3 { font: 500 13px/1 var(--font-mono); letter-spacing: 0.06em; color: var(--fg); margin: 0 0 10px; font-family: var(--font-mono); }
+.tvg-tiers p { font-size: 13.5px; line-height: 1.55; }
+.tvg-tiers .lvl { margin-top: auto; padding-top: 18px; font: 11px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.tvg-foot { font-size: 13.5px; margin-top: 22px !important; max-width: 70ch; }
+
+/* ---------------------------------------------------------------------------
+   10. Terminal
+--------------------------------------------------------------------------- */
+.tvg-term { border: 1px solid var(--border); background: var(--surface); max-width: 780px; }
+.tvg-term-bar {
+  display: flex; align-items: center; gap: 9px;
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  font: 11px/1 var(--font-mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted);
+}
+.tvg-term-bar::before { content: ""; width: 7px; height: 7px; background: var(--gold); }
+.tvg-term pre { margin: 0; padding: 22px 18px; overflow-x: auto; font: 13.5px/2 var(--font-mono); color: var(--fg); }
+.tvg-term .cmd { color: var(--gold-ink); }
+.tvg-term .rem { color: var(--muted); }
+.tvg-term .pr { color: var(--muted); user-select: none; }
+.tvg-after { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 40px; max-width: 780px; margin-top: 40px; }
+.tvg-after h3 { font: 500 13px/1 var(--font-mono); letter-spacing: 0.06em; color: var(--fg); margin: 0 0 10px; font-family: var(--font-mono); }
+.tvg-after p { font-size: 14px; }
+.tvg-after code { font: 12.5px/1.5 var(--font-mono); color: var(--gold-ink); }
+
+/* ---------------------------------------------------------------------------
+   11. Close — the one place gold is a flood, and it is identical in both modes.
+--------------------------------------------------------------------------- */
+.tvg-close { background: var(--gold); color: var(--on-gold); padding-block: 92px; border-top: 0; }
+.tvg-close h2 {
+  font-family: var(--font-display);
+  font-size: clamp(30px, 4.4vw, 52px);
+  line-height: 1.04; letter-spacing: -0.03em; font-weight: 500;
+  color: var(--on-gold);
+  margin: 0 0 18px; max-width: 18ch;
+}
+.tvg-close p { color: rgba(10,10,11,0.72); font-size: 17px; max-width: 50ch; margin-bottom: 36px; }
+.tvg-close .tvg-idx { color: var(--on-gold); }
+.tvg-close .tvg-idx::before { background: var(--on-gold); }
+.tvg-btn-black { background: var(--on-gold); color: var(--gold); }
+.tvg-btn-black:hover { background: #26262a; }
+.tvg-btn-onblack { border-color: var(--on-gold); color: var(--on-gold); background: transparent; }
+.tvg-btn-onblack:hover { background: rgba(10,10,11,0.10); }
+.tvg-close .tvg-note { color: rgba(10,10,11,0.72); }
+/* The colour is re-stated here, not just the underline: the generic
+   `.tvg-note a { color: var(--fg) }` rule above resolves to near-white in dark
+   mode, and near-white on gold is 1.6:1. Everything sitting on the gold panel
+   draws in --on-gold, no exceptions. */
+.tvg-close .tvg-note a { color: var(--on-gold); text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------------------------------------------------------------------------
+   12. Responsive
+--------------------------------------------------------------------------- */
+@media (max-width: 960px) {
+  .tvg-hero-grid { grid-template-columns: 1fr; gap: 48px; }
+  .tvg h1 { max-width: 16ch; }
+  .tvg-tiers { grid-template-columns: repeat(2, minmax(0,1fr)); }
+}
+@media (max-width: 780px) {
+  .tvg-band { padding-block: 76px; }
+  .tvg-hero { padding-block: 64px 72px; }
+  .tvg-ledger { grid-template-columns: 1fr; }
+  .tvg-cols, .tvg-after { grid-template-columns: 1fr; gap: 28px; }
+  .tvg-missing li { grid-template-columns: 1fr; gap: 8px; }
+  .tvg-close { padding-block: 68px; }
+}
+@media (max-width: 520px) {
+  .tvg-tiers { grid-template-columns: 1fr; }
+  .tvg-btn { width: 100%; }
+  .tvg-doors { padding: 20px 18px 4px; }
+}
+
+/* kUInetic already shortens its own effects under prefers-reduced-motion. The
+   two transitions authored by hand above are switched off here as well, and no
+   information on this page is carried by motion. */
+@media (prefers-reduced-motion: reduce) {
+  .tvg-btn, .tvg-tiers li { transition: none !important; }
+  .tvg-progress { transform: none !important; }
+}
+</style>
+
+<div class="tvg">
+
+  <div class="tvg-progress-track" aria-hidden="true">
+    <span class="tvg-progress" data-kui="scroll-progress-bar"></span>
+  </div>
+
+  <!-- ================= HERO ================= -->
+  <section class="tvg-hero">
+    <div class="tvg-inner tvg-hero-grid">
+      <div>
+        <p class="tvg-eyebrow">Self-hosted content platform</p>
+        <h1 data-kui="fade-blur-up on:load">
+          Run your site by <span class="tvg-em">talking to it</span>.
+        </h1>
+        <p class="tvg-lede" data-kui="fade-up on:load delay:340ms">
+          Tovu runs on your own machine, out of one folder you can copy, version or hand to
+          someone else. Every capability the admin exposes is also a tool an assistant can call
+          — so an agent can find out what your site can do, and then do it.
+        </p>
+        <div class="tvg-cta" data-kui="fade-up on:load delay:460ms">
+          <a class="tvg-btn tvg-btn-gold" href="/install" data-kui="magnetic radius:90 strength:0.2">
+            Install Tovu <span class="arw" aria-hidden="true">-&gt;</span>
+          </a>
+          <a class="tvg-btn tvg-btn-line" href="/docs">Read the docs</a>
+        </div>
+        <p class="tvg-note" data-kui="fade-up on:load delay:580ms">
+          npx tovu init my-site &nbsp;·&nbsp; then <a href="/quickstart">the five-minute quickstart</a>
+        </p>
+      </div>
+
+      <div class="tvg-doors" data-kui="fade-blur-up on:load delay:520ms">
+        <h2>One capability, two doors</h2>
+        <table>
+          <thead>
+            <tr><th scope="col">A person opens</th><th scope="col">An agent calls</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pages &rsaquo; Edit HTML</td><td>pages_write_html</td></tr>
+            <tr><td>Forms &rsaquo; Submissions</td><td>forms_list_submissions</td></tr>
+            <tr><td>SEO &rsaquo; Sitemap</td><td>seo_regenerate_sitemap</td></tr>
+            <tr><td>Comments &rsaquo; Queue</td><td>comments_approve_comment</td></tr>
+            <tr><td>Themes &rsaquo; Files</td><td>theme_read_file</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 01 PREMISE ================= -->
+  <section class="tvg-band">
+    <div class="tvg-inner">
+      <div class="tvg-head" data-kui="fade-up on:enter">
+        <p class="tvg-idx">01 &nbsp;/&nbsp; The premise</p>
+        <h2>Most platforms bolt a chatbot onto the admin.</h2>
+      </div>
+      <!-- The one place text-reveal-mask is safe: a display line with no inline
+           markup for the splitter to flatten. --kui-mask-bleed keeps the descenders
+           off the clip edge at this leading. -->
+      <p class="tvg-claim" data-kui="text-reveal-mask on:enter stagger:0.09s" style="--kui-mask-bleed:0.1em">
+        Tovu hands over the admin itself.
+      </p>
+      <div class="tvg-cols" data-kui="fade-up on:enter delay:160ms">
+        <div>
+          <p>
+            The assistant is not reading your screen or driving your buttons. It calls the same
+            operations the admin screens call, through the same permission checks, and every write
+            lands in the same change history a human edit would.
+          </p>
+        </div>
+        <div>
+          <p>
+            Which means the answer to <em>can it do that?</em> is not a roadmap question. If the
+            capability is in the admin, it is in the toolset, and the agent can discover it, read
+            its schema, and use it without anyone writing an integration first.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 02 LEDGER ================= -->
+  <section class="tvg-band">
+    <div class="tvg-inner">
+      <div class="tvg-head" data-kui="fade-up on:enter">
+        <p class="tvg-idx">02 &nbsp;/&nbsp; The ledger</p>
+        <h2>What the site can do, it can also be told to do.</h2>
+        <p>
+          Fifteen documented capability areas ship in the box. Each one is a screen you can open,
+          and — for nearly all of them — a set of tools an assistant can call.
+        </p>
+      </div>
+
+      <div class="tvg-stat" data-kui="fade-up on:enter">
+        <b data-kui="count-up to:15 on:enter 900ms">15</b>
+        <span>capability areas, listed in full below</span>
+      </div>
+
+      <dl class="tvg-ledger" data-kui="fade-up on:enter delay:120ms">
+        <div class="tvg-row"><dt>Media</dt><dd>Uploads, renditions and image transforms.</dd></div>
+        <div class="tvg-row"><dt>Forms</dt><dd>Form definitions and the submissions they collect.</dd></div>
+        <div class="tvg-row"><dt>Members</dt><dd>Visitor accounts with magic-link sign-in.</dd></div>
+        <div class="tvg-row"><dt>Newsletter</dt><dd>Lists, double-opt-in subscriptions, campaigns and a send log.</dd></div>
+        <div class="tvg-row"><dt>Comments</dt><dd>Moderation queue, spam handling and per-site settings.</dd></div>
+        <div class="tvg-row"><dt>Redirects</dt><dd>Redirect rules, hit counts and bulk import.</dd></div>
+        <div class="tvg-row"><dt>SEO</dt><dd>Per-entry overrides, site-wide settings, sitemap regeneration.</dd></div>
+        <div class="tvg-row"><dt>Taxonomy</dt><dd>Taxonomies, terms, and tagging entries with them.</dd></div>
+        <div class="tvg-row"><dt>Widgets</dt><dd>Widget instances, region bindings and inline embeds.</dd></div>
+        <div class="tvg-row"><dt>Analytics</dt><dd>Page views and events, recorded into your own database.</dd></div>
+        <div class="tvg-row"><dt>Change sets</dt><dd>Grouped edit history you can read back and revert.</dd></div>
+        <div class="tvg-row"><dt>Deployments</dt><dd>Static export, a real Dockerfile, and publish targets.</dd></div>
+        <div class="tvg-row"><dt>External MCP</dt><dd>Register third-party MCP servers over OAuth or device code.</dd></div>
+        <div class="tvg-row"><dt>API keys</dt><dd>Scoped, revocable keys for programmatic access.</dd></div>
+        <div class="tvg-row"><dt>Agent plugins</dt><dd>Installable packages of agent instructions and tools.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ================= 03 REVERSIBILITY ================= -->
+  <section class="tvg-band">
+    <div class="tvg-inner">
+      <div class="tvg-head" data-kui="fade-up on:enter">
+        <p class="tvg-idx">03 &nbsp;/&nbsp; What is missing</p>
+        <h2>The toolset has gaps <span class="tvg-hl" data-kui="highlight-sweep on:enter">on purpose</span>.</h2>
+        <p>
+          Handing an agent your admin is only reasonable if the dangerous operations were never
+          handed over. They were not. These omissions are written into the tool catalogs, with the
+          reason attached.
+        </p>
+      </div>
+      <ul class="tvg-missing" data-kui="fade-up on:enter delay:100ms">
+        <li>
+          <b>Comments</b>
+          <p>The moderation ladder moves a comment between states and every step is reversible. There is no purge tool. <em>Nothing in the toolset erases a comment.</em></p>
+        </li>
+        <li>
+          <b>Members</b>
+          <p><code>members_disable</code> is a soft disable. <em>No hard-delete tool exists.</em></p>
+        </li>
+        <li>
+          <b>Forms</b>
+          <p>A form is retired by setting its status. <em>Disabling is the only retirement path an agent has.</em></p>
+        </li>
+        <li>
+          <b>Migrations &amp; imports</b>
+          <p><code>database_execute_migrate_forward</code> and <code>redirects_import</code> are in the catalog and marked never agent-callable. <em>They are human-confirmation-only.</em></p>
+        </li>
+        <li>
+          <b>Publishing</b>
+          <p>Publishing to the public internet and pushing a commit both stop at a confirmation dialog. <em>The credential is write-scoped and the human presses the button.</em></p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= 04 THEMES ================= -->
+  <section class="tvg-band">
+    <div class="tvg-inner">
+      <div class="tvg-head" data-kui="fade-up on:enter">
+        <p class="tvg-idx">04 &nbsp;/&nbsp; Themes</p>
+        <h2>Four tiers of theme, one contract.</h2>
+        <p>
+          A theme is a folder validated against a schema. Pick the tier by how much power the
+          author should have — the rendering contract is the same at every level.
+        </p>
+      </div>
+      <ol class="tvg-tiers" data-kui="fade-up on:enter delay:80ms">
+        <li data-lvl="1" data-kui="lift distance:4px">
+          <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <h3>declarative</h3>
+          <p>JSON block trees against a closed vocabulary. No logic, no scripting, nothing to sandbox.</p>
+          <span class="lvl">Tier 1 — data only</span>
+        </li>
+        <li data-lvl="2" data-kui="lift distance:4px">
+          <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <h3>templated</h3>
+          <p>LiquidJS, rendered in a sandboxed worker. Real template logic, still no JavaScript.</p>
+          <span class="lvl">Tier 2 — sandboxed logic</span>
+        </li>
+        <li data-lvl="3" data-kui="lift distance:4px">
+          <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <h3>handlebars</h3>
+          <p>The same sandboxed contract as templated, for authors who would rather write Handlebars.</p>
+          <span class="lvl">Tier 3 — sandboxed logic</span>
+        </li>
+        <li data-lvl="4" data-kui="lift distance:4px">
+          <span class="tvg-tier-bar" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <h3>static</h3>
+          <p>Plain HTML, CSS and JavaScript. The theme this page is rendered through is one of these.</p>
+          <span class="lvl">Tier 4 — full control</span>
+        </li>
+      </ol>
+      <p class="tvg-foot">
+        A fifth tier, <span style="font-family:var(--font-mono)">code</span>, is reserved for signed
+        plugin JavaScript; no themes ship on it yet. The CLI validates, migrates and normalises theme
+        builds, and the assistant can list, read, rename and restore individual theme files —
+        <a href="/catalog">browse the catalog</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= 05 RUN IT ================= -->
+  <section class="tvg-band">
+    <div class="tvg-inner">
+      <div class="tvg-head" data-kui="fade-up on:enter">
+        <p class="tvg-idx">05 &nbsp;/&nbsp; Running it</p>
+        <h2>It lives on your machine, in
+          <span data-kui="underline-draw on:enter" style="--kui-sweep-color:var(--gold)">one folder</span>.</h2>
+        <p>
+          The database, your uploads, your themes and your plugins are all under one directory.
+          Copy it, commit it, back it up, or hand it to someone else.
+        </p>
+      </div>
+
+      <div class="tvg-term" data-kui="fade-up on:enter delay:80ms">
+        <p class="tvg-term-bar">Terminal</p>
+        <pre><code><span class="pr" aria-hidden="true">$ </span><span class="cmd">npx tovu init</span> my-site
+<span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu serve</span> my-site            <span class="rem"># site and admin on one port</span>
+<span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu export</span> my-site           <span class="rem"># render the public site to static files</span>
+<span class="pr" aria-hidden="true">$ </span><span class="cmd">tovu deploy config</span> --target fly <span class="rem"># or render, or railway</span></code></pre>
+      </div>
+
+      <div class="tvg-after">
+        <div>
+          <h3>docker</h3>
+          <p>A real multi-stage Dockerfile sits at the repo root. It runs as a non-root user and mounts your sites directory as a volume, so the container is disposable and your content is not.</p>
+        </div>
+        <div>
+          <h3>introspect</h3>
+          <p><code>tovu introspect</code> prints the whole command and tool manifest as JSON — the same manifest an agent reads to learn what this particular install can do.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CLOSE ================= -->
+  <section class="tvg-band tvg-close">
+    <div class="tvg-inner" data-kui="fade-blur-up on:enter">
+      <p class="tvg-idx">06 &nbsp;/&nbsp; Start</p>
+      <h2>Install it, then ask it what it can do.</h2>
+      <p>
+        That is not a figure of speech. The install ships with the tool manifest already populated;
+        the first useful thing you can do is ask.
+      </p>
+      <div class="tvg-cta">
+        <a class="tvg-btn tvg-btn-black" href="/install">Install Tovu <span class="arw" aria-hidden="true">-&gt;</span></a>
+        <a class="tvg-btn tvg-btn-onblack" href="/quickstart">Quickstart</a>
+      </div>
+      <p class="tvg-note">
+        <a href="/docs">Documentation</a> &nbsp;·&nbsp; <a href="/catalog">Theme and plugin catalog</a>
+      </p>
+    </div>
+  </section>
+
+</div>
