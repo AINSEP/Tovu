@@ -5,26 +5,22 @@
         <div class="brand" style="margin-bottom:16px;"><span class="mark"><img src="/theme-assets/basic/assets/logo.png" srcset="/theme-assets/basic/assets/logo@2x.png 2x" width="28" height="28" alt="" /></span>Tovu</div>
         <p style="font-size:13px; max-width:26ch;">Premium themed websites, ready to launch — built for teams who'd rather publish than fight a page builder.</p>
       </div>
-      <!-- 'Pricing' was removed here on 2026-08-31 with the note that render/pages/pricing.html had
-           been moved to _unpublished/ and the link was therefore a guaranteed 404. That note is NOT
-           true as of 2026-08-31 (verified): pricing.html is present in render/pages/, theme.json
-           lists "pricing" in publishedPages, and GET /pricing returns 200. Restoring this link is a
-           pending owner decision, not a blocked one — do not re-derive the 404 claim from the old
-           note without re-checking the route first.
+      <!-- 'Pricing'/'Product' — removed 2026-08-31, and pricing itself has since been cut entirely
+           (theme.json's `publishedPages` no longer lists it as of the 2026-09-03 cleanup pass): there
+           is no page left to link this column to.
 
-           The whole 'Product' column (this comment's original home) was removed on 2026-08-31 in
-           the same pass that dropped the dead /download and /changelog footer links (both theme
-           pages absent from theme.json's publishedPages allowlist): with Pricing already gone, the
-           column had no links left. If the pending Pricing decision above is ever resolved in favor
-           of restoring the link, this column needs to be recreated (and .footer-grid's
-           grid-template-columns bumped back from repeat(3, 1fr) to repeat(4, 1fr) in theme.css) —
-           it is not enough to just add the <a> back. -->
-      <!-- Docs points at /documentation, NOT docs.html: the theme's own docs.html is absent from
-           theme.json's publishedPages allowlist, so /docs 404s, while the site's real, published
-           documentation page lives at /documentation. An absolute path also bypasses the
-           `<name>.html` -> `/<name>` link rewrite, which is why this one entry is spelled
-           differently from its neighbours. -->
-      <div class="footer-col"><h4>Resources</h4><a href="/documentation">Docs</a><a href="blog.html">Blog</a><a href="about.html">About</a></div>
+           2026-09-03: converted from hardcoded `<a>`s to a menu embed ("Footer Resources", created
+           through the admin menus API), matching the Legal column below and every nav in this theme —
+           the goal is that every footer link is editable from the admin, not fixed in this file. The
+           marker's `id` is the menu's own SLUG ("footer-resources"), not its DB id: `menuId` resolves
+           by slug first, id second (`resolveStaticMenusForRender`, pages.ts's own doc on that order) —
+           a menu created through the admin API gets an opaque generated id, so the slug is the only
+           stable, human-authored handle this file can reference; verified live that the real stored
+           menu (not this fallback markup) is what renders. `/documentation` (a 301 to the canonical
+           `/docs`) has been replaced by `/docs` directly in the menu's own stored target; `/blog` (now
+           unpublished, 404) replaced by `/articles`, the real post-listing page — see theme.json's
+           `templates` (`listing-default.html`) and the site's own `/articles` Page. -->
+      <div class="footer-col"><h4>Resources</h4><div data-embed-config='{"type":"menu","id":"footer-resources"}'><a href="/docs">Docs</a><a href="/articles">Articles</a><a href="about.html">About</a></div></div>
       <!-- Hidden at the owner's request (2026-08-31), not removed: kept commented out so it is
            easy to restore. /signin is still live at its URL — this only takes it off the footer
            nav, so it is reachable by direct link/URL only, not by clicking through the site. -->
