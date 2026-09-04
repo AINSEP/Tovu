@@ -3,6 +3,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
+import { postPublicPath } from "#src/platform/routing/index";
 import { renderViaTemplate, resolveActiveTheme, resolveStaticMenusForRender } from "#src/server/inbound/public-http/routes/site/pages";
 import { getAuthedPrincipal } from "../../dev-auth.js";
 import type { ContentRouteRegistrar } from "../content/deps.js";
@@ -189,7 +190,7 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
 
       const previewPost = buildPreviewPost(post, overrideTemplateChoice, pendingBodyJson);
 
-      const staticMenus = await resolveStaticMenusForRender(deps, theme, `/${post.slug}`);
+      const staticMenus = await resolveStaticMenusForRender(deps, theme, postPublicPath(post.slug));
       const html = await renderViaTemplate(deps, theme, previewPost, staticMenus, pendingBodyJson);
 
       // Never cached: re-requested on every template selection, and a cached response would show

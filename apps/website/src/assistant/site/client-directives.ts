@@ -1,4 +1,5 @@
 import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
+import { postPublicPath } from "../../platform/routing/index.js";
 
 /**
  * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
@@ -90,7 +91,7 @@ export async function resolvePublicTarget(
   const found = posts.find((p: PostRecord) => p.slug === trimmed);
   if (!found) return null;
 
-  return { slug: found.slug, title: found.title, path: `/${found.slug}` };
+  return { slug: found.slug, title: found.title, path: postPublicPath(found.slug) };
 }
 
 /** One page-action, always carrying the server-resolved target — never a raw selector (REQ-6). */

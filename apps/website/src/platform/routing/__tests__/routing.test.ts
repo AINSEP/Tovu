@@ -88,6 +88,17 @@ test("entryPublicPath resolves a published record to its slug path with no repo 
   assert.deepEqual(result, { path: "/hello-world", canonicalUrl: "/hello-world" });
 });
 
+// Content-owned homepage (SPEC-0XX) — a `kind: "page"` row may claim the literal "/" slug
+// (`post.ts`'s `ROOT_SLUG`). A naive `/${slug}` template would double this up into "//"; this
+// asserts the shared `postPublicPath` helper `entryPublicPath` now routes through avoids that.
+test("entryPublicPath resolves a published record with slug '/' to path '/', never '//'", () => {
+  const rootPage = { ...seedPost, slug: "/", kind: "page" as const };
+
+  const result = entryPublicPath(rootPage, ctx);
+
+  assert.deepEqual(result, { path: "/", canonicalUrl: "/" });
+});
+
 test("entryPublicPath returns null for a draft record", () => {
   const result = entryPublicPath({ ...seedPost, status: "draft" }, ctx);
 

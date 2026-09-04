@@ -33,7 +33,7 @@ import {
   type ResolveHtmlPageEmbedsResult,
   type ResolvePageWidgetsResult,
 } from "#src/features/widgets/resolver-service";
-import { runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
+import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "#src/platform/routing/index";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
@@ -96,7 +96,7 @@ async function buildExtraHead(
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: canonical ?? (post ? `/${post.slug}` : canonicalFallbackPath),
+    canonicalUrl: canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath),
     entry: post
       ? {
           id: post.id,
@@ -1005,7 +1005,7 @@ export async function resolveMarketingPageOrOverride(
   // site was the one flagged there and left unfixed. No backing `post`, so `buildExtraHead`'s
   // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
   // canonical fallback — never home's `"/"`.
-  const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, `/${slug}`);
+  const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, postPublicPath(slug));
   // ADR-054 gap fix — same `pageShell`-bypassing shape missed the visitor-chat widget the same way
   // it missed `extraHead` above; a static theme's marketing pages (pricing/docs/blog/…) never showed
   // the widget even with the setting on, because `pageShell`'s own injection never ran here.

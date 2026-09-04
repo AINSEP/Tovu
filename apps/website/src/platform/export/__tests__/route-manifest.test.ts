@@ -115,6 +115,35 @@ test("buildRouteManifest: a published PostRecord with kind 'page' is enumerated 
   assert.equal(route?.kind, "page", "a PostRecord.kind of 'page' must map to ManifestRoute.kind 'page', not 'post'");
 });
 
+// Content-owned homepage (SPEC-0XX) — a `kind: "page"` row may claim the reserved "/" slug
+// (`post.ts`'s `ROOT_SLUG`). The manifest always seeds a `{ path: "/", kind: "home" }` entry up
+// front (this file's own `buildRouteManifest`); without folding the page's route into that seeded
+// entry, `buildPostRoutes` would push a SECOND "/" entry alongside it — a duplicate, not a "//".
+test("buildRouteManifest: a published page claiming slug '/' replaces the seeded home entry instead of duplicating it", async () => {
+  const base = createRouteDeps();
+  const rootPage = {
+    id: "root-page-test",
+    workspaceId: base.workspaceId,
+    title: "Home",
+    slug: "/",
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "page" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+  const postRepo = new InMemoryPostRepo([rootPage]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const rootRoutes = manifest.routes.filter((r) => r.path === "/");
+  assert.equal(rootRoutes.length, 1, "exactly one '/' entry — never a duplicate alongside the seeded home entry");
+  assert.equal(rootRoutes[0]?.kind, "page", "the '/' entry must describe the claiming page, not the generic 'home' placeholder");
+  assert.equal(rootRoutes[0]?.label, "Home");
+  assert.ok(!manifest.routes.some((r) => r.path === "//"), "no route path may ever be '//'");
+});
+
 test("buildRouteManifest: always includes the convention routes robots.txt/sitemap.xml/llms.txt, and reports the missing favicon/manifest route", async () => {
   const manifest = await buildRouteManifest(baseDeps());
 

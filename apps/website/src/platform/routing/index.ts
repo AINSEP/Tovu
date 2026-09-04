@@ -3,6 +3,7 @@ export {
   getNamedRoute,
   getSlugChangeCapture,
   isActive,
+  postPublicPath,
   registerNamedRoute,
   registerResolvePhase,
   registerSlugChangeCapture,

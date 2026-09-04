@@ -4,6 +4,7 @@ import type { UUID } from "@jini-ai/cms/core";
 
 import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { resolveActiveTheme, isStandaloneThemePage } from "#src/features/theme/index";
+import { postPublicPath } from "#src/platform/routing/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
 import type { RedirectRecord, RedirectRepoPort } from "#src/features/redirects/index";
@@ -187,7 +188,7 @@ function buildPostRoutes(posts: readonly PostRecord[], shadowedSlugs: ReadonlySe
   const routes: ManifestRoute[] = [];
   for (const post of posts) {
     if (shadowedSlugs.has(post.slug)) continue;
-    routes.push({ path: `/${post.slug}`, kind: post.kind === "page" ? "page" : "post", label: post.title });
+    routes.push({ path: postPublicPath(post.slug), kind: post.kind === "page" ? "page" : "post", label: post.title });
   }
   return routes;
 }
@@ -290,6 +291,18 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     posts,
     skipped
   );
+  // Content-owned homepage (SPEC-0XX): a `kind: "page"` row may claim the reserved "/" slug and
+  // `buildPostRoutes` above already resolves its path through the same `postPublicPath` the live
+  // `GET /` handler uses, so it can appear in `themeAndPostRoutes` at path "/" too. The seeded
+  // `{ path: "/", kind: "home" }` entry above is what the live site serves ONLY when no such page
+  // exists — replace it with the real page's route instead of pushing a second, duplicate "/" entry,
+  // the same "post wins over what the manifest would otherwise show at this path" shape
+  // `buildThemePageRoutes`'s own `shadowedSlugs` already applies for a theme-owned static page.
+  const homePageRouteIndex = themeAndPostRoutes.findIndex((route) => route.path === "/");
+  if (homePageRouteIndex !== -1) {
+    const [homePageRoute] = themeAndPostRoutes.splice(homePageRouteIndex, 1);
+    routes[0] = homePageRoute;
+  }
   routes.push(...themeAndPostRoutes);
 
   const products = await deps.resolveStorefrontProducts();

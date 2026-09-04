@@ -1,7 +1,7 @@
 import type { JsonValue } from "@jini-ai/cms/core";
 import type { PostKind, PostRecord, PostRepoPort } from "../post/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
-import { urlFor } from "../../platform/routing/index.js";
+import { postPublicPath, urlFor } from "../../platform/routing/index.js";
 import type { RouteResolverDeps } from "../../platform/routing/index.js";
 import { SeoEntryNotFoundError } from "./errors.js";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
@@ -128,7 +128,7 @@ async function resolveCanonical(deps: GetEntryMetaDeps, post: PostRecord, overri
     target: { kind: "entryRef", entryId: post.id, contentType: post.kind },
     ctx: { workspaceId },
   });
-  return overrides.canonical ?? routed?.canonicalUrl ?? `/${post.slug}`;
+  return overrides.canonical ?? routed?.canonicalUrl ?? postPublicPath(post.slug);
 }
 
 /** robots: override > site default > derived (draft-safety fallback for noindex, EC-11). */
