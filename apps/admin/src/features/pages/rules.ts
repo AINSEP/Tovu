@@ -45,6 +45,42 @@ export function pagePublicPath(slug: string): string {
   return slug === "/" ? "/" : `/${slug}`;
 }
 
+/** The subset of a page {@link pageAdminPath} reads — kept narrow, same reasoning as
+ *  {@link SavablePage} below, so a collision record (`ThemePageSlugCollision`/
+ *  `ThemeExploreSlugCollision`, both `{ id, slug, title, kind }`) satisfies it structurally with no
+ *  cast, alongside a real `AdminPost`. */
+export interface PageAdminHandle {
+  id: string;
+  slug: string;
+}
+
+/**
+ * The in-SPA path to a page's admin editor — `/pages/<handle>`, the bare route path `navigate()`
+ * (`lib/router.ts`) expects, or that `adminHref()` (same module) turns into a real `<a href>`.
+ *
+ * **Prefers the slug; falls back to the id only when the slug can't be a path segment at all** —
+ * today that is exactly the literal root slug `"/"` (`post.ts`'s `ROOT_SLUG`, gated to
+ * `kind: "page"`; every other slug is validated against `isValidSlugFormat`'s
+ * lowercase-letters/numbers/dashes pattern, so `"/"` is the only slug value a `/` can ever appear
+ * in). The page-editor route is registered as `/:slug` — one path segment (`panels.tsx`) — and a
+ * value containing `/` can never match that pattern, which is exactly the bug `45101306` hit and
+ * fixed by switching to id-always. This restores the slug for every ordinary page while keeping
+ * that fix for the one page it targeted: `getAdminPostByIdOrSlug`
+ * (`apps/website/src/features/post/post.ts`) resolves either handle server-side (slug checked
+ * first, id as the fallback), so both forms are lossless.
+ *
+ * Deliberately returns the bare route path rather than a full href or two id/slug-flavored
+ * variants — a caller building a real `<a href>` wraps this in `adminHref()`; a caller driving the
+ * SPA router passes it straight to `navigate()`. Baking a prefix in here would make it wrong for
+ * whichever caller didn't want it; the previous per-call-site `` `/pages/${page.slug}` `` /
+ * `` `/pages/${page.id}` `` templates are exactly the caller-side duplication this function replaces.
+ *
+ * @complexity O(1).
+ */
+export function pageAdminPath(page: PageAdminHandle): string {
+  return `/pages/${page.slug === "/" ? page.id : page.slug}`;
+}
+
 /** The callbacks a row menu needs. Passed in rather than imported so this module stays free of
  *  state and navigation, and so a test can assert exactly which one a given row wires up — same
  *  shape as `posts/rules.ts`'s `PostRowMenuHandlers`. */

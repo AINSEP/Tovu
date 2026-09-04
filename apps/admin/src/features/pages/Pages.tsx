@@ -4,11 +4,12 @@ import { useState, type ReactNode } from "react";
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { navigate } from "../../lib/router";
+import { adminHref, navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import {
   pageRowMenuItems,
   pagePublicPath,
+  pageAdminPath,
   comparePagesByTitle,
   comparePagesBySlug,
   comparePagesByStatus,
@@ -196,13 +197,12 @@ export function Pages(props: PagesProps) {
                 // renders the button, caret, and `aria-sort` itself from this descriptor; only the
                 // domain-specific comparator and label wording stay here (`rules.ts`).
                 sort: { compare: comparePagesByTitle, label: (direction) => pageColumnSortLabel("Title", direction) },
-                // The admin editor route (`panels.tsx`'s `/:slug` pattern) is keyed by `page.id`,
-                // not `page.slug` — a Page that has claimed the root slug `"/"` (`pagePublicPath`'s
-                // own doc, `rules.ts`) cannot be expressed as a single path segment in slug form at
-                // all, so the id is the only value that works for every page, not just the ordinary
-                // ones. `getAdminPostByIdOrSlug` (`apps/website/src/features/post/post.ts`) resolves
-                // an id just as reliably as a slug, so this is a lossless swap for every other page.
-                cell: (page) => <a href={`/admin/pages/${page.id}`}>{page.title}</a>,
+                // The admin editor route (`panels.tsx`'s `/:slug` pattern) is one path segment, so a
+                // Page holding the root slug `"/"` (`pagePublicPath`'s own doc) can't be expressed in
+                // slug form at all — `pageAdminPath` (`rules.ts`) picks slug-vs-id per page so this
+                // link reads as a slug for every ordinary page and falls back to the id only for that
+                // one. `adminHref` (`lib/router.ts`) turns the bare route path into a real `<a href>`.
+                cell: (page) => <a href={adminHref(pageAdminPath(page))}>{page.title}</a>,
               },
               {
                 key: "slug",
@@ -240,8 +240,9 @@ export function Pages(props: PagesProps) {
                     items={pageRowMenuItems(
                       page,
                       {
-                        // Same id-not-slug reasoning as the Title column's own edit link above.
-                        onEdit: (p) => navigate(`/pages/${p.id}`),
+                        // Same `pageAdminPath` slug-vs-id reasoning as the Title column's own edit
+                        // link above; `navigate` takes the bare route path directly.
+                        onEdit: (p) => navigate(pageAdminPath(p)),
                         onDisable: disablePage,
                         onDelete: setPendingDelete,
                       },

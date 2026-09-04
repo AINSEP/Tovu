@@ -7,6 +7,7 @@ import {
   comparePagesBySlug,
   comparePagesByTitle,
   comparePagesByUpdated,
+  pageAdminPath,
   pageColumnSortLabel,
   pagePublicPath,
   pageRowMenuItems,
@@ -257,6 +258,33 @@ describe("pagePublicPath", () => {
     // Not a real slug shape today (post.ts's isValidSlugFormat rejects it), but the function's own
     // equality check (`slug === "/"`) is what matters here, not slug-format validation elsewhere.
     expect(pagePublicPath("/about")).toBe("//about");
+  });
+});
+
+/**
+ * `pageAdminPath` (2026-09-03 consolidation pass) — the one place that now decides slug-vs-id for
+ * every page-editor admin link (`Pages.tsx`'s title link and row-menu Edit, `ThemeExplore.tsx`'s and
+ * `use-theme-pages.hooks.ts`'s collision links). Regression coverage for the bug family this
+ * replaces: `45101306` fixed the root-slug page by switching every link to id, which broke readable
+ * URLs for every ordinary page; this pins both halves — slug for the ordinary case, id only for the
+ * one page a slug can't express as a path segment.
+ */
+describe("pageAdminPath", () => {
+  it("prefers the slug for an ordinary page", () => {
+    expect(pageAdminPath({ id: "pg1", slug: "about" })).toBe("/pages/about");
+  });
+
+  it("falls back to the id for a page holding the literal root slug '/'", () => {
+    // Must FAIL if this collapses back to `/pages/${slug}` — `/pages//` cannot match the admin
+    // router's `/:slug` pattern (`panels.tsx`) and the link silently does nothing.
+    expect(pageAdminPath({ id: "home-1", slug: "/" })).toBe("/pages/home-1");
+  });
+
+  it("does not special-case a slug that merely starts with a slash but isn't exactly '/'", () => {
+    // Not a real slug shape today (post.ts's isValidSlugFormat rejects it) — mirrors
+    // `pagePublicPath`'s identical test above: the equality check is what matters here, not
+    // slug-format validation elsewhere.
+    expect(pageAdminPath({ id: "pg1", slug: "/about" })).toBe("/pages//about");
   });
 });
 

@@ -192,6 +192,15 @@ describe("themePageCollisionAdminPath", () => {
       "/pages/about",
     );
   });
+
+  // 2026-09-03 consolidation pass: this now delegates to `pageAdminPath` (`rules.ts`), which falls
+  // back to the id for the one Page a slug can never express as a path segment — the literal root
+  // slug `"/"`. Must FAIL if that fallback regresses back to a bare `/pages/${slug}` template.
+  it("routes a colliding Page holding the root slug '/' to /pages/:id, not /pages//", () => {
+    expect(themePageCollisionAdminPath({ id: "home-1", slug: "/", title: "Home", kind: "page" })).toBe(
+      "/pages/home-1",
+    );
+  });
 });
 
 describe("themePagePublishSummary", () => {

@@ -171,12 +171,16 @@ export interface PageEditorDependencies {
 }
 
 /**
- * `routeSlug` names what the URL actually carries: the page's slug, as read from the route (see
- * `panels.tsx`'s `/:slug` pattern). It doubles as a legacy id — the server-side lookup this feeds
- * (`getAdminPostByIdOrSlug`) tries an exact id match before falling back to slug, so an old
- * id-based bookmark still resolves. Every write below uses `page.id` (the real id from the loaded
- * record), never `routeSlug` directly — the slug in the URL can go stale if the page is renamed
- * elsewhere, but the id it resolved to at load time cannot.
+ * `routeSlug` names what the URL actually carries: the page's slug for an ordinary page, as read
+ * from the route (see `panels.tsx`'s `/:slug` pattern) — or the page's id for the one page whose
+ * slug can never be a path segment at all, the root slug `"/"` (`pageAdminPath`, `rules.ts`, is
+ * what the admin app's own links now build with this choice). Either way it doubles as a legacy
+ * id-based bookmark too: the server-side lookup this feeds (`getAdminPostByIdOrSlug`) tries the
+ * slug FIRST and falls back to an exact id match, so an old id-based bookmark still resolves —
+ * corrected 2026-09-03, this comment previously stated the two checks in the opposite order. Every
+ * write below uses `page.id` (the real id from the loaded record), never `routeSlug` directly — the
+ * slug in the URL can go stale if the page is renamed elsewhere, but the id it resolved to at load
+ * time cannot.
  *
  * `port`/`navigate`/`t` are destructured out of `deps` once, rather than threaded as `deps.port`
  * everywhere below — they are stable references in production (`useWiredPageEditor` always passes

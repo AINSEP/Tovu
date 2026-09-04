@@ -145,8 +145,9 @@ describe("populated table", () => {
     renderWith({ pages: [PAGE] });
     // The Pages editor, NOT the Posts one. A Page is a bespoke HTML document and is never
     // opened in Tiptap; this href is the guarantee, and it used to point at /admin/posts/{id}.
-    // Built from the id (not the slug) — see the "root-slug page" test below for why.
-    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/pg1");
+    // Built from the slug via `pageAdminPath` (`rules.ts`) — readable for every ordinary page;
+    // see the "root-slug page" test below for the one page this falls back to the id for.
+    expect(screen.getByRole("link", { name: "About" })).toHaveAttribute("href", "/admin/pages/about");
     expect(screen.getByRole("link", { name: "/about" })).toBeInTheDocument();
     expect(screen.getByText("published")).toBeInTheDocument();
     expect(screen.getByText("2026-08-01 12:34")).toBeInTheDocument();
@@ -154,11 +155,14 @@ describe("populated table", () => {
 
   /**
    * Regression test — a Page can claim the literal root slug `"/"` (`post.ts`'s `ROOT_SLUG`,
-   * landed 2026-09-03). Before this fix, this row's Slug column read "//" (`/${"/"}"`) and both
-   * its edit links pointed at `/admin/pages//` / navigated to `/pages//`, which the admin
-   * router's `/:slug` pattern cannot match — the link silently did nothing. Must FAIL against the
-   * pre-fix code (slug-built hrefs) and pass now that both edit links use `page.id` and the site
-   * link goes through `pagePublicPath`.
+   * landed 2026-09-03). Before the original fix, this row's Slug column read "//" (`/${"/"}"`) and
+   * both its edit links pointed at `/admin/pages//` / navigated to `/pages//`, which the admin
+   * router's `/:slug` pattern cannot match — the link silently did nothing. `pageAdminPath`
+   * (`rules.ts`, 2026-09-03 consolidation pass) now owns this slug-vs-id choice for every page-
+   * editor link in the app: slug for an ordinary page (see the test above), id for this one, since
+   * a value containing `/` can never match a single `/:slug` segment. Must FAIL if that fallback
+   * regresses and pass now that both edit links route through `pageAdminPath` and the site link
+   * goes through `pagePublicPath`.
    */
   it("renders a root-slug ('/') page's Slug column as '/' and its edit links by id, not slug", async () => {
     const user = userEvent.setup();
@@ -265,12 +269,12 @@ describe("row menu — Disable visibility mirrors pageRowMenuItems", () => {
     expect(screen.queryByRole("menuitem", { name: "Disable" })).not.toBeInTheDocument();
   });
 
-  it("Edit navigates to the Pages editor at /pages/{id}, never the Posts editor", async () => {
+  it("Edit navigates to the Pages editor by slug (via pageAdminPath), never the Posts editor", async () => {
     const user = userEvent.setup();
     renderWith({ pages: [PAGE] });
     await user.click(screen.getByRole("button", { name: 'Actions for "About"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    expect(navigate).toHaveBeenCalledWith("/pages/pg1");
+    expect(navigate).toHaveBeenCalledWith("/pages/about");
   });
 
   it("Disable calls disablePage with the row", async () => {
@@ -715,6 +719,30 @@ describe("Theme Pages tab", () => {
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       await openDetails(user, "about");
       expect(screen.getByRole("link", { name: "Open About Us Page" })).toHaveAttribute("href", "/admin/pages/about-us");
+    });
+
+    /**
+     * Regression test — the collision link must fall back to the id for a colliding Page holding
+     * the literal root slug `"/"` (`pageAdminPath`, `rules.ts`, 2026-09-03), since `/admin/pages//`
+     * cannot match the admin router's `/:slug` pattern. Must FAIL against a bare `/pages/${slug}`
+     * template and pass now that `themePageCollisionAdminPath` routes through `pageAdminPath`.
+     */
+    it("links to the Pages editor by id when the colliding Page holds the root slug '/'", async () => {
+      const user = userEvent.setup();
+      renderWith(
+        { pages: [PAGE] },
+        {
+          pages: [
+            candidateRow({
+              pageId: "about",
+              collidingContent: { id: "home-1", slug: "/", title: "Home", kind: "page" },
+            }),
+          ],
+        }
+      );
+      await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
+      await openDetails(user, "about");
+      expect(screen.getByRole("link", { name: "Open Home" })).toHaveAttribute("href", "/admin/pages/home-1");
     });
 
     it("shows no collision warning when the row has no colliding content", async () => {

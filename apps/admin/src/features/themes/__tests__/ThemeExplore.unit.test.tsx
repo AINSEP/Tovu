@@ -1017,8 +1017,13 @@ describe("publish toggle — the selected page's publish state", () => {
  */
 describe("slug-collision warning — a content record claims this page's own URL", () => {
   const COLLIDING_CONTENT = { id: "post-1", slug: "mine", title: "What Is Tovu?", kind: "post" as const };
+  // Widened past `typeof COLLIDING_CONTENT` (`kind: "post"` only) so a `kind: "page"` fixture —
+  // used by the tests below it — type-checks with no cast; pre-existing narrowness this file's own
+  // `kind: "page" as const` fixtures were already silently failing tsc against (2026-09-03 fix,
+  // caught widening this same collision fixture to cover the root-slug case).
+  type CollidingContent = { id: string; slug: string; title: string; kind: "post" | "page" };
 
-  function filesWithCollision(path: string, collidingContent: typeof COLLIDING_CONTENT | null) {
+  function filesWithCollision(path: string, collidingContent: CollidingContent | null) {
     return FILES.map((f) => (f.path === path ? { ...f, collidingContent } : f));
   }
 
@@ -1057,5 +1062,19 @@ describe("slug-collision warning — a content record claims this page's own URL
     renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", collidingPage) });
     const link = screen.getByRole("link", { name: /Old Mine Page/ });
     expect(link).toHaveAttribute("href", "/admin/pages/mine");
+  });
+
+  /**
+   * Regression test — a colliding Page holding the literal root slug `"/"` must fall back to the
+   * id (`pageAdminPath`, `features/pages/rules.ts`, 2026-09-03), since `/admin/pages//` cannot
+   * match the admin router's `/:slug` pattern and the link would silently do nothing. Must FAIL
+   * against a bare `/pages/${slug}` template and pass now that this route goes through
+   * `pageAdminPath`.
+   */
+  it("links to the colliding PAGE's own editor route by id when it holds the root slug '/'", () => {
+    const collidingHomePage = { id: "home-1", slug: "/", title: "Home", kind: "page" as const };
+    renderExplore({ selected: "pages/mine.html", files: filesWithCollision("pages/mine.html", collidingHomePage) });
+    const link = screen.getByRole("link", { name: /Home/ });
+    expect(link).toHaveAttribute("href", "/admin/pages/home-1");
   });
 });

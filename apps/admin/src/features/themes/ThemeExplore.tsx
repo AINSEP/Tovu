@@ -16,6 +16,7 @@ import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { pageAdminPath } from "../pages/rules";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -969,9 +970,11 @@ function ThemeExploreSlugCollisionWarning({
   t: Translate;
 }) {
   if (!collidingContent) return null;
-  // A Page's admin editor route is keyed by SLUG (`/pages/:slug`, `getAdminPostByIdOrSlug` accepts
-  // either), a Post's by id (`/posts/:postId`) — see `panels.tsx`'s own route table for both.
-  const adminPath = collidingContent.kind === "post" ? `/posts/${collidingContent.id}` : `/pages/${collidingContent.slug}`;
+  // A Post's admin editor route is keyed by id (`/posts/:postId`); a Page's goes through
+  // `pageAdminPath` (`features/pages/rules.ts`), which prefers the slug and falls back to the id
+  // only for the one page whose slug can't be a path segment at all (the root slug `"/"`) — see
+  // that function's own doc. Mirrors `use-theme-pages.hooks.ts`'s identical `themePageCollisionAdminPath`.
+  const adminPath = collidingContent.kind === "post" ? `/posts/${collidingContent.id}` : pageAdminPath(collidingContent);
   return (
     <div
       className="notice warning theme-explore-slug-collision-warning"

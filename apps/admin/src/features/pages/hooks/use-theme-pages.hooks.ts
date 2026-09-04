@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { Translate } from "@/lib/dictionary-translator";
+import { pageAdminPath } from "../rules";
 import { themePagePublishState, themePagePublishTooltip } from "../lib/theme-page-publish-state";
 import { defaultThemePagesPort } from "./theme-pages-dependencies.hooks";
 import type { ThemePagesFileEntry, ThemePagesPort, ThemePageSlugCollision } from "./theme-pages-port.hooks";
@@ -97,12 +98,13 @@ function pageIdFromPath(path: string): string {
 /**
  * Where a colliding content record's own admin editor lives — mirrors
  * `ThemeExploreSlugCollisionWarning`'s identical `adminPath` derivation (`ThemeExplore.tsx`): a
- * Page's editor route is keyed by slug (`/pages/:slug`), a Post's by id (`/posts/:postId`).
+ * Post's editor route is keyed by id (`/posts/:postId`); a Page's goes through {@link pageAdminPath}
+ * (`rules.ts`), which prefers the slug and falls back to the id only for the root-slug page.
  *
  * @complexity O(1).
  */
 export function themePageCollisionAdminPath(collision: ThemePageSlugCollision): string {
-  return collision.kind === "post" ? `/posts/${collision.id}` : `/pages/${collision.slug}`;
+  return collision.kind === "post" ? `/posts/${collision.id}` : pageAdminPath(collision);
 }
 
 /**
