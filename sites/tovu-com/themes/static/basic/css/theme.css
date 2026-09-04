@@ -5,6 +5,22 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
+/* Classic (non-`position: fixed`) sticky footer: on a page shorter than the viewport the footer
+   still sits at the bottom instead of floating mid-page; on a long page it scrolls normally and
+   never overlays content. This relies on every page template in `render/pages/` rendering the
+   SAME flat sibling structure once the header/footer partial-embed markers are substituted
+   (embed markers swap the whole marker element — see `.site-header`'s own comment below on why
+   the header ends up a sibling, not an ancestor, of page content): `<body><header
+   class="site-header">…</header><main>…</main><footer class="site-footer">…</footer></body>`.
+   Verified against all 14 templates in `render/pages/`, including the grid/sidebar layouts
+   (`docs.html`'s `<main class="wrap docs-layout">`, `posts-sidebar.html`'s `<main>` wrapping a
+   nested `.docs-layout` div) — `<main>` is always the one element between header and footer, so
+   growing it via `flex: 1 0 auto` below is what pins the footer without a fixed/absolute footer
+   and without reserving space with `padding-bottom` (which does not actually pin anything).
+   `min-height`, not `height`, so a page taller than the viewport is free to grow past 100vh
+   instead of being clipped or forcing internal scroll. `.site-header`'s own `position: sticky`
+   is unaffected — sticky positioning works the same whether its containing block is a flex item
+   or a plain block child. */
 body {
   margin: 0;
   background: var(--bg);
@@ -13,7 +29,11 @@ body {
   font-size: 16px;
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
+main { flex: 1 0 auto; }
 /* `video`/`iframe` are constrained on the same terms as `img`, not as an afterthought: all three
    are REPLACED elements, so they size from their own intrinsic dimensions and ignore the width of
    whatever box an author put them in. A media embed resolves to a bare `<video>` tag
