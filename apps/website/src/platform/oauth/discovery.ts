@@ -389,6 +389,45 @@ function safeIssuerCandidates(advertised: readonly string[]): readonly string[] 
   });
 }
 
+/** The scopes to request: the 401 challenge's own `scope` param when it named one, else whatever
+ *  the protected resource advertised (or none, when neither says anything). */
+function resolveResourceScopes(
+  wwwAuthenticate: string | undefined,
+  metadata: DiscoveredProtectedResource | null,
+): readonly string[] {
+  const challengeScopes = wwwAuthenticate === undefined ? [] : parseWwwAuthenticateScopes(wwwAuthenticate);
+  return challengeScopes.length > 0 ? challengeScopes : (metadata?.scopesSupported ?? []);
+}
+
+/** The issuers to try, in order: the resource's advertised (and safety-filtered) list, or — when it
+ *  advertises none — the resource's own origin, the single-tenant fallback. */
+function resolveIssuerCandidates(metadata: DiscoveredProtectedResource | null, resourceOrigin: string): readonly string[] {
+  const advertised = safeIssuerCandidates(metadata?.authorizationServers ?? []);
+  return advertised.length > 0 ? advertised : [resourceOrigin];
+}
+
+/**
+ * Tries each issuer in order, returning the first that yields usable RFC 8414 metadata.
+ * @throws {OAuthError} a terminal per-issuer failure immediately, or {@link noMetadataError} once
+ *   every issuer has been tried and none answered.
+ */
+async function fetchFirstAuthorizationServer(
+  deps: OAuthDiscoveryDeps,
+  issuers: readonly string[],
+  timeoutMs: number,
+  resourceHost: string,
+): Promise<DiscoveredAuthorizationServer> {
+  for (const issuer of issuers) {
+    try {
+      return await fetchAuthorizationServerMetadata(deps, { issuer, timeoutMs });
+    } catch (error) {
+      // A server that answered and answered badly is reported, never skipped.
+      if (isTerminalDiscoveryFailure(error)) throw error;
+    }
+  }
+  throw noMetadataError(resourceHost);
+}
+
 /**
  * Resolves an MCP server URL to the authorization server that protects it, and the scopes to ask for.
  *
@@ -420,21 +459,9 @@ export async function discoverAuthorizationServer(
     timeoutMs,
   });
 
-  const challengeScopes = input.wwwAuthenticate === undefined ? [] : parseWwwAuthenticateScopes(input.wwwAuthenticate);
-  const resourceScopes = challengeScopes.length > 0 ? challengeScopes : (metadata?.scopesSupported ?? []);
+  const resourceScopes = resolveResourceScopes(input.wwwAuthenticate, metadata);
+  const issuers = resolveIssuerCandidates(metadata, resource.origin);
 
-  const advertised = safeIssuerCandidates(metadata?.authorizationServers ?? []);
-  // A resource that advertises no authorization server is almost always its own — the single-tenant
-  // shape. Guessing the origin is strictly better than refusing, and costs one bounded request.
-  const issuers = advertised.length > 0 ? advertised : [resource.origin];
-
-  for (const issuer of issuers) {
-    try {
-      return { server: await fetchAuthorizationServerMetadata(deps, { issuer, timeoutMs }), resourceScopes };
-    } catch (error) {
-      // A server that answered and answered badly is reported, never skipped.
-      if (isTerminalDiscoveryFailure(error)) throw error;
-    }
-  }
-  throw noMetadataError(resource.host);
+  const server = await fetchFirstAuthorizationServer(deps, issuers, timeoutMs, resource.host);
+  return { server, resourceScopes };
 }
