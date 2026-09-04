@@ -65,13 +65,18 @@ import {
  *
  * ## Why the result is a relative path, not a fabricated absolute URL
  *
- * A `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request — no `req`, no
- * `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
- * `resolvePublicOrigin(req)` could read. This codebase already hit the identical problem once, in
- * `features/seo/sitemap.ts`'s `buildRobots`, and already recorded the rule to follow: "the advertised
- * sitemap URL is a site-relative path... this repo has no wired origin-resolution source yet... SEO
- * never fabricates a local origin (INV-07)". This tool follows the same rule for the same reason. The
- * one place it goes further than a bare relative path: `TOVU_PUBLIC_URL`, the SAME operator-configured
+ * `features/origin`'s `OriginRegistryPort` now exists (it landed 2026-09-03, and
+ * `features/seo/sitemap.ts`'s `buildRobots` was wired onto it 2026-09-04 — the sitemap URL it
+ * advertises is absolute whenever the workspace has a verified origin), but that registry is keyed by
+ * `workspaceId` and this tool's `build` signature is handed neither a workspace-scoped dependency bag
+ * nor a `workspaceId` (see this file's own doc on `_routeDeps`/`_surfaces` being unused placeholders,
+ * further down) — there is no `deps.originRegistry` to call here at all, unlike `buildRobots`. A
+ * `ToolHandler` (`@jini-ai/core`'s `ToolExecutionContext`) carries no HTTP request either — no `req`,
+ * no `Host` header, nothing `server/inbound/public-http/routes/oauth/public-origin.ts`'s
+ * `resolvePublicOrigin(req)` could read. So this tool still falls back to a bare relative path by
+ * default, following the same INV-07 rule `buildRobots` documents ("SEO never fabricates a local
+ * origin") for a different structural reason. The one place it goes further than a bare relative path:
+ * `TOVU_PUBLIC_URL`, the SAME operator-configured
  * env var `resolvePublicOrigin` itself prefers before ever touching `req` — reading it here is not a
  * fabrication, it is the deployment's own declared origin. {@link resolveConfiguredPublicOrigin} below
  * is a small, deliberately local re-implementation of only that one branch (no `req` fallback exists
