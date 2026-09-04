@@ -8,7 +8,7 @@ import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-
 import { runProductionReadinessGate } from "./server/runtime/boot/production-readiness-gate.js";
 import { DEFAULT_OWNER_PASSWORD } from "./features/identity/wiring.js";
 import { resolveRuntimeMode } from "#src/contracts/core/runtime-mode";
-import { runBootLifecycle } from "./server/runtime/lifecycle/boot-lifecycle.js";
+import { runBootLifecycle, type BootResult } from "./server/runtime/lifecycle/boot-lifecycle.js";
 import { buildBootModules } from "./server/runtime/boot/bootstrap.js";
 import { setReadinessSnapshot } from "./server/runtime/lifecycle/readiness-state.js";
 import { registerPluginSdkResolver } from "./server/runtime/boot/plugin-sdk-resolver.js";
@@ -262,6 +262,17 @@ async function agentDaemonWanted(deps: { workspaceId: string; externalMcpServerR
   return false;
 }
 
+/** Logs one line per critical, not-ready module from a failed boot — extracted verbatim from
+ *  `main()`'s own `!bootResult.ok` branch (no logic change) purely to bring that branch's
+ *  cognitive complexity under the repo's ceiling of 9. Called only when `bootResult.ok` is false. */
+function logCriticalBootFailures(bootResult: BootResult): void {
+  for (const module of bootResult.modules) {
+    if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
+      console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
+    }
+  }
+}
+
 async function main(): Promise<void> {
   // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
   // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
@@ -300,11 +311,7 @@ async function main(): Promise<void> {
   const bootResult = await runBootLifecycle(buildBootModules(deps, { useMemory, defaultContentDbPath }));
   setReadinessSnapshot(bootResult);
   if (!bootResult.ok) {
-    for (const module of bootResult.modules) {
-      if (module.criticality === "critical" && module.lifecycle.status !== "ready") {
-        console.error(`[boot-lifecycle] critical module "${module.name}" (${module.owner}) is ${module.lifecycle.status}: ${module.lifecycle.reasonCode}`);
-      }
-    }
+    logCriticalBootFailures(bootResult);
     console.error("Refusing to boot — a critical module failed. See failures above.");
     process.exit(1);
   }
