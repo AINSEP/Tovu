@@ -1,4 +1,7 @@
+import { createServer as createHttpsServer } from "node:https";
+import path from "node:path";
 import { createApp, createRouteDeps } from "./server/runtime/composition/app.js";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "./server/runtime/boot/dev-tls.js";
 import { createSqliteRouteDeps, defaultContentDbPath, siteDir } from "./server/runtime/composition/deps.js";
 import { isAdminAssistantEnabled } from "./server/runtime/composition/admin-assistant-enabled.js";
 import { CAPABILITY_INVENTORY } from "./server/runtime/configuration/capability-inventory.js";
@@ -28,6 +31,13 @@ import { ensureAgentDaemonToken } from "./assistant/index.js";
  */
 const port = Number(process.env.PORT ?? 3000);
 const useMemory = process.env.TOVU_DB === "memory";
+
+// Same repo-root `.certs/` cert pair `apps/admin/vite.config.ts`'s gate reads — resolved from
+// `import.meta.dirname` (this file's own compiled/tsx-run location: `apps/website/src`), not
+// `process.cwd()`, per the daemon-cwd trap already documented elsewhere in this codebase: a boot
+// launched from a different working directory must still find the same cert pair.
+const devTls = resolveDevTls(resolveDevTlsCertPaths(path.resolve(import.meta.dirname, "../../..")));
+const devScheme = deriveDevScheme(devTls.active);
 
 /**
  * Self-termination watchdog, symmetric to `agent-daemon-server.ts`'s own `startParentWatchdog()`
@@ -306,9 +316,18 @@ async function main(): Promise<void> {
   await ensureAgentDaemonPortResolved();
 
   const app = createApp(deps);
-  const server = app.listen(port, () => {
+  // TLS-gated the same way `apps/admin/vite.config.ts` gates Vite's own dev server: cert pair
+  // present -> HTTPS, absent -> plain HTTP/1.1 (`devTls`/`devScheme`, computed above at module
+  // load). Express 4 has no native HTTP/2 support (no `spdy`/`http2` compat shim added here — see
+  // the handoff report for why plain TLS was the shipped tradeoff), so this is TLS-only, not HTTP/2,
+  // unlike Vite's dev server which gets HTTP/2 for free from the same cert pair.
+  const server = devTls.active && devTls.credentials
+    ? createHttpsServer(devTls.credentials, app).listen(port, onListening)
+    : app.listen(port, onListening);
+
+  function onListening() {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
-    console.log(`tovu server running on http://localhost:${port} — store: ${store}`);
+    console.log(`tovu server running on ${devScheme}://localhost:${port} — store: ${store}`);
 
     // `runBootLifecycle` above does not cover these: `identityReady`/`settingsReady`/etc. are
     // fired directly by `createSqliteRouteDeps()` as independent, un-awaited side effects (see
@@ -345,7 +364,7 @@ async function main(): Promise<void> {
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
       });
-  });
+  }
 
   // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
   // which Node re-throws — so the process dies with a raw stack trace and no statement of what is

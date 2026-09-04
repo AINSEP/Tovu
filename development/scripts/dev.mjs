@@ -61,6 +61,45 @@ const VITE_PORT = Number(process.env.TOVU_ADMIN_DEV_PORT ?? 5173);
 // rather than surfacing later as "the assistant is unavailable".
 const DAEMON_PORT = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 
+// Same repo-root cert pair both dev servers gate their own TLS on
+// (`apps/website/src/server/runtime/boot/dev-tls.ts`, `apps/admin/vite.config.ts`). Computed once
+// here so every printed URL and every child env var below agrees with what those two gates will
+// independently decide for themselves.
+const CERT_PATH = path.join(REPO_ROOT, ".certs", "localhost.pem");
+const KEY_PATH = path.join(REPO_ROOT, ".certs", "localhost-key.pem");
+
+/**
+ * Whether this boot's two dev servers will terminate TLS themselves — the same decision
+ * `dev-tls.ts`'s `resolveDevTls` and `vite.config.ts`'s inline gate make independently, duplicated
+ * here (not imported) because this file, `apps/website/src/index.ts`, and `apps/admin/vite.config.ts`
+ * are three separately-loaded runtimes (a bare Node script, `tsx`-run TypeScript, and Vite's own
+ * config loader) with no existing shared-module boundary between them.
+ *
+ * Pure decision logic, `existsSync` injected so a test can assert on it without touching the real
+ * filesystem.
+ *
+ * @param {{certPath: string, keyPath: string, disableFlag: string | undefined}} input
+ * @param {{existsSync?: (path: string) => boolean}} [deps]
+ * @returns {boolean}
+ */
+export function resolveDevTlsActive({ certPath, keyPath, disableFlag }, deps = {}) {
+  const checkExists = deps.existsSync ?? existsSync;
+  if (disableFlag) return false;
+  return checkExists(certPath) && checkExists(keyPath);
+}
+
+/**
+ * Pure scheme derivation for every URL this script prints or hands to a child — the thing this file
+ * got wrong before this change (every printed URL hardcoded `http://` regardless of whether TLS was
+ * actually active).
+ *
+ * @param {boolean} tlsActive
+ * @returns {"https" | "http"}
+ */
+export function deriveDevScheme(tlsActive) {
+  return tlsActive ? "https" : "http";
+}
+
 /** @returns {{pid: string, command: string}[]} processes listening on `port`. */
 function listenersOn(port) {
   const out = spawnSync("lsof", ["-nP", `-iTCP:${port}`, "-sTCP:LISTEN", "-F", "pc"], {
@@ -208,12 +247,16 @@ function start(name, command, args, env) {
  * a test can assert on the exact env object without spawning anything — see this file's own test for
  * the regression this closes.
  *
- * @param {{apiPort: number, vitePort: number}} ports
+ * `apiScheme` defaults to `"http"` so an existing caller that omits it (none left in this file, but
+ * the exported function is also imported directly by this file's own test) keeps producing exactly
+ * the pre-TLS-support default this function has always returned.
+ *
+ * @param {{apiPort: number, vitePort: number, apiScheme?: "https" | "http"}} ports
  * @returns {{TOVU_API_URL: string, TOVU_ADMIN_DEV_PORT: string}}
  */
-export function buildAdminViteEnv({ apiPort, vitePort }) {
+export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
   return {
-    TOVU_API_URL: `http://localhost:${apiPort}`,
+    TOVU_API_URL: `${apiScheme}://localhost:${apiPort}`,
     TOVU_ADMIN_DEV_PORT: String(vitePort),
   };
 }
@@ -221,16 +264,51 @@ export function buildAdminViteEnv({ apiPort, vitePort }) {
 async function main() {
   preflight();
 
+  const tlsActive = resolveDevTlsActive({ certPath: CERT_PATH, keyPath: KEY_PATH, disableFlag: process.env.TOVU_DISABLE_DEV_TLS });
+  const scheme = deriveDevScheme(tlsActive);
+
+  // NODE_EXTRA_CA_CERTS: mkcert installs its CA into the OS trust store, which Node does NOT
+  // consult — it uses its own bundled CA list. So the moment either dev server speaks TLS with an
+  // mkcert cert, any server-side Node `fetch`/`https.request` to that origin fails
+  // UNABLE_TO_VERIFY_LEAF_SIGNATURE, even though the identical URL works fine in a browser tab.
+  // Pointing this at mkcert's own root CA fixes that for the whole process tree spawned below,
+  // without touching `NODE_TLS_REJECT_UNAUTHORIZED` — that variable disables certificate
+  // verification process-wide, including for real outbound calls this repo makes to third-party
+  // provider APIs, which is a materially worse trade than a narrowly-scoped extra trusted root.
+  //
+  // Best-effort: `mkcert` is already a hard requirement to have GENERATED the certs found above, so
+  // it is expected to be on PATH here too, but a boot must never hard-fail over a CA-trust nicety —
+  // the two servers themselves come up either way. A missing/failed CAROOT only affects server-side
+  // Node callers that verify certs by default (documented in the handoff report; today that is only
+  // `development/scripts/agent-run-probe.mjs`, run by hand, never by this script).
+  let extraCaCerts;
+  if (tlsActive) {
+    const caRoot = spawnSync("mkcert", ["-CAROOT"], { encoding: "utf8" });
+    const rootCaPath = caRoot.status === 0 ? path.join(caRoot.stdout.trim(), "rootCA.pem") : undefined;
+    if (rootCaPath && existsSync(rootCaPath)) {
+      extraCaCerts = rootCaPath;
+    } else {
+      console.warn(
+        "tovu dev: TLS is active but mkcert's root CA could not be located (`mkcert -CAROOT` failed, or rootCA.pem " +
+          "is missing) — a server-side Node caller (e.g. development/scripts/agent-run-probe.mjs run against " +
+          `https://localhost:${API_PORT}) will fail TLS verification until NODE_EXTRA_CA_CERTS is set by hand.\n`
+      );
+    }
+  }
+
   console.log(
-    `tovu dev: starting API on http://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
-      `tovu dev: admin will open on http://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
+    `tovu dev: starting API on ${scheme}://localhost:${API_PORT} (compiling TypeScript, ~5-10s)…\n` +
+      `tovu dev: admin will open on ${scheme}://localhost:${VITE_PORT}/admin/ once the API is up.\n` +
       `tovu dev: Ctrl-C stops everything.\n`
   );
 
-  start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], {
+  const apiEnv = {
     // Makes the API's own /admin/ proxy to Vite instead of serving the built dist, so :3000/admin/
-    // and :5173/admin/ agree in dev.
-    TOVU_ADMIN_DEV_PROXY_URL: `http://localhost:${VITE_PORT}`,
+    // and :5173/admin/ agree in dev. Scheme-matched to `scheme`: this is a browser 302 redirect
+    // (`admin-static.ts`), not a server-side fetch, but a redirect to the wrong scheme still breaks
+    // — a plain-HTTP redirect at an origin now speaking TLS-only fails the same way a browser
+    // hitting any other TLS port with a raw HTTP request would.
+    TOVU_ADMIN_DEV_PROXY_URL: `${scheme}://localhost:${VITE_PORT}`,
     PORT: String(API_PORT),
     // Backs `apps/website/src/index.ts`'s own parent watchdog (see that file's `startOwnParentWatchdog()` for the
     // full rationale). Deliberately this process's own pid, not left for the child to infer via its
@@ -241,7 +319,9 @@ async function main() {
     // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
     // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
     TOVU_DEV_SUPERVISOR_PID: String(process.pid),
-  });
+  };
+  if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
+  start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], apiEnv);
 
   /**
    * Vite starts only once the API is accepting connections.
@@ -269,8 +349,15 @@ async function main() {
     );
   }
   if (!shuttingDown) {
-    console.log(`tovu dev: API is up. Open http://localhost:${VITE_PORT}/admin/\n`);
-    start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], buildAdminViteEnv({ apiPort: API_PORT, vitePort: VITE_PORT }));
+    console.log(`tovu dev: API is up. Open ${scheme}://localhost:${VITE_PORT}/admin/\n`);
+    const adminViteEnv = buildAdminViteEnv({ apiPort: API_PORT, vitePort: VITE_PORT, apiScheme: scheme });
+    // Not load-bearing for Vite's own proxy today — `apps/admin/vite.config.ts`'s `secure: false` on
+    // every proxy entry is what makes THAT client accept the API's self-signed cert. Passed through
+    // anyway for the same "whole process tree" reasoning as the API child above: anything this admin
+    // Vite process spawns or imports that makes its own standards-compliant Node TLS call to the API
+    // gets the same trusted root without a second place to configure it.
+    if (extraCaCerts) adminViteEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
+    start("admin vite", "npm", ["--prefix", "apps/admin", "run", "dev"], adminViteEnv);
   }
 
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {

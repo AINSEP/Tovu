@@ -39,15 +39,35 @@ const redirectBareAdmin: Plugin = {
 // assistant-run SSE feed, Vite's own HMR socket, and its ESM module burst all share that budget at
 // :5173, so a handful of admin tabs exhausts it and every other request queues silently. HTTP/2
 // (available for free once the dev server has TLS) multiplexes all of those over one connection.
-// mkcert-issued certs (`mkcert -install && mkcert localhost 127.0.0.1 ::1`, output into `.certs/`)
-// give locally-trusted TLS with no browser warnings; falls back to plain HTTP/1.1 when a
-// contributor hasn't generated one yet, so `npm run dev` still boots instead of crashing.
-const certPath = path.resolve(__dirname, ".certs/localhost.pem");
-const keyPath = path.resolve(__dirname, ".certs/localhost-key.pem");
+// mkcert-issued certs (`mkcert -install && mkcert localhost 127.0.0.1 ::1`, output into the repo
+// root's `.certs/`) give locally-trusted TLS with no browser warnings; falls back to plain
+// HTTP/1.1 when a contributor hasn't generated one yet, so `npm run dev` still boots instead of
+// crashing.
+//
+// Certs live at the REPO ROOT, not under `apps/admin/`: `apps/website/src/index.ts`'s own API
+// server now gates its own TLS the same way (`server/runtime/boot/dev-tls.ts`), reading this exact
+// same pair, so one directory serves both dev servers instead of the API reaching across into
+// `apps/admin`'s own folder. The toggle is still a single rename, just from the repo root now:
+// `mv .certs .certs.disabled` to turn TLS off, `mv .certs.disabled .certs` to turn it back on.
+//
+// `TOVU_DISABLE_DEV_TLS` is an escape hatch beyond bare file presence: every hermetic Playwright
+// `webServer` under `development/*.config.ts` that spawns `npx vite --port <port>` against THIS
+// config hardcodes `http://localhost:<port>` for its own readiness probe and `baseURL` — on any
+// machine that already has `.certs` (i.e. every contributor's own interactive `npm run dev`
+// machine), the bare existsSync gate below would silently flip those hermetic instances to HTTPS
+// too and break them. Unset for a normal `npm run dev`, so the default "cert present -> HTTPS"
+// contract is unchanged for both `dev.mjs` and a standalone `npm --prefix apps/admin run dev`.
+const certPath = path.resolve(__dirname, "../../.certs/localhost.pem");
+const keyPath = path.resolve(__dirname, "../../.certs/localhost-key.pem");
+const devTlsDisabled = Boolean(process.env.TOVU_DISABLE_DEV_TLS);
 const httpsOptions =
-  existsSync(certPath) && existsSync(keyPath)
+  !devTlsDisabled && existsSync(certPath) && existsSync(keyPath)
     ? { cert: readFileSync(certPath), key: readFileSync(keyPath) }
     : undefined;
+// Mirrors `index.ts`'s own `deriveDevScheme` — the API sibling process shares this exact gate
+// (same cert pair, same disable flag), so this is also the correct default scheme for the `/api`
+// proxy targets below whenever `TOVU_API_URL` is not explicitly set.
+const apiScheme = httpsOptions ? "https" : "http";
 
 export default defineConfig({
   base: "/admin/",
@@ -96,17 +116,24 @@ export default defineConfig({
     // font/CSS) needs that real path allow-listed too, or Vite 403s it under `/@fs/`.
     fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini")] },
     proxy: {
-      "/api": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      // `secure: false` on every entry below: when `apiScheme` is `https`, the target is the API's
+      // own mkcert-issued cert, which is locally-trusted in the OS/browser trust store (mkcert
+      // installs there) but NOT in Node's separate bundled CA list that `http-proxy` verifies
+      // against — without this, every proxied request would fail
+      // `UNABLE_TO_VERIFY_LEAF_SIGNATURE`/`SELF_SIGNED_CERT_IN_CHAIN` even though the same cert
+      // works fine in a real browser tab. Harmless when the target is plain `http://` (unset,
+      // ignored by `http-proxy` for non-TLS targets).
+      "/api": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `@jini-ai/chat-react`'s runtime picker requests agent icons from this root-relative path
       // (see `src/server/app.ts`'s matching route for why it can't just live under `/admin/`).
-      "/agent-icons": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      "/agent-icons": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `theme-static-assets.ts`'s `express.static` mount — a `static`-tier theme's own `css/`/
       // `js/`/`screenshots/` files, requested root-relative by the theme's own rendered HTML and by
       // `Appearance.tsx`'s theme-card preview thumbnail. Without this, those requests 404 against
       // Vite's own dev server (which has never heard of `/theme-assets`) instead of reaching the
       // backend that actually serves them, in production this is a non-issue since one server
       // serves both the built admin SPA and this mount.
-      "/theme-assets": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      "/theme-assets": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `server/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
       // (see that route's own doc), read by `lib/api.ts`'s `getAssistantDaemonReadyz` for the
       // "Restart assistant" admin control's live status line. Same reason `/agent-icons` above
@@ -114,7 +141,7 @@ export default defineConfig({
       // without this Vite's own dev server 404s it (`The server is configured with a public base
       // URL of /admin/ ...`) instead of reaching the backend that actually serves it. Production
       // is unaffected — one server serves both the built admin SPA and this route there.
-      "/readyz": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      "/readyz": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
       // `mcp-ui-sandbox-proxy-route.ts`'s `/mcp-ui/sandbox-proxy.html` — `AssistantDock.tsx` builds
       // its `sandboxProxyUrl` against `location.origin`, root-relative, for the same reason
       // `/agent-icons` above is: the iframe `@mcp-ui/client`'s `AppFrame` navigates to needs a URL
@@ -123,7 +150,7 @@ export default defineConfig({
       // /admin/mcp-ui/sandbox-proxy.html instead?" base-URL error every MCP-UI surface hit before
       // this fix. Production is unaffected — one server serves both the built admin SPA and this
       // route there.
-      "/mcp-ui": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      "/mcp-ui": { target: process.env.TOVU_API_URL ?? `${apiScheme}://localhost:3000`, changeOrigin: false, secure: false },
     },
   },
 });

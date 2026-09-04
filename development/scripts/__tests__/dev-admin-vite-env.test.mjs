@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildAdminViteEnv } from "../dev.mjs";
+import { buildAdminViteEnv, deriveDevScheme, resolveDevTlsActive } from "../dev.mjs";
 
 /**
  * @file Regression test for a real cross-wiring bug in `development/scripts/dev.mjs`: it computed
@@ -33,4 +33,42 @@ test("buildAdminViteEnv still resolves to the documented defaults when dev.mjs r
   // would start disagreeing with itself.
   const env = buildAdminViteEnv({ apiPort: 3000, vitePort: 5173 });
   assert.deepEqual(env, { TOVU_API_URL: "http://localhost:3000", TOVU_ADMIN_DEV_PORT: "5173" });
+});
+
+test("buildAdminViteEnv points TOVU_API_URL at https:// when the API is terminating TLS itself", () => {
+  // Regression for the printed/handed-down-URL bug: before this change every URL this script
+  // produced was hardcoded http://, including this one, so the admin Vite child's own `/api` proxy
+  // default would have disagreed with an API that was actually speaking TLS.
+  const env = buildAdminViteEnv({ apiPort: 3000, vitePort: 5173, apiScheme: "https" });
+  assert.deepEqual(env, { TOVU_API_URL: "https://localhost:3000", TOVU_ADMIN_DEV_PORT: "5173" });
+});
+
+test("deriveDevScheme: true -> https, false -> http", () => {
+  assert.equal(deriveDevScheme(true), "https");
+  assert.equal(deriveDevScheme(false), "http");
+});
+
+test("resolveDevTlsActive: true only when both cert and key exist and TLS is not disabled", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  assert.equal(
+    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: () => true }),
+    true
+  );
+});
+
+test("resolveDevTlsActive: false when the cert file is missing", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  assert.equal(
+    resolveDevTlsActive({ ...paths, disableFlag: undefined }, { existsSync: (p) => p !== paths.certPath }),
+    false
+  );
+});
+
+test("resolveDevTlsActive: false when TOVU_DISABLE_DEV_TLS is set, even with both files present", () => {
+  // The Playwright/E2E escape hatch — see vite.config.ts's matching comment for the full rationale.
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  assert.equal(
+    resolveDevTlsActive({ ...paths, disableFlag: "1" }, { existsSync: () => true }),
+    false
+  );
 });

@@ -16,10 +16,13 @@ apps/admin/coverage/
 # Playwright's default output dir, written when a run starts from the repo root. Untracked and,
 # until now, unignored -- same wide-`git add` hazard as /coverage/ above.
 /test-results/
-# mkcert-issued locally-trusted dev TLS cert + private key for the admin Vite dev server
-# (`server.https` in `apps/admin/vite.config.ts`). Machine-specific, never shared or committed —
-# each contributor runs `mkcert -install` once and regenerates their own.
-apps/admin/.certs*/
+# mkcert-issued locally-trusted dev TLS cert + private key, shared by BOTH dev servers
+# (`server.https` in `apps/admin/vite.config.ts`, and the API's own gate in
+# `apps/website/src/server/runtime/boot/dev-tls.ts`). Machine-specific, never shared or
+# committed — each contributor runs `mkcert -install` once and regenerates their own. Moved here
+# from `apps/admin/.certs*/` so one directory serves both servers; the toggle is still a single
+# rename: `mv .certs .certs.disabled` / `mv .certs.disabled .certs`, now from the repo root.
+/.certs*/
 *.log
 .DS_Store
 .env

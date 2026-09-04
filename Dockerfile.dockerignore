@@ -65,3 +65,12 @@ development/e2e
 .env
 .env.*
 !.env.example
+
+# mkcert dev TLS cert + PRIVATE KEY (`.certs/`, matching `.gitignore`'s `/.certs*/`). Unlike a git
+# commit, `COPY . .` in the build stage above has no ignore-file inheritance from git — this repo's
+# own build context is machine-local, so any contributor who has run `mkcert` for their own
+# `npm run dev` and then runs `docker build` from the same checkout would otherwise bake their
+# private key straight into the image. Belt-and-braces with `.gitignore`, not a substitute for it —
+# this file is Docker's own ignore list and is read independently.
+.certs
+.certs.disabled
