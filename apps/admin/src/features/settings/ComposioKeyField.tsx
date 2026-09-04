@@ -37,7 +37,7 @@ function resolveKeyFieldHook(override: typeof useComposioKeyField | undefined): 
 
 export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: ComposioKeyFieldProps) {
   const useKeyField = resolveKeyFieldHook(useKeyFieldProp);
-  const { draft, setDraft, configured, busy, onSave } = useKeyField(composio);
+  const { draft, setDraft, configured, busy, placeholder, onSave } = useKeyField(composio);
 
   return (
     <div className="composio-key-field">
@@ -61,7 +61,7 @@ export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: Com
           type="password"
           autoComplete="off"
           spellCheck={false}
-          placeholder={configured ? "Replace saved key" : "comp_..."}
+          placeholder={placeholder}
           value={draft}
           disabled={busy}
           onChange={(event) => setDraft(event.target.value)}

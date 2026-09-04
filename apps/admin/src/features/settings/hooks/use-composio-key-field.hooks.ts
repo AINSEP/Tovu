@@ -22,6 +22,12 @@ export interface ComposioKeyFieldController {
   configured: boolean;
   /** Whether a save is in flight — disables the input/buttons while true. */
   busy: boolean;
+  /** The input's placeholder — swaps to "Replace saved key" once a key is already configured, so
+   *  the empty field doesn't read as "nothing saved" when something is. Derived here (2026-09-04,
+   *  complexity-ceiling pass) rather than as a `configured ? ... : ...` ternary in `ComposioKeyField`
+   *  itself, the same "derive it beside the boolean it branches on" move `configured`/`busy`
+   *  themselves already use below. */
+  placeholder: string;
   /** Trims `draft`, saves it via `composio.save`, then clears `draft`. A blank/whitespace-only
    *  draft is a no-op. `composio.save` is `useComposioConfig`'s `write`, which catches internally
    *  and never rejects — so in practice the clear always runs, error or not, and a secret never
@@ -45,6 +51,7 @@ export function useComposioKeyField(composio: ComposioConfigController): Composi
   const [draft, setDraft] = useState("");
   const configured = composio.config?.configured ?? false;
   const busy = composio.saveState === "saving";
+  const placeholder = configured ? "Replace saved key" : "comp_...";
 
   async function onSave(): Promise<void> {
     const apiKey = draft.trim();
@@ -53,5 +60,5 @@ export function useComposioKeyField(composio: ComposioConfigController): Composi
     setDraft("");
   }
 
-  return { draft, setDraft, configured, busy, onSave };
+  return { draft, setDraft, configured, busy, placeholder, onSave };
 }

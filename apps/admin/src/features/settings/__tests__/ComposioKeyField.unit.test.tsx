@@ -82,7 +82,7 @@ describe("ComposioKeyField key-field-hook injection", () => {
     // something the real hook could never produce, so this only passes if the render used the
     // fake.
     function useFakeKeyField(): ComposioKeyFieldController {
-      return { draft: "prefilled", setDraft: vi.fn(), configured: true, busy: true, onSave: vi.fn() };
+      return { draft: "prefilled", setDraft: vi.fn(), configured: true, busy: true, placeholder: "Replace saved key", onSave: vi.fn() };
     }
 
     render(<ComposioKeyField composio={makeComposio()} useKeyField={useFakeKeyField} />);
