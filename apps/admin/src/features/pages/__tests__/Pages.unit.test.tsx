@@ -7,6 +7,7 @@ import type { PagesController } from "../hooks/use-pages.hooks";
 import type { ThemePageRow, ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { navigate } from "@/lib/router";
 import type { AdminPost } from "@/lib/api";
+import { siteUrl } from "@/lib/site-url";
 
 /**
  * @file `Pages` — markup-only list screen, twin of `features/posts/Posts.tsx`. Driven entirely
@@ -168,7 +169,7 @@ describe("populated table", () => {
     expect(titleLink).toHaveAttribute("href", "/admin/pages/home-1");
 
     const slugLink = screen.getByRole("link", { name: "/" });
-    expect(slugLink).toHaveAttribute("href", "http://localhost:3000/");
+    expect(slugLink).toHaveAttribute("href", siteUrl("/"));
 
     await user.click(screen.getByRole("button", { name: 'Actions for "Home"' }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
@@ -498,7 +499,7 @@ describe("Theme Pages tab", () => {
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "pricing", published: true })] });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       const link = screen.getByRole("link", { name: "/pricing" });
-      expect(link).toHaveAttribute("href", "http://localhost:3000/pricing");
+      expect(link).toHaveAttribute("href", siteUrl("/pricing"));
       expect(link).toHaveAttribute("target", "_blank");
       expect(link).toHaveAttribute("rel", "noreferrer");
     });
@@ -523,7 +524,7 @@ describe("Theme Pages tab", () => {
       renderWith({ pages: [PAGE] }, { pages: [candidateRow({ pageId: "index", published: null })] });
       await user.click(screen.getByRole("tab", { name: /^Theme Pages/ }));
       const link = screen.getByRole("link", { name: "/" });
-      expect(link).toHaveAttribute("href", "http://localhost:3000/");
+      expect(link).toHaveAttribute("href", siteUrl("/"));
       expect(link).toHaveAttribute("target", "_blank");
     });
 
