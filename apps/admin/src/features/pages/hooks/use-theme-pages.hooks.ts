@@ -58,6 +58,11 @@ export interface ThemePagesController {
   /** `null` until the initial load settles — the caller renders a loading state. `[]` once loaded
    *  means the active theme is genuinely not `static`-tier or ships no pages — not an error. */
   pages: ThemePageRow[] | null;
+  /** `pages`' own length, or `0` while still loading (`pages === null`) — `Pages.tsx`'s TabBar
+   *  count for this tab. Derived here (2026-09-04, complexity-ceiling pass) rather than as a
+   *  `themePages?.length ?? 0` expression in `Pages.tsx` itself, the same "derive it beside the
+   *  state it reads" move `configured`/`busy` already use in `use-composio-key-field.hooks.ts`. */
+  pageCount: number;
   /**
    * The id of the theme `pages` came from — `null` until the same load settles.
    *
@@ -175,7 +180,9 @@ export function useThemePages(port: ThemePagesPort): ThemePagesController {
     [activeThemeId, port]
   );
 
-  return { pages, activeThemeId, error, savingPageId, setPagePublished };
+  const pageCount = pages === null ? 0 : pages.length;
+
+  return { pages, pageCount, activeThemeId, error, savingPageId, setPagePublished };
 }
 
 /**

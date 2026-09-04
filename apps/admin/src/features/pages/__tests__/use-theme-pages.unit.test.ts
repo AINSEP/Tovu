@@ -57,6 +57,21 @@ describe("useThemePages", () => {
   });
 
   /**
+   * `pageCount` (2026-09-04, complexity-ceiling pass) — `Pages.tsx`'s TabBar count for this tab,
+   * moved here from a `themePages?.length ?? 0` expression that used to live in `Pages.tsx` itself.
+   * Pinning both ends of its own derivation: `0` before `pages` resolves, then the resolved row
+   * count once it does — not `pageFiles.length` (`A_STYLE` here is filtered out before `pages` ever
+   * sees it, same fixture as the row-list test just above).
+   */
+  it("pageCount is 0 while pages is still null, then the resolved row count", async () => {
+    const port = createFakeThemePagesPort({ pageFiles: [ABOUT, A_STYLE] });
+    const { result } = renderHook(() => useThemePages(port));
+    expect(result.current.pageCount).toBe(0);
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+    expect(result.current.pageCount).toBe(1);
+  });
+
+  /**
    * 2026-08-31 pass: the Theme Pages tab's details modal shows any live content record already
    * claiming a page's slug — the same fact Theme Studio's Explore screen warns about
    * (`ThemeExploreSlugCollisionWarning`). `getThemeDetail`'s own `collidingContent` now flows

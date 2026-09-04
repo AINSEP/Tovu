@@ -115,6 +115,7 @@ export function Pages(props: PagesProps) {
   } = usePagesHook();
   const {
     pages: themePages,
+    pageCount: themePagesCount,
     activeThemeId: themeId,
     error: themePagesError,
     savingPageId: themePageSavingId,
@@ -167,7 +168,7 @@ export function Pages(props: PagesProps) {
         ariaLabel={t("Pages")}
         tabs={[
           { id: "mine", label: t("My Pages"), count: pages.length },
-          { id: "theme", label: t("Theme Pages"), count: themePages?.length ?? 0 },
+          { id: "theme", label: t("Theme Pages"), count: themePagesCount },
         ]}
         activeId={activeTab}
         onChange={(id) => selectTab(id as PagesTabId)}

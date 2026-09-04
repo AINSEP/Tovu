@@ -87,8 +87,13 @@ function candidateRow(overrides: Partial<ThemePageRow> = {}): ThemePageRow {
 }
 
 function themePagesController(overrides: Partial<ThemePagesController> = {}): ThemePagesController {
+  const pages = overrides.pages ?? [];
   return {
-    pages: [],
+    pages,
+    // Mirrors the real `useThemePages`' own `pageCount` derivation (`pages === null ? 0 :
+    // pages.length`) off whatever `pages` override this call passes, so a caller overriding
+    // `pages` doesn't also have to separately override `pageCount` to keep them consistent.
+    pageCount: pages === null ? 0 : pages.length,
     activeThemeId: "basic",
     error: null,
     savingPageId: null,
