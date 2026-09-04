@@ -49,26 +49,29 @@ theme:
   client-side, persists the choice to `localStorage`, and the icon crossfades via CSS
   (`opacity`/`transform` transitions, not `display` toggling, since `display` can't
   animate).
-- **Scroll-reveal animation added**, powered by a vendored copy of
-  [Motion](https://motion.dev) (`js/vendor/motion.js`, v13.0.0, MIT — license text at
-  `js/vendor/LICENSE.md`). Deliberately **vendored, not loaded from a CDN**: a
+- **Scroll-reveal animation added.** Originally powered by a vendored copy of
+  [Motion](https://motion.dev) (`js/vendor/motion.js`, v13.0.0, MIT): `js/reveal.js`
+  called Motion's `animate()`/`inView()`/`stagger()` on `[data-reveal]`-marked sections
+  and, for repeating grids (`.feature-grid`, `.pricing-grid`, `.values-grid`,
+  `.changelog-list`, `.photo-grid`), on every child automatically via `stagger()` — no
+  per-card markup needed. **Motion and `reveal.js` were removed on 2026-09-04**; see
+  "Motion retired — kUInetic is the only animation engine" at the end of this file for
+  the replacement and its exact timing mapping. Deliberately **vendored, not loaded from
+  a CDN** — the reasoning is unchanged and now governs the kUInetic bundle instead: a
   `<script src="https://...">` pointed at a third party would mean the theme's own
   claim of being safe to install and self-hostable ("your content, your themes, your
   data, on your machine" — `tovu-official`'s own copy) stops being true the moment the
-  CDN is blocked, offline, or compromised. The vendored file carries the same trust
+  CDN is blocked, offline, or compromised. A vendored file carries the same trust
   model as the theme's CSS: a static asset shipped with the theme, not a live
-  third-party dependency. `js/reveal.js` calls Motion's `animate()`/`inView()`/
-  `stagger()` on `[data-reveal]`-marked sections and, for repeating grids
-  (`.feature-grid`, `.pricing-grid`, `.values-grid`, `.changelog-list`,
-  `.photo-grid`), on every child automatically via `stagger()` — no per-card markup
-  needed. Deliberately **no default `opacity: 0` in CSS**: the hidden-then-revealed
-  state is applied entirely in JS, so a visitor with JS disabled sees normal, fully
-  visible content rather than a page permanently stuck invisible. First pass here used
-  hand-rolled `IntersectionObserver` + CSS transitions (~40 lines, zero dependencies);
-  replaced with vendored Motion at the owner's explicit request for the larger
-  animation vocabulary it unlocks (spring physics, gesture/layout animation later) —
-  worth knowing this is a **139KB / 46KB-gzipped** dependency traded for that
-  headroom, not a free upgrade.
+  third-party dependency. Deliberately **no default `opacity: 0` in CSS**, so a visitor
+  with JS disabled sees normal, fully visible content rather than a page permanently
+  stuck invisible — that guarantee survived the migration and is re-derived from
+  kUInetic's own source below. The first pass here used hand-rolled
+  `IntersectionObserver` + CSS transitions (~40 lines, zero dependencies); it was
+  replaced with vendored Motion at the owner's explicit request for the larger animation
+  vocabulary it unlocked (spring physics, gesture/layout animation later) — a
+  **139KB / 46KB-gzipped** dependency traded for that headroom, and one this theme no
+  longer carries.
 
 The reference screenshots (`index.png` / `index-light.png` in the original export)
 depict a visibly richer landing page than the shipped `index.html` — a product
@@ -89,10 +92,10 @@ every other page) and a CSS-only infinite-scroll logo carousel (`.logo-carousel`
 `.logo-track`, same 6 fictional company names as the original export — not
 substituted for real companies).
 
-**Hero animation: two iterations, both from direct owner feedback.** First pass used
-`js/typewriter.js` (character-by-character reveal) on every page's H1. Owner feedback:
-choppy specifically on the two-line homepage hero. Replaced that one instance with
-`js/hero-intro.js` — "Beautiful websites," slides in from the left, "shipped in
+**Hero animation: three iterations, the first two from direct owner feedback.** First
+pass used `js/typewriter.js` (character-by-character reveal) on every page's H1. Owner
+feedback: choppy specifically on the two-line homepage hero. Replaced that one instance
+with `js/hero-intro.js` — "Beautiful websites," slides in from the left, "shipped in
 minutes" from the right, via Motion's `animate()` (plain per-element `delay`, not
 `stagger()` — `stagger()`'s returned function is meant to be handed to Motion
 internally across one `animate()` call over an array of targets, not manually invoked
@@ -100,7 +103,10 @@ per element with `(i, total)`; verified against the vendored build's own `stagge
 function(t=.1,{startDelay,from,ease}={})` signature before using it either way).
 Owner then asked for typewriter to be dropped everywhere in favor of the existing
 `[data-reveal]` fade-in. `js/typewriter.js` was deleted entirely (not left as dead
-code) once nothing referenced it.
+code) once nothing referenced it. `js/hero-intro.js` went the same way on 2026-09-04:
+it was the theme's second `window.Motion` consumer, so removing Motion retired it too.
+The same two-line hero motion is now declared inline on the spans themselves — see
+below.
 
 **Two real CSS bugs found via the owner catching a live render as "awful" (not
 caught by any earlier screenshot — see the capture-timing note below) — both fixed
@@ -173,3 +179,101 @@ the sidebar with `.docs-side a[data-kui-active="true"] { ... }`). The kUInetic d
 itself (`kuinetic.com/docs.html?doc=catalog` and `?doc=design`) 404s on the effect
 catalog and architecture pages as of this vendoring — this API was read directly out of
 the (unminified, comment-intact) `dist/kuinetic.all.js` source, not from prose docs.
+
+## Motion retired — kUInetic is the only animation engine (2026-09-04)
+
+`scripts/vendor/motion.js`, `scripts/vendor/LICENSE.md` (Motion's MIT text),
+`scripts/reveal.js`, and `scripts/hero-intro.js` were all deleted from this theme, and
+the `<script src="../scripts/vendor/motion.js">` / `reveal.js` / `hero-intro.js` tags
+removed from every template. The theme now loads exactly two scripts plus the vendored
+bundle: `main.js`, `theme-toggle.js`, and `scripts/vendor/kuinetic.all.js`. Motion is
+still used by the `basic-2` and three `tailark-*` themes, which are untouched by this
+change.
+
+**The progressive-enhancement guarantee is preserved, and is now structural rather than
+a code convention.** Verified by reading `scripts/vendor/kuinetic.all.js` directly:
+
+1. The bundle injects its *entire* stylesheet itself — the tail of the file runs
+   `document.createElement('style')` with `id="kuinetic-styles"` and appends it to
+   `<head>`. There is no kUInetic CSS file to link. If the script is blocked, fails, or
+   404s, **no kUInetic CSS exists at all**, so nothing can be hidden by it. That is a
+   stronger guarantee than `reveal.js`'s old `if (!window.Motion) return;` guard, which
+   depended on a line of code rather than on there being nothing to undo.
+2. `fade-up`'s hidden state is `@keyframes kui-in-up { from { opacity:
+   var(--kui-from-opacity, 0); translate: 0 var(--kui-distance, 24px); } }` — a
+   keyframe `from` block, which applies only while the animation is running. It is never
+   a resting style.
+3. The one rule that can hide an element *before* it animates is
+   `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) { opacity: 0
+   !important; }` in `@layer kui.policy`. It is gated on `data-kui-cloak` on `<html>`,
+   which is **author opt-in** — the library only ever *removes* that attribute
+   (`Animator.uncloak()`), never sets it. This theme does not set it anywhere.
+4. Two further fail-open paths exist even if the runtime stalls mid-init: a
+   `CLOAK_WATCHDOG_MS` timer calls `uncloak()`, and a `@media print` block forces
+   `opacity: 1` on `[data-kui-fx], [data-kui-reveal]`.
+
+**Timing mapping from `reveal.js` (exact, not approximate).** The old script used
+`duration: 0.6`, `translateY(18px) -> translateY(0)`, `opacity: [0, 1]`,
+`easing: [0.16, 1, 0.3, 1]`, `inView(..., { amount: 0.15 })`, and `stagger(0.07)` for
+grid children. Every `[data-reveal]` element and every static grid child now carries:
+
+    data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15"
+
+- `fade-up` -> primitive `reveal`, which owns exactly the two channels the old code
+  animated (opacity + translate); `--kui-from-opacity` defaults to `0`.
+- `expo-out` -> `var(--kui-ease-expo-out)`, defined in the bundle's own token layer as
+  `cubic-bezier(0.16, 1, 0.3, 1)` — **byte-for-byte the easing `reveal.js` used**. It has
+  to be stated explicitly: `fade-up`'s own preset default is plain `ease-out`.
+- `distance:18px` overrides kUInetic's 24px default to match the old `translateY(18px)`.
+- `threshold:0.15` is passed straight to `IntersectionObserver`, the same meaning as
+  Motion's `amount: 0.15`. It also has to be explicit: an unset threshold parses to `0`.
+- `600ms` matches `duration: 0.6` (and happens to be the preset default anyway; stated
+  for legibility since this file is hand-edited).
+
+Grid stagger is a *separate* attribute, not a token inside `data-kui`: `stagger:` is not
+part of the `data-kui` grammar (its only hoisted keys are `on:`, `timeline:`, and
+`threshold:`), so writing it there would emit an "unrecognised token" console warning and
+do nothing. The container instead carries `data-kui-stagger="70ms"`, and
+`indexStaggerGroup()` stamps `--kui-i` on each child that has a `data-kui` of its own;
+the compiled delay is `calc(delay + var(--kui-i, 0) * var(--kui-stagger, 0ms))`.
+
+Two behavioural differences, both deliberate and neither silent:
+
+- **Grid children now trigger individually.** `reveal.js` observed the *container* and
+  animated all its children when the container hit 15% visibility. kUInetic's `on:enter`
+  binds an observer per element, so each card starts when that card hits 15% — the
+  stagger ordering is identical, but a tall grid reveals row by row on scroll instead of
+  all at once. On the grids this theme actually ships (2-4 columns, short) the difference
+  is barely visible.
+- **`.blog-grid` lost its stagger entirely.** It is an embed marker
+  (`data-embed-config='{"type":"post-previews"}'`) whose *whole element* is substituted
+  at render time — the template's `<section class="blog-grid" ...>` comes out as a
+  generated `<div class="blog-grid">` with generated `<article class="post-card">`
+  children. No authored attribute on it or inside it survives into the served page, so
+  the per-card reveal is not expressible in markup. Restoring it means teaching the
+  `post-previews` embed generator to emit `data-kui` on each card and `data-kui-stagger`
+  on the grid, which is application code, not theme markup.
+
+**Hero (`index.html`, stock theme only).** `hero-intro.js` animated `[data-slide-in]`
+with `translateX(-+48px)`, `duration: 0.7`, per-element `delay: i * 0.12`, same
+`expo-out` easing, on load. The two hero spans now declare it themselves:
+
+    <span class="hero-line" data-kui="fade-right 700ms expo-out distance:48px on:load">
+    <span class="hero-line" data-kui="fade-left 700ms 120ms expo-out distance:48px on:load">
+
+Note the direction names invert: `data-slide-in="left"` meant "starts 48px to the left
+and travels right", which is kUInetic's `fade-right` (`@keyframes kui-in-right` starts at
+`calc(var(--kui-distance) * -1)`), and vice versa. The second time token is the delay
+(`applyTime` reads duration first, then delay). Explicit per-element delays are used here
+rather than `data-kui-stagger` on the `<h1>` on purpose: `Animator.scan()` calls
+`process()` on every element *before* `applyStagger()` stamps `--kui-i`, which is
+harmless for `on:enter` effects (the observer fires much later) but would race an
+`on:load` one. This mirrors the original `hero-intro.js`, which also used plain
+per-element delays rather than Motion's `stagger()`.
+
+**Reduced motion.** `reveal.js` returned early under `prefers-reduced-motion: reduce`,
+leaving content at its natural visible state. The `reveal` primitive declares
+`reducedMotion: "shorten"`, so kUInetic's policy layer instead forces
+`animation-duration: 1ms; animation-delay: 0ms`. Different mechanism, same visible
+result: the content is simply there. This is a mechanism change, not a behaviour change,
+but it is a change and is recorded here rather than left to be rediscovered.

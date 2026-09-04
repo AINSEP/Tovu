@@ -36,7 +36,7 @@
        workaround (removed from theme.css) that hid the byline but still shipped a real, indexable
        `<h1>` as `display:none`, an SEO liability. `.post-detail-body`'s prose typography is kept for
        whatever the page is authored with. -->
-  <section class="wrap post-detail landing-content" data-reveal>
+  <section class="wrap post-detail landing-content" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
     <div data-embed-config='{"type":"content","header":false}'></div>
   </section>
 </main>
@@ -44,8 +44,6 @@
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>
-<script src="../scripts/vendor/motion.js"></script>
 <script src="../scripts/vendor/kuinetic.all.js"></script>
-<script src="../scripts/reveal.js"></script>
 </body>
 </html>

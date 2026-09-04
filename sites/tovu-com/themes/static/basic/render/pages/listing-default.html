@@ -28,7 +28,7 @@
        render — see pages-default.html's own doc on that shared style). Renamed from blog.html's
        hardcoded "The Tovu blog" hero copy (2026-09-03): a reusable template cannot hardcode one
        page's marketing prose, and the content marker already supplies the page's real title. -->
-  <section class="wrap post-detail" data-reveal>
+  <section class="wrap post-detail" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
     <div data-embed-config='{"type":"content"}'></div>
   </section>
 
@@ -47,8 +47,6 @@
 <div data-embed-config='{"type":"partial","id":"footer"}'></div>
 
 <script src="../scripts/main.js"></script>
-<script src="../scripts/vendor/motion.js"></script>
 <script src="../scripts/vendor/kuinetic.all.js"></script>
-<script src="../scripts/reveal.js"></script>
 </body>
 </html>
