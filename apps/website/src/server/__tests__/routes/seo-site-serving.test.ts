@@ -131,10 +131,12 @@ test("T045: the real home-page render includes SEO's folded <title> tag, not jus
   const home = await fetch(`${baseUrl}/`);
   assert.equal(home.status, 200);
   const html = await home.text();
-  // Exactly one <title> tag — proves pageShell's own hardcoded title was suppressed
-  // in favor of the fold's, not emitted twice.
-  const titleMatches = html.match(/<title>/g) ?? [];
-  assert.equal(titleMatches.length, 1);
+  // Exactly one real <title> ELEMENT — proves pageShell's own hardcoded title was suppressed
+  // in favor of the fold's, not emitted twice. Counted via `countRealTitleTags` (not a raw
+  // `html.match(/<title>/g)`) because `page-shell.html`'s own authoring comment mentions the tag
+  // by name twice in prose, and that comment ships verbatim in the served HTML (2026-09-04 fix —
+  // see that helper's doc).
+  assert.equal(countRealTitleTags(html), 1);
   assert.match(html, /<link rel="canonical"/);
 });
 
@@ -192,6 +194,20 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
     "canonical must point at /pricing, not fall back to home's \"/\""
   );
 });
+
+/**
+ * Counts real `<title>` ELEMENTS, not raw string occurrences — `html.match(/<title>/g)` also
+ * matches the literal substring `<title>` when it appears as prose inside an HTML `<!-- -->`
+ * comment (e.g. `page-shell.html`'s own authoring comment, which discusses the tag by name twice),
+ * and that comment ships verbatim in the served HTML since this render pipeline never strips
+ * comments. Stripping comments first is what keeps this assertion's real intent — exactly one real
+ * `<title>` tag survives the SEO fold, not zero, not two — honest against a template whose comments
+ * happen to mention the tag by name.
+ */
+function countRealTitleTags(html: string): number {
+  const withoutComments = html.replace(/<!--[\s\S]*?-->/g, "");
+  return (withoutComments.match(/<title>/g) ?? []).length;
+}
 
 function themeWithTemplateFixture(): DiscoveredTheme {
   const postSlot = `<div data-embed-config='{"type":"content"}'></div>`;
