@@ -347,13 +347,6 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-detail-header { margin-bottom: 40px; }
 .post-detail-header h1 { font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin-bottom: 16px; }
 .post-detail-header .post-meta { font-size: 13px; }
-/* `{"type":"content"}` markers always wrap a doc-format target in `.post-detail-header` (title +
-   date byline) before this theme ever sees the markup — that substitution happens in the app
-   (renderWidgetPostContent), not here, so this theme cannot opt out of emitting the node. index.html
-   opts its own landing shell OUT of showing it: a homepage is not a dated article. Scoped to
-   `.landing-content` only — every other content-marker template (about, docs, the listing page, …)
-   keeps the byline exactly as before. */
-.landing-content .post-detail-header { display: none; }
 .post-detail-body { font-size: 17px; line-height: 1.7; max-width: 66ch; }
 .post-detail-body h2 { font-size: 26px; margin: 40px 0 16px; letter-spacing: -0.01em; }
 .post-detail-body h3 { font-size: 20px; margin: 32px 0 12px; letter-spacing: -0.01em; }

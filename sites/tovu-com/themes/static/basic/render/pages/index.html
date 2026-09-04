@@ -29,12 +29,15 @@
        CTA regions were removed rather than kept as empty scaffolding, because there is no per-region
        authoring path to fill them — a Page's body is one linear document dropped into this ONE
        marker (`.post-detail-body`'s typography), never distributed across named sub-regions. Empty
-       structural boxes an author can never reach would be dead weight, not a head start. `.landing-
-       content` (theme.css) hides the shared `.post-detail-header` title/date byline this marker's
-       target normally gets (see that rule's own doc) — a landing page must not look like a dated
-       article; `.post-detail-body`'s prose typography is kept for whatever the page is authored with. -->
+       structural boxes an author can never reach would be dead weight, not a head start. The marker's
+       own `"header":false` (2026-09-04) opts out of the shared `.post-detail-header` title/date
+       byline this marker's target normally gets — a landing page must not look like a dated article
+       — replacing an earlier `.landing-content .post-detail-header { display: none; }` CSS
+       workaround (removed from theme.css) that hid the byline but still shipped a real, indexable
+       `<h1>` as `display:none`, an SEO liability. `.post-detail-body`'s prose typography is kept for
+       whatever the page is authored with. -->
   <section class="wrap post-detail landing-content" data-reveal>
-    <div data-embed-config='{"type":"content"}'></div>
+    <div data-embed-config='{"type":"content","header":false}'></div>
   </section>
 </main>
 
