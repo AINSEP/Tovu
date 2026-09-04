@@ -3,6 +3,7 @@ import { resolvePostMemberAccess } from "../members/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
 import type { ResolveSeoImageRefDeps } from "./media.js";
 import { getEntryMeta } from "./seo.js";
 import { getSeoSettings } from "./settings.js";
@@ -115,19 +116,26 @@ export async function buildSitemap(deps: SeoSitemapDeps, input: { workspaceId: U
  * computed `sitemapUrls` (never persisted as one shape — computed fresh at
  * read time). `sitemapUrls` is `[]` when `sitemapEnabled` is `false`.
  *
- * The advertised sitemap URL is a site-relative path (`/sitemap.xml`) rather
- * than an absolute one — this repo has no wired origin-resolution source yet
- * (`routing`'s own documented ADR-040 TODO); SEO never fabricates a local
- * origin (INV-07), consistent with `getEntryMeta`'s `canonical` fallback.
+ * 2026-09-04 fix: the advertised sitemap URL is joined onto the workspace's
+ * verified origin ({@link toAbsoluteUrl}, via {@link resolveWorkspaceOrigin}),
+ * the same wiring `getEntryMeta`'s `canonical`/`og:url` already use (the
+ * `ADR-040` origin-resolution source this doc used to say didn't exist yet —
+ * `features/origin`'s `OriginRegistryPort` — landed on 2026-09-03). Google
+ * ignores a relative `Sitemap:` directive, so a bare `/sitemap.xml` made the
+ * sitemap undiscoverable to crawlers even though `<loc>` entries inside it
+ * were already absolute. Degrades to the same bare relative path as before
+ * when no verified origin is registered yet — SEO still never fabricates a
+ * local origin (INV-07), consistent with `getEntryMeta`'s own fallback.
  */
 export async function buildRobots(
-  deps: { settingsRepo: SettingsRepoPort },
+  deps: { settingsRepo: SettingsRepoPort; originRegistry: OriginRegistryPort },
   input: { workspaceId: UUID }
 ): Promise<RobotsPolicy> {
   const settings = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });
+  const origin = await resolveWorkspaceOrigin(deps.originRegistry, input.workspaceId);
   return {
     rules: settings.robotsRules,
-    sitemapUrls: settings.sitemapEnabled ? ["/sitemap.xml"] : [],
+    sitemapUrls: settings.sitemapEnabled ? [toAbsoluteUrl(origin, "/sitemap.xml")] : [],
   };
 }
 

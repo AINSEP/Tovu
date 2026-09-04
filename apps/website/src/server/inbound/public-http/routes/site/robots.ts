@@ -14,7 +14,10 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/robots.txt", async (_req, res) => {
     try {
       await deps.seoReady;
-      const policy = await buildRobots({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+      const policy = await buildRobots(
+        { settingsRepo: deps.settingsRepo, originRegistry: deps.originRegistry },
+        { workspaceId: deps.workspaceId }
+      );
       const lines: string[] = [];
       for (const rule of policy.rules) {
         lines.push(`User-agent: ${rule.userAgent}`);
