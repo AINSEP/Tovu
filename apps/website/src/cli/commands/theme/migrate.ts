@@ -15,6 +15,17 @@ export interface RunThemeMigrateCommandInput {
   json?: boolean;
 }
 
+/** `formatSummary`'s `"failed"` case, split out to keep the switch below a flat dispatch (each
+ * remaining case is a single-line template) — this is the one case with its own internal branching
+ * (two error lists plus an optional trailing line). */
+function formatFailedSummary(id: string, result: MigrateThemeResult): string {
+  const lines = [`theme '${id}': migration FAILED — ${result.reason ?? "see validation/load errors below"}`];
+  for (const error of result.validation?.errors ?? []) lines.push(`  [validator:${error.ruleId}] ${error.message}`);
+  for (const error of result.loadErrors ?? []) lines.push(`  [loadTheme] ${error}`);
+  if (result.outputDir) lines.push(`staged output left for inspection at ${result.outputDir}`);
+  return `${lines.join("\n")}\n`;
+}
+
 function formatSummary(id: string, result: MigrateThemeResult): string {
   switch (result.status) {
     case "already-migrated":
@@ -23,13 +34,8 @@ function formatSummary(id: string, result: MigrateThemeResult): string {
       return `theme '${id}': dry run OK — staged v2 output at ${result.outputDir}, real theme directory untouched\n`;
     case "migrated":
       return `theme '${id}': migrated to schema v2 in place — v1 backup kept at ${result.backupDir}\n`;
-    case "failed": {
-      const lines = [`theme '${id}': migration FAILED — ${result.reason ?? "see validation/load errors below"}`];
-      for (const error of result.validation?.errors ?? []) lines.push(`  [validator:${error.ruleId}] ${error.message}`);
-      for (const error of result.loadErrors ?? []) lines.push(`  [loadTheme] ${error}`);
-      if (result.outputDir) lines.push(`staged output left for inspection at ${result.outputDir}`);
-      return `${lines.join("\n")}\n`;
-    }
+    case "failed":
+      return formatFailedSummary(id, result);
   }
 }
 
