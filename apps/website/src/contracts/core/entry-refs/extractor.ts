@@ -91,6 +91,77 @@ function collectWidgetEmbedRefs(node: unknown, path: string, input: ExtractEntry
 }
 
 /**
+ * REQ-30 (a): a widget_area's placement list — shape-detected, not type-gated (REQ-17 already
+ * guarantees only a widget_area entry's bodyJson ever carries this shape).
+ *
+ * @complexity O(n) over the placement list's length.
+ * @overallScore 100
+ */
+function collectPlacementRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+  if (!isPlainObject(input.bodyJson) || !Array.isArray(input.bodyJson.placements)) return;
+
+  (input.bodyJson.placements as unknown[]).forEach((placement, index) => {
+    if (!isPlainObject(placement) || typeof placement.widgetEntryId !== "string") return;
+
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "widget-area-placement",
+      fieldPath: `bodyJson.placements[${index}]`,
+      targetKind: "entry",
+      targetId: placement.widgetEntryId,
+    });
+  });
+}
+
+/**
+ * REQ-31/32 — one namespace's `config` bag: every string-valued, non-empty, ref-suffixed key
+ * (per {@link classifyRefFieldKey}) becomes a `config-field` row.
+ *
+ * @complexity O(k) over the config bag's key count.
+ * @overallScore 100
+ */
+function collectNamespaceConfigRefs(
+  namespace: string,
+  config: Record<string, unknown>,
+  input: ExtractEntryRefsInput,
+  refs: EntryRefRow[]
+): void {
+  for (const [key, value] of Object.entries(config)) {
+    if (typeof value !== "string" || value.length === 0) continue;
+    const targetKind = classifyRefFieldKey(key);
+    if (!targetKind) continue;
+
+    refs.push({
+      workspaceId: input.workspaceId,
+      sourceEntryId: input.sourceEntryId,
+      sourceKind: "config-field",
+      fieldPath: `fields.ext.${namespace}.config.${key}`,
+      targetKind,
+      targetId: value,
+    });
+  }
+}
+
+/**
+ * REQ-31/32: ref-typed config fields inside fields.ext.<namespace>.config, across every
+ * namespace in `fieldsExt`.
+ *
+ * @complexity O(n) over `fieldsExt`'s namespace count (per-namespace key scan delegated to
+ *   {@link collectNamespaceConfigRefs}).
+ * @overallScore 100
+ */
+function collectConfigFieldRefs(input: ExtractEntryRefsInput, refs: EntryRefRow[]): void {
+  for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt ?? {})) {
+    if (!isPlainObject(namespaceValue)) continue;
+    const config = namespaceValue.config;
+    if (!isPlainObject(config)) continue;
+
+    collectNamespaceConfigRefs(namespace, config, input, refs);
+  }
+}
+
+/**
  * REQ-29..32 — extracts every `entry_refs` row implied by one entry's written state: a
  * `widget_area` placement list (REQ-30), any `widgetEmbed` node inside `bodyJson` (REQ-30/18), and
  * any ref-typed config field inside `fieldsExt` (REQ-31/32). Pure and idempotent (INV-06's
@@ -106,47 +177,10 @@ function collectWidgetEmbedRefs(node: unknown, path: string, input: ExtractEntry
 export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRefRow[] {
   const refs: EntryRefRow[] = [];
 
-  // REQ-30 (a): a widget_area's placement list — shape-detected, not type-gated (REQ-17 already
-  // guarantees only a widget_area entry's bodyJson ever carries this shape).
-  if (isPlainObject(input.bodyJson) && Array.isArray(input.bodyJson.placements)) {
-    (input.bodyJson.placements as unknown[]).forEach((placement, index) => {
-      if (isPlainObject(placement) && typeof placement.widgetEntryId === "string") {
-        refs.push({
-          workspaceId: input.workspaceId,
-          sourceEntryId: input.sourceEntryId,
-          sourceKind: "widget-area-placement",
-          fieldPath: `bodyJson.placements[${index}]`,
-          targetKind: "entry",
-          targetId: placement.widgetEntryId,
-        });
-      }
-    });
-  }
-
+  collectPlacementRefs(input, refs);
   // REQ-30 (b): widgetEmbed nodes anywhere inside bodyJson.
   collectWidgetEmbedRefs(input.bodyJson, "bodyJson", input, refs);
-
-  // REQ-31/32: ref-typed config fields inside fields.ext.<namespace>.config.
-  for (const [namespace, namespaceValue] of Object.entries(input.fieldsExt ?? {})) {
-    if (!isPlainObject(namespaceValue)) continue;
-    const config = namespaceValue.config;
-    if (!isPlainObject(config)) continue;
-
-    for (const [key, value] of Object.entries(config)) {
-      if (typeof value !== "string" || value.length === 0) continue;
-      const targetKind = classifyRefFieldKey(key);
-      if (!targetKind) continue;
-
-      refs.push({
-        workspaceId: input.workspaceId,
-        sourceEntryId: input.sourceEntryId,
-        sourceKind: "config-field",
-        fieldPath: `fields.ext.${namespace}.config.${key}`,
-        targetKind,
-        targetId: value,
-      });
-    }
-  }
+  collectConfigFieldRefs(input, refs);
 
   return refs;
 }
