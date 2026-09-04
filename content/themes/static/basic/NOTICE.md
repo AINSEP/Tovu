@@ -200,9 +200,17 @@ a code convention.** Verified by reading `scripts/vendor/kuinetic.all.js` direct
    stronger guarantee than `reveal.js`'s old `if (!window.Motion) return;` guard, which
    depended on a line of code rather than on there being nothing to undo.
 2. `fade-up`'s hidden state is `@keyframes kui-in-up { from { opacity:
-   var(--kui-from-opacity, 0); translate: 0 var(--kui-distance, 24px); } }` — a
-   keyframe `from` block, which applies only while the animation is running. It is never
-   a resting style.
+   var(--kui-from-opacity, 0); translate: 0 var(--kui-distance, 24px); } }` — a keyframe
+   `from` block. **Correction (2026-09-04): for an `on:enter` element that block IS a
+   resting style, and the original wording here ("never a resting style") was wrong.**
+   `compileStylePlan` emits `animation-fill-mode: both` for every track and then adds
+   `animation-play-state: paused` whenever the gate is `deferred` — which is exactly what
+   `on:enter` produces. A paused, fill-`both` animation renders its `from` frame, so the
+   element genuinely rests at `opacity: 0` until its `IntersectionObserver` fires. The
+   guarantee in (1) still holds — no script means no CSS means no hiding — but *with* the
+   script, an `on:enter` element whose observer never fires stays invisible forever. See
+   "Why the page wrappers carry no `threshold:`" at the end of this file for the
+   page-blanking regression that followed from it.
 3. The one rule that can hide an element *before* it animates is
    `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state]) { opacity: 0
    !important; }` in `@layer kui.policy`. It is gated on `data-kui-cloak` on `<html>`,
@@ -219,14 +227,26 @@ grid children. Every `[data-reveal]` element and every static grid child now car
 
     data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15"
 
+with one exception: elements whose height the template does not bound carry the same
+attribute *without* the `threshold:` token, for the reason set out under "Why the page
+wrappers carry no `threshold:`" at the end of this file.
+
+    data-kui="fade-up 600ms expo-out distance:18px on:enter"
+
 - `fade-up` -> primitive `reveal`, which owns exactly the two channels the old code
   animated (opacity + translate); `--kui-from-opacity` defaults to `0`.
 - `expo-out` -> `var(--kui-ease-expo-out)`, defined in the bundle's own token layer as
   `cubic-bezier(0.16, 1, 0.3, 1)` — **byte-for-byte the easing `reveal.js` used**. It has
   to be stated explicitly: `fade-up`'s own preset default is plain `ease-out`.
 - `distance:18px` overrides kUInetic's 24px default to match the old `translateY(18px)`.
-- `threshold:0.15` is passed straight to `IntersectionObserver`, the same meaning as
-  Motion's `amount: 0.15`. It also has to be explicit: an unset threshold parses to `0`.
+- `threshold:0.15` is passed straight to `IntersectionObserver`, and that genuinely is
+  the same number Motion used: the vendored build's `inView` ended in `threshold:
+  "number" == typeof amount ? amount : nc[amount]`, so `amount: 0.15` reached the same
+  observer option unchanged. The number was translated faithfully. Its *consequence* was
+  not: Motion applied no styles at all until `inView` fired, so an observer that could
+  never fire meant "no animation, content visible", whereas kUInetic pre-hides (see the
+  correction to (2) above). That is why the token had to be dropped wherever the observed
+  element's height is unbounded. An unset threshold parses to `0`.
 - `600ms` matches `duration: 0.6` (and happens to be the preset default anyway; stated
   for legibility since this file is hand-edited).
 
@@ -273,7 +293,38 @@ per-element delays rather than Motion's `stagger()`.
 
 **Reduced motion.** `reveal.js` returned early under `prefers-reduced-motion: reduce`,
 leaving content at its natural visible state. The `reveal` primitive declares
-`reducedMotion: "shorten"`, so kUInetic's policy layer instead forces
-`animation-duration: 1ms; animation-delay: 0ms`. Different mechanism, same visible
-result: the content is simply there. This is a mechanism change, not a behaviour change,
-but it is a change and is recorded here rather than left to be rediscovered.
+`reducedMotion: "shorten"` (`cssPrimitive`'s default, not an explicit choice), so
+kUInetic's policy layer instead forces `animation-duration: 1ms; animation-delay: 0ms`.
+**Correction (2026-09-04):** this was recorded here as "different mechanism, same visible
+result". It is not the same. `shorten` changes duration and delay only — it does not
+unpause a deferred effect — so a reduced-motion visitor still waits on the
+`IntersectionObserver` and was blanked by the bug below exactly like everyone else.
+Literal parity with `reveal.js` would mean `data-kui-rm="disable"`
+(`animation: none !important; opacity: 1 !important`) on every reveal. That is deliberately
+not done: with a satisfiable threshold the observer always fires, and a 1ms animation is
+indistinguishable from none.
+
+**Why the page wrappers carry no `threshold:`** (2026-09-04 — regression fix, and the
+rule that prevents its return). `threshold` is a fraction of the OBSERVED ELEMENT's own
+area, never of the viewport. The largest ratio an element of height `H` can reach in a
+viewport of height `V` is `min(1, V / H)`, so an element taller than `V / threshold` can
+never satisfy it — at `threshold:0.15` that ceiling is `6.67 x V`, roughly 4.8k CSS
+pixels on a laptop. Combined with the paused-`from`-frame correction to (2) above, an
+element past that height does not merely skip its reveal: it sits at `opacity: 0` with
+`data-kui-state="ready"` for the life of the page.
+
+The migration put `threshold:0.15` on the full-page content wrappers, whose height is
+whatever the author wrote. Measured on a `/sample-xai` render before the fix: article
+height 4879px, viewport 723px, peak achievable ratio 0.148 against a demanded 0.15 — nav
+and footer painted, everything between them blank white. Every page long enough was
+affected identically.
+
+The rule: **an element whose height the template does not bound gets no `threshold:`
+token.** `0` (unset) is the only value satisfiable at every height, and it costs nothing
+visually — `on:enter` at threshold 0 fires the moment the element's first pixel
+intersects the viewport, which is still a scroll entrance for anything below the fold.
+Applied here to every wrapper holding a `{"type":"content"}` embed, to the static
+`.docs-main` body, and to the `.faq-list` container, whose length the template likewise
+does not fix. Every remaining `threshold:0.15` in this theme sits on a design-bounded box
+— hero, feature card, value, changelog entry, plan card, photo tile, auth form — that
+cannot approach `6.67 x V`, and those were left as they are.

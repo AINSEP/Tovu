@@ -72,7 +72,11 @@
       <span class="kicker" style="display:block;">FAQ</span>
       <h2>Questions teams usually ask before switching</h2>
     </div>
-    <div class="faq-list" data-kui="fade-up 600ms expo-out distance:18px on:enter threshold:0.15">
+    <!-- No `threshold:` token: it is a fraction of THIS element's own area, not of the viewport, and a
+         paused `on:enter` reveal RESTS at `from { opacity: 0 }` — so on a list the template does not
+         bound the length of, a threshold this element can outgrow blanks it forever rather than just
+         skipping its animation. See NOTICE.md, "Why the page wrappers carry no threshold:". -->
+    <div class="faq-list" data-kui="fade-up 600ms expo-out distance:18px on:enter">
       <details class="faq-item" open>
         <summary>What counts as a published site?</summary>
         <p>Any site with a live URL, whether on a Basic subdomain or your own custom domain. Draft-only sites don't count against your plan.</p>
