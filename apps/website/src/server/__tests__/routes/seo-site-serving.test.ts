@@ -180,7 +180,16 @@ test("T045b: a static-tier marketing /:slug page (no backing post) also gets SEO
   );
   // Must be THIS page's own path, not silently reusing home's hardcoded "/" — the exact defect a
   // naive "just pass buildExtraHead's home args again" fix would have reintroduced.
-  assert.match(html, /<link rel="canonical" href="\/pricing"\/>/, "canonical must point at /pricing, not fall back to home's \"/\"");
+  // Absolute, not root-relative, since `d4a10b35` ("fix(seo): make canonical, og:url, og:image, and
+  // sitemap loc absolute") — a deliberate fix, not a regression: a bare relative canonical/og:url
+  // breaks social crawlers and link-preview fetchers, which require an absolute URL per the Open
+  // Graph protocol. `createRouteDeps()` seeds a verified `http://localhost:3000` origin for this
+  // workspace, so the fold resolves through that rather than falling back to a relative path.
+  assert.match(
+    html,
+    /<link rel="canonical" href="http:\/\/localhost:3000\/pricing"\/>/,
+    "canonical must point at /pricing, not fall back to home's \"/\""
+  );
 });
 
 function themeWithTemplateFixture(): DiscoveredTheme {
@@ -259,5 +268,6 @@ test("T045c: a static-tier post/page rendered through its chosen TEMPLATE also g
     /<title>Templated Post Title<\/title>/,
     "the fold's per-entry title (post.title through the default \"%s\" titleTemplate) must win, proving the ENTRY-bearing fold path (not just home's entry-less one) reaches this render"
   );
-  assert.match(html, /<link rel="canonical" href="\/templated-post"\/>/);
+  // Absolute, not root-relative — same `d4a10b35` fix as T045b above; see that test's comment for why.
+  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/templated-post"\/>/);
 });

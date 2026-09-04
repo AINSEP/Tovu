@@ -134,10 +134,43 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
 
   assert.deepEqual(report.routes.failed, []);
-  // route-manifest.test.ts's own count against this exact fixture: 1 home + 2 well-known
-  // (robots.txt/sitemap.xml) + 8 theme pages + 7 posts (the seeded "about" post is shadowed by the
-  // theme's own about.html) + 1 not-found probe.
-  assert.equal(report.routes.succeeded.length, 19);
+  // This was a bare `assert.equal(..., 19)` — route-manifest.test.ts's own count against this exact
+  // fixture at the time: 1 home + 2 well-known (robots.txt/sitemap.xml) + 8 theme pages + 7 posts
+  // (the seeded "about" post is shadowed by the theme's own about.html) + 1 not-found probe. Two
+  // later, independent, intentional decisions moved that to 13 (net -6) — NOT the tovu-com content
+  // commits from the same session (those edit `sites/tovu-com/themes/...`, a different site's own
+  // theme copy; this fixture reads `content/themes/static/basic`, which none of them touch):
+  //   -7  `ThemeManifest.publishedPages` (theme.ts, 2026-08-30 owner correction, quoted in that
+  //       field's own doc: "The pages are not published by default... because then they would have
+  //       wrong information because they're generic themes"). Applies RETROACTIVELY to every theme
+  //       with no recorded `publishedPages` array — this fixture's theme.json has none — so its 7
+  //       standalone candidate pages with no colliding post (pricing, docs, blog, changelog,
+  //       download, signin, signup) all now 404 before ever reaching the route manifest.
+  //       route-manifest.test.ts's own `withPublishedPages` helper covers this same gate. "about" is
+  //       unaffected: the seeded "about" POST already wins that slug regardless of the theme's own
+  //       publish state (see the shadowed-about.html assertion below).
+  //   +1  `8633b4ef` ("feat(seo): serve /llms.txt for AI crawlers") added /llms.txt as an
+  //       always-mounted well-known convention route, after this count was first set.
+  // 19 - 7 + 1 = 13. Asserting the actual path LIST, not a bare count, so the next drift is legible
+  // instead of a mystery integer.
+  assert.deepEqual(
+    report.routes.succeeded.map((r) => r.path).sort(),
+    [
+      "/",
+      "/about",
+      "/how-plugins-work",
+      "/how-themes-work",
+      "/llms.txt",
+      "/plugin-api",
+      "/robots.txt",
+      "/self-hosting",
+      "/sitemap.xml",
+      "/slow-mornings",
+      "/the-weight-of-type",
+      "/tovu-export-404-check",
+      "/welcome",
+    ]
+  );
 
   assert.ok(existsSync(path.join(outputDir, "index.html")), "home");
   assert.ok(existsSync(path.join(outputDir, "robots.txt")), "well-known route at its literal filename, not a subfolder");
@@ -205,12 +238,21 @@ test("exportSite: reports theme files present on disk but never rendered or craw
     "the theme's shadowed 'about' page is never rendered while the colliding post wins by default — must be reported unreferenced"
   );
 
+  // `ThemeManifest.publishedPages` (2026-08-30 owner correction, `theme.ts` — see the route-count
+  // test above for the full accounting): this fixture's theme.json ships no `publishedPages` array,
+  // so every standalone candidate page defaults to unpublished, "pricing" included — GET /pricing
+  // 404s before ever reaching a render, so `render/pages/pricing.html` is now genuinely unreferenced
+  // too, the same class of true positive as the shadowed "about" page above, not a false one.
+  assert.ok(
+    report.unreferencedThemeFiles.includes("render/pages/pricing.html"),
+    "pricing is unpublished by default (no publishedPages array on this fixture's theme.json) and is never rendered — must be reported unreferenced"
+  );
+
   // Files this export DID account for — real pages, real assets — must never appear in the same
-  // list, or the warning would be noise instead of signal. "pricing" has no colliding post in this
-  // fixture (see route-manifest.test.ts's own use of it as the canonical un-shadowed theme page), so
-  // it is the one still genuinely rendered from the theme.
+  // list, or the warning would be noise instead of signal. "index"/"404" stay structurally live
+  // regardless of publish state (`NON_ROUTABLE_THEME_PAGE_IDS`, `theme.ts`), and the CSS/JS are
+  // crawled assets, not standalone-page candidates the publish gate applies to at all.
   for (const shouldNotAppear of [
-    "render/pages/pricing.html",
     "render/pages/index.html",
     "render/pages/404.html",
     "css/theme.css",
