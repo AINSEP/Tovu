@@ -137,11 +137,18 @@ p { margin: 0; color: var(--muted); }
 :root[data-theme="light"] .theme-toggle .icon-moon { opacity: 0; transform: rotate(90deg) scale(0.6); }
 
 /* ---------- scroll reveal ----------
-   Deliberately NO default `opacity: 0` here. js/reveal.js (powered by the
-   vendored js/vendor/motion.js — MIT, see js/vendor/LICENSE.md) sets the
-   hidden-then-revealed state entirely in JS via Motion's animate()/inView()/
-   stagger(), so a visitor with JS disabled or blocked sees normal, fully
-   visible content instead of a page stuck permanently hidden. Progressive
+   Deliberately NO default `opacity: 0` here — and none arrives from anywhere else
+   either. Reveals are declared per element as `data-kui="fade-up ..."` and driven by
+   the vendored `scripts/vendor/kuinetic.all.js` (MIT, see
+   `scripts/vendor/kuinetic-LICENSE.md`), which injects its entire stylesheet itself at
+   load. So if that script is blocked or fails, no kUInetic CSS exists at all and every
+   element renders in its normal, fully visible resting state: the hidden state lives
+   only inside an `@keyframes ... from { opacity: 0 }` block, which applies while the
+   animation runs and never as a resting style. kUInetic's one rule that CAN hide
+   content before it animates —
+   `html[data-kui-cloak] [data-kui][data-kui-reveal]:not([data-kui-state])` — is opt-in
+   behind a `data-kui-cloak` attribute on `<html>` that this theme deliberately never
+   sets (the library only ever removes that attribute, never adds it). Progressive
    enhancement, not a CSS/JS handshake that can desync. */
 
 @media (prefers-reduced-motion: reduce) {
