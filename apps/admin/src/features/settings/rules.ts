@@ -1,6 +1,7 @@
-import type { SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
+import type { ByokConfig, ExecutionConfig, SourceFieldSpec, SourceFieldValues } from "@jini-ai/ui";
 
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
+import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import type { SaveState } from "../../hooks/use-settings-slice.hooks";
 
 /**
@@ -345,4 +346,18 @@ export function describeSaveStatus(save: SaveState): string {
  */
 export function resolveDialogDataTheme(theme: string): string | undefined {
   return theme === "system" ? undefined : theme;
+}
+
+/**
+ * `SettingsUi`'s own `byok` argument to `useAdminExecutionCredentialHook` — falls back to
+ * `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null` (see the call site's
+ * own comment for why that fallback is harmless). Pulled out to a top-level pure function per the
+ * same complexity-ceiling reasoning `mergeSourceUpdate` above documents: the `?.`/`??` here are
+ * their own branches under ESLint's `complexity` rule, and moving this flat expression out of
+ * `SettingsUi`'s own scope is what actually lowers its score.
+ *
+ * @complexity O(1).
+ */
+export function resolveByokConfig(executionConfig: ExecutionConfig | null): ByokConfig {
+  return executionConfig?.byok ?? DEFAULT_EXECUTION_CONFIG.byok;
 }

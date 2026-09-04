@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type { ExecutionConfig } from "@jini-ai/ui";
+
 import {
   areAnySlicesLoading,
   buildExternalMcpCardHandles,
   buildExternalMcpFieldSpecs,
   describeSaveStatus,
+  resolveByokConfig,
   resolveDialogDataTheme,
   resolveExternalMcpEffectiveAuthMode,
   resolveExternalMcpEffectiveTransport,
@@ -13,6 +16,7 @@ import {
 } from "../rules";
 import type { SaveState } from "@/hooks/use-settings-slice.hooks";
 import { firstLoadError } from "../rules";
+import { DEFAULT_EXECUTION_CONFIG } from "@/lib/execution-settings";
 
 /**
  * @file Pure-logic coverage for `features/settings/rules.ts` — the "everything resolved" gate,
@@ -74,6 +78,20 @@ describe("resolveDialogDataTheme", () => {
   it("passes any concrete theme through unchanged", () => {
     expect(resolveDialogDataTheme("light")).toBe("light");
     expect(resolveDialogDataTheme("dark")).toBe("dark");
+  });
+});
+
+describe("resolveByokConfig", () => {
+  it("falls back to DEFAULT_EXECUTION_CONFIG.byok while executionConfig is still null", () => {
+    expect(resolveByokConfig(null)).toBe(DEFAULT_EXECUTION_CONFIG.byok);
+  });
+
+  it("passes a loaded config's own byok through unchanged", () => {
+    const executionConfig: ExecutionConfig = {
+      ...DEFAULT_EXECUTION_CONFIG,
+      byok: { ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" },
+    };
+    expect(resolveByokConfig(executionConfig)).toEqual({ ...DEFAULT_EXECUTION_CONFIG.byok, model: "claude-opus-5" });
   });
 });
 

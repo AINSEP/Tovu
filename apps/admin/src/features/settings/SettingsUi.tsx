@@ -73,9 +73,8 @@ import {
 import "@jini-ai/ui/settings-dialog.css";
 import { ExternalMcpSettingsPanel } from "./ExternalMcpSettingsPanel";
 import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../../lib/settings-tabs";
-import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { navigate } from "../../lib/router";
-import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
+import { describeSaveStatus, resolveByokConfig, resolveDialogDataTheme } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import type { Translate } from "../../lib/dictionary-translator";
@@ -270,12 +269,13 @@ export function SettingsUi(props: SettingsUiProps) {
    *  header for why these live in Tovu's own dictionary rather than `SETTINGS_DIALOG_DICTIONARIES`. */
   const tCap = (key: string): string => tCapability(settingsLocale, key);
 
-  // Called unconditionally, ahead of the loading gate below (rules of hooks) — falls back to
-  // `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which is harmless:
-  // the credential hook's own effects don't read `byok` until an explicit Save/migrate press, and
-  // the tab this feeds isn't rendered until past the gate anyway.
+  // Called unconditionally, ahead of the loading gate below (rules of hooks) — `resolveByokConfig`
+  // falls back to `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which
+  // is harmless: the credential hook's own effects don't read `byok` until an explicit Save/migrate
+  // press, and the tab this feeds isn't rendered until past the gate anyway. Pulled out to `rules.ts`
+  // (2026-09-04, complexity-ceiling pass) — see `resolveByokConfig`'s own doc comment.
   const adminCredential = useAdminExecutionCredentialHook({
-    byok: (s.execution.value as ExecutionConfig | null)?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
+    byok: resolveByokConfig(s.execution.value as ExecutionConfig | null),
     onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
   });
 
