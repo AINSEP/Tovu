@@ -1,0 +1,1007 @@
+<!--
+  tovu.dev homepage — xAI visual language.
+
+  THIS IS A PAGE BODY, NOT A DOCUMENT. It is inserted into the basic theme's
+  `pages-default.html`, which supplies <html>/<head>/<body>, `.site-header` and
+  `.site-footer`. Deliberately no <!doctype>, <html>, <head> or <body> here.
+
+  Where this fragment actually lands, verified against a live render of /about:
+
+      <main>
+        <article class="wrap post-detail" data-reveal>
+          <div>
+            <div class="post-detail-header"><h1>{page title}</h1><time>…</time></div>
+            <div class="post-detail-body">  <-- THIS FRAGMENT
+          </div>
+        </article>
+      </main>
+
+  Three inherited constraints follow from that, and the `.xai-*` reset block below
+  neutralises each one deliberately rather than by accident:
+
+    1. `.wrap` caps width at var(--container) (1120px) and pads 24px.
+    2. `.post-detail` caps width at 720px and pads 72px/96px block.
+    3. `.post-detail-body` caps width at 66ch.
+
+  All three are correct for prose and wrong for a landing page, so they are cleared
+  on this page ONLY — this <style> block is page content, so it ships with this page
+  and nothing else. It does not touch any theme file.
+
+  `.post-detail-header` is hidden for the same reason: the shell renders the Page's
+  own title as an <h1> plus a publish date above the content. On a homepage that is
+  both a duplicate <h1> (a real WCAG 1.3.1 heading-order defect, not a taste call)
+  and a stray dateline. `display: none` removes it from the accessibility tree too,
+  so exactly one <h1> remains — the hero's.
+
+  kUInetic is ALREADY loaded by pages-default.html (its line 63,
+  `../scripts/vendor/kuinetic.all.js`, served at
+  /theme-assets/basic/scripts/vendor/kuinetic.all.js, verified HTTP 200, 383467 bytes).
+  No <script> tag is added here; adding a second one would double-initialise it.
+-->
+
+<style>
+/* ============================================================================
+   1. TOKENS
+
+   xAI's system is light-canonical, so the LIGHT values are the base declaration
+   and dark is the derived counterpart. This site, however, defaults to DARK:
+   `theme-toggle.js` writes `data-theme="light"` for light and REMOVES the
+   attribute for dark, and it never consults `prefers-color-scheme`. So the three
+   reachable states are `[data-theme="light"]`, `[data-theme="dark"]`, and no
+   attribute at all — and `:root:not([data-theme="light"])` covers the latter two
+   in one selector.
+
+   Both blocks are pinned at specificity (0,2,0) on purpose. The rendered <head>
+   already carries an inline `:root` (0,1,0) and `:root[data-theme="light"]`
+   (0,2,0) that define --fg/--bg/--muted/--border for the theme chrome. Matching
+   (0,2,0) and landing later in document order is what lets these win in BOTH
+   directions; a bare `:root` here would silently lose the light case.
+   ============================================================================ */
+
+/* ---- LIGHT: canonical. "Warm cream laboratory with a black pill." ---- */
+:root[data-theme="light"] {
+  --x-ink:      #0a0a0a;  /* primary text, filled CTA — never #000, for warmth */
+  --x-charcoal: #151515;  /* code + terminal panels */
+  --x-slate:    #3b3b3b;  /* secondary headlines */
+  --x-steel:    #545454;  /* body text (7.58:1 on Paper — the AA workhorse) */
+  --x-fog:      #858585;  /* icon strokes + rules ONLY. 3.69:1 — see the note below */
+  --x-pewter:   #9d9d9d;  /* decorative only. 2.71:1 — never carries text */
+  --x-dove:     #d5d9e2;  /* the ONLY border color */
+  --x-sand:     #f2ede5;  /* warm wash, badge background */
+  --x-cream:    #f9f8f6;  /* card surfaces */
+  --x-paper:    #ffffff;  /* page ground */
+
+  --x-on-fill:  #ffffff;  /* text on the filled CTA */
+  --x-orb:      rgba(255, 136, 104, 0.32);   /* ambient coral, decorative only */
+  --x-panel-fg: #f2ede5;  /* text inside the always-dark code/terminal panels */
+
+  /* Chrome remap. The inherited header/footer read these, so remapping them here
+     restyles `.site-header` / `.site-footer` / `.btn` in one move instead of
+     duplicating every theme rule. `.btn-solid` is literally
+     `background: var(--fg); color: var(--bg)` — which resolves to the black pill
+     in light and the inverted white pill in dark, for free. */
+  --fg: #0a0a0a;
+  --bg: #ffffff;
+  --muted: #545454;
+  --surface: #f9f8f6;
+  --surface-2: #f2ede5;
+  --border: #d5d9e2;
+  --border-strong: #d5d9e2;
+  --accent: #0a0a0a;      /* the system forbids chromatic links/buttons */
+  --accent-fg: #ffffff;
+}
+
+/* ---- DARK: the counterpart. Reached by [data-theme="dark"] AND by no attribute,
+   which is this site's out-of-the-box state — so it is not an afterthought.
+
+   Not an inversion of the ramp into cold grays. The light system's whole character
+   is warmth (cream, sand, "never pure black"), so the dark side keeps that axis and
+   flips only the polarity: Jet becomes the ground, the surfaces warm-shift
+   red-over-blue, and the top of the ramp is a warm off-white — never pure #fff, the
+   exact mirror of the "never pure #000" rule. ---- */
+:root:not([data-theme="light"]) {
+  --x-ink:      #f7f5f1;  /* warm off-white — mirrors "never pure black" */
+  /* Held at the light mode's Charcoal rather than dropped to pure black. Sinking
+     the panel below a #0a0a0a ground needs #000, and "never pure #000" is one of
+     the system's hard rules — it does not get an exemption just because the mode
+     flipped. Keeping #151515 also makes the dark side internally consistent:
+     every surface rises off the ground rather than some rising and some sinking.
+     The panel still reads as a panel through its mono type, title bar and
+     traffic lights, none of which depend on the fill. */
+  --x-charcoal: #151515;
+  --x-slate:    #d9d5cd;
+  --x-steel:    #b3ada3;  /* 8.88:1 on the ground */
+  --x-fog:      #8a857c;  /* 5.40:1 — clears AA for text here, unlike its light twin */
+  --x-pewter:   #6b6760;
+  --x-dove:     rgba(247, 245, 241, 0.14);
+  --x-sand:     #1c1a17;
+  --x-cream:    #141312;
+  --x-paper:    #0a0a0a;
+
+  --x-on-fill:  #0a0a0a;
+  --x-orb:      rgba(255, 136, 104, 0.20);   /* dimmed: coral blooms hard on black */
+  --x-panel-fg: #e8e4dc;
+
+  --fg: #f7f5f1;
+  --bg: #0a0a0a;
+  --muted: #b3ada3;
+  --surface: #141312;
+  --surface-2: #1c1a17;
+  --border: rgba(247, 245, 241, 0.14);
+  --border-strong: rgba(247, 245, 241, 0.22);
+  --accent: #f7f5f1;
+  --accent-fg: #0a0a0a;
+}
+
+/* ============================================================================
+   2. SHELL RESET — clear the three inherited prose caps described at the top.
+   ============================================================================ */
+main > article.post-detail {
+  max-width: none;
+  padding: 0;
+  margin: 0;
+}
+main > article.post-detail > div > .post-detail-body {
+  max-width: none;
+  font-size: 16px;
+  line-height: 1.5;
+}
+/* The shell's own title block: duplicate <h1> + stray dateline. See the file header. */
+main > article.post-detail .post-detail-header { display: none; }
+
+/* ============================================================================
+   3. INHERITED CHROME — header, nav and footer, restyled to the xAI look.
+
+   Only the handful of properties the remapped tokens above cannot reach.
+   ============================================================================ */
+:root[data-theme="light"] .site-header,
+:root:not([data-theme="light"]) .site-header {
+  background: color-mix(in srgb, var(--x-paper) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.site-header.scrolled { border-bottom-color: var(--x-dove); }
+
+/* Radius is binary in this system: 9999px or 16px. The theme ships `.btn` at 18px,
+   which is a third value and reads as a rounded rectangle rather than a pill. */
+.site-header .btn,
+.xai .btn { border-radius: 9999px; }
+
+.site-header .btn-solid { background: var(--x-ink); color: var(--x-on-fill); border-color: transparent; }
+.site-header .btn-solid:hover { opacity: 0.88; }
+/* The theme's ghost hover is a white wash (`rgba(255,255,255,0.06)`), which is
+   invisible on a white page. The system's rule is that the border APPEARS on hover
+   and the fill stays transparent. */
+.site-header .btn-ghost,
+.site-header .nav-toggle { border-color: transparent; background: transparent; color: var(--x-ink); }
+.site-header .btn-ghost:hover,
+.site-header .nav-toggle:hover { background: transparent; border-color: var(--x-dove); }
+
+.main-nav .menu-item > a { color: var(--x-steel); }
+.main-nav .menu-item > a:hover,
+.main-nav .menu-item.is-active > a,
+.main-nav .menu-item > a[aria-current="page"] { color: var(--x-ink); }
+
+.site-footer { border-top: 1px solid var(--x-dove); }
+.site-footer .footer-col h4 { color: var(--x-ink); font-size: 14px; letter-spacing: -0.01em; }
+/* 13px -> 14px: the system floors running/link text at 14px. */
+.site-footer .footer-col a { color: var(--x-steel); font-size: 14px; }
+.site-footer .footer-col a:hover { color: var(--x-ink); }
+.site-footer .footer-col p { color: var(--x-steel); font-size: 14px; }
+.site-footer .footer-bottom { border-top: 1px solid var(--x-dove); color: var(--x-steel); }
+
+/* ============================================================================
+   4. PAGE
+   ============================================================================ */
+.xai {
+  /* Söhne / GT America are not licensed here and no webfont is loaded by this
+     theme at all (verified: the rendered <head> has zero font requests and
+     theme.css has no @font-face). Geist is NAMED in the theme's variables but
+     never fetched, so it resolves to the system UI face today. Listing Geist and
+     Inter first means the page upgrades for free the day either is loaded,
+     without this page adding a render-blocking third-party request to the
+     homepage on its own initiative. */
+  --x-display: 'Geist', 'Inter Display', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --x-body:    'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --x-mono:    'Geist Mono', ui-monospace, 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+
+  font-family: var(--x-body);
+  color: var(--x-steel);
+  background: var(--x-paper);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.xai-wrap { max-width: 1200px; margin: 0 auto; padding-inline: 24px; }
+
+/* 4px base unit throughout: 4 8 12 16 20 24 32 40 48 64 96 144. */
+.xai-section {
+  padding-block: 96px;
+  border-top: 1px solid var(--x-dove);
+  /* Containment guard for the ambient orb in section 5. `clip` rather than
+     `hidden` on purpose: `overflow: hidden` would make this a scroll container,
+     and `overflow-x: hidden` alone computes overflow-y to `auto`, which is how a
+     decorative background ends up owning a scrollbar. `clip` clips without
+     either side effect. */
+  overflow: clip;
+}
+.xai-section:first-child { border-top: 0; }
+
+/* ---- type scale ---- */
+.xai h1, .xai h2, .xai h3 {
+  font-family: var(--x-display);
+  color: var(--x-ink);
+  margin: 0;
+}
+/* Headlines lock to ~1.0 line-height with tight negative tracking: monolithic
+   blocks that whisper through size and restraint, never through weight. */
+.xai-display {
+  font-size: clamp(44px, 7vw, 72px);
+  line-height: 1.0;
+  letter-spacing: -1.8px;
+  font-weight: 500;
+  max-width: 15ch;
+}
+/* The `.xai ` prefix on this rule and the ones below it is load-bearing, not a
+   habit. This fragment renders INSIDE `.post-detail-body`, whose element rules
+   (`.post-detail-body h2`, ` ul`, ` li`, ` pre`, ` code`) all score (0,1,1) and
+   therefore beat a bare single class at (0,1,0). Unprefixed, `.xai-h2` loses its
+   font-size to the article style's 26px and `.xai-index` inherits a 22px list
+   indent that knocks the whole grid off the container edge. Every rule below
+   that targets an element the article style also targets is prefixed to (0,2,x)
+   so it wins on specificity rather than on source order. */
+.xai .xai-h2 {
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.0;
+  letter-spacing: -1.5px;
+  font-weight: 500;
+  max-width: 18ch;
+  margin: 0;
+}
+.xai .xai-h3 {
+  font-size: 24px;
+  line-height: 1.33;
+  letter-spacing: -0.6px;
+  font-weight: 500;
+  margin: 0;
+}
+.xai .xai-lede {
+  font-size: 18px;
+  line-height: 1.56;   /* system ceiling for running text is 1.63 */
+  color: var(--x-steel);
+  max-width: 58ch;
+  margin: 0;
+}
+.xai p { color: var(--x-steel); margin: 0; }
+.xai .xai-body { font-size: 16px; line-height: 1.5; max-width: 62ch; margin: 0; }
+.xai .xai-caption {
+  font-size: 12px;
+  line-height: 1.67;
+  letter-spacing: -0.12px;
+  color: var(--x-steel);   /* NOT Fog: 3.69:1 fails AA at any size. See section 8. */
+}
+.xai .xai-eyebrow {
+  font-family: var(--x-mono);
+  font-size: 12px;
+  line-height: 1.67;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--x-steel);
+}
+
+/* ---- badge ---- */
+.xai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--x-sand);
+  color: var(--x-steel);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-size: 14px;
+  line-height: 20px;
+}
+.xai-badge .xai-dot {
+  width: 6px; height: 6px; border-radius: 9999px;
+  background: var(--x-ink);
+  flex: none;
+}
+
+/* ---- buttons ---- */
+.xai-cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.xai-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 9999px;
+  padding: 12px 20px;
+  font-family: var(--x-body);
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  transition: opacity 0.15s ease, border-color 0.15s ease;
+}
+.xai-btn-fill { background: var(--x-ink); color: var(--x-on-fill); }
+.xai-btn-fill:hover { opacity: 0.88; }
+/* Ghost: no fill ever, no shadow. The border is the entire hover affordance —
+   which is why it also carries `border-draw`, whose channel is `border`. */
+.xai-btn-ghost { background: transparent; color: var(--x-ink); }
+.xai-btn-ghost:hover { border-color: var(--x-dove); }
+
+/* ---- inline links ---- */
+.xai-link {
+  color: var(--x-ink);
+  text-decoration: none;
+  position: relative;
+  border-bottom: 1px solid var(--x-dove);
+  padding-bottom: 1px;
+}
+.xai-link:hover { border-bottom-color: var(--x-ink); }
+
+/* ---- cards: single hairline, no stacked shadows. Cream alone separates layers. ---- */
+.xai-card {
+  background: var(--x-cream);
+  border: 1px solid var(--x-dove);
+  border-radius: 16px;
+  padding: 40px;
+}
+.xai-card-sm { border-radius: 8px; padding: 24px; }
+
+/* ---- hero ----
+   Vertical rhythm here is `gap`, not adjacent-sibling margins, and that is a
+   correctness fix rather than a style preference. Every text rule above had to be
+   prefixed to (0,2,0) to beat `.post-detail-body p`, and each of those carries
+   `margin: 0` — which then also beat a `> * + * { margin-top }` stack rule at
+   (0,1,0) and silently collapsed every gap in this section to zero. `gap` is not
+   a margin, so nothing in the article style can reach it. */
+.xai-hero { padding-block: 96px 64px; }
+.xai .xai-hero .xai-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+.xai .xai-hero .xai-cta { margin-top: 8px; }        /* 24 gap + 8 = 32 */
+.xai .xai-hero-note { max-width: 54ch; }
+
+/* ---- generic two-column split ---- */
+.xai-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 64px;
+  align-items: start;
+}
+.xai .xai-split > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+/* Eyebrow -> headline, in the sections that are NOT a split. Inside a split the
+   pair are siblings in the flex column above and already spaced by its gap, and
+   the child combinator here keeps this from doubling up on them. */
+.xai .xai-wrap > .xai-eyebrow { margin-bottom: 12px; }
+
+/* ---- capability index ---- */
+.xai .xai-index {
+  list-style: none;
+  margin: 40px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid var(--x-dove);
+}
+.xai .xai-index > li {
+  border-bottom: 1px solid var(--x-dove);
+  padding: 20px 24px 20px 0;
+  margin: 0;   /* clears `.post-detail-body li { margin-bottom: 6px }` */
+}
+.xai .xai-index dfn {
+  display: block;
+  font-style: normal;
+  font-family: var(--x-display);
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--x-ink);
+  margin-bottom: 4px;
+}
+.xai .xai-index p { font-size: 14px; line-height: 1.43; }
+
+/* ---- tier cards ---- */
+.xai .xai-tiers {
+  list-style: none;
+  margin: 40px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+.xai .xai-tiers > li { margin: 0; }
+.xai .xai-tier {
+  height: 100%;
+  background: var(--x-cream);
+  border: 1px solid var(--x-dove);
+  border-radius: 16px;
+  padding: 24px;
+  transition: border-color 0.2s ease;
+}
+.xai .xai-tier:hover { border-color: var(--x-fog); }
+.xai .xai-tier h3 { font-size: 24px; line-height: 1.33; letter-spacing: -0.6px; font-weight: 500; margin: 0; }
+.xai .xai-tier .xai-engine {
+  display: block;
+  font-family: var(--x-mono);
+  font-size: 12px;
+  line-height: 1.67;
+  color: var(--x-steel);
+  margin: 8px 0 12px;
+}
+.xai .xai-tier p { font-size: 14px; line-height: 1.43; }
+
+/* ---- fact list ---- */
+/* 12 + the split column's 20px gap = the 32px step in the spacing scale. */
+.xai .xai-facts { list-style: none; margin: 12px 0 0; padding: 0; max-width: 62ch; width: 100%; }
+.xai .xai-facts li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  padding: 12px 0;
+  margin: 0;
+  border-bottom: 1px solid var(--x-dove);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--x-steel);
+}
+.xai .xai-facts li::before {
+  content: "";
+  flex: none;
+  width: 6px; height: 6px;
+  border-radius: 9999px;
+  background: var(--x-fog);   /* decoration only; every item is a full sentence */
+  transform: translateY(-2px);
+}
+
+/* ============================================================================
+   5. IN-CONTEXT UI MOCKUPS — built in HTML/CSS, no imagery.
+
+   These panels stay dark in BOTH modes. A terminal and a code editor are dark in
+   life, and xAI's own reference pairs the cream page with exactly this "black
+   pill". `--x-panel-fg` is the only text color used inside them, so the AA
+   contrast on these panels is fixed and does not move with the theme.
+   ============================================================================ */
+.xai-figure { margin: 0; position: relative; }
+.xai-figure figcaption { margin-top: 12px; }
+
+/* Ambient coral orb. Purely decorative, aria-hidden at the markup level by virtue
+   of being a pseudo-element, and never the sole carrier of anything. */
+.xai-figure::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  /* The right edge stops at 0, not at -8%. A negative right inset here put the
+     orb 8% of the figure's width past the viewport edge and gave the whole page
+     a horizontal scrollbar at every width below ~1300px — measured at 802px on a
+     768px viewport and 1078px on a 1024px one. The bleed now comes from the 64px
+     blur, which is ink overflow and costs no layout. */
+  inset: auto 0 -10% 20%;
+  height: 55%;
+  background: radial-gradient(ellipse at center, var(--x-orb) 0%, transparent 70%);
+  filter: blur(64px);
+  pointer-events: none;
+}
+
+.xai-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--x-charcoal);
+  border: 1px solid var(--x-dove);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.xai-panel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(242, 237, 229, 0.12);
+}
+.xai-panel-bar .xai-lights { display: flex; gap: 8px; }
+.xai-panel-bar .xai-lights span {
+  width: 12px; height: 12px; border-radius: 9999px; display: block;
+}
+.xai-panel-bar .xai-lights span:nth-child(1) { background: #ff5f57; }
+.xai-panel-bar .xai-lights span:nth-child(2) { background: #ffbd2e; }
+.xai-panel-bar .xai-lights span:nth-child(3) { background: #28c840; }
+.xai-panel-bar .xai-panel-title {
+  font-family: var(--x-mono);
+  font-size: 12px;
+  line-height: 1.67;
+  color: #a8a29a;   /* 6.0:1 on #151515 */
+  margin-left: 4px;
+}
+.xai .xai-panel pre {
+  margin: 0;
+  padding: 24px;
+  overflow-x: auto;            /* wide code scrolls in its own box, never the page */
+  font-family: var(--x-mono);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--x-panel-fg);
+  background: none;
+  border: 0;
+  border-radius: 0;
+  white-space: pre;
+  -webkit-overflow-scrolling: touch;
+}
+.xai .xai-panel pre code { font: inherit; background: none; border: 0; padding: 0; color: inherit; }
+/* Prompt sigils and shell comments. Both are paired with the literal text they
+   describe, so neither depends on color to be understood. */
+.xai-panel .tok-prompt { color: #7fd6a0; }
+.xai-panel .tok-comment { color: #a8a29a; }
+.xai-panel .tok-key { color: #9ec5ff; }
+.xai-panel .tok-str { color: #f0c98d; }
+
+/* ---- chat thread mockup ---- */
+.xai-thread {
+  position: relative;
+  z-index: 1;
+  background: var(--x-cream);
+  border: 1px solid var(--x-dove);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.xai-msg { display: flex; flex-direction: column; gap: 8px; }
+.xai-msg .xai-who {
+  font-family: var(--x-mono);
+  font-size: 12px;
+  line-height: 1.67;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--x-steel);
+}
+.xai-bubble {
+  border-radius: 16px;
+  padding: 16px 20px;
+  font-size: 16px;
+  line-height: 1.5;
+}
+.xai-bubble-user { background: var(--x-sand); color: var(--x-ink); }
+.xai-bubble-agent { background: var(--x-paper); border: 1px solid var(--x-dove); color: var(--x-steel); }
+/* The article style gives inline <code> a 4px radius, which is a fifth radius
+   value in a system that allows exactly 9999px / 16px / 8px / 6px. Pinned to 6px. */
+.xai .xai-bubble code {
+  font-family: var(--x-mono);
+  font-size: 14px;
+  line-height: inherit;
+  background: var(--x-sand);
+  border: 1px solid var(--x-dove);
+  border-radius: 6px;
+  padding: 1px 6px;
+  color: var(--x-ink);
+}
+.xai .xai-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.xai .xai-tools > li { margin: 0; }
+.xai .xai-tool {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--x-dove);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  font-family: var(--x-mono);
+  font-size: 12px;
+  line-height: 1.67;
+  color: var(--x-ink);
+  background: var(--x-paper);
+}
+.xai .xai-tool svg { flex: none; }
+
+/* Icons: stroke-based, 1.5px, Fog at rest -> Ink on hover. Fog is 3.69:1 on Paper,
+   which clears the 3:1 floor WCAG 1.4.11 sets for graphical objects — the same
+   value that fails the 4.5:1 text floor. That is why Fog lives here and never in
+   a paragraph. */
+.xai .xai-icon { stroke: var(--x-fog); stroke-width: 1.5; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.xai .xai-tool:hover .xai-icon { stroke: var(--x-ink); }
+
+/* ============================================================================
+   6. FOCUS — the theme ships no :focus-visible style at all, so every
+   interactive element on this page defines its own.
+   ============================================================================ */
+.xai a:focus-visible,
+.xai button:focus-visible {
+  outline: 2px solid var(--x-ink);
+  outline-offset: 3px;
+  border-radius: 9999px;
+}
+
+/* ============================================================================
+   7. RESPONSIVE
+   ============================================================================ */
+/* Every selector below carries the same `.xai ` prefix as its base rule. A media
+   query adds NO specificity of its own, so a bare `.xai-index` here would score
+   (0,1,0) and lose outright to the (0,2,0) base rule — the grid would keep three
+   columns at 390px no matter how narrow the viewport got. */
+@media (max-width: 900px) {
+  .xai .xai-split { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .xai .xai-index { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xai .xai-tiers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .xai-section { padding-block: 64px; }
+  .xai-hero { padding-block: 64px 48px; }
+  .xai-card { padding: 24px; }
+}
+@media (max-width: 560px) {
+  .xai .xai-index { grid-template-columns: minmax(0, 1fr); }
+  .xai .xai-tiers { grid-template-columns: minmax(0, 1fr); }
+  .xai .xai-index > li { padding-right: 0; }
+  .xai-display { letter-spacing: -1.2px; }
+  .xai .xai-h2 { letter-spacing: -1.0px; }
+  .xai-wrap { padding-inline: 20px; }
+}
+
+/* kUInetic already shortens its own effects under reduced motion; this covers the
+   plain CSS transitions declared above, which it does not manage. */
+@media (prefers-reduced-motion: reduce) {
+  .xai *, .xai *::before, .xai *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+</style>
+
+<div class="xai">
+
+  <!-- ======================================================================
+       HERO
+       `text-reveal-mask` is the ONLY effect on the <h1>: it resolves to the
+       `split-text` primitive (unit: lines, direction: mask), so it owns the mask
+       channel alone. `--kui-mask-bleed` is required at this leading — the
+       headline is locked to line-height 1.0, and without the bleed the mask box
+       shears the descenders off "y" and "g" mid-reveal.
+
+       It is also safe to put on the page's only <h1>: this preset carries
+       `cloak: true`, and the runtime's cloak has a watchdog that uncloaks on a
+       stalled init, while the cloak CSS ships inside the bundle itself — so a
+       kUInetic that fails to load leaves the headline plainly visible rather
+       than permanently hidden.
+       ====================================================================== -->
+  <section class="xai-section xai-hero">
+    <div class="xai-wrap">
+
+      <p class="xai-badge" data-kui="fade-up on:load">
+        <span class="xai-dot" aria-hidden="true"></span>
+        MVP &middot; runs on your own machine &middot; no account
+      </p>
+
+      <h1 class="xai-display"
+          data-kui="text-reveal-mask on:load 900ms"
+          style="--kui-mask-bleed:0.1em">Operate your site by talking to it.</h1>
+
+      <p class="xai-lede" data-kui="fade-up on:load delay:200ms">
+        Tovu is a self-hosted content platform. Every capability the admin
+        exposes &mdash; pages, themes, media, forms, members, plugins &mdash; is
+        also a tool an AI assistant can call. An agent can ask the site what it
+        is able to do, and then actually do it.
+      </p>
+
+      <div class="xai-cta" data-kui="fade-up on:load delay:320ms">
+        <a class="xai-btn xai-btn-fill" href="/quickstart">Read the quickstart</a>
+        <a class="xai-btn xai-btn-ghost" href="/install" data-kui="border-draw on:hover">Install from source</a>
+      </div>
+
+      <p class="xai-body xai-hero-note" data-kui="fade-up on:load delay:420ms">
+        Tovu is at MVP. There is no package, no binary and no hosted plan yet
+        &mdash; you clone the repository and run it. That is the whole install
+        story, and this page will say so until it changes.
+      </p>
+
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       TERMINAL MOCKUP
+       Commands copied verbatim from the site's own /install page rather than
+       invented: clone, npm install, then the CLI's source invoked through tsx.
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <figure class="xai-figure" data-kui="fade-blur-up on:enter 700ms">
+        <div class="xai-panel">
+          <div class="xai-panel-bar">
+            <span class="xai-lights" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span class="xai-panel-title">bash &mdash; a new site, start to finish</span>
+          </div>
+<pre><code><span class="tok-prompt">$</span> git clone https://github.com/leonaburime-ucla/Tovu.git
+<span class="tok-prompt">$</span> cd Tovu &amp;&amp; npm install
+
+<span class="tok-comment"># No build step needed — run the CLI's source through tsx.</span>
+<span class="tok-prompt">$</span> npx tsx apps/website/src/cli/main.ts init my-site
+<span class="tok-prompt">$</span> npx tsx apps/website/src/cli/main.ts serve my-site
+
+<span class="tok-comment"># serve prints two addresses: your public site, and its admin.</span>
+<span class="tok-comment"># Nothing was uploaded. The site is a folder on your disk.</span></code></pre>
+        </div>
+        <figcaption class="xai-caption">
+          A terminal transcript of the four commands on the
+          <a class="xai-link" href="/install">install page</a>: clone the
+          repository, install dependencies, create a site, serve it.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       THESIS
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <div class="xai-split">
+        <div>
+          <p class="xai-eyebrow" data-kui="fade-up on:enter">The idea</p>
+          <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">One capability. Two front doors.</h2>
+        </div>
+        <div>
+          <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
+            Tovu does not bolt a chat window onto an admin panel. Each
+            capability area is built once and exposed twice: as a screen a
+            person clicks, and as a typed tool an assistant calls. Both doors
+            open onto the same code, so they cannot drift apart.
+          </p>
+          <p class="xai-body" data-kui="fade-up on:enter delay:240ms">
+            That means an agent working on your site is not screen-scraping a
+            dashboard or guessing at an API. It reads the same tool definitions
+            the admin was built from, learns what this particular site can do,
+            and then does it &mdash; under the same permissions and the same
+            validation a human editor would hit.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       CAPABILITY INDEX
+       Every entry below corresponds to a real feature directory that ships its
+       own agent tool definitions. Nothing here is aspirational.
+
+       `data-kui-stagger` on the <ul>, effects on the <li>s: that is the actual
+       declarative group mechanism. The runtime's `indexStaggerGroup` reads
+       `data-kui-stagger` off the parent and walks `parent.children`, assigning
+       `--kui-i` to each child that carries its own `data-kui`. A `stagger:`
+       token inside `data-kui` is a different thing — a parameter of the
+       split-text effects, not a group control.
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <p class="xai-eyebrow" data-kui="fade-up on:enter">The tool surface</p>
+      <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">What it can be asked to do.</h2>
+      <p class="xai-lede" style="margin-top:20px" data-kui="fade-up on:enter delay:160ms">
+        Each area below ships tool definitions next to its admin screens.
+      </p>
+
+      <ul class="xai-index" data-kui-stagger="60ms">
+        <li data-kui="fade-up on:enter"><dfn>Pages</dfn><p>Structure, templates and routing.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Posts</dfn><p>Drafts, publishing and search.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Media</dfn><p>Uploads, and generated assets.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Themes</dfn><p>Install, switch, and edit theme files.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Forms</dfn><p>Definitions, fields and submissions.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Members</dfn><p>Accounts, roles and access.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Newsletter</dfn><p>Lists, issues and sends.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Comments</dfn><p>Threads and moderation.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Taxonomy</dfn><p>Categories, tags and terms.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Widgets</dfn><p>Reusable blocks, regions and embeds.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Redirects</dfn><p>Rules, status codes and hit counts.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>SEO</dfn><p>Metadata, overrides and sitemaps.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Deployments</dfn><p>Builds and static export.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Webhooks</dfn><p>Outbound event delivery.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>External MCP</dfn><p>Connect third-party tool servers.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Credentials</dfn><p>Stored secrets, sealed at rest.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Recovery</dfn><p>Restore points and rollback.</p></li>
+        <li data-kui="fade-up on:enter"><dfn>Plugins</dfn><p>Bundled and installed extensions.</p></li>
+      </ul>
+
+      <p class="xai-body" style="margin-top:32px" data-kui="fade-up on:enter">
+        The <a class="xai-link" href="/docs">documentation</a> covers each area,
+        and the <a class="xai-link" href="/catalog">catalog</a> lists what is
+        installable today.
+      </p>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       CHAT THREAD MOCKUP
+       The tool names shown are real: `redirects_create` and
+       `seo_regenerate_sitemap` both exist in the redirects and seo tool
+       definitions. The scenario is a real one this very site went through when
+       /blog was renamed to /articles.
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <div class="xai-split">
+        <div>
+          <p class="xai-eyebrow" data-kui="fade-up on:enter">In practice</p>
+          <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">Ask in plain language.</h2>
+          <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
+            The assistant does not have a script for this. It looks at the tools
+            the site advertises, picks the two that apply, and calls them. Every
+            call is a normal, audited write &mdash; the same one the admin screen
+            would have made.
+          </p>
+          <p class="xai-body" data-kui="fade-up on:enter delay:240ms">
+            Which also means the reverse is true: anything the assistant does,
+            you can find, review and undo in the admin afterwards.
+          </p>
+        </div>
+
+        <figure class="xai-figure" data-kui="fade-blur-up on:enter 700ms">
+          <div class="xai-thread">
+
+            <div class="xai-msg">
+              <p class="xai-who">You</p>
+              <div class="xai-bubble xai-bubble-user">
+                /blog is 404ing since we renamed it. Send it to /articles and
+                refresh the sitemap.
+              </div>
+            </div>
+
+            <div class="xai-msg">
+              <p class="xai-who">Assistant</p>
+              <ul class="xai-tools">
+                <li class="xai-tool">
+                  <svg class="xai-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>
+                  redirects_create
+                </li>
+                <li class="xai-tool">
+                  <svg class="xai-icon" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 9 9 9 9 0 0 1-9 9 9 9 0 0 1-9-9z"/><path d="M3.6 9h16.8M3.6 15h16.8"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18z"/></svg>
+                  seo_regenerate_sitemap
+                </li>
+              </ul>
+              <div class="xai-bubble xai-bubble-agent">
+                Added a 301 from <code>/blog</code> to <code>/articles</code> and
+                regenerated the sitemap. The old URL now resolves instead of
+                returning a 404.
+              </div>
+            </div>
+
+          </div>
+          <figcaption class="xai-caption">
+            A chat thread: a request in plain English, the two tools the
+            assistant chose, and what it reported back.
+          </figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       THEME TIERS
+       Four tiers, named exactly as the theme tool defines them. A fifth, `code`,
+       is reserved in the code with no themes existing, so it is not advertised
+       here.
+
+       `fade-up` on the <li> and `lift` on the <article> inside it — deliberately
+       NOT on the same element. `fade-up` resolves to the `reveal` primitive
+       (channels: opacity + translate) and `lift` is a hover primitive whose
+       channel is also `translate`; on one element the runtime flags them as
+       both animating translate. Splitting them across the two elements gives
+       the same result with no channel collision.
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <p class="xai-eyebrow" data-kui="fade-up on:enter">Themes</p>
+      <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">Four ways to build a front end.</h2>
+      <p class="xai-lede" style="margin-top:20px" data-kui="fade-up on:enter delay:160ms">
+        A theme declares which tier it is, and the renderer picks the engine to
+        match. Plain HTML is a first-class option, not a fallback.
+      </p>
+
+      <ul class="xai-tiers" data-kui-stagger="70ms">
+        <li data-kui="fade-up on:enter">
+          <article class="xai-tier" data-kui="lift on:hover">
+            <h3>Static</h3>
+            <span class="xai-engine">html + css + js</span>
+            <p>Plain pages. What you write is what ships.</p>
+          </article>
+        </li>
+        <li data-kui="fade-up on:enter">
+          <article class="xai-tier" data-kui="lift on:hover">
+            <h3>Templated</h3>
+            <span class="xai-engine">liquidjs</span>
+            <p>Loops, conditionals and partials over your content.</p>
+          </article>
+        </li>
+        <li data-kui="fade-up on:enter">
+          <article class="xai-tier" data-kui="lift on:hover">
+            <h3>Handlebars</h3>
+            <span class="xai-engine">handlebars</span>
+            <p>The same idea, in a syntax you may already have themes in.</p>
+          </article>
+        </li>
+        <li data-kui="fade-up on:enter">
+          <article class="xai-tier" data-kui="lift on:hover">
+            <h3>Declarative</h3>
+            <span class="xai-engine">json block trees</span>
+            <p>No template language. Structure an agent can edit safely.</p>
+          </article>
+        </li>
+      </ul>
+
+      <figure class="xai-figure" style="margin-top:48px" data-kui="fade-blur-up on:enter 700ms">
+        <div class="xai-panel">
+          <div class="xai-panel-bar">
+            <span class="xai-lights" aria-hidden="true"><span></span><span></span><span></span></span>
+            <span class="xai-panel-title">declarative &mdash; a block tree</span>
+          </div>
+<pre><code>{
+  <span class="tok-key">"type"</span>: <span class="tok-str">"section"</span>,
+  <span class="tok-key">"children"</span>: [
+    { <span class="tok-key">"type"</span>: <span class="tok-str">"heading"</span>, <span class="tok-key">"level"</span>: 2, <span class="tok-key">"text"</span>: <span class="tok-str">"Latest"</span> },
+    { <span class="tok-key">"type"</span>: <span class="tok-str">"post-list"</span>, <span class="tok-key">"limit"</span>: 5 }
+  ]
+}</code></pre>
+        </div>
+        <figcaption class="xai-caption">
+          A declarative theme is a tree of typed blocks rather than a template
+          file &mdash; which is what makes it safe for an assistant to edit.
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       OWNERSHIP
+       Every claim here comes from the site's own install and quickstart pages.
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <div class="xai-split">
+        <div>
+          <p class="xai-eyebrow" data-kui="fade-up on:enter">Where it runs</p>
+          <h2 class="xai-h2" data-kui="fade-up on:enter delay:80ms">On your machine, in one folder.</h2>
+        </div>
+        <div>
+          <p class="xai-body" data-kui="fade-up on:enter delay:160ms">
+            A Tovu site is a directory. The database, the uploads, the themes and
+            the plugins all live inside it. Copy it, commit it, or hand it to
+            someone else &mdash; that is the whole migration story.
+          </p>
+          <ul class="xai-facts" data-kui-stagger="60ms">
+            <li data-kui="fade-up on:enter">Node.js 24 or newer, git and npm. Nothing else.</li>
+            <li data-kui="fade-up on:enter">No Docker, and no database server to run.</li>
+            <li data-kui="fade-up on:enter">Each site carries its own SQLite database, in its own folder.</li>
+            <li data-kui="fade-up on:enter">No signup, no account and no hosted plan.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       CLOSE
+       ====================================================================== -->
+  <section class="xai-section">
+    <div class="xai-wrap">
+      <div class="xai-card" data-kui="fade-up on:enter">
+        <h2 class="xai-h3">Start with ten minutes.</h2>
+        <p class="xai-body" style="margin-top:12px">
+          The quickstart goes from an empty folder to a published post. If you
+          would rather read first, the documentation explains how the pieces fit
+          together before you install anything.
+        </p>
+        <div class="xai-cta" style="margin-top:24px">
+          <a class="xai-btn xai-btn-fill" href="/quickstart">Quickstart</a>
+          <a class="xai-btn xai-btn-ghost" href="/docs" data-kui="border-draw on:hover">Documentation</a>
+          <a class="xai-btn xai-btn-ghost" href="/catalog" data-kui="border-draw on:hover">Catalog</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
