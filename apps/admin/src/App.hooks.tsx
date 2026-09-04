@@ -15,6 +15,7 @@ import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api"
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
+import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
 import type { AdminNavGroup } from "./nav";
 
 /**
@@ -298,6 +299,42 @@ export function useSidebarDrawer({ routePath }: { routePath: string }): UseSideb
  */
 export function useInternalLinkInterceptor(): void {
   useEffect(() => installInternalLinkInterceptor(), []);
+}
+
+/**
+ * `App.tsx`'s `dockT` translator, minus the `ASSISTANT_DOCK_DICT[locale]?.[key] ?? key` fallback
+ * chain itself — kept here rather than as an inline closure in `App.tsx` per this codebase's
+ * standing rule against derived logic living in a `.tsx` file (see `App.tsx`'s `AssistantChrome`
+ * for the same reasoning applied to JSX branches). `App.tsx` still defines its own `dockT` closure
+ * (`(key) => translateAssistantDockLabel(navLocale, key)`) so every existing call site keeps
+ * calling `dockT("...")` with no `locale` argument to thread through by hand.
+ */
+export function translateAssistantDockLabel(locale: string, key: string): string {
+  return ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
+}
+
+/**
+ * The clearance `ChatFab` needs to avoid overlapping the assistant dock/sheet — pure derived state
+ * from `useChatDockLayout`'s own output, factored out for the same "no derived logic in `.tsx`"
+ * reason as {@link translateAssistantDockLabel} above. Bottom clearance only applies in sheet mode
+ * (a *bottom* sheet), right clearance only at desktop widths (the docked panel sits beside
+ * `.admin-content`, not below it) — see `UseChatDockLayout.isSheetMode`'s own doc for why the two
+ * are mutually exclusive rather than both potentially nonzero.
+ *
+ * @example
+ * const { avoidBottomPx, avoidRightPx } = resolveChatFabClearance({ isSheetMode, chatOpen, sheetHeightPx, dockWidthPx });
+ */
+export function resolveChatFabClearance(params: {
+  isSheetMode: boolean;
+  chatOpen: boolean;
+  sheetHeightPx: number;
+  dockWidthPx: number;
+}): { avoidBottomPx: number; avoidRightPx: number } {
+  const { isSheetMode, chatOpen, sheetHeightPx, dockWidthPx } = params;
+  return {
+    avoidBottomPx: isSheetMode && chatOpen ? sheetHeightPx : 0,
+    avoidRightPx: !isSheetMode && chatOpen ? dockWidthPx : 0,
+  };
 }
 
 export interface UseChatDockLayout {

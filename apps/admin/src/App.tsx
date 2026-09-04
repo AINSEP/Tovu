@@ -1,4 +1,5 @@
 import { useMemo, type ReactNode } from "react";
+import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { ConfirmDialog, Sidebar, useSidebar } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
@@ -12,8 +13,9 @@ import { t as tApp } from "./app-i18n";
 import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
-import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
 import {
+  resolveChatFabClearance,
+  translateAssistantDockLabel,
   useAdminAssistantAvailability,
   useAdminSession,
   useAgentPageBridge,
@@ -195,6 +197,143 @@ function LogoutConfirmDialog(props: { logoutConfirm: UseLogoutConfirm; locale: s
   );
 }
 
+/**
+ * The assistant dock/sheet chrome and its `ChatFab` trigger — split out of `App` for the same
+ * "independent branches scored in their own scope" reasoning `SidebarLogoutButton`/
+ * `LogoutConfirmDialog` above already are, and `Media.tsx`'s `MediaToolbar`/`MediaPurgeDialog`
+ * document in full: the `enabled` gate, the sheet-expand toggle's icon/label ternaries, and the
+ * FAB clearance math were four of `App`'s own independent branches (`enabled` alone was the
+ * `adminAssistantEnabled ? (...) : null` ternary this file's own comments used to sit around).
+ * Returns `null` internally rather than `App` deciding whether to render this at all, so `App`
+ * itself carries no conditional for it — always rendered, `enabled` decides.
+ *
+ * The FAB clearance math (`resolveChatFabClearance`, `App.hooks.tsx`) is pure derived state, not
+ * JSX — kept out of this component's own body for the same reason it was never inline JSX-prop
+ * ternaries here.
+ */
+function AssistantChrome(props: {
+  /** `TOVU_ADMIN_ASSISTANT=off` (`useAdminAssistantAvailability`'s own doc): the chat surface
+   *  itself, not rendered at all in that state — every endpoint it calls 404s off, so mounting it
+   *  anyway would show a permanently broken dock instead of nothing. Distinct from the
+   *  `ai-assistant` operator control panel (`panels.tsx`), which stays reachable regardless. */
+  enabled: boolean;
+  chatOpen: boolean;
+  setChatOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  sheetExpanded: boolean;
+  setSheetExpanded: React.Dispatch<React.SetStateAction<boolean>>;
+  isSheetMode: boolean;
+  sheetHeightPx: number;
+  dockWidthPx: number;
+  chatDockRef: React.RefObject<HTMLElement | null>;
+  chatFabRef: React.RefObject<HTMLButtonElement | null>;
+  agentBridge: FrontendSessionBridge | null;
+  /** Bound translator — see `App`'s own `dockT` for where this comes from. */
+  dockT: (key: string) => string;
+  locale: string;
+}): ReactNode {
+  if (!props.enabled) return null;
+
+  const {
+    chatOpen,
+    setChatOpen,
+    sheetExpanded,
+    setSheetExpanded,
+    isSheetMode,
+    sheetHeightPx,
+    dockWidthPx,
+    chatDockRef,
+    chatFabRef,
+    agentBridge,
+    dockT,
+    locale,
+  } = props;
+  const { avoidBottomPx, avoidRightPx } = resolveChatFabClearance({ isSheetMode, chatOpen, sheetHeightPx, dockWidthPx });
+
+  return (
+    <>
+      {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
+          survive both closing the dock and navigating to a different section (ADR-049).
+          `inert` alongside it (not instead of it) — belt-and-suspenders: `hidden` already drops
+          this to `display: none`, which removes it from the tab order and accessibility tree on
+          its own, but `inert` states that intent explicitly rather than leaving it as a side
+          effect of a display value. `tabIndex={-1}` makes the element a valid *programmatic*
+          focus target (the open-focus effect in `useChatDockLayout`) without adding it to the
+          normal Tab order — the sheet's own close button and the assistant's composer are what Tab
+          should reach, not the `<aside>` wrapper itself. */}
+      {/*
+        `data-theme="light"` is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
+        and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
+        inside `<AssistantDock>`.
+
+        The runtime picker's BYOK model dropdown is `@jini-ai/ui`'s `CustomSelect`, which portals its
+        menu to `document.body` and so escapes any ancestor's theme. It compensates by copying the
+        theme from its trigger's nearest `[data-theme]` ancestor. The dock had none, so the menu fell
+        through to the stylesheet's dark variant and opened dark inside an all-light admin.
+
+        A `display: contents` wrapper inside `AssistantDock` looks like the tidier place for this and
+        is a trap: it generates no box, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }`
+        matched the wrapper and applied to nothing, while `ChatPane` — a grandchild in the DOM, which
+        is what child combinators read — stopped matching it at all and collapsed to content width.
+        Measured: the dock rendered at roughly half its width. Putting the attribute here adds no
+        element and cannot affect layout.
+      */}
+      <aside
+        ref={chatDockRef}
+        data-theme="light"
+        className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
+        hidden={!chatOpen}
+        inert={!chatOpen}
+        tabIndex={-1}
+        aria-label="Assistant"
+      >
+        {/* Mobile-sheet-only chrome (`styles.css` hides this at desktop widths, where the docked
+            panel closes only via the FAB same as before) — rendered here, around
+            `<AssistantDock>`, rather than inside it: that component's own internals are not
+            where this dispatch's changes belong (ADR-049's "never unmount" is about not touching
+            its mount lifecycle, and staying out of its render body is the safest way to honor
+            that). */}
+        <div className="chat-sheet-bar">
+          <span className="chat-sheet-handle" aria-hidden="true" />
+          <span className="chat-sheet-bar-title">{dockT("Tovu assistant")}</span>
+          <span className="chat-sheet-bar-actions">
+            <button
+              type="button"
+              className="chat-sheet-action"
+              onClick={() => setSheetExpanded((current) => !current)}
+              aria-expanded={sheetExpanded}
+              aria-label={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                {sheetExpanded ? <path d="M4 11.5 9 6.5l5 5" /> : <path d="M4 6.5 9 11.5l5-5" />}
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="chat-sheet-action"
+              onClick={() => setChatOpen(false)}
+              aria-label={dockT("Close assistant")}
+            >
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
+              </svg>
+            </button>
+          </span>
+        </div>
+        <AssistantDock agentBridge={agentBridge} />
+      </aside>
+      <ChatFab
+        ref={chatFabRef}
+        open={chatOpen}
+        onToggle={() => setChatOpen((current) => !current)}
+        label={dockT("assistant")}
+        locale={locale}
+        avoidBottomPx={avoidBottomPx}
+        avoidRightPx={avoidRightPx}
+      />
+    </>
+  );
+}
+
 export interface AppProps {
   /**
    * Injectable seam for the boot-time auth check — defaults to the real {@link useAdminSession}.
@@ -321,7 +460,7 @@ export function App(props: AppProps) {
   /** Same `navLocale`, reused for the assistant dock's mobile-sheet chrome and `ChatFab`'s
    *  "assistant" label below — both live here rather than inside `AssistantDock.tsx`/`ChatFab.tsx`
    *  themselves (see the `<aside>`'s own comment for why), so this is that chrome's translation. */
-  const dockT = (key: string): string => ASSISTANT_DOCK_DICT[navLocale]?.[key] ?? key;
+  const dockT = (key: string): string => translateAssistantDockLabel(navLocale, key);
 
   // See `useCollapsibleNavGroupLabels`'s own doc for which groups collapse and why.
   const collapsibleGroups = useCollapsibleNavGroupLabels(navGroups);
@@ -415,93 +554,23 @@ export function App(props: AppProps) {
           {content}
         </main>
       </div>
-      {/* `TOVU_ADMIN_ASSISTANT=off` (`useAdminAssistantAvailability`'s own doc): the chat surface
-          itself, not rendered at all in that state — every endpoint it calls 404s off, so mounting
-          it anyway would show a permanently broken dock instead of nothing. Distinct from the
-          `ai-assistant` operator control panel (`panels.tsx`), which stays reachable regardless. */}
-      {adminAssistantEnabled ? (
-        <>
-          {/* `hidden`, never unmounted: every admin page shares one assistant conversation, which must
-              survive both closing the dock and navigating to a different section (ADR-049).
-              `inert` alongside it (not instead of it) — belt-and-suspenders: `hidden` already drops
-              this to `display: none`, which removes it from the tab order and accessibility tree on
-              its own, but `inert` states that intent explicitly rather than leaving it as a side
-              effect of a display value. `tabIndex={-1}` makes the element a valid *programmatic*
-              focus target (the open-focus effect in `useChatDockLayout`) without adding it to the
-              normal Tab order — the sheet's own close button and the assistant's composer are what Tab
-              should reach, not the `<aside>` wrapper itself. */}
-          {/*
-            `data-theme="light"` is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
-            and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
-            inside `<AssistantDock>`.
-
-            The runtime picker's BYOK model dropdown is `@jini-ai/ui`'s `CustomSelect`, which portals its
-            menu to `document.body` and so escapes any ancestor's theme. It compensates by copying the
-            theme from its trigger's nearest `[data-theme]` ancestor. The dock had none, so the menu fell
-            through to the stylesheet's dark variant and opened dark inside an all-light admin.
-
-            A `display: contents` wrapper inside `AssistantDock` looks like the tidier place for this and
-            is a trap: it generates no box, so `assistant.css`'s `.admin-chat-dock > * { flex: 1 }`
-            matched the wrapper and applied to nothing, while `ChatPane` — a grandchild in the DOM, which
-            is what child combinators read — stopped matching it at all and collapsed to content width.
-            Measured: the dock rendered at roughly half its width. Putting the attribute here adds no
-            element and cannot affect layout.
-          */}
-          <aside
-            ref={chatDockRef}
-            data-theme="light"
-            className={`admin-chat-dock${chatOpen ? " is-open" : ""}${sheetExpanded ? " is-expanded" : ""}`}
-            hidden={!chatOpen}
-            inert={!chatOpen}
-            tabIndex={-1}
-            aria-label="Assistant"
-          >
-            {/* Mobile-sheet-only chrome (`styles.css` hides this at desktop widths, where the docked
-                panel closes only via the FAB same as before) — rendered here, around
-                `<AssistantDock>`, rather than inside it: that component's own internals are not
-                where this dispatch's changes belong (ADR-049's "never unmount" is about not touching
-                its mount lifecycle, and staying out of its render body is the safest way to honor
-                that). */}
-            <div className="chat-sheet-bar">
-              <span className="chat-sheet-handle" aria-hidden="true" />
-              <span className="chat-sheet-bar-title">{dockT("Tovu assistant")}</span>
-              <span className="chat-sheet-bar-actions">
-                <button
-                  type="button"
-                  className="chat-sheet-action"
-                  onClick={() => setSheetExpanded((current) => !current)}
-                  aria-expanded={sheetExpanded}
-                  aria-label={sheetExpanded ? dockT("Collapse assistant panel") : dockT("Expand assistant panel")}
-                >
-                  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                    {sheetExpanded ? <path d="M4 11.5 9 6.5l5 5" /> : <path d="M4 6.5 9 11.5l5-5" />}
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  className="chat-sheet-action"
-                  onClick={() => setChatOpen(false)}
-                  aria-label={dockT("Close assistant")}
-                >
-                  <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                    <path d="M5 5 13 13M13 5 5 13" strokeLinecap="round" />
-                  </svg>
-                </button>
-              </span>
-            </div>
-            <AssistantDock agentBridge={agentBridge} />
-          </aside>
-          <ChatFab
-            ref={chatFabRef}
-            open={chatOpen}
-            onToggle={() => setChatOpen((current) => !current)}
-            label={dockT("assistant")}
-            locale={navLocale}
-            avoidBottomPx={isSheetMode && chatOpen ? sheetHeightPx : 0}
-            avoidRightPx={!isSheetMode && chatOpen ? dockWidthPx : 0}
-          />
-        </>
-      ) : null}
+      {/* See `AssistantChrome`'s own doc comment for why this is unconditional — `enabled` is what
+          decides, not a ternary here. */}
+      <AssistantChrome
+        enabled={adminAssistantEnabled}
+        chatOpen={chatOpen}
+        setChatOpen={setChatOpen}
+        sheetExpanded={sheetExpanded}
+        setSheetExpanded={setSheetExpanded}
+        isSheetMode={isSheetMode}
+        sheetHeightPx={sheetHeightPx}
+        dockWidthPx={dockWidthPx}
+        chatDockRef={chatDockRef}
+        chatFabRef={chatFabRef}
+        agentBridge={agentBridge}
+        dockT={dockT}
+        locale={navLocale}
+      />
       {/* Rendered unconditionally on `chatOpen`, deliberately: the assistant can capture a
           screenshot while the panel is collapsed (a background run in flight), and the operator must
           see the announcement either way — see `screenshotAnnounced`'s own comment above. */}
