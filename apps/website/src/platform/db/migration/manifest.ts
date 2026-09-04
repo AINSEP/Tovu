@@ -449,42 +449,57 @@ export type SemanticColumnClass =
   | { readonly kind: "plain-text" };
 
 /**
- * Classifies one column of one CORE (schema.ts) table. Throws if an autoincrement primary key has
- * no entry in `REVIEWED_INTEGER_ID_COLUMNS` — see that registry's own doc for why that is a feature,
- * not a bug: a schema change this manifest has not been updated for must fail loudly here, not
- * silently classify as "must be fine."
+ * The `SQLiteInteger` half of `classifyCoreColumn` — extracted so the top-level switch stays a flat
+ * dispatch and this case's own two-step review-then-autoincrement logic reads (and is measured) on
+ * its own. Throws if an autoincrement primary key has no entry in `REVIEWED_INTEGER_ID_COLUMNS` — see
+ * that registry's own doc for why that is a feature, not a bug: a schema change this manifest has not
+ * been updated for must fail loudly here, not silently classify as "must be fine."
+ */
+function classifyCoreIntegerColumn(key: string, col: SQLiteColumn): SemanticColumnClass {
+  const review = REVIEWED_INTEGER_ID_COLUMNS[key];
+  if (review) return { kind: "reviewed-id", growthClass: review.growthClass, rationale: review.rationale };
+  const isAutoIncrementPk = Boolean(col.primary) && Boolean((col as unknown as { autoIncrement?: boolean }).autoIncrement);
+  if (isAutoIncrementPk) {
+    throw new Error(
+      `autoincrement primary key "${key}" has no entry in REVIEWED_INTEGER_ID_COLUMNS. A new autoincrement ` +
+        `column must be explicitly reviewed and assigned a growth class ("unbounded" or "bounded") before this ` +
+        `manifest can vouch for it — see that registry's doc for why this fails closed instead of guessing.`
+    );
+  }
+  return { kind: "plain-integer" };
+}
+
+/**
+ * The `SQLiteText` half of `classifyCoreColumn` — extracted for the same reason as
+ * `classifyCoreIntegerColumn` above.
+ *
+ * `REVIEWED_JSON_COLUMNS` checked ALONGSIDE the naming convention, not only as a fallback after it —
+ * a column can be genuinely JSON while matching neither `isJsonColumnName` nor `isTimestampColumnName`,
+ * which is exactly the round-3-audit gap that registry closes (see its own doc). Order between the two
+ * checks does not matter (either can be genuinely JSON on its own), but JSON is checked before the
+ * timestamp convention so a hypothetical future registry entry could never be shadowed by a column
+ * also matching `_at`/`at` — not possible for any column in `schema.ts` today (no name both ends
+ * `_json`-or-registry AND `_at`), but the ordering documents the intended precedence regardless.
+ */
+function classifyCoreTextColumn(key: string, col: SQLiteColumn): SemanticColumnClass {
+  if (isJsonColumnName(col.name) || REVIEWED_JSON_COLUMNS[key]) return { kind: "json-text" };
+  if (isTimestampColumnName(col.name)) return { kind: "utc-timestamp-text" };
+  return { kind: "plain-text" };
+}
+
+/**
+ * Classifies one column of one CORE (schema.ts) table. See `classifyCoreIntegerColumn` and
+ * `classifyCoreTextColumn` above for the `SQLiteInteger`/`SQLiteText` cases' own logic and rationale.
  */
 export function classifyCoreColumn(sqlTableName: string, col: SQLiteColumn): SemanticColumnClass {
   const key = `${sqlTableName}.${col.name}`;
   switch (col.columnType) {
     case "SQLiteBoolean":
       return { kind: "boolean-flag" };
-    case "SQLiteInteger": {
-      const review = REVIEWED_INTEGER_ID_COLUMNS[key];
-      if (review) return { kind: "reviewed-id", growthClass: review.growthClass, rationale: review.rationale };
-      const isAutoIncrementPk = Boolean(col.primary) && Boolean((col as unknown as { autoIncrement?: boolean }).autoIncrement);
-      if (isAutoIncrementPk) {
-        throw new Error(
-          `autoincrement primary key "${key}" has no entry in REVIEWED_INTEGER_ID_COLUMNS. A new autoincrement ` +
-            `column must be explicitly reviewed and assigned a growth class ("unbounded" or "bounded") before this ` +
-            `manifest can vouch for it — see that registry's doc for why this fails closed instead of guessing.`
-        );
-      }
-      return { kind: "plain-integer" };
-    }
-    case "SQLiteText": {
-      // REVIEWED_JSON_COLUMNS checked ALONGSIDE the naming convention, not only as a fallback after it
-      // — a column can be genuinely JSON while matching neither `isJsonColumnName` nor
-      // `isTimestampColumnName`, which is exactly the round-3-audit gap that registry closes (see its
-      // own doc). Order between the two checks does not matter (either can be genuinely JSON on its
-      // own), but JSON is checked before the timestamp convention so a hypothetical future registry
-      // entry could never be shadowed by a column also matching `_at`/`at` — not possible for any
-      // column in `schema.ts` today (no name both ends `_json`-or-registry AND `_at`), but the ordering
-      // documents the intended precedence regardless.
-      if (isJsonColumnName(col.name) || REVIEWED_JSON_COLUMNS[key]) return { kind: "json-text" };
-      if (isTimestampColumnName(col.name)) return { kind: "utc-timestamp-text" };
-      return { kind: "plain-text" };
-    }
+    case "SQLiteInteger":
+      return classifyCoreIntegerColumn(key, col);
+    case "SQLiteText":
+      return classifyCoreTextColumn(key, col);
     default:
       throw new Error(
         `unmapped column kind "${col.columnType}" on "${key}". This manifest was written against the same ` +
