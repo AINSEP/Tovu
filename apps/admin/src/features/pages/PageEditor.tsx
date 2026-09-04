@@ -8,6 +8,7 @@ import {
   type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
+import { pagePublicPath } from "./rules";
 
 /**
  * @file The Pages editor — markup only. State lives in `hooks/use-page-editor.hooks.ts`.
@@ -304,7 +305,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             <span className="visually-hidden">URL slug</span>
             <input value={slug} onChange={(e) => setSlug(e.target.value)} />
           </label>
-          <a href={siteUrl(`/${slug}`)} target="_blank" rel="noreferrer">
+          <a href={siteUrl(pagePublicPath(slug))} target="_blank" rel="noreferrer">
             view ↗
           </a>
         </div>
@@ -550,7 +551,7 @@ function PagePreviewFrame({
 }) {
   if (canShowLiveSite) {
     return (
-      <iframe src={siteUrl(`/${slug}`)} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
+      <iframe src={siteUrl(pagePublicPath(slug))} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
     );
   }
   if (canShowTemplatePreview) {

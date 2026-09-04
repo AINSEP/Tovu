@@ -192,6 +192,17 @@ describe("title and slug fields", () => {
     const link = screen.getByRole("link", { name: /view/i });
     expect(link.getAttribute("href")).toContain("/draft-slug");
   });
+
+  // Regression (2026-09-03): a Page can now claim the literal root slug "/" (post.ts's ROOT_SLUG,
+  // gated to kind: "page"). A naive `/${slug}` template doubles that into "//" — a link the site's
+  // router can never match ("Cannot GET //", confirmed live in a browser before this fix). Asserts
+  // the href ends in a single trailing slash, not two.
+  it("the 'view live' link renders a single '/' for the root-slug page, not '//'", () => {
+    renderEditor({ slug: "/" });
+    const link = screen.getByRole("link", { name: /view/i });
+    expect(link.getAttribute("href")).toMatch(/\/$/);
+    expect(link.getAttribute("href")).not.toMatch(/\/\/$/);
+  });
 });
 
 describe("status, publish, save", () => {
@@ -314,6 +325,17 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     const preview = screen.getByTitle("Page preview");
     expect(preview).toHaveAttribute("src", expect.stringContaining("/about"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
+  });
+
+  // Regression (2026-09-03) — same root-slug bug as the "view live" link above, for the "Live site"
+  // preview branch (`PagePreviewFrame`'s `canShowLiveSite` case). Before the fix this rendered
+  // `src=".../{origin}//"`, which the site served as "Cannot GET //" instead of the Home page.
+  it("preview iframe's live-site src renders a single '/' for the root-slug page, not '//'", () => {
+    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "/" });
+    const preview = screen.getByTitle("Page preview");
+    const src = preview.getAttribute("src")!;
+    expect(src).toMatch(/\/$/);
+    expect(src).not.toMatch(/\/\/$/);
   });
 
   // Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
