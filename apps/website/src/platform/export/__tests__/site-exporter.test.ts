@@ -64,14 +64,18 @@ test("exportSite: --base-path unset leaves every written byte identical to a pla
   assert.match(home, /href="\/about"/, "an internal link must stay bare root-relative when no base path is requested");
   assert.match(home, /href="\/theme-assets\/basic\//, "a theme asset reference must stay bare root-relative when no base path is requested");
 
+  // `createRouteDeps()` seeds a verified `dev-capability` origin (`http://localhost:3000`,
+  // `pages.route.test.ts`'s own precedent) for the seeded workspace, so both <loc> (2026-09-03 fix)
+  // and the Sitemap: line (2026-09-04 fix) are absolute, not the bare relative paths this assertion
+  // checked before either fix landed.
   const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
-  assert.match(sitemap, /<loc>\/welcome<\/loc>/);
+  assert.match(sitemap, /<loc>http:\/\/localhost:3000\/welcome<\/loc>/);
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
-  assert.match(robots, /^Sitemap: \/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
 });
 
-test("exportSite: --base-path rewrites HTML hrefs, sitemap <loc> entries, and robots.txt's Sitemap line, without double-prefixing anything already prefixed", async (t) => {
+test("exportSite: --base-path rewrites HTML hrefs, leaves the already-absolute sitemap <loc> entries and robots.txt's Sitemap line untouched, and never double-prefixes anything already prefixed", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
 
@@ -86,11 +90,15 @@ test("exportSite: --base-path rewrites HTML hrefs, sitemap <loc> entries, and ro
   assert.match(home, /href="\/my-repo\/theme-assets\/basic\//, "a theme asset reference must carry the base path");
   assert.equal(/href="\/(?!my-repo\/)/.test(home), false, "no root-relative href may survive un-prefixed once a base path is set");
 
+  // `<loc>`/`Sitemap:` are absolute (the seeded workspace has a verified origin, see the previous
+  // test's own comment) — `prefixRootRelativePath`'s own documented contract leaves an already-
+  // absolute value UNTOUCHED rather than grafting `/my-repo` onto a foreign, fully-qualified URL that
+  // was never part of this static export's own relative tree in the first place.
   const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
-  assert.match(sitemap, /<loc>\/my-repo\/welcome<\/loc>/);
+  assert.match(sitemap, /<loc>http:\/\/localhost:3000\/welcome<\/loc>/);
 
   const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
-  assert.match(robots, /^Sitemap: \/my-repo\/sitemap\.xml$/m);
+  assert.match(robots, /^Sitemap: http:\/\/localhost:3000\/sitemap\.xml$/m);
 
   // Idempotency/no-double-prefix, checked across EVERY route this export actually wrote — not one
   // hand-picked value — because a doubling bug in the shared prefixRootRelativePath helper would
