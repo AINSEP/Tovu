@@ -94,7 +94,11 @@ export {
   isEligibleForTemplateBranch,
   resolveStaticTierPageShellFallback,
   scanMenuEmbedIds,
+  scanPostPreviewsLimit,
+  DEFAULT_POST_PREVIEWS_LIMIT,
+  MAX_POST_PREVIEWS_LIMIT,
   type StaticMenuItem,
+  type StaticPostPreview,
   type PostTemplateResolution,
 } from "./static-render.js";
 

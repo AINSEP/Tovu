@@ -2,7 +2,14 @@ import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
-import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError, ROOT_SLUG } from "#src/features/post/index";
+import {
+  getPublishedPostBySlug,
+  findPublishedPostById,
+  listPublishedPosts,
+  listPublishedPostPreviews,
+  PostNotFoundError,
+  ROOT_SLUG,
+} from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import {
   DefaultMemberAccessResolver,
@@ -20,11 +27,13 @@ import {
   isEligibleForTemplateBranch,
   resolveStaticTierPageShellFallback,
   scanMenuEmbedIds,
+  scanPostPreviewsLimit,
   resolveActiveTheme,
   tokenStylesheetSentinel,
   isStandaloneThemePage,
   type DiscoveredTheme,
   type StaticMenuItem,
+  type StaticPostPreview,
 } from "#src/features/theme/index";
 import { markersOfType, substituteMarkers, withInnerContentFinal } from "#src/contracts/core/embeds/marker";
 import {
@@ -750,7 +759,15 @@ export async function renderViaTemplate(
   staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
   pendingBodyJson?: JsonObject,
   extraHead?: string,
-  siteAssistantEnabled = false
+  siteAssistantEnabled = false,
+  // Post-previews marker (2026-09-03) — the member-access resolver/context for THIS request,
+  // ALREADY built by the caller (`registerSiteRoutes` reuses the same instances it built for the
+  // home/related-posts listing gate). Omitted by both pre-existing callers of this function
+  // (`routes/admin/posts/template-preview.ts`'s admin-only preview, and this file's own direct unit
+  // test) — a template rendered without it simply leaves any `{"type":"post-previews"}` marker's
+  // authored fallback untouched, byte-identical to before this marker existed, rather than querying
+  // with no way to gate the result correctly.
+  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
@@ -796,12 +813,20 @@ export async function renderViaTemplate(
   // the template's own `<article>`/content wrapper (whatever marker `bodyResolvedHtml` replaced),
   // never outside it, since it's concatenated onto that exact string before the template splice.
   const bodyWithTerms = bodyResolvedHtml + renderAssignedTermsBlock(await resolveAssignedTermsForRender(deps, post));
+  // Post-previews marker (2026-09-03) — scanned off the THEME's own raw template (`rawTemplate`,
+  // unchanged by every resolution step above: `content`/`widget`/`media`/`post` markers are the only
+  // ones those steps touch, and `post-previews` is theme-owned, see `THEME_OWNED_MARKER_TYPES`),
+  // not off `bodyWithTerms` — scanning either finds the same marker, but `rawTemplate` is available
+  // before the other I/O above and lets this run without waiting on it.
+  const postPreviews = postPreviewsAccess
+    ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, rawTemplate)
+    : undefined;
   // Same unreachable-`?? ""` situation as the diagnostic branch above: `bodyResolvedHtml` is
   // `renderHtmlPageBody`'s `string` return, never `undefined`, so `renderStaticPage`'s own
   // `source === undefined` null case can't fire here either. See that branch's comment for the
   // full proof; not fixed here for the same out-of-scope reason (the real fix narrows
   // `renderStaticPage`'s return type in static-render.ts, outside this file).
-  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyWithTerms, menus: staticMenus }) ?? "";
+  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyWithTerms, menus: staticMenus, postPreviews }) ?? "";
   return injectSiteAssistantIntoStaticPage(injectExtraHeadIntoStaticPage(rendered, extraHead), siteAssistantEnabled);
 }
 
@@ -981,7 +1006,12 @@ export async function resolveMarketingPageOrOverride(
   theme: DiscoveredTheme,
   slug: string,
   staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: boolean
+  siteAssistantEnabled: boolean,
+  // Post-previews marker (2026-09-03) — see `renderViaTemplate`'s identically-shaped, identically
+  // optional parameter for the full rationale. This function's own only caller (`registerSiteRoutes`
+  // below) always supplies it; the parameter stays optional so a future direct caller that has no
+  // per-request member context isn't forced to fabricate one.
+  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<MarketingPageResolution> {
   if (!isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
 
@@ -996,7 +1026,12 @@ export async function resolveMarketingPageOrOverride(
     return { kind: "overridingPost", post: candidate.post };
   }
 
-  const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
+  const pageHtml = theme.pages[slug];
+  const postPreviews =
+    postPreviewsAccess && pageHtml !== undefined
+      ? await resolvePostPreviewsForRender(deps, postPreviewsAccess.resolver, postPreviewsAccess.context, pageHtml)
+      : undefined;
+  const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus, postPreviews });
   if (!staticHtml) return { kind: "fallthrough" };
 
   // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own marketing
@@ -1065,7 +1100,10 @@ export async function renderTemplateBranchIfEligible(
   theme: DiscoveredTheme,
   post: PostRecord,
   staticMenus: StaticMenuMap | undefined,
-  siteAssistantEnabled: boolean
+  siteAssistantEnabled: boolean,
+  // Post-previews marker (2026-09-03) — threaded straight through to `renderViaTemplate`'s own
+  // identically-shaped parameter; see that function's doc for the full rationale.
+  postPreviewsAccess?: { resolver: MemberAccessResolver; context: MemberContext }
 ): Promise<string | undefined> {
   const explicitlyEligible = isEligibleForTemplateBranch({ theme, post });
   const pageShellFallback = explicitlyEligible ? undefined : resolveStaticTierPageShellFallback({ theme, post });
@@ -1078,7 +1116,7 @@ export async function renderTemplateBranchIfEligible(
   // gap `resolveMarketingPageOrOverride` above threads through, for the same reason.
   const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
   const renderedPost = pageShellFallback !== undefined ? { ...post, templateChoice: pageShellFallback } : post;
-  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, extraHead, siteAssistantEnabled);
+  return renderViaTemplate(deps, theme, renderedPost, staticMenus, undefined, extraHead, siteAssistantEnabled, postPreviewsAccess);
 }
 
 /** The generic (non-template) dynamic post render: resolves every widget/embed/media input
@@ -1242,6 +1280,59 @@ function filterVisiblePosts(
   return posts.filter((post) => decidePostMemberAccess(resolver, post, context).allowed);
 }
 
+/** Pure display formatting for a post-previews card's date — the one place this file turns
+ *  `PostRecord.updatedAt`'s ISO string into the short label a card shows (e.g. "Sep 3, 2026").
+ *  `PostRecord` has no `publishedAt` (see `static-render.ts`'s `StaticPostPreview.dateIso` doc for
+ *  why), so this reuses the same field the bounded query itself orders by. A malformed timestamp —
+ *  should not occur for a real stored row — degrades to the raw ISO string rather than
+ *  "Invalid Date", a legible if ugly output over a broken one. */
+function formatPostPreviewDate(iso: string): string {
+  const parsed = new Date(iso);
+  if (Number.isNaN(parsed.getTime())) return iso;
+  return parsed.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/**
+ * Post-previews marker resolution (2026-09-03) — resolves the bounded, ADR-030 §4
+ * visibility-filtered {@link StaticPostPreview}s a `{"type":"post-previews"}` marker in `pageHtml`
+ * needs, or `undefined` when `pageHtml` carries no such marker at all
+ * ({@link scanPostPreviewsLimit}'s own "pay for the query only when present" gate — REQ 2 of the
+ * post-previews marker's own spec).
+ *
+ * Applies the SAME `filterVisiblePosts` gate the home/related-posts listing already applies to
+ * `posts` — see that function's own doc for why gating only SOME listings is protection that looks
+ * real and isn't (ADR-030 §4); this listing gets no exception. `kind: "post"` and
+ * `status: "published"` are already enforced by the bounded repo query itself
+ * (`listPublishedPostPreviews` -> `PostRepoPort.listPublishedPreviews`), so a Page — including
+ * whichever one claims the reserved `/` root slug — can never appear in this listing by
+ * construction; not re-checked here.
+ *
+ * @complexity One bounded `listPublishedPreviews` query (capped at the widest marker-declared limit
+ * on this page) plus `filterVisiblePosts`'s own O(n) pass over that already-small result — never an
+ * unbounded scan.
+ */
+async function resolvePostPreviewsForRender(
+  deps: Pick<RouteDeps, "workspaceId" | "postRepo">,
+  memberAccessResolver: MemberAccessResolver,
+  memberContext: MemberContext,
+  pageHtml: string
+): Promise<readonly StaticPostPreview[] | undefined> {
+  const limit = scanPostPreviewsLimit(pageHtml);
+  if (limit === undefined) return undefined;
+
+  const { posts } = await listPublishedPostPreviews({
+    deps: { repo: deps.postRepo },
+    input: { workspaceId: deps.workspaceId, limit },
+  });
+  const visible = filterVisiblePosts(memberAccessResolver, posts, memberContext);
+  return visible.map((post) => ({
+    title: post.title,
+    href: postPublicPath(post.slug),
+    dateIso: post.updatedAt,
+    dateLabel: formatPostPreviewDate(post.updatedAt),
+  }));
+}
+
 /** Clears the validation flash cookie (2026-08-31 field-wipe fix) — read-once contract: once THIS
  *  GET has read it, a later plain reload of the same page must NOT resurrect the same stale values.
  *  Attributes mirror what `forms-submit.ts`'s `setFormFlashCookie` set it with; matching them isn't
@@ -1384,7 +1475,10 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const homePage = await resolveHomePageContent(deps, memberAccessResolver, memberContext);
       if (homePage) {
         const staticMenus = await resolveStaticMenusForRender(deps, theme, "/");
-        const templateHtml = await renderTemplateBranchIfEligible(deps, theme, homePage, staticMenus, siteAssistantEnabled);
+        const templateHtml = await renderTemplateBranchIfEligible(deps, theme, homePage, staticMenus, siteAssistantEnabled, {
+          resolver: memberAccessResolver,
+          context: memberContext,
+        });
         const html = templateHtml ?? (await renderGenericPostPage(deps, theme, homePage, visiblePosts, siteAssistantEnabled));
         const perVisitor = resolvePerVisitorResponse(req, res);
         res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
@@ -1465,7 +1559,10 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // body cookie-dependent. See `resolvePerVisitorResponse`'s own doc.
       const perVisitor = resolvePerVisitorResponse(req, res);
 
-      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled);
+      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus, siteAssistantEnabled, {
+        resolver: memberAccessResolver,
+        context: memberContext,
+      });
       if (marketingResolution.kind === "responded") {
         res
           .set("Cache-Control", perVisitor.cacheControl)
@@ -1493,7 +1590,10 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         return;
       }
 
-      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled);
+      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus, siteAssistantEnabled, {
+        resolver: memberAccessResolver,
+        context: memberContext,
+      });
       if (templateHtml !== undefined) {
         res
           .set("Cache-Control", perVisitor.cacheControl)

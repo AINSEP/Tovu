@@ -149,6 +149,24 @@ export interface PostRepoPort {
   findById(required: { workspaceId: UUID; id: UUID }): Promise<PostRecord | null>;
   findBySlug(required: { workspaceId: UUID; slug: string }): Promise<PostRecord | null>;
   list(required: { workspaceId: UUID }): Promise<PostRecord[]>;
+  /**
+   * Bounded, query-pushed-down listing of published, non-trashed `kind: "post"` rows, newest
+   * `updatedAt` first, capped at `limit` — the post-previews marker's own query
+   * (`features/theme/static-render.ts`'s `injectPostPreviewsEmbeds`, wired through
+   * `listPublishedPostPreviews` below). Mirrors the query-shape discipline
+   * `widgets/resolvers/recent-entries.ts` already established for `entries` (REQ-25: "one bounded
+   * query, no unbounded scan sorted/sliced in JS after the fact"), applied here to `posts`.
+   *
+   * `kind: "post"` is filtered IN THE QUERY, not after: filtering Pages out in JS after an already
+   * `limit`-bounded fetch could silently return fewer than `limit` real posts even when more exist.
+   * This is also what keeps a Page — including whichever one claims the reserved `/` root slug —
+   * out of a post-previews listing, with no separate exclusion check needed at any caller.
+   *
+   * Deliberately NOT reused by {@link list}/`listPublishedPosts`/`listAdminPosts`/`listAdminPages`
+   * above — those stay unbounded and unchanged; this is an ADDITIVE method for the one caller that
+   * needs a bounded query, not a widening of the existing unbounded ones.
+   */
+  listPublishedPreviews(required: { workspaceId: UUID; limit: number }): Promise<PostRecord[]>;
   save(record: PostRecord): Promise<void>;
   /**
    * Stamps the trash marker onto one existing row (see {@link PostRecord.deletedAt}).
@@ -913,6 +931,30 @@ export async function listPublishedPosts(
 ): Promise<{ posts: PostRecord[] }> {
   const posts = await required.deps.repo.list({ workspaceId: required.input.workspaceId });
   return { posts: posts.filter((post) => post.status === "published" && !isTrashed(post)) };
+}
+
+export interface ListPublishedPostPreviewsRequired {
+  deps: { repo: PostRepoPort };
+  input: { workspaceId: UUID; limit: number };
+}
+
+/**
+ * Bounded published-post listing for the post-previews marker (`features/theme/static-render.ts`'s
+ * `injectPostPreviewsEmbeds`, via `server/inbound/public-http/routes/site/pages.ts`'s
+ * `resolvePostPreviewsForRender`). Thin wrapper over {@link PostRepoPort.listPublishedPreviews} —
+ * see that method's own doc for why the bound and the `kind: "post"` filter both live in the query,
+ * not here. The caller still owns member-visibility filtering (`filterVisiblePosts`, ADR-030 §4);
+ * this function only returns what is PUBLISHED, not what the current visitor may see.
+ */
+export async function listPublishedPostPreviews(
+  required: ListPublishedPostPreviewsRequired,
+  _optional: GetPostOptional = {}
+): Promise<{ posts: PostRecord[] }> {
+  const posts = await required.deps.repo.listPublishedPreviews({
+    workspaceId: required.input.workspaceId,
+    limit: required.input.limit,
+  });
+  return { posts };
 }
 
 /** List all pages (`kind: "page"`) in a workspace for admin views (drafts included). */

@@ -2,6 +2,7 @@ import {
   markersOfType,
   MENU_MARKER_TYPE,
   PARTIAL_MARKER_TYPE,
+  POST_PREVIEWS_MARKER_TYPE,
   substituteMarkers,
   withAddedId,
   withInnerContent,
@@ -378,6 +379,111 @@ export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
   return Array.from(ids);
 }
 
+/**
+ * Post-previews marker (2026-09-03) — a theme/page marker that renders a bounded list of published
+ * post previews wherever `{"type":"post-previews"}` appears, so any authored Page can host a post
+ * listing (the immediate consumer is a themed `/blog`-style marketing page, but the mechanism is not
+ * special-cased to one slug or theme). Follows the SAME "route resolves the I/O, this file only
+ * decides how it renders" split {@link injectMenuEmbeds}/{@link scanMenuEmbedIds} already establish
+ * for `{"type":"menu"}`.
+ */
+
+/** Default and ceiling for a `{"type":"post-previews"}` marker's own `limit` config key — mirrors
+ *  `widgets/resolvers/recent-entries.ts`'s registered-clamp discipline (REQ-25): a marker's `limit`
+ *  is always clamped into `[1, MAX_POST_PREVIEWS_LIMIT]` before it ever reaches the bounded repo
+ *  query that feeds this marker, so neither an absent config nor an adversarially large one can turn
+ *  a post listing into an unbounded scan. */
+export const DEFAULT_POST_PREVIEWS_LIMIT = 6;
+export const MAX_POST_PREVIEWS_LIMIT = 24;
+
+/**
+ * Minimal render-time shape for one post shown by a `{"type":"post-previews"}` marker — the
+ * post-listing counterpart to {@link StaticMenuItem}: the route layer resolves the real, bounded,
+ * visibility-filtered `PostRecord[]` (query, ADR-030 §4 gate, public path) and hands this file only
+ * what it renders, keeping this module I/O- and domain-free per the file's own header.
+ */
+export interface StaticPostPreview {
+  readonly title: string;
+  readonly href: string;
+  /** ISO 8601, for `<time datetime>` — `PostRecord` has no `publishedAt` (the unified-content-marker
+   *  design doc's own note on why), so this is `updatedAt`, the same field the bounded query orders
+   *  by. */
+  readonly dateIso: string;
+  /** Pre-formatted for display (e.g. "Sep 3, 2026") — no date-formatting/locale logic belongs in
+   *  this pure render layer, mirroring every other pre-resolved field on this shape. */
+  readonly dateLabel: string;
+}
+
+/** Clamp a marker's own `config.limit` into `[1, MAX_POST_PREVIEWS_LIMIT]`, defaulting to
+ *  {@link DEFAULT_POST_PREVIEWS_LIMIT} when the key is absent or not a positive finite number —
+ *  the one clamp both {@link scanPostPreviewsLimit} (what to fetch) and
+ *  {@link injectPostPreviewsEmbeds} (what to show) apply, so the two can never disagree. */
+function clampPostPreviewsLimit(configuredLimit: unknown): number {
+  if (typeof configuredLimit !== "number" || !Number.isFinite(configuredLimit) || configuredLimit <= 0) {
+    return DEFAULT_POST_PREVIEWS_LIMIT;
+  }
+  return Math.min(Math.floor(configuredLimit), MAX_POST_PREVIEWS_LIMIT);
+}
+
+/** One preview's markup — title links to the post, with its display date underneath. Intentionally
+ *  minimal (no excerpt/tag/cover-image data is threaded through this pass): {@link StaticPostPreview}
+ *  carries only what every `PostRecord` reliably has. */
+function renderPostPreviewCard(preview: StaticPostPreview): string {
+  return (
+    `<article class="post-card">` +
+    `<h3><a href="${escapeHtml(preview.href)}">${escapeHtml(preview.title)}</a></h3>` +
+    `<div class="post-meta"><time datetime="${escapeHtml(preview.dateIso)}">${escapeHtml(preview.dateLabel)}</time></div>` +
+    `</article>`
+  );
+}
+
+/**
+ * Fill every `{"type":"post-previews"}` marker with up to its own (clamped) `limit` of `previews`'
+ * leading entries, or leave the marker's authored fallback content completely untouched when there
+ * is nothing to show (`previews` empty — mechanism not wired for this page, or zero visible posts —
+ * or this marker's own slice comes up empty). Identical "no data ⇒ theme's own fallback survives"
+ * contract {@link injectMenuEmbeds} already established for `{"type":"menu"}`: a theme with no
+ * published posts yet renders exactly as authored rather than an empty grid.
+ *
+ * `previews` is already the CALLER's bounded, visibility-filtered, ordered result — see
+ * {@link StaticPostPreview}'s own doc. This function only decides how many of it one marker shows
+ * and how each one renders; it performs no I/O and applies no visibility rule of its own.
+ *
+ * @complexity O(n) over `html`'s length for the marker scan/splice, plus O(m) over the small, fixed
+ * number of post-previews markers a real page carries.
+ */
+function injectPostPreviewsEmbeds(html: string, previews: readonly StaticPostPreview[]): string {
+  return substituteMarkers(html, (marker) => {
+    if (marker.type !== POST_PREVIEWS_MARKER_TYPE) return undefined;
+    const slice = previews.slice(0, clampPostPreviewsLimit(marker.config.limit));
+    return slice.length === 0 ? undefined : withInnerContent(marker, slice.map(renderPostPreviewCard).join(""));
+  });
+}
+
+/**
+ * Every `{"type":"post-previews"}` marker's own `limit` in `html` — the CURRENT page about to
+ * render, not the whole theme. Unlike {@link scanMenuEmbedIds}, a post-previews marker's data is
+ * PAGE-scoped, not shared chrome: scanning every page/partial the way the menu scan does would fetch
+ * posts on every request regardless of whether the page actually being rendered carries the marker,
+ * which is exactly the query cost REQ 2 (route layer supplies posts when, and only when, the marker
+ * is present) rules out.
+ *
+ * Returns `undefined` when `html` carries no such marker at all — the route layer's signal to skip
+ * the bounded query entirely. When multiple markers appear on one page, returns the WIDEST clamped
+ * limit found: `widgets/resolvers/recent-entries.ts`'s own "one batched query bounded to the widest
+ * requested max; each instance's own smaller value then slices the already-fetched result" discipline
+ * (REQ-24/25), so N markers with different limits on the same page still cost exactly one bounded
+ * query — {@link injectPostPreviewsEmbeds} does that per-marker slicing.
+ *
+ * @complexity O(n) over `html`'s length for the marker scan, plus O(m) over the small, fixed number
+ * of post-previews markers a real page carries.
+ */
+export function scanPostPreviewsLimit(html: string): number | undefined {
+  const markers = markersOfType(html, POST_PREVIEWS_MARKER_TYPE);
+  if (markers.length === 0) return undefined;
+  return markers.reduce((widest, marker) => Math.max(widest, clampPostPreviewsLimit(marker.config.limit)), 0);
+}
+
 /** Escape a manifest-supplied string so it matches literally inside a constructed `RegExp`. */
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -481,6 +587,12 @@ function injectColorMode(html: string, defaultMode: string | undefined): string 
  * no entry in this map (or a request for a non-static-tier theme, which never calls this with
  * `menus` at all) simply leaves that marker's theme-authored fallback content untouched, see
  * {@link injectMenuEmbeds}.
+ *
+ * `postPreviews` (post-previews marker, 2026-09-03): the route layer's already-bounded,
+ * visibility-filtered result — see {@link scanPostPreviewsLimit}/{@link StaticPostPreview}'s own
+ * docs for how it decides whether to fetch anything at all. Omitted (or empty) leaves every
+ * `{"type":"post-previews"}` marker's authored fallback untouched, see
+ * {@link injectPostPreviewsEmbeds} — same "absent input, absent effect" contract `menus` already has.
  */
 export function renderStaticPage(
   required: {
@@ -488,10 +600,11 @@ export function renderStaticPage(
     pageId: string;
     htmlOverride?: string;
     menus?: Readonly<Record<string, readonly StaticMenuItem[]>>;
+    postPreviews?: readonly StaticPostPreview[];
   },
   _optional: Record<string, never> = {}
 ): string | null {
-  const { theme, pageId, htmlOverride, menus } = required;
+  const { theme, pageId, htmlOverride, menus, postPreviews } = required;
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
@@ -520,6 +633,7 @@ export function renderStaticPage(
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
   html = injectMenuEmbeds(html, menus ?? {});
+  html = injectPostPreviewsEmbeds(html, postPreviews ?? []);
   html = rewritePageLinks(html);
   return html;
 }

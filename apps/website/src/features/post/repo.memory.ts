@@ -1,4 +1,4 @@
-import type { PostRecord, PostRepoPort } from "./post.js";
+import { isTrashed, type PostRecord, type PostRepoPort } from "./post.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to
@@ -31,6 +31,23 @@ export class InMemoryPostRepo implements PostRepoPort {
 
   async list(required: { workspaceId: string }): Promise<PostRecord[]> {
     return this.rows.filter((row) => row.workspaceId === required.workspaceId);
+  }
+
+  /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract (bounded,
+   *  `kind: "post"`-filtered, newest `updatedAt` first). Filter-sort-slice here is this in-memory
+   *  adapter's own stand-in for a real bounded query — `repo.sqlite.ts`'s adapter is the one that
+   *  must push the equivalent `WHERE`/`ORDER BY`/`LIMIT` down to SQLite itself. */
+  async listPublishedPreviews(required: { workspaceId: string; limit: number }): Promise<PostRecord[]> {
+    return this.rows
+      .filter(
+        (row) =>
+          row.workspaceId === required.workspaceId &&
+          row.status === "published" &&
+          row.kind === "post" &&
+          !isTrashed(row)
+      )
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+      .slice(0, required.limit);
   }
 
   async save(record: PostRecord): Promise<void> {

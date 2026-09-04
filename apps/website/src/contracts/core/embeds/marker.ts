@@ -192,6 +192,22 @@ export const MENU_MARKER_TYPE = "menu";
 export const PARTIAL_MARKER_TYPE = "partial";
 
 /**
+ * The post-previews marker type (2026-09-03) — a theme/page marker that renders a bounded list of
+ * published post previews wherever it appears, so any authored Page (a static theme's own marketing
+ * page, or a Page/Post rendered through a `theme.json` `templates` entry) can host a post listing.
+ * Same ownership shape as {@link MENU_MARKER_TYPE}/{@link PARTIAL_MARKER_TYPE} immediately above:
+ * resolved end-to-end by `features/theme/static-render.ts`'s `injectPostPreviewsEmbeds`, never
+ * registered in `widgets/resolver-service.ts`'s `HTML_EMBED_RESOLVERS` — see that file's
+ * `THEME_OWNED_MARKER_TYPES`, which carries a matching literal entry for the same disclosed
+ * "duplicated, not imported" reason its own doc already states for the other two.
+ *
+ * Config shape: `{"type":"post-previews","limit":6}` — `limit` is optional (defaults to
+ * `DEFAULT_POST_PREVIEWS_LIMIT`, `static-render.ts`) and is always clamped, never trusted verbatim,
+ * before it reaches the bounded repo query that feeds this marker.
+ */
+export const POST_PREVIEWS_MARKER_TYPE = "post-previews";
+
+/**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored
  * attribute (`class`, `aria-label`, …). The counterpart to a wholesale replace: a menu marker keeps
  * its `<nav class="docs-nav">` wrapper and only swaps what's inside, whereas a partial slot marker

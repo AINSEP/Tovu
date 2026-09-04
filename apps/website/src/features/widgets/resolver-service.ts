@@ -1017,8 +1017,13 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
  * fix, hoisting a shared constant into `core/embeds/marker.ts` for both files to import, is proposed but
  * not yet authorized; see `ADS-memory/reports/2026-08-16-embed-placeholder-gap.md`'s "Reuse decision"
  * section. Keep this set's members in sync with those two literals, not with `isPageEmbedType`.
+ *
+ * `"post-previews"` (2026-09-03) joins the set for the identical reason: it is resolved by
+ * `static-render.ts`'s `injectPostPreviewsEmbeds`, AFTER this stage, on every static-tier page
+ * render that reaches `renderStaticPage` — same duplicated-literal debt as the other two entries
+ * (see `POST_PREVIEWS_MARKER_TYPE`, `core/embeds/marker.ts`), not yet hoisted for the same reason.
  */
-const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu"]);
+const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu", "post-previews"]);
 
 /**
  * Does the page-embed stage OWN this marker type — i.e. is a REQ-28 placeholder the honest answer

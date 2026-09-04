@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { posts } from "../../platform/db/schema.js";
@@ -97,6 +97,27 @@ export class SqlitePostRepo implements PostRepoPort {
 
   async list(required: { workspaceId: string }): Promise<PostRecord[]> {
     const rows = this.db.select().from(posts).where(eq(posts.workspaceId, required.workspaceId)).all();
+    return rows.map(toRecord);
+  }
+
+  /** See `PostRepoPort.listPublishedPreviews`'s own doc for the exact contract. Every filter
+   *  (workspace, `status`, `kind`, non-trashed) and the `LIMIT` are pushed into the ONE query — no
+   *  in-JS filter or slice after the fact, the discipline that method's doc requires. */
+  async listPublishedPreviews(required: { workspaceId: string; limit: number }): Promise<PostRecord[]> {
+    const rows = this.db
+      .select()
+      .from(posts)
+      .where(
+        and(
+          eq(posts.workspaceId, required.workspaceId),
+          eq(posts.status, "published"),
+          eq(posts.kind, "post"),
+          isNull(posts.deletedAt)
+        )
+      )
+      .orderBy(desc(posts.updatedAt))
+      .limit(required.limit)
+      .all();
     return rows.map(toRecord);
   }
 

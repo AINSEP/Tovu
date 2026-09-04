@@ -10,6 +10,7 @@ export {
   listAdminPages,
   listAdminPosts,
   listPublishedPosts,
+  listPublishedPostPreviews,
   updatePost,
   DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,
