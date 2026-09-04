@@ -489,112 +489,127 @@ async function startByokRun(
 }
 
 /**
+ * Which browser tab a Local CLI run should be allowed to drive, from `ChatPane`'s `runContext` prop
+ * (`AssistantDock.tsx` supplies it from the live `FrontendSessionBridge`).
+ *
+ * Read by name rather than spreading the whole `input.context` blob: `contextRef` is a shared
+ * envelope that Tovu's proxy also writes `principalId` into (`src/server/modules/assistant.ts`),
+ * and a spread would let any future `runContext` key silently shadow it — an identity field being
+ * overwritten by a UI prop is not a failure mode worth leaving open to save one line.
+ *
+ * Returns `{}` (omitting the field entirely) when absent, which is a normal state, not an error:
+ * the daemon treats a run with no bind token as one with no screen to drive
+ * (`agent-daemon-server.ts`).
+ */
+function frontendBindTokenField(input: StartRunInput): Record<string, unknown> {
+  const frontendBindToken = input.context?.["frontendBindToken"];
+  return typeof frontendBindToken === "string" && frontendBindToken.length > 0 ? { frontendBindToken } : {};
+}
+
+/**
+ * The Local CLI picker's live model selection, from `ChatPane`'s `runContext` prop
+ * (`AssistantDock.tsx`'s `resolveRunContext`). Same "read by name, not spread" reasoning as
+ * {@link frontendBindTokenField} above, and the same "omit when absent" convention. Forwarded as an
+ * opaque string — `agent-daemon-server.ts` forwards it the same way, and `AgentExecutor.run()`'s
+ * def-level `buildArgs` is what decides what an absent or `'default'` value means for a given CLI
+ * (`@jini-ai/agent-runtime`'s `models.ts`/`resolveModelForAgent`).
+ */
+function modelField(input: StartRunInput): Record<string, unknown> {
+  const model = input.context?.["model"];
+  return typeof model === "string" && model.length > 0 ? { model } : {};
+}
+
+/**
+ * The Execution tab's "Reasoning effort" pick, from the same `runContext` seam as {@link modelField}
+ * above and forwarded with the identical "opaque string, omit when absent" convention. What turns it
+ * into real argv is the def's own `buildArgs` on the daemon side (`claude --effort <level>`, codex's
+ * `-c model_reasoning_effort=...`) — nothing here interprets it, and a runtime whose effort is
+ * encoded in the model id (antigravity) never sends it at all, because its level is already inside
+ * `model`.
+ */
+function reasoningField(input: StartRunInput): Record<string, unknown> {
+  const reasoning = input.context?.["reasoning"];
+  return typeof reasoning === "string" && reasoning.length > 0 ? { reasoning } : {};
+}
+
+/**
+ * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem path
+ * this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the attachments
+ * themselves — `contextRef` is the one channel `prompt`/`frontendBindToken` already ride on to reach
+ * `agent-daemon-server.ts`'s `onStarted`, which is where these ids get exchanged for real,
+ * re-validated paths via `AttachmentStore.claim()`. Nothing on this side of the wire is trusted; the
+ * id is inert until the daemon claims it.
+ *
+ * Returns `{}`, same convention as {@link frontendBindTokenField} above — a run with no attachments
+ * is the overwhelmingly common case and should not carry a key for it.
+ */
+function attachmentIdsField(input: StartRunInput): Record<string, unknown> {
+  return input.attachments && input.attachments.length > 0
+    ? { attachmentIds: input.attachments.map((attachment) => attachment.path) }
+    : {};
+}
+
+/**
+ * Opaque Agent Plugin ids (`plugin.json`'s own `name`, e.g. `"ui-ux-design"`) the operator has
+ * pinned as composer chips — `AssistantDock.tsx`'s `useSelectedAgentPlugins`, threaded here via
+ * `ChatPane`'s `runContext` prop the same way {@link frontendBindTokenField}/{@link modelField}
+ * above already are. Same "read by name, not spread" and "omit when absent" conventions as those
+ * two fields: this is not the plugin's CONTENT, only a reference to it —
+ * `agent-daemon-server.ts`'s `onStarted` is where a ref gets resolved against the real installed
+ * package on disk and its own text prepended to the prompt (see that function's own doc for the
+ * resolution/failure rules). Filtered to non-empty strings for the same reason `attachmentIds` is
+ * filtered on the decode side (`run-start-context.ts`'s `parseRunStartContextRef`) — this is the
+ * encode side of the same wire value, and a malformed entry here should not silently become a
+ * malformed one there.
+ */
+function pluginRefIdsField(input: StartRunInput): Record<string, unknown> {
+  const pluginRefIds = input.context?.["pluginRefIds"];
+  if (!Array.isArray(pluginRefIds)) return {};
+  const filtered = pluginRefIds.filter((id): id is string => typeof id === "string" && id.length > 0);
+  return filtered.length > 0 ? { pluginRefIds: filtered } : {};
+}
+
+/**
+ * The active conversation id, from `ChatPane`'s `runContext` prop (`AssistantDock.tsx`'s
+ * `chats.activeId`, the same `useRunContext` seam {@link frontendBindTokenField}/{@link modelField}/
+ * {@link pluginRefIdsField} above already ride). Lets `agent-daemon-server.ts`'s `onStarted` resume
+ * this conversation's agent-CLI session across turns instead of spawning cold every time
+ * (`server/inbound/assistant/agent-session-resume.ts`) — see that file's own doc. Returns `{}`, same
+ * convention as every other optional field here: a run started before any conversation exists yet
+ * (or from a future daemon client that never sends one) just gets no session-resume behavior, not
+ * an error.
+ */
+function conversationIdField(input: StartRunInput): Record<string, unknown> {
+  const conversationId = input.context?.["conversationId"];
+  return typeof conversationId === "string" && conversationId.length > 0 ? { conversationId } : {};
+}
+
+/**
  * Assembles the Local CLI path's `contextRef` — everything `startRun`'s daemon branch sends besides
  * `agentId` itself. Pulled out of `startRun` (2026-08-06, complexity pass, second pass) as its own
- * pure function: three independent, unrelated optional fields, each read from `input` by name and
- * included only when present (see each field's own comment below for why). A plain object in, a
- * plain object out — directly testable with a `StartRunInput` fixture, no `fetch`/`EventSource`
- * involved.
+ * pure function, then split again (2026-09-04, complexity pass) into one pure field-helper per
+ * optional field, each above: six independent, unrelated fields, none sharing state or order
+ * dependence, each read from `input` by name and included only when present (see each helper's own
+ * doc for why). Kept as six separate functions rather than grouped, on purpose — the fields have no
+ * conceptual relationship to group them by (identity, execution config, and content all mixed
+ * together), and inventing a grouping would obscure the very independence each field's own doc
+ * argues for. A plain object in, a plain object out — directly testable with a `StartRunInput`
+ * fixture, no `fetch`/`EventSource` involved.
  *
  * @param prompt - The already-built transcript string ({@link runPrompt}'s result) — this function
- *   only decides which of the three OPTIONAL fields ride alongside it, not how the prompt itself is
+ *   only decides which of the six OPTIONAL fields ride alongside it, not how the prompt itself is
  *   built.
  */
 export function buildLocalCliContextRef(input: StartRunInput, prompt: string): Record<string, unknown> {
-  const contextRef: Record<string, unknown> = { prompt };
-
-  /**
-   * Which browser tab this run should be allowed to drive, from `ChatPane`'s `runContext` prop
-   * (`AssistantDock.tsx` supplies it from the live `FrontendSessionBridge`).
-   *
-   * Read by name rather than spreading the whole `input.context` blob: `contextRef` is a shared
-   * envelope that Tovu's proxy also writes `principalId` into (`src/server/modules/assistant.ts`),
-   * and a spread would let any future `runContext` key silently shadow it — an identity field being
-   * overwritten by a UI prop is not a failure mode worth leaving open to save one line.
-   *
-   * Omitted entirely when absent, which is a normal state, not an error: the daemon treats a run
-   * with no bind token as one with no screen to drive (`agent-daemon-server.ts`).
-   */
-  const frontendBindToken = input.context?.["frontendBindToken"];
-  if (typeof frontendBindToken === "string" && frontendBindToken.length > 0) {
-    contextRef.frontendBindToken = frontendBindToken;
-  }
-
-  /**
-   * The Local CLI picker's live model selection, from `ChatPane`'s `runContext` prop
-   * (`AssistantDock.tsx`'s `resolveRunContext`). Same "read by name, not spread" reasoning as
-   * `frontendBindToken` above, and the same "omit when absent" convention. Forwarded as an opaque
-   * string — `agent-daemon-server.ts` forwards it the same way, and `AgentExecutor.run()`'s
-   * def-level `buildArgs` is what decides what an absent or `'default'` value means for a given CLI
-   * (`@jini-ai/agent-runtime`'s `models.ts`/`resolveModelForAgent`).
-   */
-  const model = input.context?.["model"];
-  if (typeof model === "string" && model.length > 0) {
-    contextRef.model = model;
-  }
-
-  /**
-   * The Execution tab's "Reasoning effort" pick, from the same `runContext` seam as `model` above
-   * and forwarded with the identical "opaque string, omit when absent" convention. What turns it
-   * into real argv is the def's own `buildArgs` on the daemon side (`claude --effort <level>`,
-   * codex's `-c model_reasoning_effort=...`) — nothing here interprets it, and a runtime whose
-   * effort is encoded in the model id (antigravity) never sends it at all, because its level is
-   * already inside `model`.
-   */
-  const reasoning = input.context?.["reasoning"];
-  if (typeof reasoning === "string" && reasoning.length > 0) {
-    contextRef.reasoning = reasoning;
-  }
-
-  /**
-   * Opaque `attachment:<uuid>` capability ids (`ChatAttachment.path` — never a real filesystem path
-   * this early; see `@jini-ai/http-kit`'s `attachments.ts` trust-model doc), not the attachments
-   * themselves — `contextRef` is the one channel `prompt`/`frontendBindToken` already ride on to
-   * reach `agent-daemon-server.ts`'s `onStarted`, which is where these ids get exchanged for real,
-   * re-validated paths via `AttachmentStore.claim()`. Nothing on this side of the wire is trusted;
-   * the id is inert until the daemon claims it.
-   *
-   * Omitted entirely when there are none, same convention as `frontendBindToken` above — a run with
-   * no attachments is the overwhelmingly common case and should not carry a key for it.
-   */
-  if (input.attachments && input.attachments.length > 0) {
-    contextRef.attachmentIds = input.attachments.map((attachment) => attachment.path);
-  }
-
-  /**
-   * Opaque Agent Plugin ids (`plugin.json`'s own `name`, e.g. `"ui-ux-design"`) the operator has
-   * pinned as composer chips — `AssistantDock.tsx`'s `useSelectedAgentPlugins`, threaded here via
-   * `ChatPane`'s `runContext` prop the same way `frontendBindToken`/`model` above already are.
-   * Same "read by name, not spread" and "omit when absent" conventions as those two fields: this
-   * is not the plugin's CONTENT, only a reference to it — `agent-daemon-server.ts`'s `onStarted`
-   * is where a ref gets resolved against the real installed package on disk and its own text
-   * prepended to the prompt (see that function's own doc for the resolution/failure rules).
-   * Filtered to non-empty strings for the same reason `attachmentIds` is filtered on the decode
-   * side (`run-start-context.ts`'s `parseRunStartContextRef`) — this is the encode side of the
-   * same wire value, and a malformed entry here should not silently become a malformed one there.
-   */
-  const pluginRefIds = input.context?.["pluginRefIds"];
-  if (Array.isArray(pluginRefIds)) {
-    const filtered = pluginRefIds.filter((id): id is string => typeof id === "string" && id.length > 0);
-    if (filtered.length > 0) contextRef.pluginRefIds = filtered;
-  }
-
-  /**
-   * The active conversation id, from `ChatPane`'s `runContext` prop (`AssistantDock.tsx`'s
-   * `chats.activeId`, the same `useRunContext` seam `frontendBindToken`/`model`/`pluginRefIds`
-   * above already ride). Lets `agent-daemon-server.ts`'s `onStarted` resume this conversation's
-   * agent-CLI session across turns instead of spawning cold every time
-   * (`server/inbound/assistant/agent-session-resume.ts`) — see that file's own doc. Omitted
-   * entirely when absent, same convention as every other optional field here: a run started before
-   * any conversation exists yet (or from a future daemon client that never sends one) just gets no
-   * session-resume behavior, not an error.
-   */
-  const conversationId = input.context?.["conversationId"];
-  if (typeof conversationId === "string" && conversationId.length > 0) {
-    contextRef.conversationId = conversationId;
-  }
-
-  return contextRef;
+  return {
+    prompt,
+    ...frontendBindTokenField(input),
+    ...modelField(input),
+    ...reasoningField(input),
+    ...attachmentIdsField(input),
+    ...pluginRefIdsField(input),
+    ...conversationIdField(input),
+  };
 }
 
 export interface CreateTovuAssistantTransportOptions {
