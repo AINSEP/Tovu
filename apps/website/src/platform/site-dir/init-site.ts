@@ -86,6 +86,32 @@ function resolveSiteName(target: string, name: string | undefined): string {
   return trimmed;
 }
 
+/**
+ * CIC U-003 cleanup-then-rethrow, split out of `initSite`'s own `catch` so that nested branching
+ * doesn't compound `initSite`'s cognitive complexity. Always throws (never returns) — see
+ * `initSite`'s own doc for the full cleanup-on-failure contract this implements (U-003-B1/B2/B3,
+ * EC-10, RT-003).
+ */
+function cleanupAndRethrow(err: unknown, target: string, wroteAnything: boolean): never {
+  if (wroteAnything) {
+    try {
+      fs.rmSync(target, { recursive: true, force: false });
+    } catch (cleanupErr) {
+      // CIC U-003-B3 / EC-10 / RT-003: the cleanup failure itself must name the partial dir
+      // rather than being swallowed silently — the commit marker was never reached, so `serve`
+      // still refuses this dir (INV-02 holds), but an operator needs to know manual removal is
+      // required.
+      throw new InternalError(
+        `initSite: cleanup failed after a mid-flight error — manual removal required at ${target}: ${(cleanupErr as Error).message}`
+      );
+    }
+  }
+  if (err instanceof ValidationError || err instanceof InitDirNotEmptyError || err instanceof InternalError) {
+    throw err;
+  }
+  throw new InternalError(`initSite: failed while creating ${target}: ${(err as Error).message}`);
+}
+
 /** BR-01 step 2 (EC-01/EC-02/AC-04): target must be absent, or an empty directory, with an existing parent. */
 function validateInitTarget(target: string): void {
   let stat: fs.Stats | undefined;
@@ -187,22 +213,6 @@ export function initSite(required: InitSiteRequired): InitSiteResult {
 
     return { siteId, dir: target };
   } catch (err) {
-    if (wroteAnything) {
-      try {
-        fs.rmSync(target, { recursive: true, force: false });
-      } catch (cleanupErr) {
-        // CIC U-003-B3 / EC-10 / RT-003: the cleanup failure itself must name the partial dir
-        // rather than being swallowed silently — the commit marker was never reached, so `serve`
-        // still refuses this dir (INV-02 holds), but an operator needs to know manual removal is
-        // required.
-        throw new InternalError(
-          `initSite: cleanup failed after a mid-flight error — manual removal required at ${target}: ${(cleanupErr as Error).message}`
-        );
-      }
-    }
-    if (err instanceof ValidationError || err instanceof InitDirNotEmptyError || err instanceof InternalError) {
-      throw err;
-    }
-    throw new InternalError(`initSite: failed while creating ${target}: ${(err as Error).message}`);
+    return cleanupAndRethrow(err, target, wroteAnything);
   }
 }
