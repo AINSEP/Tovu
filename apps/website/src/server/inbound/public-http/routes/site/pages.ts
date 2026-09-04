@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
-import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
+import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError, ROOT_SLUG } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import {
   DefaultMemberAccessResolver,
@@ -1311,6 +1311,40 @@ function resolvePerVisitorResponse(req: Request, res: Response): PerVisitorRespo
 }
 
 /**
+ * Content-owned homepage (SPEC-0XX) — looks up the published row currently claiming the reserved
+ * `"/"` slug (`post.ts`'s `ROOT_SLUG`), the mechanism that lets `GET /` render a real, authored Page
+ * instead of always falling back to the active theme's own `index.html`. Only a `kind: "page"` row
+ * can ever be saved at this slug (`resolveExplicitSlug`/`validateUpdatePostInput`'s kind gate, both
+ * `post.ts`), so no `kind` check is needed here — whatever this finds is one by construction.
+ *
+ * Mirrors {@link resolveMarketingPageOrOverride}'s own "look up by slug, swallow `PostNotFoundError`
+ * locally" shape immediately above — "no page claims `/`" is the overwhelmingly common case and must
+ * not reach the route's outer catch.
+ *
+ * A row the current visitor's member access denies is treated identically to "no page claims `/`"
+ * (returns `undefined`), matching `/:slug`'s own "gated == not-found" contract
+ * ({@link decidePostMemberAccess}'s call site in `registerSiteRoutes` below): the homepage falls back
+ * to the themed default rather than confirming a gated page's existence to an unauthorized visitor.
+ *
+ * @complexity O(1) plus the one `findBySlug` lookup's own cost.
+ */
+async function resolveHomePageContent(
+  deps: RouteDeps,
+  memberAccessResolver: MemberAccessResolver,
+  memberContext: MemberContext
+): Promise<PostRecord | undefined> {
+  const found = await getPublishedPostBySlug({
+    deps: { repo: deps.postRepo },
+    input: { workspaceId: deps.workspaceId, slug: ROOT_SLUG },
+  }).catch((err) => {
+    if (err instanceof PostNotFoundError) return null;
+    throw err;
+  });
+  if (!found) return undefined;
+  return decidePostMemberAccess(memberAccessResolver, found.post, memberContext).allowed ? found.post : undefined;
+}
+
+/**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
  * single-segment paths.
@@ -1339,6 +1373,21 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
         sendNoThemesInstalled(res);
+        return;
+      }
+
+      // Content-owned homepage (SPEC-0XX) — a Page claiming "/" wins over the theme's own
+      // index.html; renders through the SAME template-resolution path GET /:slug already uses for
+      // a Page below. Falls through to exactly the pre-existing code that follows, byte-identical,
+      // when no page claims it (or the current visitor's member access denies the one that does) —
+      // see `resolveHomePageContent`'s own doc.
+      const homePage = await resolveHomePageContent(deps, memberAccessResolver, memberContext);
+      if (homePage) {
+        const staticMenus = await resolveStaticMenusForRender(deps, theme, "/");
+        const templateHtml = await renderTemplateBranchIfEligible(deps, theme, homePage, staticMenus, siteAssistantEnabled);
+        const html = templateHtml ?? (await renderGenericPostPage(deps, theme, homePage, visiblePosts, siteAssistantEnabled));
+        const perVisitor = resolvePerVisitorResponse(req, res);
+        res.set("Cache-Control", perVisitor.cacheControl).type("html").send(injectFormSubmissionResultIntoHtml(html, perVisitor.result));
         return;
       }
 

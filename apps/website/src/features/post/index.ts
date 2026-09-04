@@ -14,6 +14,7 @@ export {
   DEFAULT_BODY_JSON,
   MAX_SLUG_LENGTH,
   MAX_TITLE_LENGTH,
+  ROOT_SLUG,
   SLUG_FORMAT_PATTERN,
   PostConflictError,
   PostNotFoundError,

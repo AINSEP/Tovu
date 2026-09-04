@@ -535,3 +535,72 @@ test("GET /signup: regression for the 2026-08-31 404 -- the primary nav CTA targ
     "must render its own real content, not a fallback"
   );
 });
+
+// ---------------------------------------------------------------------------
+// Content-owned homepage (SPEC-0XX) — GET / resolves a published Page claiming the reserved "/"
+// slug (post.ts's ROOT_SLUG) instead of always falling back to the active theme's own index.html.
+// ---------------------------------------------------------------------------
+
+function rootHomePage(workspaceId: string, overrides: Partial<PostRecord> = {}): PostRecord {
+  return {
+    id: "root-home-page-test",
+    workspaceId,
+    title: "Home",
+    slug: "/",
+    bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "UNIQUE_HOMEPAGE_MARKER_9f3a1c2b" }] }] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "page",
+    updatedAt: "2026-09-03T00:00:00.000Z",
+    version: 1,
+    ...overrides,
+  } as unknown as PostRecord;
+}
+
+test("GET /: a published Page claiming slug '/' with an explicit template renders through the theme's page template, not the theme's own index.html", async (t) => {
+  const base = createRouteDeps();
+  const page = rootHomePage(base.workspaceId, { templateChoice: "page-shell.html" } as Partial<PostRecord>);
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([page]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("UNIQUE_HOMEPAGE_MARKER_9f3a1c2b"), "the claiming page's own authored content must render");
+  assert.ok(html.includes("<title>Home</title>"), "page-shell.html's {{title}} placeholder must be filled with the page's real title");
+  assert.ok(!html.includes("shipped in minutes"), "the theme's own index.html hero copy must NOT render -- the page won, not the theme default");
+  assert.ok(!html.includes('href="//"'), "no href may ever resolve to the doubled-up '//' a naive `/${slug}` template would produce for this slug");
+});
+
+test("GET /: no page claims slug '/' -- falls back to the active theme's own index.html unchanged", async (t) => {
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("shipped in minutes"), "with no page claiming '/', the theme's own real index.html hero copy must still render, unchanged");
+});
+
+test("GET /: a Page claiming '/' with no explicit template still renders its own content (generic fallback), never the theme's index.html", async (t) => {
+  const base = createRouteDeps();
+  const page = rootHomePage(base.workspaceId);
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([page]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+
+  assert.ok(html.includes("UNIQUE_HOMEPAGE_MARKER_9f3a1c2b"), "the claiming page's own authored content must render even with no explicit templateChoice");
+  assert.ok(!html.includes("shipped in minutes"), "the theme's own index.html hero copy must NOT render");
+});
