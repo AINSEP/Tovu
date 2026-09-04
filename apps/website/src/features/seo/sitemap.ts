@@ -1,13 +1,13 @@
 import type { UUID } from "@jini-ai/cms/core";
 import { resolvePostMemberAccess } from "../members/index.js";
-import type { PostRepoPort } from "../post/index.js";
+import type { PostRecord, PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { OriginRegistryPort } from "../origin/index.js";
 import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
 import type { ResolveSeoImageRefDeps } from "./media.js";
 import { getEntryMeta } from "./seo.js";
 import { getSeoSettings } from "./settings.js";
-import type { RobotsPolicy, SitemapEntry } from "./types.js";
+import type { RobotsPolicy, SeoMeta, SitemapEntry } from "./types.js";
 import type { SeoEventSubscriptions, SitemapCollectHook } from "./ports.js";
 
 /**
@@ -68,10 +68,29 @@ function isPubliclyVisible(post: { memberAccessJson?: string | null }): boolean 
   return resolvePostMemberAccess(post.memberAccessJson).visibility === "public";
 }
 
-async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
+/** One publish-eligible, indexable entry: the raw post row plus its fully-resolved `SeoMeta`
+ *  (title/description/canonical/robots — everything {@link getEntryMeta} computes). */
+export interface IndexableEntry {
+  readonly post: PostRecord;
+  readonly meta: SeoMeta;
+}
+
+/**
+ * The single publish/visibility/indexability filter every public SEO document is built from
+ * (INV-04/05): never a non-`published` post, never a members/paid/tiers-gated one
+ * ({@link isPubliclyVisible}, ADR-030 §4), never an effective-`noindex` one. Returns the full
+ * resolved `SeoMeta` per entry (not just `loc`/`lastmod`) so a consumer that needs a title or
+ * description — `llms.txt` (`routes/site/llms.ts`), which `SitemapEntry` can't supply one for —
+ * reads it from the same evaluator `sitemap.xml` does, instead of re-deriving a second, subtly
+ * different notion of "published and indexable."
+ *
+ * @complexity O(n) in the workspace's post count, each with one bounded `getEntryMeta` resolution
+ *   (see that function's own complexity note).
+ */
+export async function computeIndexableEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<IndexableEntry[]> {
   const posts = [...(await deps.postRepo.list({ workspaceId }))].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  const entries: SitemapEntry[] = [];
+  const entries: IndexableEntry[] = [];
   for (const post of posts) {
     if (post.status !== "published") continue;
     // ADR-030 §4 (2026-09-03 sweep): a members/paid/tiers-gated post must not advertise its
@@ -80,13 +99,21 @@ async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): P
     if (!isPubliclyVisible(post)) continue;
     const meta = await getEntryMeta(deps, { workspaceId, entryId: post.id });
     if (meta.robots.noindex) continue;
-    // `meta.canonical` is absolute when the workspace has a verified origin (2026-09-03 fix,
-    // `getEntryMeta`'s own `resolveCanonical`) — sitemap `loc` entries are required to be absolute
-    // by the sitemap protocol, same requirement `og:url` has. Falls back to the bare relative path
-    // for the same disclosed no-origin degradation `getEntryMeta` documents; unchanged from before
-    // this fix for a workspace with no verified origin yet.
-    entries.push({ loc: meta.canonical, lastmod: post.updatedAt });
+    entries.push({ post, meta });
   }
+  return entries;
+}
+
+async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): Promise<SitemapEntry[]> {
+  // `meta.canonical` is absolute when the workspace has a verified origin (2026-09-03 fix,
+  // `getEntryMeta`'s own `resolveCanonical`) — sitemap `loc` entries are required to be absolute
+  // by the sitemap protocol, same requirement `og:url` has. Falls back to the bare relative path
+  // for the same disclosed no-origin degradation `getEntryMeta` documents; unchanged from before
+  // this fix for a workspace with no verified origin yet.
+  const entries: SitemapEntry[] = (await computeIndexableEntries(deps, workspaceId)).map(({ post, meta }) => ({
+    loc: meta.canonical,
+    lastmod: post.updatedAt,
+  }));
 
   for (const hook of [...sitemapCollectHooks].sort((a, b) => a.priority - b.priority)) {
     const collected = await hook.handle({ workspaceId, baseUrl: "" });

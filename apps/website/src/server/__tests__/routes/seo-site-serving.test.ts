@@ -97,7 +97,7 @@ test("T040/T041: /sitemap.xml and /robots.txt are reachable through the real run
   assert.match(robots.headers.get("content-type") ?? "", /text\/plain/);
 });
 
-test("GET /llms.txt is reachable through the real running app, unauthenticated, and lists only currently-published curated doc entries", async (t) => {
+test("GET /llms.txt is reachable through the real running app, unauthenticated, and lists every published, indexable seeded page with an absolute URL (2026-09-04 rewrite: derived from computeIndexableEntries, not a hand-curated list)", async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
   const baseUrl = await startTestServer(app, t);
@@ -109,16 +109,17 @@ test("GET /llms.txt is reachable through the real running app, unauthenticated, 
 
   const body = await res.text();
   assert.match(body, /^# Tovu\n/, "llmstxt.org requires an H1 as the very first line");
-  assert.match(body, /^## Docs$/m);
-  // Present in the seeded fixture (seed.ts) -> must be linked.
-  assert.match(body, /- \[How Themes Work\]\(\/how-themes-work\): .+/);
-  assert.match(body, /- \[How Plugins Work\]\(\/how-plugins-work\): .+/);
-  assert.match(body, /- \[The Plugin API\]\(\/plugin-api\): .+/);
-  // Curated, but absent from this environment's seed fixture -> must be silently
-  // omitted rather than linking a 404 (mirrors buildSitemap's own INV-04/05 discipline).
-  assert.doesNotMatch(body, /\/documentation\)/);
-  assert.doesNotMatch(body, /\/quickstart\)/);
-  assert.doesNotMatch(body, /\/how-tovu-works\)/);
+  assert.match(body, /^## Pages$/m);
+  // Present in the seeded fixture (seed.ts) -> must be linked, with an absolute URL
+  // (`createRouteDeps()` seeds a verified `dev-capability` origin, `http://localhost:3000`) and a
+  // real, non-empty description sourced from that page's own resolved SEO meta.
+  assert.match(body, /- \[How Themes Work\]\(http:\/\/localhost:3000\/how-themes-work\): .+/);
+  assert.match(body, /- \[How Plugins Work\]\(http:\/\/localhost:3000\/how-plugins-work\): .+/);
+  assert.match(body, /- \[The Plugin API\]\(http:\/\/localhost:3000\/plugin-api\): .+/);
+  // No longer a curated allowlist -- every published, publicly visible page in the seed is listed,
+  // not just the former 6 "docs" slugs.
+  assert.match(body, /- \[Home\]\(http:\/\/localhost:3000\/\): .+/);
+  assert.match(body, /- \[Welcome to Tovu\]\(http:\/\/localhost:3000\/welcome\): .+/);
 });
 
 test("T045: the real home-page render includes SEO's folded <title> tag, not just the raw shell default", async (t) => {

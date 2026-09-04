@@ -1,55 +1,28 @@
-import { resolvePostMemberAccess } from "#src/features/members/index";
-import type { PostRepoPort } from "#src/features/post/index";
+import { computeIndexableEntries, type IndexableEntry } from "#src/features/seo/index";
 import type { SeoRouteRegistrar } from "#src/server/inbound/admin-http/routes/seo/deps";
 
 /**
  * @file `GET /llms.txt` — public, unauthenticated (owner decision TM-TOVU-2026-08-31, per
  * `development/docs/ai-first-docs-checklist.md` "Do now" item 1). Follows the llmstxt.org
  * convention: an H1 title, a one-line blockquote summary, then H2-labeled sections of
- * `- [title](url): description` links — a curated index a coding-agent tool (Cursor, Claude
- * Code, Windsurf, Copilot, Cline, Aider) can fetch in one request to orient itself before
- * reading further. Registered ahead of the site's `/:slug` catch-all, same as
+ * `- [title](url): description` links — a machine-readable index a coding-agent tool (Cursor,
+ * Claude Code, Windsurf, Copilot, Cline, Aider) can fetch in one request to learn the shape of the
+ * whole site before reading further. Registered ahead of the site's `/:slug` catch-all, same as
  * `registerSeoRobotsRoute`/`registerSeoSitemapRoute` (`robots.ts`/`sitemap.ts` in this
  * directory) — see `modules/seo.ts`'s file header for the ordering requirement.
  *
- * The checklist explicitly scoped this to a hand-curated list (Phase 2: "needs an explicit
- * 'which pages count as docs' tag or convention" — not built yet). `CURATED_DOCS` below is
- * that hand-maintained list; add a page here when it should be discoverable this way.
+ * 2026-09-04 rewrite: the checklist originally scoped this to a hand-curated `CURATED_DOCS` list
+ * (Phase 2 note: "needs an explicit 'which pages count as docs' tag or convention — not built
+ * yet"). That list drifted the moment a page was published, renamed, or unpublished outside it, so
+ * this now derives the index from `computeIndexableEntries` (`features/seo/sitemap.ts`) — the same
+ * publish/visibility/`noindex` filter `sitemap.xml` is built from (INV-04/05) — instead of
+ * maintaining a second, hand-authored notion of "which pages count." Every published, publicly
+ * visible, non-`noindex` post/page is listed; a members/paid/tiers-gated or draft page can never
+ * leak here, same guarantee `sitemap.xml` gives. This is a deliberate, disclosed behavior change,
+ * not silent drift — see `__tests__/llms.route.test.ts`'s file header for what it replaces.
  */
 
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
-
-interface CuratedDocEntry {
-  readonly slug: string;
-  readonly title: string;
-  readonly description: string;
-}
-
-/** Hand-maintained until a real "this page is a doc" tag/convention exists (see file header). */
-const CURATED_DOCS: readonly CuratedDocEntry[] = [
-  { slug: "documentation", title: "Documentation", description: "Everything written about Tovu so far, in the order it makes sense to read it" },
-  { slug: "quickstart", title: "Quickstart", description: "From nothing to a published post in five steps" },
-  {
-    slug: "how-tovu-works",
-    title: "How Tovu Works",
-    description: "Tovu's core model — your content, themes, and plugins all live in one folder you own",
-  },
-  {
-    slug: "how-themes-work",
-    title: "How Themes Work",
-    description: "The three theme tiers, and how much trust each one requires",
-  },
-  {
-    slug: "how-plugins-work",
-    title: "How Plugins Work",
-    description: "What a plugin can touch, and how it stays sandboxed from your content and your database",
-  },
-  {
-    slug: "plugin-api",
-    title: "The Plugin API",
-    description: "The hook surface plugins subscribe to, and the namespaced ext field they write into",
-  },
-];
 
 const LLMS_TXT_SUMMARY =
   "Tovu is a content platform you own outright: one portable SQLite database, your themes, and " +
@@ -57,37 +30,21 @@ const LLMS_TXT_SUMMARY =
   "per-seat pricing, nothing that phones home.";
 
 /**
- * Drops any curated entry that isn't currently a published post/page — mirrors `buildSitemap`'s
- * own INV-04/05 discipline (`features/seo/sitemap.ts`): a curated slug that was renamed,
- * unpublished, or never created in this environment is silently omitted rather than linked as a
- * dead 404, so the list self-heals instead of drifting stale.
+ * Pure render: `IndexableEntry[]` -> the CommonMark body (llmstxt.org shape, see file header).
+ * Sorted by resolved title — display order only, orthogonal to `computeIndexableEntries`'
+ * inclusion/visibility rules — so the index reads as a stable, human-scannable list rather than
+ * database insertion order. A page with no resolved description (no override, no site default, no
+ * derivable excerpt — `SeoMeta.description` is optional) is still listed, just without the
+ * trailing `: description` — never a fabricated one.
  *
- * 2026-09-03 member-gating sweep hardening: also drops a curated slug whose post IS published but
- * gated (`memberAccessJson` visibility other than `public`). Currently inert — none of the 6
- * curated slugs are gated in any real environment today — but `llms.txt` is the same kind of
- * single, cache-backed, session-blind document `sitemap.xml` is (no per-caller branching at all),
- * so it needs the identical structural check `sitemap.ts`'s own `isPubliclyVisible` uses, not just
- * a status check, so a future gated curated page can't silently start leaking its URL here.
- *
- * @complexity O(n) in `CURATED_DOCS`'s fixed, small size — one indexed `findBySlug` lookup per
- *   entry, no nested iteration.
+ * @complexity O(n log n) in `entries.length` (the sort); the render itself is O(n).
  */
-async function resolveLiveDocs(deps: { postRepo: PostRepoPort; workspaceId: string }): Promise<CuratedDocEntry[]> {
-  const live: CuratedDocEntry[] = [];
-  for (const entry of CURATED_DOCS) {
-    const post = await deps.postRepo.findBySlug({ workspaceId: deps.workspaceId, slug: entry.slug });
-    if (post && post.status === "published" && resolvePostMemberAccess(post.memberAccessJson).visibility === "public") {
-      live.push(entry);
-    }
-  }
-  return live;
-}
-
-/** Pure render: `CuratedDocEntry[]` -> the CommonMark body (llmstxt.org shape, see file header). */
-function renderLlmsTxt(entries: readonly CuratedDocEntry[]): string {
-  const lines = ["# Tovu", "", `> ${LLMS_TXT_SUMMARY}`, "", "## Docs", ""];
-  for (const entry of entries) {
-    lines.push(`- [${entry.title}](/${entry.slug}): ${entry.description}`);
+function renderLlmsTxt(entries: readonly IndexableEntry[]): string {
+  const sorted = [...entries].sort((a, b) => a.meta.title.localeCompare(b.meta.title));
+  const lines = ["# Tovu", "", `> ${LLMS_TXT_SUMMARY}`, "", "## Pages", ""];
+  for (const entry of sorted) {
+    const description = entry.meta.description ? `: ${entry.meta.description}` : "";
+    lines.push(`- [${entry.meta.title}](${entry.meta.canonical})${description}`);
   }
   return `${lines.join("\n")}\n`;
 }
@@ -96,7 +53,10 @@ export const registerLlmsTxtRoute: SeoRouteRegistrar = (app, deps) => {
   app.get("/llms.txt", async (_req, res) => {
     try {
       await deps.seoReady;
-      const entries = await resolveLiveDocs({ postRepo: deps.postRepo, workspaceId: deps.workspaceId });
+      const entries = await computeIndexableEntries(
+        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
+        deps.workspaceId
+      );
       res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/markdown").send(renderLlmsTxt(entries));
     } catch {
       res.status(500).type("text/plain").send("internal error");

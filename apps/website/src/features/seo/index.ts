@@ -20,11 +20,13 @@ export {
 export {
   buildSitemap,
   buildRobots,
+  computeIndexableEntries,
   regenerateSitemapCache,
   invalidateSitemapCache,
   createSeoEventSubscriptions,
   registerSitemapCollectHook,
   resetSitemapCollectHooksForTests,
+  type IndexableEntry,
   type SeoSitemapDeps,
 } from "./sitemap.js";
 export { resolveSeoImageRef, type ResolveSeoImageRefDeps, type ResolveSeoImageRefInput } from "./media.js";
