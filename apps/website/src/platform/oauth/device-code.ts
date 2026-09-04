@@ -97,43 +97,42 @@ function clampSeconds(raw: unknown, fallback: number, min: number, max: number):
   return Math.min(Math.max(Math.ceil(seconds), min), max);
 }
 
-/**
- * Starts a device authorization (RFC 8628 §3.1–3.2).
- *
- * @returns The user code, verification URL, poll interval, and the secret device code.
- * @throws {OAuthError} `OAUTH_UNSUPPORTED_GRANT` when the descriptor declares no device endpoint,
- *   `OAUTH_PROVIDER_UNREACHABLE` on a timeout or transport failure (bounded, never retried),
- *   `OAUTH_MALFORMED_RESPONSE` on a non-compliant body, `OAUTH_UNSAFE_ENDPOINT` when the server's
- *   own `verification_uri` fails the user-facing-link check.
- * @complexity O(1) — one bounded outbound request.
- */
-export async function beginDeviceAuthorization(
-  deps: DeviceAuthorizationDeps,
-  input: BeginDeviceAuthorizationInput,
-): Promise<DeviceAuthorization> {
-  if (!deps.provider.supportedGrants.includes("device_code") || !deps.provider.deviceAuthorizationEndpoint) {
-    throw new OAuthError("OAUTH_UNSUPPORTED_GRANT", `provider '${deps.provider.providerId}' does not support the device grant`, {
+/** @throws {OAuthError} `OAUTH_UNSUPPORTED_GRANT` when the descriptor declares no device endpoint.
+ *  @returns The endpoint, narrowed to a defined string for the caller. */
+function requireDeviceAuthorizationEndpoint(provider: OAuthProviderDescriptor): string {
+  if (!provider.supportedGrants.includes("device_code") || !provider.deviceAuthorizationEndpoint) {
+    throw new OAuthError("OAUTH_UNSUPPORTED_GRANT", `provider '${provider.providerId}' does not support the device grant`, {
       operatorAction: "Connect this provider from Settings using the browser redirect flow instead.",
     });
   }
+  return provider.deviceAuthorizationEndpoint;
+}
 
-  const endpoint = assertSafeProviderEndpoint(deps.provider.deviceAuthorizationEndpoint, "device authorization endpoint");
-  const scopes = input.scopes ?? deps.provider.defaultScopes;
-  const params: Record<string, string> = { client_id: input.client.clientId };
+/** The RFC 8628 §3.1 request body. */
+function buildDeviceAuthorizationParams(client: OAuthClient, scopes: readonly string[]): Record<string, string> {
+  const params: Record<string, string> = { client_id: client.clientId };
   if (scopes.length > 0) params.scope = scopes.join(" ");
-  if (input.client.authMethod === "client_secret_post" && input.client.clientSecret) {
-    params.client_secret = input.client.clientSecret;
+  if (client.authMethod === "client_secret_post" && client.clientSecret) {
+    params.client_secret = client.clientSecret;
   }
+  return params;
+}
 
-  const fetchFn = deps.fetchFn ?? fetch;
-  let response: Response;
+/** @throws {OAuthError} `OAUTH_PROVIDER_UNREACHABLE` on a timeout or transport failure — bounded,
+ *  never retried. */
+async function postDeviceAuthorizationRequest(
+  fetchFn: OAuthFetch,
+  endpoint: URL,
+  params: Record<string, string>,
+  timeoutMs: number,
+): Promise<Response> {
   try {
-    response = await fetchFn(endpoint.toString(), {
+    return await fetchFn(endpoint.toString(), {
       method: "POST",
       headers: { accept: "application/json", "content-type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams(params).toString(),
       redirect: "error",
-      signal: AbortSignal.timeout(input.timeoutMs ?? DEFAULT_TOKEN_REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (cause) {
     throw new OAuthError("OAUTH_PROVIDER_UNREACHABLE", `could not reach the device authorization endpoint at ${endpoint.host}`, {
@@ -141,16 +140,23 @@ export async function beginDeviceAuthorization(
       cause,
     });
   }
+}
 
-  const body = (await readBoundedOAuthJson(response, DEVICE_RESPONSE_MESSAGES, MAX_RESPONSE_BYTES)) as RawDeviceAuthorizationResponse;
-  if (!response.ok || typeof body.error === "string") {
-    const providerErrorCode = typeof body.error === "string" ? body.error : undefined;
-    throw new OAuthError(providerErrorCode ? mapProviderErrorCode(providerErrorCode) : "OAUTH_PROVIDER_REJECTED", `the authorization server refused the device authorization request (HTTP ${response.status})`, {
-      operatorAction: "Check this provider's client id and scopes, then start the connection again.",
-      ...(providerErrorCode === undefined ? {} : { providerErrorCode }),
-    });
-  }
+/** @throws {OAuthError} `OAUTH_PROVIDER_REJECTED` (or the mapped provider code) when the server
+ *  refused the request — a non-2xx status, an `error` field, or both. */
+function assertDeviceAuthorizationAccepted(response: Response, body: RawDeviceAuthorizationResponse): void {
+  if (response.ok && typeof body.error !== "string") return;
+  const providerErrorCode = typeof body.error === "string" ? body.error : undefined;
+  throw new OAuthError(providerErrorCode ? mapProviderErrorCode(providerErrorCode) : "OAUTH_PROVIDER_REJECTED", `the authorization server refused the device authorization request (HTTP ${response.status})`, {
+    operatorAction: "Check this provider's client id and scopes, then start the connection again.",
+    ...(providerErrorCode === undefined ? {} : { providerErrorCode }),
+  });
+}
 
+/** Narrows an already-accepted RFC 8628 §3.2 response body into a {@link DeviceAuthorization}.
+ *  @throws {OAuthError} `OAUTH_MALFORMED_RESPONSE` on a missing required field,
+ *  `OAUTH_UNSAFE_ENDPOINT` when the server's own `verification_uri` fails the user-facing-link check. */
+function narrowDeviceAuthorization(body: RawDeviceAuthorizationResponse, nowIso: ISODateTime): DeviceAuthorization {
   // `verification_url` is Google's long-standing pre-RFC spelling and is still emitted by several
   // providers; accepted for the same reason `composio-callback.ts` accepts four spellings of its
   // connection id — silently dropping it would fail with a confusing "missing field".
@@ -167,9 +173,44 @@ export async function beginDeviceAuthorization(
     userCode: requiredString(body.user_code, "user_code"),
     verificationUri,
     verificationUriComplete,
-    expiresAt: new Date(Date.parse(deps.clock.nowIso()) + lifetimeSeconds * 1000).toISOString(),
+    expiresAt: new Date(Date.parse(nowIso) + lifetimeSeconds * 1000).toISOString(),
     intervalSeconds: clampSeconds(body.interval, DEFAULT_POLL_INTERVAL_SECONDS, 1, MAX_POLL_INTERVAL_SECONDS),
   };
+}
+
+/**
+ * Starts a device authorization (RFC 8628 §3.1–3.2).
+ *
+ * @returns The user code, verification URL, poll interval, and the secret device code.
+ * @throws {OAuthError} `OAUTH_UNSUPPORTED_GRANT` when the descriptor declares no device endpoint,
+ *   `OAUTH_PROVIDER_UNREACHABLE` on a timeout or transport failure (bounded, never retried),
+ *   `OAUTH_MALFORMED_RESPONSE` on a non-compliant body, `OAUTH_UNSAFE_ENDPOINT` when the server's
+ *   own `verification_uri` fails the user-facing-link check.
+ * @complexity O(1) — one bounded outbound request.
+ */
+export async function beginDeviceAuthorization(
+  deps: DeviceAuthorizationDeps,
+  input: BeginDeviceAuthorizationInput,
+): Promise<DeviceAuthorization> {
+  const endpoint = assertSafeProviderEndpoint(
+    requireDeviceAuthorizationEndpoint(deps.provider),
+    "device authorization endpoint",
+  );
+  const scopes = input.scopes ?? deps.provider.defaultScopes;
+  const params = buildDeviceAuthorizationParams(input.client, scopes);
+
+  const fetchFn = deps.fetchFn ?? fetch;
+  const response = await postDeviceAuthorizationRequest(
+    fetchFn,
+    endpoint,
+    params,
+    input.timeoutMs ?? DEFAULT_TOKEN_REQUEST_TIMEOUT_MS,
+  );
+
+  const body = (await readBoundedOAuthJson(response, DEVICE_RESPONSE_MESSAGES, MAX_RESPONSE_BYTES)) as RawDeviceAuthorizationResponse;
+  assertDeviceAuthorizationAccepted(response, body);
+
+  return narrowDeviceAuthorization(body, deps.clock.nowIso());
 }
 
 export interface PollDeviceAuthorizationInput {
