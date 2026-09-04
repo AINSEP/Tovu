@@ -65,16 +65,22 @@ export function templateMarkupUrl(themeId: string, apiVersion: 2 | undefined, te
   return themeAssetUrl(themeId, `${resolveThemeLayout(apiVersion).pagesDir}/${encodeURIComponent(templateChoice)}`);
 }
 
-/** The Tovu-owned canonical document-shell filename a `static`-tier theme ships for a `kind: "page"`,
- *  `bodyFormat: "html"` row with no explicit template choice — the browser-side twin of
- *  `STATIC_TIER_PAGE_SHELL_ID` in `apps/website/src/features/theme/static-render.ts` (see
+/** The Tovu-owned canonical document-shell filename(s) a `static`-tier theme ships for a
+ *  `kind: "page"`, `bodyFormat: "html"` row with no explicit template choice — the browser-side twin
+ *  of `STATIC_TIER_PAGE_SHELL_IDS` in `apps/website/src/features/theme/static-render.ts` (see
  *  `resolveStaticTierPageShellFallback` there), which the live render path consults for exactly this
  *  case. That module is server/Node-only (its theme discovery reads real files off disk) and is not
  *  exposed through `@tovu/theme-layout`, the one deliberately-pure cross-runtime module this file
  *  already imports from (see this file's own header) — so its constant cannot be imported here the
  *  way `resolveThemeLayout` is. This is the one fact of theirs {@link resolveCanvasTemplateChoice}
- *  actually needs, kept in sync by hand: if the canonical filename ever changes, update both. */
-const STATIC_TIER_PAGE_SHELL_TEMPLATE = "page-shell.html";
+ *  actually needs, kept in sync by hand: if the canonical filename(s) ever change, update both.
+ *
+ *  ORDERED, new name first, same reason and same removal condition as the website-side list: `basic`
+ *  ships `pages-default.html` since its 2026-09-03 posts-* / pages-* rename, but `basic-2` — the only
+ *  other installed static theme with a page shell at all — still ships the legacy `page-shell.html`.
+ *  {@link useThemeCanvasStyling}'s template-markup fetch tries each entry in order (see that
+ *  function's own doc) so either theme's real filename is found. */
+const STATIC_TIER_PAGE_SHELL_TEMPLATES: readonly string[] = ["pages-default.html", "page-shell.html"];
 
 /**
  * What {@link useThemeCanvasStyling}'s `templateChoice` argument should actually be, given the page's
@@ -82,8 +88,9 @@ const STATIC_TIER_PAGE_SHELL_TEMPLATE = "page-shell.html";
  * `html`-format Page, which the live render path (`resolveStaticTierPageShellFallback`, consulted by
  * `renderTemplateBranchIfEligible` in
  * `apps/website/src/server/inbound/public-http/routes/site/pages.ts`) renders through the active
- * theme's own {@link STATIC_TIER_PAGE_SHELL_TEMPLATE} when it ships one, instead of Tovu's generic
- * built-in chrome — see that function's own doc for the full "why". Before this existed, the
+ * theme's own page shell — the first entry of {@link STATIC_TIER_PAGE_SHELL_TEMPLATES} it actually
+ * ships — instead of Tovu's generic built-in chrome — see that function's own doc for the full "why".
+ * Before this existed, the
  * Interactive canvas asked for no template markup at all in this case, so it never derived a wrapper
  * and rendered the page full-bleed while the published page (the SAME row, through the SAME theme)
  * rendered inside the theme's real container.
@@ -94,11 +101,11 @@ const STATIC_TIER_PAGE_SHELL_TEMPLATE = "page-shell.html";
  * `terms-of-service`/blog-post-title regression that gate exists to prevent (see that function's own
  * doc). A real `templateChoice` — the operator picked one — always wins over the fallback.
  *
- * Fetching {@link STATIC_TIER_PAGE_SHELL_TEMPLATE} against a theme that does not ship one (every
- * non-`static` tier, and a `static` theme with no `page-shell.html`) fails harmlessly:
- * {@link useThemeCanvasStyling}'s own `fetchTemplateMarkup(...).catch(() => null)` already degrades
- * any fetch failure to "no wrapper" — the exact pre-existing behavior for this case. No theme-tier
- * check is needed here for that reason; the failed fetch IS the tier check.
+ * Fetching {@link STATIC_TIER_PAGE_SHELL_TEMPLATES}`[0]` against a theme that ships neither candidate
+ * (every non-`static` tier, and a `static` theme with no page shell at all) fails harmlessly:
+ * {@link useThemeCanvasStyling}'s own candidate-fallback fetch already degrades a full miss to "no
+ * wrapper" — the exact pre-existing behavior for this case. No theme-tier check is needed here for
+ * that reason; the failed fetch(es) ARE the tier check.
  *
  * @param templateChoice - The page's own live template choice, same tri-state contract as
  *   {@link useThemeCanvasStyling}'s own parameter.
@@ -109,7 +116,7 @@ const STATIC_TIER_PAGE_SHELL_TEMPLATE = "page-shell.html";
  */
 export function resolveCanvasTemplateChoice(templateChoice: string | null, bodyFormat: "doc" | "html"): string | null {
   if (templateChoice) return templateChoice;
-  return bodyFormat === "html" ? STATIC_TIER_PAGE_SHELL_TEMPLATE : templateChoice;
+  return bodyFormat === "html" ? STATIC_TIER_PAGE_SHELL_TEMPLATES[0] : templateChoice;
 }
 
 /** A token name must be a plain CSS custom property; a value must not contain any character that
@@ -179,9 +186,46 @@ const NO_CANVAS_STYLING: ThemeCanvasStylingState = { status: "ready", styling: {
  *   wrapper rather than failing the whole canvas: `contentWrapper` is optional on `CanvasStyling`, and
  *   its absence reproduces the exact pre-existing "no wrapper" canvas.
  * @returns The current {@link ThemeCanvasStylingState}.
- * @complexity Two-or-three requests per theme (three when `templateChoice` is set), no retry loop;
- *   O(n) in the token count to build the CSS, O(m) in the template markup's size to derive the wrapper.
+ * @complexity Two-or-three requests per theme (three when `templateChoice` is set, up to four when it
+ *   is the page-shell shim's primary candidate and the active theme only ships the legacy one), no
+ *   unbounded retry; O(n) in the token count to build the CSS, O(m) in the template markup's size to
+ *   derive the wrapper.
  */
+/**
+ * Fetches `templateChoice`'s markup, same single request as before, UNLESS `templateChoice` is
+ * exactly {@link STATIC_TIER_PAGE_SHELL_TEMPLATES}`[0]` — the synthetic value
+ * {@link resolveCanvasTemplateChoice} returns for an untemplated `html` Page, never an operator's own
+ * explicit pick (`activeThemeTemplates` always reflects the CURRENTLY active theme's real filenames,
+ * so an explicit choice never needs this). In that one case, a failed fetch retries the REMAINING
+ * ordered candidates before giving up — the browser-side twin of
+ * `resolveStaticTierPageShellFallback`'s own ordered-candidate loop
+ * (`apps/website/src/features/theme/static-render.ts`), needed because only `basic` ships the new
+ * `pages-default.html` name; `basic-2` still ships only the legacy `page-shell.html`.
+ *
+ * @returns The first candidate's markup that resolves, or `null` once every candidate has rejected —
+ *   folded into the SAME "no wrapper" degrade {@link useThemeCanvasStyling} already applies to a
+ *   single fetch failure, not a new outcome.
+ * @complexity O(1) network round trips in the common case (one), bounded by
+ *   `STATIC_TIER_PAGE_SHELL_TEMPLATES.length` in the worst case — never unbounded.
+ */
+async function fetchTemplateMarkupWithPageShellFallback(
+  port: ThemeCanvasPort,
+  themeId: string,
+  apiVersion: 2 | undefined,
+  templateChoice: string,
+): Promise<string | null> {
+  const candidates = templateChoice === STATIC_TIER_PAGE_SHELL_TEMPLATES[0] ? STATIC_TIER_PAGE_SHELL_TEMPLATES : [templateChoice];
+  for (const candidate of candidates) {
+    try {
+      return await port.fetchTemplateMarkup(templateMarkupUrl(themeId, apiVersion, candidate));
+    } catch {
+      // Try the next ordered candidate; the loop's own fall-through to `null` below is the "every
+      // candidate failed" outcome, matching the pre-existing single-fetch `.catch(() => null)`.
+    }
+  }
+  return null;
+}
+
 export function useThemeCanvasStyling(
   themeId: string | null,
   apiVersion: 2 | undefined,
@@ -201,7 +245,7 @@ export function useThemeCanvasStyling(
     // the `Promise.all` below, so readiness always waits on exactly one settle shape regardless of
     // whether a template is selected.
     const templateMarkup: Promise<string | null> = templateChoice
-      ? port.fetchTemplateMarkup(templateMarkupUrl(themeId, apiVersion, templateChoice)).catch(() => null)
+      ? fetchTemplateMarkupWithPageShellFallback(port, themeId, apiVersion, templateChoice)
       : Promise.resolve(null);
     Promise.all([
       port.fetchThemeTokens(themeTokensUrl(themeId)),

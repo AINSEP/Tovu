@@ -35,7 +35,7 @@ p { margin: 0; color: var(--muted); }
 /* Single source for the sticky header's rendered height: `.nav-row` below reads `--header-h`
    directly (its 69px content height; `.site-header`'s own 1px border-bottom brings the real box
    to 70px). Declared at `:root` rather than scoped to `.site-header` since the header is injected
-   as a partial embed (`blog-sidebar-template.html`'s
+   as a partial embed (`posts-sidebar.html`'s
    `data-embed-config='{"type":"partial","id":"nav",...}'`) and ends up a SIBLING of `.docs-layout`
    under `<body>`, not its ancestor. Header height is the same at every breakpoint (`.nav-row` is
    never resized in the `@media (max-width: 640px)` block below — the mobile `.main-nav.open` panel
@@ -48,7 +48,7 @@ p { margin: 0; color: var(--muted); }
    (`stickyParams`, `kuinetic.all.js`) — but only for the sticky/pin effects (`pin-section`/
    `pin-until`/`pin-spacer`/`stacking-cards`), none of which this theme uses anywhere. The
    scroll-spy effect this theme DOES use (`data-kui="scroll-spy ..."` on `.docs-layout`,
-   `blog-sidebar-template.html`) is a different code path (`prepareScrollSpyContainer`) whose own
+   `posts-sidebar.html`) is a different code path (`prepareScrollSpyContainer`) whose own
    `offset-top` param defaults to a literal `"0px"` and is parsed by a plain JS regex
    (`toPixels()`/`NUMBER_WITH_UNIT`) that cannot read `var()`/`calc()` at all — a CSS custom
    property can never reach it. That effect's `offset-top:70px` is therefore authored directly on
@@ -302,7 +302,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    2026-08-31) — this rule and `.wrap`'s `padding: 0 24px` share specificity, and this one comes
    later in the cascade, so a shorthand here would zero out `.wrap`'s inline padding on every
    `.docs-layout.wrap` element (`docs.html`'s `<main class="wrap docs-layout">`, and
-   `blog-sidebar-template.html`'s `<div class="docs-layout wrap">`), running the sidebar and
+   `posts-sidebar.html`'s `<div class="docs-layout wrap">`), running the sidebar and
    article flush against the viewport edge. `padding-block` only ever touches top/bottom, so it
    can't touch `.wrap`'s left/right padding at all. */
 .docs-layout { display: grid; grid-template-columns: 240px 1fr; gap: 48px; padding-block: 48px 96px; }
@@ -487,7 +487,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 }
 
 /* ---------------------------------------------------------------------------
-   Docs layout + sidebar menu (blog-sidebar-template.html)
+   Docs layout + sidebar menu (posts-sidebar.html)
 
    The .menu-list / .menu-item / is-current / is-active / has-children / depth-N
    hooks are emitted by the engine's tree renderer (static-render.ts::renderMenuTree),
@@ -574,7 +574,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
   color: var(--fg);
 }
 
-/* kUInetic scroll-spy (2026-08-31, `blog-sidebar-template.html`'s `data-kui="scroll-spy ..."`) sets
+/* kUInetic scroll-spy (2026-08-31, `posts-sidebar.html`'s `data-kui="scroll-spy ..."`) sets
    this attribute itself on both the in-view section and its paired sidebar link(s) — a boolean data
    attribute, not a class (see this theme's NOTICE.md "Kuinetic vendored" section), so it needs its
    own rule rather than reusing `.is-current` above, which the retired `docs-sidebar.js` toggled by a

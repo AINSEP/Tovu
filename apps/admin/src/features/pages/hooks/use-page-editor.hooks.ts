@@ -399,12 +399,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
   // switching templates should restyle the canvas immediately, without a save round-trip. The 4th
   // argument is what supplies the canvas its content wrapper: the theme template's own ancestor chain
   // around the `{"type":"content"}` marker (`<main><article class="post-detail wrap">` in `basic`'s
-  // `blog-post.html`). Without it the canvas renders the page body naked at full bleed while the
-  // published page centres it in a 720px column — same CSS, same tokens, no container.
+  // `posts-default.html`, `blog-post.html` before the 2026-09-03 posts-*/pages-* rename). Without it
+  // the canvas renders the page body naked at full bleed while the published page centres it in a
+  // 720px column — same CSS, same tokens, no container.
   //
   // Run through `resolveCanvasTemplateChoice` rather than passed straight through: an untemplated
   // (`null`/`""`) `html`-format Page is exactly the case a `static`-tier theme's real render mirrors
-  // through its own `page-shell.html`, not through no wrapper at all — see that function's own doc.
+  // through its own page shell (`pages-default.html`, or legacy `page-shell.html`), not through no
+  // wrapper at all — see that function's own doc.
   // `page?.bodyFormat ?? "doc"` is the same "nothing risky before load" default `templatePreviewUrl`
   // above and `contentDirty` below already use for a not-yet-loaded page.
   const canvasStyling = useThemeCanvasStyling(

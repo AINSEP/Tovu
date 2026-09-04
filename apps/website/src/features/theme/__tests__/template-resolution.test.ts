@@ -154,6 +154,59 @@ test("a choice carrying no .html suffix still resolves against the page key", ()
   assert.equal(resolveTemplate({ theme, templateChoice: "blog-post" }).kind, "template");
 });
 
+// 2026-09-03 posts-*/pages-* rename: `basic` renamed its three content templates
+// (`blog-post.html` -> `posts-default.html`, `blog-sidebar-template.html` -> `posts-sidebar.html`,
+// `page-shell.html` -> `pages-default.html`). A `template_choice` row still naming the OLD filename
+// (27 counted on the live DB) must keep resolving to the SAME renamed file — see
+// `LEGACY_TEMPLATE_FILENAME_ALIASES`'s own doc for why this, not a database backfill, is the fix.
+function makeRenamedBasicTheme(): DiscoveredTheme {
+  return makeTheme({
+    templates: ["posts-default.html", "posts-sidebar.html", "pages-default.html"],
+    pages: {
+      "posts-default": `<html><body><main>${CONTENT_SLOT}</main></body></html>`,
+      "posts-sidebar": `<html><body><aside>${CONTENT_SLOT}</aside></body></html>`,
+      "pages-default": `<html><body><section>${CONTENT_SLOT}</section></body></html>`,
+    },
+  });
+}
+
+test("a legacy blog-post.html choice resolves to the renamed posts-default.html", () => {
+  const result = resolveTemplate({ theme: makeRenamedBasicTheme(), templateChoice: "blog-post.html" });
+  assert.equal(result.kind, "template");
+  assert.equal(result.kind === "template" && result.pageId, "posts-default");
+});
+
+test("a legacy blog-sidebar-template.html choice resolves to the renamed posts-sidebar.html", () => {
+  const result = resolveTemplate({ theme: makeRenamedBasicTheme(), templateChoice: "blog-sidebar-template.html" });
+  assert.equal(result.kind, "template");
+  assert.equal(result.kind === "template" && result.pageId, "posts-sidebar");
+});
+
+test("a legacy page-shell.html choice resolves to the renamed pages-default.html", () => {
+  const result = resolveTemplate({ theme: makeRenamedBasicTheme(), templateChoice: "page-shell.html" });
+  assert.equal(result.kind, "template");
+  assert.equal(result.kind === "template" && result.pageId, "pages-default");
+});
+
+test("a theme that still ships the legacy blog-post.html resolves it directly — the alias is never consulted", () => {
+  // Five of the six installed static themes were NOT renamed. Their own real filename must keep
+  // winning over the alias map (which only maps blog-post -> posts-default, a file THIS theme does
+  // not have).
+  const theme = makeTheme({
+    templates: ["blog-post.html"],
+    pages: { "blog-post": `<html><body><main>${CONTENT_SLOT}</main></body></html>` },
+  });
+  const result = resolveTemplate({ theme, templateChoice: "blog-post.html" });
+  assert.equal(result.kind, "template");
+  assert.equal(result.kind === "template" && result.pageId, "blog-post");
+});
+
+test("a Page selecting a posts-* template still resolves — naming is descriptive, not enforced", () => {
+  const result = resolveTemplate({ theme: makeRenamedBasicTheme(), templateChoice: "posts-default.html" });
+  assert.equal(result.kind, "template");
+  assert.equal(result.kind === "template" && result.pageId, "posts-default");
+});
+
 test("a Post-authored template and a Page-authored template resolve identically now — same array, same slot marker", () => {
   // The headline behavior change this unification exists to prove: there is nothing left in
   // resolveTemplate that could distinguish "this template was meant for a Post" from "this template

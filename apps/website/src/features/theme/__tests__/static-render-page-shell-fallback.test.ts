@@ -62,9 +62,53 @@ function makeTheme(options: ThemeOptions = {}): DiscoveredTheme {
   };
 }
 
-test("a static-tier html Page resolves the theme's own page-shell.html", () => {
+test("a static-tier html Page resolves the theme's own page-shell.html (legacy name, no pages-default.html present)", () => {
   assert.equal(
     resolveStaticTierPageShellFallback({ theme: makeTheme(), post: { kind: "page", bodyFormat: "html" } }),
+    "page-shell.html"
+  );
+});
+
+// 2026-09-03 posts-*/pages-* rename: `basic` renamed `page-shell.html` -> `pages-default.html`;
+// `basic-2` still ships the legacy name. Both must keep resolving, new name preferred.
+test("prefers the new pages-default.html over the legacy page-shell.html when a theme ships both", () => {
+  const theme = makeTheme({
+    pages: {
+      "pages-default": PAGE_SHELL_HTML,
+      "page-shell": "<html><body><main>legacy copy, must not be picked when the new one exists</main></body></html>",
+    },
+  });
+  assert.equal(
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),
+    "pages-default.html"
+  );
+});
+
+test("a theme shipping only the renamed pages-default.html (the live basic theme's shape) resolves it", () => {
+  const theme = makeTheme({ pages: { "pages-default": PAGE_SHELL_HTML } });
+  assert.equal(
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),
+    "pages-default.html"
+  );
+});
+
+test("falls back to the legacy page-shell.html when the new pages-default.html is absent (basic-2's shape today)", () => {
+  const theme = makeTheme({ pages: { "page-shell": PAGE_SHELL_HTML } });
+  assert.equal(
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),
+    "page-shell.html"
+  );
+});
+
+test("a slotless pages-default.html loses to a usable legacy page-shell.html later in the candidate order", () => {
+  const theme = makeTheme({
+    pages: {
+      "pages-default": "<html><body><main>no slot here</main></body></html>",
+      "page-shell": PAGE_SHELL_HTML,
+    },
+  });
+  assert.equal(
+    resolveStaticTierPageShellFallback({ theme, post: { kind: "page", bodyFormat: "html" } }),
     "page-shell.html"
   );
 });
@@ -147,7 +191,7 @@ test("a static theme with no page-shell.html warns, so the silent no-op is obser
 
   assert.deepEqual(warnings, [
     [
-      "[theme] static theme 'warn-no-shell' ships no 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document",
+      "[theme] static theme 'warn-no-shell' ships none of 'pages-default.html', 'page-shell.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document",
     ],
   ]);
 });

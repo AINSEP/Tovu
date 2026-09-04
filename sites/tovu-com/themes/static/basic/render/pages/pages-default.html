@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/theme-assets/basic/icons/apple-touch-icon.png" />
 <link rel="manifest" href="/theme-assets/basic/manifest.webmanifest" />
 <meta name="theme-color" content="#020203" />
-<!-- Unlike blog-post.html's per-file fixed <title> (a disclosed, accepted limitation there — no post
+<!-- Unlike posts-default.html's per-file fixed <title> (a disclosed, accepted limitation there — no post
      ever gets its own tab title through that template), the tag directly below carries a literal
      placeholder that `injectPageTitle` (static-render.ts) substitutes with the Page's OWN title
      before render — the same string-substitution idea `injectPostEmbedId` already applies to a
@@ -36,7 +36,7 @@
      That is also why this file is cheap to customize. Themes are COPIED from a pristine catalog, not
      resolved through a runtime `parent` chain (2026-08-11 — the earlier `basic-child`/parent-theme
      inheritance model this file originally shipped under was deleted the same day it was recovered
-     from history for this purpose). An author editing THIS theme's own copy of page-shell.html is
+     from history for this purpose). An author editing THIS theme's own copy of pages-default.html is
      editing ~10 lines of pure structure, not a whole page: nav.html/footer.html still hold the real
      nav and footer CONTENT, untouched by any edit here. Removing the footer means deleting one line;
      swapping to the minimal footer means changing one marker's id to "footer-minimal". Compare a
@@ -48,7 +48,7 @@
 <main>
   <!-- `.post-detail` reads post-specific by name but is the theme's shared long-form-article style
        (max-width, padding, heading/paragraph/list/code typography) — verified in css/styles.css and
-       already reused by blog-sidebar-template.html's docs article for the same reason, not something
+       already reused by posts-sidebar.html's docs article for the same reason, not something
        introduced here. Legal/FAQ/team copy is exactly this kind of prose, so this keeps the theme's
        one article style rather than authoring a second, near-identical one under a page-specific name. -->
   <article class="wrap post-detail" data-reveal>

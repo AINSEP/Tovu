@@ -113,10 +113,11 @@ function escapeHtmlText(value: string): string {
  * comment, authored copy) structurally unable to collide with the real slot.
  *
  * Runs for every kind now (2026-08-11 unification; previously Post-rendered pages accepted a fixed
- * title as a disclosed limitation and only Pages got this substitution) — `blog-post.html`'s `<title>`
- * remains one fixed string with no placeholder, so calling this on a Post rendered through IT is
- * still a no-op, unchanged; a Post rendered through `page-shell.html` now correctly gets its own
- * title instead of a generic one, closing that disclosed gap for free.
+ * title as a disclosed limitation and only Pages got this substitution) — `basic`'s own `posts-*.html`
+ * templates (`blog-post.html` before the 2026-09-03 posts-* / pages-* rename) keep one fixed `<title>`
+ * string with no placeholder, so calling this on a Post rendered through one is still a no-op,
+ * unchanged; a Post rendered through `pages-default.html` (`page-shell.html` before that same rename)
+ * now correctly gets its own title instead of a generic one, closing that disclosed gap for free.
  *
  * A template file authored without this exact `<title>...</title>` shape is simply unaffected —
  * `replace` is a no-op when the pattern isn't present.
@@ -587,6 +588,38 @@ export type PostTemplateResolution =
   | { kind: "diagnostic" };
 
 /**
+ * Legacy -> current filename map for the live `basic` theme's 2026-09-03 rename to a
+ * `posts-*.html`/`pages-*.html` content-template naming convention (`blog-post.html` ->
+ * `posts-default.html`, `blog-sidebar-template.html` -> `posts-sidebar.html`, `page-shell.html` ->
+ * `pages-default.html` — the theme's own `theme.json` `templates` array carries only the new names
+ * now). Keyed and valued by `theme.pages` id (no `.html`), matching {@link resolveTemplate}'s own
+ * `pageId` convention.
+ *
+ * Consulted ONLY as a fallback inside {@link resolveTemplate}'s `resolveAgainstTheme`, after a direct
+ * `theme.pages[pageId]` lookup already missed — never as a first choice, and never for any OTHER
+ * theme's own naming (a theme that still ships `blog-post.html` resolves it directly, this map is
+ * never reached). This is what keeps every row whose stored `template_choice` still names an OLD
+ * filename (27 counted 2026-09-03) rendering byte-for-byte identically after the rename, on `basic`
+ * AND on every one of the five other installed static themes that still ship the old names — a row's
+ * stored choice is theme-relative but not theme-scoped (this function's own doc above), so it must
+ * keep resolving correctly however the active theme later changes. Explicitly NOT paired with a
+ * database backfill of those 27 rows: backfilling `template_choice` to the new name would make a row
+ * MORE fragile on a future theme switch (a theme that still ships only the old name would no longer
+ * match), not less — this alias map is the only direction that stays correct in both timelines.
+ *
+ * A COMPATIBILITY SHIM, not a permanent feature — the mapping only exists because exactly one of six
+ * installed static themes has adopted the new convention so far. Remove an entry once every
+ * currently-installed static theme (`sites/tovu-com/themes/static/*`) ships the RIGHT-hand filename
+ * instead of the left, and no `posts`/`pages` row's `template_choice` still names the left-hand one —
+ * check both before deleting a line, not just one.
+ */
+const LEGACY_TEMPLATE_FILENAME_ALIASES: Readonly<Record<string, string>> = {
+  "blog-post": "posts-default",
+  "blog-sidebar-template": "posts-sidebar",
+  "page-shell": "pages-default",
+};
+
+/**
  * Decide which of a static theme's template pages a Post or Page renders through (2026-08-11
  * unification — collapses what were the separate `resolvePostTemplate`/`resolvePageTemplate`
  * specializations of this same tri-state engine into one function, now that both kinds resolve
@@ -636,7 +669,10 @@ export type PostTemplateResolution =
  *
  * `theme.pages` is keyed by filename WITHOUT `.html` (`loadTheme`'s convention) while
  * `templateChoice`/`theme.manifest.templates` entries carry it; the `.replace` below is the one
- * place that naming mismatch is bridged.
+ * place that naming mismatch is bridged. A `pageId` absent from `theme.pages` gets ONE more chance
+ * against {@link LEGACY_TEMPLATE_FILENAME_ALIASES} before counting as "cannot honor" — see that
+ * constant's own doc for why this, not a database backfill, is what keeps a stranded old-named choice
+ * resolving correctly on `basic` after its 2026-09-03 rename.
  *
  * @complexity O(n) in the template's HTML length for the slot check, over at most two candidates;
  *   O(1) lookups otherwise.
@@ -650,7 +686,8 @@ export function resolveTemplate(
 
   const resolveAgainstTheme = (choice: string | undefined): PostTemplateResolution | undefined => {
     if (choice === undefined || choice === "") return undefined;
-    const pageId = choice.replace(/\.html$/, "");
+    const requestedId = choice.replace(/\.html$/, "");
+    const pageId = theme.pages[requestedId] !== undefined ? requestedId : (LEGACY_TEMPLATE_FILENAME_ALIASES[requestedId] ?? requestedId);
     const html = theme.pages[pageId];
     // "Ships a slot" is asked of the shared parser, never of a substring match. The literal
     // `data-embed-id="{{post}}"` this used to test for stopped existing the moment the themes moved
@@ -748,11 +785,18 @@ function isPageTemplateChoiceEligible(post: { bodyFormat: "doc" | "html"; templa
   return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
 }
 
-/** The canonical filename `static`-tier themes use for a reusable, content-agnostic document shell —
- *  the same role `"index"` plays for the home route in {@link renderStaticTierHomePage}, just for any
- *  OTHER route. A Tovu-owned convention, not a per-theme manifest choice (see
- *  {@link resolveStaticTierPageShellFallback}'s own doc for why that distinction matters). */
-const STATIC_TIER_PAGE_SHELL_ID = "page-shell";
+/** The canonical filename(s) `static`-tier themes use for a reusable, content-agnostic document
+ *  shell — the same role `"index"` plays for the home route in {@link renderStaticTierHomePage}, just
+ *  for any OTHER route. A Tovu-owned convention, not a per-theme manifest choice (see
+ *  {@link resolveStaticTierPageShellFallback}'s own doc for why that distinction matters).
+ *
+ *  ORDERED, new name first: `basic`'s 2026-09-03 rename moved this file from `page-shell.html` to
+ *  `pages-default.html`, but `basic-2` — the only other installed static theme that ships this file at
+ *  all — still ships it under the OLD name. Both entries are tried, in order, so either theme's real
+ *  filename resolves; a COMPATIBILITY SHIM, same removal condition as
+ *  {@link LEGACY_TEMPLATE_FILENAME_ALIASES}'s own doc (`resolveTemplate`, above): drop `"page-shell"`
+ *  once every currently-installed static theme ships `pages-default.html` instead. */
+const STATIC_TIER_PAGE_SHELL_IDS: readonly string[] = ["pages-default", "page-shell"];
 
 /**
  * The 2026-09-02 fix for a live bug: an `html`-format `kind: "page"` row with no explicit
@@ -774,25 +818,29 @@ const STATIC_TIER_PAGE_SHELL_ID = "page-shell";
  * This function restores that claim for `static` tier by giving the generic path a document shell to
  * render into, WITHOUT guessing at the row's intended CONTENT template — the exact distinction that
  * matters against the regression `isEligibleForTemplateBranch`'s own doc records (`resolveTemplate`'s
- * "never chosen -> theme's first template" arm, safe for Posts, put `terms-of-service` et al. under
- * `blog-post.html`'s Post-shaped chrome because array position 0 carries no "this is a generic page
- * shell" meaning). This does not read `theme.manifest.templates` or its ordering at all: it looks up
- * exactly one canonical, Tovu-owned filename, `page-shell.html` — the same closed-vocabulary lookup
- * `renderStaticTierHomePage` already performs for `"index.html"` on the home route, extended to cover
- * every other route a static theme has no dedicated template for.
+ * "never chosen -> theme's first template" arm, safe for Posts, put `terms-of-service` et al. under a
+ * Post-shaped template's chrome because array position 0 carries no "this is a generic page shell"
+ * meaning). This does not read `theme.manifest.templates` or its ordering at all: it looks up one of a
+ * small, ORDERED set of canonical, Tovu-owned filenames ({@link STATIC_TIER_PAGE_SHELL_IDS}, new name
+ * first) — the same closed-vocabulary lookup `renderStaticTierHomePage` already performs for
+ * `"index.html"` on the home route, extended to cover every other route a static theme has no
+ * dedicated template for.
  *
- * Most static themes do NOT ship this file. Counted 2026-09-02: of the five installed under
- * `sites/tovu-com/themes/static/`, only `basic` and `basic-2` have `render/pages/page-shell.html` —
- * `tailark-dusk`, `tailark-quartz-dark` and `tailark-quartz-libre` do not, and neither do the seed
- * copies `dist/content/themes/static/{fuel,gracious-timing,portfolite}` nor the pre-migration
- * `content/themes/__original-themes__/static/basic`. A theme without it returns `undefined` here,
- * identical to `resolveTemplate`'s own "theme has no such page" contract, and the caller's
+ * Most static themes do NOT ship this file. Counted 2026-09-02 (before `basic`'s 2026-09-03
+ * posts-* / pages-* rename): of the five installed under `sites/tovu-com/themes/static/`, only `basic`
+ * and `basic-2` had `render/pages/page-shell.html` — `tailark-dusk`, `tailark-quartz-dark` and
+ * `tailark-quartz-libre` do not, and neither do the seed copies
+ * `dist/content/themes/static/{fuel,gracious-timing,portfolite}` nor the pre-migration
+ * `content/themes/__original-themes__/static/basic`. After the rename, `basic` ships this file as
+ * `pages-default.html` and `basic-2` still ships it as `page-shell.html` — both resolve, in that
+ * order, via {@link STATIC_TIER_PAGE_SHELL_IDS}. A theme shipping NEITHER name returns `undefined`
+ * here, identical to `resolveTemplate`'s own "theme has no such page" contract, and the caller's
  * pre-existing generic `pageShell()` fallback is unchanged for it — which means switching the active
- * theme to any of those three tailark themes REOPENS the exact bug described above: an untemplated
- * `html` Page renders in Tovu's generic chrome again, at HTTP 200.
+ * theme to any of the three tailark themes still REOPENS the exact bug described above: an
+ * untemplated `html` Page renders in Tovu's generic chrome again, at HTTP 200.
  *
  * That degrade stays deliberate — guessing at some other template is what put `terms-of-service`
- * under `blog-post.html`, so a miss must remain a no-op rather than a substitution. What it must not
+ * under a Post-shaped template's chrome, so a miss must remain a no-op rather than a substitution. What it must not
  * remain is SILENT: the miss now emits {@link warnPageShellFallbackMissOnce}'s `[theme] …` warning
  * (this module's existing `console.warn` convention, see `renderStaticPage`), once per distinct
  * message rather than once per request, so the state is visible in the server log instead of being
@@ -832,6 +880,45 @@ function warnPageShellFallbackMissOnce(message: string): void {
   console.warn(message);
 }
 
+/** {@link findPageShellCandidate}'s outcome — never more than one usable/slotless id at a time,
+ *  since the search stops the moment a usable one is found. */
+type PageShellCandidateOutcome = { kind: "usable"; id: string } | { kind: "slotless"; id: string } | { kind: "none" };
+
+/**
+ * Walks {@link STATIC_TIER_PAGE_SHELL_IDS} in order and reports the first candidate the theme both
+ * SHIPS and can actually use (a real `"content"` slot). When nothing usable turns up, reports the
+ * FIRST slotless candidate seen instead (so the caller's miss diagnostic can name the one this
+ * function would have preferred), or `{ kind: "none" }` when the theme ships neither candidate at
+ * all. Split out of {@link resolveStaticTierPageShellFallback} purely to keep that function's own
+ * branch count proportional to "gate, then react to one outcome" rather than also the search's own
+ * branching (complexity ceiling).
+ *
+ * @complexity O(n) in `STATIC_TIER_PAGE_SHELL_IDS.length` (a small, fixed constant) — at most one
+ *   `markersOfType` slot check per candidate the theme actually ships.
+ */
+function findPageShellCandidate(theme: DiscoveredTheme): PageShellCandidateOutcome {
+  let slotlessId: string | undefined;
+  for (const id of STATIC_TIER_PAGE_SHELL_IDS) {
+    const html = theme.pages[id];
+    if (html === undefined) continue;
+    if (markersOfType(html, "content").length > 0) return { kind: "usable", id };
+    slotlessId ??= id;
+  }
+  return slotlessId !== undefined ? { kind: "slotless", id: slotlessId } : { kind: "none" };
+}
+
+/** The `[theme] …` miss diagnostic for {@link resolveStaticTierPageShellFallback}'s two non-`"usable"`
+ *  {@link PageShellCandidateOutcome}s — split out purely to keep that function's own branch count
+ *  down; has no side effect of its own, {@link warnPageShellFallbackMissOnce} still owns emitting it. */
+function pageShellMissMessage(themeId: string, candidate: { kind: "slotless"; id: string } | { kind: "none" }): string {
+  const candidateFilenames = STATIC_TIER_PAGE_SHELL_IDS.map((id) => `${id}.html`);
+  const named =
+    candidate.kind === "slotless"
+      ? `a '${candidate.id}.html' with no {"type":"content"} slot`
+      : `none of '${candidateFilenames.join("', '")}'`;
+  return `[theme] static theme '${themeId}' ships ${named}; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`;
+}
+
 export function resolveStaticTierPageShellFallback(
   required: { theme: DiscoveredTheme; post: { kind: "post" | "page"; bodyFormat: "doc" | "html" } },
   _optional: Record<string, never> = {}
@@ -840,20 +927,11 @@ export function resolveStaticTierPageShellFallback(
   if (theme.manifest.tier !== "static") return undefined;
   if (post.kind !== "page" || post.bodyFormat !== "html") return undefined;
 
-  const html = theme.pages[STATIC_TIER_PAGE_SHELL_ID];
-  if (html === undefined) {
-    warnPageShellFallbackMissOnce(
-      `[theme] static theme '${theme.manifest.id}' ships no '${STATIC_TIER_PAGE_SHELL_ID}.html'; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`
-    );
-    return undefined;
-  }
-  if (markersOfType(html, "content").length === 0) {
-    warnPageShellFallbackMissOnce(
-      `[theme] static theme '${theme.manifest.id}' ships a '${STATIC_TIER_PAGE_SHELL_ID}.html' with no {"type":"content"} slot; untemplated html Pages render in Tovu's generic chrome instead of this theme's own document`
-    );
-    return undefined;
-  }
-  return `${STATIC_TIER_PAGE_SHELL_ID}.html`;
+  const candidate = findPageShellCandidate(theme);
+  if (candidate.kind === "usable") return `${candidate.id}.html`;
+
+  warnPageShellFallbackMissOnce(pageShellMissMessage(theme.manifest.id, candidate));
+  return undefined;
 }
 
 export function isEligibleForTemplateBranch(

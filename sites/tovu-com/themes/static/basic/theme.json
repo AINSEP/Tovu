@@ -27,9 +27,9 @@
     "signup"
   ],
   "templates": [
-    "blog-post.html",
-    "blog-sidebar-template.html",
-    "page-shell.html"
+    "posts-default.html",
+    "posts-sidebar.html",
+    "pages-default.html"
   ],
   "slots": {
     "nav": {

@@ -359,8 +359,9 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * The one reserved `data-embed-id` a static theme's docs-sidebar marker can carry to mean "this
  * page's own sidebar," rather than one fixed stored menu (2026-08-31, docs-nav restructure). See
  * {@link resolveStaticMenusForRender}'s own doc for why this exists; kept literal here (not derived)
- * so `blog-sidebar-template.html` and this file agree on the exact string by inspection, the same
- * way {@link MENU_MARKER_TYPE} is a literal a theme author's markup and this codebase both spell out.
+ * so `posts-sidebar.html` (`blog-sidebar-template.html` before the 2026-09-03 posts-* / pages-* rename)
+ * and this file agree on the exact string by inspection, the same way {@link MENU_MARKER_TYPE} is a
+ * literal a theme author's markup and this codebase both spell out.
  */
 const CURRENT_PAGE_DOCS_SIDEBAR_MENU_ID = "docs-current-page-sidebar";
 
@@ -406,10 +407,11 @@ export async function resolveStaticMenusForRender(
       // sidebar menu the page currently being requested owns," resolved by the naming convention
       // {@link docsSidebarMenuSlugForPath} derives from `currentPath` — the one piece of per-request
       // state this otherwise theme-wide scan already receives. This is what lets N doc pages
-      // (`blog-sidebar-template.html`'s ONE marker) each get their own distinct anchor menu without
-      // duplicating the template file per page: adding doc page N+1 is "create a menu at the
-      // convention slug and point that page's `templateChoice` at this template," zero code or
-      // template changes. A path with no matching menu (most pages, and any doc page nobody has
+      // (`posts-sidebar.html`'s ONE marker — `blog-sidebar-template.html` before the 2026-09-03
+      // posts-*/pages-* rename) each get their own distinct anchor menu without duplicating the
+      // template file per page: adding doc page N+1 is "create a menu at the convention slug and
+      // point that page's `templateChoice` at this template," zero code or template changes. A
+      // path with no matching menu (most pages, and any doc page nobody has
       // authored a sidebar for yet) falls through to `!menu` below exactly like an ordinary dead
       // marker id — the theme's authored fallback content, not an empty nav.
       //
@@ -698,10 +700,11 @@ export async function resolveAssignedTermsForRender(
  * owns only the embed-resolution I/O that follows.
  *
  * `injectPageTitle` now runs for BOTH kinds (previously Page-only): a template carrying the
- * `{{title}}` placeholder (`page-shell.html`) gets the row's real title regardless of whether a Post
- * or a Page rendered through it; a template with no such placeholder (`blog-post.html`, a disclosed,
- * unchanged limitation — see that function's own doc) is simply unaffected, the same no-op-when-absent
- * contract it already had.
+ * `{{title}}` placeholder (`pages-default.html`, `page-shell.html` before the 2026-09-03
+ * posts-* / pages-* rename) gets the row's real title regardless of whether a Post or a Page rendered
+ * through it; a template with no such placeholder (`posts-default.html`, formerly `blog-post.html`, a
+ * disclosed, unchanged limitation — see that function's own doc) is simply unaffected, the same
+ * no-op-when-absent contract it already had.
  *
  * Exported (2026-08-11 template-preview fix) for `routes/admin/posts/template-preview.ts`, the
  * admin-only "preview this row through a PENDING, not-yet-saved template choice" endpoint —
@@ -1044,7 +1047,8 @@ export async function resolvePostAfterMarketingCheck(
  * `pageShellFallback` (2026-09-02) — when `post` is ineligible for the branch above (the common
  * case: no admin surface sets `templateChoice` on create), an `html`-format `kind: "page"` row on a
  * `static`-tier theme gets ONE more chance before falling through to the caller's generic path: the
- * theme's own canonical `page-shell.html` document shell, via {@link resolveStaticTierPageShellFallback}.
+ * theme's own canonical page-shell document shell (`pages-default.html`, or legacy `page-shell.html`
+ * — see {@link resolveStaticTierPageShellFallback}'s own doc), via that same function.
  * This is NOT a second "which content template" guess — `isEligibleForTemplateBranch`'s own
  * `kind: "page"` gate is completely untouched, so a `doc`-format Page or a Post with no opinion never
  * reaches this arm, and the `terms-of-service`-shaped regression that gate exists to prevent cannot

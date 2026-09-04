@@ -10,7 +10,8 @@ import type { CanvasContentWrapperNode } from "@jini-ai/ui/html-editor";
  *
  * **The marker element itself survives as the innermost wrapper level, not just its ancestors.**
  * Confirmed live against the running dev server (`curl localhost:3000/contact`): `basic`'s
- * `render/pages/page-shell.html` marks its content with
+ * `render/pages/pages-default.html` (`page-shell.html` before the 2026-09-03 posts-* / pages-* rename)
+ * marks its content with
  * `<div data-embed-config='{"type":"content"}'></div>`, and the PUBLISHED page renders that as a bare
  * `<div>` (attribute stripped, tag kept) directly around the page's real body HTML — matching
  * `src/contracts/core/embeds/marker.ts`'s `withInnerContentFinal`, which the server's `content`-marker splice

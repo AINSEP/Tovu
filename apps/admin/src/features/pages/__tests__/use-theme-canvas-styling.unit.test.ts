@@ -163,11 +163,13 @@ describe("resolveCanvasTemplateChoice (Interactive-tab page-shell fallback)", ()
   // `apps/website/src/features/theme/static-render.ts` applies on the real render path).
 
   it("falls back to the theme's page-shell template for an untemplated html Page (null templateChoice)", () => {
-    expect(resolveCanvasTemplateChoice(null, "html")).toBe("page-shell.html");
+    // New-name-first, 2026-09-03 posts-*/pages-* rename — `page-shell.html` is still tried second,
+    // see the "retries the legacy candidate" describe block below.
+    expect(resolveCanvasTemplateChoice(null, "html")).toBe("pages-default.html");
   });
 
   it('falls back to the theme\'s page-shell template for an untemplated html Page ("" templateChoice)', () => {
-    expect(resolveCanvasTemplateChoice("", "html")).toBe("page-shell.html");
+    expect(resolveCanvasTemplateChoice("", "html")).toBe("pages-default.html");
   });
 
   it("leaves an explicit templateChoice alone even on an html Page", () => {
@@ -276,5 +278,46 @@ describe("useThemeCanvasStyling — content wrapper (templateChoice)", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("useThemeCanvasStyling — legacy page-shell candidate fallback (2026-09-03 posts-*/pages-* rename)", () => {
+  const PAGE_SHELL = `<body>
+    <main>
+      <article class="post-detail wrap" data-reveal>
+        <div data-embed-config='{"type":"content"}'></div>
+      </article>
+    </main>
+  </body>`;
+  const EXPECTED_WRAPPER = [
+    { tagName: "main", attributes: {} },
+    { tagName: "article", attributes: { class: "post-detail wrap", "data-reveal": "" } },
+    { tagName: "div", attributes: {} },
+  ];
+
+  it("retries the legacy page-shell.html candidate when the new pages-default.html 404s (basic-2's shape today)", async () => {
+    const port = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
+      // No entry for `render/pages/pages-default.html` — only the legacy filename is seeded.
+      templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
+    });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "pages-default.html"));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.status === "ready" && result.current.styling.contentWrapper).toEqual(EXPECTED_WRAPPER);
+  });
+
+  it("does not retry an explicit, non-shim templateChoice that 404s — only the page-shell shim's primary candidate does", async () => {
+    // `blog-post.html` is a real operator choice (or a legacy stored value the render-path alias
+    // resolves separately, `resolveTemplate`/`LEGACY_TEMPLATE_FILENAME_ALIASES`, `static-render.ts`) —
+    // never this hook's own synthetic fallback, so it must stay a single-shot fetch exactly as before.
+    const port = createFakeThemeCanvasPort({
+      tokensByUrl: { "/theme-assets/basic/tokens.json": DARK },
+      templatesByUrl: { "/theme-assets/basic/render/pages/page-shell.html": PAGE_SHELL },
+    });
+    const { result } = renderHook(() => useThemeCanvasStyling("basic", 2, port, "blog-post.html"));
+
+    await waitFor(() => expect(result.current.status).toBe("ready"));
+    expect(result.current.status === "ready" && result.current.styling.contentWrapper).toBeUndefined();
   });
 });
