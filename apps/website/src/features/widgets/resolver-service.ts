@@ -871,6 +871,12 @@ async function resolvePostTypeEmbeds(
  * the one the caller resolved and authorized — see the override's own doc on
  * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}.
  *
+ * `ref.header` (2026-09-04, {@link PageHtmlEmbedRef.header}'s own doc) is threaded into IR
+ * `props.header` unchanged in BOTH branches below — the DB lookup and the `pendingContentOverride`
+ * short-circuit both read it off the SAME scanned `ref`, so the operator's preview and the published
+ * page can never disagree about whether a given marker suppresses `render.ts`'s
+ * `renderWidgetPostContent` header wrapper.
+ *
  * @complexity O(e) over the `content` refs present (already capped upstream at
  * `MAX_HTML_EMBEDS_PER_PAGE`) — one `findPublishedPostById` call per ref not satisfied by
  * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}, run concurrently via `Promise.all`,
@@ -917,6 +923,7 @@ async function resolveContentTypeEmbeds(
             slug: pendingContentOverride.slug,
             updatedAt: pendingContentOverride.updatedAt,
             bodyJson: pendingContentOverride.bodyJson,
+            header: ref.header,
             ...mediaContext,
           },
         });
@@ -945,7 +952,14 @@ async function resolveContentTypeEmbeds(
       const mediaContext = await resolvePostContentMediaContext(deps, entity.bodyJson, context);
       resolved.set(ref.id, {
         componentId: "post-content",
-        props: { title: entity.title, slug: entity.slug, updatedAt: entity.updatedAt, bodyJson: entity.bodyJson, ...mediaContext },
+        props: {
+          title: entity.title,
+          slug: entity.slug,
+          updatedAt: entity.updatedAt,
+          bodyJson: entity.bodyJson,
+          header: ref.header,
+          ...mediaContext,
+        },
       });
     })
   );

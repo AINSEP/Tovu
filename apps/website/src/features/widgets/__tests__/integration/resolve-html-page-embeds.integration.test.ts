@@ -683,6 +683,39 @@ test('resolveHtmlPageEmbeds: a "content" embed resolves a published, "doc"-forma
   assert.equal(ir?.props.title, "A published entity");
 });
 
+// ---------------------------------------------------------------------------
+// `header` (2026-09-04) — a "content" marker's own `header:false` opt-out of the
+// `.post-detail-header` wrapper, threaded from the scanned `PageHtmlEmbedRef` into the
+// "post-content" IR's `props.header`. Both `resolveContentTypeEmbeds` branches (the DB lookup here,
+// and `pendingContentOverride` below) must agree — html-embeds.ts's own file header on
+// `WRAPPER_PRESERVING_EMBED_TYPES` documents an earlier case where this exact pair of branches
+// disagreed with each other.
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: a "content" embed with NO header key in its marker resolves props.header: true — the no-silent-behavior-change default', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.get("entity-1")?.props.header, true);
+});
+
+test('resolveHtmlPageEmbeds: a "content" embed with "header":false in its marker resolves props.header: false', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const postRepo = new InMemoryPostRepo([postRecord({ kind: "page" })]);
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: { entryRepo, postRepo },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1","header":false}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.get("entity-1")?.props.header, false);
+});
+
 test('GUARD 2: resolveHtmlPageEmbeds — a "content" embed referencing a DRAFT row never resolves, regardless of kind', async () => {
   const entryRepo = new InMemoryEntryRepo();
   const postRepo = new InMemoryPostRepo([postRecord({ id: "draft-1", status: "draft" })]);
@@ -860,4 +893,34 @@ test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branc
   const ir = resolved.get("content")?.get("entity-1");
   assert.ok(ir);
   assert.deepEqual(ir?.props.mediaTransformVersions, { [CORE_PUBLIC_TRANSFORM_NAME]: 2 });
+});
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch resolves props.header from the SAME marker\'s header:false, exactly like the DB branch — the two branches must not disagree (html-embeds.ts\'s own doc names this exact divergence class)', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const pending = postRecord({ id: "entity-1" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1","header":false}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.get("entity-1")?.props.header, false);
+});
+
+test('resolveHtmlPageEmbeds: the "content" embed\'s pendingContentOverride branch defaults props.header to true when the marker has no header key, matching the DB branch\'s default', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const pending = postRecord({ id: "entity-1" });
+
+  const resolved = await resolveHtmlPageEmbeds({
+    deps: {
+      entryRepo,
+      pendingContentOverride: { id: "entity-1", title: pending.title, slug: pending.slug, updatedAt: pending.updatedAt, bodyJson: pending.bodyJson },
+    },
+    input: { workspaceId: WORKSPACE_ID_POST, html: `<div data-embed-config='{"type":"content","id":"entity-1"}'></div>` },
+  });
+
+  assert.equal(resolved.get("content")?.get("entity-1")?.props.header, true);
 });
