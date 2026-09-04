@@ -29,6 +29,7 @@ export {
 } from "./sitemap.js";
 export { resolveSeoImageRef, type ResolveSeoImageRefDeps, type ResolveSeoImageRefInput } from "./media.js";
 export { createSeoPageHeadHook } from "./page-head-contributor.js";
+export { toAbsoluteUrl, resolveWorkspaceOrigin } from "./absolute-url.js";
 export {
   SeoEntryNotFoundError,
   SeoFieldValidationError,

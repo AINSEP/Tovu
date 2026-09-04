@@ -44,6 +44,7 @@ import {
 } from "#src/features/widgets/resolver-service";
 import { postPublicPath, runPostContentPhase, runPreContentPhase, urlFor } from "#src/platform/routing/index";
 import type { RouteTarget } from "#src/platform/routing/index";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "#src/features/seo/index";
 import { resolveMenuDoc } from "#src/features/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/features/navigation/index";
 import { getLatestTransformDefinition } from "#src/features/media/index";
@@ -89,6 +90,12 @@ import type { RouteDeps, RouteRegistrar } from "#src/server/routes/types";
  * Ignored whenever `post` is provided (its own resolved/derived slug path
  * always wins), so every pre-existing `"home"`/`"post"` call site is
  * unaffected by this parameter's addition.
+ *
+ * `canonicalUrl` (2026-09-03, absolute-URL fix) — was a bare path (`/`, `/docs`) on every route,
+ * reproduced on both production and local via `curl`. Joined onto the workspace's verified origin
+ * via `toAbsoluteUrl`/`resolveWorkspaceOrigin` (`features/seo`'s own seam — see `absolute-url.ts`'s
+ * file header for why this lives there and not in `platform/routing`), same fix and same
+ * degradation contract (no verified origin yet -> stays relative) as `seo.ts`'s `resolveCanonical`.
  */
 async function buildExtraHead(
   deps: RouteDeps,
@@ -100,12 +107,13 @@ async function buildExtraHead(
   const canonical = post
     ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
     : undefined;
+  const origin = await resolveWorkspaceOrigin(deps.originRegistry, deps.workspaceId);
 
   const ctx: PageHeadContext = {
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath),
+    canonicalUrl: toAbsoluteUrl(origin, canonical ?? (post ? postPublicPath(post.slug) : canonicalFallbackPath)),
     entry: post
       ? {
           id: post.id,

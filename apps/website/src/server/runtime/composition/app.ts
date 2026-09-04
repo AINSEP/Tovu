@@ -917,7 +917,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // SPEC-008 (ADR-PIPE-008 Decision §2/§3, T009) — SEO's `page.head` contributor, registered once
   // at boot into the core-owned `page-head.ts` registry (never imported directly by `render.ts`).
   registerPageHeadContributor(
-    createSeoPageHeadHook({ postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps })
+    createSeoPageHeadHook({
+      postRepo: routeDeps.postRepo,
+      settingsRepo: routeDeps.settingsRepo,
+      media: routeDeps,
+      originRegistry: routeDeps.originRegistry,
+    })
   );
 
   // ADR-046 Phase 3 (SPEC-039): the `core` server module — ops routes, then

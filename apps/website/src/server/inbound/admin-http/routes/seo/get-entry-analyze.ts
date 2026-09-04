@@ -31,7 +31,7 @@ export const registerAdminSeoGetEntryAnalyzeRoute: SeoRouteRegistrar = (app, dep
       }
 
       const analysis = await analyzeEntry(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps },
+        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
         { workspaceId: deps.workspaceId, entryId }
       );
       res.json({ data: analysis });

@@ -29,7 +29,7 @@ export const registerAdminSeoPostSitemapRegenerateRoute: SeoRouteRegistrar = (ap
       }
 
       await regenerateSitemapCache(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps },
+        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
         { workspaceId: deps.workspaceId }
       );
       res.status(202).json({ data: { accepted: true } });

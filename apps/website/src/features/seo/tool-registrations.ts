@@ -40,6 +40,7 @@ import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
 import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
 import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
   SeoFieldValidationError,
@@ -76,6 +77,7 @@ export interface SeoToolDeps {
   mediaRepo: MediaRepoPort;
   assetRenditionRepo: AssetRenditionRepoPort;
   transformDefinitionRepo: TransformDefinitionRepoPort;
+  originRegistry: OriginRegistryPort;
 }
 
 /**
@@ -142,7 +144,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       });
 
       const meta = await getEntryMeta(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps },
+        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
         { workspaceId: routeDeps.workspaceId, entryId },
       );
       return { meta };
@@ -159,7 +161,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       });
 
       const analysis = await analyzeEntry(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps },
+        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
         { workspaceId: routeDeps.workspaceId, entryId },
       );
       return { analysis };
@@ -228,7 +230,7 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.seo.manage", entityType: "seo-sitemap" });
 
       await regenerateSitemapCache(
-        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps },
+        { postRepo: routeDeps.postRepo, settingsRepo: routeDeps.settingsRepo, media: routeDeps, originRegistry: routeDeps.originRegistry },
         { workspaceId: routeDeps.workspaceId },
       );
       return { accepted: true };

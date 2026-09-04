@@ -36,6 +36,11 @@ export type SeoRouteDeps = Pick<
   | "mediaRepo"
   | "assetRenditionRepo"
   | "transformDefinitionRepo"
+  // 2026-09-03 absolute-URL fix: `get-entry.ts`/`get-entry-analyze.ts`/`put-entry.ts` pass `deps`
+  // straight through as `GetEntryMetaDeps.originRegistry` (same "pass `deps` itself" shape this
+  // file's header already documents for the `media:` argument) so the admin SEO preview shows the
+  // same absolute canonical/og:url/og:image the live public render now emits.
+  | "originRegistry"
 >;
 
 export type SeoRouteRegistrar = (app: Express, deps: SeoRouteDeps) => void;

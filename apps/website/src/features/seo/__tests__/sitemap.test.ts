@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache } from "../sitemap.js";
 
@@ -36,7 +37,25 @@ function post(overrides: Partial<PostRecord>): PostRecord {
   };
 }
 
-async function makeDeps(posts: PostRecord[]) {
+/** Mirrors `seo.test.ts`'s own copy of this fake — `origin` undefined (the default, and every
+ *  pre-existing test's implicit behavior) means no verified origin registered, which keeps every
+ *  `loc` assertion below unchanged (still relative). */
+function fakeOriginRegistry(origin?: import("../../origin/index.js").VerifiedOrigin): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      if (!origin) throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      return origin;
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
+async function makeDeps(posts: PostRecord[], origin?: import("../../origin/index.js").VerifiedOrigin) {
   invalidateSitemapCache({ workspaceId: WORKSPACE });
   const postRepo = new InMemoryPostRepo(posts);
   const settingsRepo = new InMemorySettingsRepo();
@@ -51,6 +70,7 @@ async function makeDeps(posts: PostRecord[]) {
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
       transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     },
+    originRegistry: fakeOriginRegistry(origin),
   };
 }
 
@@ -58,6 +78,21 @@ test("buildSitemap: an empty workspace resolves a valid empty array, never null"
   const deps = await makeDeps([]);
   const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(entries, []);
+});
+
+// 2026-09-03 absolute-URL fix side effect: `computeSitemapEntries` builds `loc` from
+// `getEntryMeta`'s own `meta.canonical` — once that became absolute, sitemap entries did too, for
+// free. The sitemap protocol requires `loc` to be absolute, the same requirement `og:url` has.
+test("buildSitemap: with a verified origin, entries' loc is absolute (2026-09-03 fix side effect)", async () => {
+  const deps = await makeDeps([post({ id: "a", slug: "published-visible", status: "published" })], {
+    scheme: "https",
+    host: "example.test",
+    verifiedAt: "2026-09-03T00:00:00.000Z",
+    source: "workspace-setting",
+  });
+  const entries = await buildSitemap(deps, { workspaceId: WORKSPACE });
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0]!.loc, "https://example.test/published-visible");
 });
 
 test("buildSitemap: excludes drafts and effective-noindex entries, includes only eligible published entries (AC-16/17)", async () => {

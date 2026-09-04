@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { buildSitemap, invalidateSitemapCache, regenerateSitemapCache } from "../sitemap.js";
 
@@ -38,6 +39,21 @@ function post(workspaceId: string, overrides: Partial<PostRecord> = {}): PostRec
   };
 }
 
+/** No verified origin registered — mirrors `seo.test.ts`'s own copy of this fake. */
+function fakeOriginRegistry(): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
 async function makeDeps(workspaceId: string, posts: PostRecord[]) {
   invalidateSitemapCache({ workspaceId });
   const postRepo = new InMemoryPostRepo(posts);
@@ -53,6 +69,7 @@ async function makeDeps(workspaceId: string, posts: PostRecord[]) {
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
       transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     },
+    originRegistry: fakeOriginRegistry(),
   };
 }
 

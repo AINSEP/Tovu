@@ -8,6 +8,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo, PostNotFoundError } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "#src/features/origin/index";
 import { createApp, createRouteDeps } from "#src/server/runtime/composition/app";
 
 /**
@@ -280,6 +281,89 @@ test("GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> 
 
   const res = await fetch(`${baseUrl}/broken-canonical`);
   assert.equal(res.status, 200, "the page must still render even though its own canonical URL couldn't be resolved");
+});
+
+// 2026-09-03 absolute-URL fix — reproduced on both production (`curl https://tovu.dev/documentation`)
+// and local (`curl -sk https://localhost:3000/docs`) before this fix: every page emitted a RELATIVE
+// `<link rel="canonical">`/`<meta property="og:url">`, which breaks Open Graph link previews (the
+// protocol requires `og:url` to be absolute). `createRouteDeps()` seeds a verified `dev-capability`
+// origin (`http://localhost:3000`, `app.ts`'s own `originRegistry` wiring) for every test in this
+// file, so this exercises the real production code path end to end.
+
+test("GET /:slug (post route): canonical and og:url are absolute, using the workspace's verified origin (2026-09-03 fix)", async (t) => {
+  const deps = createRouteDeps();
+  const post: PostRecord = {
+    id: "post-absolute-canonical",
+    workspaceId: deps.workspaceId,
+    title: "Absolute canonical post",
+    slug: "absolute-canonical",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1,
+  } as unknown as PostRecord;
+
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([post]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/absolute-canonical`);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(
+    html,
+    /<link rel="canonical" href="http:\/\/localhost:3000\/absolute-canonical"\/>/,
+    "canonical must be absolute, not the bare '/absolute-canonical' path this route emitted before the fix"
+  );
+  assert.match(
+    html,
+    /<meta property="og:url" content="http:\/\/localhost:3000\/absolute-canonical"\/>/,
+    "og:url must be absolute — the Open Graph protocol requires it, and a relative one breaks link previews"
+  );
+});
+
+test("GET /: the root page's canonical is absolute with exactly one trailing slash, never 'localhost:3000//' (2026-09-03 fix)", async (t) => {
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 200);
+  const html = await res.text();
+  assert.match(html, /<link rel="canonical" href="http:\/\/localhost:3000\/"\/>/);
+  assert.doesNotMatch(html, /localhost:3000\/\//, "the root path must never double up into a '//' after the origin");
+});
+
+/** A registry that always throws `OriginNotVerifiedError` — simulates a workspace with no verified
+ *  origin registered yet, the disclosed degradation `toAbsoluteUrl` falls back to. */
+class NoOriginRegistry implements OriginRegistryPort {
+  async canonicalOrigin(): Promise<never> {
+    throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+  }
+  async isAllowedRedirectTarget(): Promise<boolean> {
+    return false;
+  }
+  async isAllowedEgressTarget(): Promise<boolean> {
+    return false;
+  }
+}
+
+test("GET /: with no verified origin registered, canonical degrades to the bare relative path '/' (disclosed fallback, 2026-09-03 fix)", async (t) => {
+  const { server, baseUrl } = await startServer({
+    postRepo: new InMemoryPostRepo([]),
+    originRegistry: new NoOriginRegistry(),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 200, "an unverified origin must degrade the canonical, never 500 the whole page");
+  const html = await res.text();
+  assert.match(html, /<link rel="canonical" href="\/"\/>/);
 });
 
 /** A post repo whose `list` throws `PostNotFoundError` outright — not a realistic failure for a

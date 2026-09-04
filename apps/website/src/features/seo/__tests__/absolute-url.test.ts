@@ -1,0 +1,92 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin/index.js";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "../absolute-url.js";
+
+/**
+ * @file Direct unit certification of `toAbsoluteUrl`/`resolveWorkspaceOrigin` (2026-09-03 absolute-URL
+ * fix) — the join logic `seo.ts`'s `resolveCanonical`/`resolveShareImages` and
+ * `routes/site/pages.ts`'s `buildExtraHead` both delegate to. Reproduced defect (both production and
+ * local, via `curl`, before this fix existed): every page's `canonical`/`og:url` was a bare relative
+ * path, and `og:image` (via `resolveSeoImageRef`'s `/m/...` contract) the same — a hard failure for
+ * Open Graph, which requires `og:url`/`og:image` to be absolute.
+ */
+
+const ORIGIN: VerifiedOrigin = {
+  scheme: "https",
+  host: "example.test",
+  verifiedAt: "2026-09-03T00:00:00.000Z",
+  source: "workspace-setting",
+};
+
+test("toAbsoluteUrl: joins an ordinary path onto the verified origin", () => {
+  assert.equal(toAbsoluteUrl(ORIGIN, "/documentation"), "https://example.test/documentation");
+});
+
+test("toAbsoluteUrl: the root path '/' joins to exactly one trailing slash, never '//' (2026-09-03 fix requirement)", () => {
+  assert.equal(toAbsoluteUrl(ORIGIN, "/"), "https://example.test/");
+});
+
+test("toAbsoluteUrl: includes a non-default port in the authority", () => {
+  const origin: VerifiedOrigin = { ...ORIGIN, host: "localhost", port: 3000, scheme: "http", source: "dev-capability" };
+  assert.equal(toAbsoluteUrl(origin, "/docs"), "http://localhost:3000/docs");
+});
+
+test("toAbsoluteUrl: preserves the origin's own basePath without doubling a slash", () => {
+  const origin: VerifiedOrigin = { ...ORIGIN, basePath: "/site" };
+  assert.equal(toAbsoluteUrl(origin, "/"), "https://example.test/site/");
+  assert.equal(toAbsoluteUrl(origin, "/pricing"), "https://example.test/site/pricing");
+});
+
+test("toAbsoluteUrl: an already-absolute path is returned unchanged, never double-prefixed (EC-10 cross-domain override)", () => {
+  assert.equal(toAbsoluteUrl(ORIGIN, "https://other-domain.example/elsewhere"), "https://other-domain.example/elsewhere");
+});
+
+test("toAbsoluteUrl: a protocol-relative path is treated as already-absolute and left unchanged", () => {
+  assert.equal(toAbsoluteUrl(ORIGIN, "//cdn.example.com/x.jpg"), "//cdn.example.com/x.jpg");
+});
+
+test("toAbsoluteUrl: no verified origin (undefined) degrades to the bare relative path unchanged — the disclosed fallback", () => {
+  assert.equal(toAbsoluteUrl(undefined, "/documentation"), "/documentation");
+  assert.equal(toAbsoluteUrl(undefined, "/"), "/");
+});
+
+test("toAbsoluteUrl: an og:image-shaped '/m/...' media URL becomes absolute", () => {
+  assert.equal(toAbsoluteUrl(ORIGIN, "/m/asset-1/og.v1/image.jpg"), "https://example.test/m/asset-1/og.v1/image.jpg");
+});
+
+function fakeOriginRegistry(origin: VerifiedOrigin | Error): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      if (origin instanceof Error) throw origin;
+      return origin;
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
+test("resolveWorkspaceOrigin: returns the verified origin when one is registered", async () => {
+  const result = await resolveWorkspaceOrigin(fakeOriginRegistry(ORIGIN), "workspace-1");
+  assert.deepEqual(result, ORIGIN);
+});
+
+test("resolveWorkspaceOrigin: degrades to undefined on OriginNotVerifiedError, the documented no-origin fallback", async () => {
+  const result = await resolveWorkspaceOrigin(
+    fakeOriginRegistry(new OriginNotVerifiedError("no verified origin registered")),
+    "workspace-1"
+  );
+  assert.equal(result, undefined);
+});
+
+test("resolveWorkspaceOrigin: any OTHER error is rethrown, not silently swallowed into the same fallback", async () => {
+  await assert.rejects(
+    () => resolveWorkspaceOrigin(fakeOriginRegistry(new Error("registry is down")), "workspace-1"),
+    /registry is down/
+  );
+});

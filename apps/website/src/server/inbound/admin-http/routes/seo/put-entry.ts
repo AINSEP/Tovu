@@ -66,7 +66,7 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       });
 
       const meta = await getEntryMeta(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps },
+        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
         { workspaceId: deps.workspaceId, entryId }
       );
       res.json({ data: meta });

@@ -3,6 +3,8 @@ import type { PostKind, PostRecord, PostRepoPort } from "../post/index.js";
 import { getEffective, type SettingsRepoPort } from "../settings/index.js";
 import { postPublicPath, urlFor } from "../../platform/routing/index.js";
 import type { RouteResolverDeps } from "../../platform/routing/index.js";
+import type { OriginRegistryPort, VerifiedOrigin } from "../origin/index.js";
+import { resolveWorkspaceOrigin, toAbsoluteUrl } from "./absolute-url.js";
 import { SeoEntryNotFoundError } from "./errors.js";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
 import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media.js";
@@ -109,6 +111,7 @@ export interface GetEntryMetaDeps {
   postRepo: PostRepoPort;
   settingsRepo: SettingsRepoPort;
   media: ResolveSeoImageRefDeps;
+  originRegistry: OriginRegistryPort;
 }
 
 export interface GetEntryMetaInput {
@@ -118,17 +121,28 @@ export interface GetEntryMetaInput {
 
 type ResolvedSeoSettings = Awaited<ReturnType<typeof getSeoSettings>>;
 
-/** canonical: override (accepted cross-domain as-is, EC-10) > routing-resolved. Never invents a
- *  local origin (INV-07) — a draft falls back to the bare relative path rather than fabricating an
- *  absolute URL. */
-async function resolveCanonical(deps: GetEntryMetaDeps, post: PostRecord, overrides: SeoExtFields, workspaceId: string): Promise<string> {
+/** canonical: override (accepted cross-domain as-is, EC-10) > routing-resolved > bare path — then
+ *  joined onto the workspace's verified origin ({@link toAbsoluteUrl}) so the result is always an
+ *  absolute URL. A relative override (an author who typed `/pricing` rather than a full URL) is
+ *  absolutized the same way; an already-absolute override (the intended EC-10 case) passes through
+ *  {@link toAbsoluteUrl} unchanged. No local origin is ever invented (INV-07's real intent — the
+ *  origin comes only from `OriginRegistryPort`, never a guess): with no verified origin registered
+ *  yet, `origin` is `undefined` and this degrades to the bare relative path, same as before this
+ *  fix existed. */
+async function resolveCanonical(
+  deps: GetEntryMetaDeps,
+  post: PostRecord,
+  overrides: SeoExtFields,
+  workspaceId: string,
+  origin: VerifiedOrigin | undefined
+): Promise<string> {
   const routingResolverDeps: RouteResolverDeps = { postRepo: deps.postRepo };
   const routed = await urlFor({
     deps: routingResolverDeps,
     target: { kind: "entryRef", entryId: post.id, contentType: post.kind },
     ctx: { workspaceId },
   });
-  return overrides.canonical ?? routed?.canonicalUrl ?? postPublicPath(post.slug);
+  return toAbsoluteUrl(origin, overrides.canonical ?? routed?.canonicalUrl ?? postPublicPath(post.slug));
 }
 
 /** robots: override > site default > derived (draft-safety fallback for noindex, EC-11). */
@@ -151,18 +165,26 @@ async function resolveRobots(
   return { noindex, nofollow };
 }
 
-/** openGraph/twitter image refs resolve through media (fail-soft, EC-07). */
+/** openGraph/twitter image refs resolve through media (fail-soft, EC-07), then joined onto the
+ *  workspace's verified origin ({@link toAbsoluteUrl}) — `resolveSeoImageRef` returns either an
+ *  already-absolute ref (passed through unchanged) or the site-relative `/m/{assetId}/...` URL
+ *  contract (ADR-027 §4), which needs the same absolutizing every other SEO URL does; crawlers
+ *  require `og:image` to be absolute, same as `og:url`. */
 async function resolveShareImages(
   deps: GetEntryMetaDeps,
   overrides: SeoExtFields,
   settings: ResolvedSeoSettings,
-  workspaceId: string
+  workspaceId: string,
+  origin: VerifiedOrigin | undefined
 ): Promise<{ ogImage: string | undefined; twitterImage: string | undefined }> {
   const ogImageRef = overrides.ogImage ?? settings.defaultOgImage;
-  const ogImage = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: ogImageRef }) : undefined;
+  const ogImageResolved = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: ogImageRef }) : undefined;
   const twitterImageRef = overrides.twitterImage ?? settings.defaultOgImage;
-  const twitterImage = twitterImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: twitterImageRef }) : undefined;
-  return { ogImage, twitterImage };
+  const twitterImageResolved = twitterImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: twitterImageRef }) : undefined;
+  return {
+    ogImage: ogImageResolved ? toAbsoluteUrl(origin, ogImageResolved) : undefined,
+    twitterImage: twitterImageResolved ? toAbsoluteUrl(origin, twitterImageResolved) : undefined,
+  };
 }
 
 /** title: override, else titleTemplate applied to entry.title. description: override > site default >
@@ -239,7 +261,8 @@ function buildJsonLdEntry(post: PostRecord, schemaType: string, title: string, d
  * derived, per field — behavior.spec.md §1.1). Never partial.
  *
  * @complexity O(1) — one post read, one settings resolution (8 bounded
- * `getEffective` reads), up to 2 media lookups.
+ * `getEffective` reads), up to 2 media lookups, one origin lookup (2026-09-03,
+ * absolute-URL fix — {@link resolveWorkspaceOrigin}).
  */
 export async function getEntryMeta(deps: GetEntryMetaDeps, input: GetEntryMetaInput): Promise<SeoMeta> {
   const post = await deps.postRepo.findById({ workspaceId: input.workspaceId, id: input.entryId });
@@ -250,10 +273,11 @@ export async function getEntryMeta(deps: GetEntryMetaDeps, input: GetEntryMetaIn
     workspaceId: input.workspaceId,
   });
 
+  const origin = await resolveWorkspaceOrigin(deps.originRegistry, input.workspaceId);
   const { title, description } = resolveTitleAndDescription(post, overrides, settings);
-  const canonical = await resolveCanonical(deps, post, overrides, input.workspaceId);
+  const canonical = await resolveCanonical(deps, post, overrides, input.workspaceId, origin);
   const { noindex, nofollow } = await resolveRobots(deps, post, overrides, settings, input.workspaceId);
-  const { ogImage, twitterImage } = await resolveShareImages(deps, overrides, settings, input.workspaceId);
+  const { ogImage, twitterImage } = await resolveShareImages(deps, overrides, settings, input.workspaceId, origin);
   const { ogType, schemaType } = resolveContentTypeFields(post, overrides);
 
   return {

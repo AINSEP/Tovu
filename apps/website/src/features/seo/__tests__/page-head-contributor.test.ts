@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort } from "../../origin/index.js";
 import type { HeadElement, PageHeadContext } from "../types.js";
 import { ensureSeoSettingDefinitions } from "../settings.js";
 import { createSeoPageHeadHook } from "../page-head-contributor.js";
@@ -38,6 +39,24 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
   };
 }
 
+/** No verified origin registered — mirrors `seo.test.ts`'s own copy of this fake. Keeps every
+ *  canonical/og:url assertion below unchanged (still relative); this suite's job is the
+ *  SeoMeta -> HeadElement[] mapping, not the absolute-URL join itself (see `seo.test.ts`/
+ *  `absolute-url.test.ts` for that coverage). */
+function fakeOriginRegistry(): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
 async function makeDeps(posts: PostRecord[]) {
   const postRepo = new InMemoryPostRepo(posts);
   const settingsRepo = new InMemorySettingsRepo();
@@ -52,6 +71,7 @@ async function makeDeps(posts: PostRecord[]) {
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
       transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     },
+    originRegistry: fakeOriginRegistry(),
   };
 }
 

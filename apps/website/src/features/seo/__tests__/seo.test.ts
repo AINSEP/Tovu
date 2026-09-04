@@ -4,6 +4,7 @@ import test from "node:test";
 import { InMemoryPostRepo, type PostRecord } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin/index.js";
 import { SeoEntryNotFoundError } from "../errors.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { getEntryMeta } from "../seo.js";
@@ -40,7 +41,27 @@ function seedPost(overrides: Partial<PostRecord> = {}): PostRecord {
   };
 }
 
-async function makeDeps(posts: PostRecord[]) {
+/** Fake `OriginRegistryPort` (mirrors `site-evidence/__tests__/unit/collect-page-evidence.unit.test.ts`'s
+ *  own copy) — `origin: undefined` (the default, and every pre-existing test's implicit behavior)
+ *  means "no verified origin registered yet", which `resolveWorkspaceOrigin` degrades to
+ *  `undefined`, keeping every canonical/og:url/og:image assertion below unchanged (still relative).
+ *  A test that needs the absolute-URL fix passes a real `VerifiedOrigin` explicitly. */
+function fakeOriginRegistry(origin?: VerifiedOrigin): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      if (!origin) throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      return origin;
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
+async function makeDeps(posts: PostRecord[], origin?: VerifiedOrigin) {
   const postRepo = new InMemoryPostRepo(posts);
   const settingsRepo = new InMemorySettingsRepo();
   const settingsDeps = { settingsRepo, clock, ids, authorize: alwaysAllow, principals: { findById: async () => null } as never };
@@ -55,6 +76,7 @@ async function makeDeps(posts: PostRecord[]) {
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
       transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     },
+    originRegistry: fakeOriginRegistry(origin),
   };
 }
 
@@ -191,6 +213,82 @@ test("getEntryMeta: no canonical override falls back to the routing-resolved can
   const deps = await makeDeps([seedPost()]);
   const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
   assert.ok(meta.canonical.endsWith("/hello-world"));
+});
+
+// 2026-09-03 absolute-URL fix — reproduced on both production and local via `curl` before this fix:
+// every page emitted a RELATIVE `canonical`/`og:url`, and `og:image` is required to be absolute per
+// the Open Graph protocol (a relative one breaks every social crawler/link-preview fetcher).
+const VERIFIED_ORIGIN: VerifiedOrigin = {
+  scheme: "https",
+  host: "example.test",
+  verifiedAt: "2026-09-03T00:00:00.000Z",
+  source: "workspace-setting",
+};
+
+test("getEntryMeta: with a verified origin, canonical and og:url are absolute (2026-09-03 fix)", async () => {
+  const deps = await makeDeps([seedPost()], VERIFIED_ORIGIN);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.canonical, "https://example.test/hello-world");
+  assert.equal(meta.openGraph.url, "https://example.test/hello-world");
+});
+
+test("getEntryMeta: the root-slug '/' page's absolute canonical is 'https://host/', never 'https://host//' (2026-09-03 fix)", async () => {
+  const deps = await makeDeps([seedPost({ slug: "/" })], VERIFIED_ORIGIN);
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.canonical, "https://example.test/");
+});
+
+test("getEntryMeta: with NO verified origin registered, canonical degrades to the bare relative path (disclosed fallback, 2026-09-03 fix)", async () => {
+  const deps = await makeDeps([seedPost()]); // no origin argument -> fakeOriginRegistry() throws OriginNotVerifiedError
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.canonical, "/hello-world");
+  assert.equal(meta.openGraph.url, "/hello-world");
+});
+
+test("getEntryMeta: an already-absolute canonical override is never double-prefixed with the verified origin (EC-10 preserved, 2026-09-03 fix)", async () => {
+  const deps = await makeDeps(
+    [seedPost({ seoExtJson: JSON.stringify({ canonical: "https://other-domain.example/elsewhere" }) })],
+    VERIFIED_ORIGIN
+  );
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.canonical, "https://other-domain.example/elsewhere");
+});
+
+test("getEntryMeta: a media-resolved og:image (the '/m/...' contract) becomes absolute with a verified origin (2026-09-03 fix)", async () => {
+  const now = "2026-09-03T00:00:00.000Z";
+  const mediaRepo = new InMemoryMediaRepo([
+    {
+      id: "asset-1",
+      workspaceId: WORKSPACE,
+      title: "Cover",
+      alt: "",
+      caption: "",
+      credit: "",
+      source: { kind: "upload", sha256: "a".repeat(64) } as never,
+      status: "ready",
+      createdAt: now,
+      updatedAt: now,
+      version: 1,
+      width: null,
+      height: null,
+      cssClass: null,
+    } as never,
+  ]);
+  const transformDefinitionRepo = new InMemoryTransformDefinitionRepo([
+    { id: "transform-1", workspaceId: WORKSPACE, name: "og", version: 1, params: { format: "jpeg" }, createdAt: now } as never,
+  ]);
+  const assetRenditionRepo = new InMemoryAssetRenditionRepo([
+    { id: "rendition-1", workspaceId: WORKSPACE, assetId: "asset-1", transformName: "og", version: 1, storageKey: "k", createdAt: now },
+  ]);
+  const deps = {
+    ...(await makeDeps(
+      [seedPost({ seoExtJson: JSON.stringify({ ogImage: "asset-1:og" }) })],
+      VERIFIED_ORIGIN
+    )),
+    media: { mediaRepo, transformDefinitionRepo, assetRenditionRepo },
+  };
+  const meta = await getEntryMeta(deps, { workspaceId: WORKSPACE, entryId: "post-1" });
+  assert.equal(meta.openGraph.image, "https://example.test/m/asset-1/og.v1/image.jpg");
 });
 
 test("getEntryMeta: a draft with no explicit noindex override and no site default defaults to noindex:true (EC-11)", async () => {

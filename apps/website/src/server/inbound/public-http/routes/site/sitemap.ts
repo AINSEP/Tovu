@@ -24,7 +24,7 @@ export const registerSeoSitemapRoute: SeoRouteRegistrar = (app, deps) => {
     try {
       await deps.seoReady;
       const entries = await buildSitemap(
-        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps },
+        { postRepo: deps.postRepo, settingsRepo: deps.settingsRepo, media: deps, originRegistry: deps.originRegistry },
         { workspaceId: deps.workspaceId }
       );
       const body =

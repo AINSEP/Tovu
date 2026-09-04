@@ -38,6 +38,7 @@ function buildApp(depsOverrides: Partial<SeoRouteDeps> = {}): express.Express {
     mediaRepo: base.mediaRepo,
     assetRenditionRepo: base.assetRenditionRepo,
     transformDefinitionRepo: base.transformDefinitionRepo,
+    originRegistry: base.originRegistry,
     ...depsOverrides,
   };
   const app = express();

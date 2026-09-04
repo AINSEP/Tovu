@@ -75,8 +75,13 @@ function buildSeoImageUrl(assetId: string, transformName: string, latest: Transf
 }
 
 /**
- * Resolves an `ogImage`/`twitterImage` field to an absolute URL, or
- * `undefined` on any miss.
+ * Resolves an `ogImage`/`twitterImage` field to a URL, or `undefined` on any
+ * miss. Returns `ref` unchanged when it is already an absolute URL; otherwise
+ * returns the site-relative `/m/{assetId}/...` URL contract (ADR-027 §4) —
+ * NOT necessarily absolute (this function has no origin to join, by design;
+ * `seo.ts`'s `resolveShareImages` is the one caller and absolutizes the
+ * result via `toAbsoluteUrl`, since `og:image`/`twitter:image` must be
+ * absolute for crawlers, same as `og:url`).
  *
  * @complexity O(1) — bounded repo lookups (one asset read, one transform-
  * version listing, one rendition read).

@@ -2,6 +2,7 @@ import type { UUID } from "@jini-ai/cms/core";
 import { resolvePostMemberAccess } from "../members/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import type { SettingsRepoPort } from "../settings/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
 import type { ResolveSeoImageRefDeps } from "./media.js";
 import { getEntryMeta } from "./seo.js";
 import { getSeoSettings } from "./settings.js";
@@ -46,6 +47,7 @@ export interface SeoSitemapDeps {
   postRepo: PostRepoPort;
   settingsRepo: SettingsRepoPort;
   media: ResolveSeoImageRefDeps;
+  originRegistry: OriginRegistryPort;
 }
 
 /**
@@ -77,6 +79,11 @@ async function computeSitemapEntries(deps: SeoSitemapDeps, workspaceId: UUID): P
     if (!isPubliclyVisible(post)) continue;
     const meta = await getEntryMeta(deps, { workspaceId, entryId: post.id });
     if (meta.robots.noindex) continue;
+    // `meta.canonical` is absolute when the workspace has a verified origin (2026-09-03 fix,
+    // `getEntryMeta`'s own `resolveCanonical`) — sitemap `loc` entries are required to be absolute
+    // by the sitemap protocol, same requirement `og:url` has. Falls back to the bare relative path
+    // for the same disclosed no-origin degradation `getEntryMeta` documents; unchanged from before
+    // this fix for a workspace with no verified origin yet.
     entries.push({ loc: meta.canonical, lastmod: post.updatedAt });
   }
 
