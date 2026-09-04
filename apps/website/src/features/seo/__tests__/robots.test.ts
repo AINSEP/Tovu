@@ -4,13 +4,19 @@ import test from "node:test";
 import { InMemoryPostRepo } from "../../post/index.js";
 import { InMemorySettingsRepo } from "../../settings/index.js";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin/index.js";
 import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
 import { buildRobots, invalidateSitemapCache } from "../sitemap.js";
 
 /**
  * @file T034 — failing-first unit certification of `buildRobots` (REQ-09,
  * AC-19/20/21, EC-09): `sitemapEnabled:true` -> `Sitemap:` (sitemapUrls
- * non-empty); `false` -> `sitemapUrls: []`.
+ * non-empty); `false` -> `sitemapUrls: []`. Plus the 2026-09-04 absolute-URL
+ * fix: the advertised `Sitemap:` URL is joined onto the workspace's verified
+ * origin the same way `getEntryMeta`'s `canonical`/`og:url` already are
+ * (`seo.test.ts`'s identical fixture shape), degrading to the bare relative
+ * path when no origin is verified yet (disclosed fallback, unchanged from
+ * before this fix).
  */
 
 const WORKSPACE = "workspace-robots-1";
@@ -19,7 +25,32 @@ let idCounter = 0;
 const ids = { newId: () => `robots-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
-async function makeDeps() {
+/** Fake `OriginRegistryPort` — mirrors `seo.test.ts`'s own copy. `origin: undefined` (the default)
+ *  means "no verified origin registered yet", which `resolveWorkspaceOrigin` degrades to
+ *  `undefined`, keeping the pre-fix relative-path assertions below unchanged. */
+function fakeOriginRegistry(origin?: VerifiedOrigin): OriginRegistryPort {
+  return {
+    async canonicalOrigin() {
+      if (!origin) throw new OriginNotVerifiedError("no verified origin registered for this workspace");
+      return origin;
+    },
+    async isAllowedRedirectTarget() {
+      return false;
+    },
+    async isAllowedEgressTarget() {
+      return false;
+    },
+  };
+}
+
+const VERIFIED_ORIGIN: VerifiedOrigin = {
+  scheme: "https",
+  host: "example.test",
+  verifiedAt: "2026-09-04T00:00:00.000Z",
+  source: "workspace-setting",
+};
+
+async function makeDeps(origin?: VerifiedOrigin) {
   invalidateSitemapCache({ workspaceId: WORKSPACE });
   const postRepo = new InMemoryPostRepo([]);
   const settingsRepo = new InMemorySettingsRepo();
@@ -35,6 +66,7 @@ async function makeDeps() {
       assetRenditionRepo: new InMemoryAssetRenditionRepo([]),
       transformDefinitionRepo: new InMemoryTransformDefinitionRepo([]),
     },
+    originRegistry: fakeOriginRegistry(origin),
   };
 }
 
@@ -66,4 +98,16 @@ test("buildRobots: carries the configured robotsRules through as-is", async () =
 
   const policy = await buildRobots(deps, { workspaceId: WORKSPACE });
   assert.deepEqual(policy.rules, [{ userAgent: "*", disallow: ["/admin"] }]);
+});
+
+test("buildRobots: with a verified origin, the advertised Sitemap URL is absolute (2026-09-04 fix)", async () => {
+  const deps = await makeDeps(VERIFIED_ORIGIN);
+  const policy = await buildRobots(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(policy.sitemapUrls, ["https://example.test/sitemap.xml"]);
+});
+
+test("buildRobots: with NO verified origin registered, the Sitemap URL degrades to the bare relative path (disclosed fallback, 2026-09-04 fix)", async () => {
+  const deps = await makeDeps(); // no origin argument -> fakeOriginRegistry() throws OriginNotVerifiedError
+  const policy = await buildRobots(deps, { workspaceId: WORKSPACE });
+  assert.deepEqual(policy.sitemapUrls, ["/sitemap.xml"]);
 });
