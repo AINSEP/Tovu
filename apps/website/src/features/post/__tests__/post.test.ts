@@ -177,6 +177,61 @@ test("createPost rejects a caller-supplied slug with an invalid format", async (
   assert.equal(stored, null);
 });
 
+// Content-owned homepage (SPEC-0XX) — the root slug is claimable ONLY by a Page. `kind` defaults to
+// `"post"` when omitted, so the rejection must fire on that default too, not only on an explicit
+// `kind: "post"`.
+test("createPost rejects a caller-supplied slug of '/' for a post (kind defaults to 'post')", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      createPost({
+        deps: { repo, clock },
+        input: { workspaceId: "workspace-1", id: "post-new", title: "My New Post", slug: "/" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "slug must use lowercase letters, numbers, and dashes");
+      return true;
+    }
+  );
+
+  const stored = await repo.findById({ workspaceId: "workspace-1", id: "post-new" });
+  assert.equal(stored, null);
+});
+
+test("createPost rejects a caller-supplied slug of '/' for an explicit kind: 'post'", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      createPost({
+        deps: { repo, clock },
+        input: { workspaceId: "workspace-1", id: "post-new", title: "My New Post", slug: "/", kind: "post" },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "slug must use lowercase letters, numbers, and dashes");
+      return true;
+    }
+  );
+});
+
+test("createPost accepts a caller-supplied slug of '/' for kind: 'page'", async () => {
+  const repo = new InMemoryPostRepo([]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  const result = await createPost({
+    deps: { repo, clock },
+    input: { workspaceId: "workspace-1", id: "page-new", title: "Home", slug: "/", kind: "page" },
+  });
+
+  assert.equal(result.post.slug, "/");
+  assert.equal(result.post.kind, "page");
+});
+
 test("createPost rejects a caller-supplied slug already used in the workspace (SLUG_CONFLICT)", async () => {
   const repo = new InMemoryPostRepo([seedPost]); // seedPost.slug === "hello-world"
   const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
@@ -693,6 +748,53 @@ test("updatePost rejects an invalid slug format", async () => {
       return true;
     }
   );
+});
+
+// Content-owned homepage (SPEC-0XX) — same root-slug exception `createPost`'s explicit-slug path
+// enforces, gated here on `existing.kind` (immutable, so this is the only kind that can matter).
+test("updatePost rejects a slug of '/' when the existing row's kind is 'post'", async () => {
+  const repo = new InMemoryPostRepo([seedPost]); // seedPost.kind === "post"
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  await assert.rejects(
+    () =>
+      updatePost({
+        deps: { repo, clock, outbox: noopOutbox },
+        input: {
+          workspaceId: "workspace-1",
+          id: "post-1",
+          title: "Updated Post",
+          slug: "/",
+          bodyJson: { type: "doc", content: [] },
+          status: "published",
+        },
+      }),
+    (err: unknown) => {
+      assert.ok(err instanceof PostValidationError);
+      assert.equal((err as Error).message, "slug must use lowercase letters, numbers, and dashes");
+      return true;
+    }
+  );
+});
+
+test("updatePost accepts a slug of '/' when the existing row's kind is 'page'", async () => {
+  const seedPage = { ...seedPost, id: "page-1", kind: "page" as const, slug: "about" };
+  const repo = new InMemoryPostRepo([seedPage]);
+  const clock = { nowIso: () => "2026-04-06T01:00:00.000Z" };
+
+  const result = await updatePost({
+    deps: { repo, clock, outbox: noopOutbox },
+    input: {
+      workspaceId: "workspace-1",
+      id: "page-1",
+      title: "Home",
+      slug: "/",
+      bodyJson: { type: "doc", content: [] },
+      status: "published",
+    },
+  });
+
+  assert.equal(result.post.slug, "/");
 });
 
 test("updatePost rejects a non-object bodyJson on a doc-format row", async () => {

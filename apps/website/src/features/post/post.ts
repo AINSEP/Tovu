@@ -418,6 +418,20 @@ export const MAX_SLUG_LENGTH = 120;
 export const SLUG_FORMAT_PATTERN = /^[a-z0-9-]+$/;
 
 /**
+ * Content-owned homepage — the literal root slug a `kind: "page"` row may claim so `GET /`
+ * (`server/inbound/public-http/routes/site/pages.ts`) renders it instead of always falling back to
+ * the active theme's own `index.html`. Deliberately NOT folded into {@link SLUG_FORMAT_PATTERN}
+ * itself — that would loosen the regex to accept a slash generally, which is not the intended shape.
+ * This is a single exact-string exception, checked ahead of the regex by {@link resolveExplicitSlug}
+ * and `validateUpdatePostInput`, and it is gated on `kind`: a `kind: "post"` row requesting it is
+ * rejected with the SAME "slug must use lowercase letters, numbers, and dashes" message the format
+ * check already raises for any other malformed slug — a Post's claim on `/` is simply never a valid
+ * slug for a Post, not a distinct error case needing its own message. The fallback-to-theme behavior
+ * when no page claims it is what keeps this reversible: see the route handler's own doc.
+ */
+export const ROOT_SLUG = "/";
+
+/**
  * behavior.spec.md BR-02/BR-03 — slugs a request may never claim outright (`createPost`'s
  * explicit-slug path rejects these with `VALIDATION_ERROR`; a *derived* slug landing on one of
  * these is a separate, not-yet-implemented BR-02 suffixing rule — see this file's `slugify`
@@ -538,7 +552,12 @@ function resolveTitle(input: CreatePostInput): string {
 function resolveExplicitSlug(input: CreatePostInput): string | undefined {
   if (input.slug === undefined) return undefined;
   const explicitSlug = input.slug.trim().toLowerCase();
-  if (!isValidSlugFormat(explicitSlug)) {
+  // `input.kind` defaults to `"post"` the same way `createPost`'s own record construction does
+  // (see this file's `kind: input.kind ?? "post"`) — a create request that omits `kind` entirely
+  // must be gated exactly like an explicit `kind: "post"` one, not treated as unopinionated.
+  const kind: PostKind = input.kind ?? "post";
+  const validFormat = explicitSlug === ROOT_SLUG ? kind === "page" : isValidSlugFormat(explicitSlug);
+  if (!validFormat) {
     throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
   if (explicitSlug.length > MAX_SLUG_LENGTH) {
@@ -692,7 +711,11 @@ function validateUpdatePostInput(
   const slug = input.slug.trim().toLowerCase();
 
   if (!title) throw new PostValidationError("title is required");
-  if (!isValidSlugFormat(slug)) {
+  // `existing.kind` is immutable (PostKind's own doc: "Fixed at creation; v1 has no post<->page
+  // conversion path"), so the row's real kind — not any caller-supplied value, `UpdatePostInput`
+  // carries none — is what gates the same root-slug exception `resolveExplicitSlug` applies on create.
+  const validFormat = slug === ROOT_SLUG ? existing.kind === "page" : isValidSlugFormat(slug);
+  if (!validFormat) {
     throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
   // Required for a `"doc"` row, meaningless for an `"html"` one. A bespoke-HTML Page has no Tiptap
