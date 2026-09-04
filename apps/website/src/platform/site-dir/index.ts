@@ -14,6 +14,11 @@
  * `<cwd>/infra/...` for themselves. That is exactly the "cross-module data contract" this barrel
  * exists for, and routing the two feature callers through the door keeps them off a deep import
  * (`no-deep-imports:site-dir`).
+ *
+ * `site-registry.ts`/`active-site.ts` joined 2026-09-04 (sites-switcher decision) for the same
+ * reason: their one caller, the admin "Sites" route module
+ * (`server/inbound/admin-http/routes/system/sites.ts`), sits outside `site-dir` and outside the
+ * `COMPOSITION_ROOTS` exemption list, so `no-deep-imports:site-dir` requires the door.
  */
 export { DEFAULT_SITE_NAME, resolveSiteRoot, type ResolveSiteRootOptional } from "./site-root.js";
 export {
@@ -25,3 +30,13 @@ export {
   InternalError,
 } from "./errors.js";
 export type { ConfigJson } from "./types.js";
+export {
+  listSites,
+  createSite,
+  SITE_NAME_PATTERN,
+  type SiteListEntry,
+  type ListSitesOptional,
+  type CreateSiteRequired,
+  type CreateSiteResult,
+} from "./site-registry.js";
+export { persistActiveSite, type PersistActiveSiteRequired, type ActiveSiteEnvOptional } from "./active-site.js";

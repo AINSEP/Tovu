@@ -194,6 +194,7 @@ import { createCommerceModule } from "./modules/commerce.js";
 import { registerAdminModuleStatusRoute } from "../../inbound/admin-http/routes/system/module-status.js";
 import { registerAdminAssistantDaemonRoutes } from "../../inbound/admin-http/routes/system/assistant-daemon.js";
 import { registerAdminDeploymentOverviewRoute } from "../../inbound/admin-http/routes/system/deployment-overview.js";
+import { registerAdminSitesRoutes } from "../../inbound/admin-http/routes/system/sites.js";
 import { registerAdminSiteProfileRoute } from "../../inbound/admin-http/routes/site/profile.js";
 import { registerAdminDockerfileSourceRoute } from "../../inbound/admin-http/routes/system/dockerfile-source.js";
 import { registerAdminExportSiteRoutes } from "../../inbound/admin-http/routes/system/export-site.js";
@@ -1030,6 +1031,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // module-status route just above; see each route file's own header for why they share it.
   registerAdminDeploymentOverviewRoute(app, routeDeps);
   registerAdminDockerfileSourceRoute(app, routeDeps);
+  // Admin "Sites" screen (2026-09-04 sites-switcher decision) — list/create/activate the sites
+  // under `sites/<name>/`. `system.read`/`system.write`-gated, same shape as the routes just
+  // above; Create/Activate additionally refuse when `TOVU_ENABLE_SITE_SWITCHER` is off (default),
+  // which List does not — see that route file's own header for the full split.
+  registerAdminSitesRoutes(app, routeDeps);
   // The admin frontend's door to `buildSiteProfile()` — the SAME function the `site_get_profile`
   // agent tool calls, because `apps/admin` is a browser bundle and cannot invoke an agent tool.
   // Deliberately NOT gated by one `authorize()` call here: it authorizes each section against that

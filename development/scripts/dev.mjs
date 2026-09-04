@@ -319,6 +319,13 @@ async function main() {
     // agent daemon fully alive and bound, unchanged, 2s later. This env var closes that gap the same
     // way `TOVU_PARENT_PID` already closes the analogous one for the agent daemon.
     TOVU_DEV_SUPERVISOR_PID: String(process.pid),
+    // Admin "Sites" switcher capability flag (2026-09-04 sites-switcher decision) — default ON for
+    // every local `npm run dev` boot, same "explicit always wins" precedence this file's other env
+    // overrides already follow: an operator's own `TOVU_ENABLE_SITE_SWITCHER` (exported in the
+    // shell, or set in `.env`) is never overridden. `apps/website/src/server/runtime/composition/
+    // site-switcher-enabled.ts` owns the flag's own default-OFF-elsewhere polarity and full
+    // rationale (Tovu-Runner/hosted never set this var, so both stay OFF without this file's help).
+    TOVU_ENABLE_SITE_SWITCHER: process.env.TOVU_ENABLE_SITE_SWITCHER ?? "1",
   };
   if (extraCaCerts) apiEnv.NODE_EXTRA_CA_CERTS = extraCaCerts;
   start("api server", "npx", ["tsx", "watch", "apps/website/src/index.ts"], apiEnv);
