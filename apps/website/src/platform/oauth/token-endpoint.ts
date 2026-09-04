@@ -120,6 +120,22 @@ function parseScopes(scope: unknown): string[] {
   return typeof scope === "string" ? scope.split(/[\s,]+/).filter((part) => part.length > 0) : [];
 }
 
+/** RFC 6749 §5.1's `refresh_token` is optional. A provider-sent empty string is treated the same as
+ *  an absent one — `null`, never `""` — so callers have one falsy-but-present case to handle, not
+ *  two. Split out of {@link requestOAuthToken} purely to keep that function's own branch count
+ *  under the repo's complexity ceiling. */
+function nonEmptyStringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
+/** RFC 6749 §5.1's `token_type` is REQUIRED, but real providers omit or empty it. Defaulting to
+ *  `"Bearer"` (the only type every grant here actually uses) matches the pre-extraction behavior
+ *  exactly. Split out of {@link requestOAuthToken} for the same reason as
+ *  {@link nonEmptyStringOrNull}. */
+function nonEmptyStringOrDefault(value: unknown, fallback: string): string {
+  return typeof value === "string" && value !== "" ? value : fallback;
+}
+
 /**
  * Posts one grant to a token endpoint and normalizes the result.
  *
@@ -173,8 +189,8 @@ export async function requestOAuthToken(deps: TokenRequestDeps, input: TokenRequ
   const nowIso = deps.clock.nowIso();
   return {
     accessToken: body.access_token,
-    refreshToken: typeof body.refresh_token === "string" && body.refresh_token !== "" ? body.refresh_token : null,
-    tokenType: typeof body.token_type === "string" && body.token_type !== "" ? body.token_type : "Bearer",
+    refreshToken: nonEmptyStringOrNull(body.refresh_token),
+    tokenType: nonEmptyStringOrDefault(body.token_type, "Bearer"),
     scopes: parseScopes(body.scope),
     expiresAt: resolveExpiresAt(body.expires_in, nowIso),
   };
