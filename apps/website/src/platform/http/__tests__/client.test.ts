@@ -100,6 +100,69 @@ test("classifyAddress: malformed input fails closed to reserved, never public", 
   assert.equal(classifyAddress("10.0.0"), "reserved"); // incomplete IPv4
 });
 
+// -------------------------------------------------------------------------------------------
+// Characterization tests for `classifyIpv6`'s exact range boundaries, pinned before an internal
+// refactor of that function (extraction only, no ranges added/removed/reordered — mirrors
+// `classifyIpv4`'s own boundary tests above).
+// -------------------------------------------------------------------------------------------
+
+test("classifyAddress: IPv6 loopback and unspecified are exact single addresses, not ranges", () => {
+  assert.equal(classifyAddress("::1"), "loopback");
+  assert.equal(classifyAddress("::"), "reserved"); // unspecified address
+  assert.equal(classifyAddress("::0"), "reserved");
+  assert.equal(classifyAddress("::0.0.0.0"), "reserved"); // deprecated IPv4-compatible notation
+  assert.equal(classifyAddress("::2"), "public"); // one past unspecified/loopback — not special
+});
+
+test("classifyAddress: IPv6 link-local fe80::/10 boundaries are exact, not off-by-one", () => {
+  assert.equal(classifyAddress("fe7f::1"), "public"); // just below the link-local block
+  assert.equal(classifyAddress("fe80::1"), "link-local"); // first address of the block
+  assert.equal(classifyAddress("febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "link-local"); // last address
+  assert.equal(classifyAddress("fec0::1"), "public"); // just above the link-local block
+});
+
+test("classifyAddress: IPv6 unique-local fc00::/7 covers both the fc and fd halves, with exact boundaries", () => {
+  assert.equal(classifyAddress("fbff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "public"); // just below
+  assert.equal(classifyAddress("fc00::1"), "private"); // first address of the fc half
+  assert.equal(classifyAddress("fcff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "private"); // last of fc half
+  assert.equal(classifyAddress("fd00::1"), "private"); // first address of the fd half
+  assert.equal(classifyAddress("fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "private"); // last address of the block
+  assert.equal(classifyAddress("fe00::1"), "public"); // just above
+});
+
+test("classifyAddress: IPv4-mapped IPv6 (dotted-decimal form) is normalized before classification", () => {
+  assert.equal(classifyAddress("::ffff:127.0.0.1"), "loopback");
+  assert.equal(classifyAddress("::ffff:10.0.0.1"), "private");
+  assert.equal(classifyAddress("::ffff:8.8.8.8"), "public");
+});
+
+test("classifyAddress: IPv4-mapped IPv6 written in HEX form (not dotted-decimal) bypasses the mapped-address normalization — pinning current behavior, not endorsing it", () => {
+  // `::ffff:a00:1` and `::ffff:10.0.0.1` name the SAME address (10.0.0.1 mapped into IPv6), but only
+  // the dotted-decimal spelling matches the mapped-address regex in `classifyAddress`. The hex
+  // spelling falls through to `classifyIpv6` directly, which has no case for the ::ffff:0:0/96
+  // prefix and returns "public" for what is, decimally, a private RFC1918 address. A URL target of
+  // `https://[::ffff:a00:1]/` reaches this exact path (the hostname is a literal IPv6 address, so
+  // `resolveHostAddresses` never touches DNS). This is a real gap, analogous to the IPv4 CGNAT one
+  // above — it is NOT fixed here; see the refactor report for this file.
+  assert.equal(classifyAddress("::ffff:a00:1"), "public");
+  assert.equal(classifyAddress("::ffff:7f00:1"), "public"); // hex form of 127.0.0.1 (loopback), also bypassed
+});
+
+test("classifyAddress: IPv6 multicast ff00::/8 has no dedicated case and reads as public — pinning current behavior, not endorsing it", () => {
+  // Mirrors the IPv4 CGNAT gap: `classifyIpv6` has no branch for the multicast prefix, so it falls
+  // through to the default "public" return. If a case is added for this range, this test is
+  // expected to change with it — it exists so the change is deliberate, not incidental.
+  assert.equal(classifyAddress("ff00::1"), "public");
+  assert.equal(classifyAddress("ff02::1"), "public"); // all-nodes link-local multicast
+  assert.equal(classifyAddress("ffff::1"), "public");
+});
+
+test("classifyAddress: malformed IPv6-shaped input fails closed to reserved, never public", () => {
+  assert.equal(classifyAddress("gggg::1"), "reserved"); // invalid hex digit
+  assert.equal(classifyAddress("fe80:::1"), "reserved"); // malformed double "::"
+  assert.equal(classifyAddress("1:2:3:4:5:6:7:8:9"), "reserved"); // too many groups
+});
+
 test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNAT target", async () => {
   // End-to-end through resolvePinnedPeer (not just the classifier), pinned before its refactor.
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
