@@ -56,7 +56,30 @@ noise floor.
 
 ## Scope 2 — `packages/sdk/src`
 
-STATUS: pending
+STATUS: done. 9/13 measured (same skip set as scope 1). Raw output:
+`ADS-memory/.local-artifacts/metrics/2026-09-04-code-metrics-sdk.{md,json}`.
+
+Package is tiny: 245 lines, 6 modules (effectively `index.ts` + one test file).
+
+- **duplication**: 0%, 0 clones. Clean (trivially, given size).
+- **type_safety**: `explicit_any=0`, `non_null_assertion=1` (0 production-only), no
+  ts-ignore/expect-error. Clean.
+- **dead_code** (knip, `--directory packages/sdk` — correctly scoped, has own `package.json`):
+  1 unused-file candidate: `src/__tests__/unit/sdk-public-api.unit.test.ts`. **This is almost
+  certainly a false positive** — knip has no model of the test runner's discovery glob, so it
+  sees a file nothing `import`s and flags it, even though `node --test` runs it directly. Not
+  actionable.
+- **coupling/blast_radius/api_surface**: 6 modules, 5 edges, fan-out max 5 (the test file
+  importing what it tests). Nothing notable at this size.
+- **circular_dependencies**: 0 cycles. Clean.
+- **churn**: 2 commits total in 12 months, 0 stale paths excluded. Too little history to say
+  anything about hotness.
+- **change_coupling**: 0 pairs over threshold (only 2 commits, expected).
+- No third-party/vendored paths, no drizzle relevance.
+
+**Verdict for this scope: no actionable findings.** Package is too small and too clean to
+produce a real signal; the one knip hit is a known false-positive shape (test-runner entry
+point knip can't see).
 
 ## Scope 3 — `apps/admin/src`
 
