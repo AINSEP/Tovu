@@ -1719,32 +1719,93 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
   return () => unauthenticatedListeners.delete(listener);
 }
 
+/** Builds `fetch`'s own `init`, merging in `request`'s two fixed defaults (`credentials`,
+ *  `Content-Type`) under whatever the caller passed. Pulled out of `request` (2026-09-04, complexity
+ *  pass) purely to carry the `= {}` default itself: TypeScript still resolves `buildFetchInit(init)`
+ *  correctly when `request`'s own `init` argument is omitted (`undefined` triggers this function's
+ *  default exactly as it did `request`'s), so no call site — inside or outside this file — changes
+ *  behavior; only which function's signature carries the default-parameter branch changes. */
+function buildFetchInit(init: RequestInit = {}): RequestInit {
+  return {
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+    ...init,
+  };
+}
+
+/** Parses `res`'s body as JSON, folding the "not valid JSON at all" case into the same
+ *  `UNPARSEABLE_BODY` sentinel {@link request} always used, via `wasUnparseable`. `body` is `{}`
+ *  when unparseable (unchanged from `request`'s own prior fallback) and the raw parsed value
+ *  otherwise — including a legitimate JSON literal `null`, which is NOT the same thing as
+ *  unparseable (see `UNPARSEABLE_BODY`'s own doc). Pulled out of `request` (2026-09-04, complexity
+ *  pass) as its own step; the two callers below (`notifyIfUnauthenticated`,
+ *  `buildRequestFailedError`) both need `wasUnparseable`, not just `body`. */
+async function parseJsonBody(res: Response): Promise<{ body: Record<string, unknown>; wasUnparseable: boolean }> {
+  const parsed = await res.json().catch(() => UNPARSEABLE_BODY);
+  const wasUnparseable = parsed === UNPARSEABLE_BODY;
+  return { body: wasUnparseable ? {} : parsed, wasUnparseable };
+}
+
+/** The one side effect on `request`'s error path: notifying every {@link onUnauthenticated}
+ *  listener when, and only when, this non-2xx response is a genuine session invalidation. Gated on
+ *  `status === 401 && code === "UNAUTHENTICATED"` specifically — not bare 401, and not 403. Bare 401
+ *  is overloaded in this codebase: a relayed Composio failure (bad API key) is also a verbatim 401,
+ *  see `onUnauthenticated`'s own doc comment for the concrete route that proved it. Only
+ *  `dev-auth.ts`'s genuine session-invalidity 401s carry this code. 403 means an authenticated
+ *  principal lacks a permission, a completely different, per-action condition that must not kick the
+ *  operator back to the login screen. Pulled out of `request` (2026-09-04, complexity pass) as its
+ *  own step, run before {@link buildRequestFailedError} builds the thrown error. */
+function notifyIfUnauthenticated({ status, body }: { status: number; body: Record<string, unknown> }): void {
+  if (status === 401 && body?.code === "UNAUTHENTICATED") {
+    for (const listener of unauthenticatedListeners) listener();
+  }
+}
+
+/** Builds the {@link ApiError} for `request`'s non-2xx branch. Three different failures can leave
+ *  the operator staring at this error, and they need different actions:
+ *
+ *  1. **An application answered and reported a failure** — the body is JSON with an `error`/`code`
+ *     envelope. Its own message wins, unchanged.
+ *  2. **Nothing was listening upstream.** In dev, Vite's `/api` proxy answers an unreachable target
+ *     with a bare `500`, `Content-Type: text/plain`, and a zero-length body (verified live against
+ *     this repo's own proxy config, 2026-08-06); a production reverse proxy answers the same shape
+ *     with 502/503/504. `fetch` resolves normally in this case — the proxy IS reachable — so this is
+ *     the branch that must not report a plain "500".
+ *  3. **The origin itself was unreachable**, so `fetch` rejected — handled one level down in
+ *     {@link fetchOrThrowUnreachable}, and never reaches this function.
+ *
+ *  Cases 2 and 3 are the ones the old message got wrong. Note the limit of what case 2 can prove: an
+ *  unparseable 5xx is *also* what a genuine server-side crash looks like when it escapes to
+ *  Express's default (HTML) error handler rather than this codebase's JSON envelopes — the wire
+ *  shape is the same, so this cannot distinguish them, and the message deliberately does not claim
+ *  to. It names the likeliest cause, keeps the status for the other one, and points at the server
+ *  either way, which is the correct first action for both. Parseable JSON (including a literal
+ *  `null` body) is the discriminator that IS reliable: it proves an application, not a proxy,
+ *  composed the response, so those keep `request failed (n)`.
+ *
+ *  Pulled out of `request` (2026-09-04, complexity pass) as its own pure step: a `{status, body,
+ *  wasUnparseable}` triple in, an `ApiError` out, no `fetch`/parsing involved. */
+function buildRequestFailedError({
+  status,
+  body,
+  wasUnparseable,
+}: {
+  status: number;
+  body: Record<string, unknown>;
+  wasUnparseable: boolean;
+}): ApiError {
+  const noAppEnvelope = wasUnparseable && status >= 500;
+  return new ApiError(
+    String(body?.error ?? (noAppEnvelope ? unreachableApiMessage(status) : `request failed (${status})`)),
+    status,
+    noAppEnvelope ? API_UNREACHABLE_CODE : typeof body?.code === "string" ? body.code : undefined,
+    body
+  );
+}
+
 /**
  * The single fetch seam every `api.*` call goes through: sends JSON, parses JSON, and turns any
  * non-2xx into an {@link ApiError}.
- *
- * ## Why the error message is not just the status
- *
- * Three different failures can leave the operator staring at this function's error, and they need
- * different actions:
- *
- * 1. **An application answered and reported a failure** — the body is JSON with an `error`/`code`
- *    envelope. Its own message wins, unchanged.
- * 2. **Nothing was listening upstream.** In dev, Vite's `/api` proxy answers an unreachable target
- *    with a bare `500`, `Content-Type: text/plain`, and a zero-length body (verified live against
- *    this repo's own proxy config, 2026-08-06); a production reverse proxy answers the same shape
- *    with 502/503/504. `fetch` resolves normally in this case — the proxy IS reachable — so this is
- *    the branch that must not report a plain "500".
- * 3. **The origin itself was unreachable**, so `fetch` rejected — handled one level down in
- *    {@link fetchOrThrowUnreachable}, and never reaches the code below.
- *
- * Cases 2 and 3 are the ones the old message got wrong. Note the limit of what case 2 can prove: an
- * unparseable 5xx is *also* what a genuine server-side crash looks like when it escapes to Express's
- * default (HTML) error handler rather than this codebase's JSON envelopes — the wire shape is the
- * same, so this cannot distinguish them, and the message deliberately does not claim to. It names
- * the likeliest cause, keeps the status for the other one, and points at the server either way,
- * which is the correct first action for both. Parseable JSON is the discriminator that IS reliable:
- * it proves an application, not a proxy, composed the response, so those keep `request failed (n)`.
  *
  * `onOk`, when passed, is called with the raw `Response` immediately before this function resolves
  * on a 2xx — the ONE hook a caller needing something off the wire that isn't in the JSON body (e.g.
@@ -1753,34 +1814,19 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
  * on the error path: nothing today needs a response header out of a FAILED request, and every
  * caller that does can still read `ApiError.body` (already routed through non-2xx responses).
  *
+ * See {@link buildFetchInit}, {@link parseJsonBody}, {@link notifyIfUnauthenticated}, and
+ * {@link buildRequestFailedError} for the steps this orchestrates — each carries its own doc for why
+ * its branch exists; this function's own job is only the sequencing.
+ *
  * @complexity O(1) plus the request and body parse.
  * @overallScore 100
  */
-async function request<T>(path: string, init: RequestInit = {}, onOk?: (res: Response) => void): Promise<T> {
-  const res = await fetchOrThrowUnreachable(`${BASE}${path}`, {
-    credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
-    ...init,
-  });
-  const parsed = await res.json().catch(() => UNPARSEABLE_BODY);
-  const body = parsed === UNPARSEABLE_BODY ? {} : parsed;
+async function request<T>(path: string, init?: RequestInit, onOk?: (res: Response) => void): Promise<T> {
+  const res = await fetchOrThrowUnreachable(`${BASE}${path}`, buildFetchInit(init));
+  const { body, wasUnparseable } = await parseJsonBody(res);
   if (!res.ok) {
-    const noAppEnvelope = parsed === UNPARSEABLE_BODY && res.status >= 500;
-    // 401 with code "UNAUTHENTICATED" specifically — not bare 401, and not 403. Bare 401 is
-    // overloaded in this codebase: a relayed Composio failure (bad API key) is also a verbatim 401,
-    // see onUnauthenticated's own doc comment for the concrete route that proved it. Only
-    // dev-auth.ts's genuine session-invalidity 401s carry this code. 403 means an authenticated
-    // principal lacks a permission, a completely different, per-action condition that must not kick
-    // the operator back to the login screen.
-    if (res.status === 401 && body?.code === "UNAUTHENTICATED") {
-      for (const listener of unauthenticatedListeners) listener();
-    }
-    throw new ApiError(
-      String(body?.error ?? (noAppEnvelope ? unreachableApiMessage(res.status) : `request failed (${res.status})`)),
-      res.status,
-      noAppEnvelope ? API_UNREACHABLE_CODE : typeof body?.code === "string" ? body.code : undefined,
-      body
-    );
+    notifyIfUnauthenticated({ status: res.status, body });
+    throw buildRequestFailedError({ status: res.status, body, wasUnparseable });
   }
   onOk?.(res);
   return body as T;
