@@ -105,6 +105,20 @@ export interface PageHtmlEmbedRef {
   readonly slug: string | null;
   readonly name: string | null;
   readonly variant: string | null;
+  /**
+   * `false` only when the config key is the literal JSON boolean `false`; every other case
+   * (absent, `true`, or any non-boolean value) is `true` (2026-09-04). Today read only by the
+   * `"content"` resolver (`resolver-service.ts`'s `resolveContentTypeEmbeds`), which threads it
+   * into the `"post-content"` IR's `props.header` so `render.ts`'s `renderWidgetPostContent` can
+   * skip its `.post-detail-header` (`<h1>` + date byline) wrapper — previously unconditional
+   * application code a template had no way to opt out of, forcing a `display:none` CSS workaround
+   * for a homepage doc-format row that does not want a dated byline. `true`-by-default is load-
+   * bearing: no existing template (a `kind:"post"` detail page, the listing page, `about`, `docs`)
+   * carries a `header` key, and this default is what keeps every one of them rendering byte-
+   * identically to before this field existed. Not read by `"widget"`/`"media"`/the legacy `"post"`
+   * type — this is a `"content"`-marker-specific concern, not a general marker attribute.
+   */
+  readonly header: boolean;
 }
 
 /**
@@ -159,7 +173,16 @@ function normalizeEmbedSlug(rawSlug: string | null): string | null {
   return normalizeEmbedId(rawSlug);
 }
 
-/** Project a parsed marker onto the five fields the resolvers read. `type` is lowercased here, as
+/** `true` unless `config[key]` is the JSON boolean literal `false` (2026-09-04, `header`'s own
+ * doc on {@link PageHtmlEmbedRef}). Deliberately NOT `configString`'s "wrong type -> unusable"
+ * pattern: this is an opt-OUT, so the safe default for anything that isn't a recognized `false` —
+ * absent, `true`, or a typo'd non-boolean like `"false"` (a string) — must stay `true`, never
+ * silently suppress on a value nobody intended as the opt-out. */
+function configBooleanDefaultTrue(config: Readonly<Record<string, unknown>>, key: string): boolean {
+  return config[key] !== false;
+}
+
+/** Project a parsed marker onto the six fields the resolvers read. `type` is lowercased here, as
  * the old attribute pattern's `i` flag did — a config is hand-authored JSON, so `"Widget"` must keep
  * reaching the same resolver `"widget"` does. */
 function toEmbedRef(marker: EmbedMarker): PageHtmlEmbedRef {
@@ -169,6 +192,7 @@ function toEmbedRef(marker: EmbedMarker): PageHtmlEmbedRef {
     slug: normalizeEmbedSlug(configString(marker.config, "slug")),
     name: configString(marker.config, "name"),
     variant: configString(marker.config, "variant"),
+    header: configBooleanDefaultTrue(marker.config, "header"),
   };
 }
 

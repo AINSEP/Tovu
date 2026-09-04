@@ -79,7 +79,7 @@ for (const [i, html] of FIXTURES.entries()) {
 test('html-entry-refs consistency: a media embed is indexed with targetKind "asset" (2026-08-07 §4) — never "entry", since a media asset lives in a different storage domain than the generic entries graph', () => {
   const html = `<div data-embed-config='{"type":"media","id":"asset-1","variant":"thumb"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb" }]);
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "media", id: "asset-1", slug: null, name: null, variant: "thumb", header: true }]);
 
   const fromExtractor = extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html });
   assert.equal(fromExtractor.length, 1);
@@ -90,7 +90,7 @@ test('html-entry-refs consistency: a media embed is indexed with targetKind "ass
 test("html-entry-refs consistency: an unregistered/future embed type is scanned but not indexed, with neither side needing a code change to tolerate it", () => {
   const html = `<div data-embed-config='{"type":"some-future-type","id":"x1"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null }]);
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "some-future-type", id: "x1", slug: null, name: null, variant: null, header: true }]);
   assert.deepEqual(extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }), []);
 });
 
@@ -107,7 +107,7 @@ test("html-entry-refs consistency: an unregistered/future embed type is scanned 
 test('html-entry-refs consistency: DISCLOSED GAP — a slug-only "widget" marker (no id key) is scanned by scanHtmlEmbeds but produces NO entry_refs row, unlike an equivalent id-only marker', () => {
   const html = `<div data-embed-config='{"type":"widget","slug":"contact-form"}'></div>`;
 
-  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null }]);
+  assert.deepEqual(scanHtmlEmbeds(html), [{ type: "widget", id: null, slug: "contact-form", name: null, variant: null, header: true }]);
   assert.deepEqual(
     extractHtmlEntryRefs({ workspaceId: "ws-1", sourceEntryId: "page-1", html }),
     [],
