@@ -604,3 +604,35 @@ for this tier at all (v1 §2.5). Do not build against it.
   `src/features/theme/marketplace.ts`, `src/contracts/core/embeds/marker.ts`,
   `src/server/middleware/theme-static-assets.ts` — the real source every `[REAL]` claim in this
   document cites. Re-check line numbers against current `HEAD` before trusting them verbatim.
+
+## 21. `templates` content-template naming convention — `posts-*` / `pages-*` `[DECISION, layered on a REAL field]`
+
+Added 2026-09-03, after the rest of this document. The §15 table already marks `templates` **REAL,
+read + validated** (`theme.ts:161-189, 626`; `validateTemplateDeclarations`, verify against current
+`HEAD` — cited as `theme.ts:511-536` there but re-confirmed at `theme.ts:615-641` as of this addition,
+consistent with this document's own "line numbers move" disclaimer). This section layers a naming
+**convention** — not a schema change — onto that already-real field: a `templates` entry is named for
+the content kind it was designed for, `posts-*.html` for Posts, `pages-*.html` for Pages (e.g.
+`posts-default.html`, `posts-sidebar.html`, `pages-default.html`). It does not apply to a static
+theme's standalone route pages (`index.html`, `about.html`, `blog.html`, `404.html`, etc.), which
+are routes, not `templates` entries.
+
+**Descriptive, not enforced — the entire mechanism this convention sits on top of was deliberately
+built kind-agnostic.** Neither `validateTemplateDeclarations` nor the render path checks a template's
+filename against the `kind` of the row selecting it via `templateChoice`; a Post may select a
+`pages-*` template and a Page may select a `posts-*` template, and both render exactly as chosen.
+Full reasoning, the live cross-kind evidence, and the partial-adoption state (only
+`sites/tovu-com/themes/static/basic/` renamed so far; `content/themes/static/basic/` and four other
+themes still ship the pre-convention names) are documented in the primary source for this convention,
+`development/docs/themes/theme-authoring-guide.md` §7.3, and
+`ADS-memory/reports/architecture/ADR-065-content-template-naming-convention.md` — not duplicated here.
+
+**One correction to this document's own top banner, scoped narrowly:** the banner states "no `render/`
+folder … exists anywhere in `content/themes/` today" and "all ~10 themes currently on disk … use the
+shape documented in v1, not this one." As of 2026-09-03 that is no longer true for at least the
+`basic` theme — both `content/themes/static/basic/theme.json` and
+`sites/tovu-com/themes/static/basic/theme.json` carry `"apiVersion": 2` and ship a real
+`render/pages/` directory matching this document's §3 layout, verified directly on disk, not inferred.
+This section does not attempt to re-verify migration status for every other theme or rewrite the
+banner above — that is a larger, separate audit — but a reader relying on the banner's blanket "nothing
+has migrated" claim should treat it as stale for `basic` specifically.
