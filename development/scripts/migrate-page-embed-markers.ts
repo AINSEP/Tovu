@@ -32,9 +32,17 @@
  *
  * ## Safety
  *
- * Dry-run by default; `--apply` is required to write. Every body is backed up to the report before
- * it is replaced, and `--apply` prints the exact SQL to reverse each row. Idempotent: a second run
- * over migrated content finds nothing to do and exits 0.
+ * Dry-run by default; `--apply` is required to write. A `--db` that does not resolve to a real,
+ * already-existing file (the default included) fails loudly via `resolveExistingDbPath` before
+ * anything is opened — `openContentDb` creates-and-migrates on open, so a typo'd path used to open
+ * (and migrate) a brand-new empty database and report "no stored Page body carries a retired
+ * attribute" instead of the real problem. A dry run itself opens strictly read-only
+ * (`openContentDbReadOnly`), so unlike an ordinary `openContentDb` open it never migrates the schema
+ * either — only `--apply` does.
+ *
+ * Every body is backed up to the report before it is replaced, and `--apply` prints the exact SQL
+ * to reverse each row. Idempotent: a second run over migrated content finds nothing to do and exits
+ * 0.
  *
  * Usage:
  *   npx tsx development/scripts/migrate-page-embed-markers.ts               (dry run, default db)
@@ -46,10 +54,11 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
-import { scanEmbedMarkers, describeRejection } from "../../src/contracts/core/embeds/marker.js";
-import { extractHtmlEntryRefs } from "../../src/contracts/core/entry-refs/extractor.js";
-import { SqliteEntryRefsRepo } from "../../src/contracts/core/entry-refs/repo.sqlite.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { scanEmbedMarkers, describeRejection } from "../../apps/website/src/contracts/core/embeds/marker.js";
+import { extractHtmlEntryRefs } from "../../apps/website/src/contracts/core/entry-refs/extractor.js";
+import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
@@ -295,9 +304,15 @@ function abortOnUnparseableRewrite(changed: readonly RowPlan[]): void {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv);
-  console.log(`migrate-page-embed-markers — db: ${args.dbPath}${args.apply ? "" : "  (DRY RUN — pass --apply to write)"}`);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report a false "nothing to do" instead of the real problem — no such database.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  console.log(`migrate-page-embed-markers — db: ${dbPath}${args.apply ? "" : "  (DRY RUN — pass --apply to write)"}`);
 
-  const db = openContentDb(args.dbPath);
+  // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
+  // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   const plans = planRows(db);
   const changed = plans.filter((p) => p.after !== p.before);
   const blockedCount = plans.reduce((n, p) => n + p.planned.filter((m) => m.blocked !== undefined).length, 0);
