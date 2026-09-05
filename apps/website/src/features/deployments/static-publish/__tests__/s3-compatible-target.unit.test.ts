@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { DeployError, type DeployFile } from "@jini-ai/devops/deploy";
+import { DeployError, type DeployFile, type DeploymentUrlCheck } from "@jini-ai/devops/deploy";
 
-import { S3CompatibleDeployTarget } from "../s3-compatible-target.js";
+import { S3CompatibleDeployTarget, toDeployLinkStatus } from "../s3-compatible-target.js";
 
 /**
  * @file `S3CompatibleDeployTarget` — SigV4-signed PUT per file (spec §1/§2), path-style addressing,
@@ -209,6 +209,29 @@ test("checkReachability: a plain unauthenticated probe against the given URL —
   } finally {
     fake.restore();
   }
+});
+
+// ---------------------------------------------------------------------------
+// toDeployLinkStatus — direct-invoke only. `publish()` always calls `checkDeploymentUrl` with no
+// `detectProtected` option (see that call site), so a real `publish()` can never itself produce a
+// `DeploymentUrlCheck` with `status: "protected"` — this function's own "protected" arm is
+// otherwise unreachable through this file's real call path. Exported solely so this branch has a
+// seam; see its doc comment.
+// ---------------------------------------------------------------------------
+
+test("toDeployLinkStatus: a reachable check is always 'ready', regardless of any status field", () => {
+  const check: DeploymentUrlCheck = { reachable: true };
+  assert.equal(toDeployLinkStatus(check), "ready");
+});
+
+test("toDeployLinkStatus: an unreachable check reporting status: 'protected' maps to 'protected'", () => {
+  const check: DeploymentUrlCheck = { reachable: false, status: "protected" };
+  assert.equal(toDeployLinkStatus(check), "protected");
+});
+
+test("toDeployLinkStatus: an unreachable check with no (or any other) status falls back to 'link-delayed'", () => {
+  assert.equal(toDeployLinkStatus({ reachable: false }), "link-delayed");
+  assert.equal(toDeployLinkStatus({ reachable: false, status: "failed" }), "link-delayed");
 });
 
 // ---------------------------------------------------------------------------

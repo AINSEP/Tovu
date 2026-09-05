@@ -589,8 +589,13 @@ async function runBounded<T, R>(items: readonly T[], task: (item: T) => Promise<
 }
 
 /** Maps a reachability probe to `DeployPublishResult.status`'s fixed vocabulary — see this file's
- *  header for why `publish()` decides this itself rather than leaving it to a caller. */
-function toDeployLinkStatus(check: DeploymentUrlCheck): DeployLinkStatus {
+ *  header for why `publish()` decides this itself rather than leaving it to a caller.
+ *
+ *  Exported for direct-invoke testing only: `publish()` always calls `checkDeploymentUrl` with no
+ *  `detectProtected` callback (see call site below), so the `"protected"` arm can never be reached
+ *  through this file's own real call path — a real caller would need to pass that option in, which
+ *  none currently does. */
+export function toDeployLinkStatus(check: DeploymentUrlCheck): DeployLinkStatus {
   if (check.reachable) return "ready";
   if (check.status === "protected") return "protected";
   return "link-delayed";
@@ -818,6 +823,17 @@ export class S3CompatibleDeployTarget implements DeployTarget {
       targetId: this.id,
       url: this.config.publicUrl,
       status: toDeployLinkStatus(check),
+      // INVARIANT: the `"Not yet reachable."` fallback can never actually be selected. Jini's
+      // `reachability.ts` (`checkDeploymentUrl` / `requestDeploymentUrl`) guarantees a non-empty
+      // `statusMessage` on every `reachable: false` result — the empty-URL short-circuit, both
+      // `assertSafeDeploymentUrl` catch sites, and the generic non-2xx/3xx fallback each set one
+      // explicitly, and `status: 'protected'` also always carries a message. So `check.statusMessage`
+      // is only ever nullish when `check.reachable` is true (the bare `{ reachable: true, statusCode
+      // }` shape), which is exactly the case the `check.reachable ? "Reachable." : ...` ternary's
+      // TRUE arm covers. Kept rather than removed: `??`'s right side is one expression, so trimming
+      // it to only the reachable case would need restructuring for no behavior change, and a future
+      // change to `reachability.ts` that drops that guarantee should fail loudly here rather than
+      // silently reporting "Reachable." for a failed check.
       statusMessage: buildStatusMessage(check.statusMessage ?? (check.reachable ? "Reachable." : "Not yet reachable."), divergedKeys, concurrencyGuardActive),
     };
   }
