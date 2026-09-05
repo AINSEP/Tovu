@@ -1,4 +1,4 @@
-import { forwardRef, useRef, useState, type RefObject } from "react";
+import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -12,9 +12,7 @@ import {
   accessTokenReplaceReadyToSave,
   accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
-  customCredentialReadyToSave,
   invalidAdditionalHostsEntries,
-  isValidHttpUrl,
   providerGroupHandleLabel,
   tokenRowHandleLabel,
   type AccessTokenCategoryId,
@@ -35,6 +33,7 @@ import type {
 import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
 import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 import { OtherCredentialsSection } from "./OtherCredentialsSection";
+import { useRemoveConfirmDialog, useAddCustomCredentialDialog } from "./AccessTokensTab.hooks";
 
 /**
  * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
@@ -596,13 +595,7 @@ function AddTokenForm({ info, state, controller, t: translate }: { info: AccessT
 const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow; info: AccessTokenProviderInfo; controller: AccessTokensController; isLastForProvider: boolean; t: Translate }>(
   function RemoveConfirmDialog({ row, info, controller, isLastForProvider, t: translate }, ref) {
     const locale = useAdminLocale();
-    function close() {
-      (ref as RefObject<HTMLDialogElement>).current?.close();
-    }
-    function confirm() {
-      close();
-      void controller.removeToken(row);
-    }
+    const { close, confirm } = useRemoveConfirmDialog(ref, row, controller);
     return (
       <dialog ref={ref} className="confirm-dialog">
         <h2>{removeDialogTitle(locale, row.name)}</h2>
@@ -688,23 +681,8 @@ function AdditionalHostsField({ value, onChange, translate }: { value: string; o
  */
 const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate }>(
   function AddCustomCredentialDialog({ controller, t: translate }, ref) {
-    const [showToken, setShowToken] = useState(false);
+    const { showToken, toggleShowToken, readyToSave, baseUrlInvalid, close, save } = useAddCustomCredentialDialog(ref, controller);
     const form = controller.customAddForm;
-    const readyToSave = customCredentialReadyToSave(form);
-    const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl(form.baseUrl.trim());
-
-    function close() {
-      (ref as RefObject<HTMLDialogElement>).current?.close();
-      controller.resetCustomAddForm();
-      setShowToken(false);
-    }
-    async function save() {
-      const ok = await controller.createCustomCredential();
-      if (ok) {
-        (ref as RefObject<HTMLDialogElement>).current?.close();
-        setShowToken(false);
-      }
-    }
 
     return (
       <dialog
@@ -764,7 +742,7 @@ const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: Ac
             <button
               type="button"
               className="access-tokens-token-toggle"
-              onClick={() => setShowToken((prev) => !prev)}
+              onClick={toggleShowToken}
               {...agentHandle("security-access-tokens-add-custom-token-toggle", { role: "button", label: showToken ? "Hide the access token" : "Show the access token" })}
             >
               {showToken ? translate("Hide") : translate("Show")}
