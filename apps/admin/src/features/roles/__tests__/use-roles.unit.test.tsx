@@ -663,4 +663,37 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(result.current.pendingRoleDelete).toEqual(roleB);
   });
+
+  // `onWritePermission` cleared `permissionInput`/`resourceTypeInput` on success unconditionally —
+  // nothing gates opening a DIFFERENT policy's permission form while a previous write is still in
+  // flight. See `onWritePermission`'s own doc comment.
+  it("onWritePermission: a stale write settling after the operator switched panels and typed a NEW value must not clear it", async () => {
+    let resolveA!: (v: { policyPermission: unknown }) => void;
+    const otherPolicy = { id: "p2", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, otherPolicy] });
+    port.writePolicyPermission = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    await act(async () => result.current.togglePermissionForm(POLICY.id));
+    act(() => result.current.setPermissionInput("a.perm"));
+    act(() => {
+      void result.current.onWritePermission(POLICY.id);
+    });
+    await waitFor(() => expect(port.writePolicyPermission).toHaveBeenCalledTimes(1));
+
+    // Before POLICY's write settles, the operator switches to a DIFFERENT policy's panel and
+    // types a NEW, unrelated value there.
+    await act(async () => result.current.togglePermissionForm(otherPolicy.id));
+    act(() => result.current.setPermissionInput("b.perm"));
+    expect(result.current.permissionInput).toBe("b.perm");
+
+    await act(async () => {
+      resolveA({ policyPermission: {} });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.permissionInput).toBe("b.perm");
+  });
 });

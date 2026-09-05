@@ -438,21 +438,35 @@ export function useRoles(deps: RolesDependencies): RolesController {
     }
   }
 
+  /** 2026-09-05 fix, same bug class as `onSaveRole`/`onDeleteRole` above: nothing gates opening a
+   *  DIFFERENT policy's permission form (`togglePermissionForm`) while a write for the previously
+   *  open one is still in flight. `permissionInput`/`resourceTypeInput` are cleared on success
+   *  unconditionally — captured here as `generationAtStart` (`permissionsGenerationRef`, bumped by
+   *  every `loadPermissions` call, i.e. every panel open) before the write starts, so a stale
+   *  write's success can tell "the operator is still on the policy this write was for" apart from
+   *  "they've since switched panels and typed a NEW, unrelated value" and skip clearing in the
+   *  latter case — otherwise it would erase whatever the operator typed for the policy they
+   *  actually have open now. `rowSavingId`'s reset (matching `onSaveRole`'s identical fix) is a
+   *  functional update keyed on this call's own `policyId` for the same reason. */
   async function onWritePermission(policyId: string) {
     if (!permissionInput) return;
+    const generationAtStart = permissionsGenerationRef.current;
     setRowSavingId(policyId);
     setRowError(null);
     try {
       await writePermissionMutation.mutate({ policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined });
-      setPermissionInput("");
-      setResourceTypeInput("");
+      if (permissionsGenerationRef.current === generationAtStart) {
+        setPermissionInput("");
+        setResourceTypeInput("");
+      }
       // The row the write just created has to appear in the list, or its Remove button would not
-      // exist until the form was closed and re-opened.
+      // exist until the form was closed and re-opened. Safe to call even when superseded —
+      // `loadPermissions` guards its own state writes against exactly that.
       await loadPermissions(policyId);
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to add permission")));
     } finally {
-      setRowSavingId(null);
+      setRowSavingId((current) => (current === policyId ? null : current));
     }
   }
 
