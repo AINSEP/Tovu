@@ -205,6 +205,16 @@ test("@root is rejected (scope escape), while the loop data variables a real the
   assert.deepEqual(lintHandlebarsTemplate("{{#each posts}}{{@index}}{{@key}}{{@first}}{{@last}}{{/each}}"), []);
 });
 
+test("a forbidden path segment past an allowlisted @-data head is rejected — {{@index.constructor}} and {{@key.__proto__.polluted}} get the same treatment {{this.constructor}} already gets, not a free pass because parts[0] is an allowed loop variable", () => {
+  const constructorViolations = lintHandlebarsTemplate("{{@index.constructor}}");
+  assert.equal(constructorViolations.length, 1, `expected one violation, got: ${JSON.stringify(constructorViolations)}`);
+  assert.match(constructorViolations[0], /disallowed path segment "constructor"/);
+
+  const protoViolations = lintHandlebarsTemplate("{{@key.__proto__.polluted}}");
+  assert.equal(protoViolations.length, 1, `expected one violation, got: ${JSON.stringify(protoViolations)}`);
+  assert.match(protoViolations[0], /disallowed path segment "__proto__"/);
+});
+
 test("a parent-scope path (../) is ordinary scoping, not a violation", () => {
   assert.deepEqual(lintHandlebarsTemplate("{{#each posts}}{{../site.title}}{{/each}}"), []);
 });
