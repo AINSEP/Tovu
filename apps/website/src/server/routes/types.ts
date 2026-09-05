@@ -1257,10 +1257,7 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * The static-site export engine (`src/platform/export/site-exporter.ts`'s `exportSite`), injected here
    * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
    * (shared by that route AND the `deployment_trigger_export` agent tool). This indirection is
-   * REQUIRED, not stylistic: `site-exporter.ts` imports `createApp` from THIS file's own
-   * `server/app.ts`, and `server/app.ts`'s eager `export const app = createApp();` runs the whole
-   * app-boot graph (including `buildAssistantToolRegistrations`, via the BYOK execution mode) as a
-   * side effect of loading `server/app.ts` — an eager import of `exportSite` inside
+   * REQUIRED, not stylistic, for THOSE two consumers: an eager import of `exportSite` inside
    * `features/deployments/export-run.ts` closed a real cycle back into the still-loading
    * `assistant/tool-registrations.ts` and crashed with `ReferenceError: Cannot access
    * 'DOMAIN_SLICES' before initialization` (see `export-run.ts`'s file header for the full trace).
@@ -1269,6 +1266,16 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `#src/platform/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
    * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
    * field costs this file nothing even though `export-run.ts` sits under `features/`.
+   *
+   * 2026-09-05 (fix-cycle) — the "site-exporter.ts imports createApp from THIS file" claim this doc
+   * used to open with stopped being true on 2026-08-16 (generalized 2026-08-20): `site-exporter.ts`
+   * boots the app via the injected `createSiteApp` field below instead, so it no longer imports
+   * `server/app.ts` at all. `server/app.ts`'s own `createRouteDeps()` now builds its `runExportSite` /
+   * `exportSiteBound` from a plain static `import { exportSite } from "#src/platform/export/index"`
+   * (see that file's `runExportSite` const doc for the full verification) rather than the lazy
+   * `require()` this doc previously described — "safe to import directly" is no longer just a
+   * standing option, `server/app.ts` now does it. `server/deps.ts`'s SQLite composition root is
+   * untouched by this change and still resolves `exportSite` lazily; see its own doc for why.
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
@@ -1308,8 +1315,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * with the edge present vs 9.43% with only this one edge removed). Mirrors `runExportSite`'s
    * injection precedent immediately above — always the real `createApp` in both `server/app.ts`'s
    * `createRouteDeps()` (direct same-file reference) and `server/deps.ts`'s `createSqliteRouteDeps()`
-   * (lazily `require`d, for the identical reason `runExportSiteLazily` in both files is — see that
-   * field's doc for the full trace).
+   * (lazily `require`d — `deps.ts`'s `createSiteAppLazily` requires `./app.js` directly, which is
+   * the genuinely load-bearing, still-real `deps.ts` <-> `app.ts` cycle `.dependency-cruiser.mjs`'s
+   * `no-circular` rule documents; do not "fix" that one. This is now a DIFFERENT situation from
+   * `server/app.ts`'s own `runExportSite`, which used to be lazy for a similar-sounding but distinct
+   * reason and, as of 2026-09-05, no longer is — see that const's doc for why).
    *
    * NULLARY (`() => Express`), not `(routeDeps: RouteDeps) => Express` — 2026-08-20 RouteDeps-
    * narrowing fix, same shape and same day as `exportSiteBound` below. Before this change,

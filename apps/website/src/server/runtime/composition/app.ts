@@ -1,6 +1,5 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "#src/contracts/core/events/index";
 import { createNoopObservabilityPort } from "#src/platform/observability/index";
@@ -16,8 +15,10 @@ import { createDefaultHttpClient } from "#src/platform/http/client";
 import type { EgressPolicy } from "#src/platform/http/index";
 import { InMemorySourceControlCredentialSetRepo } from "#src/features/source-control/index";
 import { InMemoryVendorCredentialSetRepo } from "#src/features/vendor-credentials/index";
-// NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "#src/features/pages/index";
+// 2026-09-05 (fix-cycle) — used to be a lazy `require()` here; see `runExportSite`'s doc below for
+// why a plain static import is now correct.
+import { exportSite } from "#src/platform/export/index";
 import {
   createInMemoryChatStoreFactory,
   createInMemoryAgentSessionStore,
@@ -219,8 +220,8 @@ import { createAssistantExecutionModule } from "./modules/assistant-execution.js
 import { createAssistantByokModule } from "./modules/assistant-byok.js";
 import { createAssistantAgUiModule } from "./modules/assistant-ag-ui.js";
 import type { RouteDeps } from "../../routes/types.js";
-// `type`-only, so it is erased and adds no runtime edge — the whole point of the lazy resolution
-// in {@link runExportSiteLazily} below.
+// `type`-only, so it is erased and adds no runtime edge — used only to annotate
+// {@link runExportSite} below.
 import type { ExportEngine } from "#src/features/deployments/export-run";
 import type { Express } from "express";
 import type { ServerModuleHandle } from "./modules/types.js";
@@ -706,9 +707,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
-    // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
-    // crash, not a style preference). Resolved lazily; see {@link runExportSiteLazily}.
-    runExportSite: runExportSiteLazily,
+    // `runExportSite` doc for why that indirection is required, not stylistic. NOT resolved lazily
+    // any more; see {@link runExportSite} (the local const below, shadowing this field's own name)
+    // for why a plain static import replaced the `require()` this used to carry.
+    runExportSite,
     // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
     // `server/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
     // `exportOutputRootDir` doc.
@@ -795,49 +797,57 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // fully constructed), and it must always win over whatever `opts` a caller passes, even if that
     // `opts` happens to carry its own `routeDeps` key (see `routes/types.ts`'s own doc on this field
     // for the exact bug this ordering closes).
-    exportSiteBound: (opts) =>
-      // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
-      (require("../../../platform/export/index.js") as typeof import("../../../platform/export/index.js")).exportSite({ ...opts, routeDeps }),
+    // 2026-09-05 (fix-cycle) — plain static reference now; see `runExportSite`'s doc below for why
+    // the lazy `require()` this used to carry is gone.
+    exportSiteBound: (opts) => exportSite({ ...opts, routeDeps }),
   };
   return routeDeps;
 }
 
 /**
- * `exportSite`, resolved at CALL time instead of at import time.
+ * `exportSite`, now a plain static reference — until 2026-09-05 this was resolved at CALL time via a
+ * lazy `require()`, to break a cycle that no longer exists.
  *
- * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/platform/export/site-exporter.ts` imports `createApp` from THIS
- * file — deliberately, because exporting drives the real app rather than re-implementing rendering.
- * A static `import { exportSite } from "#src/platform/export/index"` here therefore closes a cycle:
+ * THE CYCLE THIS USED TO BREAK, AND WHY IT'S GONE. The original justification (2026-08-15, this
+ * doc's own prior text): `platform/export/site-exporter.ts` imported `createApp` from THIS file, so
+ * a static `import { exportSite } from "#src/platform/export/index"` here would have closed
  *
  *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
- * `routes/types.ts`'s `runExportSite` doc previously called this file one of "the two places safe
- * to import `#src/platform/export/index` directly, since neither is reachable from
- * `assistant/tool-registrations.ts`." That was true when written and became false on 2026-08-15:
- * the agent daemon's entry point is `src/assistant/agent-daemon-server.ts`, which imports this
- * file, so the cycle is entered from inside `src/assistant` and the barrel is only half-initialised
- * when this file's own module body runs. Observed failure:
+ * and the daemon (`server/inbound/assistant/agent-daemon-server.ts`, which imports this file for
+ * `createRouteDeps`) crashed on every boot with `TypeError: Cannot read properties of undefined
+ * (reading 'createInMemoryChatStoreFactory')` when that edge closed eagerly. That back-edge was
+ * removed for real on 2026-08-16 (generalized 2026-08-20, "RouteDeps-narrowing pass 2"):
+ * `site-exporter.ts` no longer imports `server/app.ts` at all, static OR lazy — it boots the app via
+ * `options.routeDeps.createSiteApp()`, injected through `RouteDeps` (see that file's own header
+ * comment and `routes/types.ts`'s `createSiteApp` doc). This file's lazy `require()` for the
+ * OPPOSITE direction (this file calling INTO `platform/export`) was never actually needed once that
+ * injection landed — it just never got revisited, including across two path-rewrite commits
+ * (`03cc71442`, `e031173e4`) that mechanically edited these very lines without re-checking the cycle
+ * claim.
  *
- *     TypeError: Cannot read properties of undefined (reading 'createInMemoryChatStoreFactory')
- *         at createRouteDeps (src/server/app.ts)
+ * VERIFIED 2026-09-05, not assumed: `platform/export`'s complete runtime closure (`ports.ts`,
+ * `route-manifest.ts`, `site-exporter.ts`, `export-failure-summary.ts`, `index.ts`, and everything
+ * THEY import — `features/theme`, `features/post`, `features/presentation`, `features/redirects`,
+ * `platform/routing`, `contracts/core`) contains zero imports of this file or any `#src/server/**`
+ * module — confirmed by direct source read of every file in that closure, a repo-wide grep for any
+ * specifier reaching `runtime/composition/app`, and independently by `.dependency-cruiser.mjs`'s own
+ * 2026-08-28 cross-validated (DFS + `no-circular` + madge) 5-SCC baseline, which names the real
+ * `deps.ts`/`app.ts`/`deployment-overview.ts` cycle (a DIFFERENT `require()`, in `deps.ts`, left
+ * untouched — see that file's own doc) but does not include this edge. This file already statically
+ * imports every one of those modules' own dependencies anyway (`#src/features/theme/index`,
+ * `#src/features/post/index`, `#src/features/presentation/index`, `#src/features/redirects/index`,
+ * `#src/platform/routing/index`, `#src/contracts/core/**` are all imported above), so this static
+ * import adds `platform/export`'s own 5 files to this file's runtime closure and nothing else.
  *
- * The daemon died on every boot with exit code 1, the API server stayed up, and the visible symptom
- * was "the AI assistant no longer works" with nothing naming an import cycle. Bisected: the
- * daemon ran clean at `dcfdd89` and died at `a4bddce`, which changed module load ORDER rather than
- * adding the edge itself — the edge had been latent since the export route landed.
- *
- * `require` rather than `await import`: a synchronous resolution keeps `ExportEngine`'s signature
- * exactly as-is. By the time any caller invokes this, both modules are fully loaded, so there is no
- * partial-initialisation window left to fall into. FEAT-049 (ESM migration) moved this file off
- * CommonJS, so the bare `require` this doc used to rely on no longer exists as a global; `require`
- * below is `createRequire(import.meta.url)`, which preserves the exact same synchronous-resolution
- * behavior this cycle-break depends on.
+ * Also fixes a real defect, not just cleanup: the lazy `require()` ran tsx's CJS loader over
+ * `platform/export`'s whole barrel graph inside processes that had already loaded the same files
+ * via tsx's ESM loader (any in-process test that calls `routeDeps.exportSiteBound`/`runExportSite`,
+ * e.g. `commit-site.ts`, `static-publish/adapter.ts`), producing two V8 coverage images per file that
+ * lcov merges into one corrupted `SF:` block — see
+ * `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`'s "Route A".
  */
-const require = createRequire(import.meta.url);
-
-const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../../../platform/export/index.js") as typeof import("../../../platform/export/index.js")).exportSite(options);
+const runExportSite: ExportEngine<RouteDeps> = (options) => exportSite(options);
 
 /**
  * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
