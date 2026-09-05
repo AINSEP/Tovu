@@ -29,7 +29,7 @@ chunk completes.
       ThemePageDetailsModal, `apps/admin/src/features/pages/**` — no-logic-in-`.tsx` rule compliance
 - [x] Chunk 12 — `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-server TLS plumbing), plus
       `src-complexity-debt.json` / `admin-complexity-debt.json` / `check-architecture.baseline.json` diffs
-- [ ] Chunk 13 — test-quality pass: `AccessTokensTab.credential-flows.unit.test.tsx`,
+- [x] Chunk 13 — test-quality pass: `AccessTokensTab.credential-flows.unit.test.tsx`,
       `use-access-tokens.unit.test.tsx`, `api-endpoint-option-branches.unit.test.ts`, `dead-path-sweep.test.ts`,
       `check-governance-adr-scope-drift.test.ts`, `backfill-custom-credential-usernames.test.ts`
 
@@ -251,6 +251,170 @@ fix's correctness at both call sites). 12b — 0 findings raised via Gemini (rev
 files verified self-consistent by direct arithmetic; 1 file (`check-architecture.baseline.json`) flagged as
 a real, disclosed, legitimate-but-notable baseline loosening for the owner's awareness, not a defect.**
 
+### Chunk 13: dedicated test-quality pass (six largest new/changed test files)
+
+Split into two Gemini sub-runs by directory (`apps/admin` test files vs. `development/scripts` test files),
+each instructed specifically to hunt "asserts nothing meaningful" and "mock hides the real code," not generic
+bugs. Every finding below was checked against the actual current test file and, where the claim depended on
+production behavior, against the actual production code too — several of Gemini's claims changed disposition
+substantially once traced through.
+
+**13a — admin test files (`AccessTokensTab.credential-flows.unit.test.tsx`, `use-access-tokens.unit.test.tsx`,
+`api-endpoint-option-branches.unit.test.ts`).** 7 findings raised:
+
+- **Confirmed real, HIGH**: `use-access-tokens.unit.test.tsx:141` ("seeds a blank name/username when the
+  edited row id has no persisted row...") has **zero assertions** in its body beyond the initial mount
+  `waitFor` — verified by reading the full test. Its own comment admits "No assertion beyond 'did not throw'
+  is possible," which is false: `replaceToken` (used as an indirect probe at lines 1112-1139 of the same
+  file) could surface the seeded draft value. A regression that corrupts or drops the seeded fallback would
+  ship undetected.
+- **Reframed, downgraded HIGH→LOW**: `api-endpoint-option-branches.unit.test.ts:389`
+  ("`restartAssistantDaemon` rethrows a non-ApiError failure untouched") asserts `.rejects.toThrow(ApiError)`
+  — Gemini read this as asserting the opposite of the title. **Traced the actual call chain**:
+  `fetchOrThrowUnreachable` (`api.ts:1749`) catches any `fetch()` rejection and calls
+  `throwTranslatedFetchFailure` (`api.ts:1737`), which explicitly wraps any `TypeError` (exactly what the
+  test's stub throws) into an `ApiError` with `API_UNREACHABLE_CODE` **before** `restartAssistantDaemon`'s own
+  catch block ever runs. So the assertion is factually correct — by the time `restartAssistantDaemon` sees
+  the error, it already IS an `ApiError`; its own catch just passes through anything not matching its
+  `body.reason` special case, which is what the test genuinely proves. The test's **title** is what's
+  misleading (describes the raw network failure, not the already-translated error the function under test
+  actually receives) — a naming nit, not a logic bug.
+- **Reframed, downgraded MEDIUM→LOW (narrow-scope, honestly named)**: two findings
+  (`use-access-tokens.unit.test.tsx:1127`'s "...evaluates row.username's fallback **safely**..." and
+  `AccessTokensTab.credential-flows.unit.test.tsx:600,610`'s "...falls back to the real hook..., **without
+  crashing**") only assert no-throw/no-API-call. Verified both test **titles themselves** explicitly scope
+  the claim to "safely"/"without crashing," which the assertions do prove — these aren't tests that overclaim
+  and underdeliver, they're deliberately narrow smoke/branch-coverage tests that say so honestly. Real
+  narrow scope, not a defect.
+- **Confirmed real, LOW**: `api-endpoint-option-branches.unit.test.ts:257`'s
+  `expect(body()).toEqual({ name: "policy-1", description: undefined })` — verified this line exists exactly
+  as claimed. Vitest's `toEqual` treats an `undefined`-valued key as equivalent to an absent key, so this
+  doesn't actually distinguish "omitted" from "explicitly undefined," inconsistent with every sibling test in
+  the same file which asserts plain omission (`{ name: "policy-1" }` with no `description` key at all).
+  Assertion-clarity nit, not a coverage gap (JSON serialization already guarantees the wire body omits it).
+- **Accepted without full independent re-derivation (LOW, plausible)**: two remaining findings — missing
+  URL/body assertions on 3 "sends the same request" tests (`api-endpoint-option-branches.unit.test.ts`
+  around `mutateWidgetRegionPlacements`/`removeWidgetEmbed`/`deleteFormSubmission`), and 3
+  `toHaveBeenCalledTimes(1)`-only assertions on pre-load-fallback tests in `use-access-tokens.unit.test.tsx`
+  — spot-checked line locations match, pattern is plausible and consistent with sibling tests in the same
+  files that DO assert full payloads, but did not independently re-verify every claimed line for these two.
+
+**13b — `development/scripts` test files (`dead-path-sweep.test.ts`, `check-governance-adr-scope-drift.test.ts`,
+`backfill-custom-credential-usernames.test.ts`).** 5 findings raised, all against the first two files;
+`backfill-custom-credential-usernames.test.ts` was given a clean bill (spot-checked and confirmed: real
+subprocess execution, real SQLite state, real AES-GCM ciphertext byte-comparison, genuinely strong).
+
+- **Confirmed real, MEDIUM**: `dead-path-sweep.test.ts:669-676` ("generated coverage artifacts are not
+  reported as dead paths") filters `sweepTheRepo()`'s findings via `artifacts.includes(f.attempted[0]!)`,
+  where `artifacts` holds full file paths (`"development/coverage/lcov.unit.info"`) but `f.attempted[0]`
+  (traced to `dead-path-sweep.ts:741-743`) holds the OUTPUT of `pathThatMustExist()`, which truncates
+  non-source paths down to their parent directory (`"development/coverage"`) — confirmed by reading both the
+  test's own `pathThatMustExist` unit test (line 665) and the production `sweepOneFile` code. Traced a
+  concrete failure mode where this masks a real regression: if the `development/coverage` directory itself
+  ever fails to exist at test time (a fresh checkout, a `.gitignore`/placeholder change) while the truncation
+  logic stays correct, the sweep would genuinely start flagging these artifacts as dead (a real, live false
+  positive), but `attempted[0]` would be the truncated directory string, which is never a member of
+  `artifacts` (the full-path array) — so `reported` stays `[]` and the assertion passes regardless.
+- **Confirmed real, MEDIUM**: `check-governance-adr-scope-drift.test.ts:125-129` (title: "a mid-segment `*`
+  matches a directory name containing the wildcard, not spanning `/`") — its negative case tests
+  `"apikeys"` against a glob containing `*api-key*`; verified `"apikeys"` fails to match simply because it
+  lacks the substring `"api-key"` (missing hyphen), true regardless of whether `*` is correctly translated
+  to a non-slash-spanning `[^/]*` or incorrectly to a slash-spanning `.*` — the test does not actually
+  distinguish the two, so it would pass identically under the exact regression its own title claims to guard
+  against.
+- **Accepted without full independent re-derivation (LOW, plausible, same file/mechanism as the two
+  confirmed findings above)**: a `meaningful.length < 2` skip in a path-join test loop with no assertion
+  counter (`dead-path-sweep.test.ts:370-388`); two "historical: flagged as dead" tests that check
+  `fs.existsSync` directly rather than invoking the sweep's own finding-generation logic
+  (`dead-path-sweep.test.ts:242-297`); and a `findEmptyGlobs` test whose fixture accidentally provides only
+  one empty glob despite its title claiming to prove "each" glob is flagged separately
+  (`check-governance-adr-scope-drift.test.ts:141-155`).
+
+**Chunk 13 tally: 12 findings raised across both sub-runs. CONFIRMED real: 5 (1 HIGH — the zero-assertion
+test; 4 MEDIUM/LOW — the createPolicy `toEqual`-with-undefined nit, the coverage-artifact vacuous filter,
+and the glob-wildcard vacuous negative case, counted twice across both severity tiers as shown above).
+REFRAMED/DOWNGRADED on verification: 3 (the restartAssistantDaemon title-vs-behavior mismatch, and two
+honestly-narrow-scoped "safely"/"without crashing" tests that were never actually overclaiming). ACCEPTED
+without full independent re-derivation given time budget: 4 (plausible, pattern-consistent, spot-checked
+line locations only). 0 fully DISCARDED as factually wrong. 1 file (`backfill-custom-credential-usernames.test.ts`)
+independently spot-checked and confirmed genuinely strong.**
+
 ## Summary
 
-(filled in once all chunks complete)
+STATUS: COMPLETE — all six planned chunks (8-13) run, verified, and committed. Combined with the prior
+report's 7 chunks, this closes out the full ~13-chunk admin/tooling Gemini audit plan.
+
+- **Chunks audited: 6** (Media.tsx, Collections.tsx, MenuEditor.tsx, hooks-extraction sweep across 13
+  commits, dev-TLS + complexity/architecture baseline config, dedicated test-quality pass on 6 files)
+- **Gemini findings raised across all 6 chunks: ~37** (0 chunk 8, 0 chunk 9, 1 chunk 10, 13 chunk 11, 0
+  chunk 12 via Gemini + 1 direct-review note, 12 chunk 13, 12a/12b totaling 1 direct-review note not counted
+  as a Gemini finding)
+- **Confirmed real and worth the owner's attention as-is: 9** — 2 from chunk 11 (FormsList.tsx inline guard,
+  ThemeExplore.tsx:973 duplicated path-derivation ternary), 5 from chunk 13 (the zero-assertion
+  `use-access-tokens` test, the `createPolicy` `toEqual`-with-undefined nit, the coverage-artifact vacuous
+  filter, the glob-wildcard vacuous negative case), 1 from chunk 10 (five documented-but-unratified
+  derived-logic helpers in MenuEditor.tsx), 1 from chunk 12 (the architecture-baseline loosening note)
+- **Confirmed real but pre-existing/out-of-window (predates 2026-09-03, traced via `git log -S` blame): 6**
+  — all from chunk 11's Posts/Pages/ThemeExplore/AiAssistant sweep
+- **Discarded on verification (Gemini's reasoning was wrong, not the code): 1** — chunk 11's test-fake
+  "clobbers null to []" claim, which missed a trailing `...overrides` spread that re-applies the real value
+- **Discarded as precedented/duplicate of an already-filed finding: 5** — chunk 11's five-screen
+  `resolveXTabId` pattern (matches this exact same audit series' own prior ruling on `Security.tsx`), an
+  exact duplicate of the prior report's finding 36 (`dockT`), and two owner-ratified-in-spirit/duplicate-idiom
+  items
+- **Reframed/downgraded on deep verification: 3** — all from chunk 13 (a misleading test title where the
+  assertion was actually correct once the real call chain was traced; two honestly-narrow-scoped tests
+  Gemini read as overclaiming when their own titles already disclosed the narrow scope)
+- **Zero real defects, genuinely clean: chunks 8, 9, and the dev-TLS half of chunk 12** — all independently
+  spot-checked (not accepted on Gemini's say-so alone) rather than merely relayed
+
+**Top findings by severity from this report** (full detail in each chunk section above):
+1. **HIGH** — `apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx:141` has a
+   test with zero assertions in its body (only a mount-check `waitFor`); its own comment's claim that no
+   assertion is possible is false — an indirect probe via `replaceToken` (already used elsewhere in the same
+   file) could verify the seeded fallback value. A regression corrupting the seeded draft ships undetected.
+2. **MEDIUM** — `development/scripts/__tests__/dead-path-sweep.test.ts:669-676`'s "generated coverage
+   artifacts are not reported as dead paths" test filters on a value shape (`pathThatMustExist`'s truncated
+   directory string) that can never match the array it's compared against (full file paths) — traced a
+   concrete regression (the coverage directory missing at test time) this would mask.
+3. **MEDIUM** — `development/scripts/__tests__/check-governance-adr-scope-drift.test.ts:125-129`'s
+   slash-boundary test for `globToRegExp`'s mid-segment `*` uses a negative case that fails for an unrelated
+   reason (a missing substring, not a `/`-boundary violation), so it would pass identically whether or not
+   the regression it claims to guard against were present.
+4. **MEDIUM** — `apps/admin/src/features/themes/ThemeExplore.tsx:973`'s `ThemeExploreSlugCollisionWarning`
+   duplicates `use-theme-pages.hooks.ts`'s `themePageCollisionAdminPath` inline instead of calling it, a
+   standing no-logic-in-`.tsx` rule violation introduced by this window's `58574a7e`.
+5. **Worth the owner's own read, not a defect**: `check-architecture.baseline.json`'s `5435b87c` regen moves
+   several structural-drift numbers in the LOOSER direction (`deepImportsBypassingIndex` 517→650) after 832
+   commits of accumulated, verified, legitimate drift — a real, disclosed baseline reset, not hidden gaming,
+   but the magnitude is worth the owner seeing directly rather than only through "gate now passes."
+
+**Calibration signal for this run** (per the dispatch's ~24%-fabrication baseline from the prior report):
+of the roughly 37 Gemini-raised items across 6 chunks, independent verification fully discarded only 1 as
+factually wrong (the test-fake spread-order claim) — notably lower than the prior report's ~19% raw discard
+rate. The larger, more interesting category this run surfaced was not fabrication but **overclaiming
+severity/framing**: 3 chunk-13 findings and 1 chunk-11 finding were real defects or observations that Gemini
+described in a way deep verification did not support (a "backwards assertion" that was actually correct
+once the call chain was traced; two "asserts nothing meaningful" claims against tests whose own titles
+already disclosed a narrower scope; a "5-screen architecture violation" that an identical prior chunk in
+this same audit series had already ruled precedented). None of these were hallucinated code — all were
+real lines behaving as claimed — the model's characterization of what the code proves was what needed
+correction, which is a harder failure mode to catch than an outright wrong claim and argues for tracing
+every "the code does X" claim through to its actual call chain, not just confirming the cited line exists.
+
+## Areas not covered / caveats
+
+- Chunk 13's two "accepted without full independent re-derivation" groups (4 findings total: 2 in
+  `api-endpoint-option-branches.unit.test.ts`'s missing-URL-assertion claims, 2 more in
+  `dead-path-sweep.test.ts`/`check-governance-adr-scope-drift.test.ts`) were spot-checked for line-location
+  accuracy only, not independently re-derived end to end, given time budget.
+- No tests, coverage, or typecheck were run anywhere in this report either (same machine constraint as the
+  prior report) — every "confirmed" finding above was verified by reading source and tracing call chains,
+  never by executing code.
+- `apps/admin/src/lib/api.ts` was read (for context on the `restartAssistantDaemon`/`fetchOrThrowUnreachable`
+  call chain in chunk 13, and the `createSite`-adjacent type in chunk 10) but never edited, per the
+  dispatch's explicit hard constraint that another session owns that file.
+- Chunk 12's broader `apps/website/src/server/runtime/boot/dev-tls.ts`/`index.ts`/`deps.ts`/
+  `admin-static.ts` changes (part of the same `51c59f5c`/`014c36b8` commits as the in-scope
+  `vite.config.ts`/`dev.mjs` changes) were deliberately left unaudited — outside this dispatch's admin/tooling
+  scope, and not part of the six named chunks.
