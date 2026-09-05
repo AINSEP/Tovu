@@ -139,6 +139,38 @@ function PendingActivationNotice({
   );
 }
 
+/** Nothing when no choice is pending, so {@link NowServingBadges} needs no conditional of its
+ *  own. `status-error` (not `status-warning`) for `pending-ignored` mirrors
+ *  {@link PendingActivationNotice}'s own `notice error` — the color that means "this will not
+ *  happen", not just "this hasn't happened yet". The at-a-glance counterpart to that component's
+ *  prose: the same two facts, as a pill instead of a paragraph, for the operator who wants the
+ *  answer without reading it. */
+function OutlookBadge({ outlook, t }: { outlook: ActivationOutlook; t: Translate }) {
+  if (outlook.kind === "none") return null;
+  const tone = outlook.kind === "pending" ? "status-warning" : "status-error";
+  const state = outlook.kind === "pending" ? t("queued") : t("won't apply");
+  return (
+    <span className={`status ${tone}`}>
+      {outlook.name} · {state}
+    </span>
+  );
+}
+
+/** The card-head's right-hand group: which site is live right now, and — when one is pending —
+ *  which is queued and whether it will actually take effect. "Serving now" is called with the
+ *  literal `"serving"` rather than a derived state: this card is definitionally describing that
+ *  state, not a row that could be any of the three, so it reuses the row table's own label/tone
+ *  functions rather than re-deriving the same string. Same wording, same color, in both places —
+ *  an operator learns the vocabulary once. */
+function NowServingBadges({ outlook, t }: { outlook: ActivationOutlook; t: Translate }) {
+  return (
+    <div className="card-head-actions">
+      <span className={`status ${siteRowStateToneClass("serving")}`}>{t(siteRowStateLabelKey("serving"))}</span>
+      <OutlookBadge outlook={outlook} t={t} />
+    </div>
+  );
+}
+
 /** The live binding, first and unconditional — never a row from the table, which may not contain
  *  it. See this file's header. */
 function NowServingCard({
@@ -162,7 +194,10 @@ function NowServingCard({
         label: "The site this server process is actually bound to right now, and any queued change to it",
       })}
     >
-      <h2 className="card-title">{t("Now serving")}</h2>
+      <div className="card-head">
+        <h2 className="card-title">{t("Now serving")}</h2>
+        <NowServingBadges outlook={outlook} t={t} />
+      </div>
       <div className="field-group">
         <ServingFact label={t("Folder")} value={snapshot.currentSite.name} />
         <ServingFact label={t("Path")} value={snapshot.currentSite.dir} mono />

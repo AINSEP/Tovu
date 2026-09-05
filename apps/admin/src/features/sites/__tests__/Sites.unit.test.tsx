@@ -98,7 +98,10 @@ describe("Sites — a pending choice is never presented as a completed switch", 
     });
     expect(screen.getByText(/Nothing has switched yet — this server and its agent daemon are both still on/)).toBeTruthy();
     expect(screen.getByText("Queued for next restart")).toBeTruthy();
-    expect(screen.queryByText("Serving now")).toBeTruthy(); // still on `alpha`, the row that was already live
+    // Two matches now, not one: the Now Serving card's own head badge (added for at-a-glance
+    // legibility) plus `alpha`'s row badge — both true, since `alpha` is still what's live.
+    expect(screen.getAllByText("Serving now")).toHaveLength(2);
+    expect(screen.getByText(/beta.*queued/)).toBeTruthy(); // the card head's compact "what's queued" pill
   });
 
   it("renders the server's own restart prose verbatim when it has one", () => {
@@ -128,6 +131,39 @@ describe("Sites — a pending choice is never presented as a completed switch", 
       outlook: { kind: "pending-ignored", name: "beta" },
     });
     expect(screen.getByText(/so a restart will not pick it up/)).toBeTruthy();
+  });
+});
+
+describe("Sites — the Now Serving card's own head badges (at-a-glance, not just prose)", () => {
+  it("always shows the live state, in the same wording and tone the row table gives it", () => {
+    renderSites();
+    // Card head badge plus `alpha`'s own row badge — same string, same color, by design.
+    expect(screen.getAllByText("Serving now")).toHaveLength(2);
+  });
+
+  it("gives a queued-and-will-be-honored choice a warning tone, not the error tone reserved for 'won't apply'", () => {
+    renderSites({
+      snapshot: snapshotFixture({ persistedSiteName: "beta" }),
+      outlook: { kind: "pending", name: "beta" },
+    });
+    expect(screen.getByText(/beta.*queued/).className).toContain("status-warning");
+  });
+
+  it("gives a queued-but-defeated choice an error tone, not the warning tone that would undersell it", () => {
+    renderSites({
+      snapshot: snapshotFixture({
+        persistedSiteName: "beta",
+        currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
+      }),
+      outlook: { kind: "pending-ignored", name: "beta" },
+    });
+    expect(screen.getByText(/beta.*won't apply/).className).toContain("status-error");
+  });
+
+  it("shows no queued-choice pill at all when nothing is pending", () => {
+    renderSites();
+    expect(screen.queryByText(/queued/)).toBeNull();
+    expect(screen.queryByText(/won't apply/)).toBeNull();
   });
 });
 
@@ -166,7 +202,8 @@ describe("Sites — load and error states", () => {
   it("shows a write failure as a banner without hiding the list", () => {
     renderSites({ writeError: "A folder with that name already exists under sites/." });
     expect(screen.getByText("A folder with that name already exists under sites/.")).toBeTruthy();
-    expect(screen.getByText("Serving now")).toBeTruthy();
+    // Card head badge plus `alpha`'s own row badge — see the pending-choice block above.
+    expect(screen.getAllByText("Serving now")).toHaveLength(2);
   });
 });
 
