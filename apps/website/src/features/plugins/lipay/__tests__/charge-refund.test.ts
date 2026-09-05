@@ -8,11 +8,24 @@
  * behind it, so it holds only if this chokepoint holds.
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import { InMemoryPaymentCredentials } from "../credentials.js";
+import { activateLipay } from "../lipay-plugin.js";
 import type { PaymentProvider } from "../ports.js";
-import { chargeOk, cleanup, makeLipay, refundOk, SECRET_KEY, WORKSPACE_ID } from "./support.js";
+import {
+  chargeOk,
+  cleanup,
+  FakeHttpClient,
+  makeLipay,
+  refundOk,
+  SECRET_KEY,
+  tempDb,
+  TestClock,
+  testIdGen,
+  WORKSPACE_ID,
+} from "./support.js";
 
 const USD = (minorUnits: number) => ({ minorUnits, currency: "USD" });
 
@@ -52,6 +65,24 @@ test("charge: a successful charge shapes a real request and records a payment ro
     callback_url: "https://site.test/payments/webhook/lipay",
     return_url: "https://site.test/checkout/return",
   });
+
+  cleanup(db, dir);
+});
+
+test("charge: providerOptions, when supplied, are forwarded verbatim into the outbound provider request", async () => {
+  const { api, db, dir, http } = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+    providerOptions: { phoneNumber: "+254700000000" },
+  });
+
+  assert.equal(result.ok, true);
+  const body = JSON.parse(http.calls[0]?.body ?? "{}");
+  assert.equal(body.phoneNumber, "+254700000000", "provider-specific options reach the gateway's request body");
 
   cleanup(db, dir);
 });
@@ -1100,6 +1131,128 @@ test("refund: a thrown non-Error value during the provider call is still typed a
     assert.equal(result.error.code, "TRANSPORT_ERROR");
     assert.equal(result.error.message, "socket hang up");
   }
+
+  cleanup(db, dir);
+});
+
+// The tests below target `lipay-plugin.ts` itself: the request-shape/idempotency/state-machine
+// gating logic that sits between the public API and the gateway.
+
+test("refund: a second partial refund that doesn't complete the payment still moves the total, even though the status doesn't change", async () => {
+  const { api, db, dir, payment } = await succeededPayment([chargeOk("ch_1", "succeeded"), refundOk("re_1"), refundOk("re_2")]);
+
+  const first = await api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "r1", amount: USD(300) });
+  assert.equal(first.ok, true);
+  if (first.ok) assert.equal(first.payment.status, "partially_refunded");
+
+  // 300 + 300 = 600, still short of the 1000 charged — `canTransition("partially_refunded",
+  // "partially_refunded")` is `false` (same-status is deliberately not a transition, per
+  // state-machine.ts), so this exercises the branch that updates the total WITHOUT touching status.
+  const second = await api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "r2", amount: USD(300) });
+
+  assert.equal(second.ok, true);
+  if (second.ok) {
+    assert.equal(second.payment.status, "partially_refunded", "status is unchanged, not reset or cleared");
+    assert.equal(second.payment.amountRefundedMinor, 600, "the total still accumulates despite the no-op status transition");
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async () => {
+  const { api, db, dir, payment } = await succeededPayment([chargeOk("ch_1", "succeeded")]);
+  db.close();
+
+  await assert.rejects(
+    () => api.refund({ workspaceId: WORKSPACE_ID, paymentId: payment.id, idempotencyKey: "r1", amount: USD(400) }),
+    (err: unknown) => err instanceof TypeError && /database connection is not open/.test((err as Error).message)
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("charge: an unexpected (non-constraint) database failure during insertion propagates rather than being swallowed as a typed error", async () => {
+  const { api, db, dir } = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  db.close();
+
+  await assert.rejects(
+    () => api.charge({ workspaceId: WORKSPACE_ID, providerId: "lipay", amount: USD(2500), idempotencyKey: "order-1" }),
+    (err: unknown) => err instanceof TypeError && /database connection is not open/.test((err as Error).message)
+  );
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("refund: a provider that was unregistered since the charge was made is a typed PROVIDER_NOT_REGISTERED, not a crash", async () => {
+  // Two separate `activateLipay` instances sharing ONE sqlite file: the first has "acme"
+  // registered and makes the charge; the second (simulating a later boot with that provider's
+  // plugin disabled/removed) has no "acme" at all, and is the one that receives the refund call.
+  const { db, dbPath, dir } = tempDb();
+  const acme: PaymentProvider = {
+    id: "acme",
+    displayName: "Acme",
+    credentialKeys: ["secretKey"],
+    capabilities: {
+      refunds: "full",
+      tokenization: false,
+      recurring: false,
+      confirmation: ["none"],
+      currencies: "any",
+      webhooks: false,
+    },
+    async createCharge() {
+      return { ok: true, providerRef: "acme_1", status: "succeeded", next: { kind: "none" } };
+    },
+    async refund() {
+      return { ok: true, providerRef: "acme_re_1", status: "succeeded" };
+    },
+    async parseWebhook() {
+      return { ok: true, events: [] };
+    },
+  };
+
+  const apiWithAcme = await activateLipay({
+    db,
+    dbPath,
+    workspaceId: WORKSPACE_ID,
+    httpClient: new FakeHttpClient(),
+    credentials: new InMemoryPaymentCredentials({ acme: { secretKey: "sk" } }),
+    providers: [acme],
+    clock: new TestClock(Date.UTC(2026, 6, 30, 12, 0, 0)),
+    idGen: testIdGen("pay"),
+    webhookBaseUrl: "https://site.test",
+    returnUrl: "https://site.test/checkout/return",
+  });
+  const created = await apiWithAcme.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "acme",
+    amount: USD(1000),
+    idempotencyKey: "order-1",
+  });
+  assert.equal(created.ok, true);
+  if (!created.ok) return;
+
+  const apiWithoutAcme = await activateLipay({
+    db,
+    dbPath,
+    workspaceId: WORKSPACE_ID,
+    httpClient: new FakeHttpClient(),
+    credentials: new InMemoryPaymentCredentials(),
+    providers: [],
+    clock: new TestClock(Date.UTC(2026, 6, 30, 12, 0, 0)),
+    idGen: testIdGen("pay"),
+    webhookBaseUrl: "https://site.test",
+    returnUrl: "https://site.test/checkout/return",
+  });
+
+  const result = await apiWithoutAcme.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: created.payment.id,
+    idempotencyKey: "r1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "PROVIDER_NOT_REGISTERED");
 
   cleanup(db, dir);
 });

@@ -7,6 +7,7 @@
  */
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
+import fs from "node:fs";
 import test from "node:test";
 
 import { InMemoryPaymentCredentials } from "../credentials.js";
@@ -553,6 +554,78 @@ test("webhook: a refund event whose currency is not a string is treated as a ful
   assert.equal(after?.status, "refunded");
 
   cleanup(harness.db, harness.dir);
+});
+
+test("webhook: BUG — pinning current behavior, not endorsing it — a second distinct partial-refund event that doesn't complete the refund is silently dropped rather than accumulated", async () => {
+  // `canTransition(from, to)` is deliberately `false` when `from === to` (state-machine.ts: a
+  // same-status "transition" is not a state change). `computeEventTransition` treats that `false`
+  // identically to a genuinely-rejected transition (stale ordering, a terminal payment) and skips
+  // applying the event ENTIRELY — including the amount update. That is asymmetric with the direct
+  // `refund()` API path (`executeRefundAttempt`), which has its own separate branch that still
+  // moves `amount_refunded_minor` even when the status doesn't change (see the charge-refund.test.ts
+  // case with the same 300+300 shape). The trigger: a provider that reports "refunded" via
+  // per-partial-refund webhook events, where an intermediate event doesn't itself reach the full
+  // charge amount. Blast radius: the webhook-driven refunded total silently stops accumulating and
+  // the dropped event is left in `p_lipay__events` with `applied = 0` forever, with no error
+  // returned to the provider (the webhook still 2xxs) — a merchant's ledger would under-report how
+  // much was actually refunded.
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const firstRefund = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_2",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 1,
+      charge: { id: "ch_1", amount: 300, currency: "USD" },
+    }),
+  });
+  assert.deepEqual(firstRefund, { accepted: true, processed: 1, duplicates: 0 });
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "partially_refunded");
+
+  // A second, genuinely distinct refund event (different provider_event_id) for another 300 — still
+  // short of the 1000 charged, so the target status ("partially_refunded") equals the current one.
+  const secondRefund = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_3",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 2,
+      charge: { id: "ch_1", amount: 300, currency: "USD" },
+    }),
+  });
+
+  // `processed` counts every non-duplicate event, whether or not it was actually APPLIED to the
+  // payment — so `processed: 1` here does not mean the refund total moved. It didn't:
+  assert.deepEqual(secondRefund, { accepted: true, processed: 1, duplicates: 0 });
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 300, "CURRENT (buggy) behavior: the second partial refund's amount is dropped");
+  assert.equal(after?.status, "partially_refunded");
+  const rows = eventRows(harness.db);
+  assert.equal(rows.find((r) => r.provider_event_id === "evt_3")?.applied, 0, "the event is recorded but marked unapplied, forever");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an unexpected (non-constraint) database failure while recording an event propagates rather than being swallowed", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } });
+  harness.db.close();
+
+  await assert.rejects(
+    () => harness.api.handleWebhook({ providerId: "lipay", ...signed }),
+    (err: unknown) => err instanceof TypeError && /database connection is not open/.test((err as Error).message)
+  );
+
+  fs.rmSync(harness.dir, { recursive: true, force: true });
 });
 
 test("webhook: an event carrying no charge data at all is a typed PROVIDER_ERROR, not a crash", async () => {
