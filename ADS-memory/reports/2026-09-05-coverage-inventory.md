@@ -113,7 +113,7 @@ suites" is a lead for where to look next, not a coverage number.**
 
 | Dir | Files | Lines | Internal tests | Candidate ext. suites (admin-app only) | Coverage |
 |---|---|---|---|---|---|
-| lib | 35 | 10004 | 49 | n/a (not a `features/` dir; not scanned by this method) | `api.ts` previously measured 100% (FNF 219/219, BRF 184/184, lines 298/298) per the task-list doc; **rest of `lib/` is UNMEASURED**, not assumed 100% |
+| lib | 35 | 10004 | 49 | n/a (not a `features/` dir; not scanned by this method) | **MEASURED (internal suite only) — 96.7% lines, 97.3% functions, 95.2% branches. See Phase 2 log.** |
 | components | 39 | 7602 | 39 | n/a | UNMEASURED |
 | deployment | 25 | 7095 | 12 | 2 | UNMEASURED |
 | pages | 25 | 5250 | 11 | 4 (+5 website) | UNMEASURED |
@@ -147,7 +147,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | playground | 3 | 122 | 1 | 1 | UNMEASURED |
 | commerce | 2 | 128 | 1 | 1 (+2 website — different directory, same name) | UNMEASURED |
 
-## The one measured directory: `apps/website/src/features/deployments` — **RECONFIRMED 2026-09-05 16:0x**
+## The one measured directory: `apps/website/src/features/deployments` — **RECONFIRMED 2026-09-05 ~16:01-16:05**
 
 - **First run (prior agent)** — uptime before `15:42` (6.32 load), uptime
   after `15:47` (35.57 load) — flagged unconfirmed because the climb
@@ -246,27 +246,82 @@ suites" is a lead for where to look next, not a coverage number.**
   presence alone. Nothing below should be read as "probably uncovered"
   because of this.
 
+## Measured: `apps/admin/src/lib`
+
+- **uptime before**: `16:07, load averages 9.00 30.25 26.42` (1-min just
+  under the ~10 threshold — went ahead). **During/after**: `16:08, load
+  averages 91.21 51.04 34.53`, still `77.89` moments later, `26.99` by
+  `16:09`. Same spike pattern as every run this pass — two other agents
+  running tests concurrently. Command exited 0; no test failures (vitest's
+  own summary line, not inferred).
+- **Command** (cwd `apps/admin` — vitest convention):
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/lib-coverage \
+    <48 internal test files under apps/admin/src/lib/**/__tests__/>
+  ```
+- **File set**: **internal only** — all 48 `*.test.ts`/`*.test.tsx` files
+  under `apps/admin/src/lib/**/__tests__/` (the inventory table's count of
+  49 includes one file, `fetch-query/index.ts`'s test, counted separately;
+  48 were the actual files passed to this invocation). **External suites were
+  deliberately NOT included**: the import-grep for `lib/` turned up **160+**
+  admin test files (nearly the entirety of `apps/admin`'s test suite, since
+  `lib/api.ts` is the shared API client almost every feature test touches)
+  — running that set would be indistinguishable from the banned full-suite
+  invocation and was not attempted. The internal-only result below already
+  answers the coverage question without it.
+- **lcov retained at**: this session's scratchpad,
+  `.../scratchpad/lib-coverage/lcov.info` (not committed; regenerate with the
+  command above).
+- **Result** (34 source files under `src/lib/**`, excludes
+  `__tests__/assistant-transport.test-helpers.ts` and the unrelated
+  `src/features/pages/lib/*` files an over-broad `lib/` substring match would
+  otherwise pull in):
+  - Lines: 96.7% (1030/1065)
+  - Functions: 97.3% (466/479)
+  - Branches: 95.2% (707/743)
+  - `api.ts` reproduces the previously-reported 100% exactly: 298/298 lines,
+    219/219 functions, 184/184 branches.
+  - Below-100% files, all real: `post-title-extension.ts` **8.7% lines**
+    (2/23), 0/8 functions, 0/12 branches — genuine gap, effectively untested.
+    `admin-nav-i18n.ts` **50% lines** (2/4), 0/3 functions, 0/2 branches — tiny
+    file, real gap. `agent-screenshot.ts` 93.9%, `assistant-transport-ag-ui.ts`
+    94.2%, `router.ts` 93.8%, `assistant-transport.ts` 97.8% — all near-ceiling.
+    Every other one of the 34 files is 100% across lines/functions/branches.
+  - **Units note**: the inventory table's "10004 lines" for this dir is raw
+    `wc -l` (includes blank lines, comments, and — since this is TypeScript —
+    type/interface declarations that V8 never instruments). `api.ts` alone is
+    3438 raw lines but only 298 instrumentable lines; the ~10:1 ratio is
+    consistent for the rest of the directory. The two numbers are not
+    comparable and neither is wrong — instrumentable-line coverage is what
+    the percentage above measures.
+- **Reading**: `apps/admin/src/lib` is **not** a low-coverage surface. It is
+  one of the best-covered directories measured this pass — internal tests
+  alone (before touching any of the 160+ external suites) already clear
+  ~96-97% on every metric. Two small, real, specific gaps exist
+  (`post-title-extension.ts`, `admin-nav-i18n.ts`) and are worth a direct
+  look; the rest of the directory needs no further test-writing attention.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
-not what is least covered. `deployments` is removed from this list because it
-is no longer unknown (see above, with its overlap caveat).
+not what is least covered. `deployments` and `apps/admin/src/lib` are removed
+from this list because they are no longer unknown (see their measured
+sections above/below).
 
-1. `apps/admin/src/lib` — 10004 lines (only `api.ts` previously verified;
-   remaining ~34 files unknown)
-2. `apps/website/src/features/theme` — 9474 lines (known cross-directory
+1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-3. `apps/admin/src/components` — 7602 lines
-4. `apps/admin/src/features/deployment` — 7095 lines (only 2 candidate
+2. `apps/admin/src/components` — 7602 lines
+3. `apps/admin/src/features/deployment` — 7095 lines (only 2 candidate
    external suites found — thin external signal, worth prioritizing)
-5. `apps/website/src/features/widgets` — 5378 lines
-6. `apps/admin/src/features/pages` — 5250 lines
-7. `apps/admin/src/features/posts` — 4709 lines
-8. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
+4. `apps/website/src/features/widgets` — 5378 lines
+5. `apps/admin/src/features/pages` — 5250 lines
+6. `apps/admin/src/features/posts` — 4709 lines
+7. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
    suite — thin external signal)
-9. `apps/admin/src/features/collections` — 4207 lines
-10. `apps/website/src/features/plugins` — 4190 lines
+8. `apps/admin/src/features/collections` — 4207 lines
+9. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
