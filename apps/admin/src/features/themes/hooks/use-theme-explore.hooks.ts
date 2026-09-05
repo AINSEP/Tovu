@@ -536,6 +536,15 @@ export function useThemeExplore(
   // dropped instead of overwriting whatever the latest rename already produced.
   const renameGenerationRef = useRef(0);
   const [copyingPath, setCopyingPath] = useState<string | null>(null);
+  // Check-then-set in-flight guard for `copyFile` (2026-09-05 fix, same shape and same reason
+  // `use-static-publish.hooks.ts`'s `publishingRef`/`use-sites.hooks.ts`'s `creatingRef` document):
+  // the OLD `copyingPath !== null` check alone was state-based, so a genuine same-tick double-fire
+  // (two calls landing in the same synchronous tick, before React re-renders with `copyingPath`
+  // reflecting the first call) could still slip both calls past it — proven with a probe test
+  // calling `copyFile` twice inside one `act()` callback, which reached the port twice. This is a
+  // plain `useRef`, not `copyingPath`, because the read-then-write has to be synchronous to be safe
+  // against exactly that same-tick case.
+  const copyingRef = useRef(false);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [publishing, setPublishing] = useState(false);
@@ -771,7 +780,8 @@ export function useThemeExplore(
    */
   const copyFile = useCallback(
     async (path: string) => {
-      if (copyingPath !== null) return;
+      if (copyingRef.current) return;
+      copyingRef.current = true;
       setCopyingPath(path);
       setError(null);
       try {
@@ -785,9 +795,10 @@ export function useThemeExplore(
         setError(e instanceof Error ? e.message : "failed to copy file");
       } finally {
         setCopyingPath(null);
+        copyingRef.current = false;
       }
     },
-    [themeId, copyingPath, port]
+    [themeId, port]
   );
 
   /**

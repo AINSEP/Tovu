@@ -640,6 +640,39 @@ describe("useThemeExplore — rename race safety", () => {
 });
 
 /**
+ * `copyFile`'s OLD in-flight guard (`copyingPath !== null`) was state-based, so a genuine
+ * same-tick double-fire (two calls landing in the same synchronous tick, before React re-renders
+ * with `copyingPath` reflecting the first call) could still slip both past it — the same narrower
+ * weakness `use-sites.hooks.ts`'s `createSite` had before `bac64077`. See `copyFile`'s
+ * `copyingRef` doc comment.
+ */
+describe("useThemeExplore — copyFile same-tick double-fire safety", () => {
+  it("two synchronous copyFile calls on the same path in ONE tick must not both reach the port", async () => {
+    const FILES = [
+      { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+      { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+    ];
+    const port = createFakeThemeExplorePort({ files: FILES, contents: { "pages/index.html": "<html></html>" } });
+    const copyThemeFile = vi.fn(port.copyThemeFile.bind(port));
+    port.copyThemeFile = copyThemeFile;
+
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(2));
+
+    // Both calls fire synchronously in the SAME callback, before React re-renders with
+    // `copyingPath` reflecting the first call — genuinely the same tick, not two `act()`s.
+    act(() => {
+      void result.current.copyFile("css/a.css");
+      void result.current.copyFile("css/a.css");
+    });
+
+    await waitFor(() => expect(result.current.copyingPath).toBeNull());
+
+    expect(copyThemeFile).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
  * Delete (2026-08-29 owner ask, alongside Copy/Rename). `openDeleteConfirm` mirrors `startRename`'s
  * own client-side pre-check shape almost exactly — same `lockedIdentityPaths`/`IDENTITY_LOCKED_GROUPS`
  * gate, same "refuse inline with a toast instead of opening the UI" behavior for a locked file — so
