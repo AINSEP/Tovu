@@ -361,3 +361,145 @@ HIGH→MEDIUM, 17.3 MEDIUM→LOW), **1 CONFIRMED as a code defect with its conse
 and replaced by a newly confirmed false-JSDoc defect; one sub-claim **CONFIRMED** (17.1's impossible
 mock, which does pin the behavior). Neither of the two flagged "production bug + masking test" pairs
 survives as a HIGH.
+
+---
+
+## Chunk 13 — `1378c7e4` `theme/validation/structure.ts`
+
+Reachability baseline for the whole chunk (checked once, applies to every claim below).
+`walkThemePackage` has exactly one production consumer: `validate-theme-package.ts:237`
+(`validateThemePackage`), whose own three call sites are
+`marketplace.ts:265` (`downloadMarketplaceTheme`, validating a **repo-local** marketplace fixture
+directory), `migration/migrate-theme.ts:281` (a staging dir our own migrator produced), and
+`cli/commands/theme/validate.ts:64`. **There is no HTTP upload route into this validator.** So every
+"a hostile theme package could…" argument in this chunk requires an actor who can already write into
+the themes root or the repo. That does not make the defects unreal, but it caps their severity, and
+Gemini's severities do not reflect it.
+
+Also checked once: `resolveFindings` (`validate-theme-package.ts:199-211`) only maps and filters —
+**there is no issue de-duplication anywhere**, so duplicate issues do reach the caller.
+
+### 13.1 — HIGH: the `if (truncated) return` guard is dead, duplicate `structure-max-files` issues → **CONFIRMED as fact, REFRAMED (HIGH → LOW)**
+
+**Both halves are correct, and I proved the unreachability rather than pattern-matching it.**
+`truncated` is assigned in exactly one place, `structure.ts:159`, immediately after
+`files.length >= MAX_PACKAGE_FILES` tested true at `:158`; `files` only ever grows. Therefore
+`truncated === true` implies `files.length >= MAX_PACKAGE_FILES` for the remainder of the walk. The
+only recursive call to `walk` is `:164`, which every iteration reaches only *after* passing `:158`.
+So `walk` can never be entered with `truncated === true`, and `:145`'s guard is **provably dead
+code**. The initial call at `:167` runs with `truncated === false`.
+
+The duplicate-emission half follows from the same fact: when a saturating subdirectory returns, the
+parent's loop advances to its next entry, re-tests `:158` (still true), and pushes a **second**
+`structure-max-files` issue — once per ancestor level that still has an unvisited sibling. With no
+de-duplication downstream, those duplicates reach the caller.
+
+**The test's comment is what's actually wrong.** `structure.test.ts:98-99` states "by the time the
+top-level walk reaches this entry, `truncated` is already `true`, so `walk()`'s own leading
+`if (truncated) return;` guard must fire for it." It does not fire; `:158` returns from the
+top-level walk first. The test's *assertion* (`:108`, that `b-after/should-not-be-counted.txt` is
+absent) is correct — it just holds for a different reason than the comment claims. And because the
+issue check uses `.find()` rather than a length assertion, the duplicate emission is invisible to it.
+
+**Corrected severity: LOW.** Nothing breaks: the ceiling still holds, the walk still stops, no extra
+files are admitted. The impact is dead code plus repeated identical messages shown to a theme
+author. Actionable under this repo's own rule for unreachable branches — this one is provable
+locally, so it is a delete candidate, not a keep-and-direct-invoke-test one. The test comment should
+go with it, and one `length === 1` assertion would pin the de-duplication if that is wanted.
+
+### 13.2 — HIGH: `statSync` follows symlinks, so a circular symlink throws `ELOOP` → **CONFIRMED, REFRAMED (HIGH → MEDIUM)**
+
+Code facts CONFIRMED. `:108` `statSync(full, { throwIfNoEntry: false })` — `throwIfNoEntry`
+suppresses only the no-such-entry case, so `ELOOP` from a symlink cycle (`a → b`, `b → a`) throws.
+`:111` `realpathSync(full)` would throw `ELOOP` on the same input too. The `readdirSync` try/catch at
+`:151-156` shows the function's intended totality, and the contract is stated twice: `:87-88`
+("Never throws on a bad theme — … a symlink is reported as an issue, not an exception") and
+`validate-theme-package.ts:214` ("Never throws"). A symlink cycle is exactly a "bad theme," so this
+is a genuine contract violation, not a hypothetical.
+
+**One correction to the proposed fix, which matters if anyone acts on this.** Swapping to
+`lstatSync` alone is not sufficient and would make 13.3 worse: `lstatSync` does not follow the link,
+so a cycle survives `:108` and then dies at `:111`'s `realpathSync`, and a *broken* link that
+currently returns silently at `:109` would newly reach `:111` and throw `ENOENT`. The fix has to be
+`lstatSync` plus an `isSymbolicLink()` test that reports `structure-symlink-forbidden` **before** any
+`realpathSync` call.
+
+**Corrected severity: MEDIUM.** The consequence is an exception escaping a validator documented as
+total, breaking marketplace install / migration / the CLI for that package — availability of the
+validation path, and it needs write access to the themes root or repo to trigger (see baseline).
+
+### 13.3 — HIGH: a broken symlink escapes `structure-symlink-forbidden` → **CONFIRMED as fact, REFRAMED (HIGH → LOW)**
+
+Mechanism CONFIRMED exactly as claimed: `statSync` at `:108` follows the link, a dangling target
+yields `undefined`, and `:109`'s `if (!stat) return undefined;` returns before the `isLink` check at
+`:111-116` ever runs. Neither flagged nor listed.
+
+Gemini's escalation theory is mechanically coherent, and I checked the one step it depends on:
+`downloadMarketplaceTheme` does `cpSync(fixture.dir, catalogDir/installedDir, { recursive: true,
+filter })` (`marketplace.ts:281-282`) with a filter that only excludes generated preview paths —
+`cpSync` defaults to `dereference: false`, so a symlink is copied **as a symlink**. So a relative
+link that dangles at validation time and resolves after installation would indeed land in the
+installed theme unflagged. That part of the argument survives.
+
+**What does not survive is the severity.** The commit already self-disclosed this as pinned,
+not-endorsed behavior (`structure.test.ts:47-61`), and the reachability baseline above is decisive:
+the only thing this validator ever walks is a repo-local marketplace fixture, a directory our own
+migrator produced, or a path a human typed at the CLI. Planting the crafted symlink requires the
+write access the escalation would supposedly gain. The pinning test's own "blast radius: low"
+rationale is right for a different reason than it states — not because the entry is merely dropped,
+but because nothing untrusted reaches this walk today.
+
+**Corrected severity: LOW**, and it is the same one-line fix as 13.2 — worth doing together, and
+worth doing *before* any untrusted theme-upload path is added, at which point this becomes real.
+
+### 13.4 — MEDIUM: `"././."` bypasses the root check → **CONFIRMED (first half), REFRAMED to LOW; second half DISCARDED**
+
+First half CONFIRMED by hand-evaluation of `:227`. For `sourceDir = "././."`:
+`startsWith("/")` false, `includes("..")` false; `replace(/^\.\/+/, "")` is non-global and strips
+only the leading `./`, giving `"./."`; `replace(/\/+$/, "")` finds no trailing slash; `normalized`
+is `"./."`, which is neither `""` nor `"."`, so `:228`'s `structure-sourcedir-root` never fires.
+`checkSourceDirRootConflict` then splits on `/` and gets `"."` as the first segment, which is not a
+reserved root. A `sourceDir` that denotes the theme root passes clean.
+
+**Second half DISCARDED.** `sourceDir: ""` short-circuiting at `:264` via `!build.sourceDir` is
+correct semantics, not a bypass — an empty `sourceDir` means "not specified," and there is nothing
+to contain. Treating it as a root-conflict would be the bug.
+
+**Corrected severity: LOW** — a normalization-completeness gap in a validator whose inputs are
+first-party today.
+
+### 13.5 — MEDIUM: the new test defeats the type system to reach a branch no real caller can → **CONFIRMED as fact, REFRAMED (MEDIUM → LOW), and it is fully disclosed**
+
+CONFIRMED verbatim: `structure.test.ts:253` passes `schemaVersion: 1 as unknown as 2` against the
+literal-`2` parameter type at `structure.ts:260`, to exercise the `if (schemaVersion === 2)` check at
+`:277`. Given that parameter type, the false arm of `:277` is unreachable for every type-checked
+caller — which the production doc at `:250-257` argues at length and explicitly concludes ("So
+`schemaVersion: 1` was never reachable here, and the type now says so").
+
+**But Gemini frames this as undisclosed coverage padding, and it is not.** The test file's own
+comment at `:243-249` states the entire situation — that the value is no longer constructible
+through the type, that the pin is restored via an unsafe cast, and why the type was not widened back.
+That is a disclosed characterization test, and the dispatch's own standard says to judge it as such.
+
+**What is actionable, at LOW:** the runtime `schemaVersion === 2` check and the cast-test are now
+redundant with each other. This is the locally-provable kind of unreachable branch, so the check is a
+delete candidate and the test should go with it — keeping both is the one option that carries cost
+without buying anything.
+
+### 13.6 — LOW: Windows path separators unhandled → **DISCARDED (not a defect on this platform)**
+
+Code fact is right — `:222`'s `startsWith("/")` and `:237`'s `split("/")[0]` are POSIX-only, so
+`"css\\sub"` yields the single segment `"css\sub"` and misses the `css` reserved-root collision. But
+the deployment target is macOS/Linux, package-relative paths are POSIX-normalized on the way in
+(`:112`, `relative(base, full).split(sep).join("/")`), and on POSIX a backslash in a manifest string
+is an ordinary filename character, not a separator — so `"css\sub"` genuinely is not the `css` root.
+There is no defect here to fix until Windows is a target.
+
+### Chunk 13 counts
+
+6 claims: **0 CONFIRMED at claimed severity**, **4 CONFIRMED as fact but REFRAMED down** (13.1
+HIGH→LOW, 13.2 HIGH→MEDIUM, 13.3 HIGH→LOW, 13.5 MEDIUM→LOW), **1 split** (13.4 first half
+CONFIRMED→LOW, second half DISCARDED), **1 DISCARDED** (13.6). Every code fact cited was accurate;
+every severity was too high, mostly because the claims assumed an untrusted-upload reachability this
+validator does not have. The most useful item is 13.1's unreachability proof, which also invalidates
+a comment in the test the commit added.
