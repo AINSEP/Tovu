@@ -223,7 +223,7 @@ p { margin: 0; color: var(--muted); }
   gap: 6px;
   font: 12px/1 var(--font-mono);
   letter-spacing: 0.02em;
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in oklch, var(--accent) 12%, transparent);
   border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent);
   padding: 6px 10px;
@@ -295,7 +295,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .section-head { max-width: 56ch; margin-bottom: 48px; }
 .section-head .kicker {
   display: block; font: 12px/1 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--accent); margin-bottom: 14px;
+  color: var(--accent-text); margin-bottom: 14px;
 }
 .section-head h2 { font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -0.02em; margin-bottom: 12px; }
 .section-head p { font-size: 16px; }
@@ -375,7 +375,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .post-card.featured .post-card-media { flex: 0 0 42%; margin-bottom: 0; aspect-ratio: 16/11; }
 .post-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
 .post-card-media { aspect-ratio: 16/10; margin-bottom: 16px; font-size: 12px; border-radius: 10px; }
-.post-card .tag { display: inline-block; align-self: flex-start; font: 11px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); background: color-mix(in oklch, var(--accent) 10%, transparent); padding: 4px 8px; border-radius: 6px; margin-bottom: 12px; }
+.post-card .tag { display: inline-block; align-self: flex-start; font: 11px/1 var(--font-mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent-text); border: 1px solid color-mix(in oklch, var(--accent) 30%, transparent); background: color-mix(in oklch, var(--accent) 10%, transparent); padding: 4px 8px; border-radius: 6px; margin-bottom: 12px; }
 .post-card h2, .post-card h3 { font-weight: 500; letter-spacing: -0.01em; margin-bottom: 10px; }
 .post-card h2 { font-size: 22px; }
 .post-card h3 { font-size: 17px; }
@@ -450,7 +450,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    whole point of a mention is that it reads as a link. `--accent` matches every other inline-accent
    use in this theme (status pills, tags, focus rings). Underline is deferred to `:hover` rather than
    always-on so the link doesn't visually compete with the "@" it already carries as its own signal. */
-.post-detail-body .post-mention { color: var(--accent); font-weight: 600; }
+.post-detail-body .post-mention { color: var(--accent-text); font-weight: 600; }
 .post-detail-body .post-mention:hover { text-decoration: underline; }
 
 /* ---------- about ---------- */
@@ -605,7 +605,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    surrounding section visibly open while you read one of its pages. */
 .docs-nav .menu-item.is-current > a,
 .docs-nav .menu-item > a[aria-current="page"] {
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in oklch, var(--accent) 12%, transparent);
   font-weight: 500;
 }
@@ -621,7 +621,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
    different mechanism entirely. Same visual treatment as `.is-current` on purpose: one page reading
    as "you are here," regardless of which of the two spies produced it. */
 .docs-nav .menu-item > a[data-kui-active="true"] {
-  color: var(--accent);
+  color: var(--accent-text);
   background: color-mix(in oklch, var(--accent) 12%, transparent);
   font-weight: 500;
 }
@@ -682,7 +682,7 @@ section.band { padding-block: 72px; border-top: 1px solid var(--border); }
 .docs-nav .menu-item.depth-0.has-children.is-current > a,
 .docs-nav .menu-item.depth-0.has-children > a[aria-current="page"] {
   background: transparent;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .docs-content h2[id],

@@ -8,6 +8,7 @@
   "--border-strong": "rgba(9,20,15,0.50)",
   "--accent": "#f8b838",
   "--accent-fg": "#1a1300",
+  "--accent-text": "#8a5e05",
   "--font-display": "'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
   "--font-body": "'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
   "--font-mono": "'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace",
