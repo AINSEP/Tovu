@@ -1883,6 +1883,19 @@ test("injectFormSubmissionResultIntoHtml: a field name matching no input/textare
   assert.equal(updated, html);
 });
 
+test("injectFormSubmissionResultIntoHtml: a custom data-default-value attribute survives untouched -- BUG (c), 2026-09-05 Gemini audit finding #5: setInputValueAttr's \\b-bounded regex matches mid-attribute-name (data-default-VALUE=\"...\" has a \\b right before \"value\" because \"-\" precedes it), so the theme author's own preset gets silently overwritten with the flash value instead of a real value= attribute being added", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" data-default-value="preset">`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "hello" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" data-default-value="preset" value="hello">`));
+});
+
+test("injectFormSubmissionResultIntoHtml: a single-quoted value='old' attribute is REPLACED, not duplicated -- bug (d), 2026-09-05 Gemini audit finding #5: the regex only ever matched value=\"...\" (double quotes), so a theme's hand-authored value='...' input was invisible to the existing-attribute check and got a SECOND, double-quoted value= appended -- regressing the exact stale-value-wins bug already fixed once for double quotes, since browsers only honor the first same-named attribute", () => {
+  const html = rawFormPageHtml(`<input type="text" name="x" value='old'>`);
+  const updated = injectFormSubmissionResultIntoHtml(html, { kind: "validation", slug: "contact", fieldErrors: [], values: { x: "new" } });
+  assert.equal(updated, rawFormPageHtml(`<input type="text" name="x" value="new">`));
+  assert.equal((updated.match(/\bvalue=/g) ?? []).length, 1, "exactly one value= attribute -- never two");
+});
+
 // ---------------------------------------------------------------------------
 // SPEC-047 Slice 1/2 — "html"-format Page rendering, and `data-embed-type` embeds
 // ---------------------------------------------------------------------------

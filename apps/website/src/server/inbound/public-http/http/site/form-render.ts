@@ -366,11 +366,23 @@ function showFieldErrors(formHtml: string, fieldErrors: ReadonlyArray<{ field: s
  *     `<input .../>` keeps its `/>`) rather than normalizing one into the other.
  *  A replacer FUNCTION at both call sites for the same `$&`/`$1` corruption reason documented on
  *  {@link showFormSuccessMessage} — `escapedValue` is spliced in via template literal, never handed
- *  to `String.prototype.replace` as a replacement-string argument. @complexity O(tag.length). */
+ *  to `String.prototype.replace` as a replacement-string argument. @complexity O(tag.length).
+ *
+ *  BUG FIX (2026-09-05, Gemini audit finding #5): the existing-attribute check used to be
+ *  `/\bvalue="[^"]*"/i` — `\b` is a boundary between a word char and a non-word char, not "start of
+ *  attribute name," so it also matched mid-attribute-name (`data-default-value="x"` has a `\b` right
+ *  before "value" because `-` precedes it), silently corrupting a theme author's own custom
+ *  `data-*-value` attribute in place instead of adding a real `value=`. It also required double
+ *  quotes, so a hand-authored `value='old'` (single-quoted) was invisible to this check and got a
+ *  SECOND, double-quoted `value=` appended below — regressing the exact stale-value-wins bug already
+ *  fixed once for double quotes (browsers only honor the first same-named attribute). Requiring a
+ *  literal preceding whitespace character (the actual attribute-name boundary in HTML) rather than
+ *  `\b`, and matching either quote character via a backreference, fixes both without touching the
+ *  "no existing attribute" branch below. */
 function setInputValueAttr(tag: string, escapedValue: string): string {
-  const existingValueAttr = /\bvalue="[^"]*"/i;
+  const existingValueAttr = /(\s)value=(["'])[^"']*\2/i;
   if (existingValueAttr.test(tag)) {
-    return tag.replace(existingValueAttr, () => `value="${escapedValue}"`);
+    return tag.replace(existingValueAttr, (_match, leadingSpace: string) => `${leadingSpace}value="${escapedValue}"`);
   }
   const selfClosing = /\/>$/.test(tag);
   const beforeClose = tag.slice(0, tag.length - (selfClosing ? 2 : 1)).replace(/\s+$/, "");
