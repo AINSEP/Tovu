@@ -332,3 +332,106 @@ test("media gate: the same indistinguishability holds on the video route — a g
     assert.equal(gated.headers.get("cache-control"), notVideo.headers.get("cache-control"));
   });
 });
+
+// ---------------------------------------------------------------------------
+// The fail-closed default for a body this scan cannot read — the guard against
+// finding 1 recurring the next time a body format is added.
+// ---------------------------------------------------------------------------
+
+/** A `bodyFormat` outside `PostBodyFormat`'s two members, which is what a THIRD format would look
+ *  like to this route on the day it lands: `bodyFormat` reaches the gate as a database column
+ *  (`repo.sqlite.ts`'s `toRecord`), so a new value is live data here long before any type error
+ *  points at `media-rendition.ts`. Cast because that is exactly the gap being exercised. */
+const UNKNOWN_BODY_FORMAT = "mdx" as PostRecord["bodyFormat"];
+
+test("media gate: a live GATED entry whose body format this scan cannot read denies an otherwise-unreferenced asset to an anonymous caller, and allows an entitled member", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("unreadable-body-bytes"), "unreadable.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-unknown-format",
+          slug: "gated-unknown-format",
+          bodyFormat: UNKNOWN_BODY_FORMAT,
+          bodyJson: {},
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const url = `${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/u.webp`;
+    const anon = await fetch(url);
+    assert.equal(anon.status, 404, "an unreadable gated body must fail CLOSED — the scan cannot claim the asset is unreferenced");
+    assert.equal(anon.headers.get("cache-control"), "private, no-store");
+    assert.deepEqual(await anon.json(), { error: "rendition not found" });
+
+    deps.memberSessionRepo = new InMemoryMemberSessionRepo([activeMemberSession(deps.workspaceId)]);
+    const member = await fetch(url, { headers: { cookie: `tovu_member_session=${RAW_MEMBER_TOKEN}` } });
+    assert.equal(member.status, 200, "it gates, it does not blanket-deny");
+    assert.equal(member.headers.get("cache-control"), "private, no-store");
+  });
+});
+
+test("media gate: a PUBLIC entry with an unreadable body format gates nothing — the fail-closed fallback keys off the author's own gating, not off unreadability alone", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("unreadable-public-bytes"), "unreadable-public.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-unknown-format-public", slug: "public-unknown-format", bodyFormat: UNKNOWN_BODY_FORMAT, bodyJson: {} },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/up.webp`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  });
+});
+
+test("media gate: a REAL referrer outranks the unreadable-body fallback — an asset embedded in a public post stays public even while a gated unreadable entry exists", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("real-referrer-wins"), "wins.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(makePost({ id: "p-public-referrer", slug: "public-referrer", bodyJson: imageBody(media.id) }, deps.workspaceId));
+    await deps.postRepo.save(
+      makePost(
+        { id: "p-unreadable-bystander", slug: "unreadable-bystander", bodyFormat: UNKNOWN_BODY_FORMAT, bodyJson: {}, memberAccessJson: MEMBERS_ONLY },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/w.webp`);
+    assert.equal(res.status, 200, "once the scan has FOUND the entries that embed an asset, an unrelated unreadable entry has no say");
+    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  });
+});
+
+test("media gate: an unparseable embed marker in a gated Page does NOT gate unrelated assets — a rejected marker is inert at render time, so it is not a hidden reference", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, bytesFrom("inert-marker-bystander"), "inert.png", "image/png");
+    const { definition } = await registerOne(deps, "public");
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-broken-marker",
+          slug: "gated-broken-marker",
+          kind: "page",
+          bodyFormat: "html",
+          bodyHtml: `<div data-embed-config='{"type":"media","id":}'></div>`,
+          memberAccessJson: MEMBERS_ONLY,
+        },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/i.webp`);
+    assert.equal(
+      res.status,
+      200,
+      "scanHtmlEmbeds/substituteHtmlEmbeds both skip a rejected marker, so it resolves to nothing and serves no asset"
+    );
+  });
+});

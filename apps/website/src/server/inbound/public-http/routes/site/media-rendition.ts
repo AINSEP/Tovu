@@ -31,6 +31,33 @@ import { MEMBER_SESSION_COOKIE } from "../members/complete-sign-in.js";
 
 const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
 
+/** The only `Cache-Control` either route's 404 may carry. Named, and written through the single
+ *  {@link sendMediaNotFound} helper below, because the 2026-09-05 oracle bug was precisely two
+ *  404 call sites drifting apart on this header — a shared constant that two call sites still set
+ *  independently would have drifted the same way. */
+const PRIVATE_NO_STORE = "private, no-store";
+
+/** The long-lived shared/CDN header an UNGATED 200 keeps. Never reachable from a gated outcome —
+ *  see {@link sendMediaRenditionResult}'s own `access.gated` note. */
+const IMMUTABLE_PUBLIC = "public, max-age=31536000, immutable";
+
+/**
+ * The ONE writer for every 404 either public media route emits.
+ *
+ * Both routes must answer "this asset is gated and you may not read it" and "there is no such
+ * rendition" identically — that indistinguishability is the whole point of returning 404 rather
+ * than 403 for a denied caller. Before 2026-09-05 each outcome set its own header inline and they
+ * disagreed (`private, no-store` vs `public, max-age=60`), handing anyone a free existence oracle.
+ * Routing every 404 through one function makes agreement structural instead of a convention four
+ * call sites have to remember; the header can only ever be {@link PRIVATE_NO_STORE}, since a
+ * session-dependent denial must never be replayable from a shared cache.
+ *
+ * @complexity O(1).
+ */
+function sendMediaNotFound(res: Response, error: string): void {
+  res.status(404).set("Cache-Control", PRIVATE_NO_STORE).json({ error });
+}
+
 /**
  * Parses and validates the `{transformName}.v{version}` path segment against `assetId`,
  * returning either the resolved fields or the one-of-two malformed-URL error messages the route
@@ -87,7 +114,7 @@ function collectImageAssetIds(node: unknown, out: Set<string>): void {
  * `PostBodyFormat` being a closed union at compile time — a `bodyFormat` value arrives from a
  * database column (`repo.sqlite.ts`'s `toRecord`), so a THIRD format added later reaches this
  * function as data long before any type error would point at this file. See
- * {@link scanEntryAssets}'s `readable` flag for what happens when one does.
+ * {@link EntryAssetScan}'s `readable` flag for what happens when one does.
  */
 const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
 
@@ -101,7 +128,7 @@ function isGatedEntry(entry: PostRecord): boolean {
 
 /**
  * Adds every `data-embed-config` MEDIA marker's asset id found in an `"html"`-format Page's
- * `body_html` to `out`, and reports whether the scan was complete.
+ * `body_html` to `out`.
  *
  * This is the second half of "which entries reference this asset", and it was missing until
  * 2026-09-05. `collectImageAssetIds` walks `bodyJson` only, so it can see a `"doc"`-format entry's
@@ -121,23 +148,28 @@ function isGatedEntry(entry: PostRecord): boolean {
  * `resolver-service.ts`'s `parseMediaEmbedRef` reads as `{assetId, transformName}` — same keys,
  * same parser, so what this gate sees and what the renderer resolves cannot disagree.
  *
+ * `scanEmbedMarkers`'s `rejected` list is deliberately NOT treated as "a reference I might have
+ * missed" here, unlike in `entry-refs/extractor.ts` where it is the loudest failure in the file.
+ * The difference is what each index is for: safe-delete's where-used check must be conservative
+ * because a dropped row lets a delete proceed, whereas this gate only has to match what a visitor
+ * can actually FETCH. A rejected marker resolves to nothing — `scanHtmlEmbeds` iterates `markers`
+ * only, and `substituteHtmlEmbeds` cannot see a rejected one either, so its authored markup
+ * survives verbatim into the page and no asset is ever served through it. It is an inert
+ * reference, not a hidden one, so counting it would deny live assets to buy no security.
+ *
  * @complexity O(n) over `bodyHtml`'s length (one shared regex scan), plus O(k) over the markers found.
  */
-function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): { readable: boolean } {
-  const scanned = scanEmbedMarkers(bodyHtml);
-  for (const marker of scanned.markers) {
+function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): void {
+  for (const marker of scanEmbedMarkers(bodyHtml).markers) {
     if (marker.type === "media" && marker.id) out.add(marker.id);
   }
-  // A marker carrying `data-embed-config` that failed to parse is a reference this gate cannot
-  // see — `describeRejection`'s own doc makes the same point for `entry_refs`. It may or may not
-  // name this asset, so the honest answer is "scan incomplete", not "no reference found".
-  return { readable: scanned.rejected.length === 0 };
 }
 
-/** Every asset id one entry references, across BOTH body columns, plus whether this scan could
- *  read the whole entry. Both columns are always walked rather than switching on `bodyFormat`: a
- *  `"doc"` row's `bodyHtml` is `null` and an `"html"` row's `bodyJson` is empty, so the unused half
- *  costs nothing, and a row that somehow carries both is fully covered instead of half-scanned. */
+/** Every asset id one entry references, across BOTH body columns, plus whether this scan knows how
+ *  to read the entry's body at all. Both columns are always walked rather than switching on
+ *  `bodyFormat`: a `"doc"` row's `bodyHtml` is `null` and an `"html"` row's `bodyJson` is empty, so
+ *  the unused half costs nothing, and a row that somehow carries both is fully covered instead of
+ *  half-scanned. */
 interface EntryAssetScan {
   readonly ids: Set<string>;
   readonly readable: boolean;
@@ -146,9 +178,8 @@ interface EntryAssetScan {
 function scanEntryAssets(entry: PostRecord): EntryAssetScan {
   const ids = new Set<string>();
   collectImageAssetIds(entry.bodyJson, ids);
-  const formatReadable = READABLE_BODY_FORMATS.has(entry.bodyFormat);
-  if (entry.bodyHtml === null) return { ids, readable: formatReadable };
-  return { ids, readable: formatReadable && addHtmlEmbedAssetIds(entry.bodyHtml, ids).readable };
+  if (entry.bodyHtml !== null) addHtmlEmbedAssetIds(entry.bodyHtml, ids);
+  return { ids, readable: READABLE_BODY_FORMATS.has(entry.bodyFormat) };
 }
 
 /**
@@ -222,14 +253,10 @@ async function scanEntriesForAsset(
   assetId: string
 ): Promise<AssetReferenceScan> {
   const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
-  const referencing: PostRecord[] = [];
-  const opaqueGated: PostRecord[] = [];
-  for (const entry of entries) {
-    const relation = classifyEntry(entry, assetId);
-    if (relation === "referrer") referencing.push(entry);
-    else if (relation === "opaque") opaqueGated.push(entry);
-  }
-  return { referencing, opaqueGated };
+  const classified = entries.map((entry) => ({ entry, relation: classifyEntry(entry, assetId) }));
+  const pick = (want: EntryRelation): PostRecord[] =>
+    classified.filter((candidate) => candidate.relation === want).map((candidate) => candidate.entry);
+  return { referencing: pick("referrer"), opaqueGated: pick("opaque") };
 }
 
 /** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
@@ -286,12 +313,12 @@ function createMemberAccessResolver(
  * "No referrer found" is only a safe reason to allow while the scan can actually READ every entry
  * it looked at — that assumption is precisely what broke here: `bodyHtml` was never scanned, so
  * every gated `"html"` Page reported "no reference" and every one of its embeds was served to
- * anyone. So when {@link scanEntriesForAsset} reports a live, GATED entry whose body it could not
- * fully read ({@link EntryAssetScan}'s `readable`: an unrecognized `bodyFormat`, or a
- * `data-embed-config` marker that failed to parse), those entries become the gating set instead of
- * the empty one, and the caller must satisfy at least one of them. A future third body format
- * therefore denies anonymous access to gated content's media until this scan learns to read it,
- * rather than silently publishing it.
+ * anyone. So when {@link scanEntriesForAsset} reports a live, GATED entry whose body format this
+ * scan does not know how to read at all ({@link READABLE_BODY_FORMATS}), those entries become the
+ * gating set instead of the empty one, and the caller must satisfy at least one of them. A future
+ * third body format therefore denies anonymous access to gated content's media until this scan
+ * learns to read it, rather than silently publishing it — which is precisely how this defect
+ * arrived, one content type at a time.
  *
  * Deliberately NOT a blanket "deny whenever nothing references this asset": that would be safe only
  * if entry bodies were the sole legitimate producer of a `/m/` URL, and they are not. Measured
@@ -374,7 +401,7 @@ async function sendMediaRenditionResult(
       // short-TTL `public` header the plain not-found branch below uses: this outcome depends on
       // the caller's own session cookie, so a shared/CDN cache must never replay it to a
       // DIFFERENT visitor (see `MediaRenditionRouteDeps`'s own doc).
-      res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
+      sendMediaNotFound(res, "rendition not found");
       return;
     }
 
@@ -411,7 +438,7 @@ async function sendMediaRenditionResult(
       // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
       // never be given a shared-cacheable header. The cost is the 60s negative cache on a
       // not-found rendition, which is the correct thing to trade for closing the oracle.
-      res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
+      sendMediaNotFound(res, "rendition not found");
       return;
     }
 
@@ -422,7 +449,7 @@ async function sendMediaRenditionResult(
       // `immutable` header below — the next, possibly unentitled, visitor to hit a public/shared
       // cache would be served this same cached response. Ungated media (the overwhelming common
       // case) keeps the original immutable header unchanged.
-      .set("Cache-Control", access.gated ? "private, no-store" : "public, max-age=31536000, immutable")
+      .set("Cache-Control", access.gated ? PRIVATE_NO_STORE : IMMUTABLE_PUBLIC)
       .set("Content-Type", result.contentType)
       .send(Buffer.from(result.bytes));
   } catch (err) {
@@ -511,7 +538,7 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
     try {
       const access = await resolveMediaAccessDecision(deps, req, assetId);
       if (!access.allowed) {
-        res.status(404).set("Cache-Control", "private, no-store").json({ error: "video rendition not found" });
+        sendMediaNotFound(res, "video rendition not found");
         return;
       }
 
@@ -529,7 +556,7 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
         // `private, no-store` for the same reason the rendition route's not-found branch uses it
         // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,
         // or the header alone tells an anonymous caller which of the two they hit.
-        res.status(404).set("Cache-Control", "private, no-store").json({ error: "video rendition not found" });
+        sendMediaNotFound(res, "video rendition not found");
         return;
       }
 
