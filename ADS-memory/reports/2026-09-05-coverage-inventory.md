@@ -119,7 +119,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | pages | 25 | 5250 | 11 | 4 (+5 website) | **MEASURED — 95.5% lines, 94.8% functions, 83.4% branches. Branch gap is the softest measured this pass; no zero-coverage files. See Phase 2 log.** |
 | posts | 16 | 4709 | 9 | 4 (+1 website) | **MEASURED — 85.7% lines, 76.8% functions, 81.3% branches. Real gap: `PostEditor.tsx` 60.0% lines. See Phase 2 log.** |
 | themes | 14 | 4551 | 6 | 1 | **MEASURED — 76.8% lines, 75.2% functions, 69.6% branches. LOWEST coverage found this pass. See Phase 2 log.** |
-| collections | 26 | 4207 | 14 | 2 | UNMEASURED |
+| collections | 26 | 4207 | 14 | 2 | **MEASURED — 100.0% lines, 99.5% functions, 91.8% branches. Near-ceiling. See Phase 2 log.** |
 | security | 15 | 3955 | 10 | 2 | UNMEASURED |
 | ai-assistant | 16 | 3788 | 11 | 2 | UNMEASURED |
 | media | 13 | 3450 | 9 | 4 (+14 website) | UNMEASURED |
@@ -586,21 +586,53 @@ correction (dual-instantiation lcov trap, caught and fixed mid-parse)
   80-95%). This is the strongest concrete candidate for coverage work found
   so far.
 
+## Measured: `apps/admin/src/features/collections`
+
+- **uptime before**: `16:27, load averages 3.18 8.44 16.85`. **During/after**:
+  `16:27, load averages 7.45 9.08 16.84`, `6.45` shortly after. Exit 0, no
+  failing tests.
+- **Command** (cwd `apps/admin`):
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/collections-admin-coverage \
+    <14 internal test files under src/features/collections/**/__tests__/> \
+    src/__measurements__/request-volume.measurement.test.tsx \
+    src/__tests__/unit/panels-render.unit.test.tsx
+  ```
+  (both external files are the full admin-side candidate list from the
+  appendix; `request-volume.measurement.test.tsx` is a measurement instrument
+  — not a correctness test — that mounts real wired hooks/components, so it
+  legitimately contributes real coverage.)
+- **lcov retained at**: `.../scratchpad/collections-admin-coverage/lcov.info`.
+- **Result** (20 of 26 source files in lcov; missing 6 are the same
+  pure-interface `*-port.hooks.ts` pattern confirmed repeatedly this pass,
+  not a gap):
+  - Lines: **100.0%** (443/443)
+  - Functions: 99.5% (208/209)
+  - Branches: 91.8% (301/328)
+  - Every single source file is at 100% lines. Softest spots are all
+    branches: `collection-entry-editor-dependencies.hooks.ts` 16/26 (61.5%),
+    `collections-i18n.ts` 6/10 (60%), `collections-dependencies.hooks.ts`
+    7/11, `collection-entries-dependencies.hooks.ts` 9/11,
+    `use-collection-entry-editor.hooks.ts` 41/43.
+- **Reading**: `apps/admin/src/features/collections` is **not** a
+  low-coverage surface — near-ceiling on every metric, in the same shape as
+  `deployments`, `admin/lib`, and `widgets`.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
 not what is least covered. `deployments`, `apps/admin/src/lib`,
 `apps/admin/src/components`, `apps/admin/src/features/deployment`,
 `apps/website/src/features/widgets`, `apps/admin/src/features/pages`,
-`apps/admin/src/features/posts`, and `apps/admin/src/features/themes` are
-removed from this list because they are no longer unknown (see their
-measured sections above/below).
+`apps/admin/src/features/posts`, `apps/admin/src/features/themes`, and
+`apps/admin/src/features/collections` are removed from this list because
+they are no longer unknown (see their measured sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-2. `apps/admin/src/features/collections` — 4207 lines
-3. `apps/website/src/features/plugins` — 4190 lines
+2. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
