@@ -86,7 +86,26 @@ function resolveCliEntry(repoRoot) {
 }
 
 /**
- * Build the child's environment.
+ * The part of the child environment every `tovu` subcommand needs — {@link buildServeEnv} layers
+ * `serve`-only concerns (daemon token, admin dist) on top, and `tovu init` uses this bare form.
+ * Split out so a one-shot `init` does not mint a daemon token it has no daemon for.
+ *
+ * @complexity O(n) in the number of inherited environment variables.
+ */
+function buildCliEnv(baseEnv) {
+  const env = { ...(baseEnv ?? process.env) };
+
+  env.ELECTRON_RUN_AS_NODE = "1";
+
+  delete env.PORT;
+  delete env.TOVU_CONTENT_DB;
+  delete env.TOVU_DB;
+
+  return env;
+}
+
+/**
+ * Build the child's environment for `tovu serve`.
  *
  * Three deliberate decisions, each of which was a real defect somewhere before it was a line here:
  *
@@ -124,13 +143,7 @@ function resolveCliEntry(repoRoot) {
  */
 function buildServeEnv(input) {
   const repoRoot = input.repoRoot;
-  const env = { ...(input.baseEnv ?? process.env) };
-
-  env.ELECTRON_RUN_AS_NODE = "1";
-
-  delete env.PORT;
-  delete env.TOVU_CONTENT_DB;
-  delete env.TOVU_DB;
+  const env = buildCliEnv(input.baseEnv);
 
   if (!env.TOVU_AGENT_DAEMON_TOKEN) {
     env.TOVU_AGENT_DAEMON_TOKEN = randomBytes(32).toString("hex");
@@ -303,6 +316,7 @@ async function startTovuServer(input) {
 
 module.exports = {
   parseBootLine,
+  buildCliEnv,
   parseCliErrorLine,
   resolveCliEntry,
   buildServeEnv,

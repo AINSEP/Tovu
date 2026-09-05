@@ -26,19 +26,46 @@
  * `TOVU_DESKTOP_SELFTEST=1` makes the shell prove itself and exit instead of staying open: it
  * reports the loaded URL and document title, then quits 0 on success and 1 on any load failure.
  *
+ * Which site dir own-server mode serves is `src/site-dir-store.cjs`'s decision, not this file's:
+ * an explicit override, else the most recent remembered folder, else `<repo>/sites/tovu-com` in a
+ * checkout, else a folder picker whose answer is remembered. See that file for why.
+ *
  * Environment:
  * - `TOVU_DESKTOP_URL`      — attach to this origin instead of spawning a server.
- * - `TOVU_DESKTOP_SITE_DIR` — site dir for own-server mode (default `<repo>/sites/tovu-com`).
+ * - `TOVU_DESKTOP_SITE_DIR` — force a site dir for own-server mode, skipping the picker entirely.
  * - `TOVU_DESKTOP_PORT`     — pin own-server mode's port; otherwise a free one is allocated.
  * - `TOVU_DESKTOP_SELFTEST` — `1` to verify and exit rather than opening a window.
  */
 const path = require("node:path");
-const { app, BrowserWindow, shell } = require("electron");
+const { app, BrowserWindow, dialog, shell } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
+const { resolveSiteDir, stateFilePath, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
+
+/**
+ * Ask the user which folder holds their site. Cancelling returns `null`.
+ *
+ * Only ever reached on a first run with no remembered folder and no `sites/` dir in a checkout —
+ * `resolveSiteDir` exhausts every cheaper answer first. `createDirectory` is on because the natural
+ * gesture for a new site is to make a folder from inside the dialog; an empty one gets `tovu init`.
+ */
+async function promptForSiteDir() {
+  // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
+  // the reason instead, so an unattended run reports rather than hangs.
+  if (SELFTEST) {
+    throw new Error("no site dir resolved and TOVU_DESKTOP_SELFTEST=1 cannot show a folder picker — set TOVU_DESKTOP_SITE_DIR.");
+  }
+  const result = await dialog.showOpenDialog({
+    title: "Choose a folder for your Tovu site",
+    message: "Pick a folder that already holds a site, or an empty folder to start a new one.",
+    buttonLabel: "Use this folder",
+    properties: ["openDirectory", "createDirectory"],
+  });
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0];
+}
 
 /**
  * Attach to a running stack, or start our own.
@@ -51,9 +78,22 @@ async function resolveTarget() {
   const attachUrl = process.env.TOVU_DESKTOP_URL?.trim();
   if (attachUrl) return { server: null, url: attachUrl };
 
-  const siteDir = process.env.TOVU_DESKTOP_SITE_DIR?.trim() || path.join(REPO_ROOT, "sites", "tovu-com");
-  const pinnedPort = process.env.TOVU_DESKTOP_PORT?.trim();
+  const siteDir = await resolveSiteDir({
+    envDir: process.env.TOVU_DESKTOP_SITE_DIR,
+    statePath: stateFilePath(app.getPath("userData")),
+    // Correct for a developer, absent in a packaged app — which is exactly why it is one tier of a
+    // precedence chain rather than the hardcoded default it used to be. In THIS checkout it is not
+    // even valid: `sites/tovu-com` holds a `content.db` but no `config.json`, so `tovu serve` exits
+    // 3 with `SITE_DIR_INVALID` (measured). The old hardcoded default was a dead path; the chain
+    // classifies the dir and moves on instead of failing on it.
+    devFallbackDir: path.join(REPO_ROOT, "sites", "tovu-com"),
+    repoRoot: REPO_ROOT,
+    // No `name`: `initSite` defaults it to the chosen folder's basename (BR-03), which is what the
+    // user just typed, and is a far better site name than this shell's own package name.
+    pickDir: promptForSiteDir,
+  });
 
+  const pinnedPort = process.env.TOVU_DESKTOP_PORT?.trim();
   const server = await startTovuServer({
     repoRoot: REPO_ROOT,
     siteDir,
@@ -62,6 +102,24 @@ async function resolveTarget() {
     port: pinnedPort ? Number(pinnedPort) : undefined,
   });
   return { server, url: server.adminUrl };
+}
+
+/**
+ * Report a boot failure where the user can actually see it.
+ *
+ * A packaged `.app` launched from Finder has no terminal attached, so `console.error` alone means
+ * the app vanishes with no explanation. Cancelling the folder picker is not a failure — it is the
+ * user declining to start — so it exits 0 and says nothing.
+ */
+function reportBootFailure(error) {
+  if (error instanceof SiteDirSelectionCancelled) {
+    app.quit();
+    return;
+  }
+  console.error(`tovu desktop: ${error.message}`);
+  process.exitCode = 1;
+  if (!SELFTEST) dialog.showErrorBox("Tovu could not start", error.message);
+  app.quit();
 }
 
 function createWindow(url) {
@@ -118,11 +176,7 @@ app
       if (BrowserWindow.getAllWindows().length === 0) createWindow(target.url);
     });
   })
-  .catch((error) => {
-    console.error(`tovu desktop: ${error.message}`);
-    process.exitCode = 1;
-    app.quit();
-  });
+  .catch(reportBootFailure);
 
 /**
  * A spawned `tovu serve` must not outlive the window that owns it, and it must be given the chance
