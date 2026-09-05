@@ -118,7 +118,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | deployment | 25 | 7095 | 12 | 2 | **MEASURED — 95.6% lines, 92.9% functions, 88.1% branches. No zero-coverage files; partial gaps only. See Phase 2 log.** |
 | pages | 25 | 5250 | 11 | 4 (+5 website) | **MEASURED — 95.5% lines, 94.8% functions, 83.4% branches. Branch gap is the softest measured this pass; no zero-coverage files. See Phase 2 log.** |
 | posts | 16 | 4709 | 9 | 4 (+1 website) | **MEASURED — 85.7% lines, 76.8% functions, 81.3% branches. Real gap: `PostEditor.tsx` 60.0% lines. See Phase 2 log.** |
-| themes | 14 | 4551 | 6 | 1 | UNMEASURED |
+| themes | 14 | 4551 | 6 | 1 | **MEASURED — 76.8% lines, 75.2% functions, 69.6% branches. LOWEST coverage found this pass. See Phase 2 log.** |
 | collections | 26 | 4207 | 14 | 2 | UNMEASURED |
 | security | 15 | 3955 | 10 | 2 | UNMEASURED |
 | ai-assistant | 16 | 3788 | 11 | 2 | UNMEASURED |
@@ -541,22 +541,66 @@ correction (dual-instantiation lcov trap, caught and fixed mid-parse)
   `PostEditor.tsx`. Worth a direct look: a large contiguous uncovered block in
   the biggest component in the directory is a concrete, actionable target.
 
+## Measured: `apps/admin/src/features/themes` — lowest coverage found this pass
+
+- **uptime before**: `16:25, load averages 3.93 10.87 18.86`. **During/after**:
+  `16:25, load averages 5.62 10.92 18.74`, `4.31` shortly after. Negligible
+  spike (only 7 files run). Exit 0, no failing tests.
+- **Command** (cwd `apps/admin`):
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/themes-admin-coverage \
+    <6 internal test files under src/features/themes/**/__tests__/> \
+    src/__tests__/unit/panels-render.unit.test.tsx
+  ```
+  (the appendix lists exactly 1 admin-side external candidate for
+  `features/themes` — this is the full set, not a partial one.)
+- **lcov retained at**: `.../scratchpad/themes-admin-coverage/lcov.info`.
+- **Result** (12 of 14 source files in lcov; missing 2 —
+  `theme-explore-port.hooks.ts`, `themes-port.hooks.ts` — are the same
+  pure-interface pattern, not a gap):
+  - Lines: 76.8% (443/577)
+  - Functions: 75.2% (152/202)
+  - **Branches: 69.6% (300/431) — the lowest branch figure of any directory
+    measured this pass, well under the 90% integration bar.**
+  - Real gaps, concentrated in the hooks layer: `theme-explore-dependencies.hooks.ts`
+    40.9% lines (18/44), 14/27 branches; `themes-dependencies.hooks.ts` 50.0%
+    lines (9/18), 9/13 branches; `use-theme-explore-preview-frame.hooks.ts`
+    54.5% lines (6/11); `use-themes.hooks.ts` 65.3% lines (49/75), 11/34
+    branches (32%); `use-theme-explore.hooks.ts` 75.8% lines (172/227), 78/135
+    branches. Component-level files (`Themes.tsx`, `ThemeExplore.tsx`) are
+    both ~91% lines, notably better than their supporting hooks.
+  - **Checked for a mocking-illusion before trusting this number**: this
+    repo's memory records a prior-today claim that `Themes.unit.test.tsx`
+    "fully fakes" `useThemesHook`. Read that file directly — it does **not**
+    `vi.mock()` the hook; the dedicated `use-themes.hooks.unit.test.ts` (228
+    lines exercising a 276-line hook) uses the `useX(dependencies)` port
+    pattern correctly, injecting a fake **port** (the external boundary) via
+    `vi.fn()`, not mocking the hook itself. So the low number here is a real
+    coverage gap — the hook has more branches than 228 lines of tests
+    currently reach — not an artifact of a test that can't see its subject.
+- **Reading**: `apps/admin/src/features/themes` is the **most genuinely
+  under-tested directory measured this pass**. The gap is concentrated in the
+  `*-dependencies.hooks.ts` / `use-*.hooks.ts` layer (same pattern as
+  `admin/pages`, but much deeper here — down to 40-65% lines rather than
+  80-95%). This is the strongest concrete candidate for coverage work found
+  so far.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
 not what is least covered. `deployments`, `apps/admin/src/lib`,
 `apps/admin/src/components`, `apps/admin/src/features/deployment`,
-`apps/website/src/features/widgets`, `apps/admin/src/features/pages`, and
-`apps/admin/src/features/posts` are removed from this list because they are
-no longer unknown (see their measured sections above/below).
+`apps/website/src/features/widgets`, `apps/admin/src/features/pages`,
+`apps/admin/src/features/posts`, and `apps/admin/src/features/themes` are
+removed from this list because they are no longer unknown (see their
+measured sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-2. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
-   suite — thin external signal)
-3. `apps/admin/src/features/collections` — 4207 lines
-4. `apps/website/src/features/plugins` — 4190 lines
+2. `apps/admin/src/features/collections` — 4207 lines
+3. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
