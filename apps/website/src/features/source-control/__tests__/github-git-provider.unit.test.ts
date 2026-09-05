@@ -862,3 +862,655 @@ test("CRITICAL: a page removed from the export is explicitly deleted (via the pr
     globalThis.fetch = originalFetch;
   }
 });
+
+// ---------------------------------------------------------------------------
+// Branch-coverage fill (2026-09-04) — every step function above shares the same shape
+// (`!response.ok -> provider-error via providerErrorMessage`, a body that fails to parse as JSON, and
+// a success response missing its one expected field), but the suite above only ever proved that shape
+// through `createBlob`'s own 401 test. Each OTHER step function's identical checks are their own,
+// separate branch — never exercised merely because a sibling step's matching branch was. Every test
+// below targets exactly ONE step's own instance of the pattern, queuing real success responses for
+// every step before it so the mock proves the target step is reached in the real sequence, not called
+// in isolation.
+// ---------------------------------------------------------------------------
+
+test("PROVIDER_ERROR: fetchRepo itself rejected (403) surfaces GitHub's own message, distinctly from the 404 (repository-not-found) case", async () => {
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", status: 403, json: { message: "Resource not accessible by integration" } }]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "Resource not accessible by integration");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `providerErrorMessage`'s own fallback text (`${fallback} (${response.status}).`) — every OTHER
+ *  provider-error test in this file supplies a `message` field GitHub itself would send; this is the
+ *  one case where the body carries none at all, proving the fallback text fires instead of an empty
+ *  or undefined message. */
+test("PROVIDER_ERROR: a rejected response with NO message field at all falls back to providerErrorMessage's own fixed wording", async () => {
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", status: 500, json: {} }]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub repository lookup failed (500).");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: fetchRepo's own 2xx response failing to parse as JSON is reported, never mistaken for a successful lookup", async () => {
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", status: 200, text: "not json {{{" }]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+    assert.equal(mock.remaining(), 0, "nothing past an unparseable repo lookup may ever be attempted");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: fetchBranchTip itself rejected (500), distinctly from its own 404 (brand-new-branch) case", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 500, json: { message: "Internal server error" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "Internal server error");
+    }
+    assert.equal(mock.remaining(), 0, "nothing past a failed branch-tip lookup may ever be attempted");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: fetchParentTree itself rejected (e.g. 404 — the parent commit sha it was given is bogus), distinct from a network failure", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 404, json: { message: "No commit found for SHA: parent-sha" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "No commit found for SHA: parent-sha");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: fetchParentTree's response parses as JSON but is missing its own tree.sha field", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    // A 200, valid-JSON response that simply omits `tree` entirely — GitHub's own documented shape
+    // always includes it, but this file must not assume that rather than checking.
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { sha: "parent-sha", message: "irrelevant" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub parent-commit response did not include a tree sha");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: a managed-manifest 200 response whose JSON body has no 'content' field at all", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { encoding: "base64" /* no `content` field */ } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.match(result.message, /did not include file content/);
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: a managed-manifest's base64 content decodes to bytes that are not valid JSON at all", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    {
+      match: /\/contents\/\.tovu\/managed-files\.json/,
+      method: "GET",
+      status: 200,
+      json: { content: Buffer.from("not json at all {{{").toString("base64"), encoding: "base64" },
+    },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.match(result.message, /is not valid JSON/);
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: a managed-manifest that parses as JSON but matches NEITHER the v1 nor v2 recognized shape", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    {
+      match: /\/contents\/\.tovu\/managed-files\.json/,
+      method: "GET",
+      status: 200,
+      // Valid JSON, valid base64 — but shaped like neither `{version:1,paths:[...]}` nor
+      // `{version:2,files:[...]}`. A hand-edited file that merely resembles a manifest.
+      json: { content: Buffer.from(JSON.stringify({ hello: "world" })).toString("base64"), encoding: "base64" },
+    },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.match(result.message, /did not match a recognized shape/);
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: tree creation itself rejected by GitHub (e.g. 422 — an invalid tree entry)", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 422, json: { message: "Tree SHA does not exist" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "Tree SHA does not exist");
+    }
+    assert.equal(mock.remaining(), 0, "no commit object may be created from a tree that failed to create");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: commit-object creation itself rejected by GitHub", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 422, json: { message: "Tree sha is not valid" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "Tree sha is not valid");
+    }
+    assert.equal(mock.remaining(), 0, "no ref write may be attempted from a commit object that failed to create");
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `writeRef`'s `mode === "create"` branch has its OWN failure path — every prior branch-creation test
+ *  in this file only ever proves the 201-success case; the 422/update-mode `"diverged"` mapping does
+ *  NOT apply here (that check is gated on `mode === "update"`), so a create-mode rejection must fall
+ *  through to the generic provider-error branch instead. */
+test("PROVIDER_ERROR: a brand-new branch's ref CREATE is itself rejected by GitHub (never mapped to 'diverged' — that mapping is update-only)", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/feature-x$/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs$/, method: "POST", status: 422, json: { message: "Reference already exists" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "feature-x", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error", "a create-mode rejection must never be mapped to 'diverged' — that mapping is gated on mode === 'update'");
+      assert.equal(result.message, "Reference already exists");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `fetchLiveBlobSha`'s `result.kind !== "response" || !result.response.ok` — every OTHER
+ *  live-verification-failure test in this file throws a network error (`kind !== "response"`); this
+ *  proves the OTHER side of that OR: a REAL response that is simply not ok (here, a 410 — GitHub's own
+ *  "gone" status for a deleted file, distinct from a 404). Same observable outcome either way (the
+ *  candidate is left alone, reported as diverged, never deleted) — proving the code path, not a new
+ *  behavior. */
+test("a candidate deletion's live-verification GET receiving a real non-ok response (not a thrown network error) is treated the same as an unverifiable path", async () => {
+  const FLAKY_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
+  const MANIFEST = { version: 2, files: [{ path: "gone.html", sha: FLAKY_SHA }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    {
+      match: /\/contents\/\.tovu\/managed-files\.json/,
+      method: "GET",
+      status: 200,
+      json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" },
+    },
+    // Content blobs are created FIRST (buildFileTreeEntries), THEN each deletion candidate's live
+    // content is verified (resolveDeletionCandidates), THEN the manifest blob is created — this
+    // queue's order must match that real sequence, not the reverse.
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    // A REAL response, not a thrown error — GitHub's own "410 Gone" for a permanently removed file.
+    { match: /\/contents\/gone\.html/, method: "GET", status: 410, json: { message: "Gone" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs\/heads\/main$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
+    if (result.ok) assert.equal(result.filesDeleted, 0, "an unverifiable (non-ok, non-thrown) candidate must never be deleted");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createBlob's 2xx response is missing its own sha field", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { message: "created, but no sha field somehow" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub blob creation response did not include a sha");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Branch-coverage fill, round 2 (2026-09-04) — the remaining per-step `body.ok === false` /
+// missing-field arms the first fill round did not reach yet, plus providerErrorMessage's own
+// blank-(not merely absent)-message fallback and fetchRepo's default_branch fallback.
+// ---------------------------------------------------------------------------
+
+test("PROVIDER_ERROR: fetchBranchTip's 2xx response fails to parse as JSON", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, text: "not json {{{" },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: fetchParentTree's 2xx response fails to parse as JSON", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, text: "not json {{{" },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createBlob's 2xx response fails to parse as JSON", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, text: "not json {{{" },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createTreeObject's 2xx response fails to parse as JSON", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, text: "not json {{{" },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createTreeObject's 2xx response is missing its own sha field", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { url: "https://api.github.com/repos/octo/demo/git/trees/x" /* no sha */ } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub tree creation response did not include a sha");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createCommitObject's 2xx response fails to parse as JSON", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, text: "not json {{{" },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub returned a non-JSON response.");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+test("PROVIDER_ERROR: createCommitObject's 2xx response is missing its own sha field", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { url: "https://api.github.com/repos/octo/demo/git/commits/x" /* no sha */ } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub commit creation response did not include a sha");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `providerErrorMessage`'s own message check is `typeof === "string" && trim() !== ""` — every OTHER
+ *  test either supplies a real message (true) or omits the field entirely (`typeof !== "string"`,
+ *  proven above). This is the third, distinct combination: the field IS a string, but blank. */
+test("PROVIDER_ERROR: a rejected response whose message field is present but BLANK also falls back to providerErrorMessage's own fixed wording", async () => {
+  const mock = installMockFetch([{ match: /\/repos\/octo\/demo$/, method: "GET", status: 502, json: { message: "   " } }]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub repository lookup failed (502).");
+    }
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `fetchRepo`'s `typeof body.json.default_branch === "string" ? ... : "main"` fallback — every OTHER
+ *  success test in this file supplies a real `default_branch`; this proves the fallback for a
+ *  well-formed 200 response that simply omits it. */
+/** `githubFetch`'s timeout branch checks `err.name === "TimeoutError" || err.name === "AbortError"` —
+ *  the suite's own existing timeout test only ever produces a real `TimeoutError` (Node's own
+ *  `AbortSignal.timeout` firing); this proves the OTHER named case distinctly, since a caller-aborted
+ *  signal (as opposed to a timeout) surfaces as `AbortError` on some fetch implementations and must be
+ *  bucketed identically. */
+test("NETWORK_UNREACHABLE: a thrown AbortError (not merely a TimeoutError) is bucketed the same way — both are 'the request never got a response'", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    const err = new Error("The operation was aborted");
+    err.name = "AbortError";
+    throw err;
+  }) as typeof fetch;
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "network-unreachable");
+      assert.match(result.message, /timed out after 30000ms/);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+/** `fetchBranchTip`'s `typeof object?.sha === "string" ? object.sha : undefined` — every OTHER
+ *  success test supplies a real `object.sha`; this proves the fallback for a 200, valid-JSON response
+ *  that simply doesn't carry one (distinct from the already-tested 404 "branch does not exist" case —
+ *  here GitHub DID find the ref, just with a response this file cannot read a tip sha out of, which
+ *  this file still treats as "no parent," same downstream effect as brand-new). */
+test("commit: a branch-tip lookup response with no object.sha field is treated as having no parent, same as a brand-new branch", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { ref: "refs/heads/main" /* no object.sha */ } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    // branchCreated derives from `parentSha === undefined` — an unreadable tip sha means the ref
+    // write goes through CREATE (POST /git/refs), never UPDATE (PATCH), the same as a real 404.
+    { match: /\/git\/refs$/, method: "POST", status: 201, json: { ref: "refs/heads/main" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected success, got: ${JSON.stringify(result)}`);
+    if (result.ok) assert.equal(result.branchCreated, true, "no readable tip sha must be treated exactly like a genuinely brand-new branch");
+  } finally {
+    mock.restore();
+  }
+});
+
+test("a candidate deletion's live-verification GET receiving a 2xx response that fails to parse as JSON is treated as unverifiable, never crashes", async () => {
+  const FLAKY_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
+  const MANIFEST = { version: 2, files: [{ path: "weird.html", sha: FLAKY_SHA }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/contents\/weird\.html/, method: "GET", status: 200, text: "not json {{{" },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs\/heads\/main$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
+    if (result.ok) assert.equal(result.filesDeleted, 0, "an unparseable live-verification body must never authorize a delete");
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `parseManifestV2Entry`'s `GIT_SHA_PATTERN.test(entry.sha)` — every other v2-manifest test uses a
+ *  plausible hex sha. A recorded `sha` that is a STRING but not git-blob-sha-SHAPED (e.g. hand-edited,
+ *  or a future format this file doesn't understand) must fall into "no recorded provenance," not be
+ *  trusted as a comparison value. */
+test("CRITICAL (ownership-trust defect): a v2 manifest entry whose recorded sha is a string but NOT git-blob-sha-shaped is treated as having no provenance", async () => {
+  const MANIFEST = { version: 2, files: [{ path: "odd-sha.html", sha: "not-a-real-git-sha" }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+    // No live-verification GET is queued for 'odd-sha.html' — an unparseable recorded sha must skip
+    // straight to "no provenance, never verified," the exact same as a legacy v1 entry, WITHOUT ever
+    // making the live-content request at all.
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs\/heads\/main$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected a successful commit, got: ${JSON.stringify(result)}`);
+    if (result.ok) {
+      assert.equal(result.filesDeleted, 0, "a non-sha-shaped recorded value must never authorize a delete");
+      assert.deepEqual(result.divergedPaths, ["odd-sha.html"]);
+    }
+    assert.equal(mock.remaining(), 0, "no live-verification GET may be made for an entry with no parseable recorded sha");
+  } finally {
+    mock.restore();
+  }
+});
+
+/** `parseManagedManifestV2`'s own doc: "a partially-valid v2 manifest is exactly as unrecognized as a
+ *  wrong-shaped one" — this proves it directly: `version: 2` and a `files` array are both present (so
+ *  the outer shape check passes), but ONE entry is malformed (`path` missing), which must fail the
+ *  WHOLE manifest, not just that one entry. */
+test("PROVIDER_ERROR: a v2-shaped manifest with ONE malformed entry (missing path) is unrecognized in its ENTIRETY, not partially trusted", async () => {
+  const MANIFEST = { version: 2, files: [{ path: "fine.html", sha: "aaaa1111bbbb2222cccc3333dddd4444eeee5555" }, { sha: "aaaa1111bbbb2222cccc3333dddd4444eeee5555" /* no path */ }] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false, `a partially-malformed v2 manifest must block the commit entirely, got: ${JSON.stringify(result)}`);
+    if (!result.ok) assert.match(result.message, /did not match a recognized shape/);
+  } finally {
+    mock.restore();
+  }
+});
+
+/** Same "partially valid is fully unrecognized" rule, proven for the legacy v1 shape's own validation
+ *  (`obj.paths.every((path) => typeof path === "string")`). */
+test("PROVIDER_ERROR: a v1-shaped manifest with a non-string path entry is unrecognized in its entirety", async () => {
+  const MANIFEST = { version: 1, paths: ["fine.html", 42] };
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 200, json: { content: Buffer.from(JSON.stringify(MANIFEST)).toString("base64"), encoding: "base64" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, false, `a malformed v1 manifest must block the commit entirely, got: ${JSON.stringify(result)}`);
+    if (!result.ok) assert.match(result.message, /did not match a recognized shape/);
+  } finally {
+    mock.restore();
+  }
+});
+
+test("commit: a repo lookup response missing default_branch falls back to 'main', never a crash or an undefined branch name", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { full_name: "octo/demo" /* no default_branch */ } },
+    { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs$/, method: "POST", status: 201, json: { ref: "refs/heads/main" } },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected success, got: ${JSON.stringify(result)}`);
+    if (result.ok) assert.equal(result.branch, "main");
+  } finally {
+    mock.restore();
+  }
+});
