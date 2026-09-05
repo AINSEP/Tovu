@@ -3,6 +3,8 @@ import path from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
 
+import { isDevTlsExplicitlyDisabled } from "./dev-tls-disable-flag";
+
 // The admin SPA is served at /admin by the Tovu server in production builds.
 // In dev, Vite serves it at :5173 and proxies /api to the backend.
 
@@ -57,9 +59,14 @@ const redirectBareAdmin: Plugin = {
 // machine), the bare existsSync gate below would silently flip those hermetic instances to HTTPS
 // too and break them. Unset for a normal `npm run dev`, so the default "cert present -> HTTPS"
 // contract is unchanged for both `dev.mjs` and a standalone `npm --prefix apps/admin run dev`.
+//
+// Parsed via `isDevTlsExplicitlyDisabled` (see `dev-tls-disable-flag.ts`), not a bare `Boolean(...)`
+// truthy check: the latter treated ANY non-empty string, including the literal `"false"` or `"0"`,
+// as "disable" — inverting an operator's explicit `TOVU_DISABLE_DEV_TLS=false` "keep TLS on" intent
+// (2026-09-05 audit finding). Mirrors `dev-tls.ts`'s and `dev.mjs`'s own copies of this same parse.
 const certPath = path.resolve(__dirname, "../../.certs/localhost.pem");
 const keyPath = path.resolve(__dirname, "../../.certs/localhost-key.pem");
-const devTlsDisabled = Boolean(process.env.TOVU_DISABLE_DEV_TLS);
+const devTlsDisabled = isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS);
 const httpsOptions =
   !devTlsDisabled && existsSync(certPath) && existsSync(keyPath)
     ? { cert: readFileSync(certPath), key: readFileSync(keyPath) }
