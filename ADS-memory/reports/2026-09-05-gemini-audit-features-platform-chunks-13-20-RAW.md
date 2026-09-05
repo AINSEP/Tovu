@@ -37,7 +37,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 - [x] 14. `239a90a5` — test(deployments): S3-compatible publish target coverage
 - [x] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
 - [x] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
-- [ ] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
+- [x] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
 - [ ] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
 - [ ] 19. `438ada6a` — test(export): direct unit proof for redirectOutcomeFor's >=400 arm
 
@@ -300,6 +300,78 @@ the first malformed entry would also produce `[]` here and pass).
 Gemini raised 8 findings in this chunk, all recorded above as UNVERIFIED (2 production-bug claims,
 1 production-inconsistency claim, 5 test-quality claims).
 
-### Chunk 17 — pending
+### Chunk 17 — `4b35a008` test(source-control): github-git-provider.ts branch-coverage fill
+
+**Context given to Gemini:** diff (`github-git-provider.unit.test.ts` new hunk, 652 new lines) +
+FULL current production file `apps/website/src/features/source-control/github-git-provider.ts`
+(829 lines) + FULL current test file (1516 lines, post-commit). Full-file context. This is the
+densest chunk (production file itself described in its own commit message as "the highest-density
+file in scope").
+
+**UNVERIFIED — HIGH (production bug + test masking it).** `github-git-provider.ts:309-311`
+(`fetchBranchTip`) + downstream `commit()` at ~765/799/605/660/686; `github-git-provider.unit.test.ts:1361-1380`
+(Test 24). Claim: an HTTP 200 response missing `object.sha` is treated identically to a fresh/
+nonexistent branch (`tipSha: undefined`), rather than as a provider error the way every sibling
+step function (`fetchParentTree`/`createBlob`/`createTreeObject`/`createCommitObject`) handles a
+200-but-missing-field response. Claimed downstream consequence: `commit()` reads `parentSha ===
+undefined` as "branch is new," omits `base_tree`, builds an orphan tree stripped of the branch's
+existing files, and issues a CREATE ref write — which claims would actually 422 on real GitHub
+since the ref already exists (or, worse, succeed and wipe history, if GitHub behaved differently).
+Claims Test 24 masks this by mocking `POST /git/refs` to return `201 Created` for a branch the
+same test's own prior step already showed exists via a 200 GET — called "impossible on real
+GitHub" and inconsistent with a sibling test (cited as Test 12, line ~1108) that verifies the same
+endpoint returns 422 for an existing ref.
+
+**UNVERIFIED — HIGH (production bug + test masking it).** `github-git-provider.ts:467-471,574-578,638`
+(`fetchLiveBlobSha`/`resolveDeletionCandidates`/`buildTree`); `github-git-provider.unit.test.ts:1128-1159`
+(Test 13). Claim: when a deletion candidate's live-verification read fails with a non-404 outcome
+(410/500/network error), the code `continue`s without adding the path to either `deletions` or
+`divergedPaths` — so the file is silently dropped from the new manifest while still physically
+present on the branch (retained only via `base_tree`), permanently losing provenance and never
+being reconsidered for cleanup in any future run. Claims the file's OWN header comment (cited
+lines 127-142) already names this exact pattern as a critical bug in a sibling function
+(`fetchManagedManifest`), making its recurrence here inconsistent with the codebase's own stated
+standard. Claims Test 13's JSDoc asserts the outcome IS "reported as diverged," but the test never
+asserts `divergedPaths` at all (only `filesDeleted === 0`), and claims asserting the JSDoc's own
+claimed value would fail.
+
+**UNVERIFIED — MEDIUM (production bug).** `github-git-provider.ts:252-257,265` (`readJsonBody`/
+`providerErrorMessage`), also cited at `fetchRepo:292`, `fetchBranchTip:309`, `createBlob:488`.
+Claim: `readJsonBody` casts `await response.json()` straight to `Record<string, unknown>` with no
+`isPlainObject`-style guard (a guard that DOES exist elsewhere in the file per the author's own
+`isPlainObject` at line ~365, claimed unused here) — so a valid top-level JSON primitive (`null`,
+a number, a bare string) parses successfully and is treated as an object, and a subsequent
+`body.json.message`/`.default_branch`/`.object`/`.sha` property read on it is claimed to throw an
+uncaught `TypeError` rather than degrading to a handled provider-error. Claims the existing test
+suite only covers invalid JSON syntax, never a valid-JSON-non-object body.
+
+**UNVERIFIED — MEDIUM (production bug).** `github-git-provider.ts:302,687`. Claim: `encPath` was
+introduced elsewhere in this same file specifically to avoid `encodeURIComponent` turning `/` into
+`%2F` (which breaks GitHub's ref-path routing) — but the two ref-lookup/ref-write call sites
+(`fetchBranchTip`'s GET and the ref-write's PATCH/POST target) use plain `enc(branch)` instead,
+claimed to still %2F-encode a slash. Claimed consequence: committing to a hierarchical branch name
+(e.g. `feature/update-copy`) 404s on the ref lookup (misread as "branch doesn't exist"), then fails
+the subsequent write with a 422 ref-already-exists (create path) or a 404 (update/PATCH path).
+Claims the test suite only ever uses single-segment branch names.
+
+**UNVERIFIED — LOW (comment/doc + characterization accuracy).** `github-git-provider.unit.test.ts:1338-1348`
+and the commit message itself. Claim: two unrelated JSDoc comment blocks (one describing a
+`default_branch` fallback actually tested ~120 lines later) are stacked above an unrelated test,
+claimed to be an orphaned/misplaced comment from editing. Separately disputes the commit message's
+own "12 unhit branches are the file's most redundant/defensive fallback arms" characterization,
+naming two specific still-unhit branches claimed to be PRIMARY error-return paths, not defensive
+fallbacks (`!manifestBlob.ok` early-return at ~line 640; an update-mode `writeRef` non-422-status
+branch at ~line 709) — and arguing some branches this very commit DID newly cover (Test 24's
+missing-`object.sha` case) were latent bugs, not defensive redundancy, undercutting the
+characterization further.
+
+Gemini raised 5 findings in this chunk (2 HIGH production-bug-plus-masking-test pairs, 2 MEDIUM
+production bugs, 1 LOW doc/characterization item), all recorded above as UNVERIFIED. This chunk's
+claims are more load-bearing than most in this RAW batch (two HIGH findings describe concrete
+GitHub-API-response scenarios with specific downstream consequences) — the verifier should
+prioritize checking these two first, including whether the commit-time state of `commit()`/
+`resolveDeletionCandidates` differs from current HEAD before treating them as pre-existing vs.
+newly introduced.
+
 ### Chunk 18 — pending
 ### Chunk 19 — pending
