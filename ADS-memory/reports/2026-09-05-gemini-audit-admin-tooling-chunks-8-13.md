@@ -27,7 +27,7 @@ chunk completes.
 - [x] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
 - [x] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
       ThemePageDetailsModal, `apps/admin/src/features/pages/**` — no-logic-in-`.tsx` rule compliance
-- [ ] Chunk 12 — `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-server TLS plumbing), plus
+- [x] Chunk 12 — `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-server TLS plumbing), plus
       `src-complexity-debt.json` / `admin-complexity-debt.json` / `check-architecture.baseline.json` diffs
 - [ ] Chunk 13 — test-quality pass: `AccessTokensTab.credential-flows.unit.test.tsx`,
       `use-access-tokens.unit.test.tsx`, `api-endpoint-option-branches.unit.test.ts`, `dead-path-sweep.test.ts`,
@@ -196,6 +196,60 @@ real but pre-existing/out-of-window: 6 (postsListNotice, inline `t`, onEdit-bypa
 leftover helpers, visitorCredentialKeyStatusMessage). DISCARDED: 5 (the 5-screen resolveXTabId pattern as
 precedented, dockT as an exact duplicate already on file, the test-fake spread-order claim as factually
 wrong, pagesListNotice and selectTab as duplicate-pattern/owner-ratified-in-spirit). 0 UNVERIFIED.**
+
+### Chunk 12: `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-TLS) + complexity/architecture baseline JSON diffs
+
+**12a — dev-server TLS plumbing (commits `65ef8629`, `1a26b2ca`, `51c59f5c`, `014c36b8`, `8580be46`), scoped
+to `apps/admin/vite.config.ts`, `apps/admin/dev-tls-disable-flag.ts`, and `development/scripts/dev.mjs`
+only** (the broader `apps/website/src/server/runtime/boot/dev-tls.ts`/`index.ts`/`deps.ts`/
+`admin-static.ts` changes in `51c59f5c`/`014c36b8` are outside this dispatch's admin/tooling scope and were
+not audited here). Gemini raised **zero findings** — traced the `TOVU_DISABLE_DEV_TLS` truthy-string bug fix
+(`"1"`/`"true"` only, not bare `Boolean(...)`), cert-path/scheme consistency between the two dev processes,
+and the `mkcert -CAROOT` fallback's failure handling, all clean.
+
+Independently verified the security-relevant claim myself rather than trusting the "fixed" framing: read
+`dev-tls-disable-flag.ts` in full (correct `raw?.trim().toLowerCase(); normalized === "1" || normalized ===
+"true"`) and grepped both call sites — `vite.config.ts:69` imports and calls it directly, and `dev.mjs`
+carries its own textually-identical copy (`isDevTlsExplicitlyDisabled`, line 89) called at `dev.mjs:295` —
+confirmed both live call sites use the fixed parse, not the old bare-truthy one.
+
+**12b — complexity/architecture baseline JSON diffs (commits `99ab0126`, `3ca63ed2`, `baf2675d`,
+`eb732811`, `0a4a6947`, `c57f3791` for the two complexity debt files; `5435b87c` for the architecture
+baseline).** Given these are data files (as the dispatch itself predicted, "lower expected yield"), reviewed
+by reading full commit messages plus the current file state directly rather than running them through
+Gemini — an LLM pass on a JSON diff would not add signal beyond what direct arithmetic verification gives.
+
+- **`src-complexity-debt.json`**: independently recomputed the running total rather than trusting the prose.
+  `baf2675d` left exactly 1 surviving entry (`mergeExternalMcpSavePrefill`, `c57f3791`'s intentional-debt
+  record); `99ab0126` added exactly 3 more (`renderStaticPage` + 2 entries for the `sites.ts` route
+  handler). 1 + 3 = 4, matching the current file's `violations` array exactly. Self-consistent.
+- **`admin-complexity-debt.json`**: `3ca63ed2`'s message claims "6 of 8 no longer reproduce and are
+  deleted... Seo.tsx and assistant-transport.ts stay" — 8 - 6 = 2, matching the current file's exactly 2
+  violations. Self-consistent. The schema change itself (per-file `files: [...]` to per-violation
+  `violations: [{rule, file, reason, note}]`) closes a real, disclosed masking bug (`api.ts`'s `request` had
+  drifted 12/10 to 17/16 undetected because the whole file was grandfathered) — already independently
+  covered by the prior report's separate review of `eslint.config.mjs` reading this new schema correctly.
+- **`check-architecture.baseline.json` (`5435b87c`, in-window, 2026-09-05)** — this one is worth the owner's
+  attention, though not as a defect: it regenerates the baseline via the tool's own documented `--update`
+  path after 832 commits of accumulated drift since the prior 2026-08-20 baseline, and the commit message
+  verifies (rather than assumes) this is legitimate drift, not corruption, by naming specific commits
+  (`115687af`) responsible. **Read the actual diff directly**: `moduleApiSurfaceFiles` 202→231,
+  `deepImportsBypassingIndex` 517→650 (a 26% jump), `propagationCostPct` 11.62→13.17, bidirectional-hub
+  median fanIn 10→18 and fanOut 9.5→11, while `moduleCount` actually fell 49→45. Unlike every complexity-debt
+  change reviewed above (which only ever tightens the ratchet, deleting entries once verified fixed), this
+  one moves several numbers in the LOOSER direction — legitimate given the 832-commit gap and the tool's own
+  sanctioned `--update` mechanism (the same kind of documented baseline refresh already accepted for
+  `src-complexity-debt.json`'s `0a4a6947`), but it means `check-architecture.ts`'s gate is now measuring
+  against a much larger deep-import/hub-fan-out surface than it was three weeks ago. Not treating this as an
+  integrity finding (INT-list threshold-loosening) given the depth of the commit's own disclosed
+  verification and that this matches established project practice for this exact ratchet mechanism — but
+  flagging the magnitude of the numbers for the owner's own read, since a gate that silently re-baselines
+  itself to match reality after each drift period only catches drift WITHIN a period, never across one.
+
+**Chunk 12 tally: 12a — 0 findings raised, 0 CONFIRMED, 0 UNVERIFIED, 0 DISCARDED (independently verified the
+fix's correctness at both call sites). 12b — 0 findings raised via Gemini (reviewed directly instead); 2
+files verified self-consistent by direct arithmetic; 1 file (`check-architecture.baseline.json`) flagged as
+a real, disclosed, legitimate-but-notable baseline loosening for the owner's awareness, not a defect.**
 
 ## Summary
 
