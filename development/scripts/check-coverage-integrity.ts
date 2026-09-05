@@ -71,6 +71,34 @@
  * Only `SF:` paths under `src/`, `packages/*​/src/`, or `apps/*​/src/` are evaluated -- everything
  * else (test infra, `node_modules`, build output, `development/`) is skipped without comment.
  *
+ * ## Pure re-export barrels are also skipped (2026-09-05), and this is NOT the same exemption as
+ * ## a normal CONTAMINATED-but-baselined file
+ *
+ * A file whose entire source is `export { ... } from "./x.js"` / `export type { ... } from "./x.js"`
+ * statements (a barrel -- e.g. `apps/website/src/platform/export/index.ts`,
+ * `apps/website/src/features/content-types/index.ts`) compiles to NOTHING but esbuild's CJS-interop
+ * wrapper machinery (`__export`/`__copyProps`/`__toCommonJS`, plus one lazy getter per re-exported
+ * name) -- there is no function of the barrel's OWN for a second image to merge with. Both real
+ * files just named were verified 2026-09-05 to report wrapper-helper names in their FNDA records
+ * (the CONTAMINATED signal) and, because a barrel's every `DA:` line is executed exactly once per
+ * import -- the same load-time count the wrapper helpers themselves report -- `content-types/index.ts`
+ * additionally satisfies the SEVERE full-subset condition below. Neither is evidence of a genuine
+ * Route A dual-instantiation: it is the STRUCTURALLY GUARANTEED shape of compiling any pure re-export
+ * file, present or absent regardless of whether Route A is ever fixed. This is categorically
+ * different from a real logic-bearing file (`apps/website/src/contracts/core/commands/revert.ts`,
+ * `.../platform/export/route-manifest.ts`) that happens to ALSO show wrapper names -- there, the
+ * wrapper presence genuinely does mean a second image merged over real function/line data, exactly
+ * what this script exists to catch, and this exclusion does not touch that case at all: detection is
+ * by the file's SOURCE shape (`isPureReExportBarrelSource`, read from disk by `main`, threaded through
+ * as an explicit optional parameter everywhere for testability), never by the lcov block's own
+ * content, so it cannot be satisfied by a coincidentally-barrel-shaped DA/FNDA pattern in a file that
+ * isn't actually one. A barrel classifies as `skip`, the same status non-first-party paths get -- not
+ * `ok` (that would claim a real, clean function/branch measurement exists, which is false; there is
+ * nothing here to measure) and not `contaminated` (there is no second image to distrust). Per the
+ * header's own rule above ("do not weaken this gate to make CI pass"): this is not a softening of the
+ * CONTAMINATED condition for files it correctly targets -- it is scoping the check to files where the
+ * question it asks ("did two coverage images get merged?") is even coherent to ask.
+ *
  * ## The `--baseline` ratchet -- why CONTAMINATED needs one and SEVERE never gets one
  *
  * As of 2026-08-21, Route A is a known, accepted, STILL-OPEN issue: 63 of 93 first-party blocks in a
@@ -343,6 +371,38 @@ export function isFirstPartySourcePath(relPath: string): boolean {
   return false;
 }
 
+/** Matches one `export { ... } from "...";` / `export type { ... } from "...";` /
+ *  `export * from "...";` / `export * as ns from "...";` statement, semicolon optional (this repo's
+ *  own style always adds one, but ASI makes it valid without). `[^{}]*` (a negated character class,
+ *  not `.`) matches across newlines with no `s` flag needed -- load-bearing, since a real barrel's
+ *  named-export list routinely wraps onto its own lines (see `platform/export/index.ts`'s
+ *  `site-exporter.js` re-export). No nested `{`/`}` can legitimately appear inside an export
+ *  specifier list, so the non-greedy-by-construction character class cannot mismatch across two
+ *  separate statements. */
+const EXPORT_FROM_STATEMENT =
+  /export\s+(?:type\s+)?(?:\{[^{}]*\}|\*(?:\s+as\s+[A-Za-z_$][\w$]*)?)\s+from\s+["'][^"']+["']\s*;?/g;
+
+/** True when `sourceText` is a PURE re-export barrel -- every statement in it (after stripping block
+ *  and line comments, including the file's own JSDoc header) is `export ... from "...";` and nothing
+ *  else. See this file's header ("Pure re-export barrels are also skipped") for why this is detected
+ *  from the SOURCE, not from the lcov block's own FNDA/DA shape: the two real files this was verified
+ *  against (`apps/website/src/platform/export/index.ts`,
+ *  `apps/website/src/features/content-types/index.ts`) are both 100% `export ... from` statements
+ *  with a doc-comment header and nothing else. A file with even one real declaration alongside its
+ *  re-exports (a partial barrel) is correctly NOT flagged -- it has real content that could
+ *  genuinely benefit from (or be corrupted in) function/branch coverage, so it keeps the normal
+ *  wrapper-name classification below untouched.
+ *  @complexity O(n) in source length: one bounded strip pass for each comment kind, one global-regex
+ *  pass to find export statements, one more to strip them and check what remains.
+ */
+export function isPureReExportBarrelSource(sourceText: string): boolean {
+  const withoutComments = sourceText.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+  const matches = [...withoutComments.matchAll(EXPORT_FROM_STATEMENT)];
+  if (matches.length === 0) return false;
+  const remaining = withoutComments.replace(EXPORT_FROM_STATEMENT, "").trim();
+  return remaining.length === 0;
+}
+
 /**
  * Classifies one `SF:` block as `contaminated` (wrapper helper records found -- function coverage
  * for this block is untrustworthy, and it may additionally be `severe`), `ok` (no wrapper records --
@@ -367,8 +427,14 @@ export function isFirstPartySourcePath(relPath: string): boolean {
  * corrupt block and zero others.
  *
  * @complexity O(f + d) per block, where f = FNDA record count and d = distinct DA value count.
+ * @param sourceText the block's own file source, when available (`main` reads it from disk;
+ *   omitted entirely in most of this file's own tests, which exercise the wrapper-name logic in
+ *   isolation and don't need it). When given and `isPureReExportBarrelSource` holds, this block is
+ *   `skip`, not `contaminated`/`ok` -- see this file's header ("Pure re-export barrels are also
+ *   skipped") for why. Omitting it (or passing a non-barrel source) leaves behavior identical to
+ *   before this parameter existed.
  */
-export function classifyBlock(block: LcovBlock): BlockVerdict {
+export function classifyBlock(block: LcovBlock, sourceText?: string): BlockVerdict {
   const file = toRepoRelative(block.file);
 
   if (!isFirstPartySourcePath(file)) {
@@ -377,6 +443,20 @@ export function classifyBlock(block: LcovBlock): BlockVerdict {
       status: "skip",
       severe: false,
       reason: "not a first-party src/**, packages/*/src/**, or apps/*/src/** path",
+    };
+  }
+
+  if (sourceText !== undefined && isPureReExportBarrelSource(sourceText)) {
+    return {
+      file,
+      status: "skip",
+      severe: false,
+      reason:
+        "pure re-export barrel (source is entirely `export ... from \"...\";` statements) -- its only " +
+        "instrumented \"functions\" are esbuild's own CJS-interop wrapper helpers plus one lazy getter " +
+        "per re-exported name, not a second merged coverage image; wrapper-name presence here is " +
+        "structurally guaranteed for any barrel, with or without Route A, so it carries no " +
+        "contamination signal -- see this file's header",
     };
   }
 
@@ -433,8 +513,20 @@ export function classifyBlock(block: LcovBlock): BlockVerdict {
   return { file, status: "contaminated", severe: false, reason: `${contaminatedReason}.` };
 }
 
-export function checkCoverageIntegrity(lcovText: string): IntegrityReport {
-  const verdicts = parseLcovBlocks(lcovText).map(classifyBlock);
+/** @param readSource optional; when given, called once per block with its repo-relative path to
+ *    fetch source text for the pure-re-export-barrel check (see `classifyBlock`). `main` passes a
+ *    real disk reader; omitted in most tests, which don't need the barrel exclusion and get
+ *    byte-for-byte the same behavior as before this parameter existed. Returning `undefined` for a
+ *    path (file not found, or no reader given) falls back to normal wrapper-name classification --
+ *    the safe default, since it can never cause a real contaminated file to be silently skipped. */
+export function checkCoverageIntegrity(
+  lcovText: string,
+  readSource?: (repoRelativeFile: string) => string | undefined
+): IntegrityReport {
+  const verdicts = parseLcovBlocks(lcovText).map((block) => {
+    const file = toRepoRelative(block.file);
+    return classifyBlock(block, readSource?.(file));
+  });
   const contaminated = verdicts.filter((v) => v.status === "contaminated");
   const skipped = verdicts.filter((v) => v.status === "skip").length;
   return { contaminated, evaluated: verdicts.length - skipped, skipped };
@@ -442,6 +534,18 @@ export function checkCoverageIntegrity(lcovText: string): IntegrityReport {
 
 function resolveRepoPath(arg: string): string {
   return path.isAbsolute(arg) ? arg : path.join(REPO_ROOT, arg);
+}
+
+/** Real `readSource` for `checkCoverageIntegrity` (see that function's `@param readSource`): reads
+ *  a repo-relative path's current on-disk contents, or `undefined` if it can't (deleted/moved since
+ *  the lcov run, or any other read error) -- the safe default that falls back to normal wrapper-name
+ *  classification rather than ever silently skipping a genuinely contaminated file. */
+function readSourceFromDisk(repoRelativeFile: string): string | undefined {
+  try {
+    return readFileSync(path.join(REPO_ROOT, repoRelativeFile), "utf8");
+  } catch {
+    return undefined;
+  }
 }
 
 /** `--update-baseline` handler: (re)writes `resolvedBaselinePath` from the current run's CONTAMINATED
@@ -544,7 +648,7 @@ function main(): void {
     process.exit(1);
   }
 
-  const { contaminated, evaluated, skipped } = checkCoverageIntegrity(readFileSync(lcovPath, "utf8"));
+  const { contaminated, evaluated, skipped } = checkCoverageIntegrity(readFileSync(lcovPath, "utf8"), readSourceFromDisk);
 
   if (updateBaseline) {
     if (!baselinePath) {
@@ -557,8 +661,8 @@ function main(): void {
 
   if (contaminated.length === 0) {
     console.log(
-      `check:coverage-integrity — OK: ${evaluated} first-party block(s) evaluated (${skipped} non-first-party ` +
-        `skipped), 0 dual-instantiation contamination found.`
+      `check:coverage-integrity — OK: ${evaluated} first-party block(s) evaluated (${skipped} skipped: ` +
+        `non-first-party or pure re-export barrel), 0 dual-instantiation contamination found.`
     );
     return;
   }

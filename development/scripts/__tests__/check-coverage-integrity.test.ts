@@ -8,6 +8,7 @@ import {
   checkCoverageIntegrity,
   classifyBlock,
   isFirstPartySourcePath,
+  isPureReExportBarrelSource,
   parseArgs,
   parseBaseline,
   parseLcovBlocks,
@@ -15,6 +16,11 @@ import {
   type BlockVerdict,
   type LcovBlock,
 } from "../check-coverage-integrity.js";
+
+const REPO_ROOT = path.join(import.meta.dirname, "..", "..", "..");
+function readRealSource(repoRelativeFile: string): string {
+  return readFileSync(path.join(REPO_ROOT, repoRelativeFile), "utf8");
+}
 
 /**
  * @file Direct coverage for `development/scripts/check-coverage-integrity.ts`.
@@ -194,6 +200,91 @@ test("classifyBlock: a block with no wrapper FNDA records at all is OK, regardle
   assert.equal(verdict.status, "ok");
   assert.equal(verdict.severe, false);
   assert.equal(verdict.reason, "no esbuild CJS-wrapper FNDA records in this block");
+});
+
+// ---------------------------------------------------------------------------------------------
+// Pure re-export barrels (2026-09-05): a file whose source is entirely `export ... from "...";`
+// statements is `skip`, never `contaminated` or `ok` -- see this file's header ("Pure re-export
+// barrels are also skipped") for why wrapper-name presence there is structurally guaranteed and
+// carries no contamination signal. Real, not invented: both source files below and their fixture
+// lcov blocks (`fixtures/coverage-integrity/real-*-barrel.lcov.info`) were captured 2026-09-05 from
+// this repo's actual `apps/website/src/platform/export/index.ts` and
+// `apps/website/src/features/content-types/index.ts`, and both were independently verified
+// CONTAMINATED (the second one additionally SEVERE) by a live `check-coverage-integrity.ts` run
+// against a real `npm run test:cov` lcov before this exclusion existed.
+// ---------------------------------------------------------------------------------------------
+
+test("isPureReExportBarrelSource: true for the real platform/export/index.ts barrel (mixed export/export-type-from, multi-line named list)", () => {
+  assert.equal(isPureReExportBarrelSource(readRealSource("apps/website/src/platform/export/index.ts")), true);
+});
+
+test("isPureReExportBarrelSource: true for the real features/content-types/index.ts barrel (re-exports from an npm package, JSDoc header with braces)", () => {
+  assert.equal(isPureReExportBarrelSource(readRealSource("apps/website/src/features/content-types/index.ts")), true);
+});
+
+test("isPureReExportBarrelSource: false for a real logic-bearing file in the same directory as a barrel", () => {
+  // route-manifest.ts sits right next to index.ts in platform/export/ and is what the barrel
+  // re-exports from -- it has real function bodies and must never be classified as a barrel itself.
+  assert.equal(
+    isPureReExportBarrelSource(readRealSource("apps/website/src/platform/export/route-manifest.ts")),
+    false
+  );
+});
+
+test("isPureReExportBarrelSource: false for a partial barrel (a real declaration alongside a re-export)", () => {
+  const partial = `export const VERSION = 1;\nexport { thing } from "./thing.js";\n`;
+  assert.equal(isPureReExportBarrelSource(partial), false);
+});
+
+test("isPureReExportBarrelSource: false for an empty or comment-only file (nothing to export)", () => {
+  assert.equal(isPureReExportBarrelSource(""), false);
+  assert.equal(isPureReExportBarrelSource("/** just a file doc comment, no exports */\n"), false);
+});
+
+test("isPureReExportBarrelSource: true for export * and export * as ns forms", () => {
+  assert.equal(isPureReExportBarrelSource(`export * from "./a.js";\nexport * as ns from "./b.js";\n`), true);
+});
+
+test("classifyBlock: the real platform/export/index.ts block is skip (not contaminated) once its source is supplied", () => {
+  const [block] = parseLcovBlocks(readFixture("real-platform-export-barrel.lcov.info"));
+  const withoutSource = classifyBlock(block);
+  assert.equal(withoutSource.status, "contaminated", "sanity check: without the source, it reads as contaminated");
+
+  const withSource = classifyBlock(block, readRealSource("apps/website/src/platform/export/index.ts"));
+  assert.equal(withSource.status, "skip");
+  assert.equal(withSource.severe, false);
+  assert.match(withSource.reason, /pure re-export barrel/);
+});
+
+test("classifyBlock: the real content-types/index.ts block would have been SEVERE, and is skip once its source is supplied", () => {
+  const [block] = parseLcovBlocks(readFixture("real-content-types-barrel.lcov.info"));
+  const withoutSource = classifyBlock(block);
+  assert.equal(withoutSource.status, "contaminated");
+  assert.equal(withoutSource.severe, true, "sanity check: this real block satisfies the SEVERE full-subset condition too");
+
+  const withSource = classifyBlock(block, readRealSource("apps/website/src/features/content-types/index.ts"));
+  assert.equal(withSource.status, "skip");
+});
+
+test("checkCoverageIntegrity: with a readSource callback, the real barrel fixture reports 0 contaminated and counts it as skipped", () => {
+  const lcov = readFixture("real-platform-export-barrel.lcov.info");
+  const report = checkCoverageIntegrity(lcov, (file) => readRealSource(file));
+  assert.deepEqual(report.contaminated, []);
+  assert.equal(report.skipped, 1);
+  assert.equal(report.evaluated, 0);
+});
+
+test("checkCoverageIntegrity: omitting readSource entirely leaves the same real fixture CONTAMINATED (backward compatible default)", () => {
+  const lcov = readFixture("real-platform-export-barrel.lcov.info");
+  const report = checkCoverageIntegrity(lcov);
+  assert.equal(report.contaminated.length, 1);
+  assert.equal(report.contaminated[0].file, "apps/website/src/platform/export/index.ts");
+});
+
+test("checkCoverageIntegrity: a readSource that returns undefined (file not found) falls back to normal classification, never silently skipping", () => {
+  const lcov = readFixture("real-platform-export-barrel.lcov.info");
+  const report = checkCoverageIntegrity(lcov, () => undefined);
+  assert.equal(report.contaminated.length, 1, "a missing source must never be treated as a barrel");
 });
 
 // ---------------------------------------------------------------------------------------------
