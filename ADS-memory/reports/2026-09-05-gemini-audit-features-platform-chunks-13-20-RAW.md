@@ -30,6 +30,17 @@ covers them as **chunks 13-19** (one commit per chunk, per the "chunk by coheren
 rule — each of these 7 commits is a single self-contained test-file addition, so one commit
 IS one coherent unit here). There is no chunk 20; scope is exhausted at 19.
 
+## Status: COMPLETE — all 7 remaining-scope commits covered (chunks 13-19), no chunk 20
+
+Every commit context was given diff + FULL current production file + FULL current test file
+(never diff-only) — the entire 7-commit remaining scope is small enough that full-file context
+was affordable for every chunk, so there is no diff-only chunk in this RAW batch to flag for
+extra skepticism on that specific axis. Raw claim count across chunks 13-19: 6 + 8 + 5 + 8 + 5 +
+6 + 3 = 41 raw (unverified) claims. Two are flagged above as this batch's highest-priority items
+for the verifier: chunk 17's pair of production-bug-plus-masking-test findings in
+github-git-provider.ts, and chunk 18's CRITICAL prototype-pollution-bypass claim plus HIGH
+unbounded-recursion-DoS claim in handlebars-allowlist.ts (a security-boundary file).
+
 Remaining-scope commits (all test-only, no production-code diff, in
 `apps/website/src/features/**` / `apps/website/src/platform/**`):
 
@@ -39,7 +50,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 - [x] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
 - [x] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
 - [x] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
-- [ ] 19. `438ada6a` — test(export): direct unit proof for redirectOutcomeFor's >=400 arm
+- [x] 19. `438ada6a` — test(export): direct unit proof for redirectOutcomeFor's >=400 arm
 
 ## Findings
 
@@ -446,4 +457,54 @@ recursion) both concern a security-boundary file — the verifier should priorit
 first, given this file's stated purpose (ADR-020 prototype-pollution barrier, main-thread
 stack-overflow prevention during `loadTheme()`).
 
-### Chunk 19 — pending
+### Chunk 19 — `438ada6a` test(export): direct unit proof for redirectOutcomeFor's >=400 arm
+
+**Context given to Gemini:** diff (`site-exporter.test.ts` new hunk, 6 new lines — the smallest
+commit in this batch) + FULL current production file
+`apps/website/src/platform/export/site-exporter.ts` (844 lines) + FULL current test file (865
+lines, post-commit). Full-file context. Instructed to focus on `redirectOutcomeFor` and its
+immediate neighbors rather than a full-file review, given the file's size and that chunk 13 of the
+primary verified report already covered several sibling export/seo commits from 09-04.
+
+**UNVERIFIED — HIGH (production bug).** `site-exporter.ts:595-608` (`writeNotFoundRoute`). Claim:
+the 404-probe route's success check is `if (res.status < 400) { return failed... }` — i.e. it only
+rejects a 2xx/3xx response on the probe, and treats ANY status `>= 400` (including a `500` from a
+crashed/erroring 404-page render) as acceptable, writing whatever body came back (claimed to
+include a raw 500 error page/stack trace) to the exported site's `404.html` and reporting the
+route as succeeded. Contrasts this with `redirectOutcomeFor`(this same commit's subject) and
+`writeContentRoute`, both claimed to use a strict/bounded status check, and cites the file's own
+documented invariant (line ~137, "a route that fails to render is a reported error, never a
+silently missing file") as being violated by this specific asymmetry.
+
+**UNVERIFIED — MEDIUM (commit-message-accuracy claim, not a code defect).**
+`site-exporter.test.ts:816-826` (the pre-existing integration test the commit message cites as
+already covering the `>=400` arm). Claim: that integration test's mock route returns HTTP `200`,
+so in `if (status < 300 || status >= 400)` the FIRST disjunct (`200 < 300`) is true and
+short-circuits — `status >= 400` is claimed to never actually execute in that test, contradicting
+the commit message's claim that this arm "was previously proven... through" that exact test.
+Offers a theory for why the author's own re-measurement showed no branch-percentage change anyway:
+claims V8's coverage instrumentation marks a boolean expression's byte range as "hit" whenever
+either disjunct's short-circuit termination point is reached, which the legitimate-redirect tests
+(301/302 cases) already exercise via the `false` evaluation of `status >= 400`, independent of
+whether it ever evaluates `true` — i.e. claims the coverage TOOL, not the codebase's log of
+verified behavior, is what looked satisfied.
+
+**UNVERIFIED — LOW (test quality, on the very test this commit added).**
+`site-exporter.test.ts:760-762` (the new test itself). Claim: it exercises only `status: 500`, not
+the boundary value `400` — an off-by-one regression changing `status >= 400` to `status > 400`
+would let a literal `400` response bypass the failed-redirect check, and this new test (which only
+ever passes `500`) would not catch it. Separately claims the test's argument shape
+(`redirectOutcomeFor(500, null, undefined)`) is unrealistic versus the real call site
+(`writeRedirectRoute`, claimed to always pass a defined `route.redirectTarget`) — arguing a
+regression that dropped the `>=400` check entirely would, under the TEST's own arguments, still
+fail via a secondary "no location" check rather than by falling through to a false
+`redirect-to` outcome, so the test's chosen arguments are claimed not to exercise the actual
+failure mode a realistic (non-`undefined`) fallback target would expose.
+
+Gemini raised 1 HIGH production-bug claim (on a neighboring function, not the one this commit
+tests), 1 MEDIUM commit-message-accuracy claim, and 1 LOW test-quality claim on the new test
+itself — all recorded above as UNVERIFIED. This is the smallest chunk in the batch (a 6-line
+diff) but produced this batch's most direct "the commit's own stated justification doesn't hold up
+under a literal read of the cited test" claim (Finding 2) — worth the verifier's attention
+specifically because it's a claim about whether prior coverage evidence was ever real, not about
+new code.
