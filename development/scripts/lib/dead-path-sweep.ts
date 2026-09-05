@@ -809,11 +809,12 @@ function sweepOneFile(
 export const findingKey = (f: PathReference): string => `${f.file}:${f.specifier}`;
 
 /**
- * Every `*.ts` file under `development/scripts/` plus the `*.config.ts` files in the db tooling
- * directory — the two places the restructure left dead paths in. Enumerated from disk rather than
- * listed, so a new script is swept the day it lands.
+ * Every `*.ts` file under `development/scripts/` and `development/evals/`, plus the `*.config.ts`
+ * files in the db tooling directory — the places the restructure left dead paths in (most of the
+ * 2026-09-05 breaks lived under `development/evals/`, which this sweep had never covered).
+ * Enumerated from disk rather than listed, so a new script or eval is swept the day it lands.
  *
- * @complexity O(d) in files under the two roots.
+ * @complexity O(d) in files under the three roots.
  */
 export function collectSweepTargets(repoRoot: string): readonly string[] {
   const out: string[] = [];
@@ -833,6 +834,7 @@ export function collectSweepTargets(repoRoot: string): readonly string[] {
   };
 
   walk("development/scripts");
+  walk("development/evals");
 
   const dbDir = "apps/website/src/platform/db";
   for (const entry of fs.readdirSync(path.join(repoRoot, dbDir), { withFileTypes: true })) {
