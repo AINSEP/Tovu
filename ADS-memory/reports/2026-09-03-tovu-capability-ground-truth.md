@@ -1,3 +1,14 @@
+> **CORRECTED 2026-09-05.** Line 193 (below) claims `npx tovu init <dir>` works — **FALSE**.
+> MEASURED: root `package.json:4` has `"private": true"`, so the package cannot be resolved via
+> `npx` from outside this repo (`npm view tovu` independently confirmed a live 404 by two other
+> agents). The claim was inferred from `program.ts`'s CLI surface without checking publish
+> status. Already documented independently in
+> `ADS-memory/reports/2026-09-04-site-content-decisions.md` and
+> `ADS-memory/reports/2026-09-04-TASKLIST.md` — recorded here too since this is the origin file.
+> The rest of this report's claims were not re-verified in this pass; treat each as a claim per
+> `2026-09-04-site-content-decisions.md`'s own warning ("anything built on that report inherits
+> the error").
+
 # Tovu Capability Ground Truth — 2026-09-03
 
 Purpose: ground-truth inventory of what Tovu (`/Users/la/Programming/Tovu`) can actually do today, for diffing against tovu.dev's public claims. Compiled by the codebase-analyzer subagent per `AI-Dev-Shop/agents/codebase-analyzer/skills.md` (loaded before work began).
@@ -190,7 +201,8 @@ Visitor-facing routes under `apps/website/src/server/inbound/public-http/routes/
 
 Concrete, verified from `Dockerfile`, `cli/program.ts`, and root `package.json`:
 
-- **npm/CLI**: `npx tovu init <dir>` scaffolds a new install; `tovu serve <dir>` validates/migrates/boots (serves site + admin on one port); `tovu export <dir>` renders the public site to static files (no server, no browser — for static hosting/GitHub Pages, supports `--base-path` for subpath deploys); `tovu deploy config --target fly|render|railway` generates that platform's config from the Dockerfile/fly.toml as single source of truth; `tovu introspect` emits a machine-readable command/tool manifest (for Tovu-Runner, per memory).
+- **npm/CLI**: ~~`npx tovu init <dir>` scaffolds a new install~~ — **FALSE, see correction at top
+  of file**: root package is `"private": true`, not published, so this does not work as stated; `tovu serve <dir>` validates/migrates/boots (serves site + admin on one port); `tovu export <dir>` renders the public site to static files (no server, no browser — for static hosting/GitHub Pages, supports `--base-path` for subpath deploys); `tovu deploy config --target fly|render|railway` generates that platform's config from the Dockerfile/fly.toml as single source of truth; `tovu introspect` emits a machine-readable command/tool manifest (for Tovu-Runner, per memory).
 - **Docker**: a real multi-stage `Dockerfile` at repo root (`docker build -t tovu:local .`). Build stage installs 3 npm workspaces (root, `apps/admin`, `apps/site-chat`) plus `packages/sdk`, compiles TypeScript, copies stock content/themes/agent-plugins. Runtime stage is `node:24-bookworm-slim`, optionally bakes in headless Chromium via Playwright (`TOVU_INSTALL_BROWSER` build arg — needed only for `site_collect_page_evidence`; omitting it shrinks the image and that one tool degrades gracefully). Runs as non-root `node` user, exposes port 3000, mounts `/workspace/Tovu/sites` as a volume for durable per-site state. `CMD ["node", "dist/src/index.js"]`.
 - **Fly.io**: per memory, LIVE on Fly today, deployed from a **separate public mirror repo** (this repo's own `gh` cannot answer deploy questions). `fly.toml`-oriented comments throughout the Dockerfile confirm Fly is the primary target; `deploy config` also supports Render and Railway config generation, though live-deployment status on those two is unverified this pass.
 - **Desktop app**: memory records Tovu-Runner (a separate Electron repo, `/Users/la/Programming/Tovu-Runner`) as the desktop app wrapping this CLI — not re-verified this pass (out of scope: separate repo).

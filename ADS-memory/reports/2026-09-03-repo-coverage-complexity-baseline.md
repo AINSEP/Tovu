@@ -1,3 +1,12 @@
+> **PARTIALLY SUPERSEDED 2026-09-05.** §2's complexity count ("36 distinct functions violate the
+> 9/9 ceiling; 12 grandfathered, 24 not") is no longer true. MEASURED (re-running the same gates
+> this pass): `check:src-complexity-drift` → `0 new complexity violations (4 total, 4 in
+> baseline)`; `check:admin-complexity-drift` → `OK: no apps/admin violation outside the 2-entry
+> grandfathered debt list`. Both green. A complexity campaign landed across 2026-09-03/05 that
+> this file's own §2 snapshot predates. §1 (blind-spot map) and §3-6 (design/cost discussion) were
+> not re-verified and are not known to be false. Current numeric truth:
+> `ADS-memory/reports/2026-09-05-complexity-ground-truth.md`.
+
 # Repo coverage/complexity baseline — 2026-09-03
 
 Dispatched by team-lead to `measure-coverage-complexity`. Persona: Code Inspection agent

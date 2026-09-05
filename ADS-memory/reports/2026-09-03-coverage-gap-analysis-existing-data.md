@@ -1,3 +1,10 @@
+> **SUPERSEDED 2026-09-05.** This report's core claim — "no coverage data on disk is younger than
+> 13 days (Aug 20)" — is no longer true. MEASURED: `development/coverage/lcov.info` was
+> regenerated later the same day this report was written (mtime 2026-09-03 19:43, per
+> `2026-09-05-route-coverage-ground-truth.md` §1), and has been re-measured further since. This
+> report is explicitly named and re-verified (not re-quoted) in that later report's intro.
+> Current truth: see `ADS-memory/reports/2026-09-05-route-coverage-ground-truth.md`.
+
 # Coverage gap analysis from existing data — 2026-09-03
 
 **Producer:** Programmer persona, analysis/report-only dispatch. **Zero test commands executed** —
