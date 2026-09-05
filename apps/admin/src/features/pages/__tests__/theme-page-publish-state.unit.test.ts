@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ThemePageRow } from "../hooks/use-theme-pages.hooks";
-import { themePagePublicLinkState } from "../lib/theme-page-publish-state";
+import { themePagePath, themePagePublicLinkState } from "../lib/theme-page-publish-state";
 
 /**
  * @file Direct branch coverage for {@link themePagePublicLinkState} — the public-site URL column's
@@ -57,5 +57,19 @@ describe("themePagePublicLinkState", () => {
       kind: "live",
       path: "/pricing",
     });
+  });
+});
+
+describe("themePagePath", () => {
+  // Exercised directly, not only through `themePagePublicLinkState` — that caller's own `index`
+  // check short-circuits before this function is ever reached with `"index"` (see this function's
+  // own doc: the id `theme.pages` uses internally is not the id the site actually routes it at), so
+  // its `"index"` branch has no path through the one production call site at all.
+  it("maps 'index' to the root path, not '/index'", () => {
+    expect(themePagePath("index")).toBe("/");
+  });
+
+  it("maps any other page id to its own leading-slash path", () => {
+    expect(themePagePath("about")).toBe("/about");
   });
 });
