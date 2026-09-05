@@ -5,7 +5,7 @@
   "--fg": "#09140f",
   "--muted": "#4b5952",
   "--border": "rgba(9,20,15,0.10)",
-  "--border-strong": "rgba(9,20,15,0.18)",
+  "--border-strong": "rgba(9,20,15,0.50)",
   "--accent": "#22c373",
   "--accent-fg": "#f8fbf9",
   "--font-display": "'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif",
