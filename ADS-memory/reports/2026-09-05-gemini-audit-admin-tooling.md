@@ -332,6 +332,99 @@ Chunk tally: 3 findings raised; 1 confirmed as a real, live, currently-reachable
 introduced in-window), 1 confirmed as a real-but-currently-dormant design gap (downgraded severity), 1 fully
 disproven.
 
+### Chunk: new Sites feature (apps/admin/src/features/sites/**)
+
+**18. [HIGH, confirmed] `apps/admin/src/features/sites/hooks/use-sites.hooks.ts:152`
+(`writeError: resolveWriteError(createMutation.error ?? activateMutation.error, t)`)** — this is a plain
+TanStack-Query-backed mutation pair (`createMutation`, `activateMutation`); confirmed each mutation's own
+`error` is only reset when THAT SAME mutation's `.mutate()` is called again (standard TanStack Query
+behavior, `apps/admin/src/lib/fetch-query/adapter.tanstack.tsx`), never when the OTHER mutation runs. So: a
+Create failure (e.g. `409 SITE_ALREADY_EXISTS`) leaves `createMutation.error` set indefinitely; any
+LATER Activate action — success or a brand-new failure — is invisible to the operator, because the `??`
+precedence always shows the stale Create error first, until the operator tries Create again (regardless of
+how many Activate attempts happen in between). Confirmed reachable: the two actions are on the same screen
+and routinely both used in one visit (create a site, then activate it).
+
+**19. [HIGH, confirmed — a real contradiction of this file's own stated design purpose]
+`apps/admin/src/features/sites/rules.ts:47-51`, `siteRowState`** — checks only `site.dir ===
+snapshot.currentSite.dir` (serving) and `snapshot.persistedSiteName === site.name` (pending-restart); never
+checks `snapshot.currentSite.dirOverridden`. Meanwhile `activationOutlook` (same file, lines 94-98) DOES check
+`dirOverridden` and reports a distinct `"pending-ignored"` state specifically so the `NowServingCard` banner
+can warn "this is saved, but TOVU_SITE_DIR overrides it, so a restart will not pick it up." Net effect:
+under a `TOVU_SITE_DIR` override, the per-row table badge (`siteRowStateLabelKey` -> "Queued for next
+restart") directly contradicts the banner sitting right above it, which correctly says the same restart will
+NOT apply that choice. This file's own header states its entire purpose is that "this screen is capable of
+telling a lie... every 'what is true right now' decision is therefore made HERE" — this is exactly that lie,
+in the one code path that was supposed to prevent it.
+
+**20. [HIGH, confirmed] `apps/admin/src/features/sites/hooks/use-sites.hooks.ts:132-143`, `activate`** — no
+in-flight guard (no check against `activatingName`/`activateMutation.status`) before calling
+`activateMutation.mutate(name)`. `Sites.tsx:280` does disable every row's Activate button once
+`activatingName !== null`, but that's a STATE-DERIVED disabled prop, one render behind the click — two rapid
+clicks on different rows (or a fast double-click) before that re-render commits can both reach `activate()`,
+firing two concurrent requests for two different site names. Whichever server response settles LAST wins the
+final `setActivation`/`setActivatingName(null)` calls regardless of click order, so the UI can end up showing
+restart instructions and pending state for the WRONG (not most-recently-clicked) site.
+
+**21. [HIGH, confirmed via an objective doc/code mismatch] `apps/admin/src/features/sites/hooks/use-sites.hooks.ts:68`
+vs. its own implementation (lines 116-130)** — the `createSite` field's doc comment on the
+`SitesController` interface explicitly promises: *"Submits the create form. A no-op while the name is invalid
+or a write is already in flight."* The actual `createSite` callback (lines 116-130) checks ONLY
+`siteNameErrorKey(name) !== null` — there is no check against `creating`/`createMutation.status`, so the
+"already in flight" half of the documented contract is not implemented. Same underlying mechanism as finding
+20 (a rapid double-submit before the disabled-button re-render commits can call `createSite()` twice), plus a
+verbatim doc/code mismatch independent of timing.
+
+**22. [MEDIUM, largely confirmed with one precedented exception] Architectural-rule violations in
+`apps/admin/src/features/sites/Sites.tsx`** — the owner's standing rule is no functions/derived logic in
+`.tsx`; the many small presentational subcomponents in this file (`ServingFact`, `UnlistedSiteNotice`,
+`NowServingCard`, `CreateSiteForm`, `ActivateButton`, etc.) are plain components and do NOT violate this rule
+by existing. But several inline, non-component derivations do:
+  - `Sites.tsx:225`: `disabled={creating || !switchingEnabled || createNameError !== null || createName.trim().length === 0}`
+    — a multi-condition boolean including a `.trim().length === 0` computation, inline in JSX.
+  - `Sites.tsx:280,287`: the Activate button's `disabled={...}` boolean chain and its `activatingName ===
+    site.name ? ... : ...` label branch, both inline.
+  - `Sites.tsx:319-322`: `const rowHandles = buildAgentListHandles("sites-row", sites.map((site) =>
+    site.name));` — an array derivation in the component body, not the hook.
+  - `Sites.tsx:364-366`: the table's `state` column computes `siteRowState(site, snapshot)` inline inside its
+    `cell` render function.
+  All four are real, confirmed instances of derived logic living in the component rather than
+  `use-sites.hooks.ts`/`rules.ts`. **One exception, not counted as a fresh violation**: `resolveSitesHook`
+  (`Sites.tsx:303-305`, a plain non-component function picking between an injected hook override and the
+  real one) is NOT unique to this file — its own comment cites `OverviewTab.tsx`'s identical
+  `resolveDeploymentOverviewHook` as precedent, so this is a pre-existing, repeated codebase idiom this new
+  file followed consistently, not a novel violation this PR introduced.
+
+**23. [LOW, reframed from Gemini's "Medium" — real but not a client-side bypass] `apps/admin/src/features/sites/rules.ts:30,109-115`,
+`SITE_NAME_PATTERN = /^[a-z0-9-]+$/`** — allows names that are entirely/leading/trailing hyphens (`"-"`,
+`"--"`, `"-site"`, `"site-"`), which could confuse shell tooling that later takes a site name as a bare
+argument. Confirmed this pattern is DELIBERATELY mirrored from the server's own new pattern (`apps/website/src/platform/site-dir/site-registry.ts:45`,
+introduced in the SAME in-window commit, `115687af`, "feat(admin,site-dir): Sites screen backend") — the
+client's own comment states this explicitly ("a drift here degrades to a worse error message, never to an
+accepted bad name"). So this is not a client-side validation bypass; it's a real, shared, in-window gap
+present identically on both sides, not something the client uniquely introduced or could unilaterally fix.
+**Discarded the other half of Gemini's finding 6**: that `siteNameErrorKey` "completely skips duplicate
+validation client-side, forcing an unnecessary network round-trip" is not a bug — the function's own doc
+comment explicitly discloses this as intentional ("Not a substitute for the server's own validation... this
+only decides whether it is worth asking").
+
+**24. [LOW, confirmed] `apps/admin/src/features/sites/hooks/use-sites.hooks.ts:127` + `Sites.tsx:211`** — the
+name `<input>` is not disabled while `creating` is true (only `disabled={!switchingEnabled}`); if an operator
+starts typing a new name while a previous create is still in flight, `setCreateName("")` on that request's
+completion wipes what they'd typed.
+
+**25. [LOW, confirmed] `apps/admin/src/features/sites/hooks/use-sites.hooks.ts:119` + `Sites.tsx:230-232`** —
+`createdName` (drives the green "Created. Activate it below..." message) is only cleared at the START of the
+next `createSite()` call, not when `createName` changes via typing — so the success message can sit next to
+an unrelated, newly-typed name until the operator submits again.
+
+**No defects identified (accepted without independent re-derivation given time budget):** `sites-dependencies.hooks.ts`,
+`sites-port.hooks.ts`, `index.ts`, `sites-i18n.ts`.
+
+Chunk tally: 8 findings raised; 6 confirmed close to as-stated (18-21, 24-25), 1 confirmed-but-reframed (22,
+one of five citations excluded as precedented), 1 confirmed-but-substantially-reframed (23, real gap but not
+a "client bypass," and half the original claim disproven as intentional).
+
 ## Areas not covered / caveats
 
 TBD at completion.
