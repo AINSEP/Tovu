@@ -236,7 +236,13 @@ body { background: var(--mp-paper); }
    `a { color: inherit }` at (0,0,1); a class-scoped copy would be (0,1,1) and
    would beat the (0,1,0) link-colour rules below. */
 
+/* The second rule is (0,2,0) and it has to be. `.mp-page` alone is (0,1,0),
+   and the prose reset's `.mp p { margin: 0 }` above is (0,1,1) — which killed
+   the auto margins on the two <p class="mp-page mp-run"> running heads and left
+   them flush against the viewport edge, while every <div class="mp-page">
+   stayed centred. Inline axis only; block margins stay each element's own. */
 .mp-page { max-width: var(--mp-measure); margin: 0 auto; padding: 0 24px; }
+.mp .mp-page { margin-inline: auto; }
 
 /* --- Running heads. `TOVU(1)` at both margins with the manual's title
    centred, top and bottom of the document, exactly as roff sets them. --- */
@@ -263,10 +269,14 @@ body { background: var(--mp-paper); }
   border-bottom: 1px solid var(--mp-edge);
 }
 .mp-body { padding-left: var(--mp-indent); }
-.mp-body > * + * { margin-top: 0.85em; }
+/* (0,2,0). At (0,1,0) this lost to the reset's `.mp p { margin: 0 }` (0,1,1)
+   and DESCRIPTION, THEMES and BUGS each collapsed into one unbroken block. */
+.mp .mp-body > * + * { margin-top: 0.85em; }
 .mp-body p { max-width: 74ch; }
-.mp-dim { color: var(--mp-dim); }
-.mp-sig { color: var(--mp-sig); }
+/* (0,2,0): as bare classes these lost to `.mp p { color: var(--mp-fg) }`
+   (0,1,1), so every <p class="mp-dim"> rendered at full ink instead. */
+.mp .mp-dim { color: var(--mp-dim); }
+.mp .mp-sig { color: var(--mp-sig); }
 /* A tool or command name in running text. Not a link, so it gets weight and
    colour rather than an underline that would promise a destination. */
 .mp-t { color: var(--mp-sig); }
@@ -308,7 +318,10 @@ body { background: var(--mp-paper); }
 }
 .mp .mp-tbl tr:last-child td { border-bottom: 0; }
 .mp .mp-tbl th:last-child, .mp .mp-tbl td:last-child { padding-right: 0; }
-.mp-tbl td.t { color: var(--mp-sig); word-break: break-word; }
+/* nowrap above the breakpoint: the widest id here is 42 characters, which fits
+   the measure beside its label. Below it, breaking mid-identifier is still
+   better than a horizontal scrollbar on a phone. */
+.mp-tbl td.t { color: var(--mp-sig); white-space: nowrap; }
 .mp-tbl td.v { color: var(--mp-dim); }
 .mp-tbl td.v b { color: var(--mp-fg); font-weight: 500; letter-spacing: 0.03em; display: block; }
 
@@ -331,6 +344,7 @@ body { background: var(--mp-paper); }
    signal colour on its left edge, because it is the one place the document
    contradicts what a landing page would have claimed. --- */
 .mp-bugs { border-left: 2px solid var(--mp-sig); padding-left: 16px; }
+.mp .mp-bugs > * + * { margin-top: 0.85em; }   /* (0,2,0), same reason as .mp-body */
 .mp-bugs p { max-width: 72ch; }
 .mp-bugs code { color: var(--mp-sig); }
 
@@ -369,6 +383,14 @@ body { background: var(--mp-paper); }
   .mp .mp-run { justify-content: space-between; }
   .mp-tbl { font-size: 12.5px; }
   .mp .mp-tbl td { padding-right: 10px; }
+  /* `anywhere` rather than `break-all`: it takes a legal break opportunity when
+     one exists and only breaks mid-identifier when nothing else fits, and it
+     also lowers the cell's min-content contribution, which keeps the table from
+     pushing the document wider than the viewport. The table keeps its real
+     <table>/<th> semantics at every width — linearising it with `display: block`
+     would read better on a phone and would silently strip the header
+     association a screen-reader user needs to know which column is which. */
+  .mp-tbl td.t { white-space: normal; overflow-wrap: anywhere; }
   .mp-cat { grid-template-columns: 1fr; }
 }
 
