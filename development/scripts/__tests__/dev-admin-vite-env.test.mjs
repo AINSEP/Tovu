@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildAdminViteEnv, deriveDevScheme, resolveDevTlsActive } from "../dev.mjs";
+import {
+  buildAdminViteEnv,
+  deriveDevScheme,
+  isDevTlsExplicitlyDisabled,
+  resolveDevTlsActive,
+} from "../dev.mjs";
 
 /**
  * @file Regression test for a real cross-wiring bug in `development/scripts/dev.mjs`: it computed
@@ -64,11 +69,36 @@ test("resolveDevTlsActive: false when the cert file is missing", () => {
   );
 });
 
-test("resolveDevTlsActive: false when TOVU_DISABLE_DEV_TLS is set, even with both files present", () => {
+test("resolveDevTlsActive: false when disableFlag is true, even with both files present", () => {
   // The Playwright/E2E escape hatch — see vite.config.ts's matching comment for the full rationale.
+  // `disableFlag` here is already-parsed boolean (see isDevTlsExplicitlyDisabled below) — main()
+  // parses TOVU_DISABLE_DEV_TLS before ever calling resolveDevTlsActive.
   const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
   assert.equal(
-    resolveDevTlsActive({ ...paths, disableFlag: "1" }, { existsSync: () => true }),
+    resolveDevTlsActive({ ...paths, disableFlag: true }, { existsSync: () => true }),
     false
   );
+});
+
+/**
+ * REGRESSION (2026-09-05 audit finding): `resolveDevTlsActive`'s `disableFlag` used to be the raw
+ * `TOVU_DISABLE_DEV_TLS` string, checked with a bare `if (disableFlag)` — so ANY non-empty string,
+ * including the literal `"false"` or `"0"`, disabled TLS, inverting an operator's explicit intent to
+ * keep it on. The fix moves parsing to `isDevTlsExplicitlyDisabled` (mirroring
+ * `apps/website/src/server/runtime/boot/dev-tls.ts`'s and `apps/admin/vite.config.ts`'s own copies of
+ * this same parse), called at `main()`'s call site before `resolveDevTlsActive` ever sees the value.
+ */
+test("isDevTlsExplicitlyDisabled: \"false\" and \"0\" do NOT count as disabled", () => {
+  assert.equal(isDevTlsExplicitlyDisabled("false"), false);
+  assert.equal(isDevTlsExplicitlyDisabled("0"), false);
+});
+
+test("isDevTlsExplicitlyDisabled: \"1\", \"true\", \"TRUE\" all count as disabled", () => {
+  assert.equal(isDevTlsExplicitlyDisabled("1"), true);
+  assert.equal(isDevTlsExplicitlyDisabled("true"), true);
+  assert.equal(isDevTlsExplicitlyDisabled("TRUE"), true);
+});
+
+test("isDevTlsExplicitlyDisabled: undefined (unset) does not count as disabled", () => {
+  assert.equal(isDevTlsExplicitlyDisabled(undefined), false);
 });
