@@ -623,7 +623,13 @@ export function deleteThemeFile(
   _optional: Record<string, never> = {}
 ): void {
   const target = resolveThemeFilePath(required);
-  const stat = statSync(target, { throwIfNoEntry: false });
+  // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape `readThemeFile`
+  // and `writeThemeFile` were fixed for (see statOrThemePathError's own doc): `resolveThemeFilePath`
+  // does not resolve a `target` that is ITSELF a self-referential symlink, so this is the first call
+  // that can observe the cycle. Still follows a symlink pointing at a real file inside the theme — the
+  // delete then removes that symlink's own directory entry via `rmSync` below, same as deleting any
+  // other existing target.
+  const stat = statOrThemePathError(target, required.relativePath);
   if (!stat) throw new ThemePathError(`file '${required.relativePath}' does not exist in this theme`);
   if (!stat.isFile()) throw new ThemePathError(`path '${required.relativePath}' is not a regular file`);
   rmSync(target);

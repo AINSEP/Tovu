@@ -470,3 +470,18 @@ test("writeThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR sy
     fs.unlinkSync(b);
   }
 });
+
+test("deleteThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the delete target", () => {
+  const { root, themeDir } = makeThemesRoot();
+  const a = path.join(themeDir, "a");
+  const b = path.join(themeDir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  try {
+    assert.throws(() => deleteThemeFile({ themeDir, themesRoot: root, relativePath: "a" }), ThemePathError);
+  } finally {
+    fs.unlinkSync(a);
+    fs.unlinkSync(b);
+  }
+});
