@@ -8,12 +8,22 @@ import effectResourceCleanup from './development/eslint-rules/effect-resource-cl
 
 // Single source of truth shared with `development/scripts/check-admin-complexity-drift.ts` — see
 // that file's header and the block below for why this list exists and how to shrink it.
+//
+// `admin-complexity-debt.json` is keyed per-VIOLATION (rule, file, reason), not per-file — see its
+// own `_comment_2026-09-05_per_function` for why (a per-file debt list let every OTHER function in
+// a listed file drift unnoticed). ESLint's flat config has no function-level scope, only file
+// globs, so this block can only ever relax a whole FILE — that is unchanged and intentional; the
+// per-function precision lives in check-admin-complexity-drift.ts's own --rule override, which
+// re-lints at the strict ceiling ignoring this relax block entirely. Dedup with `Set` because two
+// violations (one `complexity`, one `sonarjs/cognitive-complexity`) can name the same file.
 const ADMIN_COMPLEXITY_DEBT_PATH = fileURLToPath(
   new URL('development/scripts/admin-complexity-debt.json', import.meta.url)
 );
-const ADMIN_COMPLEXITY_DEBT_FILES = JSON.parse(readFileSync(ADMIN_COMPLEXITY_DEBT_PATH, 'utf8')).files.map(
-  (entry) => entry.file
-);
+const ADMIN_COMPLEXITY_DEBT_FILES = [
+  ...new Set(
+    JSON.parse(readFileSync(ADMIN_COMPLEXITY_DEBT_PATH, 'utf8')).violations.map((entry) => entry.file)
+  ),
+];
 
 export default [
   {
