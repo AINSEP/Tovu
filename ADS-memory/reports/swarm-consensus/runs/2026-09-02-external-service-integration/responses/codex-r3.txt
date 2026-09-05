@@ -1,0 +1,336 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R3 -- I received the packet and will work on it.
+
+Codex(Peer):
+
+## Position
+
+Per-vendor TypeScript can be eliminated for a substantial, bounded class of services. It cannot honestly be eliminated for every future external service, and “no vendor code ever” should not become an architectural invariant.
+
+The correct target is:
+
+> Configuration-first, typed-adapter-always-available.
+
+A configuration remains declarative only while it uses a closed, non-Turing-complete vocabulary of reviewed operations. JavaScript expressions, callbacks, arbitrary loops, embedded WASM, or “custom transformation” hooks are integration code disguised as data.
+
+My Round 2 position was already two-tiered, so the core conclusion did not change. Three things did change:
+
+- The five-store AAD correction, especially `adminExecutionCredentials`, makes principal-bound resealing the immediate security priority.
+- The Composio correction moves delegated execution substantially upward. Its connection-initiation state needs improvement, but horizontally scaled credential usage is not disqualified.
+- The unused dispatch-engine evidence changes build order: durable execution and a real consumer come before investing heavily in a declarative authoring system.
+
+The documented second fetch does not prove declarative execution is impossible. It proves that a path-only response mapper is insufficient. An SSRF-guarded public-asset fetch is a legitimate generic runtime primitive. The tier has failed only when it needs a primitive named after a vendor or an unrestricted escape hatch.
+
+## Is this optimizing the wrong half?
+
+I concede the prioritization point but reject the causal overreach.
+
+The Coordinator writes:
+
+> “Writing an adapter is a day. The thing that actually blocked this system for months was that nothing could call it and it could not express a long-running operation.”
+
+The evidence establishes that missing consumption and async support were necessary blockers for that engine. It does not establish that adapter creation is always cheap, that its twelve existing adapters were sufficient, or that runtime onboarding has no product value.
+
+These can be sequential bottlenecks:
+
+1. Without a consumer and durable execution, adapters are useless.
+2. Once those exist, deployment-bound adapter authoring can become the onboarding bottleneck.
+
+A non-engineer or agent adding an integration at runtime is a real capability, not merely fewer lines of code. But it is capability installation: a spec can exfiltrate data or perform writes. New origins, credentials, or side-effecting operations therefore require versioning, validation, audit, and approval.
+
+Build the durable consumer first. Measure actual onboarding demand before expanding the DSL.
+
+## Concrete declarative tier
+
+A useful spec contains data references and fixed runtime effects, not arbitrary expressions:
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "senseaudio.generate.v1",
+  "serviceOrigins": ["https://api.senseaudio.example"],
+  "operations": {
+    "speech.generate": {
+      "inputSchema": "schema://speech-generate/v1",
+      "outputSchema": "schema://stored-audio/v1",
+      "execution": "inline",
+      "request": {
+        "method": "POST",
+        "path": "/v1/generate",
+        "body": {
+          "text": { "$input": "/text" },
+          "voice": { "$input": "/voice" }
+        },
+        "replay": "unsafe"
+      },
+      "onResponse": [
+        {
+          "when": { "status": 200 },
+          "steps": [
+            {
+              "op": "extractJsonPointer",
+              "pointer": "/data/audio_url",
+              "as": "assetUrl"
+            },
+            {
+              "op": "fetchPublicAsset",
+              "url": { "$ref": "assetUrl" },
+              "policy": {
+                "allowedSchemes": ["https"],
+                "allowedOrigins": ["https://cdn.senseaudio.example"],
+                "maxRedirects": 2,
+                "maxBytes": 52428800,
+                "contentTypes": ["audio/mpeg", "audio/wav"]
+              },
+              "as": "asset"
+            },
+            {
+              "op": "emitStoredAsset",
+              "asset": { "$ref": "asset" }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
+```
+
+`fetchPublicAsset` is implemented once by the platform. It strips authentication, resolves and validates every DNS/redirect hop, rejects private or link-local destinations, caps bytes and time, and writes through the approved asset store. SenseAudio therefore needs no vendor TypeScript despite its second network call.
+
+A provider-native link can use a distinct effect:
+
+```json
+{
+  "op": "fetchServiceLink",
+  "url": { "$header": "location" },
+  "authentication": "same-connection",
+  "allowedOrigins": ["https://api.aihubmix.example"],
+  "maxRedirects": 1,
+  "as": "providerResult"
+}
+```
+
+That effect may reapply authentication only to an origin already bound to the connection. An origin-changing redirect must switch to the unauthenticated public-asset channel. If the intended behavior is to return a redirect rather than dereference it, a bounded `emitRedirect` primitive is sufficient.
+
+This is not an arbitrary fetch DSL. Specs cannot provide headers containing secrets, disable origin policy, import code, or select credentials. They refer only to a pre-authorized `connectionId`.
+
+## Minimum typed escape hatch
+
+Services outside the fixed algebra get a small state-machine adapter. It never receives credentials or unrestricted `fetch`:
+
+```ts
+type ReplayPolicy =
+  | { kind: "safe" }
+  | { kind: "idempotent"; key: string }
+  | { kind: "unsafe" };
+
+type NetworkEffect =
+  | {
+      channel: "service";
+      request: UnsignedHttpRequest;
+      replay: ReplayPolicy;
+    }
+  | {
+      channel: "public_asset";
+      url: URL;
+      maxBytes: number;
+      contentTypes: readonly string[];
+    };
+
+type AdapterEvent =
+  | { kind: "response"; response: SafeHttpResponse }
+  | { kind: "timer" };
+
+type AdapterStep<S, O> =
+  | { kind: "call"; effect: NetworkEffect; resumeState: S }
+  | { kind: "wait"; pollAfterMs: number; resumeState: S }
+  | { kind: "complete"; output: O }
+  | { kind: "failed"; code: string; retryable: boolean }
+  | { kind: "unknown_outcome"; reconciliationState: S };
+
+interface TypedOperationAdapter<I, S, O> {
+  readonly id: string;
+  readonly version: number;
+
+  start(input: I): Promise<AdapterStep<S, O>>;
+
+  advance(
+    state: S,
+    event: AdapterEvent,
+  ): Promise<AdapterStep<S, O>>;
+}
+```
+
+A second fetch is represented by returning another `call` step after parsing the first response. The runtime executes and audits every effect. It can persist between effects for durable operations, or run several bounded transitions inline for a short call.
+
+The same transition runtime can interpret declarative specs and typed adapters. This avoids parallel queue, authentication, timeout, retry, and observability implementations.
+
+## Still-open decisions
+
+### 1. One credential table
+
+Choose one canonical custody table, migrated through per-table legacy resolvers—not nine permanent schemas and not a big-bang decrypt.
+
+Real columns should include scope kind, workspace, optional principal, trust tier, custody kind, auth kind, status, expiry, crypto realm, material version, and sealed material. Connection endpoint and action policy belong in a separate connection record.
+
+Trust tier should be a column, but exposure policy should not be freely mutable row data. For example, an `external-write` tier should derive “no plaintext suffix” from a reviewed policy registry and a database constraint. A row-level `maskedTailAllowed: true` switch is an authorization bypass waiting to happen.
+
+Likewise, canonical records should not have `aadRequired: boolean`. AAD is mandatory. It should bind at least:
+
+```text
+workspace | principal-or-null | credential-id | auth-kind | material-version
+```
+
+The five legacy stores need per-store decrypt-and-reseal migration. `adminExecutionCredentials` should be remediated first, independently of the larger consolidation project.
+
+The strongest case for retaining separate stores is genuine isolation: different database principals, KMS realms, regions, retention rules, or regulatory custody. Nine tables accessed by the same process and encryption key provide much less blast-radius isolation than their count suggests.
+
+### 2. Composio
+
+Extend it and run delegated and direct transports together for the foreseeable future.
+
+- Persist or otherwise make connection initiation resumable across processes.
+- Use Composio where its coverage, custody, and economics are favorable.
+- Retain direct adapters for unsupported services, sovereignty requirements, lower latency, and critical paths where external broker dependency is unacceptable.
+
+Delegated execution is not an `AuthApplier`. It is a transport:
+
+```ts
+interface AuthenticatedTransport {
+  send(
+    actor: ActorContext,
+    connectionId: ConnectionId,
+    request: UnsignedHttpRequest,
+  ): Promise<SafeHttpResponse>;
+}
+```
+
+A direct implementation injects/signs locally. A Composio implementation translates the operation to the broker and returns its response.
+
+### 3. Human latency versus agent durability
+
+Do not force every 200 ms read through a worker and polling UI.
+
+```ts
+type DeliveryPreference =
+  | { kind: "prefer_inline"; waitUpToMs: number }
+  | { kind: "durable" };
+
+type InvocationResult<T> =
+  | { kind: "completed"; output: T }
+  | { kind: "accepted"; operationId: string };
+```
+
+Runtime policy, not caller preference alone, decides:
+
+- Safe, short reads may execute inline without an operation row.
+- Side-effecting calls create an intent/idempotency row before dispatch, but may still complete inline within the UI budget.
+- Long or uncertain calls return `accepted`.
+- An agent may request durability even for otherwise-inline work.
+- A human can wait briefly and receive immediate output; if the budget expires, the same invocation becomes a 202-style operation without resubmission.
+
+### 4. Pagination
+
+Pagination is a third protocol shape, not submit-and-poll.
+
+```ts
+interface Page<T, C> {
+  items: readonly T[];
+  nextCursor: C | null;
+}
+
+interface PaginatedAdapter<I, C, T> {
+  first(input: I): UnsignedHttpRequest;
+  next(cursor: C): UnsignedHttpRequest;
+  parse(response: SafeHttpResponse): Promise<Page<T, C>>;
+}
+```
+
+Each page request reacquires fresh authentication through the connection transport. Interactive callers receive one page and an opaque, tenant-bound cursor. Durable exports persist the cursor and checkpointed sink position as an operation.
+
+Bearer-like cursors must be sealed with operation/workspace AAD. Restart-safe draining also requires sink deduplication or transactional “write page and advance cursor” behavior; merely saving the latest cursor can lose or duplicate items.
+
+## Where other participants are wrong
+
+The Coordinator’s Round 2 Composio composition is incorrectly typed:
+
+> “`kind: "brokered"` is how Composio composes rather than competes: its applier delegates the outbound call to Composio.”
+
+Its `AuthApplier` returns an `OutboundRequest`, not a response. It can rewrite a request but cannot generally perform action-based broker execution and return the provider result. This only works if Composio is a transparent arbitrary-HTTP proxy, which was not established. Direct signers and delegated transports belong behind a higher `send` port.
+
+The same sketch’s `applierFor(vendorId, scope)` is also under-scoped: it cannot safely select among multiple accounts and lacks the connection/action binding that prevents arbitrary credential-plus-target composition.
+
+Gemini 3.7 Flash’s pipeline blindly retries an OAuth submission after any 401 and persists the job only after the provider reports pending. That leaves both classic hazards:
+
+- An unsafe request may be replayed after an ambiguous effect.
+- A crash after provider acceptance but before `persistJob` loses the operation and encourages duplicate submission.
+
+Its migration text also repeats the now-corrected three-store AAD count.
+
+Sonnet’s defense of passing plaintext secrets to adapters because that is the shipped pattern preserves exactly the hazard the new boundary should remove. Existing reviewed behavior is evidence about migration compatibility, not evidence that the boundary is safe enough for agent-authored integrations.
+
+I also disagree with Flash’s categorical statement:
+
+> “The parse step must remain a full programmable function.”
+
+Some parsing must. The SenseAudio-style second fetch need not: it is expressible as a constrained platform effect. The distinction is whether the effect generalizes without vendor-specific semantics.
+
+## Ranked slate
+
+Ranking criteria are security and authorization first, execution correctness second, debuggability third, runtime onboarding fourth, and implementation cost fifth.
+
+| Rank | Option | Trade-off |
+|---|---|---|
+| 1 | Fixed declarative algebra + typed fallback, sharing one broker/transport and durable runtime | Best balance of runtime onboarding and honest escape hatches. Requires strict governance to stop DSL erosion. |
+| 2 | Typed adapters only, sharing the same broker and durable runtime | Simplest to debug and fastest path to repair the current system. Every new provider still requires development and deployment. |
+| 3 | Composio-first with direct typed fallbacks | Broad coverage and reduced credential custody, but adds latency, cost, coverage gaps, vendor dependency, and weaker control of failure semantics. |
+| 4 | Universal declarative DSL with no vendor code ever | Maximum theoretical runtime extensibility. In practice it either rejects novel services or becomes an untyped programming language and security boundary. |
+
+Recommendation: option 1, but delivered in this order:
+
+1. Reseal `adminExecutionCredentials` with principal-bound AAD.
+2. Wire the real async video path through a durable consumer.
+3. Add a deliberately small declarative tier only after the runtime is proven.
+4. Keep typed adapters first-class and socially acceptable.
+
+The cheapest de-risking test is to freeze a version-zero operation vocabulary, then encode ten realistic upcoming integrations from recorded fixtures, including:
+
+- an OpenAI-compatible request;
+- SenseAudio’s asset fetch;
+- the AIHubMix redirect behavior;
+- an OAuth paginated read;
+- an asynchronous video operation.
+
+Do not add interpreter primitives during classification. Implement contract tests for the two second-call cases. Proceed if at least eight of ten fit without arbitrary expressions or vendor-named primitives. Below that, retain typed adapters only.
+
+## What would move me
+
+I would move toward configuration-only if “external service” were explicitly restricted to a closed family such as HTTPS/JSON APIs and a frozen algebra covered at least 90% of the next twenty integrations without arbitrary scripting or weakening egress policy.
+
+I would abandon the declarative tier if fewer than eight of the next ten integrations fit, if onboarding frequency is low, or if incident diagnosis is materially slower than with typed adapters.
+
+I would retain physically separate credential stores if the separation corresponds to different database principals, KMS accounts, regions, retention regimes, or independently enforced regulatory boundaries.
+
+I would move toward Composio-only if measured coverage, tail latency, outage behavior, cost, data residency, auditability, and export/exit guarantees matched direct execution for the platform’s critical integrations.
+
+## Packet critique
+
+1. The cross-principal transplant finding is serious, but no-AAD alone does not prove an exploitable application path. The packet should state whether rows share encryption keys and what actor can replace ciphertext while retaining row metadata. It establishes missing cryptographic binding; exploitability still has preconditions.
+
+2. “Most REST vendors reduce to…” has no denominator. Multipart uploads, pagination, streaming, webhooks, rate-limit negotiation, signed requests, idempotency reconciliation, schema discovery, and asynchronous exports can dominate integration effort despite all using REST.
+
+3. The unused-adapter history does not prove adapter cost was “never” a bottleneck. It proves missing consumption and async support blocked that particular subsystem.
+
+4. “Configuration or data” is undefined. A stored JavaScript expression or WASM module technically looks like data but is executable integration code. The packet needs a non-Turing-complete criterion.
+
+5. Runtime installation by an agent is presented mainly as an advantage. It is also installation of outbound authority and a potential data-exfiltration path. Approval, provenance, origin review, action classification, and rollback should have been explicit constraints.
+
+6. The Composio correction is narrower than the conclusion drawn from it. Distributed usage may be safe while onboarding remains operationally fragile; the packet supplies no latency, availability, coverage, custody, or broker API semantics with which to rank it conclusively.
+
+7. The documented parser comment disproves the old path-only parser, not every possible declarative effect system. Conversely, one generic asset-fetch primitive does not prove the rest of the vendor universe is declarative.
+
+8. The packet demands factual error detection while forbidding verification and does not reproduce the relevant call sites. The five-store count and transplant claim must therefore be treated as stipulated evidence, not independently demonstrated evidence.
+
+9. The forced requirement that declarative proponents solve the known second-fetch case is useful, but still anchors the design around one known exception. The harder test is whether the primitive vocabulary remains stable across the next representative integration cohort.
+
+The sharp conclusion is: eliminate routine adapter code where a closed effect algebra genuinely fits; never eliminate the typed escape hatch. Fixing durability and connecting the engine is the first product task, while principal-bound AAD is the first security task.

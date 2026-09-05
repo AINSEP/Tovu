@@ -1,0 +1,215 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R2B -- I received the packet and will work on it.
+
+## A. The Design
+
+### 1. Problem Framing
+The core problem is not building a single god-interface to talk to the internet, but rather successfully decoupling **Authorization State** (who we are) from **Integration Execution** (what we are doing and how long it takes). 
+
+Currently, the system conflates these concerns, leading to brittle synchronous calls, fragmented credential stores, and scattered AAD encryption standards. A unified architecture must treat an outbound service call as an asynchronous, stateful job (the **Execution Engine**) that borrows a transiently valid identity from a secure, unified vault (the **Credential Broker**) precisely at the moment of network dispatch. 
+
+### 2. The Credential Model
+- **Auth Variants:** The system supports `Bearer`, `Basic`, `OAuth2` (auth code/device code with refresh), `HMAC/Custom Signature`, and `None`. 
+- **Scoping & Storage:** All credentials are moved to a single 10th table (`unified_credentials`), scoped by `workspace_id`. We rely on SQLite `text` columns to store JSON configurations, but heavily type them in code. 
+- **The Decryption Precedent:** Adhering strictly to the `vendor-credentials/dual-read.ts` precedent, we do **not** build a universal decryptor. The Broker implements a Strategy pattern where each legacy table has a dedicated, read-only resolver that verifies its specific AAD. 
+- **Mid-Call Expiry:** Handled exclusively by the Composition layer. If the execution engine receives a `401 Unauthorized`, it pauses the job, requests the Broker to force a token refresh (utilizing the cross-process lease logic ported from the MCP module to prevent thundering herds), and queues a single retry of the network call.
+- **Migration Path:** 
+  1. Stand up `unified_credentials`.
+  2. Broker reads from `unified_credentials` first.
+  3. On miss, Broker queries legacy resolvers concurrently.
+  4. On legacy hit, Broker decrypts via the legacy path, re-encrypts using the new AAD standard (workspace-scoped), writes to `unified_credentials`, and returns. Legacy tables are drained asynchronously or dynamically on read.
+
+### 3. The Call-Shape Model
+We abandon the 10-minute blocking `fetch`. Every vendor interaction is modeled as an asynchronous **State Machine (Job)**.
+- **Sync vs. Long-Running:** There is no structural difference. A synchronous call is simply an async job that returns `done` on its first state transition.
+- **State Storage:** A `vendor_jobs` table stores the request intent. Because SQLite lacks a native JSON builder and coerces `JSONB`, we store `poll_state_json` as a raw `TEXT` blob. The database engine never queries inside this blob; it only routes the job back to the Adapter.
+- **Crash/Restart Mid-Poll:** The job row has `status = 'polling'` and an indexed `next_attempt_at`. If the process crashes, the row remains. A lightweight cron/worker continuously selects jobs where `next_attempt_at <= NOW()` and resumes them.
+- **Bounding Infinite Jobs:** Every job requires a hard `timeout_at` (e.g., 24 hours). A reaper process sweeps jobs where `timeout_at <= NOW()` and force-transitions them to `failed`, preventing orphaned zombie jobs.
+
+### 4. Composition
+The halves compose via an **Interceptor/Delegation** pattern. The caller (UI/Agent) creates a Job and walks away. The Execution Engine picks up the Job, instantiates the Adapter, and asks it to build a `Request`. The Engine then passes this `Request` to the Credential Broker. The Broker *mutates* the request (injecting headers/signatures) but never hands the raw secret to the Engine or Adapter. The Engine performs the HTTP fetch, catches 401s for refresh, and hands the raw HTTP response back to the Adapter to parse into the next state (`done` or `polling`).
+
+---
+
+## B. The Implementation
+
+```typescript
+// 1. The Credential Record Type
+type AuthVariant = 
+  | { type: 'none' }
+  | { type: 'bearer', token: string }
+  | { type: 'basic', username: string, password?: string }
+  | { type: 'oauth2', accessToken: string, refreshToken?: string, expiresAtMs?: number }
+  | { type: 'hmac', key: string, secret: string }; // For AWS/Custom sigs
+
+interface UnifiedCredentialRow {
+  id: string;
+  workspace_id: string;
+  provider_id: string; // e.g., 'github', 'openai'
+  auth_type: string;
+  config_json_ciphertext: string; // Encrypted AuthVariant
+  created_at: number;
+}
+
+// 2. The Resolver/Broker Interface
+// The caller NEVER obtains raw secret material. They get an Authenticator capable of signing requests.
+export interface AuthenticatedRequestSigner {
+  // Mutates the fetch Request (adds Authorization header, signs URL, etc.)
+  // Returns true if signed, false if no auth needed.
+  signRequest(req: Request): Promise<Request>;
+}
+
+export interface CredentialBroker {
+  // Retrieves the credential and returns a signer. Migrates legacy rows transparently.
+  getCredentialSigner(workspaceId: string, providerId: string): Promise<AuthenticatedRequestSigner>;
+  
+  // Explicitly called by the engine on 401. Uses cross-process compare-and-set to refresh.
+  forceRefresh(workspaceId: string, providerId: string): Promise<AuthenticatedRequestSigner>;
+}
+
+// 3. The Adapter Interface (handles sync and async)
+export type AdapterResponse<T> = 
+  | { status: 'done', data: T }
+  | { status: 'polling', pollState: unknown, pollAfterMs: number }
+  | { status: 'failed', error: Error };
+
+export interface VendorAdapter<TInput, TOutput> {
+  requireCredential: boolean;
+  
+  // Step 1: Initial submission
+  buildSubmit(input: TInput): Request;
+  parseSubmitResponse(resp: Response): Promise<AdapterResponse<TOutput>>;
+  
+  // Step 2: Continuation (if parseSubmitResponse returned 'polling')
+  buildPoll(pollState: unknown): Request;
+  parsePollResponse(resp: Response): Promise<AdapterResponse<TOutput>>;
+}
+
+// 4. The Persisted Job Row (SQLite optimized)
+interface VendorJobRow {
+  id: string;
+  workspace_id: string;
+  provider_id: string;
+  status: 'pending' | 'polling' | 'done' | 'failed';
+  
+  // INDEXED COLUMNS for the worker sweep
+  next_attempt_at: number; 
+  timeout_at: number; // Bounds jobs that never terminate
+  
+  // OPAQUE TEXT BLOBS (SQLite text columns)
+  input_json: string;      
+  poll_state_json: string | null; 
+  result_json: string | null; 
+  error_json: string | null;
+}
+
+// 5. The Composition Function
+export async function executeVendorStep(
+  job: VendorJobRow, 
+  adapter: VendorAdapter<any, any>, 
+  broker: CredentialBroker
+): Promise<void> {
+  try {
+    let req = job.status === 'pending' 
+      ? adapter.buildSubmit(JSON.parse(job.input_json))
+      : adapter.buildPoll(JSON.parse(job.poll_state_json!));
+
+    if (adapter.requireCredential) {
+      const signer = await broker.getCredentialSigner(job.workspace_id, job.provider_id);
+      req = await signer.signRequest(req);
+    }
+
+    let response = await fetch(req);
+
+    // Mid-call expiry intercept
+    if (response.status === 401 && adapter.requireCredential) {
+      const newSigner = await broker.forceRefresh(job.workspace_id, job.provider_id);
+      // Re-build request to avoid consuming body stream twice on failure
+      req = job.status === 'pending' 
+        ? adapter.buildSubmit(JSON.parse(job.input_json))
+        : adapter.buildPoll(JSON.parse(job.poll_state_json!));
+      req = await newSigner.signRequest(req);
+      response = await fetch(req);
+    }
+
+    const adapterResult = job.status === 'pending'
+      ? await adapter.parseSubmitResponse(response)
+      : await adapter.parsePollResponse(response);
+
+    // Update job row based on outcome
+    if (adapterResult.status === 'done') {
+      await updateJobRow(job.id, { status: 'done', result_json: JSON.stringify(adapterResult.data) });
+    } else if (adapterResult.status === 'polling') {
+      await updateJobRow(job.id, { 
+        status: 'polling', 
+        poll_state_json: JSON.stringify(adapterResult.pollState),
+        next_attempt_at: Date.now() + adapterResult.pollAfterMs 
+      });
+    } else {
+      await updateJobRow(job.id, { status: 'failed', error_json: JSON.stringify(adapterResult.error) });
+    }
+
+  } catch (err) {
+    await updateJobRow(job.id, { status: 'failed', error_json: JSON.stringify(err) });
+  }
+}
+```
+
+---
+
+## C. The Reasoning Trace
+
+- **Adapter interface separated into `Submit` and `Poll`:** 
+  *Alternative discarded:* A single recursive `execute(state)` function.
+  *Why:* State machines are easier to debug and persist. A single function hides whether we are initiating a job (POST) or checking it (GET). By explicitly separating them, we allow `pending` and `polling` database states to cleanly map to request builders without complex branching inside the adapter.
+- **Broker returns an `AuthenticatedRequestSigner` instead of the secret:**
+  *Alternative discarded:* Returning the decrypted string for the adapter to embed.
+  *Why:* The packet strictly prohibits leaking secrets. If adapters hold raw strings, they can easily log them or append them to error objects. By forcing a `signRequest(req)` pattern, the credential never exists in the engine's memory space as a raw usable string, preventing accidental leakage.
+- **Storing JSON as `TEXT` instead of attempting structural storage:**
+  *Constraint forced:* The SQLite constraint explicitly states there is no `jsonb` builder and `JSONB` coerces to NUMERIC. 
+  *Why:* To avoid database corruption or impossible queries, we fully treat the payload and state as opaque `TEXT` blobs. We extract *only* `next_attempt_at`, `status`, and `timeout_at` into real indexed columns to support the polling worker.
+- **Porting cross-process lease from MCP:**
+  *Inferred:* I am assuming the MCP OAuth lease logic is modular enough to be repurposed for the `unified_credentials` table, even though it is currently isolated. If it is hardcoded to MCP data structures, I would have to rewrite the compare-and-set logic.
+- **Most likely wrong decision:**
+  The `AuthenticatedRequestSigner` assumes all authentication can be applied to a `Request` object (via Headers or URL params). If a vendor requires the API key *inside a deeply nested JSON body payload* (which happens in poorly designed legacy APIs), this model fails, because the `Request` body is already serialized by the time `signRequest` is called.
+
+---
+
+## D. Adversarial Requirements
+
+### 1. Strongest argument against this design
+**Argument:** Building a unified Execution Engine and Credential Broker is a massive waste of engineering resources. We already have **Composio** integrated, which solves exactly this problem (auth brokering and unified API shapes). Furthermore, we already have **MCP federation** running. By building a *third* integration framework, we are violating the "no bespoke subsystems" constraint on a macro level. We should instead contribute extensions to our existing MCP/Composio layers. 
+**Evidence to change my mind:** If profiling shows Composio's latency is unacceptable for core UI interactions, or if Composio cannot support arbitrary custom vendors without merging upstream PRs, then an in-house engine is justified.
+
+### 2. Failure Modes
+- **Production Failure (The Thundering Herd):** If an OAuth token expires, and 50 asynchronous agent jobs wake up simultaneously and attempt a `forceRefresh`, and the cross-process SQLite lease has lock contention or subtle transaction isolation bugs, we will send 50 refresh requests to the vendor. The vendor will revoke the token for abuse, severing the tenant's connection completely requiring manual human intervention.
+- **Maintenance Failure:** If we miss migrating even one obscure AAD logic path from the 9 legacy tables, those specific credentials will silently drop during the dual-read phase, causing localized downtime that might not alert globally.
+
+### 3. Ranked Slate of Options
+**Option A: The Proposed Architecture (Unified Job Engine + Broker)**
+- *Trade-offs:* High upfront cost to build the state machine and dual-read broker. High payoff in operational stability (no dropped 10-min connections).
+- *Recommendation:* **#1**. It directly answers the prompt's constraints and respects SQLite's limitations.
+
+**Option B: Polling via MCP Server Abstraction**
+- *Trade-offs:* Wraps all external services as local MCP servers. Leverages existing OAuth and federation. *However*, MCP is traditionally synchronous/RPC-based. Shoehorning asynchronous polling into the current MCP protocol might break clients.
+- *Recommendation:* **#2**. Excellent for auth reuse, terrible for the long-running video generation use case.
+
+**Option C: Extend the Current Dispatch Engine with Timeouts**
+- *Trade-offs:* Keeps the blocking `fetch`, but relies heavily on Node.js async limits. No database job persistence.
+- *Recommendation:* **#3 (Discard)**. This fundamentally fails the crash-recovery requirement and does not fix the 10-minute video drop bug.
+
+**Cheapest De-risking Test:**
+Before migrating anything, write a generic wrapper around the *existing* 10-minute video generation endpoint using the proposed Job table and Adapter interface. Run it in shadow mode. If the worker successfully resumes a video check after a simulated process SIGKILL, the execution model is proven.
+
+### 4. What to build first
+Build the **Credential Broker facade and Table 10** without touching the execution engine. Route the existing synchronous dispatch engine's `requireCredential` call through the new Broker. 
+*Observable Killing Result:* If the dual-read logic fails to decrypt legacy `adminExecutionCredentials` (because they use two keys `workspaceId, principalId` and we only passed `workspaceId`), the design is killed and requires an immediate revert, proving our scoping model is too simplistic for the legacy data.
+
+---
+
+## E. Packet Critique
+
+1. **Misleading Pre-supposition (The Problem Divide):** The prompt states: *"Two things must be solved... and they are not the same problem."* This heavily leads the witness into designing a two-layered architecture (Broker + Dispatcher). In reality, for protocols like OAuth2, token refresh often requires an immediate network retry, inextricably linking the credential state to the network execution loop.
+2. **Missing Constraint (Pagination vs. Polling):** The verified state details a polling loop for long-running jobs (video generation), but completely omits **pagination**. A design that solves for a single long-running job state machine does not naturally solve for a synchronous stream of paginated data (which also requires multiple HTTP fetches and potential mid-stream auth expiry). 
+3. **Contradictory Claim on `adminExecutionCredentials`:** The packet claims `adminExecutionCredentials` are scoped by `(workspaceId, principalId)` (two keys) but explicitly states **No AAD**. If there is no AAD, how are they safely validating the `principalId` boundary during decryption? Either the current encryption is critically vulnerable to ciphertext swapping across principals, or the packet is missing a detail about how the key derivation function incorporates the principal.
+4. **Missing Detail on Composio OAuth:** The packet claims Composio is "single-process-only today" because of an "in-process pending-connection map." This is a constraint of *connection initiation* (the OAuth dance), not *credential usage*. The prompt implies we can't use Composio for distributed workers, but workers only need to *use* the token, not initiate the OAuth handshake. This subtly pushes the participant away from relying on Composio.
+5. **Human vs Agent Latency:** The constraint "Operable by both a human-driven UI and an AI agent" masks a massive UX conflict. An async Job/Polling model is great for an AI agent, but terrible for a UI that expects a synchronous HTTP POST to return immediate JSON. If the design forces the UI to establish a WebSocket or poll the `vendor_jobs` table for a 200ms task, it degrades the human experience. The packet completely ignores this impedance mismatch.

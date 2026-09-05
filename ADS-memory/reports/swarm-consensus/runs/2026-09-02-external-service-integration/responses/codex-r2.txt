@@ -1,0 +1,988 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R2B -- I received the packet and will work on it.
+
+Codex(Peer):
+
+## 1. Problem framing
+
+The problem is not two concerns but three:
+
+1. **Credential custody** — acquiring, encrypting, refreshing, rotating, revoking, and authorizing use of credentials.
+2. **Service protocol/workflow** — constructing requests, parsing responses, and handling synchronous, asynchronous, streaming, or callback-based lifecycles.
+3. **Controlled composition** — deciding which tenant actor may combine which credential with which adapter, action, endpoint, and side effect.
+
+The first two are separable. They should meet only inside a trusted outbound broker. Authentication such as HMAC or SigV4 depends on the final request shape, but that does not require exposing its secret to the adapter: the adapter builds an unsigned request, and the broker signs it.
+
+I would unify the **control contract and execution boundary**, not pretend every external API has one declarative protocol. New providers speaking a known dialect can be configuration-only. A genuinely new protocol or lifecycle needs an adapter, but not a new credential store, queue, OAuth implementation, logging policy, or polling subsystem.
+
+“Any external service” cannot literally mean any protocol. The initial boundary should be HTTPS request/response plus delegated transports such as Composio and MCP. SFTP, SMTP, gRPC, WebSockets, and hardware-backed credentials would require additional transport drivers behind the same execution port.
+
+## 2. Recommended architecture
+
+```text
+Human UI / AI agent
+        |
+        | connectionId + action + typed input
+        v
+ExternalServicePort
+        |
+        +-- connection policy: tenant, principal, capabilities, endpoint
+        |
+        +-- sync adapter -----------------------------+
+        |                                            |
+        +-- durable operation + long-running adapter |
+                                                     v
+                                      OutboundCredentialBroker
+                                       - tenant authorization
+                                       - target/SSRF enforcement
+                                       - OAuth refresh
+                                       - header injection/signing
+                                       - deadlines and replay policy
+                                                     |
+                                  HTTPS / MCP / delegated connector
+```
+
+An `ExternalConnection` is the composition root. It binds:
+
+- a workspace and optional owning principal;
+- an adapter and pinned adapter version;
+- service endpoint/configuration;
+- an opaque credential ID;
+- allowed actions and approval policy.
+
+Neither agents nor application consumers select an arbitrary credential-plus-URL pair.
+
+## 3. Credential model
+
+### Concrete record types
+
+```ts
+type WorkspaceId = string & { readonly __workspaceId: unique symbol };
+type PrincipalId = string & { readonly __principalId: unique symbol };
+type CredentialId = string & { readonly __credentialId: unique symbol };
+type ConnectionId = string & { readonly __connectionId: unique symbol };
+
+type EpochMs = number;
+
+/**
+ * Persisted encrypted envelope. StoredCredentialRecord never crosses the
+ * credential repository/broker boundary.
+ */
+type Sealed<T> = Readonly<{
+  format: "aes-256-gcm-envelope-v1";
+  kmsKeyId: string;
+  nonce: Uint8Array;
+  ciphertextAndTag: Uint8Array;
+  aadVersion: 1;
+  readonly __plaintextType?: T;
+}>;
+
+type CredentialScope =
+  | {
+      visibility: "workspace_shared";
+      workspaceId: WorkspaceId;
+      principalId: null;
+    }
+  | {
+      visibility: "principal_private";
+      workspaceId: WorkspaceId;
+      principalId: PrincipalId;
+    };
+
+type OAuthMaterial = {
+  accessToken: string;
+  refreshToken?: string;
+  clientSecret?: string;
+};
+
+type SigningMaterial =
+  | { format: "shared_secret"; secret: string }
+  | {
+      format: "access_secret_session";
+      accessKeyId: string;
+      secretAccessKey: string;
+      sessionToken?: string;
+    }
+  | {
+      format: "private_key";
+      privateKeyPem: string;
+      passphrase?: string;
+    };
+
+type StoredAuth =
+  | {
+      kind: "none";
+    }
+  | {
+      kind: "bearer";
+      material: Sealed<{ token: string }>;
+    }
+  | {
+      kind: "basic";
+      material: Sealed<{ username: string; passwordOrToken: string }>;
+    }
+  | {
+      kind: "api_key_header";
+      headerName: string;       // validated trusted configuration
+      prefix?: string;          // e.g. "Api-Key "
+      material: Sealed<{ value: string }>;
+    }
+  | {
+      kind: "oauth2";
+      profileId: string;        // trusted endpoints/client configuration
+      grant:
+        | "authorization_code"
+        | "device_code"
+        | "client_credentials";
+      scopes: readonly string[];
+      tokenType: "Bearer";
+      material: Sealed<OAuthMaterial>;
+    }
+  | {
+      kind: "request_signing";
+      /**
+       * Registered trusted implementation, e.g. hmac-sha256-v1,
+       * aws-sigv4-v1, oauth1-v1, or jwt-client-assertion-v1.
+       * It is not user-supplied executable code.
+       */
+      signerId: string;
+      keyIdHint?: string;
+      material: Sealed<SigningMaterial>;
+    }
+  | {
+      kind: "mutual_tls";
+      material: Sealed<{
+        certificatePem: string;
+        privateKeyPem: string;
+        passphrase?: string;
+        caBundlePem?: string;
+      }>;
+    }
+  | {
+      /**
+       * Composio-like custody: the product holds only an opaque connection
+       * handle and the external broker performs the authenticated call.
+       */
+      kind: "delegated_connection";
+      brokerId: string;
+      material: Sealed<{ externalConnectionHandle: string }>;
+    };
+
+type CredentialStatus =
+  | "active"
+  | "disabled"
+  | "reauthorization_required"
+  | "revoked";
+
+interface StoredCredentialRecord {
+  id: CredentialId;
+  scope: CredentialScope;
+  serviceProfileId: string;
+  label: string;
+  auth: StoredAuth;
+  status: CredentialStatus;
+
+  materialVersion: number;
+
+  /**
+   * Real SQL column, not buried in JSON, because refresh scheduling and
+   * compare-and-set updates need it.
+   */
+  tokenExpiresAt: EpochMs | null;
+
+  refreshLeaseOwner: string | null;
+  refreshLeaseExpiresAt: EpochMs | null;
+
+  createdAt: EpochMs;
+  updatedAt: EpochMs;
+}
+```
+
+The physical table should use real columns for identity, scope, kind, status, version, expiry, and refresh lease fields. Non-secret variant configuration can be `auth_config_json TEXT`; encrypted material should be `BLOB` or an opaque ciphertext text encoding.
+
+AAD should be deterministically derived from immutable identity and scope, for example:
+
+```ts
+function credentialAad(c: {
+  id: CredentialId;
+  scope: CredentialScope;
+  serviceProfileId: string;
+  authKind: StoredAuth["kind"];
+}): Uint8Array {
+  const principal =
+    c.scope.visibility === "principal_private"
+      ? c.scope.principalId
+      : "-";
+
+  return new TextEncoder().encode([
+    "external-credential",
+    "aad-v1",
+    c.scope.workspaceId,
+    c.id,
+    c.scope.visibility,
+    principal,
+    c.serviceProfileId,
+    c.authKind,
+  ].join("|"));
+}
+```
+
+Changing scope or service identity should create or re-encrypt a record, never silently update an AAD-bound field.
+
+I would not retain plaintext `masked` fragments. The UI can identify credentials by user-selected labels, creation time, provider account metadata, and last-success time. A masked suffix is not needed for execution and may leak useful account information.
+
+### Scoping and authorization
+
+Workspace membership is necessary but insufficient:
+
+- `principal_private` credentials require the calling principal to match.
+- `workspace_shared` credentials require a named `credential.use` permission.
+- The connection further restricts allowed actions.
+- An AI agent receives a short-lived delegation bounded to workspace, connection, actions, cost/approval policy, and originating human principal.
+- Credential IDs are opaque references, not capabilities by themselves.
+- Environment or deployment restrictions belong on the connection/policy binding, not inside secret material.
+
+### Expiry, refresh, and mid-call expiry
+
+The existing proactive refresh and cross-process lease algorithm should be extracted and reused, not independently reimplemented. MCP and direct service calls then become two real consumers of the same refresh contract.
+
+Before a call, the broker refreshes when:
+
+```text
+expiresAt <= now + expectedCallDuration + configuredClockSkew
+```
+
+For an authentication failure after sending:
+
+- A safe GET/poll may force-refresh and retry once.
+- A request with a provider-supported idempotency key may retry once using the same key.
+- An unsafe submission is not replayed. It becomes `unknown_outcome` unless the adapter can reconcile by idempotency key or provider operation lookup.
+- `invalid_grant` or equivalent marks the credential `reauthorization_required`.
+- Diagnostics expose the scheme and status, never tokens, signed headers, or raw provider error content.
+
+“Exactly one refresher” depends on lease duration, fencing, database semantics, and clock behavior. The extracted implementation needs failure-injection tests for a process dying during refresh and for refresh taking longer than the lease.
+
+### Caller-held interfaces
+
+The application caller holds this:
+
+```ts
+type Json =
+  | null | boolean | number | string
+  | Json[]
+  | { [key: string]: Json };
+
+interface ActorContext {
+  workspaceId: WorkspaceId;
+  principalId: PrincipalId;
+  delegatedAgentId?: string;
+  permissions: ReadonlySet<string>;
+  correlationId: string;
+}
+
+type InvocationResult =
+  | { kind: "completed"; output: Json }
+  | { kind: "accepted"; operationId: string };
+
+export interface ExternalServicePort {
+  invoke(
+    actor: ActorContext,
+    request: {
+      connectionId: ConnectionId;
+      action: string;
+      input: Json;
+      idempotencyKey: string;
+    },
+  ): Promise<InvocationResult>;
+}
+```
+
+Adapters hold only this narrower broker:
+
+```ts
+type ReplayPolicy =
+  | { kind: "safe" }
+  | { kind: "idempotent"; key: string }
+  | { kind: "unsafe" };
+
+interface UnsignedHttpRequest {
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  url: URL;
+  headers: Readonly<Record<string, string>>;
+  body?: Uint8Array;
+  timeoutMs: number;
+  requiredCredentialValidityMs: number;
+  replay: ReplayPolicy;
+}
+
+interface InternalHttpResponse {
+  status: number;
+  /**
+   * Only explicitly allowed response headers, such as content-type and
+   * retry-after. Never set-cookie, authorization, or raw redirect secrets.
+   */
+  headers: Readonly<Record<string, string>>;
+  body: Uint8Array;
+}
+
+export interface OutboundCredentialBroker {
+  send(
+    actor: ActorContext,
+    binding: {
+      connectionId: ConnectionId;
+      operationId?: string;
+      adapterId: string;
+      adapterVersion: number;
+    },
+    request: UnsignedHttpRequest,
+  ): Promise<InternalHttpResponse>;
+}
+```
+
+There is deliberately no `resolveSecret`, `getToken`, or `getHeaders` method. Raw material is available only inside a private vault callback in the broker module. JavaScript cannot guarantee immediate memory zeroization, so process isolation may eventually be warranted; the public contract at least prevents routine secret propagation.
+
+## 4. Call-shape and long-running operations
+
+### Connections and adapter compatibility
+
+```ts
+interface ExternalConnection {
+  id: ConnectionId;
+  workspaceId: WorkspaceId;
+  ownerPrincipalId: PrincipalId | null;
+
+  serviceProfileId: string;
+  adapterId: string;
+  adapterVersion: number;
+  credentialId: CredentialId | null;
+
+  allowedActions: readonly string[];
+
+  /**
+   * Serialized as TEXT. Contains base URL, region, model defaults, etc.,
+   * but never credentials.
+   */
+  endpointConfigJson: string;
+
+  status: "active" | "disabled";
+}
+```
+
+An adapter manifest declares:
+
+- compatible auth kinds;
+- allowed service origins or rules for custom origins;
+- actions and input/output schemas;
+- synchronous or durable execution;
+- idempotency and side-effect behavior;
+- hard request and operation bounds.
+
+Known dialects can share one adapter with per-connection configuration. Unrelated semantics remain reviewed code adapters rather than a universal user-programmable HTTP template.
+
+### Long-running adapter contract
+
+```ts
+type Sensitive<T> = T & { readonly __sensitive: unique symbol };
+
+type StepResult<C extends Json, O extends Json> =
+  | {
+      /**
+       * The remote operation exists but is not finished.
+       */
+      kind: "pending";
+      continuation: C;
+      sensitiveContinuation?: Sensitive<Json>;
+      pollAfterMs: number;
+      providerStatus?: string;
+      progress?: Json;
+    }
+  | {
+      kind: "succeeded";
+      output: O;
+    }
+  | {
+      /**
+       * The remote operation may still be pending, but this particular
+       * observation failed and can be retried under job bounds.
+       */
+      kind: "retry";
+      retryAfterMs: number;
+      errorCode: string;
+    }
+  | {
+      kind: "failed";
+      errorCode: string;
+      safeDetail?: Json;
+    };
+
+interface AdapterCallContext {
+  readonly actor: ActorContext;
+  readonly connectionId: ConnectionId;
+  readonly operationId: string;
+  readonly idempotencyKey: string;
+  readonly now: () => EpochMs;
+
+  /**
+   * Authentication is attached by OutboundCredentialBroker.
+   */
+  serviceHttp(request: UnsignedHttpRequest): Promise<InternalHttpResponse>;
+
+  /**
+   * Separate no-credential, SSRF-guarded path for public asset downloads.
+   * This prevents accidentally sending service credentials to an asset host.
+   */
+  publicAssetHttp(request: UnsignedHttpRequest): Promise<InternalHttpResponse>;
+}
+
+export interface LongRunningServiceAdapter<
+  I extends Json,
+  C extends Json,
+  O extends Json,
+> {
+  readonly adapterId: string;
+  readonly adapterVersion: number;
+  readonly action: string;
+
+  submit(input: I, ctx: AdapterCallContext): Promise<StepResult<C, O>>;
+
+  continue(
+    state: {
+      continuation: C;
+      sensitiveContinuation?: Sensitive<Json>;
+    },
+    ctx: AdapterCallContext,
+  ): Promise<StepResult<C, O>>;
+
+  /**
+   * Optional reconciliation after a submit response was lost. Implement only
+   * when the provider offers lookup by stable idempotency key or client token.
+   */
+  reconcile?(
+    idempotencyKey: string,
+    ctx: AdapterCallContext,
+  ): Promise<StepResult<C, O> | { kind: "not_found" }>;
+
+  cancel?(
+    state: { continuation: C; sensitiveContinuation?: Sensitive<Json> },
+    ctx: AdapterCallContext,
+  ): Promise<void>;
+}
+```
+
+`pending` is the explicit “not done yet” result. `retry` is different: it means the observation failed, not that the provider reported pending.
+
+The context also permits a second network call during parsing/finalization, but that call still passes through a bounded broker. An adapter cannot directly import unrestricted `fetch`.
+
+### Persisted operation row
+
+```ts
+type OperationStatus =
+  | "queued"
+  | "running"
+  | "waiting"
+  | "succeeded"
+  | "failed"
+  | "timed_out"
+  | "cancelled"
+  | "unknown_outcome"
+  | "dead_lettered";
+
+interface ExternalOperationRow {
+  // Real relational columns:
+  id: string;
+  workspaceId: WorkspaceId;
+  principalId: PrincipalId;
+  connectionId: ConnectionId;
+  credentialId: CredentialId | null;
+
+  adapterId: string;
+  adapterVersion: number;
+  action: string;
+
+  status: OperationStatus;
+  phase: "not_submitted" | "submitted" | "finalizing";
+
+  idempotencyKey: string;
+  remoteOperationId: string | null; // only when explicitly non-secret
+
+  submissionAttempts: number;
+  maxSubmissionAttempts: number;
+  pollAttempts: number;
+  maxPollAttempts: number;
+
+  nextAttemptAt: EpochMs | null;
+  deadlineAt: EpochMs;
+  lastProgressAt: EpochMs | null;
+
+  leaseOwner: string | null;
+  leaseExpiresAt: EpochMs | null;
+  rowVersion: number;
+
+  createdAt: EpochMs;
+  updatedAt: EpochMs;
+  completedAt: EpochMs | null;
+
+  lastErrorCode: string | null;
+
+  // TEXT JSON; never queried ad hoc for scheduling:
+  inputJson: string;
+  continuationJson: string | null;
+  progressJson: string | null;
+  outputJson: string | null;
+  lastErrorJson: string | null;
+
+  /**
+   * BLOB and AAD-bound to workspaceId + operationId. Used when the provider's
+   * continuation token or remote identifier acts as a bearer credential.
+   */
+  continuationSecretEnvelope: Uint8Array | null;
+}
+```
+
+Indexes:
+
+```ts
+const operationIndexes = [
+  "UNIQUE(workspace_id, idempotency_key)",
+  "INDEX(status, next_attempt_at)",
+  "INDEX(workspace_id, created_at)",
+  "INDEX(workspace_id, status, updated_at)",
+  "INDEX(lease_expires_at)",
+] as const;
+```
+
+Scheduling, tenancy, lifecycle, leases, adapter version, deadlines, and retry limits are real columns. Provider-specific state is serialized as `TEXT`, matching the multi-dialect constraint. Any JSON property that later becomes operationally queryable must graduate to a named column through a migration.
+
+A job is bounded independently by:
+
+- `deadlineAt`;
+- `maxSubmissionAttempts`;
+- `maxPollAttempts`;
+- per-call timeout;
+- clamped minimum/maximum poll interval;
+- optional no-progress policy derived from `lastProgressAt`.
+
+Exhausting a bound produces a terminal state and an alertable structured event. It does not silently remain in the due-work index.
+
+### Restart and duplicate-effect behavior
+
+The worker claims a due row with a compare-and-set lease. After restart, an expired lease makes the row claimable again.
+
+The operation row is created before submission. Each state transition is persisted transactionally. Nevertheless, a process can die after the provider accepts a submission and before local state is written. Therefore:
+
+- Providers with idempotency support always receive the operation’s stable key.
+- Providers with reconciliation APIs can recover by that key.
+- Providers with neither are marked `unknown_outcome`; they are not automatically resubmitted.
+- Polling requests must be replay-safe or explicitly idempotent.
+- Adapter versions remain installed until no persisted operation references them.
+
+A webhook can wake the same persisted operation early, but polling remains the recovery path. Webhook signature verification is an inbound-auth concern and needs its own contract.
+
+### Synchronous versus asynchronous
+
+A synchronous adapter may execute inline only under a short enforced request deadline. A service expected to exceed the interactive request lifetime must use the durable contract, even if its vendor currently offers a ten-minute blocking endpoint.
+
+UI and agent callers receive an operation ID immediately. They can inspect status through a sanitized operation view. They never receive continuation tokens, provider headers, credential diagnostics containing secrets, or raw error bodies.
+
+## 5. Where authentication meets the request
+
+This is the only trusted composition point:
+
+```ts
+async function sendAuthenticatedHttp(
+  actor: ActorContext,
+  binding: {
+    connectionId: ConnectionId;
+    operationId?: string;
+    adapterId: string;
+    adapterVersion: number;
+  },
+  unsigned: UnsignedHttpRequest,
+): Promise<InternalHttpResponse> {
+  const connection = await connectionRepo.require(binding.connectionId);
+
+  if (connection.workspaceId !== actor.workspaceId) {
+    throw new Error("CONNECTION_TENANT_MISMATCH");
+  }
+
+  await connectionPolicy.requireAction(actor, connection, unsigned.method);
+  serviceProfiles.assertAdapterAndTargetAllowed(
+    connection.serviceProfileId,
+    binding.adapterId,
+    binding.adapterVersion,
+    unsigned.url,
+  );
+
+  assertNoUrlUserInfo(unsigned.url);
+  assertAdapterDidNotSetReservedAuthHeaders(unsigned.headers);
+  await egressPolicy.assertPublicAllowedTarget(unsigned.url);
+
+  const credential = connection.credentialId
+    ? await credentialRepo.require(connection.credentialId)
+    : null;
+
+  await credentialPolicy.requireUsableBy(actor, connection, credential);
+
+  for (let pass = 0; pass < 2; pass++) {
+    const current =
+      credential?.auth.kind === "oauth2"
+        ? await oauthRefresh.ensureFresh({
+            credentialId: credential.id,
+            minimumValidityMs: unsigned.requiredCredentialValidityMs,
+            force: pass === 1,
+          })
+        : credential;
+
+    const response = await credentialVault.withOpenedMaterial(
+      current,
+      async openedAuth => {
+        const wire = {
+          ...unsigned,
+          headers: new Headers(unsigned.headers),
+          tlsClientIdentity: undefined as unknown,
+        };
+
+        switch (openedAuth.kind) {
+          case "none":
+            break;
+
+          case "bearer":
+            wire.headers.set(
+              "Authorization",
+              `Bearer ${openedAuth.token}`,
+            );
+            break;
+
+          case "basic": {
+            if (openedAuth.username.includes(":")) {
+              throw new Error("INVALID_BASIC_USERNAME");
+            }
+            const encoded = Buffer.from(
+              `${openedAuth.username}:${openedAuth.passwordOrToken}`,
+              "utf8",
+            ).toString("base64");
+            wire.headers.set("Authorization", `Basic ${encoded}`);
+            break;
+          }
+
+          case "api_key_header":
+            wire.headers.set(
+              openedAuth.headerName,
+              `${openedAuth.prefix ?? ""}${openedAuth.value}`,
+            );
+            break;
+
+          case "oauth2":
+            wire.headers.set(
+              "Authorization",
+              `Bearer ${openedAuth.accessToken}`,
+            );
+            break;
+
+          case "request_signing":
+            await signerRegistry.require(openedAuth.signerId).signInPlace(
+              wire,
+              openedAuth.material,
+            );
+            break;
+
+          case "mutual_tls":
+            wire.tlsClientIdentity = openedAuth.material;
+            break;
+
+          case "delegated_connection":
+            throw new Error("DELEGATED_CONNECTION_REQUIRES_DELEGATED_TRANSPORT");
+        }
+
+        /*
+         * Checks known credential values and verifies that a signer did not
+         * mutate the URL. Authenticators may appear only in protected headers
+         * or transport configuration.
+         */
+        assertNoCredentialMaterialInUrl(wire.url, openedAuth);
+
+        return hardenedFetch(wire, {
+          redirect: "manual",
+          timeoutMs: unsigned.timeoutMs,
+          telemetry: {
+            correlationId: actor.correlationId,
+            connectionId: connection.id,
+            credentialId: credential?.id ?? null,
+            authKind: openedAuth.kind,
+            targetOrigin: wire.url.origin,
+            // No headers, body, complete URL, or provider error body.
+          },
+        });
+      },
+    );
+
+    if (
+      response.status !== 401 ||
+      current?.auth.kind !== "oauth2" ||
+      pass === 1
+    ) {
+      return sanitizeInternalResponse(response);
+    }
+
+    if (unsigned.replay.kind === "unsafe") {
+      throw new ExternalCallError({
+        code: "AUTH_EXPIRED_EFFECT_UNKNOWN",
+        authScheme: "oauth2",
+        status: 401,
+      });
+    }
+
+    // The next loop iteration force-refreshes and retries once.
+  }
+
+  throw new Error("UNREACHABLE");
+}
+```
+
+Delegated connections take a parallel branch that submits the adapter’s action and arguments to the broker service. The direct product never receives the third party’s underlying token.
+
+## 6. Migration from nine live stores
+
+I recommend migration to a canonical store, but only behind a compatibility facade and only after representative stores prove that scope is preserved.
+
+1. **Create the canonical store and broker.** New-store CRUD must have no legacy dependency. All new records use AAD.
+
+2. **Create explicit legacy identity mappings.** A mapping records legacy table, legacy ID, canonical ID, migration status, and verified scope. It does not decrypt anything.
+
+3. **Implement one importer/resolver per legacy table.** Each branch calls that table’s existing reviewed resolver. There must be no generic “try this ciphertext against several AADs/tables” function.
+
+4. **Cut new writes to the canonical store.** During the compatibility period, reads prefer canonical mappings and otherwise call the correct legacy resolver.
+
+5. **Backfill by workspace in bounded batches.** For each row:
+   - acquire the store’s existing update/refresh lock where applicable;
+   - read and decrypt through its own resolver;
+   - validate workspace and principal scope;
+   - immediately reseal with canonical AAD;
+   - transactionally insert the canonical row and mapping;
+   - compare the legacy revision again to detect concurrent rotation;
+   - emit metadata-only audit results.
+
+6. **Handle OAuth specially.** Refresh-token rotation can race migration. The importer must lease or fence the credential, copy the latest revision, and retry if it changed. Pending OAuth authorization attempts should not be migrated; completed connections can be.
+
+7. **Preserve meaning, not just bytes.**
+   - Workspace-scoped rows remain workspace-scoped.
+   - `(workspaceId, principalId)` rows remain principal-private.
+   - Brokered connector references remain delegated credentials.
+   - No masked suffix is introduced.
+   - Purpose/action restrictions are recreated as connection policies.
+
+8. **Verify before deletion.** Required evidence includes row counts per tenant, scope parity, successful use through the broker, zero fallback reads over a rollback window, and rotation/revocation tests. Then disable legacy writes, remove the read seam, and finally remove tables in separate reversible releases.
+
+Rows originally sealed without AAD gain transplant protection only when successfully decrypted and resealed. The migration cannot retroactively prove that old ciphertext was never substituted.
+
+## 7. Decision reasoning trace
+
+| Decision | Why | Rejected alternative | Packet constraint or assumption |
+|---|---|---|---|
+| Separate credential and call-shape planes | Credentials have different lifecycles from request protocols and should be reusable without exposing secrets. | Provider adapters owning tokens and refresh logic. That reproduces nine stores and OAuth implementations. | Forced by the stated duplication and the existing reusable refresh algorithm. |
+| Add a connection/policy composition layer | A credential ID plus arbitrary URL is an ambient capability and risks cross-provider credential forwarding. | Let callers pass `credentialId`, URL, and adapter independently. | Forced by multi-tenancy and the agent threat surface. |
+| Caller never receives raw secrets | It structurally removes secrets from routine agent, adapter, logging, and error paths. | A `resolveCredential(): string` API with “be careful” documentation. | Forced by the no-log/no-tool-result constraint. |
+| Explicit auth union plus registered signers | Common schemes get auditable handling while unusual request signing remains extensible. | Arbitrary header templates containing secret placeholders. Those are easy to leak into URLs or logs. | HMAC and open-ended services force extensibility; security rules reject arbitrary secret templating. |
+| Keep endpoint configuration outside credentials | Endpoints and dialect settings change independently and are not secret custody. | One large vendor configuration blob containing base URL and token. | Inferred from the configurable OpenAI-compatible adapter and separation premise. |
+| Extract and reuse OAuth refresh leasing | The hard refresh-token race is already solved and has two prospective consumers. | Duplicate the MCP logic or route all OAuth through MCP. | Directly forced by the verified existing implementation and non-use outside MCP. |
+| Durable operations for long-running calls | An HTTP connection is not durable state; restart recovery requires persisted continuation and scheduling. | Extend timeout beyond ten minutes or keep an in-memory promise. | Forced by the described video failure mode. |
+| Persist adapter version | Continuation JSON is meaningful only to the adapter version that created it. | Always use the newest adapter. A deployment could make in-flight state undecodable. | Inference based on normal schema evolution; packet is silent. |
+| Separate `pending`, `retry`, and `unknown_outcome` | They demand different behavior: poll, repeat observation, or stop before duplicating a side effect. | One generic “retryable” failure status. | Forced by double-spend risk and unverified retry cutoff behavior. |
+| Use explicit job limits | A queue index alone does not bound retries or provider cost. | Copy the existing retry table unchanged. | Forced by the packet’s explicit warning that its cutoff behavior is unverified. |
+| Use real scheduling columns and `TEXT` JSON | Cross-dialect scheduling requires indexed scalar fields; provider continuation is variable. | PostgreSQL JSONB or database-private binary JSON. | Forced by SQLite/ORM constraints. |
+| Allow code adapters, with config-only dialect instances | Semantically novel APIs cannot be made safe through a universal declarative parser. | A universal arbitrary-HTTP DSL. | The second-fetch parse behavior and open-ended providers argue against a three-field DSL. |
+| Separate authenticated service fetch from public asset fetch | It prevents credentials following redirects or being attached to asset hosts. | One generic fetch method with an `authenticated` flag. | Forced by the existing second-fetch/redirect behavior and SSRF concern. |
+| Canonical store migration, not only a facade | One policy surface makes AAD, rotation, audit, and new service onboarding consistent. | Keep all nine stores indefinitely. Lower migration risk, but permanent policy drift. | This is a recommendation, not forced. It is the decision most likely to be wrong. |
+| HTTPS-first, transport-extensible scope | Most examples fit HTTP, while literal universal protocol support would violate the simplicity requirement. | Pretend HTTP request adapters cover SFTP, streaming sockets, and all future protocols. | Inference; the packet does not define “service” or required transports. |
+
+The least relevant facts to the architectural choice are the exact 38KB MCP module size and the historical import date of the vendor dispatch engine. They indicate complexity or adoption status, but neither determines the boundary.
+
+The deterministic stub is relevant mainly as a contract-test adapter and as precedent that placeholder provenance must survive to user-visible results.
+
+## 8. Ranked options
+
+Ranking criteria, in order:
+
+1. Prevention of cross-tenant or secret exposure.
+2. Correct recovery from refresh, restart, and uncertain side effects.
+3. Ease of adding a provider without another subsystem.
+4. Migration and rollout risk.
+5. Independence from an external connector broker.
+
+### 1. Canonical credential broker + connection registry + durable operation engine
+
+This is my recommendation.
+
+Advantages:
+
+- One enforced secret boundary and AAD policy.
+- OAuth refresh and outbound protections reused everywhere.
+- Direct, MCP, and delegated connectors can coexist.
+- Durable lifecycle solves restart and polling consistently.
+
+Costs:
+
+- Highest migration effort.
+- Creates a high-value centralized broker.
+- Bad abstractions can become mandatory bottlenecks.
+
+Cheapest de-risking test: support one synchronous bearer API and one rotating-OAuth asynchronous fake provider, then import one AAD-bound and one non-AAD legacy credential through their own resolvers. Inject crashes after every submission boundary.
+
+### 2. Unified broker and operation engine, but retain domain credential stores
+
+Advantages:
+
+- Much lower migration risk.
+- Existing domain-specific isolation remains.
+- Consumers still stop handling raw secrets.
+
+Costs:
+
+- Each legacy store needs a permanent resolver.
+- Refresh, rotation, AAD, and revocation behavior may remain inconsistent.
+- New credential kinds create pressure to choose or create another store.
+
+Cheapest test: expose two materially different current stores through the same broker contract and measure how much store-specific branching leaks above the private resolver layer.
+
+### 3. Connector-first through Composio/MCP, direct adapters only as escape hatches
+
+Advantages:
+
+- Fastest broad service coverage.
+- Product commonly avoids holding provider credentials.
+- Less direct OAuth surface.
+
+Costs:
+
+- External broker availability, pricing, coverage, and policy become platform dependencies.
+- MCP is a tool federation protocol, not necessarily a durable job system.
+- Composio’s in-process pending connection state currently blocks safe multi-worker scaling.
+- Some services or regulated customers will require direct custody.
+
+Cheapest test: implement the same idempotent action through a delegated connector and a direct adapter; compare failure recovery, credential visibility, latency, coverage, and behavior during connector outage.
+
+## 9. Strongest argument against the recommendation
+
+The strongest objection is that consolidating intentionally different credentials into one canonical table creates a cross-tenant crown jewel and mistakes storage uniformity for operational uniformity.
+
+The current stores differ in scope, risk, masking, ownership, and AAD lineage. Those differences may encode real domain boundaries. A vulnerability in one canonical decrypt path could expose source-control, publishing, media, assistant, and deployment accounts simultaneously. A unified facade over isolated stores may provide nearly all execution benefits with a smaller blast radius.
+
+I would change to option 2 if representative implementation showed any of the following:
+
+- purpose restrictions could not be enforced without domain-specific branches in the central broker;
+- more than roughly one in five adapters required privileged escape hatches;
+- regulatory or key-management requirements demanded per-domain cryptographic isolation;
+- central broker availability materially reduced unrelated product availability;
+- migration could not prove principal-scope preservation and refresh-token correctness.
+
+That “one in five” threshold is a proposed experiment criterion, not a known fact.
+
+## 10. Failure modes
+
+Security:
+
+- A compromise of the canonical broker can expose credentials across tenants. Per-workspace encryption context, no bulk-decrypt API, rate limits, audit alarms, and possibly broker process isolation reduce but do not eliminate this.
+- An adapter could cause credentials to be attached to an attacker-controlled host. Immutable service profiles, per-hop DNS/redirect validation, and origin binding are mandatory.
+- Response bodies may echo a submitted token. Agent-visible output must use an allowlisted adapter output schema plus known-secret redaction; raw provider bodies must never become tool results.
+- A signer plugin could mutate the URL or add query authentication. The broker must reject URL mutation and only load trusted signer implementations.
+- Principal-private credentials could accidentally become workspace-shared during migration.
+- Serialized continuation may contain a bearer-like provider token. It must move to the sealed continuation envelope rather than `continuation_json`.
+
+Operational:
+
+- A refresh lease may expire while the provider call is still running, allowing duplicate refreshes and destruction of a rotated refresh token.
+- The process can crash after submission but before persistence. Without provider idempotency or reconciliation, the only safe state is `unknown_outcome`.
+- A provider may never finish. Deadline and attempt caps prevent infinite work, but the remote provider may continue billing after local timeout.
+- A pinned adapter version may be deleted while jobs still reference it.
+- Polling workers can starve even with correct rows and indexes; due-work age needs an SLO and alert.
+- Provider `Retry-After` values can be malicious or unreasonable and must be clamped.
+- Credential revocation during a job can strand a paid remote operation.
+- Large final media must stream to object storage; buffering arbitrary response bytes in workers can exhaust memory.
+
+Maintenance:
+
+- A “generic” adapter can accumulate provider-specific conditionals until it is harder to reason about than separate adapters.
+- Service schemas drift without notice.
+- Connection policy, adapter requirements, and credential kinds can drift unless contract-tested as compatible triples.
+- Supporting direct, MCP, and delegated transports may create three subtly different observability and error models.
+
+A catastrophic failure of my recommendation would be a broker authorization bug that resolves a credential by globally unique ID without rechecking its `workspaceId`, exposing one tenant’s source-control token through another tenant’s otherwise valid connection. The connection, credential, actor, and operation workspace must therefore be checked together on every use, even if database foreign keys appear to make the mismatch impossible.
+
+## 11. What to build first
+
+The smallest proof-bearing slice is:
+
+1. Write the broker, connection, migration, and operation contracts plus integration tests.
+2. Implement `none`, bearer, and OAuth2 credentials with AAD.
+3. Implement:
+   - one short synchronous dialect adapter;
+   - one deterministic long-running provider that rotates refresh tokens, returns `pending` several times, performs a final public asset fetch, and supports idempotency reconciliation.
+4. Persist an operation before submission.
+5. Inject process death:
+   - before submission;
+   - after provider acceptance but before persistence;
+   - while waiting;
+   - during refresh;
+   - after success but before terminal persistence.
+6. Import one workspace credential lacking AAD and one differently scoped/AAD-bound legacy credential through separate resolvers.
+7. inspect all logs, traces, database JSON, operation views, and AI tool results for secret material.
+
+The design is killed—not merely delayed—if any of these occur:
+
+- a raw credential or authenticator appears in a URL, log, trace, exception, or tool result;
+- a crash creates duplicate submission despite provider idempotency support;
+- an operation cannot resume after lease expiry;
+- a migrated credential gains broader tenant/principal access;
+- refresh-token rotation loses the winning token under concurrency;
+- the adapter needs raw secret access;
+- a nonterminating job remains schedulable after its deadline or attempt cap;
+- supporting the second provider requires bypassing the broker or inventing another queue/credential subsystem.
+
+## 12. Packet critique
+
+I cannot independently establish the “verified” claims from the packet alone; they are assertions accompanied by paths, counts, and summaries, not source excerpts or reproducible commands. Within the packet itself, I see these issues:
+
+1. **“Full OAuth 2” is overstated.** Authorization code, device code, token exchange, refresh, and expiry do not establish PKCE, state/nonce handling, revocation, discovery, client credentials, token rotation semantics, DPoP, or every OAuth extension. “Existing OAuth flows relevant to MCP” would be more supportable.
+
+2. **“Exactly one refresh call” is too absolute.** A compare-and-set lease normally collapses concurrent refreshers, but a crashed owner, expired lease, slow provider, clock skew, or missing fencing can still permit two external calls. The packet supplies the intended behavior, not proof across failure boundaries.
+
+3. **The SQLite custom-type paragraph appears internally contradictory.** It says `customType` has `fromDriver`, then says there is “no select-side hook.” `fromDriver` sounds like such a hook unless the intended distinction is between decoding driver values and intercepting database-private SQL expressions. The missing API detail should be stated precisely.
+
+4. **“Nine credential-shaped tables” does not prove nine credential systems.** A configuration table or delegated connector reference may have very different custody semantics from a token store. Table count alone does not establish that one physical table is the right destination.
+
+5. **The AAD evidence is incomplete as presented.** Three stores are named as lacking AAD, but the packet does not describe the encryption/AAD behavior of every remaining store. “Three verified examples” is supportable; “exactly three” is not demonstrated here.
+
+6. **Lack of AAD is presented with loaded wording.** “Knowingly inherited that gap” implies negligence or accepted severity. The evidence establishes awareness, not the surrounding risk decision, compensating controls, or intent.
+
+7. **The long-running-video conclusions contain inference.** Reading completed bytes from a single response supports concern about a blocking call. It does not alone prove that the provider lacks an operation lookup, idempotency, or reconciliation mechanism, nor that every retry double-spends. Those are plausible risks that should be marked conditional.
+
+8. **The fetch count needs qualification.** “The core performs one fetch” can coexist with parsing performing a second fetch, but “exactly one fetch” is misleading when describing the complete adapter execution.
+
+9. **The timeout history is ambiguous.** “Hung forever” and “patched with a blanket ten-minute backstop” refer to different states. The packet should say whether the audit finding describes the pre-patch implementation and whether the current engine always supplies a core abort signal.
+
+10. **The vendor denominators are unclear.** Twelve provider files, roughly eighteen route pairs, and an audit discussing thirteen vendors may all be correct, but “provider,” “vendor,” and “registration” are not consistently defined.
+
+11. **“Integrated and running” is ambiguous.** It could mean tests, local deployment, customer traffic, or production. The later critique calls it a “running production system,” which is stronger than the verified-state wording.
+
+12. **Line count is weak evidence.** Saying MCP federation is 38KB signals complexity but says little about correctness, reuse suitability, or architectural boundaries.
+
+13. **“Strictly worse than BLOB” is normative.** Declaring `JSONB` under SQLite’s affinity rules may be worse for string fidelity, but BLOB also sacrifices ordinary text/JSON handling. `TEXT` appears to be the relevant comparison. The evidence supports rejecting a fake cross-dialect `JSONB` declaration, not every comparison with BLOB.
+
+14. **The 37 existing text JSON columns are precedent, not proof.** Their lack of indexes does not show that future operational fields should remain unindexed. The packet correctly supplies the stronger fact: cross-dialect indexed queries require named extracted columns.
+
+15. **The framing conflates three authorizations.** Tenant permission to use a connection, provider authentication, and provider-side scopes/authorization are separate. Calling the first half merely “proving who we are to the service” omits the product’s own use authorization.
+
+16. **“Any external service” and “no bespoke subsystem” are underspecified.** The packet does not define whether this includes non-HTTP transports, browser-cookie automation, hardware keys, streaming sockets, or services that only accept query-string credentials. A safe design cannot promise literal universality.
+
+17. **The URL-secret rule has an unresolved edge.** Some providers return presigned asset URLs or require query authentication. The packet should say whether provider-issued signed URLs count as forbidden. Under a literal reading, those providers cannot be supported without an intermediary or alternate endpoint.
+
+18. **Human-versus-agent policy is missing.** The channels are named, but not confirmation rules, spending limits, delegated authority, impersonation semantics, audit identity, or which actions require human approval.
+
+19. **Important lifecycle requirements are absent.** Rotation, revocation, deletion, key rotation, backup/restore, audit retention, credential testing, webhook verification, rate limits, quotas, cost controls, cancellation, pagination, streaming, and data residency can materially affect the architecture.
+
+20. **Migration feasibility lacks decisive facts.** Row counts, foreign keys, legacy write paths, token mutation frequency, downtime tolerance, database versions, encryption-key access, and rollback requirements are unknown.
+
+21. **The packet nudges toward consolidation.** Emphasizing nine tables, an earlier merge precedent, unused OAuth reuse, and a generic adapter naturally leads witnesses toward a canonical broker/store. A federated broker over intentionally separate stores deserves equal framing.
+
+22. **The question presupposes call-shape/credential recomposability.** Some schemes—request signing, mTLS transport identity, OAuth audience-bound tokens—are coupled to endpoint and request semantics. They remain separable in custody, but only if the composition layer has trusted scheme-specific implementations.
+
+The packet is substantially better than the described earlier version, but it still mixes verified observations, historical claims, risk inferences, and evaluative language without consistently labeling which is which.

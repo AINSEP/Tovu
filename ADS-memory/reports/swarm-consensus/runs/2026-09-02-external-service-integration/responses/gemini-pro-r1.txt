@@ -1,0 +1,82 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902 -- I received the packet and will work on it.
+
+Here is a blunt, structural tear-down and proposed architecture for your egress problem. 
+
+### 1. Problem Framing
+
+The prompt frames this as two halves: "proving who we are" (credentials) and "knowing how to talk" (call shape). This framing is mostly correct, but hides a critical trap: **if you let the two halves know too much about each other, you fail the security constraint.**
+
+If a vendor adapter (the call shape) is responsible for taking a raw API key and formatting it into a header, it *will* eventually log it during a messy debug session, or echo it back in a structured error. 
+
+Therefore, the problem is actually three-fold:
+1. **Storage:** Safely persisting and rotating disparate auth materials.
+2. **Execution (The Firewall):** A centralized HTTP client that injects secrets *below* the application/adapter layer.
+3. **Orchestration:** Handling the synchronous vs. asynchronous nature of the vendor's domain logic.
+
+The current state of your system is fragmented not just in storage, but in domain mixing. Your media dispatcher knows about S3 base URLs; your deployment targets probe GitHub APIs. You lack a unified **Egress Gateway**.
+
+### 2. The Credential Model (Storage & Scoping)
+
+**Position: A1 (One unified record) for persistence, wrapped in A3 (Capability/Handle) for execution.**
+
+Your current setup of four separate stores is a migration nightmare and an auditing liability. You cannot enforce a global security policy (like "never log secrets") when four different subsystems are pulling raw strings from the database.
+
+*   **The Schema:** A single `egress_credentials` table. Because you are bound to SQLite and its hostile JSON/numeric coercion behavior, **do not use text or pseudo-JSON columns for secrets.** Use a strict `BLOB` column. The payload is a serialized JSON object encrypted at the application layer before hitting the ORM.
+*   **The Structure:** `(id, tenant_id, vendor_id, auth_type, encrypted_blob_payload, status)`. `auth_type` is an enum (`bearer`, `basic`, `oauth2`, `aws_sigv4`).
+*   **Per-Tenant Scoping & Encryption:** The encryption scheme **must** use Additional Authenticated Data (AAD). You pass `tenant_id` and `vendor_id` as the AAD. If an attacker swaps rows in the database, the decryption fails. The database layer guarantees multi-tenancy.
+*   **Expiry, Refresh, and Mid-Call 401s:** The caller (the agent or UI) never sees the token. They request an action using a `CredentialHandle` (A3). The internal `HttpClient` resolves the handle. If a mid-flight request returns a 401, the `HttpClient` catches it, acquires a distributed/local lock for that `tenant_id+vendor_id` (crucial to prevent thundering herds), uses the refresh token to get a new access token, updates the `BLOB`, and retries the original request transparently. The caller never knows it happened.
+*   **The Migration Path:** 
+    1. Stand up the `egress_credentials` table with strict `BLOB` encryption.
+    2. Implement dual-write: the four existing sub-systems write to their bespoke tables *and* the new table.
+    3. Run a background script to backfill historical rows from the four stores into the new table, applying AAD encryption.
+    4. Switch the read paths to use the new table via the `HttpClient`.
+    5. Drop the old tables.
+
+### 3. The Call-Shape Model (Sync vs. Polling)
+
+**Position: B3 (Hand-written adapters) returning a discriminated union, backed by a persistent Job State Machine.**
+
+I reject B4 (Declarative config-driven adapters). It is a siren song. You will inevitably encounter a vendor that requires a customized HMAC signature on the body, or a bizarre cursor pagination scheme. You will end up inventing a Turing-complete YAML dialect, which is just programming but worse. 
+
+I also reject your current dispatch core doing "exactly ONE fetch." It is broken by design for modern GenAI/media workloads.
+
+*   **The Interface:** The adapter interface must return `SyncResult<T> | AsyncJob<T>`.
+*   **Submit-then-poll:** If an adapter knows its vendor is async (e.g., Replicate, Midjourney), the initial `buildRequest` fires, and the adapter's `parseResponse` returns an `AsyncJob` containing the vendor's `job_id` and the required `poll_endpoint`.
+*   **State & Process Restarts:** The engine does *not* sit in an in-memory `await sleep()` loop. It writes an `egress_jobs` record to the database `(internal_job_id, tenant_id, vendor_job_id, poll_endpoint, status)`. 
+*   A background worker (or cron) polls the database for active jobs. If the Node process restarts, the worker simply boots up, reads `egress_jobs`, and resumes polling. The AI Agent is given the `internal_job_id` and can query its status independently, without blocking its own execution thread.
+
+### 4. How the Two Halves Compose
+
+They compose via a **Sandboxed HTTP Client**. 
+
+1. The App requests `MediaAdapter.generate(prompt, CredentialHandle)`.
+2. `MediaAdapter` constructs a generic `HttpRequest` object (URL, JSON body). It does *not* attach auth.
+3. `MediaAdapter` passes the `HttpRequest` and `CredentialHandle` to the internal `EgressClient`.
+4. `EgressClient` decrypts the credential `BLOB`, determines the `auth_type`, and injects the `Authorization` header (or performs AWS SigV4 signing).
+5. The request executes. If it fails (401), `EgressClient` handles the refresh lifecycle. 
+6. `EgressClient` returns the raw HTTP response to `MediaAdapter`, which parses it into domain data (or an `AsyncJob`).
+
+The adapter never touches the secret. The credential layer never parses the domain response. Strict isolation.
+
+### 5. Strongest Argument AGAINST My Position
+
+**The Critique:** I am over-engineering a distributed workflow engine (`egress_jobs` background worker) and a transparent auto-refreshing HTTP proxy for a system that currently runs on a basic SQLite/ORM stack. 
+The vast majority of APIs are fast and synchronous. By forcing async jobs into the database and requiring background workers, I am introducing massive operational complexity, database locking contention (especially in SQLite, which struggles with concurrent writes during polling loops), and deployment friction. A simple in-memory `Promise` with a timeout, combined with B2 (compatible dialects) for 90% of use cases, would ship faster and be easier to debug.
+
+**What would change my mind:** If product analytics prove that the "long-running" tasks (like video generation) can simply be handled by webhooks rather than polling, or if the product requirement for "AI Agent autonomy" does not actually require the agent to survive a server restart mid-thought. If ephemeral memory is acceptable, the persistent polling table should be killed immediately.
+
+### 6. Failure Modes
+
+*   **Security:** The AAD implementation uses the wrong context (e.g., using `workspace_name` which can be changed, instead of an immutable `tenant_id`). When a user renames their workspace, decryption fails, locking them out of their credentials permanently.
+*   **Operational:** The OAuth refresh thundering herd. If an access token expires, and 50 concurrent background jobs try to use it simultaneously, all 50 fail, and all 50 attempt to use the refresh token. The vendor revokes the refresh token due to reuse (OAuth token rotation policies), permanently bricking the integration until the user logs in again.
+*   **Maintenance:** The `EgressClient` becomes a bottleneck. Every time a vendor introduces a slightly non-standard auth mechanism (e.g., passing the token in a custom header instead of `Authorization`), the core client has to be modified, breaking the isolation boundary.
+*   **Spectacular Production Failure:** The SQLite polling worker. The `egress_jobs` polling loop runs every 1 second, updating row statuses. Because SQLite locks the entire database (or heavily restricts concurrency in WAL mode) on writes, the polling loop starves the main application of database connections. The entire CMS UI becomes unresponsive because a background task is aggressively checking if a Cloudflare deployment is finished. 
+
+### 7. What to Build First
+
+**The Proof Slice:** Do not build the migration, and do not build the UI. 
+Build the **`EgressClient` + one Sync Adapter (e.g., a dummy deterministic stub) + one Async Adapter (e.g., a mock image generator)** backed by SQLite.
+
+**The Kill Criteria:** 
+1. **The Leak Test:** Force the Async Adapter to throw an unhandled exception during `buildRequest`, and force the vendor to return a 400 Bad Request. If the raw credential string appears *anywhere* in the resulting stack trace, error log, or agent prompt, the isolation design is dead.
+2. **The Concurrency Test:** Run a load test simulating 100 concurrent async jobs polling the SQLite `egress_jobs` table while simultaneously running 50 UI read queries. If `SQLITE_BUSY` errors spike above an acceptable threshold, the persistent polling architecture is killed, and you must fall back to in-memory tracking or move off SQLite.

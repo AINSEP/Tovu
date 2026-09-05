@@ -1,0 +1,149 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R3 -- I received the packet and will work on it.
+
+## 1. Current Position & Changes
+
+**My position has fundamentally changed on credential storage.** In Round 2, there was a credible argument for keeping the nine bespoke credential stores to respect domain boundaries (as defended by Sonnet). The revelation in this packet that `adminExecutionCredentials` is scoped by `(workspaceId, principalId)` **and** lacks AAD completely destroys that argument. 
+
+Because it lacks AAD, ciphertext can be transplanted across principals. This is not just a missing column; it is a critical privilege-escalation vulnerability born directly from allowing nine different teams to implement their own cryptographic discipline. I now firmly align with the Coordinator: **there must be one canonical credential table, and trust tier/scope must be a column, not a schema.** The 9-table model breeds security rot.
+
+I also change my stance on Composio based on the correction. Since the single-process constraint applies only to the OAuth handshake and not to distributed credential usage, Composio is fully viable for horizontal scaling.
+
+## 2. Strongest Argument Against the Leading Opposing Position
+
+The leading opposing position on the credential schema comes from Sonnet, who argues that unifying the tables is a fatal error born of a generalist's arrogance.
+
+> **Sonnet:** "The design assumes ONE credential table + ONE adapter registry generalizes... every category so far has needed its own AAD lineage and its own resolver, and a system that pretends otherwise tends to grow escape hatches until it's nine tables again... If the FIRST real migration needs a bespoke per-provider extension to `CredentialMaterial` within the first month, the 'one shape fits all' bet is wrong."
+
+**The Argument Against:** Sonnet's argument confuses *policy variety* with *storage isolation*. Yes, a source-control token and a media generation API key have different risk profiles, different masking rules, and different scoping (workspace vs. principal). But Sonnet assumes the only way to enforce those different rules is physical table isolation. The exact opposite has proven true: by leaving it to nine tables, the `adminExecutionCredentials` implementer *forgot* to include the principal in the AAD, creating a privilege escalation vector. 
+
+A single canonical table with a strictly typed `CredentialPolicy` column (as proposed by the Coordinator) enforces cryptographic rigor *universally*, while allowing the policy column to dictate the specific validation logic. Sonnet's fear of "escape hatches" inside a JSON blob is valid, but the cure is a tagged union in TypeScript validating the policy column, not nine separate AES-GCM implementations that inevitably drift into vulnerability.
+
+## 3. Where Another Participant is Wrong
+
+**Gemini 3.7 Flash is wrong about how the Dispatch Pipeline composes with the Adapter.**
+
+> **Flash:** "4. Outbound Fetch with Automatic 401 Refresh-Retry... `res = await this.httpClient(signedReq);` ... 5. Parse Response via Adapter `const parsed = await adapter.parseSubmitResponse(res, this.httpClient);`"
+
+Flash designed an engine where the central dispatcher performs the primary HTTP fetch, and the Adapter merely parses the `Response` object. This completely fails the proven "second network call" requirement documented in the codebase. 
+
+If the vendor requires an SSRF-guarded asset download *inside* the parsing phase (e.g., fetching a generated image from a temporary URL before returning `done`), the adapter needs to initiate that secondary HTTP call. Flash injects `this.httpClient` into `parseSubmitResponse`, but that client is the *authenticated* client. If the adapter uses it to fetch a redirect or an S3 URL, it will leak the provider's Bearer token to the asset host. The adapter needs a dedicated `fetchPublicAsset` interface that explicitly strips authentication, and the adapter must control the control flow of the primary fetch. 
+
+**The Coordinator is also wrong in their Round 3 frozen position.**
+The Coordinator claims we should build "Tier A" (declarative JSON config) and "Tier B" (typed code), arguing that as long as Tier B is "first-class," we avoid DSL erosion. This ignores human nature. If Tier A exists as configuration, non-engineers and product managers will demand that complex vendors be shoehorned into Tier A so they don't have to wait for an engineer to write Tier B code. Tier A will inevitably grow loops and JS-eval blocks. 
+
+## 4. The Round 3 Question: Config vs. Code
+
+> Can per-vendor integration code be eliminated entirely? Should it be?
+
+**No, it cannot be eliminated entirely, and it shouldn't be.**
+
+I concede the Coordinator's challenge explicitly: **optimizing for "no code" is optimizing the wrong axis.** The bottleneck that kept 12 adapters unused for months was not the cost of writing 50 lines of TypeScript; it was the lack of an execution engine capable of durable asynchronous polling. 
+
+If we move to JSON/YAML declarative specs for adapters, we lose stack traces, we lose type checking against vendor SDKs, and we completely fail to handle secondary network calls (the SSRF asset fetch) without inventing a bespoke DSL for network control flow.
+
+Instead of a JSON config system, the solution is **Code-as-Config**. We provide a generic `DeclarativeRestAdapter` class in TypeScript. For the 80% of vendors that are simple, the "code" is just instantiating that class with a config object. For the 20% that need custom redirect handling or pagination, they implement the `VendorAdapter` interface directly. The boundary remains typed TypeScript.
+
+## 5. Unresolved Round 2 Questions
+
+1.  **Consolidate or keep nine tables?** Consolidate into one canonical table (`unified_credentials`). Trust tier, scope, and masking policy are columns/types, not schemas. The privilege escalation bug proves physical isolation fails to enforce cryptographic baselines.
+2.  **Composio:** Run both permanently. Composio is merely one variant of an `AuthApplier` (`kind: "brokered"`). The caller doesn't know or care if the header was injected locally or delegated to Composio's proxy.
+3.  **Sync-UI / Async-Job Impedance Mismatch:** Introduce a **Fast Path**. When a human UI initiates a request, the engine does *not* write to the job table first. It executes the adapter's initial `execute` step in-memory with a 15-second timeout. If the adapter returns `complete`, the result goes straight back to the UI. If the adapter returns `wait` (polling), the engine writes the job row and returns a `jobId` to the UI.
+4.  **Pagination:** It is a **third shape**. It is not submit-then-poll. It is a stateful, synchronous network stream. The adapter must yield pages of data and a continuation cursor.
+
+## 6. What Evidence Would Move Me
+
+I would abandon the "Code-as-Config" typed adapter approach and accept a purely declarative JSON config tier IF an audit of the last 20 integrations showed that **zero** of them required conditional logic based on the response body, pagination, or secondary asset fetches. If the API landscape is genuinely just `POST -> 200 JSON`, a DSL works. The packet already proves it isn't.
+
+## 7. Ranked Slate
+
+**1. Unified Broker + Fast-Path Typed Adapters (My Recommendation)**
+*   *Trade-offs:* High initial migration cost (dual-read facade for 9 tables). High safety. Fast UI response.
+*   *Criteria:* Security (closes AAD gaps), UX (doesn't force fast calls into DB queues), Extensibility (typed code handles edge cases without DSL rot).
+*   *Cheapest de-risking test:* Migrate `adminExecutionCredentials` first. If we can successfully parse the legacy `(workspace, principal)` rows, apply the new universal AAD, and execute a cross-process 401 refresh without leaking the principal boundary, the core cryptographic model is sound.
+
+**2. The Coordinator's Tier A (DSL) / Tier B (Code) Split**
+*   *Trade-offs:* Allows non-engineers to add simple APIs, but guarantees technical debt as the DSL inevitably expands to cover edge cases.
+*   *Criteria:* Prioritizes "no-code" speed over long-term maintainability.
+
+**3. Composio-Only Proxy**
+*   *Trade-offs:* Deletes credential storage entirely, but creates a hard vendor lock-in and fails for internal/custom APIs that Composio doesn't support.
+
+## 8. Concrete Code: The Minimum Typed Adapter Surface
+
+This interface proves that we do not need a JSON config file. We can handle Sync, Async (Wait), Pagination (Yield), and the SSRF-guarded secondary fetch cleanly in TypeScript.
+
+```typescript
+export type AdapterStep<T> =
+  | { readonly kind: "complete"; readonly output: T }
+  | { readonly kind: "wait"; readonly nextPollAtMs: number; readonly state: unknown }
+  | { readonly kind: "yield"; readonly items: T[]; readonly nextCursor: unknown }
+  | { readonly kind: "failed"; readonly error: string; readonly retryable: boolean };
+
+export interface AdapterContext {
+  /** 
+   * The authenticated fetcher. Handled by the Broker. 
+   * Injects headers, handles 401 CAS refresh inline, and enforces origin constraints.
+   */
+  authFetch: (req: Request) => Promise<Response>;
+  
+  /** 
+   * Explicit SSRF-safe fetcher for secondary assets (e.g. video URLs). 
+   * Strips all authentication and blocks private IPs (169.254.x.x, 10.x.x.x).
+   */
+  publicAssetFetch: (url: string) => Promise<Response>;
+}
+
+export interface VendorAdapter<TInput, TOutput> {
+  readonly vendorId: string;
+  readonly isFastPathEligible: boolean;
+
+  /**
+   * One unified method. 
+   * If `state` is undefined, it's the initial submission.
+   * If `state` exists, it's a polling continuation or a pagination cursor.
+   */
+  execute(
+    input: TInput,
+    ctx: AdapterContext,
+    state?: unknown
+  ): Promise<AdapterStep<TOutput>>;
+}
+
+// Example showing how the documented "second network call" defeats JSON configs 
+// but is trivial in this typed code:
+export const SenseAudioAdapter: VendorAdapter<any, any> = {
+  vendorId: "sense-audio",
+  isFastPathEligible: false,
+  
+  async execute(input, ctx, state) {
+    if (!state) {
+      // 1. Initial Submission
+      const res = await ctx.authFetch(new Request("https://api.sense.audio/generate", { method: "POST" }));
+      const body = await res.json();
+      return { kind: "wait", nextPollAtMs: Date.now() + 5000, state: { jobId: body.id } };
+    }
+
+    // 2. Polling Phase
+    const res = await ctx.authFetch(new Request(`https://api.sense.audio/status/${(state as any).jobId}`));
+    const body = await res.json();
+    
+    if (body.status === "PENDING") {
+      return { kind: "wait", nextPollAtMs: Date.now() + 5000, state };
+    }
+
+    // 3. The Second Network Call (SSRF Guarded)
+    // A declarative DSL CANNOT express this safely without an escape hatch.
+    const assetRes = await ctx.publicAssetFetch(body.download_url);
+    const audioBlob = await assetRes.blob();
+    
+    return { kind: "complete", output: { audioUrl: body.download_url, size: audioBlob.size } };
+  }
+}
+```
+
+## 9. Packet Critique
+
+1. **Structural Hypocrisy:** The packet criticizes Round 2 for phrasing deliverables as if they were separate artifacts, thereby "presupposing the 'two halves compose narrowly' answer." Yet, this Round 3 packet strictly mandates seven numbered deliverables (Position, Strongest Argument, Wrong Participant, Evidence, Ranked Slate, Code, Critique), effectively forcing a highly structured, compartmentalized response format that fights any participant trying to write a holistic architectural narrative.
+2. **Conflicting Personas:** The preamble states: "The owner has raised a constraint... and he is explicitly undecided". However, the packet includes the "Coordinator (Primary, Opus 5) — Round 3 position", where the Coordinator explicitly states: "Where I actually land... Tier A... Tier B." The packet asks me to treat the owner as undecided, while simultaneously showing the Coordinator has already made a decision. 
+3. **Composio AAD Logical Flaw:** The packet lists `composioConfig` and `composioConnectorCredentials` among the five stores that lack AAD. But if Composio is a broker (Option A) where the *product holds no credential*, what exactly are we sealing in the DB that requires AAD? A broker connection handle is not a secret credential; it's an opaque identifier. If those tables are just mapping `workspaceId -> composioAccountId`, sealing them with AES-GCM is security theater. The packet treats them as equivalent to raw API keys.
+4. **Missing Information on Rate Limits:** The packet demands a design for polling and fast-path execution but entirely omits vendor rate-limiting (e.g., HTTP 429 Retry-After headers). If a job hits a 429, it must yield a `wait` state derived from the vendor's header, not our own hardcoded backoff. The failure to mention 429s in a discussion about "any external service" is a glaring omission for a production system.

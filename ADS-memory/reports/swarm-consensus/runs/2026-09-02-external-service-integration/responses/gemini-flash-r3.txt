@@ -1,0 +1,512 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R3 -- I received the packet and will work on it.
+
+---
+
+# ADVERSARIAL DESIGN DEBATE: ROUND 3 (INFORMED)
+**TOPIC:** Universal Declarative Integration vs. Typed Code Adapters & Resolution of Core Integration Architecture  
+**PACKET-ID:** `CTX-EXT-SVC-20260902-R3`
+
+---
+
+## 1. CURRENT POSITION & WHAT MOVED ME IN THIS ROUND
+
+### 1.1 Position Summary
+1. **Per-Vendor Code Cannot and Should Not Be 100% Eliminated, but 80% Can Be Declarative Configuration**: A pure "zero TypeScript ever" mandate is an antipattern that inevitably births an untyped, undebuggable JSON-DSL programming language. However, abandoning declarative integration entirely forces needless engineering toil. We must build a **Bimodal Integration Engine**: a strict, sandboxed **Tier A Declarative Spec** (handling standard REST, URL templating, body mappings, and bounded SSRF-safe secondary asset acquisition) paired with a first-class, unembarrassing **Tier B Typed Adapter** path.
+2. **Rebuttal to the "Wrong Axis" Challenge**: The fact that 12 adapters sat unused until 2026-09-02 because async execution and consumers were missing proves that **async execution was the blocker to shipping**, but it does *not* prove that declarative configuration is a "cheap optimization." For runtime agent tool generation and dynamic end-user API integrations, runtime data configuration is a **net-new platform capability**, not an engineering shortcut.
+3. **One Canonical Store (`unified_credentials`) with Explicit Trust Tier Columns**: Maintaining nine fragmented storage schemas is indefensible given that 5 out of 9 currently lack AAD. Policy differences (such as `maskedTailAllowed` and `principalPrivate`) belong in typed metadata columns and AAD bindings, not in isolated database tables.
+4. **Composio Runs Permanently Alongside Direct Adapters**: With the correction that single-process constraints apply only to connection initiation (OAuth dance) and not credential execution, Composio becomes our delegated connector provider for long-tail SaaS, while direct adapters handle high-throughput, latency-critical, or custom internal APIs.
+5. **Optimistic Synchronous Execution with Asynchronous Job Escalation**: Solves the sync-UI / async-agent impedance mismatch by executing calls inline up to an interactive deadline (e.g., 2000ms), escalating to a persisted `external_operations` row only when the operation signals `POLLING_PENDING` or exceeds the interactive threshold.
+6. **Pagination is a Streamed Operation, Not a Durable Polling Job**: Handled as an asynchronous cursor stream passing through the ephemeral request signer on every chunk, rather than cluttering the durable job table.
+
+### 1.2 What Moved Me from Round 2
+- **The Composio Correction**: In Round 2, I concluded Composio was unviable for multi-worker infrastructure due to the packet's statement that it was "single-process-only." Pro correctly separated initiation from runtime usage. This moves me from treating Composio as a temporary crutch to treating it as a **permanent delegated transport tier**.
+- **Gemini 3.1 Pro's `adminExecutionCredentials` Vulnerability**: Identifying that `adminExecutionCredentials` has two scoping keys `(workspaceId, principalId)` with **zero AAD** proved that ciphertext can be transplanted across principals within a workspace. This completely destroys the argument for keeping legacy domain stores isolated: domain isolation failed to protect our most privileged credentials.
+- **The Sync/Async Latency Impedance Mismatch (Pro)**: Forcing 50ms LLM or metadata calls through database job rows degrades human UI experience. My dispatch model now implements **Sync-First Optimistic Execution**.
+
+---
+
+## 2. THE ROUND 3 QUESTION: CAN (AND SHOULD) PER-VENDOR CODE BE ELIMINATED?
+
+### 2.1 The Case Against Universal Declarative Integration ("100% Config, Zero Code Ever")
+The proposal to eliminate all per-vendor TypeScript is fatally flawed for three structural reasons:
+1. **The Second-Network-Call Boundary**: Real-world integrations are rarely single HTTP request/response pairs. `vendor-adapter.ts` documents that parsing often requires a secondary fetch—such as SenseAudio's SSRF-guarded media download or AIHubMix's provider-native redirect. A declarative parser trying to express arbitrary conditional secondary HTTP requests, header passing, and binary transformations will inevitably expand into an unmaintainable, custom Turing-complete expression language (YAML/JSON with loops, conditionals, and variables) devoid of static type checking, unit tests, and source-mapped stack traces.
+2. **Failure and Debuggability Asymmetry**: When a third-party vendor changes its JSON response structure at 2:00 AM:
+   - *Typed Adapter*: Fails with a clear TypeScript stack trace pointing to the exact property access in `parseResponse`.
+   - *Declarative JSONPath/DSL*: Evaluates to `undefined` or `null`, propagating silent data corruption down the execution graph.
+3. **Complex Auth Signatures (SigV4, HMAC-SHA256, Mutual TLS)**: Dynamic request signing requires canonicalizing URL paths, sorting query parameters, hashing raw body payloads, and formatting cryptographic headers with millisecond timestamps. Expressing AWS SigV4 or private-key JWT assertions in static JSON configuration is impossible without bespoke native plugins.
+
+### 2.2 Rebuttal & Concession: The Coordinator's "Wrong Axis" Challenge
+The Coordinator argues:
+> *"The dispatch engine's 12 provider files and ~18 registrations sat imported nowhere by any application for months... debating config-vs-code may be optimizing the cheap half of the problem."*
+
+- **The Concession**: The Coordinator and Flash are correct that engineering effort was historically misallocated. Building 12 synchronous adapters before building a crash-resilient async polling engine meant the adapters were unusable for real workloads (e.g., 10-minute video generation). Async execution is undeniably the foundational infrastructure requirement.
+- **The Rebuttal**: The Coordinator conflates **developer authoring convenience** with **runtime platform capability**. 
+  - If the goal were merely saving an internal software engineer 2 hours of writing TypeScript, config-vs-code would indeed be a minor optimization.
+  - **However**, when an AI agent needs to integrate a dynamic tool discovered at runtime (e.g., via an OpenAPI spec), or when a workspace administrator configures a custom internal webhook/REST endpoint from the UI without triggering a CI/CD build and server redeployment, **data-driven declarative integration is the only architecture that works**.
+  - Therefore, we do not dismiss declarative specs; we bound them.
+
+### 2.3 The Solution: The Bimodal Tiered Architecture
+We implement two first-class tiers:
+- **Tier A (Declarative Service Spec)**: A JSON/YAML data format for standard REST services. Crucially, we solve the "second-network-call" problem **not** by inventing a Turing-complete DSL, but by providing a **fixed-pipeline declarative step**: `followUpFetch` with strict SSRF CIDR policies and schema-validated JSONPath extraction.
+- **Tier B (Typed TypeScript Adapter)**: A full code adapter implementing `IServiceAdapter`. Used whenever an integration requires custom binary manipulation, complex multi-step orchestration, or bespoke cryptography. Tier B is not an "escape hatch" to be ashamed of; it is the standard architectural peer to Tier A.
+
+---
+
+## 3. RESOLUTION OF STILL-OPEN QUESTIONS FROM ROUND 2
+
+### Q1: One Canonical Credential Table vs. Keeping Nine Schemas
+**Verdict: One Canonical Table (`unified_credentials`) with AAD Enforcement.**
+- **Rebuttal to Sonnet**: Sonnet argues for keeping the nine legacy storage decisions because *"each category's owners independently decided their category needed its own shape."*
+  This rationale is contradicted by security facts. Tracing the call sites revealed that **5 out of 9 stores seal with NO AAD**, including `adminExecutionCredentials` where ciphertext is transplantable across principals! Leaving storage fragmented preserves legacy vulnerabilities.
+- **The Policy-as-Data Model**: Differences in trust tiers (e.g., whether `maskedTail` is permitted) are modeled as explicit database columns (`trust_tier`, `masked_tail_allowed`) and verified during ingestion. Every row in `unified_credentials` is encrypted using deterministic AAD:
+  $$\text{AAD} = \text{workspaceId} + ":" + (\text{principalId} \parallel "\text{__GLOBAL__}") + ":" + \text{providerId} + ":" + \text{id}$$
+
+### Q2: Composio: Extend, Replace, or Run Both Permanently?
+**Verdict: Run Both Permanently behind the Unified Credential Broker.**
+- **The Architecture**:
+  - **Composio / Delegated Connectors**: Used for user-facing SaaS tools (Slack, Google Workspace, GitHub OAuth) where we do not want to manage third-party OAuth app credentials, multi-tenant scopes, or provider app reviews.
+  - **Direct Adapters**: Used for internal infrastructure, AI model providers (OpenAI, Anthropic, Replicate), video rendering, and high-frequency webhook pipelines where egress latency, direct billing, and custom payload shaping are paramount.
+  - Both compose behind `ICredentialBroker`: the caller requests an `AuthApplier` / `RequestSigner`; for Composio, the signer delegates the call to Composio’s outbound gateway; for direct credentials, it applies the local headers.
+
+### Q3: The Sync-UI / Async-Job Impedance Mismatch
+**Verdict: Optimistic Synchronous Execution with Dynamic Escalation.**
+- A human UI requesting a 200ms operation must not be forced to poll a database table.
+- **The Mechanism**:
+  1. The `DispatchEngine` executes the submit request immediately in-process.
+  2. If the vendor responds with a final result within the interactive timeout (e.g., `< 2000ms`), the result is returned directly to the caller with zero database polling overhead.
+  3. If the adapter returns `POLLING_PENDING` (or the initial call returns `202 Accepted`), the engine creates a row in `external_operations`, registers the lease and attempt counters, and returns `{ kind: 'ACCEPTED', operationId }`. The client then switches to SSE streaming or polling.
+
+```
+Caller (UI / Agent) ──► DispatchEngine.execute()
+                             │
+                             ├─ (Within 2s) ──► Vendor returns 200 OK ─────► Return Result immediately (0 DB IO)
+                             │
+                             └─ (Async vendor) ─► Returns 202 / Pending ──► Persist `external_operations` ──► Return OperationId
+```
+
+### Q4: Pagination: A Third Shape or Covered by the Model?
+**Verdict: Pagination is an Asynchronous Streamed Operation, Not a Polling Job.**
+- Polling is **temporal waiting** (checking if an in-flight operation has finished). Pagination is **spatial iteration** (fetching multiple pages of already-completed data).
+- Forcing pagination into the `external_operations` table would flood the scheduler with trivial read queries.
+- We model pagination as an `AsyncIterableIterator<TPage>` on the `ExternalServicePort`. Because every page request passes through the `RequestSigner`, mid-stream token expiration is handled seamlessly (the signer transparently acquires a CAS refresh lease and retries the page fetch).
+
+---
+
+## 4. ADVERSARIAL ENGAGEMENT & REBUTTALS
+
+### 4.1 Attacking Sonnet 5's Plaintext Secret Exposure
+In Section B.2, Sonnet states:
+> *"Honesty note, because the packet asks this directly and a clean 'no' would be a false answer: for `mode: 'direct'`, the caller DOES receive `material`, which contains the actual plaintext secret... I am not fixing that here — I'm preserving it..."*
+
+**Critique & Attack**:
+Sonnet surrenders on credential containment. Handing raw `material` (plaintext API keys and OAuth tokens) to the calling domain and adapter code means:
+1. Any accidental `console.log(ctx)` or generic unhandled exception logger in any vendor adapter will leak raw secrets into application log aggregators.
+2. AI Agent tool execution engines that capture function arguments and intermediate states will inadvertently expose plaintext tenant tokens to agent context windows.
+3. It completely breaks our security boundary.
+
+As proven by Codex, Pro, the Coordinator, and Flash, **we do not need to hand callers raw secrets**. By using an Inversion-of-Control `RequestSigner` / `AuthApplier`, the adapter builds an unsigned HTTP descriptor, and the trusted broker injects the `Authorization` or HMAC headers inside an encapsulated boundary. Sonnet's claim that a broker pattern makes adding vendors harder is false: `signer.applyAuth(req)` is an in-process memory operation, not an outbound network proxy.
+
+### 4.2 Attacking Codex's Lack of Interactive UI Optimization
+In Section 4, Codex states:
+> *"UI and agent callers receive an operation ID immediately. They can inspect status through a sanitized operation view."*
+
+**Critique & Attack**:
+Codex falls into the exact UI-degradation trap identified in Round 2. Forcing a user-facing interactive autocomplete or quick text-generation request through a durable SQLite table insert, followed by client polling, adds 200ms–500ms of mandatory latency to what should be an instantaneous 50ms roundtrip. Our design must support **inline synchronous execution with lazy async escalation**.
+
+### 4.3 Attacking Gemini 3.1 Pro's Body-Signing Defeatism
+In Section C, Pro states:
+> *"The AuthenticatedRequestSigner assumes all authentication can be applied to a Request object (via Headers or URL params). If a vendor requires the API key inside a deeply nested JSON body payload... this model fails..."*
+
+**Critique & Attack**:
+Pro assumes that if auth is in the body, the signer cannot touch it. This is easily solved: `OutboundHttpRequest` carries a parsed structured payload or a `bodyTransformer` hook. The `RequestSigner` can mutate the top-level payload object prior to final byte serialization without exposing the secret to the outer application layer.
+
+---
+
+## 5. WHAT EVIDENCE OR ASSUMPTION CHANGE WOULD MOVE ME
+
+| Assumption / Stance | What Would Invalidate It | Consequence if Invalidated |
+|---|---|---|
+| **Tier A Declarative Spec is worth building** | If an audit of the next 20 target integrations shows that $\le 3$ can be expressed without TypeScript code. | Scap Tier A entirely; standardize 100% on Tier B typed adapters with code generation templates. |
+| **One Canonical Credential Store** | If high-concurrency benchmarks show SQLite/Postgres table lock contention on `unified_credentials` degrades platform throughput by $>15\%$. | Partition credentials into 3 physical tables by access pattern (`system_shared`, `workspace_oauth`, `ephemeral_tokens`). |
+| **Composio permanent coexistence** | If Composio introduces egress pricing or latency ($>300\text{ms}$) that makes tool calls unviable for real-time agent loops. | Deprecate Composio; implement in-house direct OAuth connectors for the top 10 SaaS integrations. |
+
+---
+
+## 6. RANKED SLATE OF ARCHITECTURAL OPTIONS
+
+### Slate Ranking
+
+| Rank | Architecture | Trade-offs & Pros/Cons |
+|---|---|---|
+| **#1 (Recommended)** | **Bimodal Engine (Tier A Declarative + Tier B Typed) + Canonical AAD Store + Optimistic Async Execution** | **Pros:** Zero secret leaks; eliminates 10-min hangs; allows runtime agent/user integrations for standard REST; retains full TypeScript power for complex multi-fetch vendors; native sub-second UI latency. <br>**Cons:** Requires maintaining both a spec evaluator and adapter registry. |
+| **#2** | **Strict Typed-Only Adapters + Canonical AAD Store + Durable Job Engine** | **Pros:** Maximum type safety; zero DSL erosion risk; clear stack traces everywhere. <br>**Cons:** Adding any new service requires code deployment; AI agents cannot dynamically register OpenAPI tools at runtime. |
+| **#3** | **Universal Declarative DSL (100% Config-Only)** | **Pros:** Zero TypeScript per vendor. <br>**Cons:** DSL rapidly degrades into an untyped, undebuggable programming language; fails on complex auth and multi-step parsing. |
+
+### Ranking Criteria
+1. **Security & Zero Secret Exposure**: Enforced AAD, no raw secrets in adapter code, logs, or agent contexts.
+2. **Operational Resilience**: Resumable long-running operations across process crashes with zero duplicate charges.
+3. **Developer Velocity & Runtime Extensibility**: Speed of onboarding new vendors both at build-time (engineers) and runtime (agents/admins).
+4. **Latency Fidelity**: Sub-second execution for interactive UI without mandatory polling loops.
+
+### Cheapest De-Risking Test
+1. Build the **Declarative Engine with the Bounded Secondary Fetch** and test it against a mock SenseAudio vendor (which returns a JSON payload containing an asset URL requiring an immediate secondary authenticated fetch).
+2. Concurrently simulate a process kill (`kill -9`) during a long-running video job and verify resumption from `external_operations` with no duplicate submission.
+
+---
+
+## 7. CONCRETE CODE: THE BIMODAL INTEGRATION ENGINE
+
+### 7.1 Tier A: Declarative Service Specification (Handling Secondary Network Calls)
+
+```typescript
+/**
+ * Tier A Declarative Service Specification.
+ * Enables runtime configuration of external services without TypeScript deployment.
+ */
+export interface DeclarativeServiceSpec {
+  readonly specVersion: "1.0";
+  readonly providerId: string;
+  readonly routeKey: string;
+  readonly executionMode: "sync" | "async_poll";
+  
+  // 1. Target Endpoint
+  readonly request: {
+    readonly method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+    readonly urlTemplate: string; // e.g. "https://api.vendor.com/v1/generate"
+    readonly headers?: Readonly<Record<string, string>>;
+    readonly bodyTemplateJson?: string; // JSON template with {{variable}} interpolation
+  };
+
+  // 2. Authentication Binding
+  readonly auth: {
+    readonly scheme: "none" | "bearer" | "basic" | "api_key" | "oauth2";
+    readonly headerName?: string; // e.g. "X-API-Key" for api_key
+    readonly valuePrefix?: string; // e.g. "Bearer "
+  };
+
+  // 3. Response Extraction & Bounded Secondary Network Fetch
+  readonly response: {
+    /** JSONPath to extract the primary result (e.g. "$.data.output_url" or "$.job_id") */
+    readonly resultJsonPath: string;
+    
+    /**
+     * Resolves the "second-network-call-inside-parsing" problem declaratively!
+     * If present, fetches the asset referenced at `assetUrlJsonPath` using SSRF-safe egress.
+     */
+    readonly followUpAssetFetch?: {
+      readonly assetUrlJsonPath: string; // e.g. "$.output.media_url"
+      readonly ssrfPolicy: "public_ip_only" | "strict_origin_match";
+      readonly allowedContentTypes: readonly string[]; // e.g. ["video/mp4", "image/png"]
+      readonly maxSizeBytes: number; // e.g. 50_000_000 (50MB)
+    };
+  };
+
+  // 4. Asynchronous Polling Configuration (if executionMode === "async_poll")
+  readonly polling?: {
+    readonly pollUrlTemplate: string; // e.g. "https://api.vendor.com/v1/jobs/{{remoteJobId}}"
+    readonly pollMethod: "GET" | "POST";
+    readonly statusJsonPath: string; // e.g. "$.status"
+    readonly completedStatusValue: string; // e.g. "SUCCESS"
+    readonly failedStatusValue: string; // e.g. "FAILED"
+    readonly defaultPollIntervalSeconds: number;
+    readonly maxTimeoutSeconds: number;
+  };
+}
+```
+
+### 7.2 Tier B: Minimum Typed Adapter Surface
+
+```typescript
+/**
+ * Tier B Typed Adapter: First-class, versioned TypeScript implementation
+ * for complex multi-leg protocols, binary handling, or custom crypto.
+ */
+export type StepResult<TOutput> =
+  | { readonly kind: "COMPLETED"; readonly data: TOutput }
+  | { 
+      readonly kind: "POLLING_PENDING"; 
+      readonly remoteOperationId: string; 
+      readonly continuationState: Record<string, unknown>;
+      readonly pollAfterMs: number;
+    }
+  | { readonly kind: "FAILED"; readonly error: string; readonly retriable: boolean };
+
+export interface AdapterExecutionContext {
+  readonly workspaceId: string;
+  readonly correlationId: string;
+  /** Sandboxed SSRF-safe fetcher for secondary asset downloads */
+  readonly safeAssetFetch: (url: URL, options?: { maxSizeBytes?: number }) => Promise<Uint8Array>;
+}
+
+export interface ITypedServiceAdapter<TPayload, TOutput> {
+  readonly providerId: string;
+  readonly routeKey: string;
+  readonly version: number;
+  readonly requiresAuth: boolean;
+
+  /** Step 1: Initial submission request builder */
+  buildSubmit(payload: TPayload): Promise<UnsignedHttpRequest>;
+
+  /** Step 2: Parse submit response (can complete immediately or transition to polling) */
+  parseSubmit(
+    response: HttpResponse, 
+    ctx: AdapterExecutionContext
+  ): Promise<StepResult<TOutput>>;
+
+  /** Step 3: Optional polling request builder for long-running jobs */
+  buildPoll?(
+    remoteOperationId: string, 
+    state: Record<string, unknown>
+  ): Promise<UnsignedHttpRequest>;
+
+  /** Step 4: Parse poll response */
+  parsePoll?(
+    response: HttpResponse, 
+    state: Record<string, unknown>, 
+    ctx: AdapterExecutionContext
+  ): Promise<StepResult<TOutput>>;
+}
+```
+
+### 7.3 Ephemeral Request Signer & Unified Dispatch Engine
+
+```typescript
+export interface UnsignedHttpRequest {
+  url: URL;
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+  headers: Record<string, string>;
+  body?: Uint8Array | string;
+}
+
+export interface HttpResponse {
+  readonly status: number;
+  readonly headers: Headers;
+  readonly body: Uint8Array;
+}
+
+/**
+ * Caller and adapter NEVER receive raw secrets.
+ * The broker provides this signer to inject identity into the request.
+ */
+export interface RequestSigner {
+  applyAuth(request: UnsignedHttpRequest): Promise<UnsignedHttpRequest>;
+  readonly isOAuth: boolean;
+}
+
+export interface ExternalServicePort {
+  /** High-level entry point for both human UI and AI agents */
+  execute<TInput, TOutput>(
+    routeKey: string,
+    payload: TInput,
+    ctx: { workspaceId: string; principalId?: string | null; correlationId: string }
+  ): Promise<{ kind: "COMPLETED"; data: TOutput } | { kind: "ACCEPTED"; operationId: string }>;
+
+  /** Streamed pagination for collections (spatial iteration) */
+  paginate<TItem>(
+    routeKey: string,
+    query: Record<string, unknown>,
+    ctx: { workspaceId: string }
+  ): AsyncIterableIterator<TItem[]>;
+}
+
+export class UnifiedDispatchEngine implements ExternalServicePort {
+  constructor(
+    private readonly credentialBroker: ICredentialBroker,
+    private readonly declarativeRegistry: Map<string, DeclarativeServiceSpec>,
+    private readonly typedRegistry: Map<string, ITypedServiceAdapter<unknown, unknown>>,
+    private readonly operationStore: IOperationStore,
+    private readonly httpTransport: (req: UnsignedHttpRequest) => Promise<HttpResponse>,
+    private readonly ssrfGuardedFetch: (url: URL, maxBytes?: number) => Promise<Uint8Array>
+  ) {}
+
+  public async execute<TInput, TOutput>(
+    routeKey: string,
+    payload: TInput,
+    ctx: { workspaceId: string; principalId?: string | null; correlationId: string }
+  ): Promise<{ kind: "COMPLETED"; data: TOutput } | { kind: "ACCEPTED"; operationId: string }> {
+    const signer = await this.credentialBroker.getSigner({
+      workspaceId: ctx.workspaceId,
+      principalId: ctx.principalId,
+      routeKey,
+    });
+
+    // 1. Resolve whether route is Declarative (Tier A) or Typed (Tier B)
+    if (this.declarativeRegistry.has(routeKey)) {
+      return this.executeDeclarative(this.declarativeRegistry.get(routeKey)!, payload, signer, ctx);
+    }
+
+    if (this.typedRegistry.has(routeKey)) {
+      return this.executeTyped(this.typedRegistry.get(routeKey)! as ITypedServiceAdapter<TInput, TOutput>, payload, signer, ctx);
+    }
+
+    throw new Error(`NO_ADAPTER_REGISTERED_FOR_ROUTE: ${routeKey}`);
+  }
+
+  /** Execution for Tier A: Declarative Specs with Secondary Asset Fetch */
+  private async executeDeclarative<TOutput>(
+    spec: DeclarativeServiceSpec,
+    payload: unknown,
+    signer: RequestSigner,
+    ctx: { workspaceId: string; correlationId: string }
+  ): Promise<{ kind: "COMPLETED"; data: TOutput } | { kind: "ACCEPTED"; operationId: string }> {
+    // 1. Build request from template
+    const rawReq: UnsignedHttpRequest = {
+      url: new URL(this.interpolate(spec.request.urlTemplate, payload)),
+      method: spec.request.method,
+      headers: { "Content-Type": "application/json", ...spec.request.headers },
+      body: spec.request.bodyTemplateJson ? this.interpolate(spec.request.bodyTemplateJson, payload) : undefined,
+    };
+
+    // 2. Sign and Dispatch with 401 retry
+    const res = await this.dispatchWithAuthRetry(rawReq, signer, ctx);
+    const resJson = JSON.parse(new TextDecoder().decode(res.body));
+
+    // 3. Handle Asynchronous Escalation
+    if (spec.executionMode === "async_poll" && res.status === 202) {
+      const remoteJobId = this.evaluateJsonPath(resJson, spec.response.resultJsonPath);
+      const opId = await this.operationStore.createOperation({
+        workspaceId: ctx.workspaceId,
+        routeKey: spec.routeKey,
+        remoteOperationId: remoteJobId,
+        pollStateJson: JSON.stringify({ remoteJobId }),
+        nextPollAt: Date.now() + (spec.polling?.defaultPollIntervalSeconds ?? 5) * 1000,
+        deadlineAt: Date.now() + (spec.polling?.maxTimeoutSeconds ?? 1800) * 1000,
+      });
+      return { kind: "ACCEPTED", operationId: opId };
+    }
+
+    // 4. Extract Primary Result
+    let result = this.evaluateJsonPath(resJson, spec.response.resultJsonPath);
+
+    // 5. Declarative Bounded Secondary Fetch (if configured)
+    if (spec.response.followUpAssetFetch) {
+      const assetUrl = new URL(this.evaluateJsonPath(resJson, spec.response.followUpAssetFetch.assetUrlJsonPath));
+      const assetBytes = await this.ssrfGuardedFetch(assetUrl, spec.response.followUpAssetFetch.maxSizeBytes);
+      result = { ...result, assetBytes: Buffer.from(assetBytes).toString("base64") };
+    }
+
+    return { kind: "COMPLETED", data: result as TOutput };
+  }
+
+  /** Execution for Tier B: Typed Adapters */
+  private async executeTyped<TInput, TOutput>(
+    adapter: ITypedServiceAdapter<TInput, TOutput>,
+    payload: TInput,
+    signer: RequestSigner,
+    ctx: { workspaceId: string; correlationId: string }
+  ): Promise<{ kind: "COMPLETED"; data: TOutput } | { kind: "ACCEPTED"; operationId: string }> {
+    const rawReq = await adapter.buildSubmit(payload);
+    const res = await this.dispatchWithAuthRetry(rawReq, signer, ctx);
+
+    const execCtx: AdapterExecutionContext = {
+      workspaceId: ctx.workspaceId,
+      correlationId: ctx.correlationId,
+      safeAssetFetch: (url, opts) => this.ssrfGuardedFetch(url, opts?.maxSizeBytes),
+    };
+
+    const step = await adapter.parseSubmit(res, execCtx);
+
+    if (step.kind === "COMPLETED") {
+      return { kind: "COMPLETED", data: step.data };
+    }
+
+    if (step.kind === "POLLING_PENDING") {
+      const opId = await this.operationStore.createOperation({
+        workspaceId: ctx.workspaceId,
+        routeKey: adapter.routeKey,
+        remoteOperationId: step.remoteOperationId,
+        pollStateJson: JSON.stringify(step.continuationState),
+        nextPollAt: Date.now() + step.pollAfterMs,
+        deadlineAt: Date.now() + 30 * 60 * 1000, // 30 min ceiling
+      });
+      return { kind: "ACCEPTED", operationId: opId };
+    }
+
+    throw new Error(`ADAPTER_EXECUTION_FAILED: ${step.error}`);
+  }
+
+  private async dispatchWithAuthRetry(
+    rawReq: UnsignedHttpRequest,
+    signer: RequestSigner,
+    ctx: { workspaceId: string }
+  ): Promise<HttpResponse> {
+    const signed = await signer.applyAuth(rawReq);
+    let res = await this.httpTransport(signed);
+
+    if (res.status === 401 && signer.isOAuth) {
+      // Automatic 401 mid-call refresh & single retry
+      await this.credentialBroker.forceRefresh(ctx);
+      const reSigned = await signer.applyAuth(rawReq);
+      res = await this.httpTransport(reSigned);
+    }
+    return res;
+  }
+
+  private interpolate(template: string, data: unknown): string {
+    return template.replace(/\{\{([\w.]+)\}\}/g, (_, key) => String((data as Record<string, unknown>)[key] ?? ""));
+  }
+
+  private evaluateJsonPath(obj: unknown, path: string): string {
+    const parts = path.replace(/^\$\.?/, "").split(".");
+    let curr: unknown = obj;
+    for (const p of parts) {
+      if (curr && typeof curr === "object" && p in curr) {
+        curr = (curr as Record<string, unknown>)[p];
+      } else {
+        return "";
+      }
+    }
+    return String(curr ?? "");
+  }
+
+  /** Pagination implementation */
+  public async *paginate<TItem>(
+    routeKey: string,
+    query: Record<string, unknown>,
+    ctx: { workspaceId: string }
+  ): AsyncIterableIterator<TItem[]> {
+    let cursor: string | null = null;
+    let hasMore = true;
+
+    while (hasMore) {
+      const res = await this.execute<{ items: TItem[]; nextCursor?: string }, { items: TItem[]; nextCursor?: string }>(
+        routeKey,
+        { ...query, cursor },
+        { ...ctx, correlationId: `page_${Date.now()}` }
+      );
+
+      if (res.kind !== "COMPLETED") {
+        throw new Error("PAGINATION_CANNOT_BE_ASYNC_JOB");
+      }
+
+      yield res.data.items;
+      cursor = res.data.nextCursor ?? null;
+      hasMore = cursor !== null && res.data.items.length > 0;
+    }
+  }
+}
+```
+
+---
+
+## 8. PACKET CRITIQUE & BIAS AUDIT (ROUND 3)
+
+1. **False Equivalence of "Declarative" and "Zero Code Ever"**:
+   The prompt asks: *"Can per-vendor integration code be eliminated entirely — every new external service added as configuration or data, with no new TypeScript per vendor, ever?"*
+   This is a classic excluded-middle framing bias. It forces participants into either defending an indefensible 100% config extreme or rejecting declarative integration altogether. The productive architecture is bimodal (Tier A standard REST + Tier B typed code).
+2. **Minimizing Runtime Data Integrations as Mere "Config"**:
+   The Coordinator’s challenge asserts that debating config-vs-code is "optimizing the cheap half of the problem" because adapters sat unused. This ignores that **AI Agents cannot compile TypeScript at runtime**. An agent dynamically generating an OpenAPI tool schema requires a data-driven Declarative Spec engine.
+3. **The Unresolved Multi-Tenant CAS Lock on Refresh**:
+   While the packet celebrated the MCP cross-process CAS refresh lease, it omitted that SQLite file-level locking during high-concurrency token refresh creates lease check contention across horizontal processes. The database schema must use short, bounded lease intervals with exponential backoff and jitter.
+4. **Missing Specification on Binary Egress**:
+   The packet repeatedly brings up video generation (long-running async) and SenseAudio (asset downloads), but fails to define where binary data lives. An integration engine that buffers 500MB video binaries in worker Node.js process memory will crash with OOM errors. The asset fetcher must stream directly to S3-compatible object storage via signed URLs.
+
+---
+
+## 9. CONCLUSION & FINAL SYNTHESIS
+
+The debate across three rounds has converged on a clear, robust architecture:
+1. **Credentials**: One canonical `unified_credentials` table with universal AAD, explicit trust-tier columns, and zero raw-secret exposure via the `RequestSigner` boundary.
+2. **Operations**: Persistent `external_operations` state machine with attempt caps, absolute deadlines, and crash recovery.
+3. **Execution**: A **Bimodal Dispatch Engine** where Tier A Declarative Specs handle 80% of standard REST and dynamic agent tools (including bounded SSRF-safe secondary fetches), while Tier B Typed Adapters remain the first-class path for complex protocols.
+4. **Coexistence**: Composio handles delegated third-party SaaS connectors, while direct adapters handle latency-critical, internal, and media generation pipelines.

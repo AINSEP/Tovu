@@ -1,0 +1,228 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902 -- I received the packet and will work on it.
+
+Codex(Peer Debate): The product needs a connection platform, not a universal vendor abstraction. Authentication and call execution should remain separate modules joined through opaque credential handles and a policy-enforcing outbound transport.
+
+## 1. Problem framing
+
+The packet’s two halves are separable but not independent:
+
+- Authentication answers: “May tenant T use identity I against destination D?”
+- Call shape answers: “What durable sequence of remote interactions implements operation O?”
+- Their composition must also enforce destination, tenant, actor, consent, scopes, idempotency, and audit policy.
+
+“Call any external service” is an unsafe and unattainable goal. Services vary not only in request shape but also in semantics: retries, idempotency, rate limits, webhooks, streaming, pagination, cancellation, and ambiguous outcomes. The attainable goal is:
+
+> Add a service by implementing or configuring bounded auth and protocol adapters, without changing domain logic or exposing credentials.
+
+Human UI and AI agents should share the execution substrate, but not necessarily authorization policy. Agent actions may require narrower capabilities, approvals, or spending limits.
+
+## 2. Credential model
+
+I recommend A3 as the steady-state security boundary, backed by an A1-like logical registry and reached initially through an A2 facade.
+
+### Core records
+
+A tenant-scoped `IntegrationConnection` should bind:
+
+- tenant/workspace ID
+- connector type and pinned version
+- service account/environment identity
+- permitted destinations
+- non-secret connector configuration
+- opaque credential handle
+- granted operations/scopes
+- lifecycle status
+
+A separate credential registry stores versioned credential material. Callers receive only handles. They cannot read tokens or ask the resolver to return headers. A broker validates the connection and tenant, attaches or computes authentication, performs the network request, and returns a sanitized response.
+
+The proposed closed A1 union is insufficient. At minimum, support:
+
+- `bearer`
+- `basic`
+- `oauth2`
+- `signed`
+- `none`
+- header API keys
+- an extension point for mTLS, workload identities, SSH credentials, and future mechanisms
+
+OAuth authorization-code and device-code are acquisition flows, not runtime credential types. Runtime OAuth state contains access token, refresh token, expiry, scopes, token type, and a reference to the OAuth client configuration.
+
+Likewise, `signed{keyId, secret}` is too weak as a universal shape. Signing usually depends on a named algorithm plus request body, timestamp, region/service, session token, or certificate chain. It needs a versioned auth-handler interface rather than a generic two-field implementation.
+
+### Refresh and expiry
+
+The broker should:
+
+1. Refresh proactively using an expiry skew.
+2. Serialize concurrent refreshes using a lease or optimistic credential-version update.
+3. Persist rotated refresh tokens atomically with the new access token.
+4. On a verified token-expiry response, refresh and retry at most once.
+
+A request is replayed only when it is safe:
+
+- Reads may normally be retried.
+- Mutations require an idempotency key or an adapter-supplied reconciliation method.
+- A submission with an ambiguous outcome must become `unknown`, not be blindly submitted again.
+- A streaming response that expires after output begins generally cannot be transparently replayed.
+
+Each poll in a long-running operation obtains a current auth lease through the same handle, so a job can outlive individual access tokens.
+
+### Persistence
+
+Use normalized relational columns for fields needed in joins, constraints, scheduling, or indexes. Store versioned low-query metadata and operation state as serialized JSON in `TEXT`, matching the cross-dialect reality described in the packet. Do not declare fake SQLite `JSONB`, and do not depend on decoding database-private binary JSON.
+
+Seal secrets with AAD containing at least tenant ID, credential ID, credential version, and auth-handler kind. This prevents ciphertext from being transplanted between records or tenants. Logs and audit events contain credential IDs, versions, schemes, and fingerprints—not material.
+
+### Live migration from four stores
+
+1. Introduce the broker/resolver facade over the existing stores. Move consumers behind it without moving data yet.
+2. Define the new registry and a mapping from every legacy record to a stable credential handle.
+3. Add dual-write for credential creation and update. Reads remain legacy-authoritative initially.
+4. Backfill tenant by tenant. Decrypt through the old adapter and immediately reseal with the new AAD. Verify using non-secret metadata or keyed fingerprints.
+5. Cut over one consumer class at a time behind a feature flag: custom requests, media, vendor targets, then OAuth/MCP.
+6. For each OAuth credential, establish one refresh authority before cutover. Two refreshers must never race across old and new stores.
+7. Switch to new-primary with legacy fallback, reconcile, then make legacy stores read-only.
+8. Remove fallback only after a defined rollback window and evidence that no active credential lacks a mapping.
+
+Migration state must be explicit—such as `legacy`, `dual`, `new-primary`, `complete`—and transitions idempotent. A big-bang migration risks mass credential invalidation.
+
+## 3. Call-shape model
+
+The existing `buildRequest → one fetch → parseResponse` interface is an immediate-call adapter, not a general execution engine. Do not add a polling loop as a special case around it.
+
+Use a durable operation state machine. An adapter should interpret one remote step at a time and return a transition such as:
+
+```text
+Complete(output)
+Call(nextRequest)
+Wait(nextPollAt, remoteOperationId, adapterState)
+Failed(error)
+Unknown(reconciliationData)
+```
+
+The runtime owns scheduling, leases, retries, deadlines, cancellation, and persistence. The adapter owns protocol semantics: how to submit, recognize completion, parse output, poll, and reconcile ambiguity.
+
+Persist an `ExternalOperation` with explicit indexed columns for:
+
+- tenant and connection
+- operation kind and status
+- pinned adapter name/version
+- remote operation ID
+- idempotency key
+- attempt count and next action time
+- worker lease and expiry
+- created/updated/deadline timestamps
+- versioned adapter state as JSON text
+- sanitized error classification
+
+After restart, a worker reclaims expired leases and continues from the recorded transition. Never persist authorization headers or secret-bearing URLs.
+
+There remains an unavoidable crash window between a remote side effect and recording its response. Exactly-once delivery cannot be manufactured locally. The runtime needs:
+
+- stable idempotency keys where supported;
+- adapter-specific lookup/reconciliation where possible;
+- an `unknown` state requiring retry policy or human resolution otherwise.
+
+Polling is only one asynchronous pattern. The same durable operation can also wait for a verified webhook, consume a stream, or resume after human approval.
+
+### Adapter tiers
+
+I would combine B2 and B3, use a constrained subset of B4 later, and reject B1 as the organizing principle:
+
+- A known compatible dialect is one tested protocol adapter instantiated by configuration.
+- Hand-written typed adapters are the default for meaningful vendor semantics.
+- A declarative DSL is appropriate only for bounded mappings and polling rules. It must be versioned, schema-validated, host-restricted, and incapable of arbitrary code execution.
+- MCP is another connector adapter and trust boundary, not the foundation. It may be preferred for a particular service, but it does not remove credential, durability, policy, or observability requirements.
+
+The existing deterministic stub is a good contract-test adapter. Its explicit placeholder marker should remain mandatory.
+
+## 4. How the halves compose
+
+The connector adapter produces an unauthenticated canonical request plus declared requirements:
+
+```text
+destination + operation + required auth capabilities + retry/idempotency metadata
+```
+
+The operation runtime passes that request and the connection’s opaque credential handle to the outbound broker. The broker:
+
+1. verifies tenant, actor, operation, credential ownership, and destination;
+2. refreshes or selects credential material;
+3. signs or attaches authentication internally;
+4. sends the request;
+5. strips secrets from errors and telemetry;
+6. returns a sanitized response to the adapter.
+
+The adapter never sees plaintext credentials. It also cannot choose an unrelated handle supplied by an AI-generated argument.
+
+For user-supplied base URLs, enforce origin binding, DNS/private-network policy, redirect restrictions, and TLS rules. Never forward authentication across an origin-changing redirect.
+
+Domain modules should expose intent-level ports such as publish, deploy, store, or generate—not raw HTTP. The generic credentialed-request feature remains a privileged escape hatch with allowlists, approval policy, and strong audit controls.
+
+## 5. Strongest case against this position
+
+This design risks building an internal integration platform more complex than the product itself. The central broker becomes both an availability bottleneck and a catastrophic security blast radius. The state-machine abstraction may degrade into opaque `state_json` plus vendor-specific conditionals, while domain-specific stores may actually model important invariants more safely.
+
+I would reconsider if representative integrations show that:
+
+- auth and protocol cannot be separated without repeatedly leaking vendor concepts across the boundary;
+- most adapters bypass or substantially extend the state machine;
+- the broker materially increases outage scope or latency;
+- maintaining one logical registry is more hazardous than a permanent A2 facade;
+- MCP providers demonstrably supply tenant isolation, durable asynchronous execution, observability, and stable contracts across the target service set.
+
+## 6. Expected failure modes
+
+Security:
+
+- Cross-tenant handle substitution or an authorization-cache key missing tenant ID.
+- SSRF or credential exfiltration through custom base URLs, redirects, DNS rebinding, or proxy behavior.
+- Tokens leaked through request dumps, tracing, vendor error bodies, or adapter state.
+- Ciphertext moved between tenants because AAD is missing or incomplete.
+- Refresh-token races invalidating the surviving token.
+- An AI agent abusing a generic HTTP capability or selecting an overprivileged connection.
+- Spoofed webhooks advancing another tenant’s operation.
+
+Operational:
+
+- Broker outage disabling every integration.
+- Refresh stampedes or database hot rows.
+- Polling queues overwhelming workers or vendor rate limits.
+- Duplicate publishes or deployments after a crash in the remote-call/commit gap.
+- Adapter upgrades making persisted in-flight state unreadable.
+- Infinite polling, abandoned jobs, clock skew, and uncontrolled external spend.
+
+Maintenance:
+
+- A supposedly compatible dialect drifting in subtle error or response semantics.
+- Declarative configuration becoming an untestable programming language.
+- Provider-specific branches accumulating in the core runtime.
+- Old adapter versions being removed while operations still reference them.
+
+The worst plausible failure is the broker attaching a tenant credential to an attacker-controlled endpoint—perhaps through a redirect from a configured gateway. Centralization would turn one validation defect into platform-wide credential theft. Destination enforcement therefore belongs inside the same trusted boundary that holds the secret.
+
+## 7. What I would build first
+
+Build one thin vertical slice containing:
+
+- the opaque-handle broker facade over legacy storage;
+- bearer and refreshable OAuth handlers;
+- the portable `IntegrationConnection` and `ExternalOperation` schemas;
+- one immediate adapter using the existing engine shape;
+- one submit-then-poll adapter;
+- the same operation callable through both UI and an agent-facing intent tool;
+- a restartable worker with leases and pinned adapter versions.
+
+Use deterministic test services to exercise expiry, refresh races, redirects, rate limits, restart after submission, duplicate delivery, malformed responses, and tenant-handle substitution. Contract tests should run against both adapter shapes.
+
+The design is killed—or at least sent back for redesign—if any of these occurs:
+
+- an adapter must receive raw credential material;
+- adding the polling adapter requires vendor-specific branches in the runtime;
+- restart testing produces an unclassified duplicate or silently orphaned operation;
+- the same handle can be exercised outside its tenant, destination, or operation policy;
+- secrets appear in logs, persisted state, agent results, or URLs;
+- an in-flight operation cannot resume under its pinned adapter version;
+- supporting the second service requires another credential store or bespoke execution subsystem.
+
+That slice proves the real claim: not that every service is identical, but that service-specific behavior can remain behind replaceable, contract-tested auth and protocol seams.

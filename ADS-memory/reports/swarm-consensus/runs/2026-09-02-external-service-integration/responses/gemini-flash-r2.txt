@@ -1,0 +1,693 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902-R2B -- I received the packet and will work on it.
+
+---
+
+# Architecture Proposal: Unified External Service Integration Engine
+
+---
+
+## SECTION A: THE DESIGN
+
+### 1. Problem Framing: Orthogonality & Composition
+
+The challenge of external service integration in a multi-tenant, agent-and-human-facing platform decomposes into two strictly orthogonal concerns connected by an ephemeral contract:
+
+```
+┌────────────────────────────────────────────────────────┐
+│               1. CREDENTIAL / IDENTITY                 │
+│  "Who is authorized to act, and how is proof minted?"   │
+│  • Tenant / Principal Scoping                          │
+│  • Envelope Encryption + AAD lineage                   │
+│  • Token Lifecycle, CAS Refresh & Skew Management      │
+└──────────────────────────┬─────────────────────────────┘
+                           │ Ephemeral Signer / Token Lease
+                           ▼
+┌────────────────────────────────────────────────────────┐
+│                 3. DISPATCH PIPELINE                   │
+│  "Inject identity proof, enforce timeouts, handle 401" │
+└──────────────────────────▲─────────────────────────────┘
+                           │ Protocol Contract (Request / Parse)
+┌──────────────────────────┴─────────────────────────────┐
+│                 2. CALL SHAPE / PROTOCOL               │
+│  "What wire dialect does the third party speak?"       │
+│  • Request serialization & URL construction            │
+│  • Sync vs Async-Poll vs Webhook state machines        │
+│  • SSRF-safe secondary asset acquisition & parsing     │
+└────────────────────────────────────────────────────────┘
+```
+
+#### Why are they orthogonal?
+1. **Change cadence differs**: Wire shapes (endpoints, payload formats) evolve with vendor API versions. Credential lifecycle (OAuth2 grant exchange, key rotation, AAD encryption) evolves with security posture and platform identity architecture.
+2. **Cardinality is M:N**: A single OAuth2 credential set (e.g., Google Workspace) may back 5 distinct call shapes (Drive upload, Docs edit, Gmail send, Calendar event, Vertex AI inference). Conversely, a single call shape (e.g., OpenAI chat completions) can be targeted using a Direct API Key, an Azure Managed Identity Bearer token, a Cloudflare AI Gateway proxy, or a local self-hosted instance with No-Auth.
+3. **Execution safety**: An adapter responsible for shaping JSON payloads must **never** touch encryption keys, raw OAuth client secrets, or database transaction locks. It must merely receive an abstract `RequestSigner` or an ephemeral token.
+
+#### Why a unified engine is essential (and where unifications fail)
+- **Where naive unifications fail**: Attempting to force every external interaction into a single monolithic schema (e.g., standardizing on Composio or forcing all vendors to be MCP servers) creates lowest-common-denominator latency, single-process memory bottlenecks, and vendor lock-in.
+- **Where unification succeeds**: Unifying the **lifecycle contracts** (how secrets are decrypted and refreshed; how jobs are leased and polled; how timeouts and SSRF guards are applied) while keeping **payload adapters modular and stateless**.
+
+---
+
+### 2. The Credential Model
+
+#### 2.1 Supported Auth Variants
+The credential store must support a closed, strictly typed discriminated union of authentication schemes:
+1. `none`: Public APIs, deterministic test stubs, or internally proxied services.
+2. `bearer`: Static API keys, Personal Access Tokens (PATs), or long-lived JWTs injected via `Authorization: Bearer <token>`.
+3. `basic`: `username:password` or `username:token` encoded as Base64, injected via `Authorization: Basic <base64>`. Disallows `user:pass@url` formatting.
+4. `api_key`: Keys injected into arbitrary custom headers (e.g., `X-API-Key`, `api-key`) or query parameters (e.g., `?api_key=`).
+5. `oauth2`: Authorization Code or Client Credentials flows with `accessToken`, `refreshToken`, `tokenEndpoint`, `expiresAt`, `clientId`, `clientSecretRef`, and `scopes`.
+6. `request_signing_hmac`: AWS SigV4, GitHub Webhook signatures, or custom HMAC-SHA256 request signing requiring access to raw request bytes, timestamp, and signature header computation.
+7. `custom_headers`: Multi-header static secrets (e.g., Datadog `DD-API-KEY` + `DD-APPLICATION-KEY`).
+
+#### 2.2 Token Expiry, Proactive Refresh, and Cross-Process Leases
+To eliminate the dual-refresh revocation vulnerability identified in `platform/oauth/token-refresh.ts`, token refresh is decoupled from adapter invocation:
+- **Proactive Refresh Window**: Tokens are evaluated before dispatch. If `expiresAt - now() <= SKEW_TOLERANCE_MS` (default 5 minutes / 300,000ms), a refresh is triggered *before* making the request.
+- **Distributed CAS Refresh Lease**: 
+  - When refresh is required, the worker attempts an atomic `UPDATE credentials SET refresh_lease_until = :leaseUntil, refresh_worker_id = :workerId WHERE id = :id AND (refresh_lease_until IS NULL OR refresh_lease_until < :now)`.
+  - **Winner**: Acquires the lease, executes the refresh grant against the provider `tokenEndpoint`, writes the new ciphertext and `expiresAt`, and clears the lease.
+  - **Loser (concurrent worker)**: Enters a retry wait loop (backoff with jitter, polling every 250ms for up to 10s) until the winner updates the row and clears the lease, then reads the newly minted token.
+- **Mid-Call 401 Expiry Handling**:
+  - If a provider rejects an unexpired token with `401 Unauthorized` (e.g., manual revocation, clock drift, or internal vendor session invalidation), the dispatch pipeline marks the cached/read token as stale, forces an immediate CAS lease acquisition for refresh, retries the refresh grant once, and repeats the outbound request. If the refresh fails or returns 401, the credential status is flipped to `NEEDS_REAUTH` and the caller receives a structured diagnostic.
+
+#### 2.3 Scoping & Multi-Tenancy
+Every credential row enforces a strict hierarchy:
+- Primary Scope: `workspaceId` (Tenant boundary).
+- Optional Secondary Principal Scope: `principalId` (User / Agent boundary, nullable).
+- Target Provider Identity: `providerId` (e.g., `github`, `openai`, `replicate`, `custom_webhook`).
+- Key Identifier / Alias: `credentialKey` (allows multiple accounts per workspace, e.g., `prod-deploy-key` vs `staging-deploy-key`).
+
+#### 2.4 Cryptographic Envelope & AAD Lineage
+Every encrypted column is an envelope containing:
+`{ ciphertext: string, iv: string, authTag: string, keyVersion: number }`
+- **Authenticated Additional Data (AAD)**: Every encryption and decryption operation **must** construct AAD binding the tenant context and the specific database record:
+  $$\text{AAD} = \text{UTF8}(\text{workspaceId} + ":" + (\text{principalId} \parallel "\text{global}") + ":" + \text{providerId} + ":" + \text{credentialId})$$
+- **Hard Rule**: Ciphertext cannot be moved between rows, tenants, or providers without failing AES-256-GCM / ChaCha20-Poly1305 authentication.
+
+#### 2.5 Migration Off 9 Live Credential Stores
+Per the hard-won rule in `vendor-credentials/dual-read.ts`, **we do not write a generic decrypt-all script**. Ciphertext auth tags verify only against their original table lineage and legacy AAD.
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        LEGACY STORES (9 TABLES)                        │
+│  [siteAssistant] [adminExecution] [sourceControl] [mediaProvider] ...  │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                       1. Encapsulated Legacy Resolvers
+                       (Each preserves legacy AAD lineage)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                     UNIFIED CREDENTIAL SERVICE                         │
+│                    (Dual-Read / Dual-Write Seam)                       │
+│                                                                        │
+│  Read Flow:                                                            │
+│  1. Check `unified_credentials`                                        │
+│  2. If missing -> Call Legacy Store Resolver -> Re-seal with Strict AAD│
+│     -> Upsert into `unified_credentials`                               │
+│                                                                        │
+│  Write Flow:                                                           │
+│  1. Write to `unified_credentials` with new AAD                        │
+│  2. Write to Legacy Store (during transition phase only)               │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│            TARGET: `unified_credentials` (Single Table)                │
+│  • Enforced AAD on 100% of rows (remediating the 3 legacy gaps)       │
+│  • Strict dialect-safe schema                                          │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+**Migration Execution Phases**:
+1. **Phase 1: Zero-Downtime Facade**: Introduce `UnifiedCredentialResolver`. It wraps the new `unified_credentials` table and registers dedicated, isolated read adapters for all 9 legacy stores.
+2. **Phase 2: Lazy Backfill on Read & Dual-Write**:
+   - Reads: If found in `unified_credentials`, decrypt with new AAD. If missing, read from legacy store using legacy decryptor, immediately encrypt with new AAD, and write to `unified_credentials`.
+   - Writes: Write to both `unified_credentials` and legacy tables.
+3. **Phase 3: Active Background Re-sealing**: A background worker scans remaining legacy rows, invokes each store's native decryptor, and upserts them into `unified_credentials`.
+4. **Phase 4: Deprecate Legacy Stores**: Sever legacy write paths, drop the 9 legacy tables via standalone database migrations. The 3 stores that previously lacked AAD (`siteAssistantCredentials`, `adminExecutionCredentials`, `mediaProviderCredentials`) are now fully protected with AAD in `unified_credentials`.
+
+---
+
+### 3. The Call-Shape Model
+
+#### 3.1 Synchronous vs. Long-Running Asynchronous Execution
+External API interactions fall into three operational topologies:
+1. **Immediate Synchronous**: Request $\rightarrow$ Response (e.g., DNS record update, quick text completion, file deletion). Max duration bounded (e.g., 15s - 30s).
+2. **Asynchronous Polling (Submit $\rightarrow$ Poll $\rightarrow$ Complete)**: Request $\rightarrow$ `JobId` $\rightarrow$ Repeated status checks $\rightarrow$ Result (e.g., Replicate/Runway video generation, long LLM fine-tuning, bulk exports).
+3. **Asynchronous Webhook / Callback**: Request $\rightarrow$ Correlation Token $\rightarrow$ Return $\rightarrow$ Incoming webhook triggers continuation.
+
+The architecture directly addresses the **10-minute video hanging connection problem** by mandating that any vendor operation capable of exceeding 15 seconds **must** implement the `PollingAdapter` contract, transforming dangerous connection-holding into resilient, resumable state machine transitions.
+
+```
+                      ┌────────────────────────────┐
+                      │    Outbound Dispatcher     │
+                      └─────────────┬──────────────┘
+                                    │ Submit Job
+                                    ▼
+                      ┌────────────────────────────┐
+                      │ External Service Provider  │
+                      │ Returns: { externalId: X } │
+                      └─────────────┬──────────────┘
+                                    │
+                                    ▼
+                      ┌────────────────────────────┐
+                      │  Persist `external_jobs`   │
+                      │  status: 'POLLING'         │
+                      │  next_poll_at: now() + 5s  │
+                      └─────────────┬──────────────┘
+                                    │
+         ┌──────────────────────────┴──────────────────────────┐
+         │                                                     │
+         ▼ (Every tick: poll due jobs)                         ▼ (Worker Crash / Restart)
+┌─────────────────────────────────┐                 ┌─────────────────────────────┐
+│      Job Polling Worker         │                 │  Orphan Recovery / Lease    │
+│ 1. Acquire CAS Lease on Job     │                 │ If lease_expires_at < now() │
+│ 2. Call `adapter.poll(state)`   │                 │ Reset lease, assign worker  │
+│ 3. Update status:               │                 └─────────────────────────────┘
+│    • PENDING -> set next_poll_at│
+│    • SUCCESS -> parse & finalize│
+│    • FAILED  -> dead-letter     │
+└─────────────────────────────────┘
+```
+
+#### 3.2 Where Polling State Lives
+Polling state lives in a dedicated, dialect-safe relational table: `external_service_jobs`.
+- Indexed query paths use real relational columns: `status`, `next_poll_at`, `lease_expires_at`, `workspace_id`.
+- Adapter-specific resumption tokens, external IDs, and scratchpads live in `continuation_state_json` (unindexed text).
+
+#### 3.3 Process Restraints, Restarts & Crash Recovery
+- **Distributed Job Leasing**: When a worker polls a job, it performs an atomic lease:
+  `UPDATE external_service_jobs SET lease_worker_id = :workerId, lease_expires_at = :leaseUntil WHERE id = :id AND (lease_expires_at IS NULL OR lease_expires_at < :now)`
+- **Crash Invariance**: If a container/process dies mid-poll, `lease_expires_at` (set to 60 seconds) naturally lapses. Another worker picks up the job on the next tick without double-executing the submission.
+- **Idempotent Continuation**: The adapter receives the stored `continuationState` and external job ID; it makes a read-only poll request to the vendor.
+
+#### 3.4 Bounding Jobs That Never Terminate
+To prevent infinite retry loops and runaway compute costs, every long-running job enforces three hard bounds:
+1. `hard_timeout_at` (Absolute Deadline): Defaults to 30–60 minutes depending on provider capability. Once `now() > hard_timeout_at`, the job transitions immediately to `TIMED_OUT` (Dead Letter), and an optional cancellation webhook/request is sent to the provider.
+2. `max_attempts` & `attempt_count`: If poll attempts exceed the threshold (e.g., 120 attempts), the job is aborted.
+3. `poll_interval_backoff`: Polling intervals back off dynamically (e.g., 2s $\rightarrow$ 5s $\rightarrow$ 10s $\rightarrow$ 30s) to avoid vendor rate limits.
+4. **Abort Signals & HTTP Engine Backstop**: Every single HTTP request passes an explicit `AbortSignal` with a strict socket/read timeout (e.g., 15 seconds for poll calls, 30 seconds for submit calls). No raw HTTP call is ever unbounded.
+
+---
+
+### 4. How the Two Halves Compose
+
+The two halves compose via an **Inversion-of-Control Dispatch Engine**. The caller and the adapter **never hold raw credentials**.
+
+```
+                        ┌────────────────────────┐
+                        │   Caller (UI / Agent)  │
+                        └───────────┬────────────┘
+                                    │ dispatch(route, payload)
+                                    ▼
+┌────────────────────────────────────────────────────────────────────────┐
+│                         DISPATCH CONTROLLER                            │
+│                                                                        │
+│ 1. Lookup Adapter by `routeKey` & `providerId`                         │
+│ 2. Check required credential policy                                    │
+│ 3. Resolve Credential via `CredentialBroker`                           │
+│    ├─ Check Token Skew -> CAS Refresh if needed                        │
+│    └─ Produce Ephemeral `RequestSigner`                                │
+│ 4. `adapter.buildRequest(payload, signer.getPublicContext())`          │
+│ 5. `signer.applyAuth(rawRequest)` (Injects headers/signatures safely)  │
+│ 6. Outbound HTTP Execution (Bounded Timeout, SSRF Protection)          │
+│    ├─ 401 Unauthorized? -> Invalidate Token, Force Refresh, Retry Once │
+│    └─ Network Error / 5xx? -> Apply Retry Policy                       │
+│ 7. `adapter.parseResponse(rawResponse)`                                │
+│    ├─ Done -> Return Domain Result                                     │
+│    └─ Async Pending -> Persist Job Record to `external_service_jobs`   │
+└───────────────────────────────────┬────────────────────────────────────┘
+                                    │
+                        ┌───────────┴────────────┐
+                        │   Structured Result    │
+                        │ (No secrets in trace)  │
+                        └────────────────────────┘
+```
+
+---
+
+## SECTION B: THE IMPLEMENTATION
+
+### 1. The Credential Record & Schema Types
+
+```typescript
+// ============================================================================
+// 1. CREDENTIAL MODEL & TYPES
+// ============================================================================
+
+export type AuthScheme = 
+  | 'none'
+  | 'bearer'
+  | 'basic'
+  | 'api_key'
+  | 'oauth2'
+  | 'request_signing_hmac'
+  | 'custom_headers';
+
+export interface EncryptedPayload {
+  readonly ciphertext: string;
+  readonly iv: string;
+  readonly authTag: string;
+  readonly keyVersion: number;
+}
+
+export type ApiKeyLocation = 'header' | 'query';
+
+export interface BaseAuthSecretMap {
+  none: Record<string, never>;
+  bearer: {
+    readonly token: string;
+  };
+  basic: {
+    readonly username: string;
+    readonly password?: string;
+    readonly token?: string;
+  };
+  api_key: {
+    readonly keyName: string;
+    readonly keyValue: string;
+    readonly location: ApiKeyLocation;
+  };
+  oauth2: {
+    readonly accessToken: string;
+    readonly refreshToken?: string;
+    readonly clientId?: string;
+    readonly clientSecret?: string;
+    readonly tokenEndpoint: string;
+    readonly scopes?: readonly string[];
+  };
+  request_signing_hmac: {
+    readonly accessKeyId: string;
+    readonly secretAccessKey: string;
+    readonly region?: string;
+    readonly service?: string;
+    readonly algorithm: 'AWS4-HMAC-SHA256' | 'HMAC-SHA256';
+  };
+  custom_headers: {
+    readonly headers: Readonly<Record<string, string>>;
+  };
+}
+
+export type AuthSecrets<T extends AuthScheme = AuthScheme> = BaseAuthSecretMap[T];
+
+export type CredentialStatus = 'ACTIVE' | 'EXPIRED' | 'NEEDS_REAUTH' | 'REVOKED';
+
+export interface UnifiedCredentialRecord<T extends AuthScheme = AuthScheme> {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly principalId: string | null;
+  readonly providerId: string;
+  readonly credentialKey: string; // e.g., 'default', 'production-backup'
+  readonly authScheme: T;
+  readonly status: CredentialStatus;
+  readonly expiresAt: Date | null;
+  readonly refreshLeaseUntil: Date | null;
+  readonly refreshWorkerId: string | null;
+  readonly metadataJson: string | null; // Unencrypted non-sensitive metadata (e.g., account username, masked last4)
+  readonly encryptedSecrets: EncryptedPayload;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+}
+```
+
+---
+
+### 2. The Resolver & Ephemeral Broker Interface
+
+```typescript
+// ============================================================================
+// 2. BROKER & REQUEST SIGNER (CALLER NEVER HOLDS RAW PERSISTENT SECRETS)
+// ============================================================================
+
+export interface OutboundHttpRequest {
+  url: URL;
+  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  headers: Record<string, string>;
+  body?: Uint8Array | string | null;
+  signal?: AbortSignal;
+}
+
+export interface RequestSigner {
+  readonly authScheme: AuthScheme;
+  /**
+   * Mutates or returns a cloned request with authorization injected.
+   * Cleanses headers, disallows double Authorization injection,
+   * prevents user:pass in URLs, and computes HMAC signatures if required.
+   */
+  applyAuth(request: OutboundHttpRequest): Promise<OutboundHttpRequest>;
+  
+  /**
+   * Diagnostic summary that is 100% safe to log. Never contains secret material.
+   */
+  toSafeDiagnostic(): {
+    authScheme: AuthScheme;
+    appliedHeaders: string[];
+    isTokenExpiringSoon: boolean;
+  };
+}
+
+export interface CredentialResolutionContext {
+  readonly workspaceId: string;
+  readonly principalId?: string | null;
+  readonly providerId: string;
+  readonly credentialKey?: string;
+}
+
+export interface ICredentialBroker {
+  /**
+   * Resolves a credential, performs proactive token refresh if required
+   * with cross-process CAS leasing, and returns an ephemeral RequestSigner.
+   * The raw secret string is NEVER exposed to the caller.
+   */
+  getSigner(ctx: CredentialResolutionContext): Promise<RequestSigner>;
+
+  /**
+   * Explicitly invalidates a token upon a downstream 401 Unauthorized,
+   * forcing a CAS lease refresh on the next request.
+   */
+  invalidateSession(ctx: CredentialResolutionContext): Promise<void>;
+}
+```
+
+---
+
+### 3. The Adapter Interface for Long-Running & Synchronous Vendors
+
+```typescript
+// ============================================================================
+// 3. ADAPTER INTERFACE (SUPPORTING SYNC & LONG-RUNNING ASYNC-POLL)
+// ============================================================================
+
+export type AdapterExecutionResult<TOutput> =
+  | { readonly kind: 'COMPLETED'; readonly data: TOutput }
+  | { 
+      readonly kind: 'POLLING_PENDING'; 
+      readonly externalJobId: string;
+      readonly continuationState: Record<string, unknown>;
+      readonly pollAfterSeconds: number;
+    }
+  | { readonly kind: 'FAILED'; readonly error: string; readonly fatal: boolean };
+
+export interface IServiceAdapter<TPayload, TOutput, TContinuation = Record<string, unknown>> {
+  readonly providerId: string;
+  readonly routeKey: string;
+  readonly defaultTimeoutMs: number;
+  readonly requiresAuth: boolean;
+
+  /**
+   * Builds the initial outbound HTTP request.
+   */
+  buildSubmitRequest(
+    payload: TPayload, 
+    context: { readonly baseUrl?: string }
+  ): Promise<OutboundHttpRequest>;
+
+  /**
+   * Parses the response from the initial submission.
+   * Can return COMPLETED (if fast sync), POLLING_PENDING (if async), or FAILED.
+   * Can perform secondary SSRF-safe network fetches if needed.
+   */
+  parseSubmitResponse(
+    response: { readonly status: number; readonly headers: Headers; readonly body: Uint8Array },
+    fetcher: (req: OutboundHttpRequest) => Promise<{ status: number; body: Uint8Array }>
+  ): Promise<AdapterExecutionResult<TOutput>>;
+
+  /**
+   * Builds a polling request to inspect job status on the external service.
+   */
+  buildPollRequest?(
+    externalJobId: string, 
+    continuationState: TContinuation
+  ): Promise<OutboundHttpRequest>;
+
+  /**
+   * Parses a polling response.
+   */
+  parsePollResponse?(
+    response: { readonly status: number; readonly headers: Headers; readonly body: Uint8Array },
+    continuationState: TContinuation,
+    fetcher: (req: OutboundHttpRequest) => Promise<{ status: number; body: Uint8Array }>
+  ): Promise<AdapterExecutionResult<TOutput>>;
+}
+```
+
+---
+
+### 4. Persisted Job/Operation Schema (Dialect-Agnostic)
+
+This table design is 100% compatible across SQLite, PostgreSQL, and MySQL. It avoids `JSONB` builder traps in SQLite, uses `TEXT` for serializations, and keeps all query filters in explicit, indexed scalar columns.
+
+```sql
+-- ============================================================================
+-- 4. RELATIONAL SCHEMA DEFINITIONS
+-- ============================================================================
+
+-- Unified Credentials Store
+CREATE TABLE unified_credentials (
+    id VARCHAR(64) PRIMARY KEY NOT NULL,
+    workspace_id VARCHAR(64) NOT NULL,
+    principal_id VARCHAR(64),
+    provider_id VARCHAR(64) NOT NULL,
+    credential_key VARCHAR(64) NOT NULL DEFAULT 'default',
+    auth_scheme VARCHAR(32) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE', -- ACTIVE, EXPIRED, NEEDS_REAUTH, REVOKED
+    expires_at TIMESTAMP NULL,
+    refresh_lease_until TIMESTAMP NULL,
+    refresh_worker_id VARCHAR(64) NULL,
+    metadata_json TEXT NULL,                      -- Masked info, username, non-secret metadata
+    encrypted_secrets_json TEXT NOT NULL,         -- Ciphertext, IV, authTag, keyVersion
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Unique index for scoped resolution
+CREATE UNIQUE INDEX uq_cred_scope 
+ON unified_credentials (workspace_id, COALESCE(principal_id, '__GLOBAL__'), provider_id, credential_key);
+
+-- Index for background token refresh scanner
+CREATE INDEX ix_cred_refresh_scan 
+ON unified_credentials (status, expires_at);
+
+
+-- Asynchronous External Service Operations / Jobs Table
+CREATE TABLE external_service_jobs (
+    id VARCHAR(64) PRIMARY KEY NOT NULL,
+    workspace_id VARCHAR(64) NOT NULL,
+    provider_id VARCHAR(64) NOT NULL,
+    route_key VARCHAR(64) NOT NULL,
+    external_job_id VARCHAR(255) NOT NULL,
+    status VARCHAR(32) NOT NULL DEFAULT 'POLLING', -- POLLING, COMPLETED, FAILED, TIMED_OUT, CANCELLED
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 120,
+    next_poll_at TIMESTAMP NOT NULL,
+    lease_expires_at TIMESTAMP NULL,
+    lease_worker_id VARCHAR(64) NULL,
+    hard_timeout_at TIMESTAMP NOT NULL,
+    continuation_state_json TEXT NOT NULL,         -- Unindexed scratchpad / token
+    result_data_json TEXT NULL,                    -- Completed payload
+    last_error_text TEXT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index for the polling job scheduler worker
+CREATE INDEX ix_ext_jobs_polling_queue 
+ON external_service_jobs (status, next_poll_at, lease_expires_at);
+
+-- Index for workspace lookups
+CREATE INDEX ix_ext_jobs_workspace 
+ON external_service_jobs (workspace_id, created_at);
+```
+
+---
+
+### 5. The Dispatch & Execution Pipeline
+
+```typescript
+// ============================================================================
+// 5. DISPATCH PIPELINE: AUTH MEETS CALL-SHAPE
+// ============================================================================
+
+export class DispatchEngine {
+  constructor(
+    private readonly credentialBroker: ICredentialBroker,
+    private readonly httpClient: (req: OutboundHttpRequest) => Promise<{ status: number; headers: Headers; body: Uint8Array }>,
+    private readonly jobStore: {
+      persistJob(job: {
+        id: string;
+        workspaceId: string;
+        providerId: string;
+        routeKey: string;
+        externalJobId: string;
+        continuationState: Record<string, unknown>;
+        nextPollAt: Date;
+        hardTimeoutAt: Date;
+      }): Promise<void>;
+    }
+  ) {}
+
+  public async execute<TPayload, TOutput>(
+    adapter: IServiceAdapter<TPayload, TOutput>,
+    payload: TPayload,
+    ctx: CredentialResolutionContext
+  ): Promise<AdapterExecutionResult<TOutput>> {
+    // 1. Resolve Auth Signer if required
+    let signer: RequestSigner | null = null;
+    if (adapter.requiresAuth) {
+      signer = await this.credentialBroker.getSigner(ctx);
+    }
+
+    // 2. Build Raw Request
+    const rawReq = await adapter.buildSubmitRequest(payload, {});
+    
+    // Set socket/timeout signal
+    const abortCtrl = new AbortController();
+    const timeoutTimer = setTimeout(() => abortCtrl.abort(), adapter.defaultTimeoutMs || 30_000);
+    rawReq.signal = abortCtrl.signal;
+
+    // 3. Apply Auth Injection via Signer
+    const signedReq = signer ? await signer.applyAuth(rawReq) : rawReq;
+
+    // 4. Outbound Fetch with Automatic 401 Refresh-Retry
+    let res: { status: number; headers: Headers; body: Uint8Array };
+    try {
+      res = await this.httpClient(signedReq);
+      
+      // If 401 Unauthorized occurs on an authenticated route, attempt one proactive lease-refresh retry
+      if (res.status === 401 && signer && signer.authScheme === 'oauth2') {
+        await this.credentialBroker.invalidateSession(ctx);
+        const refreshedSigner = await this.credentialBroker.getSigner(ctx);
+        const reSignedReq = await refreshedSigner.applyAuth(rawReq);
+        res = await this.httpClient(reSignedReq);
+      }
+    } finally {
+      clearTimeout(timeoutTimer);
+    }
+
+    // 5. Parse Response via Adapter
+    const parsed = await adapter.parseSubmitResponse(res, this.httpClient);
+
+    // 6. Handle Async Polling Transition
+    if (parsed.kind === 'POLLING_PENDING') {
+      const jobId = `job_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+      const now = Date.now();
+      await this.jobStore.persistJob({
+        id: jobId,
+        workspaceId: ctx.workspaceId,
+        providerId: adapter.providerId,
+        routeKey: adapter.routeKey,
+        externalJobId: parsed.externalJobId,
+        continuationState: parsed.continuationState,
+        nextPollAt: new Date(now + parsed.pollAfterSeconds * 1000),
+        hardTimeoutAt: new Date(now + 30 * 60 * 1000), // 30 min hard ceiling
+      });
+    }
+
+    return parsed;
+  }
+}
+```
+
+---
+
+## SECTION C: THE REASONING TRACE
+
+| Decision | What Was Chosen | Alternative Considered & Discarded | Reason for Choice / Deciding Factor |
+|---|---|---|---|
+| **D1: Secret Exposure to Adapters** | Inversion-of-Control `RequestSigner` interface. Adapters never touch raw API keys or decrypt tokens. | Passing decrypted `AuthSecrets` directly into `adapter.buildRequest(payload, secrets)`. | Eliminates accidental secret logging in adapters, prevents tool results from leaking secrets to AI agents, and encapsulates HMAC signing and header validation in a single audited module. |
+| **D2: Async Long-Running Handling** | Submit $\rightarrow$ Poll state machine backed by `external_service_jobs` table. | Holding HTTP connection open with streaming / chunked transfer (current video vendor approach). | Long HTTP connections fail on minor network hiccups, stall worker processes, waste pool capacity, and cause duplicate spend on naive retry. |
+| **D3: Database JSON Strategy** | Real relational indexed columns for query filters; unindexed `TEXT` for JSON payloads. | Using SQLite `JSONB` or Drizzle custom types with binary coercion. | SQLite `JSONB` defaults to `NUMERIC` affinity which corrupts string data. SQLite does not have JSON indexing like Postgres without generated columns. |
+| **D4: Legacy Store Migration** | Dual-read facade with isolated legacy decrypters and progressive AAD re-sealing. | Direct database migration script running a single decryption algorithm across all 9 tables. | Hard-won rule from `vendor-credentials/dual-read.ts`: Ciphertext auth tags verify *only* against their exact legacy AAD lineage. A generic decryptor breaks on table-specific AAD. |
+| **D5: Token Refresh Coordination** | Distributed CAS lease with proactive skew buffer. | In-memory token cache with locks; or just-in-time refresh upon 401 only. | In-memory lock is single-process-only (breaking multi-worker setups). JIT on 401 causes user-facing latency spikes and race conditions with providers that rotate refresh tokens on each exchange. |
+
+### Constraints Evaluated: Forced Hand vs. Judged Irrelevant
+- **Forced Hand**:
+  1. *SQLite NUMERIC affinity bug*: Dictated that all scheduling columns (`next_poll_at`, `status`, `attempt_count`) MUST be native scalar columns, not nested inside JSON documents.
+  2. *Single-process Composio limitation*: Proved that any in-memory OAuth or connection mapping fails in scaled environments; all coordination leases MUST live in the database.
+  3. *AAD mismatch across legacy stores*: Dictated an encapsulated per-table adapter migration strategy rather than a unified SQL migration query.
+- **Judged Irrelevant**:
+  1. *Declarative JSON-schema request builders*: While attractive for simple REST endpoints, vendors like OpenAI/Replicate require secondary network fetches during parsing (e.g., SSRF-guarded media downloads). The parse step **must** remain a full programmable function.
+
+### Epistemic Trace: Facts vs. Inferences
+- `[FACT]`: 3 legacy credential stores lack AAD authentication.
+- `[FACT]`: Video generation currently holds open a 10-minute synchronous connection.
+- `[FACT]`: SQLite ORM lacks a native select-side hook for JSON binary decoding.
+- `[INFERENCE]`: The retry bookkeeping table in production lacks hard dead-letter limits because infinite retries are common in first-pass implementations. We explicitly add `max_attempts` and `hard_timeout_at`.
+- `[INFERENCE]`: Composio's single-process pending map means Composio connector OAuth is currently unsafe across horizontal worker tiers.
+
+### Most Vulnerable Decision & Validation
+- **Vulnerable Decision**: Consolidating all auth variants into a single `unified_credentials` table with a discriminated JSON payload rather than maintaining polymorphic sub-tables.
+- **What Would Reveal Failure**: High lock contention or large row bloat on `unified_credentials` during high-frequency parallel agent tool executions.
+- **Detection**: Monitor Postgres/SQLite write-lock wait durations on `unified_credentials` updates during peak concurrency.
+
+---
+
+## SECTION D: ADVERSARIAL REQUIREMENTS
+
+### 1. Strongest Arguments Against This Design & What Would Change My Mind
+- **Counter-Argument**: *Over-engineering for simple API keys.* 80% of third-party vendors require only a static Bearer API Key. Creating a multi-tier Broker, CAS lease, and state-machine polling table introduces operational complexity when simple HTTP wrappers would suffice.
+- **Evidence That Would Change My Mind**: If 95% of future platform integrations are simple stateless LLM proxy calls with no OAuth refresh or long-running async poll requirements, a lightweight micro-client would be superior.
+
+### 2. Failure Modes & Production Risks
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        CRITICAL FAILURE MODES                          │
+├───────────────────┬────────────────────────────────────────────────────┤
+│ 1. Security       │ SSRF in secondary asset downloading inside         │
+│                   │ `parseResponse`. Solved via strict egress CIDR IP  │
+│                   │ filtering (blocking 169.254.169.254, RFC1918).     │
+├───────────────────┼────────────────────────────────────────────────────┤
+│ 2. Operational    │ Distributed Thundering Herd on OAuth Refresh:      │
+│                   │ If CAS lease expires while provider is slow,       │
+│                   │ second worker refreshes, revoking first token.     │
+├───────────────────┼────────────────────────────────────────────────────┤
+│ 3. Maintenance    │ Schema migration drift during dual-read phase if   │
+│                   │ engineers add new vendor keys to legacy tables.    │
+└───────────────────┴────────────────────────────────────────────────────┘
+```
+
+#### Detailed Breakdown of Failure Modes:
+1. **Security (SSRF in Secondary Fetch)**: A vendor response provides a redirect or secondary asset URL pointing to cloud metadata (`http://169.254.169.254/latest/meta-data/`). If `parseResponse` blindly calls `fetcher(url)`, secrets leak. *Remedy: The injected `fetcher` must resolve DNS and enforce private IP blocking.*
+2. **Operational (Worker Zombie Lease)**: A worker holding a polling lease hangs due to event-loop starvation. The lease expires, a second worker picks it up, both complete and trigger duplicate downstream side-effects. *Remedy: Idempotent status check before writing final completed result.*
+3. **Maintenance (Dual-Read Deadlock)**: A new engineer bypasses the `UnifiedCredentialResolver` and writes directly to an old table without new AAD. *Remedy: Linter / architectural test banning direct imports of legacy table schemas.*
+
+---
+
+### 3. Ranked Slate of Architectural Options
+
+| Rank | Strategy | Description | Pros | Cons |
+|---|---|---|---|---|
+| **#1 (Recommended)** | **Unified Broker + Adapter Engine** | Unified encrypted credential store with AAD, ephemeral request signer, and decoupled async poll scheduler. | Completely eliminates memory leaks, fixes 10-min hangs, scales horizontally, guarantees zero secret leakage. | Requires dual-read migration phase and schema consolidation. |
+| **#2** | **Externalized Broker (Composio / Vault Only)** | Delegate 100% of credentials and outbound dispatch to a third-party managed proxy (Composio/Vault). | Zero internal credential storage schema; offloads OAuth maintenance. | Vendor lock-in, recurring per-call cost, increased egress latency, does not solve custom internal adapters. |
+| **#3** | **Status-Quo Patching** | Keep 9 tables as-is; add polling loops directly inside individual vendor files. | Quickest initial delivery; no schema migrations. | Tech debt multiplies; AAD security holes remain; worker restarts crash long jobs. |
+
+#### Ranking Criteria:
+1. **Security & Cryptographic Correctness**: Enforced AAD and zero secret leakage to UI/AI.
+2. **System Resilience**: Crash-proof long-running jobs and multi-process safety.
+3. **Extensibility**: Speed of adding new vendors without bespoke subsystems.
+
+#### Cheapest De-Risking Test:
+Build the `RequestSigner` interface and benchmark it against a mock OAuth2 provider simulating token expiry under 50 concurrent worker threads. If CAS leasing prevents 100% of double-refresh collisions, the core architecture is verified.
+
+---
+
+### 4. What to Build First (The Kill-Slice)
+
+#### The Smallest Slice:
+Implement the **Async-Polling Video Adapter** on top of the new `external_service_jobs` table and `DispatchEngine`.
+
+#### The Observable Kill Condition:
+Simulate a worker process crash (`SIGKILL`) 30 seconds into an 8-minute video generation job. 
+- **PASS**: A secondary worker picks up the job after `lease_expires_at` lapses, resumes polling without re-submitting the generation or double-spending credits, and delivers the finished video.
+- **KILL THE DESIGN**: If the recovery causes duplicate job creation on the external provider, corrupts the state JSON, or leaves the job permanently orphaned in `POLLING` status.
+
+---
+
+## SECTION E: PACKET CRITIQUE & ASSUMPTION AUDIT
+
+1. **False Equivalence of Composio vs. Internal Dispatch**: The packet notes that Composio is already running and brokers calls without callers holding credentials, but fails to highlight that Composio's single-process pending-connection map makes it incompatible with a multi-tenant, horizontally scaled worker fleet. Composio cannot be the foundational model for core platform dispatch without an external session cluster.
+2. **The AAD Gap Minimization**: The packet verified that 3 stores lack AAD. This is not merely a schema discrepancy; it is a **critical cryptographic vulnerability** allowing ciphertext transplant attacks between workspaces. The prompt treats it as a storage difference rather than an urgent security remediation requirement.
+3. **The Adapter Engine Stagnation Paradox**: The packet notes that 12 provider files registering ~18 routes were "imported nowhere by the applications until 2026-09-02." This indicates that the previous dispatch engine failed because its synchronous-only contract (`ONE fetch`) could not support real-world workflows like 10-minute video generation. Building a unified engine without native async-polling guarantees immediate abandonment by product engineers.
+4. **SQLite JSONB Misconception**: The packet correctly warns against `JSONB` in SQLite due to `NUMERIC` affinity coercion. This proves that any design attempting to place job status, attempt counts, or lease timers inside a generic JSON blob is fundamentally flawed for cross-dialect deployments.
+
+---

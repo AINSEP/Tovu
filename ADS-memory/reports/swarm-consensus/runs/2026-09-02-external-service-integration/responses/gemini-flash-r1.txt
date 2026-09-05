@@ -1,0 +1,282 @@
+ACK_PACKET_RECEIVED CTX-EXT-SVC-20260902 -- I received the packet and will work on it.
+
+---
+
+### 1. Problem Framing: The Coupling Fallacy & True Boundary
+
+The packet separates the problem into:
+1. *Proving who we are* (Auth/Credentials)
+2. *Knowing how to talk to the service* (Call shape & protocol)
+
+Treating these as completely orthogonal and cleanly decoupled is an architectural mistake that causes failure in real-world integration engines. They are not independent layers that can be composed by simple string concatenation of an `Authorization` header onto an arbitrary HTTP request. They interact intimately across three critical boundaries:
+
+1. **Payload-Dependent Signing**: Protocols like AWS SigV4, HMAC-SHA256 webhooks, and modern OAuth mutual-TLS/DPoP do not inject static headers. They hash the HTTP method, canonicalized URI, query string, timestamp, and body bytes using the secret. Auth cannot run before call-shape resolution; it must run *after* request serialization.
+2. **Context-Dependent Scoping**: Credentials frequently contain non-secret routing metadata (e.g., Cloudflare `accountId`, AWS `region`/`roleArn`, GitHub `org`/`login`, S3 `bucket`). If the credential store only knows how to yield a bearer token, the adapter must maintain duplicate out-of-band configuration to know *where* to send the request.
+3. **Failure Recovery and Polling Loops**: A `401 Unauthorized` encountered during initial submission means the token is invalid; a `401` encountered on minute 8 of a long-polling status loop means the access token expired mid-flight while the job is still running upstream. The execution lifecycle must be able to invoke token refresh *without* terminating or restarting the remote job.
+
+#### The Correct Boundary
+The architecture should not decouple "Credentials" from "Adapters". Instead, it must separate:
+- **The Credential Vault & Lifecycle Subsystem** (Storage, tenant isolation, encryption with AAD, lifecycle status, refresh mutexes, and secret resolution).
+- **The Pure Functional Adapter** (Declarative or typed transform: `Input -> RequestSpecification`, `RawResponse -> Output`, `RawResponse -> PollStatus`).
+- **The Outbound Invoker / Durable Execution Engine** (Stateful orchestration: handles request canonicalization, dynamic auth signing, single-fetch vs. durable polling, 401 mid-flight refresh/retry, and secret masking).
+
+---
+
+### 2. The Credential Model
+
+#### Architecture: Unified Record with Opaque Capability Handles (A1 + A3)
+Neither the UI nor the AI agent should ever touch plaintext secrets or raw tokens. Callers operate exclusively on opaque **`CredentialHandle`** references scoped to a `tenant_id`.
+
+```typescript
+// Unified storage contract across all dialects (Postgres, SQLite, MySQL)
+interface StoredCredentialRecord {
+  id: string;                         // UUID / CUID
+  tenant_id: string;                  // Strict tenant partitioning
+  vendor_key: string;                 // e.g. "openai", "github", "cloudflare", "generic_mcp"
+  auth_scheme: 'bearer' | 'basic' | 'oauth2' | 'custom_header' | 'sigv4' | 'none';
+  metadata_json: string;              // Plaintext non-secrets: { accountId?, baseUrl?, keyId?, region? }
+  sealed_payload: Uint8Array;         // Encrypted secret data (AES-256-GCM / ChaCha20-Poly1305)
+  expires_at: number | null;          // Unix epoch seconds (null if non-expiring)
+  refresh_token_id: string | null;    // Self-reference or internal pointer for linked refresh tokens
+  status: 'active' | 'expired' | 'revoked' | 'refresh_failed';
+  last_used_at: number | null;
+  created_at: number;
+  updated_at: number;
+}
+```
+
+#### Secret Encryption with Mandatory AAD
+The existing flaw where one store "seals without AAD" is a critical multi-tenant vulnerability (an attacker or corrupt DB update could swap ciphertext blobs across tenants or vendors).
+- Every secret payload MUST be encrypted using authenticated encryption with associated data (AEAD).
+- The **AAD (Additional Authenticated Data)** must bind: `${tenant_id}:${id}:${vendor_key}:${auth_scheme}`.
+- If a ciphertext is moved to another tenant or vendor record, decryption will fail cryptographically.
+
+#### Dialect & SQLite Persistence Constraints
+- **Do not use `JSONB` in SQLite schema builders**: As noted in the packet, SQLite resolves `JSONB` to `NUMERIC` affinity, silently mangling strings into numbers.
+- Store `metadata_json` as explicit `TEXT` (`text("metadata_json")`).
+- Store `sealed_payload` as `BLOB` (`blob("sealed_payload")`).
+- For multi-tenant indexed lookups: All queries are indexed on composite `(tenant_id, vendor_key)` and `(tenant_id, id)`. Path-based indexing inside `metadata_json` is banned; any field that requires filtering or lookup must be a dedicated column on the record (e.g., `vendor_key`).
+
+#### Token Expiry, Locking, and Mid-Call Refresh
+1. **Proactive Refresh (Pre-flight)**:
+   When resolving a credential, if `expires_at != null` and `now() >= expires_at - BUFFER` (e.g., 300 seconds), trigger a refresh before dispatching the request.
+2. **Refresh Concurrency & Token Rotation**:
+   OAuth2 providers using single-use Refresh Token Rotation (RTR) will revoke the entire authorization chain if two concurrent requests send the same refresh token simultaneously.
+   - Refresh execution MUST acquire a distributed/row-level lock per `(tenant_id, credential_id)` (in SQLite: immediate transaction or an in-memory per-credential async mutex with DB state verification; in Postgres: `FOR UPDATE`).
+   - If a request enters while refresh is in flight, it awaits the existing promise/lock and receives the new access token.
+3. **Reactive Refresh (Mid-flight 401)**:
+   If an endpoint returns `401 Unauthorized` and the credential is of scheme `oauth2`:
+   - Step A: Invalidate the cached/resolved token in memory.
+   - Step B: Acquire the refresh lock. Check if another worker already refreshed it while this request was running. If yes, retry immediately with the new token.
+   - Step C: If still expired, execute the OAuth2 refresh flow.
+   - Step D: Update the database record with the new access token and rotated refresh token inside a single transaction.
+   - Step E: Re-sign and re-issue the failed HTTP request (max 1 retry attempt). If the retry returns `401`, mark credential `status = 'refresh_failed'`, fail fast, and return a structured diagnostic without secret material.
+
+#### Concrete 4-Store Migration Plan (Zero-Downtime, Live Data)
+
+```
+Phase 1: Facade Layer
+[4 Legacy Stores] <--- [Unified Credential Resolver Facade (A2)] <--- [Application Callers]
+
+Phase 2: Target Schema & Dual-Write
+[Unified Schema]  <--- (Dual Writes on create/update)
+[4 Legacy Stores] <--- (Reads fallback to legacy if missing in unified)
+
+Phase 3: Backfill Worker
+[Backfill Script] ---> Read Legacy -> Decrypt -> Re-encrypt with AAD(tenant:id) -> Write Unified
+
+Phase 4: Cutover & Deprecation
+[Unified Schema]  <--- [Unified Credential Store (A1)] <--- [Application Callers]
+[4 Legacy Stores] ---> DROPPED
+```
+
+1. **Step 1 (Schema & Facade)**: Create the unified `credentials` table. Deploy a `UnifiedCredentialResolver` interface.
+2. **Step 2 (Dual Write + Read Fallback)**:
+   - UI and Agent credential creation routes write to the *new* unified store (using AEAD with AAD).
+   - The resolver checks the *new* unified table first; if missing, it falls back to querying the respective legacy store.
+3. **Step 3 (Offline/Online Backfill)**:
+   Run an idempotent migration job:
+   - Read from `platform/oauth/`, map to `auth_scheme: 'oauth2'`, re-encrypt tokens with AAD.
+   - Read from `features/custom-credentials/`, map `Bearer`/`Basic`, re-encrypt.
+   - Read from `media ProviderCredentials` & `vendor-credentials/store.ts`, extract metadata (`baseUrl`, `accountId`, `region`), seal secrets (`apiKey`, `token`).
+4. **Step 4 (Validation & Decommission)**:
+   Log zero fallback hits for 72 hours. Remove legacy read fallbacks, delete legacy access code, and drop legacy tables.
+
+---
+
+### 3. The Call-Shape Model: Sync vs. Long-Running Submit-then-Poll
+
+#### Critique of Candidates
+- **B1 (MCP-first) — Rejected as Foundation**: MCP is an agent tool protocol, not a universal remote execution protocol. External vendors (GitHub, AWS, Cloudflare, specialized media providers) do not natively host MCP servers. Wrapping every HTTP REST API in a local or remote MCP daemon adds operational failure modes, serialization overhead, and latency. MCP should be a *consumer* of this engine, not the engine itself.
+- **B2 (Compatible-Dialect Config) — Accepted as Tier**: For OpenAI-compatible endpoints, Ollama, vLLM, and S3-compatible storage, hand-writing 10 identical adapters is wasteful. A dialect adapter parameterized by `baseUrl` and `model`/`bucket` is essential.
+- **B4 (Declarative JSON/DSL) — Rejected**: Declarative DSLs for REST APIs sound elegant until an API requires multi-part form boundary calculations, binary payload stream hashing, conditional pagination, or dynamic error code extraction. Declarative configs inevitably morph into buggy, half-baked Turing-incomplete programming languages.
+- **B3 (Typed Hand-Written Adapters) + B2 (Dialect Tier) — Selected**: Small, functional, typed adapters using TypeScript contracts, with dialect-level parameterization where standards exist.
+
+#### The Synchronous vs. Submit-then-Poll Dilemma
+The existing 1-fetch core (`requireCredential -> buildRequest -> fetch -> parseResponse`) is fatally limited. Video generation, batch deployments, DNS propagation, and asynchronous training jobs take between 10 seconds and 30 minutes. Holding an HTTP connection open or running an in-memory `setTimeout` loop in Node.js/TypeScript will fail on any deployment, worker restart, or serverless autoscaling event.
+
+#### The Dual-Mode Execution Architecture
+
+Every adapter declares an `ExecutionKind`:
+1. **`Immediate` (Synchronous)**: 1 fetch $\rightarrow$ immediate response.
+2. **`Deferred` (Submit-then-Poll)**: A 3-step state machine (`submit` $\rightarrow$ `poll` $\rightarrow$ `fetchResult`).
+
+```typescript
+// Pure Functional Adapter Contract
+export type Adapter<TInput, TOutput, TPollState = unknown> = 
+  | ImmediateAdapter<TInput, TOutput>
+  | DeferredAdapter<TInput, TOutput, TPollState>;
+
+export interface ImmediateAdapter<TInput, TOutput> {
+  kind: 'immediate';
+  buildRequest(input: TInput, ctx: RequestContext): RequestSpec;
+  parseResponse(response: ResponseSpec, ctx: RequestContext): TOutput;
+}
+
+export interface DeferredAdapter<TInput, TOutput, TPollState> {
+  kind: 'deferred';
+  buildInitialRequest(input: TInput, ctx: RequestContext): RequestSpec;
+  parseInitialResponse(response: ResponseSpec, ctx: RequestContext): {
+    jobId: string;
+    pollState: TPollState;
+    nextPollAfterMs: number;
+  };
+  buildPollRequest(jobId: string, pollState: TPollState, ctx: RequestContext): RequestSpec;
+  parsePollResponse(response: ResponseSpec, pollState: TPollState, ctx: RequestContext): 
+    | { status: 'running'; pollState: TPollState; nextPollAfterMs: number }
+    | { status: 'completed'; resultSpec?: RequestSpec; inlineResult?: TOutput }
+    | { status: 'failed'; error: DiagnosticError };
+  parseFinalResponse?(response: ResponseSpec, ctx: RequestContext): TOutput;
+}
+```
+
+#### Where Polling State Lives & Surviving Process Restarts
+Polling state MUST NOT live in process memory. It resides in a persistent **`external_tasks`** table:
+
+```typescript
+interface ExternalTaskRecord {
+  id: string;                         // Task ID
+  tenant_id: string;                  // Tenant isolation
+  vendor_key: string;                 // e.g. "runway", "cloudflare_deploy"
+  credential_id: string;              // Pointer to StoredCredentialRecord
+  status: 'pending' | 'polling' | 'completed' | 'failed' | 'timed_out';
+  job_id: string;                     // Upstream vendor's job identifier
+  poll_state_json: string;            // Adapter-specific checkpoint data
+  next_poll_at: number;               // Unix epoch millisecond timestamp
+  attempts: number;                   // Retry/poll count
+  max_timeout_at: number;             // Hard ceiling for job expiration
+  last_error_json: string | null;
+  result_json: string | null;         // Final result or pointer to stored blob
+  created_at: number;
+  updated_at: number;
+}
+```
+
+**Restart Recovery Lifecycle**:
+1. A durable dispatcher worker / cron scheduler queries:
+   `SELECT * FROM external_tasks WHERE status = 'polling' AND next_poll_at <= :now LIMIT 50`
+2. If the Node.js process crashes mid-poll, the record remains in the database with its last known `poll_state_json` and `next_poll_at`.
+3. When the process restarts, the worker picks up the row, loads the adapter, resolves the credential handle, executes `buildPollRequest`, and continues.
+4. **Idempotency on Crash**: The adapter’s `parsePollResponse` is pure. Polling a vendor twice with the same `jobId` is safe.
+5. If the job succeeds, the result is saved, status is marked `completed`, and the calling subsystem (or AI agent via task notification) is woken up reactively.
+
+---
+
+### 4. How the Two Halves Compose
+
+The composition must prevent the adapter from handling secrets and prevent the auth layer from knowing HTTP request body schemas.
+
+```
++-----------------------------------------------------------------------------------+
+| 1. CALLER (AI Agent Tool / UI Action)                                             |
+|    Calls execute(vendor: "runway", input: {...}, credentialHandle: "cred_123")    |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 2. PURE ADAPTER LAYER                                                             |
+|    - Maps Input -> RequestSpec (Method, Path, Headers, Body, AuthRequirements)    |
+|    - Has NO access to raw API keys or decryptor keyring                           |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 3. DISPATCH EXECUTOR & SIGNING PIPELINE                                           |
+|    a. Fetch Credential Record for (tenant_id, credentialHandle)                   |
+|    b. Ensure token validity (Proactive Refresh under Mutex if expired)            |
+|    c. Decrypt Secret with AAD(tenant_id, id, vendor, scheme)                      |
+|    d. Auth Attacher: Inject Bearer / Basic / SigV4 signature / Custom headers     |
+|    e. Sanitize & Validate: Block URL credentials (user:pass@), verify BaseURL     |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 4. HTTP TRANSPORT & RECOVERY                                                      |
+|    a. Dispatch single fetch()                                                     |
+|    b. Catch 401: Invalidate -> Lock -> Refresh -> Re-sign -> Single Retry        |
+|    c. Catch Timeout / 5xx: Apply exponential backoff                              |
++-----------------------------------------------------------------------------------+
+                                         |
+                                         v
++-----------------------------------------------------------------------------------+
+| 5. RESPONSE PARSING & STATE ROUTING                                               |
+|    - If Immediate: Adapter.parseResponse() -> Return to caller                    |
+|    - If Deferred: Insert row in external_tasks -> Return TaskHandle to caller     |
+|    - Mask all secrets from logs, agent transcripts, and error payloads            |
++-----------------------------------------------------------------------------------+
+```
+
+#### Composition with AI Agents
+When the AI agent needs to call an external service:
+1. The agent's tool definition takes parameters: `{ credentialId?: string, ...serviceArgs }`.
+2. If `credentialId` is omitted, the executor auto-resolves the default credential configured for `(tenant_id, vendor_key)`.
+3. The tool runner invokes `execute()`. If the adapter is `deferred`, the agent receives `{ status: "queued", taskId: "task_456" }`.
+4. When `external_tasks` completes, the agent receives a reactive wakeup message with the clean parsed output.
+5. Errors return structured diagnostics (e.g. `{ error: "VendorAuthFailed", vendor: "github", schemeSent: "bearer", httpStatus: 401 }`), guaranteeing that raw tokens and secret URLs are never leaked into the LLM context or conversation logs.
+
+---
+
+### 5. Strongest Argument AGAINST This Position
+
+#### The Critique: "The Micro-Platform Over-Engineering Trap"
+By creating a unified credential vault, AEAD envelope encryption layer, durable polling table, worker scheduler, and a multi-stage execution pipeline, we are building a bespoke in-house **Workflow Engine** (a mini-Temporal / mini-Inngest).
+
+- For a product where 85% of third-party calls might turn out to be short-lived synchronous REST calls (e.g. fetching user info from GitHub or basic LLM completions), building a durable polling state machine in SQLite adds substantial code mass, migration friction, and operational burden.
+- If the ecosystem standardizes heavily on **external MCP servers** over the next 18 months, vendors will ship their own MCP servers that manage their own internal polling and credential flows remotely. Our custom adapter layer and polling table will become instant legacy code.
+
+#### What Evidence Would Change My Mind?
+1. **Adoption of Native External Durable Runtimes**: If the product moves to an infrastructure environment that provides native durable execution primitives (e.g. Cloudflare Workflows, Temporal, Inngest, or AWS Step Functions), the in-database `external_tasks` polling engine should be discarded in favor of running the adapter as a standard durable workflow step.
+2. **Universal MCP Vendor Parity**: If major non-AI SaaS providers (Cloudflare, GitHub, AWS, Stripe) begin shipping authenticated hosted MCP endpoints with standard long-polling tool contracts, direct REST adapters should be frozen and deprecated in favor of native MCP federation.
+
+---
+
+### 6. Failure Modes
+
+#### 1. Security Failure Mode: SSRF via Configurable `baseUrl` and Metadata Spoofing
+- **Mechanism**: Generic dialect adapters and custom credentials allow users/agents to specify `baseUrl` (e.g. to point to a local Ollama or self-hosted proxy). An attacker in a multi-tenant environment could set `baseUrl: "http://169.254.169.254/latest/meta-data/"` or `"http://kubernetes.default.svc.cluster.local"`. When the executor attaches the tenant's Bearer token or executes an unauthenticated fetch, it hits internal cloud infrastructure.
+- **Mitigation**: The transport layer must run an **IP/DNS Pre-flight Validation** (DNS resolution before connect, banning RFC 1918 private IPs, link-local addresses, and loopback ranges unless an explicit server environment variable allows local development).
+
+#### 2. Operational Failure Mode: The SQLite Polling Stampede & Write-Lock Contention
+- **Mechanism**: In a multi-tenant SQLite setup, if 50 asynchronous video generation or deployment tasks are polling every 2 seconds, 50 concurrent worker iterations will attempt to update `external_tasks` rows (`UPDATE external_tasks SET next_poll_at = ..., attempts = ...`). SQLite allows only one writer at a time (`SQLITE_BUSY`). The polling workers will exhaust the SQLite busy timeout, failing jobs spuriously and blocking web request writes.
+- **Mitigation**: Implement dynamic adaptive polling with jitter (exponential backoff up to 30–60s for long jobs), batch status writes in a single transaction, and enforce strict polling worker concurrency limits on SQLite instances.
+
+#### 3. Maintenance Failure Mode: OAuth Single-Use Refresh Token Destruction
+- **Mechanism**: A tenant has two simultaneous agent runs calling GitHub/Google. Both encounter an expired access token simultaneously. If locking fails or if clock skew causes Worker A to exchange the refresh token and Worker B to attempt an exchange with the now-invalidated prior refresh token 50ms later, the OAuth provider detects an apparent token replay attack and revokes the client’s entire authorization grant. The tenant is permanently logged out.
+- **Mitigation**: Atomic DB-level transition lock on `(tenant_id, credential_id)` with a 30-second grace-period cache for newly minted access tokens to satisfy in-flight concurrent callers.
+
+---
+
+### 7. What to Build First: The Proving Slice
+
+The smallest slice that proves or kills this architecture is an end-to-end implementation of **one deferred (submit-then-poll) vendor with rotating credentials** on top of the **unified SQLite store**.
+
+#### The Slice:
+1. Implement the `credentials` table in SQLite with AEAD encryption + AAD.
+2. Implement the `external_tasks` table and a 50-line polling worker.
+3. Wire **one real or mock asynchronous vendor** (e.g. a Video Generation API or Deployment API that returns `202 Accepted + { jobId }`, requires 5 polls over 15 seconds to return `200 OK + { url }`, and uses an expiring Bearer token with refresh).
+4. Run the call via the AI agent using an opaque `credentialId`.
+
+#### Observable Results that KILL the Design:
+1. **The Restart Test (Fatal)**: Trigger the async job, kill the application process with `SIGKILL` on poll iteration 2, restart the process. If the job does not automatically resume from SQLite, complete, and notify the caller, **the call-shape engine is killed**.
+2. **The Concurrency / Refresh Test (Fatal)**: Fire 5 concurrent requests against an expired token with simulated 1-time refresh token rotation. If any request fails with an unhandled 401 or revokes the refresh token chain, **the credential lifecycle model is killed**.
+3. **The SQLite Lock Contention Test (Fatal)**: Run 20 concurrent polling loops in SQLite. If `SQLITE_BUSY` errors bleed into the API layer or increase HTTP latency by >200ms, the DB-backed polling design is killed and must be replaced with an in-memory queue backed by WAL-mode checkpoints.
