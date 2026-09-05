@@ -907,3 +907,60 @@ register's own staleness check catches it. **Our fix session caused this red.** 
 never covers `development/evals/` — where 11 of today's 14 genuine breaks lived.** Extending it is
 mechanical, same pattern. **That is the real answer to "what gate would have caught this."**
 Recommended, not implemented — a gate's scope is Leona's call.
+
+---
+
+## A17 FIXED — plugin SDK resolver path (`d64814cd`). Plugin loading works end to end.
+
+**Fix**: `plugin-sdk-resolver.ts` — replaced
+`path.join(import.meta.dirname, "../../../packages/sdk/dist/index.js")` with
+`createRequire(import.meta.url).resolve("@tovu/sdk")`, matching the existing idiom in
+`admin-static.ts` / `deps.ts` / `otel.ts` / `worker-sandbox.ts`. `registerPluginSdkResolver()`'s
+frozen signature/JSDoc and **CIC U-002's ordering are untouched** — only the internal helper changed,
+now exported so a test can assert its real return value instead of going through the `sdkModulePath`
+override every other test in the module uses.
+
+**RED, on the true default path** (the whole point — the bug survived because every existing test
+overrode `sdkModulePath`):
+```
++ actual:   '/Users/la/Programming/Tovu/apps/website/src/packages/sdk/dist/index.js'
+- expected: '/Users/la/Programming/Tovu/packages/sdk/dist/index.js'
+```
+No pre-fix code was written into a tracked file to obtain this — the default was already broken, so
+the new test simply observed current behaviour.
+
+New test: `server/runtime/boot/__tests__/plugin-sdk-resolver.unit.test.ts`. GREEN. Regressions clean:
+`plugin-sdk-resolver.integration.test.ts` 2/2, plus both CLI-level spawned-subprocess tests
+(`serve-command-` and `export-command-plugin-sdk-resolver.integration.test.ts`) 2/2.
+
+### The important catch: a GREEN test that tolerated the bug
+**The CLI integration test's assertion is `observed.status !== "planted"`, which tolerates BOTH
+`'real'` and `'import-failed'`.** Its own fixture comment names this exact bug as a known, tolerated
+outcome. **So its green never proved the SDK loads** — only that the planted package was not reached.
+The agent did not accept that as proof. It wrote a standalone script calling
+`registerPluginSdkResolver()` with **zero args** (the real default) then dynamically importing
+`@tovu/sdk`, mirroring a real plugin's `server/index.mjs`:
+```
+RESULT: real-sdk-loaded
+definePlugin is function: true
+```
+**Same family as the `Themes.unit.test.tsx` trap**: a suite that is green because its assertion
+cannot see the failure. Worth remembering as a review question — *what would this assertion still
+pass under?*
+
+### C15 is now BLOCKING more than it looks — the `packages/sdk/dist` build gap
+Independently re-confirmed: root `tsconfig.json` includes only `apps/website/src/**`,
+`emit-dist-package-json.mjs` has no knowledge of `packages/sdk`, `dev.mjs` never references it, and
+`packages/sdk/dist` is untracked/gitignored. **Only `Dockerfile:57` builds it.** The local copy is a
+manual build dated Aug 27.
+
+Two consequences, both new:
+1. **On a fresh clone, plugin loading still ENOENTs** despite this fix.
+2. **The CLI test's weak assertion cannot be tightened until the gap is closed** — requiring `'real'`
+   would turn it red on any machine without a manually-built SDK dist. So the weak assertion is
+   locked in place by the build gap.
+
+**Not verified**: whether the two CLI integration tests would have failed pre-fix (not revert-tested,
+deliberately, to avoid churn on a file the live dev server watches) — the unit test's RED/GREEN pair
+is the load-bearing proof. Also did not check `apps/admin`/`apps/site-chat` for a `@tovu/sdk`
+dependency; none found in files read.
