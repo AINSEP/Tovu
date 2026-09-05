@@ -243,5 +243,14 @@ test("checkSourceDirContainment: a v2 sourceDir naming no reserved root and no g
 // A "schemaVersion: 1 skips the v2-only root-conflict rule" case used to be pinned here, direct-invoke
 // only, because no real caller ever passed `schemaVersion: 1` — confirmed by exhaustively tracing
 // every call site (`checkSourceDirContainment`'s own doc comment). `schemaVersion` is now typed as the
-// literal `2`, so that case is no longer constructible at all; removed along with the type value it
-// existed only to pin.
+// literal `2`, so that value is no longer constructible through the type at all. The test below
+// restores the same pin via an unsafe cast (`1 as unknown as 2`) rather than widening the type back —
+// it exercises the function's runtime `schemaVersion === 2` check (still present in the implementation
+// below the literal-2 type) with the one input the type no longer lets any real caller construct.
+test("checkSourceDirContainment: schemaVersion 1 (only reachable via an unsafe cast — the type itself no longer permits constructing this) still skips the v2-only root-conflict rule at runtime, even though sourceDir names a v2 reserved root — pinning current behavior, not endorsing it", () => {
+  const issues = checkSourceDirContainment({
+    build: { source: "compiled", sourceDir: "css" },
+    schemaVersion: 1 as unknown as 2,
+  });
+  assert.deepEqual(issues, []);
+});
