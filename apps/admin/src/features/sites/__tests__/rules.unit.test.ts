@@ -58,6 +58,21 @@ describe("siteRowState", () => {
     });
     expect(siteRowState(siteFixture(), snapshot)).toBe("idle");
   });
+
+  it("still reports serving when TOVU_SITE_DIR happens to point at a listed row's own directory", () => {
+    const snapshot = snapshotFixture({
+      currentSite: { dir: "/repo/sites/alpha", name: "alpha", dirOverridden: true, listed: true },
+    });
+    expect(siteRowState(siteFixture(), snapshot)).toBe("serving");
+  });
+
+  it("reports idle, NEVER pending-restart, for the persisted choice when TOVU_SITE_DIR overrides it — the badge must agree with the banner's own 'will not pick it up' warning, not run a second guess", () => {
+    const snapshot = snapshotFixture({
+      persistedSiteName: "beta",
+      currentSite: { dir: "/elsewhere/alpha", name: "alpha", dirOverridden: true, listed: false },
+    });
+    expect(siteRowState(siteFixture({ name: "beta", dir: "/repo/sites/beta" }), snapshot)).toBe("idle");
+  });
 });
 
 describe("siteRowState presentation", () => {

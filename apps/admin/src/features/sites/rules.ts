@@ -42,11 +42,21 @@ export type SiteRowState = "serving" | "pending-restart" | "idle";
  * resolved, and under a `TOVU_SITE_DIR` override a folder NAME can coincide with a directory
  * somewhere else entirely.
  *
+ * The `pending-restart` case defers entirely to {@link activationOutlook} rather than re-testing
+ * `persistedSiteName` on its own: that is the exact function `NowServingCard`'s banner already
+ * calls to decide whether a restart will actually honor the saved choice (`Sites.tsx`'s own doc,
+ * point 3). A second independent check here — matching only on `persistedSiteName` and blind to
+ * `dirOverridden` — is how this badge and that banner used to drift: the banner would correctly
+ * warn "TOVU_SITE_DIR overrides it, a restart will not pick it up" while this badge kept saying
+ * "Queued for next restart" underneath it, one screen asserting both at once. Routing through the
+ * same `outlook.kind` means there is exactly one place that decision is made.
+ *
  * @complexity Time/space: O(1).
  */
 export function siteRowState(site: AdminSiteListEntry, snapshot: AdminSitesSnapshot): SiteRowState {
   if (site.dir === snapshot.currentSite.dir) return "serving";
-  if (snapshot.persistedSiteName === site.name) return "pending-restart";
+  const outlook = activationOutlook(snapshot);
+  if (outlook.kind === "pending" && outlook.name === site.name) return "pending-restart";
   return "idle";
 }
 
