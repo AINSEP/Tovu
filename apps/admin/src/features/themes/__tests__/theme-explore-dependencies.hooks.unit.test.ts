@@ -113,6 +113,15 @@ describe("defaultThemeExplorePort — real api wiring", () => {
   });
 });
 
+describe("createFakeThemeExplorePort — getThemeFile", () => {
+  it("rejects when the path has no recorded content", async () => {
+    const port = createFakeThemeExplorePort({ contents: {} });
+    await expect(port.getThemeFile("basic", "pages/ghost.html")).rejects.toThrow(
+      "fake theme file not found: pages/ghost.html"
+    );
+  });
+});
+
 describe("createFakeThemeExplorePort — resetThemeFile", () => {
   it("resolves the current in-memory content for the path", async () => {
     const port = createFakeThemeExplorePort({ contents: { "pages/index.html": "<h1>hi</h1>" } });
