@@ -682,6 +682,22 @@ test("setDockerfileSource falls back to an empty-string etag when the response h
   await expect(api.setDockerfileSource("x", '"abc123"')).resolves.toEqual({ exists: true, contents: "x", etag: "" });
 });
 
+// Regression for the 2026-09-04 complexity pass on `buildFetchInit` (`api.ts`): `setDockerfileSource`
+// is the only `api.ts` caller that passes a custom `init.headers` (`If-Match`) alongside a JSON
+// `body`. A prior version of `buildFetchInit` re-spread `init` AFTER building the merged `headers`
+// object, so `init.headers` (just `{ "If-Match": ... }`) replaced the merge wholesale and silently
+// dropped `Content-Type: application/json` — the server's `express.json()` body parser then never
+// parses `req.body`, so the PUT 400s with "'contents' (string) is required" instead of applying the
+// write. Both headers must reach `fetch` together.
+test("setDockerfileSource keeps Content-Type: application/json alongside its custom If-Match header", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.setDockerfileSource("FROM node:22\n", '"abc123"');
+  expect(calls[0].init?.headers).toEqual({
+    "Content-Type": "application/json",
+    "If-Match": '"abc123"',
+  });
+});
+
 test("triggerSiteExport sends an empty body when called with no options at all", async () => {
   const { body } = stubFetchCapturing();
   await api.triggerSiteExport();

@@ -1797,8 +1797,19 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
  *  pass) purely to carry the `= {}` default itself: TypeScript still resolves `buildFetchInit(init)`
  *  correctly when `request`'s own `init` argument is omitted (`undefined` triggers this function's
  *  default exactly as it did `request`'s), so no call site — inside or outside this file — changes
- *  behavior; only which function's signature carries the default-parameter branch changes. */
-function buildFetchInit(init: RequestInit = {}): RequestInit {
+ *  behavior; only which function's signature carries the default-parameter branch changes.
+ *
+ *  `headers` is spread and rebuilt LAST, after `...init`, so `init`'s other fields (`method`, `body`,
+ *  `credentials`) can still override the fixed defaults above them, but `init.headers` itself always
+ *  merges onto the `Content-Type` default rather than replacing the whole `headers` object outright —
+ *  a caller passing one custom header (e.g. `If-Match`) must not silently lose `Content-Type` (see
+ *  `setDockerfileSource`'s regression test in `api-endpoint-option-branches.unit.test.ts`). A caller
+ *  that sets its own `Content-Type` still wins, since it's spread after the default.
+ *
+ *  Exported (browser-file-scope-only otherwise) purely so `api-build-fetch-init.unit.test.ts` can
+ *  assert this merge order directly — no in-repo caller currently overrides `Content-Type` itself, so
+ *  that branch would otherwise be unreachable through the public `api` surface. */
+export function buildFetchInit(init: RequestInit = {}): RequestInit {
   return {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
