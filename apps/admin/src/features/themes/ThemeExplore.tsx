@@ -8,7 +8,7 @@ import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import type { Translate } from "../../lib/dictionary-translator";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { pageAdminPath } from "../pages/rules";
+import { themePageCollisionAdminPath } from "../pages/hooks/use-theme-pages.hooks";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -963,11 +963,14 @@ function ThemeExploreSlugCollisionWarning({
   t: Translate;
 }) {
   if (!collidingContent) return null;
-  // A Post's admin editor route is keyed by id (`/posts/:postId`); a Page's goes through
-  // `pageAdminPath` (`features/pages/rules.ts`), which prefers the slug and falls back to the id
-  // only for the one page whose slug can't be a path segment at all (the root slug `"/"`) — see
-  // that function's own doc. Mirrors `use-theme-pages.hooks.ts`'s identical `themePageCollisionAdminPath`.
-  const adminPath = collidingContent.kind === "post" ? `/posts/${collidingContent.id}` : pageAdminPath(collidingContent);
+  // `themePageCollisionAdminPath` (`features/pages/hooks/use-theme-pages.hooks.ts`) — a Post's admin
+  // editor route is keyed by id (`/posts/:postId`); a Page's goes through `pageAdminPath`
+  // (`features/pages/rules.ts`), which prefers the slug and falls back to the id only for the one
+  // page whose slug can't be a path segment at all (the root slug `"/"`). `ThemeExploreSlugCollision`
+  // and that hook's own `ThemePageSlugCollision` are independently declared, identically-shaped
+  // `{ id, slug, title, kind }` port types (see `pages/rules.ts`'s own doc on this structural-typing
+  // convention), so this call needs no cast.
+  const adminPath = themePageCollisionAdminPath(collidingContent);
   return (
     <div
       className="notice warning theme-explore-slug-collision-warning"
