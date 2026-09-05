@@ -217,7 +217,9 @@ function checkPath(path: HbsPath | undefined, violations: string[]): void {
     if (head === undefined || !ALLOWED_HANDLEBARS_DATA_VARS.has(head)) {
       violations.push(`disallowed data variable "@${pathText(path).replace(/^@/, "")}"`);
     }
-    return;
+    // No early return: an allowlisted @-data head (`@index`, `@key`, …) says nothing about the
+    // segments after it — `@index.constructor` has an allowed head and a forbidden tail, so it
+    // still has to fall through to the same segment loop every non-`@` path goes through below.
   }
 
   for (const part of parts) {
