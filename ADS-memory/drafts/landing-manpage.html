@@ -1,0 +1,593 @@
+<!--
+  tovu.dev homepage — "manual page" direction (sample #3 of the owner's five).
+
+  PAGE BODY ONLY. The theme shell (render/pages/pages-default.html) supplies
+  <html>/<head>/<body>, `.site-header` and `.site-footer`. No doctype, no
+  <html>, no <head>, no <body>, no <script>.
+
+  ---------------------------------------------------------------------------
+  WHAT THIS IS, AND WHY IT IS NOT A LANDING PAGE
+  ---------------------------------------------------------------------------
+  The brief for this slot was "deliberately unusual: editorial or terminal-
+  flavoured, explicitly NOT a standard SaaS landing page — if it does not make
+  the owner react, it has failed its brief." So this is not a hero, three
+  features and a call to action wearing a monospace font. It is a roff manual
+  page: NAME, SYNOPSIS, DESCRIPTION, then the real section order, running heads
+  top and bottom, a five-space indent under every flush-left heading, one
+  typeface for the entire document, and a blinking block cursor sitting in the
+  SYNOPSIS.
+
+  The argument for it is not novelty. It is that the product's whole thesis is
+  "this thing is legible and operable by a machine as well as a person", and a
+  manual page is the one document form that has always had exactly two readers.
+  The page is the claim.
+
+  It also does something a marketing page structurally cannot: it has a BUGS
+  section. Everything under it is true and unflattering, including the fact
+  that `npm install tovu` does not work. This session removed several fabricated
+  capability claims from published pages; the strongest available answer to that
+  failure mode is a page whose form REQUIRES the limitations to be printed next
+  to the features, in the same voice, at the same size.
+
+  Contrast against the two existing samples is total: landing-xai and
+  landing-gold are both grotesque-sans, warm, and sectioned into bands.
+  This is monospace-only, achromatic with one signal colour, and sectioned
+  into a manual.
+
+  ---------------------------------------------------------------------------
+  NO MOTION LIBRARY. NOT ONE `data-kui=` ATTRIBUTE.
+  ---------------------------------------------------------------------------
+  kUInetic's deferred presets compile to `animation-fill-mode: both` +
+  `animation-play-state: paused`, so the `from` frame becomes the element's
+  RESTING style until an IntersectionObserver fires. `on:enter` does not fail
+  open — an observer that never fires leaves content permanently invisible,
+  which is what blanked every long page on the live site. This page has no
+  observer at all, so it has no invisible state to fall into.
+
+  The single animation is the cursor blink: `@keyframes mp-blink` toggling
+  `opacity` on one decorative, aria-hidden 1ch block. It is switched off under
+  prefers-reduced-motion, where the block simply rests fully opaque. Nothing on
+  this page is carried by motion, and no text is ever the thing being animated.
+
+  ---------------------------------------------------------------------------
+  COLOUR CONTRACT (sRGB contrast ratios, WCAG 2.x relative luminance)
+  ---------------------------------------------------------------------------
+  LIGHT — a printed manual page      DARK — a terminal (the theme's default)
+    --mp-fg   #0d0f0e /paper 18.90:1   #dfe3e0 /ground 15.04:1
+    --mp-dim  #5a615d /paper  6.25:1   #98a19c /ground  7.35:1
+    --mp-sig  #c2321a /paper  5.48:1   #ff7a55 /ground  7.58:1
+    --mp-edge #6f7773 /paper  4.52:1   #656d68 /ground  3.66:1
+    on-signal #fdfdfc /sig    5.48:1   #0b0d0c /sig     7.58:1
+
+  Every one of those also clears its floor against the alternate surface:
+  --mp-edge is 4.18:1 / 3.42:1 on --mp-surface, --mp-dim 5.77:1 / 6.86:1,
+  --mp-sig 5.06:1 / 7.08:1. Text floor 4.5:1; UI-component and focus floor
+  3:1. --mp-edge draws every rule, every border and the focus ring, and it is
+  the only rule token on the page — the sub-2:1 hairline is the exact defect
+  that had to be fixed three times in the live theme today.
+
+  The section-heading underlines are CSS borders, not ASCII dashes. A row of
+  hyphens would be announced character by character by a screen reader and
+  would rewrap into nonsense on a narrow viewport; the manual-page LOOK is
+  worth having, the manual-page markup is not.
+
+  ---------------------------------------------------------------------------
+  EVERY FACTUAL CLAIM, AND WHERE IT COMES FROM
+  ---------------------------------------------------------------------------
+  tool names               apps/website/src/features/*/agent-tools.ts
+  "NEVER agent-callable"   features/database/agent-tools.ts:186
+                           features/redirects/agent-tools.ts:217  (literal text)
+  publish is human-gated   features/deployments/publish-agent-tools.ts:336
+  five publish targets     features/deployments/publish-agent-tools.ts:328
+  post delete -> trash     features/post/agent-tools.ts:475-478
+  members: no delete tool  absent from every catalog (verified by enumeration)
+  five theme tiers         features/theme/theme.ts:40
+  nothing on tier `code`   features/theme/theme.ts:1209 (ENGINE_SUBFOLDERS = 4)
+  liquid allowlist         features/theme/liquid-allowlist.ts:4
+  handlebars allowlist     features/theme/handlebars-allowlist.ts
+  worker_threads sandbox   features/theme/agent-tools.ts:28-29
+  same permission check    features/comments/tool-registrations.ts:8-13
+  CLI commands             apps/website/src/cli/commands/
+  tovu introspect          apps/website/src/cli/introspect.ts:5-16
+  docker build line        Dockerfile:7
+  clone URL                git remote -v
+  NOT on npm               package.json:2-4  ("name":"tovu", "private":true)
+-->
+<style>
+/* ===========================================================================
+   0. SHELL RESET — clear the three inherited prose caps.
+   The fragment lands inside <article class="wrap post-detail"> -> <div> ->
+   <div class="post-detail-body">, a 720px / 66ch reading column with its own
+   block padding. .post-detail-header is the shell's own <h1> + dateline: a
+   duplicate <h1> (WCAG 1.3.1) and a stray publish date on a homepage, so it
+   leaves the layout and the accessibility tree both.
+   =========================================================================== */
+.post-detail { max-width: none; padding: 0; margin: 0; }
+.post-detail-body { max-width: none; font-size: inherit; line-height: inherit; }
+.post-detail-header { display: none; }
+
+/* ===========================================================================
+   1. TOKENS
+   Pinned at (0,2,0) to match the inline `:root[data-theme="light"]` the
+   rendered <head> already carries, and placed later in document order so they
+   win in BOTH directions. `:root:not([data-theme="light"])` rather than
+   `[data-theme="dark"]`, because theme-toggle.js only ever writes
+   data-theme="light" — "no attribute" is the shipped default.
+   =========================================================================== */
+:root:not([data-theme="light"]) {
+  --mp-paper:   #0b0d0c;
+  --mp-surface: #131615;
+  --mp-fg:      #dfe3e0;   /* 15.04:1 */
+  --mp-dim:     #98a19c;   /*  7.35:1 */
+  --mp-sig:     #ff7a55;   /*  7.58:1 */
+  --mp-edge:    #656d68;   /*  3.66:1 */
+  --mp-on-sig:  #0b0d0c;   /*  7.58:1 */
+
+  --bg: #0b0d0c;
+  --fg: #dfe3e0;
+  --muted: #98a19c;
+  --surface: #131615;
+  --surface-2: #131615;
+  --border: #656d68;
+  --border-strong: #656d68;
+  --accent: #ff7a55;
+  --accent-fg: #0b0d0c;
+  --accent-text: #ff7a55;
+}
+:root[data-theme="light"] {
+  --mp-paper:   #fdfdfc;
+  --mp-surface: #f4f4f2;
+  --mp-fg:      #0d0f0e;   /* 18.90:1 */
+  --mp-dim:     #5a615d;   /*  6.25:1 */
+  --mp-sig:     #c2321a;   /*  5.48:1 */
+  --mp-edge:    #6f7773;   /*  4.52:1 */
+  --mp-on-sig:  #fdfdfc;   /*  5.48:1 */
+
+  --bg: #fdfdfc;
+  --fg: #0d0f0e;
+  --muted: #5a615d;
+  --surface: #f4f4f2;
+  --surface-2: #f4f4f2;
+  --border: #6f7773;
+  --border-strong: #6f7773;
+  --accent: #c2321a;
+  --accent-fg: #fdfdfc;
+  --accent-text: #c2321a;
+}
+
+/* ===========================================================================
+   2. INHERITED CHROME
+   The header keeps its nav and its solid button, which is deliberate: it is
+   where this page's conversion affordance lives, so the manual below is free
+   to stay a manual instead of growing a hero CTA it would have to apologise for.
+   =========================================================================== */
+body { background: var(--mp-paper); }
+.site-header.scrolled { border-bottom-color: var(--mp-edge); }
+.btn { border-radius: 0; font-family: var(--font-mono); letter-spacing: 0.02em; }
+.site-header .btn-solid { background: var(--mp-sig); color: var(--mp-on-sig); border-color: transparent; }
+.site-header .btn-solid:hover { background: var(--mp-sig); opacity: 0.86; }
+.site-header .btn-ghost { border-color: var(--mp-edge); color: var(--mp-fg); }
+.main-nav .menu-item > a { color: var(--mp-dim); font-family: var(--font-mono); font-size: 13px; }
+.main-nav .menu-item > a:hover,
+.main-nav .menu-item > a[aria-current="page"] { color: var(--mp-fg); }
+.site-footer { border-top: 1px solid var(--mp-edge); }
+.site-footer .footer-col a,
+.site-footer .footer-col p { color: var(--mp-dim); }
+.site-footer .footer-col a:hover { color: var(--mp-fg); }
+.site-footer .footer-bottom { border-top: 1px solid var(--mp-edge); color: var(--mp-dim); }
+
+/* Plain-CSS focus ring, so it cannot depend on anything loading. --mp-sig is
+   5.48:1 / 7.58:1 against its ground; WCAG 2.4.11 asks 3:1. */
+.mp a:focus-visible,
+.mp button:focus-visible,
+.mp summary:focus-visible,
+.site-header a:focus-visible,
+.site-header button:focus-visible,
+.site-footer a:focus-visible {
+  outline: 2px solid var(--mp-sig);
+  outline-offset: 2px;
+  border-radius: 0;
+}
+
+/* ===========================================================================
+   3. THE DOCUMENT
+
+   One typeface for the whole page — the theme's own mono token, which resolves
+   to SF Mono / Menlo locally and ui-monospace elsewhere. No webfont is fetched:
+   the theme makes zero font requests, and adding a third-party font call to a
+   page selling self-hosting would be its own small joke at the reader's expense.
+
+   The measure is capped in `ch`, not px, because the whole layout is a
+   character grid — 86ch is roughly the width a manual page is set to and is
+   comfortably inside the 45-90 character band for readable running text.
+   =========================================================================== */
+.mp {
+  --mp-measure: 86ch;
+  --mp-indent: 5ch;
+  background: var(--mp-paper);
+  color: var(--mp-fg);
+  font-family: var(--font-mono);
+  font-size: 14.5px;
+  line-height: 1.62;
+  font-variant-ligatures: none;
+  padding-bottom: 8px;
+}
+.mp *, .mp *::before, .mp *::after { box-sizing: border-box; }
+
+/* --- PROSE RESET. theme.css styles `.post-detail-body`'s descendants at
+   (0,1,1), and several of those rules break this page rather than merely
+   restyling it: `table { display: block; overflow-x: auto }` kills width:100%
+   and boxes every table in its own scroller, `th, td { border: 1px solid }`
+   draws a full four-sided grid, `ul, ol { margin: 0 0 18px 22px }` shoves every
+   list off the character grid, and `pre`/`code` arrive with a surface fill, a
+   border and a 10px radius. Each selector below is (0,1,1) as well, so it ties
+   on specificity and wins on document order — a <style> in the page body is
+   later than the linked theme.css. Plain descendant selectors, NOT `:where()`,
+   which contributes zero specificity and would lose outright. ------------- */
+.mp p, .mp h1, .mp h2, .mp h3, .mp ul, .mp ol, .mp li, .mp pre, .mp table, .mp dl, .mp dd { margin: 0; }
+.mp ul, .mp ol { padding-left: 0; list-style: none; }
+.mp table { display: table; width: 100%; border-collapse: collapse; }
+.mp th, .mp td { border: 0; background: transparent; padding: 0; font-weight: inherit; text-align: left; }
+.mp pre { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.mp code { background: transparent; border: 0; border-radius: 0; padding: 0; font: inherit; }
+.mp p { color: var(--mp-fg); }
+
+/* NOTE: deliberately no `.mp a { color: inherit }`. theme.css already declares
+   `a { color: inherit }` at (0,0,1); a class-scoped copy would be (0,1,1) and
+   would beat the (0,1,0) link-colour rules below. */
+
+.mp-page { max-width: var(--mp-measure); margin: 0 auto; padding: 0 24px; }
+
+/* --- Running heads. `TOVU(1)` at both margins with the manual's title
+   centred, top and bottom of the document, exactly as roff sets them. --- */
+.mp-rule { border-block: 1px solid var(--mp-edge); }
+.mp-rule + .mp-rule { border-top: 0; }
+.mp .mp-run {
+  display: flex; align-items: baseline; gap: 8px 16px;
+  padding-block: 12px;
+  font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--mp-dim);
+}
+.mp-run b { color: var(--mp-fg); font-weight: 500; }
+.mp-run .mid { margin-inline: auto; text-align: center; }
+
+/* --- Sections. Heading flush left in caps, body indented five characters:
+   the single visual convention that makes a manual page unmistakable. --- */
+.mp-doc { padding-block: 40px 44px; }
+.mp-sec + .mp-sec { margin-top: 34px; }
+.mp-sec > h2 {
+  font-size: 13px; font-weight: 500;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--mp-fg);
+  padding-bottom: 7px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--mp-edge);
+}
+.mp-body { padding-left: var(--mp-indent); }
+.mp-body > * + * { margin-top: 0.85em; }
+.mp-body p { max-width: 74ch; }
+.mp-dim { color: var(--mp-dim); }
+.mp-sig { color: var(--mp-sig); }
+/* A tool or command name in running text. Not a link, so it gets weight and
+   colour rather than an underline that would promise a destination. */
+.mp-t { color: var(--mp-sig); }
+.mp-body a { color: var(--mp-fg); text-decoration: underline; text-decoration-color: var(--mp-sig); text-underline-offset: 3px; }
+.mp-body a:hover { color: var(--mp-sig); }
+
+/* --- NAME line: the one place the em dash convention is load-bearing. --- */
+.mp .mp-name { font-size: 15.5px; color: var(--mp-fg); }
+.mp-name b { font-weight: 500; color: var(--mp-sig); }
+
+/* --- SYNOPSIS. Two lines: the command, and the same job asked in English.
+   That pairing is the entire product in four inches of page. --- */
+.mp-syn { display: grid; gap: 10px; }
+.mp .mp-syn-line { font-size: 15px; color: var(--mp-fg); }
+.mp-syn-line .p { color: var(--mp-dim); user-select: none; }
+.mp-syn-line .arg { color: var(--mp-dim); }
+.mp-said { color: var(--mp-fg); }
+/* The cursor. Decorative and aria-hidden; a 1ch block that rests fully opaque
+   when animation is suppressed, so it never disappears. */
+.mp-cur {
+  display: inline-block; width: 1ch; height: 1.05em;
+  background: var(--mp-sig);
+  vertical-align: text-bottom;
+  margin-left: 2px;
+  animation: mp-blink 1.15s step-end infinite;
+}
+@keyframes mp-blink { 0%, 55% { opacity: 1; } 56%, 100% { opacity: 0; } }
+
+/* --- Two-column tables: the character grid, ruled. --- */
+.mp-tbl { font-size: 13.5px; }
+.mp .mp-tbl th {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--mp-dim); font-weight: 500;
+  padding: 0 14px 8px 0; border-bottom: 1px solid var(--mp-edge);
+}
+.mp .mp-tbl td {
+  padding: 8px 14px 8px 0; border-bottom: 1px solid var(--mp-edge);
+  vertical-align: top; color: var(--mp-fg);
+}
+.mp .mp-tbl tr:last-child td { border-bottom: 0; }
+.mp .mp-tbl th:last-child, .mp .mp-tbl td:last-child { padding-right: 0; }
+.mp-tbl td.t { color: var(--mp-sig); word-break: break-word; }
+.mp-tbl td.v { color: var(--mp-dim); }
+.mp-tbl td.v b { color: var(--mp-fg); font-weight: 500; letter-spacing: 0.03em; display: block; }
+
+/* --- Definition rows (THEMES, FILES): term in a fixed character column. --- */
+.mp-defs { display: grid; grid-template-columns: 15ch minmax(0,1fr); gap: 6px 16px; font-size: 13.5px; }
+.mp-defs dt { color: var(--mp-sig); }
+.mp-defs dd { color: var(--mp-dim); }
+.mp-defs dd b { color: var(--mp-fg); font-weight: 400; }
+
+/* --- EXAMPLES: unboxed. A manual page does not put its examples in a card;
+   it indents them and dims the prompt. --- */
+.mp-ex { border-left: 1px solid var(--mp-edge); padding-left: 16px; }
+.mp .mp-ex pre { font-size: 13.5px; line-height: 1.9; overflow-x: auto; color: var(--mp-fg); }
+.mp-ex .p { color: var(--mp-dim); user-select: none; }
+.mp-ex .c { color: var(--mp-sig); }
+.mp-ex .r { color: var(--mp-dim); }
+.mp .mp-ex-cap { font-size: 12.5px; color: var(--mp-dim); margin-bottom: 8px; }
+
+/* --- BUGS: the section that makes this page worth building. Marked with the
+   signal colour on its left edge, because it is the one place the document
+   contradicts what a landing page would have claimed. --- */
+.mp-bugs { border-left: 2px solid var(--mp-sig); padding-left: 16px; }
+.mp-bugs p { max-width: 72ch; }
+.mp-bugs code { color: var(--mp-sig); }
+
+/* --- The catalog disclosure. <details> because it is native, keyboard
+   reachable and needs no script; the marker is replaced with a mono glyph. --- */
+.mp-more { border-top: 1px solid var(--mp-edge); margin-top: 12px; padding-top: 12px; }
+.mp-more > summary {
+  cursor: pointer; list-style: none;
+  font-size: 12.5px; letter-spacing: 0.06em; color: var(--mp-dim);
+}
+.mp-more > summary::-webkit-details-marker { display: none; }
+.mp-more > summary::before { content: "[+] "; color: var(--mp-sig); }
+.mp-more[open] > summary::before { content: "[-] "; }
+.mp-more > summary:hover { color: var(--mp-fg); }
+.mp-cat {
+  margin-top: 12px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(26ch, 1fr));
+  gap: 2px 16px;
+  font-size: 12.5px; color: var(--mp-sig);
+}
+
+/* ===========================================================================
+   4. RESPONSIVE
+   Below 620px the running heads drop their centre field (three fields on a
+   phone is a scrum) and the five-character indent halves — the convention is
+   worth keeping, five characters of a 375px screen is not.
+   =========================================================================== */
+@media (max-width: 700px) {
+  .mp { font-size: 14px; --mp-indent: 2.5ch; }
+  .mp-defs { grid-template-columns: 1fr; gap: 2px; }
+  .mp-defs dd { margin-bottom: 8px; }
+  .mp-doc { padding-block: 30px 34px; }
+}
+@media (max-width: 620px) {
+  .mp-run .mid { display: none; }
+  .mp .mp-run { justify-content: space-between; }
+  .mp-tbl { font-size: 12.5px; }
+  .mp .mp-tbl td { padding-right: 10px; }
+  .mp-cat { grid-template-columns: 1fr; }
+}
+
+/* The cursor is the page's only animation and carries no information. At rest
+   it is a solid block, which is what a non-blinking terminal cursor looks like. */
+@media (prefers-reduced-motion: reduce) {
+  .mp-cur { animation: none; opacity: 1; }
+}
+</style>
+
+<div class="mp">
+
+  <!-- ================= RUNNING HEAD ================= -->
+  <div class="mp-rule">
+    <p class="mp-page mp-run">
+      <b>Tovu(1)</b>
+      <span class="mid">General Commands Manual</span>
+      <b>Tovu(1)</b>
+    </p>
+  </div>
+
+  <div class="mp-page mp-doc">
+
+    <!-- ================= NAME ================= -->
+    <section class="mp-sec">
+      <h2>Name</h2>
+      <div class="mp-body">
+        <h1 class="mp-name"><b>tovu</b> &mdash; a self-hosted content platform you operate by talking to it</h1>
+      </div>
+    </section>
+
+    <!-- ================= SYNOPSIS ================= -->
+    <section class="mp-sec">
+      <h2>Synopsis</h2>
+      <div class="mp-body mp-syn">
+        <p class="mp-syn-line"><span class="p" aria-hidden="true">$ </span>tovu serve <span class="arg">&lt;site&gt;</span></p>
+        <p class="mp-syn-line"><span class="p" aria-hidden="true">&gt; </span><span class="mp-said">move the September post to the top and regenerate the sitemap</span><span class="mp-cur" aria-hidden="true"></span></p>
+      </div>
+    </section>
+
+    <!-- ================= DESCRIPTION ================= -->
+    <section class="mp-sec">
+      <h2>Description</h2>
+      <div class="mp-body">
+        <p>Runs a website and its admin from one site directory, on your machine.</p>
+        <p>
+          Every capability the admin exposes &mdash; pages, themes, media, forms, members,
+          plugins &mdash; is also a tool an agent can call. The screen and the tool reach the
+          same operation, behind the same permission check.
+        </p>
+        <p class="mp-dim">
+          So an agent can ask what the site can do, and then do it. That is the whole product.
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= CAPABILITIES ================= -->
+    <section class="mp-sec">
+      <h2>Capabilities</h2>
+      <div class="mp-body">
+        <table class="mp-tbl">
+          <thead>
+            <tr><th scope="col">A person opens</th><th scope="col">An agent calls</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pages &rsaquo; Edit HTML</td>       <td class="t">pages_write_html</td></tr>
+            <tr><td>Comments &rsaquo; Queue</td>         <td class="t">comments_list_moderation_queue</td></tr>
+            <tr><td>Forms &rsaquo; Submissions</td>      <td class="t">forms_list_submissions</td></tr>
+            <tr><td>SEO &rsaquo; Sitemap</td>            <td class="t">seo_regenerate_sitemap</td></tr>
+            <tr><td>Themes &rsaquo; Files</td>           <td class="t">theme_read_file</td></tr>
+            <tr><td>Newsletter &rsaquo; Campaigns</td>   <td class="t">newsletter_list_campaigns</td></tr>
+            <tr><td>Widgets &rsaquo; Regions</td>        <td class="t">widgets_bind_region</td></tr>
+            <tr><td>Deployment &rsaquo; Static Site</td> <td class="t">deployment_get_static_publish_capabilities</td></tr>
+          </tbody>
+        </table>
+
+        <details class="mp-more">
+          <summary>and the rest of the catalog</summary>
+          <div class="mp-cat">
+            <span>backup_plan_restore</span>
+            <span>content_post_search</span>
+            <span>custom_credential_verify</span>
+            <span>database_query_timeline</span>
+            <span>external_mcp_test_connection</span>
+            <span>media_generate_asset</span>
+            <span>members_request_magic_link</span>
+            <span>newsletter_list_send_log</span>
+            <span>plugins_set_enabled</span>
+            <span>redirects_get_hits</span>
+            <span>seo_analyze_entry</span>
+            <span>site_get_profile</span>
+            <span>theme_restore_trashed_file</span>
+            <span>webhooks_get_deliveries</span>
+            <span>widgets_reorder_embeds</span>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ================= RESTRICTIONS ================= -->
+    <section class="mp-sec">
+      <h2>Restrictions</h2>
+      <div class="mp-body">
+        <p class="mp-dim">Some operations were never handed over. The wording below is the catalog's own.</p>
+        <table class="mp-tbl">
+          <tbody>
+            <tr>
+              <td class="t">database_execute_migrate_forward</td>
+              <td class="v"><b>NEVER agent-callable</b>Not published to the model at all.</td>
+            </tr>
+            <tr>
+              <td class="t">redirects_import</td>
+              <td class="v"><b>NEVER agent-callable</b>Five hundred routing rules is not an autonomous call.</td>
+            </tr>
+            <tr>
+              <td class="t">deployment_execute_static_publish</td>
+              <td class="v"><b>HUMAN-GATED</b>Raises a dialog and blocks until a person answers.</td>
+            </tr>
+            <tr>
+              <td class="t">content_post_delete</td>
+              <td class="v"><b>HUMAN-GATED</b>Moves to the trash. Never erases.</td>
+            </tr>
+            <tr>
+              <td class="t">members_disable</td>
+              <td class="v"><b>SOFT ONLY</b>The catalog ships no delete.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= THEMES ================= -->
+    <section class="mp-sec">
+      <h2>Themes</h2>
+      <div class="mp-body">
+        <dl class="mp-defs">
+          <dt>declarative</dt><dd>JSON blocks. A closed vocabulary the renderer will not step outside of.</dd>
+          <dt>templated</dt><dd>LiquidJS, against an AST-walked tag and filter allowlist.</dd>
+          <dt>handlebars</dt><dd>Helper allowlist. No partials, no decorators.</dd>
+          <dt>static</dt><dd>Plain HTML, CSS and JavaScript. <b>This page is one.</b></dd>
+          <dt>code</dt><dd>Reserved. Nothing ships on it.</dd>
+        </dl>
+        <p class="mp-dim">
+          Every tier renders inside a <span class="mp-t">worker_threads</span> sandbox with a
+          wall-clock timeout and heap caps, falling back to a built-in body on any failure.
+        </p>
+      </div>
+    </section>
+
+    <!-- ================= EXAMPLES ================= -->
+    <section class="mp-sec">
+      <h2>Examples</h2>
+      <div class="mp-body">
+        <div class="mp-ex">
+          <p class="mp-ex-cap">Clone it and run it.</p>
+          <pre><code><span class="p" aria-hidden="true">$ </span><span class="c">git clone</span> https://github.com/leonaburime-ucla/Tovu.git
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu serve</span> my-site        <span class="r"># site and admin, one port</span>
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu export</span> my-site       <span class="r"># static export</span>
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu introspect</span>           <span class="r"># the command surface, as JSON</span></code></pre>
+        </div>
+        <div class="mp-ex">
+          <p class="mp-ex-cap">Or build the container instead.</p>
+          <pre><code><span class="p" aria-hidden="true">$ </span><span class="c">docker build</span> -t tovu:local .</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= FILES ================= -->
+    <section class="mp-sec">
+      <h2>Files</h2>
+      <div class="mp-body">
+        <dl class="mp-defs">
+          <dt>&lt;site&gt;/</dt><dd>The whole install. Point <b>tovu serve</b> at it.</dd>
+          <dt>Dockerfile</dt><dd>Multi-stage build at the repository root.</dd>
+        </dl>
+      </div>
+    </section>
+
+    <!-- ================= BUGS — the point of the whole page ================= -->
+    <section class="mp-sec">
+      <h2>Bugs</h2>
+      <div class="mp-body">
+        <div class="mp-bugs">
+          <p>
+            Not published to npm. <code>npm install tovu</code> and <code>npx tovu</code>
+            do not work; the package is private. Clone the repository or build the image.
+          </p>
+          <p>
+            The <code>code</code> theme tier is reserved and nothing ships on it.
+          </p>
+          <p>
+            Publishing to a static host needs a credential a person saved first. An agent
+            cannot supply one, and cannot see one.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SEE ALSO ================= -->
+    <section class="mp-sec">
+      <h2>See also</h2>
+      <div class="mp-body">
+        <p>
+          <a href="https://github.com/leonaburime-ucla/Tovu">The repository</a>,
+          <a href="/docs">the documentation</a>,
+          <a href="/catalog">the theme and plugin catalog</a>.
+        </p>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- ================= FOOT ================= -->
+  <div class="mp-rule">
+    <p class="mp-page mp-run">
+      <b>Tovu 0.1.0</b>
+      <span class="mid">Self-hosted content platform</span>
+      <b>Tovu(1)</b>
+    </p>
+  </div>
+
+</div>
