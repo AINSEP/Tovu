@@ -69,6 +69,29 @@ const CERT_PATH = path.join(REPO_ROOT, ".certs", "localhost.pem");
 const KEY_PATH = path.join(REPO_ROOT, ".certs", "localhost-key.pem");
 
 /**
+ * Parses `TOVU_DISABLE_DEV_TLS` the same way `apps/website/src/server/runtime/boot/dev-tls.ts`'s
+ * (unexported) `isDevTlsExplicitlyDisabled` and `apps/admin/vite.config.ts`'s
+ * `isDevTlsExplicitlyDisabled` do: trim + lowercase, `"1"`/`"true"` only — NOT a bare truthy check on
+ * the raw string, which treated ANY non-empty value, including the literal `"false"` or `"0"`, as
+ * "disable", silently inverting an operator who explicitly set `TOVU_DISABLE_DEV_TLS=false` meaning
+ * "do not disable TLS" (2026-09-05 audit finding, CONFIRMED against this exact check).
+ *
+ * A fourth shared module was considered and rejected: this file runs via bare `node` (see
+ * `package.json`'s `"dev"` script) with no TypeScript transform at all, so it cannot import a `.ts`
+ * leaf module the other two copies could share, and neither of those two (both `tsc`-checked, both
+ * with `allowJs` off) can cleanly import a plain `.js`/`.mjs` file back. Three small copies, each
+ * commented to point at the other two, beat one shared module none of the three runtimes can all
+ * reach. If you change this parse, change the other two copies too.
+ *
+ * @param {string | undefined} raw
+ * @returns {boolean}
+ */
+export function isDevTlsExplicitlyDisabled(raw) {
+  const normalized = raw?.trim().toLowerCase();
+  return normalized === "1" || normalized === "true";
+}
+
+/**
  * Whether this boot's two dev servers will terminate TLS themselves — the same decision
  * `dev-tls.ts`'s `resolveDevTls` and `vite.config.ts`'s inline gate make independently, duplicated
  * here (not imported) because this file, `apps/website/src/index.ts`, and `apps/admin/vite.config.ts`
@@ -76,9 +99,11 @@ const KEY_PATH = path.join(REPO_ROOT, ".certs", "localhost-key.pem");
  * config loader) with no existing shared-module boundary between them.
  *
  * Pure decision logic, `existsSync` injected so a test can assert on it without touching the real
- * filesystem.
+ * filesystem. `disableFlag` must already be a parsed boolean (see `isDevTlsExplicitlyDisabled`,
+ * called at this function's one call site in `main()`) — this function does a bare boolean check,
+ * not string parsing, on purpose: the previous bug was exactly a raw string reaching this check.
  *
- * @param {{certPath: string, keyPath: string, disableFlag: string | undefined}} input
+ * @param {{certPath: string, keyPath: string, disableFlag: boolean}} input
  * @param {{existsSync?: (path: string) => boolean}} [deps]
  * @returns {boolean}
  */
@@ -264,7 +289,11 @@ export function buildAdminViteEnv({ apiPort, vitePort, apiScheme = "http" }) {
 async function main() {
   preflight();
 
-  const tlsActive = resolveDevTlsActive({ certPath: CERT_PATH, keyPath: KEY_PATH, disableFlag: process.env.TOVU_DISABLE_DEV_TLS });
+  const tlsActive = resolveDevTlsActive({
+    certPath: CERT_PATH,
+    keyPath: KEY_PATH,
+    disableFlag: isDevTlsExplicitlyDisabled(process.env.TOVU_DISABLE_DEV_TLS),
+  });
   const scheme = deriveDevScheme(tlsActive);
 
   // NODE_EXTRA_CA_CERTS: mkcert installs its CA into the OS trust store, which Node does NOT
