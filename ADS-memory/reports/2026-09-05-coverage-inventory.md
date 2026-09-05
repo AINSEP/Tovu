@@ -2,204 +2,834 @@
 
 Dispatched by team-lead to answer Leona's question: which folders under
 `apps/website/src/features/**` and `apps/admin/**` have no coverage yet.
-This is an inventory, not a test-writing task. See
-`ADS-memory/reports/2026-09-05-coverage-task-list.md` for the related
-owner-directed task list and standing rules (100% bar, verify-before-trust).
 
-**Status: Phase 1 (static enumeration) complete. Phase 2 (measured lcov) in
-progress, gated by machine load — three other agents were running tests and
-the box crashed once today at load 721. Every number below is either measured
-with its exact command + file set + uptime, or explicitly `UNMEASURED` with a
-reason. File/line counts are measured (`find` + `wc -l`); nothing here is
-estimated.**
+## Read this before the tables
+
+**This is a map of the surface and its candidate exercisers. It is not a
+coverage measurement.** Every row marked `UNMEASURED` is **unknown, not
+uncovered**. File/line counts are measured facts (`find` + `wc -l`). Internal
+and external test-file counts are measured facts (grep over the actual
+1123 test files in the repo). A **coverage percentage** is a measured fact
+**only** where an lcov command and result are shown — that happened for
+exactly one directory so far (`deployments`, below). Nowhere in this document
+should "has N candidate test files" be read as "is N% covered" — that
+inference is the specific trap that produced five wrong claims elsewhere in
+this repo today (a 272-line HTTP test that never imports its target by name;
+`apps/admin/src/lib/api.ts` called "~145 untested endpoints" when it is
+100%; `vi.mock()`'d modules reading as covered when their real coverage is
+zero). The candidate-suite map exists so the **next measurement pass** can be
+targeted correctly — it is not itself an answer to "is this covered."
+
+Related: `ADS-memory/reports/2026-09-05-coverage-task-list.md` (owner-directed
+task list, 100%-is-the-bar standing rule, trap register).
+
+**Status**: Phase 1 (static enumeration) complete. Phase 2 (measured lcov)
+**paused by team-lead directive** after one directory — 1-minute load spiked
+from 6.3 to a peak of 69.6 immediately following that single test invocation,
+the same trajectory as an unrelated crash earlier today (load 721, swap
+exhausted). No further test invocations were launched. Team-lead will resume
+measurement in a fresh agent once load is back under ~8.
 
 ## Method
 
 1. Enumerated every directory under `apps/website/src/features/` (39 dirs) and
-   the feature + top-level subtrees under `apps/admin/src/` (32 feature dirs +
-   `lib`, `hooks`, `components`).
-2. Counted source files and lines per dir, excluding test files
-   (`find ... -name '*.ts' -o -name '*.tsx' -not -path '*__tests__*' -not -name
-   '*.test.*'`, piped to `wc -l`).
-3. Counted **internal** test files per dir (files inside the dir's own
-   `__tests__/` or matching `*.test.*`).
+   the feature dirs + top-level subtrees under `apps/admin/src/` (32 feature
+   dirs + `lib`, `hooks`, `components`).
+2. Counted source files and lines per dir, excluding test files.
+3. Counted **internal** test files per dir (inside the dir's own `__tests__/`
+   or matching `*.test.*`).
 4. Built a **candidate external suite map**: grepped all 1123 `*.test.ts(x)`
    files under `apps/website` + `apps/admin` for import-path fragments
-   `features/<name>`, then kept only hits where the referencing test file's own
-   path does not itself contain that fragment — i.e. suites *outside* the
-   directory that plausibly exercise it. This catches cross-directory
-   exercisers (the `features/theme` pattern) but **cannot** catch HTTP/route
-   tests that drive a module without naming its path (the `system/sites.ts`
-   pattern) — those need a runtime check, listed as a caveat per row where
-   relevant.
-5. Presence of internal or external test references is a **candidate signal
-   only**, not a coverage measurement — a referenced module can still be
-   `vi.mock()`'d out (zero coverage) or only partially exercised. Only the
-   `Measured coverage` column with an lcov command is a real number.
+   `features/<name>`, kept only hits where the referencing test file's own
+   path does not itself contain that fragment (i.e. a suite living *outside*
+   the directory), and **split every count by app** (website vs. admin) —
+   several directory names exist in both apps (`settings`, `commerce`,
+   `database`, `comments`, `forms`, `plugins`, `recovery`, `workspace`,
+   `redirects`, `source-control`, `taxonomy`, `members`, `seo`, `pages`,
+   `media`, `widgets`, `analytics`, and more) and an unsplit count would silently
+   mix two unrelated directories' evidence together.
+5. This method catches cross-directory exercisers (the `features/theme`
+   pattern: real drivers live outside the directory). It **cannot** catch an
+   HTTP/route test that drives a module without ever naming its import path
+   (the `system/sites.ts` pattern) — that needs a runtime check, which is
+   exactly what Phase 2 lcov measurement provides and static grep cannot.
 
 ## Website: `apps/website/src/features/*`
 
-Sorted by line count (source, excl. tests), descending — largest unmeasured
-surface first per Leona's ask, pending Phase 2 overrides.
+Sorted by line count (source, excl. tests), descending. **"Candidate ext.
+suites" is a lead for where to look next, not a coverage number.**
 
-| Dir | Files | Lines | Internal tests | Candidate external suites (count) | Measured coverage |
+| Dir | Files | Lines | Internal tests | Candidate ext. suites (website-app only) | Coverage |
 |---|---|---|---|---|---|
-| theme | 26 | 9474 | 82 | 54 (incl. admin ThemeExplore/pages hooks) | UNMEASURED — Phase 2 pending |
-| deployments | 32 | 8557 | 19 | 15 | **99.0% lines (7793/7868), 94.5% fn (310/328), 95.3% br (1056/1108)** — see Phase 2 log; well-covered overall, one real gap: `repo.sqlite.ts` 61.0% (83/136 lines, 2/13 fn) |
-| widgets | 26 | 5378 | 19 | 14 | UNMEASURED — Phase 2 pending |
-| plugins | 17 | 4190 | 19 | 14 | UNMEASURED — Phase 2 pending |
-| newsletter | 18 | 4151 | 13 | 11 | UNMEASURED — Phase 2 pending |
-| post | 11 | 3662 | 12 | 62 | UNMEASURED — Phase 2 pending |
-| custom-credentials | 14 | 3433 | 10 | 8 | UNMEASURED — Phase 2 pending |
-| webhooks | 16 | 3231 | 9 | 33 | UNMEASURED — Phase 2 pending |
-| agent-plugins | 13 | 3172 | 19 | 2 | UNMEASURED — Phase 2 pending |
-| members | 12 | 3166 | 9 | 14 | UNMEASURED — Phase 2 pending |
-| plugin-runtime | 15 | 2836 | 13 | 10 | UNMEASURED — Phase 2 pending |
-| source-control | 8 | 2607 | 7 | 6 | UNMEASURED — Phase 2 pending |
-| comments | 16 | 2575 | 9 | 9 | UNMEASURED — Phase 2 pending |
-| seo | 13 | 2372 | 13 | 7 | UNMEASURED — Phase 2 pending |
-| redirects | 13 | 2431 | 8 | 11 | UNMEASURED — Phase 2 pending |
-| identity | 10 | 2236 | 8 | 5 | UNMEASURED — Phase 2 pending |
-| forms | 14 | 2139 | 11 | 11 | UNMEASURED — Phase 2 pending |
-| site-evidence | 7 | 1914 | 5 | 3 | UNMEASURED — Phase 2 pending |
-| site-inspection | 6 | 1691 | 3 | 3 | UNMEASURED — Phase 2 pending |
-| database | 12 | 1686 | 8 | 13 | UNMEASURED — Phase 2 pending |
-| media | 9 | 1547 | 8 | 18 | UNMEASURED — Phase 2 pending |
-| analytics | 7 | 1557 | 6 | 5 | UNMEASURED — Phase 2 pending |
-| recovery | 9 | 1359 | 10 | 8 | UNMEASURED — Phase 2 pending |
-| vendor-credentials | 6 | 1318 | 3 | 4 | UNMEASURED — Phase 2 pending |
-| commerce | 10 | 1163 | 7 | 3 | UNMEASURED — Phase 2 pending |
-| settings | 4 | 969 | 4 | 16 | UNMEASURED — Phase 2 pending |
-| pages | 7 | 969 | 4 | 9 | UNMEASURED — Phase 2 pending |
-| taxonomy | 5 | 895 | 1 | 8 | UNMEASURED — Phase 2 pending |
-| site-glue | 6 | 763 | 8 | 1 | UNMEASURED — Phase 2 pending |
-| external-mcp | 3 | 537 | 1 | 0 (none found) | UNMEASURED — Phase 2 pending |
-| media-generation | 2 | 531 | 1 | 4 | UNMEASURED — Phase 2 pending |
-| skills | 2 | 516 | 3 | 3 | UNMEASURED — Phase 2 pending |
-| origin | 5 | 491 | 3 | 11 | UNMEASURED — Phase 2 pending |
-| navigation | 3 | 426 | 1 | 9 | UNMEASURED — Phase 2 pending |
-| content-types | 5 | 352 | 1 | 19 | UNMEASURED — Phase 2 pending |
-| entries | 3 | 266 | 1 | 18 | UNMEASURED — Phase 2 pending |
-| tool-audit | 3 | 240 | 1 | 4 | UNMEASURED — Phase 2 pending |
-| presentation | 3 | 153 | 2 | 4 | UNMEASURED — Phase 2 pending |
-| workspace | 3 | 136 | 1 | 5 | UNMEASURED — Phase 2 pending |
+| theme | 26 | 9474 | 82 | 52 (+2 from admin — cross-app reference, see appendix) | UNMEASURED |
+| deployments | 32 | 8557 | 19 | 15 | **MEASURED — see Phase 2 log** |
+| widgets | 26 | 5378 | 19 | 12 (+2 admin) | UNMEASURED |
+| plugins | 17 | 4190 | 19 | 11 (+3 admin) | UNMEASURED |
+| newsletter | 18 | 4151 | 13 | 11 | UNMEASURED |
+| post | 11 | 3662 | 12 | 61 (+1 admin) | UNMEASURED |
+| custom-credentials | 14 | 3433 | 10 | 7 (+1 admin) | UNMEASURED |
+| webhooks | 16 | 3231 | 9 | 33 | UNMEASURED |
+| agent-plugins | 13 | 3172 | 19 | 1 (+1 admin) | UNMEASURED |
+| members | 12 | 3166 | 9 | 12 (+2 admin) | UNMEASURED |
+| plugin-runtime | 15 | 2836 | 13 | 9 (+1 admin) | UNMEASURED |
+| source-control | 8 | 2607 | 7 | 5 (+1 admin) | UNMEASURED |
+| comments | 16 | 2575 | 9 | 7 (+2 admin) | UNMEASURED |
+| seo | 13 | 2372 | 13 | 6 (+1 admin) | UNMEASURED |
+| redirects | 13 | 2431 | 8 | 7 (+4 admin) | UNMEASURED |
+| identity | 10 | 2236 | 8 | 5 | UNMEASURED |
+| forms | 14 | 2139 | 11 | 8 (+3 admin) | UNMEASURED |
+| site-evidence | 7 | 1914 | 5 | 3 | UNMEASURED |
+| site-inspection | 6 | 1691 | 3 | 3 | UNMEASURED |
+| database | 12 | 1686 | 8 | 10 (+3 admin) | UNMEASURED |
+| media | 9 | 1547 | 8 | 14 (+4 admin) | UNMEASURED |
+| analytics | 7 | 1557 | 6 | 4 (+1 admin) | UNMEASURED |
+| recovery | 9 | 1359 | 10 | 5 (+3 admin) | UNMEASURED |
+| vendor-credentials | 6 | 1318 | 3 | 4 | UNMEASURED |
+| commerce | 10 | 1163 | 7 | 2 (+1 admin) | UNMEASURED |
+| settings | 4 | 969 | 4 | 15 (+1 admin) | UNMEASURED |
+| pages | 7 | 969 | 4 | 5 (+4 admin) | UNMEASURED |
+| taxonomy | 5 | 895 | 1 | 4 (+4 admin) | UNMEASURED |
+| site-glue | 6 | 763 | 8 | 1 | UNMEASURED |
+| external-mcp | 3 | 537 | 1 | 0 (none found by this method) | UNMEASURED |
+| media-generation | 2 | 531 | 1 | 4 | UNMEASURED |
+| skills | 2 | 516 | 3 | 3 | UNMEASURED |
+| origin | 5 | 491 | 3 | 11 | UNMEASURED |
+| navigation | 3 | 426 | 1 | 9 | UNMEASURED |
+| content-types | 5 | 352 | 1 | 19 | UNMEASURED |
+| entries | 3 | 266 | 1 | 18 | UNMEASURED |
+| tool-audit | 3 | 240 | 1 | 4 | UNMEASURED |
+| presentation | 3 | 153 | 2 | 4 | UNMEASURED |
+| workspace | 3 | 136 | 1 | 4 (+1 admin) | UNMEASURED |
 
-`features/__tests__` (shared boundary tests, not a feature) excluded from ranking.
+`features/__tests__` (shared boundary tests, not a feature) excluded.
 
 ## Admin: `apps/admin/src/features/*` + top-level subtrees
 
-| Dir | Files | Lines | Internal tests | Candidate external suites (count) | Measured coverage |
+| Dir | Files | Lines | Internal tests | Candidate ext. suites (admin-app only) | Coverage |
 |---|---|---|---|---|---|
-| lib | 35 | 10004 | 49 | n/a (not a feature dir) | `api.ts` previously measured 100% (FNF 219/219, BRF 184/184, lines 298/298) — see task-list doc; rest of `lib/` UNMEASURED |
-| components | 39 | 7602 | 39 | n/a | UNMEASURED — Phase 2 pending |
-| deployment | 25 | 7095 | 12 | 2 | UNMEASURED — Phase 2 pending |
-| pages | 25 | 5250 | 11 | 9 | UNMEASURED — Phase 2 pending |
-| posts | 16 | 4709 | 9 | 5 | UNMEASURED — Phase 2 pending |
-| themes | 14 | 4551 | 6 | 1 | UNMEASURED — Phase 2 pending |
-| collections | 26 | 4207 | 14 | 2 | UNMEASURED — Phase 2 pending |
-| security | 15 | 3955 | 10 | 2 | UNMEASURED — Phase 2 pending |
-| ai-assistant | 16 | 3788 | 11 | 2 | UNMEASURED — Phase 2 pending |
-| media | 13 | 3450 | 9 | 18 | UNMEASURED — Phase 2 pending |
-| settings | 15 | 3223 | 12 | 16 (shared w/ website `features/settings` refs) | UNMEASURED — Phase 2 pending |
-| taxonomy | 17 | 3158 | 8 | 8 | UNMEASURED — Phase 2 pending |
-| roles | 7 | 2852 | 3 | 3 | UNMEASURED — Phase 2 pending |
-| widgets | 15 | 2997 | 9 | 14 | UNMEASURED — Phase 2 pending |
-| plugins | 20 | 2970 | 10 | 14 | UNMEASURED — Phase 2 pending |
-| users | 8 | 2863 | 7 | 2 | UNMEASURED — Phase 2 pending |
-| seo | 15 | 2597 | 6 | 7 | UNMEASURED — Phase 2 pending |
-| database | 16 | 2544 | 6 | 13 | UNMEASURED — Phase 2 pending |
-| hooks | 13 | 2493 | 11 | n/a | UNMEASURED — Phase 2 pending |
-| comments | 13 | 2267 | 7 | 9 | UNMEASURED — Phase 2 pending |
-| recovery | 10 | 2352 | 4 | 8 | UNMEASURED — Phase 2 pending |
-| redirects | 9 | 1921 | 4 | 11 | UNMEASURED — Phase 2 pending |
-| source-control | 9 | 1770 | 4 | 6 | UNMEASURED — Phase 2 pending |
-| menus | 9 | 1750 | 4 | 1 | **Off-limits — do not touch (active edit in progress, `M apps/admin/src/features/menus/MenuEditor.tsx` in working tree). Not measured, not scoped for test runs this pass.** |
-| integrations | 11 | 1536 | 5 | 3 | UNMEASURED — Phase 2 pending |
-| members | 7 | 1227 | 3 | 14 (shared w/ website `features/members`) | UNMEASURED — Phase 2 pending |
-| dashboard | 7 | 1101 | 4 | 1 | UNMEASURED — Phase 2 pending |
-| sites | 7 | 913 | 3 | 1 | UNMEASURED — Phase 2 pending |
-| workspace | 7 | 715 | 3 | 5 (shared w/ website `features/workspace`) | UNMEASURED — Phase 2 pending |
-| authentication | 3 | 273 | 2 | 1 | UNMEASURED — Phase 2 pending |
-| auth | 5 | 184 | 2 | 1 | UNMEASURED — Phase 2 pending |
-| playground | 3 | 122 | 1 | 1 | UNMEASURED — Phase 2 pending |
-| commerce | 2 | 128 | 1 | 3 (shared w/ website `features/commerce`) | UNMEASURED — Phase 2 pending |
+| lib | 35 | 10004 | 49 | n/a (not a `features/` dir; not scanned by this method) | `api.ts` previously measured 100% (FNF 219/219, BRF 184/184, lines 298/298) per the task-list doc; **rest of `lib/` is UNMEASURED**, not assumed 100% |
+| components | 39 | 7602 | 39 | n/a | UNMEASURED |
+| deployment | 25 | 7095 | 12 | 2 | UNMEASURED |
+| pages | 25 | 5250 | 11 | 4 (+5 website) | UNMEASURED |
+| posts | 16 | 4709 | 9 | 4 (+1 website) | UNMEASURED |
+| themes | 14 | 4551 | 6 | 1 | UNMEASURED |
+| collections | 26 | 4207 | 14 | 2 | UNMEASURED |
+| security | 15 | 3955 | 10 | 2 | UNMEASURED |
+| ai-assistant | 16 | 3788 | 11 | 2 | UNMEASURED |
+| media | 13 | 3450 | 9 | 4 (+14 website) | UNMEASURED |
+| settings | 15 | 3223 | 12 | 1 (+15 website — different directory, same name) | UNMEASURED |
+| taxonomy | 17 | 3158 | 8 | 4 (+4 website) | UNMEASURED |
+| roles | 7 | 2852 | 3 | 2 (+1 website) | UNMEASURED |
+| widgets | 15 | 2997 | 9 | 2 (+12 website) | UNMEASURED |
+| plugins | 20 | 2970 | 10 | 3 (+11 website) | UNMEASURED |
+| users | 8 | 2863 | 7 | 2 | UNMEASURED |
+| seo | 15 | 2597 | 6 | 1 (+6 website) | UNMEASURED |
+| database | 16 | 2544 | 6 | 3 (+10 website) | UNMEASURED |
+| hooks | 13 | 2493 | 11 | n/a | UNMEASURED |
+| comments | 13 | 2267 | 7 | 2 (+7 website) | UNMEASURED |
+| recovery | 10 | 2352 | 4 | 3 (+5 website) | UNMEASURED |
+| redirects | 9 | 1921 | 4 | 4 (+7 website) | UNMEASURED |
+| source-control | 9 | 1770 | 4 | 1 (+5 website) | UNMEASURED |
+| menus | 9 | 1750 | 4 | 1 | **Off-limits — do not touch or scope test runs here (active edit in progress: `M apps/admin/src/features/menus/MenuEditor.tsx` in working tree). Not measured this pass, by instruction, not by finding.** |
+| integrations | 11 | 1536 | 5 | 3 | UNMEASURED |
+| members | 7 | 1227 | 3 | 2 (+12 website — different directory, same name) | UNMEASURED |
+| dashboard | 7 | 1101 | 4 | 1 | UNMEASURED |
+| sites | 7 | 913 | 3 | 1 | UNMEASURED |
+| workspace | 7 | 715 | 3 | 1 (+4 website) | UNMEASURED |
+| authentication | 3 | 273 | 2 | 1 | UNMEASURED |
+| auth | 5 | 184 | 2 | 0 | UNMEASURED |
+| playground | 3 | 122 | 1 | 1 | UNMEASURED |
+| commerce | 2 | 128 | 1 | 1 (+2 website — different directory, same name) | UNMEASURED |
 
-## Ranked priority (largest genuinely-unmeasured surface first)
+## The one measured directory: `apps/website/src/features/deployments`
 
-Pending Phase 2 measurement, the current ranked candidate list — by lines,
-before any measured override — is:
-
-1. `apps/admin/src/lib` (10004 lines, only `api.ts` verified; rest unknown)
-2. `apps/website/src/features/theme` (9474 lines — known cross-directory
-   exerciser pattern per prior findings; needs the external-suite run, not
-   just internal, to avoid a false "zero coverage" claim)
-3. ~~`apps/website/src/features/deployments` (8557 lines)~~ — **MEASURED,
-   dropped from this list**: 99.0% lines, 94.5% functions, 95.3% branches.
-   Not an unmeasured surface. One real gap inside it: `repo.sqlite.ts` at
-   61.0% lines / 2 of 13 functions — worth a targeted look, but the
-   directory as a whole is not what Leona is asking about.
-4. `apps/admin/src/components` (7602 lines)
-5. `apps/admin/src/features/deployment` (7095 lines)
-6. `apps/website/src/features/widgets` (5378 lines)
-7. `apps/admin/src/features/pages` (5250 lines)
-8. `apps/admin/src/features/posts` (4709 lines)
-9. `apps/admin/src/features/themes` (4551 lines)
-10. `apps/admin/src/features/collections` (4207 lines)
-
-This ranking will be corrected as Phase 2 measurements land — a directory with
-many lines but strong external suite coverage may drop, and vice versa.
-
-## Phase 2 measurement log
-
-(Appended incrementally as runs complete. Format: command, file set, uptime
-before/after, lcov path, result.)
-
-### `apps/website/src/features/deployments` — MEASURED
-
-- **uptime before**: `15:42  load averages: 6.32 6.77 7.30`
-- **uptime after**: `15:47  load averages: 35.57 34.81 21.17` — **1-min load spiked
-  to 35 during/immediately after this run.** Per the load-spike-voids-a-number
-  rule, this is flagged for reconfirmation once the box is calm, but the
-  numbers show no internal inconsistency (no decreasing hit count vs. a prior
-  superset run — there is no prior run to compare against) so they are
-  reported as a first measurement, not discarded, with this caveat attached.
-  **The spike appears to have started only at/after test completion** (34
-  files ran clean with dot-reporter output and no slowdown symptoms during
-  execution) — plausibly other agents on this shared box launching work
-  concurrently, not this run's own cost. Flagging to team-lead regardless.
-- **Command**:
-  `env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" --test-reporter=lcov --test-reporter-destination=<scratch>/lcov/deployments.lcov.info --test-reporter=dot --test-reporter-destination=stdout <34 files>`
-  (repo-root cwd, per website's node-test-from-root convention)
-- **Note**: first attempt with `TOVU_ADMIN_PASSWORD` inherited from shell
-  environment failed every authenticated-route test with 401 (expected 200).
-  Re-ran with `env -u TOVU_ADMIN_PASSWORD` per the known trap and it went
-  fully green — same failure mode as the documented admin/vitest trap,
-  confirmed here for website's own `node --test` auth helper too.
-- **File set**: 19 internal test files (`apps/website/src/features/deployments/**/__tests__/*.test.ts`)
-  + 15 external candidate suites (route tests, tool-registration tests, sqlite
-  repo tests, CLI integration test) identified via the import-grep candidate
-  map. 34 files total, all passed (30 top-level test blocks, all green, no
-  failures/skips).
-- **lcov retained at**: `<scratch>/lcov/deployments.lcov.info` (this session's
-  scratchpad — not committed; regenerate with the command above if needed)
-- **Result, source files only** (excludes the 19 internal test files
-  themselves from the numerator/denominator — 28 source files):
+- **uptime before**: `15:42, load averages 6.32 6.77 7.30` — clean, well under
+  the ~8 go/no-go threshold.
+- **uptime immediately after completion**: `15:47, load averages 35.57 34.81
+  21.17`.
+- **Overlap assessment, stated plainly per team-lead's instruction**: the
+  "after" reading was taken in the same command, immediately on completion —
+  meaning load had already climbed to 35 by the moment the run finished. That
+  means **the climb happened during this run's execution window, not only
+  after it** — I cannot claim the run finished before the spike started. Per
+  the standing rule ("a number measured across a thrashing window is void,
+  not slightly off"), **treat this coverage percentage as unconfirmed pending
+  a re-run once the box is quiet.** It is reported below because it is the
+  only data point available and its internal shape (no impossible values,
+  no per-file inconsistency) gives no specific reason to doubt it — but it is
+  not asserted as settled, and the next agent should re-run it first, cheaply,
+  before trusting it as a baseline.
+- **Command** (repo-root cwd — website's node:test convention):
+  ```
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+    node --import tsx --test --experimental-test-module-mocks \
+    --experimental-test-coverage \
+    --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" \
+    --test-reporter=lcov --test-reporter-destination=<dest>/deployments.lcov.info \
+    --test-reporter=dot --test-reporter-destination=stdout \
+    <34 files — 19 internal + 15 external, listed below>
+  ```
+- **`TOVU_ADMIN_PASSWORD` trap confirmed for website's own auth helper too**:
+  first attempt with the var inherited from the shell environment failed
+  every authenticated-route test with 401 (expected 200). This is the same
+  failure mode documented for admin/vitest, now confirmed for website's
+  `node --test` + `http-test-server.ts` auth helper as well. Fixed with
+  `env -u TOVU_ADMIN_PASSWORD`.
+- **File set** (34 files, all passed — 30 top-level test blocks green, 0
+  failures/skips):
+  - Internal (19): all `*.test.ts` under
+    `apps/website/src/features/deployments/**/__tests__/`
+  - External (15): `apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts`,
+    `.../tool-contribution-registry.test.ts`, `.../tool-registrations.contracts.test.ts`,
+    `apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts`,
+    `apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts`,
+    `apps/website/src/features/source-control/__tests__/commit-site-export-resolution.unit.test.ts`,
+    `apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts`,
+    `apps/website/src/platform/db/sqlite/__tests__/publish-credential-repo.sqlite.test.ts`,
+    `apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts`,
+    `apps/website/src/platform/observability/__tests__/unit/config.unit.test.ts`,
+    `apps/website/src/server/__tests__/route-async-guards.test.ts`,
+    `apps/website/src/server/__tests__/routes/deployments-list-route.test.ts`,
+    `apps/website/src/server/__tests__/routes/dockerfile-source-route.test.ts`,
+    `apps/website/src/server/__tests__/routes/publish-credentials-route.test.ts`,
+    `apps/website/src/server/__tests__/routes/publish-site-route.test.ts`
+- **lcov retained at**: this session's scratchpad, not committed to the repo
+  (`.../scratchpad/lcov/deployments.lcov.info`) — regenerate with the command
+  above; the file will not survive past this session.
+- **Result, source files only** (28 source files, excludes the 19 internal
+  test files from the numerator/denominator):
   - Lines: 99.0% (7793/7868)
   - Functions: 94.5% (310/328)
   - Branches: 95.3% (1056/1108)
   - Below-100% files: `repo.sqlite.ts` 61.0% lines (83/136), 2/13 functions,
-    3/4 branches — the one real gap in this directory.
-    `deploy-config.ts` 98.2%, `dockerfile.ts` 98.8%, `publish-credentials/store.ts`
-    99.0%, `publish-agent-tools.ts` 99.6%, `static-publish/publish-run.ts` 99.6%
-    — all near-ceiling, not worklist material by the 100%-bar standard but not
-    the "no coverage yet" gap Leona asked about either.
-- **Conclusion**: `deployments` is NOT an unmeasured/uncovered surface. Removed
-  from the ranked-priority list above.
+    3/4 branches — the one real gap. `deploy-config.ts` 98.2%,
+    `dockerfile.ts` 98.8%, `publish-credentials/store.ts` 99.0%,
+    `publish-agent-tools.ts` 99.6%, `static-publish/publish-run.ts` 99.6% —
+    all near-ceiling.
+- **Reading, with the overlap caveat above in mind**: this directory is very
+  likely **not** an unmeasured/uncovered surface — it drops off the
+  size-ranked list below pending reconfirmation. `repo.sqlite.ts` is the one
+  file worth a targeted look regardless of the load caveat, since a
+  61%-covered file is a real, specific finding independent of exact
+  percentage precision.
+- **This single result is itself evidence about the rest of the table**: a
+  directory with 8557 source lines and only 19 internal test files turned out
+  to be 99% covered once its 15 external drivers were included. The
+  `UNMEASURED` set almost certainly contains more directories in the same
+  shape — well-tested from outside, undercounted by internal-test-file
+  presence alone. Nothing below should be read as "probably uncovered"
+  because of this.
 
-**Phase 2 paused after this one measurement.** Immediately after this run,
-1-minute load climbed to 19–35 across three checks (15:47–15:48) — well past
-the ~8 go/no-go threshold in the dispatch brief. Per instruction ("if the
-1-minute load average is above ~8, wait rather than launching" / "ONE test
-invocation at a time, always"), no further test invocations were started.
-Reported to team-lead; remaining directories stay `UNMEASURED — Phase 2
-pending` until load recovers and measurement resumes, or team-lead redirects.
+## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
+
+Everything here is `UNMEASURED` — this ranks what is biggest and least known,
+not what is least covered. `deployments` is removed from this list because it
+is no longer unknown (see above, with its overlap caveat).
+
+1. `apps/admin/src/lib` — 10004 lines (only `api.ts` previously verified;
+   remaining ~34 files unknown)
+2. `apps/website/src/features/theme` — 9474 lines (known cross-directory
+   exerciser pattern; needs the 54-suite external run, not just the 82
+   internal tests, to answer honestly)
+3. `apps/admin/src/components` — 7602 lines
+4. `apps/admin/src/features/deployment` — 7095 lines (only 2 candidate
+   external suites found — thin external signal, worth prioritizing)
+5. `apps/website/src/features/widgets` — 5378 lines
+6. `apps/admin/src/features/pages` — 5250 lines
+7. `apps/admin/src/features/posts` — 4709 lines
+8. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
+   suite — thin external signal)
+9. `apps/admin/src/features/collections` — 4207 lines
+10. `apps/website/src/features/plugins` — 4190 lines
+
+## What would settle each row — for whoever resumes Phase 2
+
+Same recipe as the `deployments` run, scoped per directory:
+
+- **Website (`node --test`, run from repo root, always `env -u TOVU_ADMIN_PASSWORD`)**:
+  ```
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+    node --import tsx --test --experimental-test-module-mocks \
+    --experimental-test-coverage \
+    --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" \
+    --test-reporter=lcov --test-reporter-destination=<scratch>/<dir>.lcov.info \
+    --test-reporter=dot --test-reporter-destination=stdout \
+    <dir's internal *.test.ts files> <dir's external candidate suites from the appendix below>
+  ```
+  Then filter the lcov `SF:` entries to paths containing the target directory
+  and excluding `__tests__`/`.test.ts`, sum LF/LH/FNF/FNH/BRF/BRH, and report
+  per-file below-100% lines same as the `deployments` example above.
+- **Admin (`vitest`, run from `apps/admin`, own `--coverage.reportsDirectory`
+  to avoid clobbering another agent's run)**:
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/<dir>-coverage \
+    <dir's internal test files> <dir's external candidate suites>
+  ```
+- **Always**: `uptime` immediately before launching (abort if 1-min > ~8),
+  one invocation at a time, two directories per batch strictly serial, and
+  `uptime` again right after — if it spiked, say so rather than adjusting the
+  number, exactly as done for `deployments` above.
+- **`theme` specifically**: do not measure with only its 82 internal tests —
+  that undercounts by construction (the directory's own known pattern). Use
+  the full 52-website + 2-admin external list in the appendix.
+- **`apps/admin/src/lib`, `hooks`, `components`**: not `features/` dirs, so
+  the import-grep method wasn't run against them here. Before scoping a
+  measurement, grep test files for import paths containing `lib/`, `hooks/`,
+  `components/` the same way, per-file, since this method has already proven
+  file-listing/symbol-presence alone is not sufand a naive internal-only run
+  would repeat today's five wrong claims.
+- **`menus` (admin)**: leave alone this pass — active edit in progress
+  elsewhere in the shared tree.
+
+## Appendix: full external-suite map, per directory (website [W] / admin [A])
+
+Generated by grepping all 1123 test files for `features/<name>` import
+fragments and keeping only hits outside that directory's own path, split by
+app. This is the exact file list the "candidate ext. suites" counts above are
+built from — use it directly to construct the next measurement run rather
+than re-deriving it.
+
+```
+### features/INFO  (website external: 1, admin external: 0)
+  [W] apps/website/src/features/__tests__/features-no-server-imports.boundary.test.ts
+### features/agent-plugins  (website external: 1, admin external: 1)
+  [W] apps/website/src/platform/site-dir/__tests__/unit/site-root.unit.test.ts
+  [A] apps/admin/src/features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts
+### features/ai-assistant  (website external: 0, admin external: 2)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx
+### features/analytics  (website external: 4, admin external: 1)
+  [W] apps/website/src/server/__tests__/routes/analytics-ingest.test.ts
+  [W] apps/website/src/server/__tests__/routes/analytics-recent-hits.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/analytics-ingest.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/analytics-ingest.integration.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/auth  (website external: 1, admin external: 0)
+  [W] apps/website/src/features/identity/__tests__/default-credential-exposure.test.ts
+### features/authentication  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/chat-pane  (website external: 0, admin external: 1)
+  [A] apps/admin/src/components/__tests__/AssistantDock.unit.test.tsx
+### features/collections  (website external: 0, admin external: 2)
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/comments  (website external: 7, admin external: 2)
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.comments.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/server/__tests__/route-async-guards.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/comments/__tests__/moderate.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/comments/__tests__/moderation-queue.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/comments-submit.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/commerce  (website external: 2, admin external: 1)
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/products.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/products.route.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/content-types  (website external: 19, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.authorization.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.entries.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts
+  [W] apps/website/src/features/entries/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/features/presentation/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/features/taxonomy/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/features/tool-audit/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/embed-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/read-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/region-area-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/tool-registrations.region-gaps.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/write-service.integration.test.ts
+  [W] apps/website/src/features/workspace/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/server/__tests__/admin-widgets-routes.test.ts
+  [W] apps/website/src/server/__tests__/content-type-write-provenance.test.ts
+  [W] apps/website/src/server/__tests__/routes/content-types-field-shape.test.ts
+### features/custom-credentials  (website external: 7, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/custom-credential-tools-search-discoverability.test.ts
+  [W] apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/custom-credential-repo.sqlite.test.ts
+  [W] apps/website/src/platform/http/__tests__/client.test.ts
+  [W] apps/website/src/server/__tests__/routes/custom-credentials-route.test.ts
+  [W] apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts
+  [A] apps/admin/src/features/security/hooks/__tests__/use-access-tokens.unit.test.tsx
+### features/dashboard  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/database  (website external: 10, admin external: 3)
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+  [W] apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts
+  [W] apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts
+  [W] apps/website/src/platform/db/__tests__/posts-body-format-migration.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/database-introspection-adapter.sqlite.integration.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/database-journal.integration.test.ts
+  [W] apps/website/src/server/__tests__/admin-database-timeline-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/database-schema-state-route.test.ts
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/deployment  (website external: 0, admin external: 2)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/deployments  (website external: 15, admin external: 0) -- MEASURED, see above
+  [W] apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/cli/__tests__/integration/deploy-config-command.integration.test.ts
+  [W] apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts
+  [W] apps/website/src/features/source-control/__tests__/commit-site-export-resolution.unit.test.ts
+  [W] apps/website/src/features/source-control/__tests__/commit-site.unit.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/publish-credential-repo.sqlite.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/publish-history-repo.sqlite.test.ts
+  [W] apps/website/src/platform/observability/__tests__/unit/config.unit.test.ts
+  [W] apps/website/src/server/__tests__/route-async-guards.test.ts
+  [W] apps/website/src/server/__tests__/routes/deployments-list-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/dockerfile-source-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/publish-credentials-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/publish-site-route.test.ts
+### features/entries  (website external: 18, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.entries.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/embed-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/read-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/region-area-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolver-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/tool-registrations.region-gaps.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/tool-registrations.shape-rejection.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/write-service.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts
+  [W] apps/website/src/platform/db/__tests__/migration-manifest.test.ts
+  [W] apps/website/src/server/__tests__/admin-widgets-routes.test.ts
+  [W] apps/website/src/server/__tests__/routes/entries-routes.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts
+### features/execution  (website external: 0, admin external: 1)
+  [A] apps/admin/src/components/__tests__/AssistantDock.hooks.unit.test.tsx
+### features/forms  (website external: 8, admin external: 3)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.forms.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/resolvers-contact-form.unit.test.ts
+  [W] apps/website/src/server/__tests__/routes/forms-submit.test.ts
+  [W] apps/website/src/server/__tests__/routes/forms-webhook-fanout.test.ts
+  [W] apps/website/src/server/__tests__/unit/server-modules.unit.test.ts
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/identity  (website external: 5, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.identity-authorization.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.identity-contracts.test.ts
+  [W] apps/website/src/cli/__tests__/integration/serve-command.integration.test.ts
+  [W] apps/website/src/features/pages/__tests__/edit-html-permission.test.ts
+  [W] apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+### features/integrations  (website external: 0, admin external: 3)
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/media  (website external: 14, admin external: 4)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.media.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/media-content-type-store.sqlite.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/media-provider-credential-repo.sqlite.test.ts
+  [W] apps/website/src/server/__tests__/integration/hydrate-blob-store-boot.integration.test.ts
+  [W] apps/website/src/server/__tests__/media-original-video-route.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-gating-bypass.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/media-content-type.test.ts
+  [W] apps/website/src/server/__tests__/routes/media-original-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/media-site-serving.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/components/AssistantDock/__tests__/use-routed-a2ui-surface-card.hooks.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/media-generation  (website external: 4, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/media-generation-search-discoverability.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/features/media/__tests__/tool-registrations.test.ts
+### features/members  (website external: 12, admin external: 2)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.members.test.ts
+  [W] apps/website/src/server/__tests__/media-original-video-route.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-gating-bypass.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/content-post-get-by-slug.test.ts
+  [W] apps/website/src/server/__tests__/routes/members-auth.test.ts
+  [W] apps/website/src/server/__tests__/unit/server-modules.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/members/__tests__/disable.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/members/__tests__/disable.unit.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/menus  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/navigation  (website external: 9, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.menus.test.ts
+  [W] apps/website/src/features/identity/__tests__/permission-migrations.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/create-core-resolvers.unit.test.ts
+  [W] apps/website/src/features/widgets/__tests__/unit/resolvers-menu.unit.test.ts
+  [W] apps/website/src/server/__tests__/admin-menus-routes.test.ts
+  [W] apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts
+### features/newsletter  (website external: 11, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.newsletter.test.ts
+  [W] apps/website/src/server/__tests__/routes/newsletter-public-routes.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/cancel-campaign.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/create-list.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/list-send-log.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/pause-campaign.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/resume-campaign.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/schedule-campaign.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/send-test-campaign.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/newsletter/__tests__/update-campaign.test.ts
+### features/origin  (website external: 11, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts
+  [W] apps/website/src/features/members/__tests__/write-service.test.ts
+  [W] apps/website/src/features/redirects/__tests__/phase-handler.oracle.test.ts
+  [W] apps/website/src/features/redirects/__tests__/redirects.test.ts
+  [W] apps/website/src/features/site-evidence/__tests__/integration/playwright-browser.integration.test.ts
+  [W] apps/website/src/features/site-evidence/__tests__/unit/collect-page-evidence.unit.test.ts
+  [W] apps/website/src/features/site-evidence/__tests__/unit/tool-registrations.unit.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/origin-repo.sqlite.import-boundary.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/robots.route.test.ts
+### features/pages  (website external: 5, admin external: 4)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/features/deployments/__tests__/integration/tool-registrations.integration.test.ts
+  [W] apps/website/src/features/identity/__tests__/wiring.test.ts
+  [W] apps/website/src/features/post/__tests__/post.body-format.test.ts
+  [W] apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/features/posts/__tests__/Posts.unit.test.tsx
+  [A] apps/admin/src/features/themes/__tests__/ThemeExplore.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/playground  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/plugin-runtime  (website external: 9, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.plugins.test.ts
+  [W] apps/website/src/contracts/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts
+  [W] apps/website/src/features/agent-plugins/__tests__/unit/manifest.unit.test.ts
+  [W] apps/website/src/features/deployments/__tests__/integration/tool-registrations.integration.test.ts
+  [W] apps/website/src/features/site-glue/__tests__/integration/content-lifecycle.integration.test.ts
+  [W] apps/website/src/server/inbound/admin-http/http/__tests__/unit/plugins-dto.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/plugins-http.integration.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/plugins/__tests__/integration/set-enabled-gap-fill.test.ts
+  [A] apps/admin/src/features/plugins/__tests__/Plugins.unit.test.tsx
+### features/plugins  (website external: 11, admin external: 3)
+  [W] apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts
+  [W] apps/website/src/assistant/__tests__/mcp-federation.registrations.test.ts
+  [W] apps/website/src/assistant/__tests__/mcp-federation.trust.test.ts
+  [W] apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.content-search.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/features/newsletter/__tests__/data-module-manifest.failure-rollback.test.ts
+  [W] apps/website/src/platform/db/__tests__/migration-manifest.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/content-db-recovery.integration.test.ts
+  [W] apps/website/src/platform/site-dir/__tests__/integration/init-site-fault-injection.integration.test.ts
+  [W] apps/website/src/server/__tests__/route-async-guards.test.ts
+  [W] apps/website/src/server/__tests__/routes/payments-webhook.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/components/AssistantDock/__tests__/resolve-composer-discovery-outcome.unit.test.ts
+  [A] apps/admin/src/components/__tests__/AssistantDock.hooks.unit.test.tsx
+### features/post  (website external: 61, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/byok-provider-turn.test.ts
+  [W] apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+  [W] apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.content-search.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.post.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts
+  [W] apps/website/src/assistant/site/__tests__/capability-registry.test.ts
+  [W] apps/website/src/assistant/site/__tests__/client-directives.test.ts
+  [W] apps/website/src/assistant/site/__tests__/tools.test.ts
+  [W] apps/website/src/contracts/core/commands/__tests__/command-atomicity.test.ts
+  [W] apps/website/src/contracts/core/commands/__tests__/integration/revert-plugin-ext.integration.test.ts
+  [W] apps/website/src/contracts/core/commands/__tests__/post-delete-reverter.test.ts
+  [W] apps/website/src/features/custom-credentials/__tests__/make-request-delete-confirmation.test.ts
+  [W] apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts
+  [W] apps/website/src/features/pages/__tests__/metadata-edit-preserves-html.test.ts
+  [W] apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts
+  [W] apps/website/src/features/plugin-runtime/__tests__/unit/capability-tool-registrations.unit.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  [W] apps/website/src/platform/db/__tests__/migration-manifest.test.ts
+  [W] apps/website/src/platform/export/__tests__/route-manifest.test.ts
+  [W] apps/website/src/platform/export/__tests__/site-exporter.test.ts
+  [W] apps/website/src/platform/routing/__tests__/routing.test.ts
+  [W] apps/website/src/server/__tests__/admin-page-get-route.test.ts
+  [W] apps/website/src/server/__tests__/assistant-byok-routes.test.ts
+  [W] apps/website/src/server/__tests__/media-original-video-route.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-gating-bypass.test.ts
+  [W] apps/website/src/server/__tests__/media-rendition-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/admin-post-template-preview.test.ts
+  [W] apps/website/src/server/__tests__/routes/content-post-get-by-slug.test.ts
+  [W] apps/website/src/server/__tests__/routes/missing-template-diagnostic-v2-stylesheet.test.ts
+  [W] apps/website/src/server/__tests__/routes/pages-update-html-auth.test.ts
+  [W] apps/website/src/server/__tests__/routes/post-template-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/render-depth-bound-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/request-cost-traversal.measurement.test.ts
+  [W] apps/website/src/server/__tests__/routes/seo-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/widgets-site-serving.test.ts
+  [W] apps/website/src/server/http/__tests__/headless-contracts.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-access-and-not-found.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-slug-collision.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-group-edge-cases.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-liquid-readable.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-v2-layout-classification.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/handlebars-sandbox.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/liquid-sandbox.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render-handlebars.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/render-context-resolution-helpers.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/resolve-html-format-content-markers.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/sitemap.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+  [A] apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts
+### features/posts  (website external: 1, admin external: 4)
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/tiptap-render-contract.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/features/pages/__tests__/Pages.unit.test.tsx
+  [A] apps/admin/src/features/pages/__tests__/rules.unit.test.ts
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/presentation  (website external: 4, admin external: 0)
+  [W] apps/website/src/server/http/__tests__/headless-contracts.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/get.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts
+### features/recovery  (website external: 5, admin external: 3)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.database-recovery.test.ts
+  [W] apps/website/src/contracts/core/__tests__/integration/operation-lock.cross-domain.integration.test.ts
+  [W] apps/website/src/contracts/core/__tests__/unit/operation-lock.unit.test.ts
+  [W] apps/website/src/contracts/core/gated-mutations/__tests__/integration/db-ops.integration.test.ts
+  [A] apps/admin/src/__tests__/unit/admin-nav-recovery-acs.unit.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/redirects  (website external: 7, admin external: 4)
+  [W] apps/website/src/assistant/__tests__/byok-provider-turn.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.redirects.test.ts
+  [W] apps/website/src/platform/export/__tests__/route-manifest.test.ts
+  [W] apps/website/src/platform/export/__tests__/site-exporter.test.ts
+  [W] apps/website/src/server/__tests__/routes/redirects-create.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/redirects/__tests__/shared.test.ts
+  [A] apps/admin/src/__measurements__/render-churn.measurement.test.tsx
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/roles  (website external: 1, admin external: 2)
+  [W] apps/website/src/server/__tests__/identity-policy-permission-removal.test.ts
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/security  (website external: 0, admin external: 2)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/seo  (website external: 6, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/admin-screen-link-tool.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/llms.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/robots.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/sitemap.route.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/settings  (website external: 15, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/custom-instructions.test.ts
+  [W] apps/website/src/assistant/__tests__/public-assistant-settings.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.comments.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.seo.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.settings.test.ts
+  [W] apps/website/src/features/commerce/__tests__/integration/repo.sqlite.integration.test.ts
+  [W] apps/website/src/features/members/__tests__/repo.contract.test.ts
+  [W] apps/website/src/features/navigation/__tests__/repo.sqlite.test.ts
+  [W] apps/website/src/server/__tests__/assistant-byok-routes.test.ts
+  [W] apps/website/src/server/__tests__/integration/boot-lifecycle-real-deps.integration.test.ts
+  [W] apps/website/src/server/__tests__/routes/module-status-route.test.ts
+  [W] apps/website/src/server/__tests__/routes/readiness-routes.test.ts
+  [W] apps/website/src/server/__tests__/routes/settings-workspace-scoping.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/site-evidence  (website external: 3, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/features/agent-plugins/__tests__/unit/bundled-site-compliance-package.unit.test.ts
+### features/site-glue  (website external: 1, admin external: 0)
+  [W] apps/website/src/contracts/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts
+### features/site-inspection  (website external: 3, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/server/__tests__/routes/site-profile-route.test.ts
+### features/sites  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/skills  (website external: 3, admin external: 0)
+  [W] apps/website/src/platform/site-dir/__tests__/unit/site-root.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/http/__tests__/unit/skills-dto.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/skills/__tests__/integration/skills-http.integration.test.ts
+### features/source-control  (website external: 5, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/source-control-credential-repo.sqlite.test.ts
+  [W] apps/website/src/server/__tests__/route-async-guards.test.ts
+  [W] apps/website/src/server/__tests__/routes/source-control-credentials-route.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/taxonomy  (website external: 4, admin external: 4)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.taxonomy.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/taxonomy/__tests__/list.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts
+  [A] apps/admin/src/__measurements__/render-churn.measurement.test.tsx
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/theme  (website external: 52, admin external: 2)
+  [W] apps/website/src/assistant/__tests__/theme-list-files-malformed-input-status.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.themes-edit-rename.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.themes-trash-restore.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.themes.test.ts
+  [W] apps/website/src/cli/__tests__/integration/theme-migrate-command.integration.test.ts
+  [W] apps/website/src/cli/__tests__/integration/theme-normalize-build-command.integration.test.ts
+  [W] apps/website/src/cli/__tests__/integration/theme-validate-command.integration.test.ts
+  [W] apps/website/src/contracts/core/__tests__/integration/child-process-coverage-env-wiring.test.ts
+  [W] apps/website/src/features/plugin-runtime/__tests__/integration/capability-tool-search-discoverability.integration.test.ts
+  [W] apps/website/src/features/post/__tests__/list-published-previews.test.ts
+  [W] apps/website/src/features/widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts
+  [W] apps/website/src/platform/export/__tests__/route-manifest.test.ts
+  [W] apps/website/src/server/__tests__/routes/admin-post-template-preview.test.ts
+  [W] apps/website/src/server/__tests__/routes/marketplace-download-route.integration.test.ts
+  [W] apps/website/src/server/__tests__/routes/media-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/missing-template-diagnostic-v2-stylesheet.test.ts
+  [W] apps/website/src/server/__tests__/routes/post-template-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/seo-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/theme-file-copy-rename-route.integration.test.ts
+  [W] apps/website/src/server/__tests__/routes/theme-file-save-route.integration.test.ts
+  [W] apps/website/src/server/__tests__/routes/widgets-dynamic-resolver-site-serving.test.ts
+  [W] apps/website/src/server/__tests__/routes/widgets-site-serving.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/marketplace/__tests__/list.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/patch-active-theme.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/presentation/__tests__/rescan-themes.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-access-and-not-found.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-built-theme-gate.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-detail-slug-collision.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-copy-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-delete-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-get-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-group-edge-cases.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-put-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-rename-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-file-reset-route-branches.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-liquid-readable.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-page-publish-route.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-pure-helpers.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-svg-xss.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/explore-v2-layout-classification.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/themes/__tests__/integration/explore.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render-handlebars.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/pages-branch-coverage.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/integration/taxonomy-render-surface.integration.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.member-access.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/pages.route.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-menu-embed-resolution.test.ts
+  [W] apps/website/src/server/inbound/public-http/routes/site/__tests__/static-post-previews-resolution.test.ts
+  [A] apps/admin/src/features/pages/__tests__/use-page-editor.unit.test.ts
+  [A] apps/admin/src/features/pages/__tests__/use-theme-canvas-styling.unit.test.ts
+### features/themes  (website external: 0, admin external: 1)
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/tool-audit  (website external: 4, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/byok-tool-surface.test.ts
+  [W] apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-catalog-audit.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-executor-audit.test.ts
+### features/users  (website external: 0, admin external: 2)
+  [A] apps/admin/src/__measurements__/request-volume.measurement.test.tsx
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+### features/vendor-credentials  (website external: 4, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-contribution-registry.test.ts
+  [W] apps/website/src/features/deployments/__tests__/publish-agent-tools.unit.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/vendor-credential-repo.sqlite.test.ts
+### features/webhooks  (website external: 33, admin external: 0)
+  [W] apps/website/src/assistant/__tests__/byok-credential.test.ts
+  [W] apps/website/src/assistant/__tests__/execution-credential-store.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-aad-writer-sync.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-aad.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-dcr.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-oauth.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-payload-version.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-reauth-tool.test.ts
+  [W] apps/website/src/assistant/__tests__/external-mcp-store.test.ts
+  [W] apps/website/src/assistant/__tests__/live-model-cache.test.ts
+  [W] apps/website/src/assistant/__tests__/read-only-tool-constraint.composition.test.ts
+  [W] apps/website/src/assistant/__tests__/site-credential-store.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.webhooks.test.ts
+  [W] apps/website/src/features/deployments/publish-credentials/__tests__/s3-compatible-field-guidance.unit.test.ts
+  [W] apps/website/src/features/deployments/publish-credentials/__tests__/store.unit.test.ts
+  [W] apps/website/src/features/deployments/static-publish/__tests__/credentials.unit.test.ts
+  [W] apps/website/src/features/deployments/static-publish/__tests__/verify.unit.test.ts
+  [W] apps/website/src/platform/connectors/__tests__/composio-config-store.test.ts
+  [W] apps/website/src/platform/connectors/__tests__/connector-credential-store.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/webhook-delivery-repo.sqlite.test.ts
+  [W] apps/website/src/platform/db/sqlite/__tests__/webhook-subscription-repo.sqlite.test.ts
+  [W] apps/website/src/server/__tests__/admin-assistant-execution-credential-routes.test.ts
+  [W] apps/website/src/server/__tests__/admin-assistant-site-credential-routes.test.ts
+  [W] apps/website/src/server/__tests__/admin-connectors-oauth.test.ts
+  [W] apps/website/src/server/__tests__/admin-connectors-routes.test.ts
+  [W] apps/website/src/server/__tests__/admin-external-mcp-routes.test.ts
+  [W] apps/website/src/server/__tests__/admin-integrations-routes.test.ts
+  [W] apps/website/src/server/__tests__/admin-media-provider-routes.test.ts
+  [W] apps/website/src/server/__tests__/routes/forms-webhook-fanout.test.ts
+  [W] apps/website/src/server/__tests__/routes/publish-credentials-route.test.ts
+  [W] apps/website/src/server/__tests__/unit/server-modules.unit.test.ts
+  [W] apps/website/src/server/runtime/boot/__tests__/resolve-mailer.unit.test.ts
+### features/widgets  (website external: 12, admin external: 2)
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts
+  [W] apps/website/src/contracts/core/entry-refs/__tests__/extractor-marker.canary.test.ts
+  [W] apps/website/src/contracts/core/entry-refs/__tests__/integration/html-entry-refs-consistency.integration.test.ts
+  [W] apps/website/src/contracts/core/events/__tests__/outbox-workspace-id.integration.test.ts
+  [W] apps/website/src/server/__tests__/admin-widgets-routes.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/region-bind.unit.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/widgets/__tests__/unit/update.unit.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render-handlebars.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/render.test.ts
+  [W] apps/website/src/server/inbound/public-http/http/site/__tests__/tiptap-render-contract.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+  [A] apps/admin/src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+### features/workspace  (website external: 4, admin external: 1)
+  [W] apps/website/src/assistant/__tests__/domain-no-direct-tool-registration.boundary.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.contracts.test.ts
+  [W] apps/website/src/assistant/__tests__/tool-registrations.workspace.test.ts
+  [W] apps/website/src/server/inbound/admin-http/routes/workspace/__tests__/create.test.ts
+  [A] apps/admin/src/__tests__/unit/panels-render.unit.test.tsx
+```
