@@ -286,6 +286,20 @@ export function accessTokenRowProviderInfo(row: AccessTokenRow): AccessTokenProv
   };
 }
 
+/** `ProviderGroup`'s own `agentHandle` label (`AccessTokensTab.tsx`) — moved here alongside this
+ *  file's other label/fact builders (house rule: no functions in a `.tsx` component; a pure
+ *  formatter with no hook state belongs in `rules.ts`, not `*.hooks.ts`, matching
+ *  {@link maskedTailFact}/{@link connectedAsFact}'s own placement below). */
+export function providerGroupHandleLabel(info: AccessTokenProviderInfo, connectedCount: number): string {
+  return `${info.label}'s saved access tokens — ${connectedCount} connected`;
+}
+
+/** `TokenRow`'s own `agentHandle` label (`AccessTokensTab.tsx`) — see {@link providerGroupHandleLabel}
+ *  for why this lives here rather than in the component. */
+export function tokenRowHandleLabel(name: string, providerLabel: string): string {
+  return `${name} — ${providerLabel}, connected`;
+}
+
 /** The two stores' fixed sentinel label — every row Static Site/Source Control ever wrote before
  *  this page existed carries exactly this string (`PUBLISH_CREDENTIAL_ROW_LABEL`/
  *  `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`, both `"default"` today, kept as two separately-imported

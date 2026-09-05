@@ -15,6 +15,8 @@ import {
   customCredentialReadyToSave,
   invalidAdditionalHostsEntries,
   isValidHttpUrl,
+  providerGroupHandleLabel,
+  tokenRowHandleLabel,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenProviderInfo,
@@ -247,10 +249,6 @@ function AccessTokensSearch({ controller, otherController }: { controller: Acces
   );
 }
 
-function providerGroupHandleLabel(info: AccessTokenProviderInfo, connectedCount: number): string {
-  return `${info.label}'s saved access tokens — ${connectedCount} connected`;
-}
-
 function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupState; controller: AccessTokensController }) {
   const ref: AccessTokenProviderRef = { kind: group.info.kind, providerId: group.info.providerId };
   const hasRows = group.rows.length > 0;
@@ -316,10 +314,6 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
       </div>
     </div>
   );
-}
-
-function tokenRowHandleLabel(name: string, providerLabel: string): string {
-  return `${name} — ${providerLabel}, connected`;
 }
 
 function TokenRow({ state, controller, groupRowCount, t: translate }: { state: AccessTokenExistingRowState; controller: AccessTokensController; groupRowCount: number; t: Translate }) {

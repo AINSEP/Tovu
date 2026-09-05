@@ -35,6 +35,8 @@ import {
   mediaProviderLabel,
   otherCredentialMatchesQuery,
   otherCredentialStoreInfo,
+  providerGroupHandleLabel,
+  tokenRowHandleLabel,
   type AccessTokenFormFields,
   type AccessTokenRow,
   type CustomCredentialFormFields,
@@ -504,6 +506,22 @@ describe("accessTokenRowProviderInfo", () => {
     expect(info.tokenPageUrl).toBe("https://api.name.com");
     expect(info.requiredFields).toEqual([]);
     expect(info.optionalFields).toEqual(["username"]);
+  });
+});
+
+describe("providerGroupHandleLabel / tokenRowHandleLabel", () => {
+  it("providerGroupHandleLabel names the provider and reports the connected count", () => {
+    const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
+    expect(providerGroupHandleLabel(info, 3)).toBe(`${info.label}'s saved access tokens — 3 connected`);
+  });
+
+  it("providerGroupHandleLabel reports zero connected the same way as any other count", () => {
+    const info = accessTokenProviderInfo({ kind: "publish", providerId: "github-pages" });
+    expect(providerGroupHandleLabel(info, 0)).toBe(`${info.label}'s saved access tokens — 0 connected`);
+  });
+
+  it("tokenRowHandleLabel joins the row's own name and its provider's label", () => {
+    expect(tokenRowHandleLabel("Production", "GitHub Pages")).toBe("Production — GitHub Pages, connected");
   });
 });
 
