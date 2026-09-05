@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 
+import { scanEmbedMarkers } from "#src/contracts/core/embeds/marker";
 import { ImageSourceCorruptError, ImageTransformUnavailableError, resolveMediaRendition, sniffContentType } from "#src/features/media/index";
 import { isTrashed, type PostRecord } from "#src/features/post/index";
 import { DefaultMemberAccessResolver, resolvePostMemberAccess, type MemberAccessResolver } from "#src/features/members/index";
@@ -80,45 +81,155 @@ function collectImageAssetIds(node: unknown, out: Set<string>): void {
 }
 
 /**
- * Finds every PUBLISHED post whose `bodyJson` embeds `assetId` — the derivation this route uses in
- * place of a hand-maintained asset->post foreign key. There is no such column anywhere in this
- * codebase (`MediaRecord`, `@jini-ai/cms/media`, carries no post/owner reference at all); deriving
- * the relationship from the one place it's actually authored (a post's own body) is the same choice
- * `resolveMediaAssetMetadataForRender` (`pages.ts`) already made for the unrelated width/height/class
- * override lookup, rather than adding a second, independently-writable copy of the same fact.
- *
- * DRAFT posts are deliberately excluded: an asset referenced only by an unpublished draft (or a
- * freshly uploaded asset not yet embedded anywhere) must stay reachable — see
- * `MediaRenditionRouteDeps`'s own doc for why the admin composer needs that. A draft's own content
- * is never served to the public any other way either (`getPublishedPostBySlug` already excludes
- * it), so excluding drafts from this scan opens no new leak.
- *
- * @complexity O(p) over the workspace's published posts, each behind an already-in-memory
- * `bodyJson` walk (no additional I/O per post) — the same `postRepo.list` + linear scan shape
- * `buildSitemap`'s `computeSitemapEntries` and `pages.ts`'s `filterVisiblePosts` already use at
- * this codebase's disclosed single-workspace scale.
+ * The body formats this route's own reference scan knows how to read end to end:
+ * `"doc"` through {@link collectImageAssetIds}'s `bodyJson` walk, `"html"` through
+ * {@link addHtmlEmbedAssetIds}'s marker scan. Deliberately a runtime set rather than a reliance on
+ * `PostBodyFormat` being a closed union at compile time — a `bodyFormat` value arrives from a
+ * database column (`repo.sqlite.ts`'s `toRecord`), so a THIRD format added later reaches this
+ * function as data long before any type error would point at this file. See
+ * {@link scanEntryAssets}'s `readable` flag for what happens when one does.
  */
-async function findPublishedPostsReferencingAsset(
+const READABLE_BODY_FORMATS: ReadonlySet<string> = new Set(["doc", "html"]);
+
+/** Whether the author has marked this entry as anything other than freely public. Extracted so the
+ *  three call sites that ask this question (live-referrer candidacy, the public-referrer shortcut,
+ *  and opaque-body classification) share one definition of "gated" instead of three inline
+ *  `resolvePostMemberAccess(...).visibility` reads that could drift apart. */
+function isGatedEntry(entry: PostRecord): boolean {
+  return resolvePostMemberAccess(entry.memberAccessJson).visibility !== "public";
+}
+
+/**
+ * Adds every `data-embed-config` MEDIA marker's asset id found in an `"html"`-format Page's
+ * `body_html` to `out`, and reports whether the scan was complete.
+ *
+ * This is the second half of "which entries reference this asset", and it was missing until
+ * 2026-09-05. `collectImageAssetIds` walks `bodyJson` only, so it can see a `"doc"`-format entry's
+ * ref-based TipTap `image` nodes and nothing else — but an `"html"`-format Page's real content
+ * lives in `bodyHtml` (`post.ts`'s own doc: `bodyJson` stays an empty non-null object for those
+ * rows), and video has NO TipTap node type in this codebase at all: `render.ts`'s `renderVideoTag`
+ * is reached exclusively from `renderWidgetMediaImage`, i.e. from a resolved
+ * `data-embed-config='{"type":"media","id":"…"}'` marker. So before this function existed, every
+ * embed on an `"html"` Page and every video anywhere was invisible to the gate.
+ *
+ * Uses `core/embeds/marker.ts`'s `scanEmbedMarkers` directly rather than `widgets/`'s
+ * `scanHtmlEmbeds` wrapper, for two reasons: `scanHtmlEmbeds` truncates at
+ * `MAX_HTML_EMBEDS_PER_PAGE` (a render-time resource bound — a gate that stopped scanning at
+ * marker 50 would hand marker 51 straight to an anonymous caller), and it discards `rejected`,
+ * which is exactly the signal {@link scanEntryAssets} needs to know its own scan was incomplete.
+ * `marker.type`/`marker.id` are the parsed `config.type`/`config.id` that
+ * `resolver-service.ts`'s `parseMediaEmbedRef` reads as `{assetId, transformName}` — same keys,
+ * same parser, so what this gate sees and what the renderer resolves cannot disagree.
+ *
+ * @complexity O(n) over `bodyHtml`'s length (one shared regex scan), plus O(k) over the markers found.
+ */
+function addHtmlEmbedAssetIds(bodyHtml: string, out: Set<string>): { readable: boolean } {
+  const scanned = scanEmbedMarkers(bodyHtml);
+  for (const marker of scanned.markers) {
+    if (marker.type === "media" && marker.id) out.add(marker.id);
+  }
+  // A marker carrying `data-embed-config` that failed to parse is a reference this gate cannot
+  // see — `describeRejection`'s own doc makes the same point for `entry_refs`. It may or may not
+  // name this asset, so the honest answer is "scan incomplete", not "no reference found".
+  return { readable: scanned.rejected.length === 0 };
+}
+
+/** Every asset id one entry references, across BOTH body columns, plus whether this scan could
+ *  read the whole entry. Both columns are always walked rather than switching on `bodyFormat`: a
+ *  `"doc"` row's `bodyHtml` is `null` and an `"html"` row's `bodyJson` is empty, so the unused half
+ *  costs nothing, and a row that somehow carries both is fully covered instead of half-scanned. */
+interface EntryAssetScan {
+  readonly ids: Set<string>;
+  readonly readable: boolean;
+}
+
+function scanEntryAssets(entry: PostRecord): EntryAssetScan {
+  const ids = new Set<string>();
+  collectImageAssetIds(entry.bodyJson, ids);
+  const formatReadable = READABLE_BODY_FORMATS.has(entry.bodyFormat);
+  if (entry.bodyHtml === null) return { ids, readable: formatReadable };
+  return { ids, readable: formatReadable && addHtmlEmbedAssetIds(entry.bodyHtml, ids).readable };
+}
+
+/**
+ * Whether this entry's own gating is still a live statement about who may read its media.
+ *
+ * A PUBLISHED, non-trashed entry always is. A non-published one counts only when it is GATED —
+ * the 2026-09-05 fix for "unpublishing a gated post releases its media."
+ *
+ * The pre-existing rule was `status === "published"` alone, defended for a never-published draft:
+ * a draft's content is not public any other way, so excluding it opens no leak. That reasoning does
+ * not survive the takedown case. A members-only post that was live and is then reverted to draft
+ * has an asset URL its former readers already know; dropping it from this scan flipped that asset
+ * from `private, no-store` to `public, max-age=31536000, immutable` — the takedown not only failed,
+ * it handed the "removed" bytes to a shared CDN for a year.
+ *
+ * Keeping a GATED draft as a referrer costs nothing the old rule protected. The admin composer,
+ * which `MediaRenditionRouteDeps`'s own doc cites as the reason drafts stay reachable, does not use
+ * this route at all — `apps/admin/src/lib/media-image-extension.tsx` resolves editor previews
+ * through `api.mediaOriginalUrl(assetId)`, the AUTHENTICATED admin route, precisely because "the
+ * editor is itself an authenticated admin surface, unlike the public render path." A PUBLIC draft
+ * is still skipped, so a freshly uploaded or draft-only public asset stays reachable exactly as
+ * before.
+ *
+ * TRASHED entries stay excluded, unchanged: `a5c9bac8` (same day) established that a trashed post's
+ * stale reference must not gate an asset, and this pass does not reopen that decision.
+ */
+function isLiveReferrerCandidate(entry: PostRecord): boolean {
+  if (isTrashed(entry)) return false;
+  return entry.status === "published" || isGatedEntry(entry);
+}
+
+/** What one entry is to the asset being requested. `"opaque"` is the fail-closed case: a live,
+ *  gated entry whose body this scan could NOT fully read, so "it does not reference this asset"
+ *  is an assumption rather than a finding. */
+type EntryRelation = "referrer" | "opaque" | "irrelevant";
+
+function classifyEntry(entry: PostRecord, assetId: string): EntryRelation {
+  if (!isLiveReferrerCandidate(entry)) return "irrelevant";
+  const scan = scanEntryAssets(entry);
+  if (scan.ids.has(assetId)) return "referrer";
+  if (!scan.readable && isGatedEntry(entry)) return "opaque";
+  return "irrelevant";
+}
+
+/** The outcome of one full pass over the workspace's entries for a single asset. */
+interface AssetReferenceScan {
+  readonly referencing: PostRecord[];
+  readonly opaqueGated: PostRecord[];
+}
+
+/**
+ * Finds every live entry (post OR page, `"doc"` OR `"html"`) that embeds `assetId` — the derivation
+ * this route uses in place of a hand-maintained asset->entry foreign key. There is no such column
+ * anywhere in this codebase (`MediaRecord`, `@jini-ai/cms/media`, carries no post/owner reference at
+ * all); deriving the relationship from the one place it's actually authored (an entry's own body) is
+ * the same choice `resolveMediaAssetMetadataForRender` (`pages.ts`) already made for the unrelated
+ * width/height/class override lookup, rather than adding a second, independently-writable copy of
+ * the same fact.
+ *
+ * `postRepo.list` needs no `kind` handling: it is kind-BLIND by contract and by both adapters
+ * (`repo.sqlite.ts:98` selects on `workspaceId` alone), so Pages have always come back from it
+ * alongside posts. The axis that actually hid content from this scan was `bodyFormat`, not `kind`.
+ *
+ * @complexity O(p) over the workspace's entries, each behind an already-in-memory body scan (no
+ * additional I/O per entry) — the same `postRepo.list` + linear scan shape `buildSitemap`'s
+ * `computeSitemapEntries` and `pages.ts`'s `filterVisiblePosts` already use at this codebase's
+ * disclosed single-workspace scale.
+ */
+async function scanEntriesForAsset(
   deps: Pick<MediaRenditionRouteDeps, "postRepo" | "workspaceId">,
   assetId: string
-): Promise<PostRecord[]> {
-  const posts = await deps.postRepo.list({ workspaceId: deps.workspaceId });
+): Promise<AssetReferenceScan> {
+  const entries = await deps.postRepo.list({ workspaceId: deps.workspaceId });
   const referencing: PostRecord[] = [];
-  for (const post of posts) {
-    if (post.status !== "published") continue;
-    // 2026-09-05 fix: `softDelete` (post.ts) stamps only `deletedAt`/`updatedAt`/`version` — it
-    // never clears `status`, so a post that was `published` when trashed stays `status:
-    // "published"` forever and the guard above alone can't catch it. Same defect pattern (and same
-    // fix shape — `!isTrashed(post)`/`isTrashed(post)`) `caa116115c103630ba5253f9bbe3bceb234347d8`
-    // already applied to `computeIndexableEntries` (sitemap.xml/llms.txt); `PostRepoPort.list()` is
-    // documented trash-BLIND by contract, so this trash-aware filter belongs here, at this domain
-    // function's own read boundary, not in the shared repo port.
-    if (isTrashed(post)) continue;
-    const ids = new Set<string>();
-    collectImageAssetIds(post.bodyJson, ids);
-    if (ids.has(assetId)) referencing.push(post);
+  const opaqueGated: PostRecord[] = [];
+  for (const entry of entries) {
+    const relation = classifyEntry(entry, assetId);
+    if (relation === "referrer") referencing.push(entry);
+    else if (relation === "opaque") opaqueGated.push(entry);
   }
-  return referencing;
+  return { referencing, opaqueGated };
 }
 
 /** Route-local duplicate of `pages.ts`'s own (file-private) `readRawCookie` — no `cookie-parser`
@@ -152,9 +263,10 @@ function createMemberAccessResolver(
 /**
  * Whether `assetId` is gated at all, and — if it is — whether THIS request's caller may read it.
  *
- * `gated: false` ("no need to consult who's asking, always allow") covers TWO cases: no published
- * post references this asset at all (freshly uploaded, only in a draft, or a legacy/unreferenced
- * asset — nothing to gate on), and an asset referenced by at least one `visibility: "public"` post.
+ * `gated: false` ("no need to consult who's asking, always allow") covers TWO cases: no live entry
+ * references this asset and none was unreadable (freshly uploaded, only in a public draft, or a
+ * legacy/unreferenced asset — nothing to gate on), and an asset referenced by at least one
+ * `visibility: "public"` entry.
  * The second case matters for mixed-visibility embeds: `decidePublicAccess` (`access-resolver.ts`)
  * never consults `context` at all, so if even ONE referencing post is public, the outcome is
  * identical for every visitor regardless of session — exactly the property that makes the
@@ -170,19 +282,43 @@ function createMemberAccessResolver(
  * that post's own display for an entitled visitor without hiding anything from anyone the gate was
  * meant to stop.
  *
- * @complexity O(p) — see {@link findPublishedPostsReferencingAsset}; `decide` itself is pure O(1)
- * per referencing post.
+ * THE UNREADABLE-BODY FALLBACK (2026-09-05) is what stops this default from failing open again.
+ * "No referrer found" is only a safe reason to allow while the scan can actually READ every entry
+ * it looked at — that assumption is precisely what broke here: `bodyHtml` was never scanned, so
+ * every gated `"html"` Page reported "no reference" and every one of its embeds was served to
+ * anyone. So when {@link scanEntriesForAsset} reports a live, GATED entry whose body it could not
+ * fully read ({@link EntryAssetScan}'s `readable`: an unrecognized `bodyFormat`, or a
+ * `data-embed-config` marker that failed to parse), those entries become the gating set instead of
+ * the empty one, and the caller must satisfy at least one of them. A future third body format
+ * therefore denies anonymous access to gated content's media until this scan learns to read it,
+ * rather than silently publishing it.
+ *
+ * Deliberately NOT a blanket "deny whenever nothing references this asset": that would be safe only
+ * if entry bodies were the sole legitimate producer of a `/m/` URL, and they are not. Measured
+ * counter-examples on this route: `seo/seo.ts`'s `resolveShareImages` turns `settings.defaultOgImage`
+ * and an entry's own `seoExtJson.ogImage`/`twitterImage` into `/m/{assetId}/…` URLs fetched by
+ * anonymous social crawlers, and `resolver-service.ts`'s media resolver resolves a `"media"` marker
+ * authored in a THEME template (documented in the theme-authoring guide; zero occurrences across
+ * the shipped themes today, but the grammar allows it). Neither is visible to `postRepo`, so a
+ * blanket flip would 404 a site's share cards and any theme-authored media. Those need explicit
+ * allow paths before the default can flip the rest of the way — see this route's handoff.
+ *
+ * @complexity O(p) — see {@link scanEntriesForAsset}; `decide` itself is pure O(1) per gating entry.
  */
 async function resolveMediaAccessDecision(
   deps: MediaRenditionRouteDeps,
   req: Request,
   assetId: string
 ): Promise<{ gated: boolean; allowed: boolean }> {
-  const referencingPosts = await findPublishedPostsReferencingAsset(deps, assetId);
-  const hasPubliclyVisibleReferrer = referencingPosts.some(
-    (post) => resolvePostMemberAccess(post.memberAccessJson).visibility === "public"
-  );
-  if (referencingPosts.length === 0 || hasPubliclyVisibleReferrer) {
+  const { referencing, opaqueGated } = await scanEntriesForAsset(deps, assetId);
+  if (referencing.some((entry) => !isGatedEntry(entry))) {
+    return { gated: false, allowed: true };
+  }
+
+  // A real referrer always wins over the fallback: once the scan has actually FOUND the entries
+  // that embed this asset, an unrelated unreadable entry has no say in who may read it.
+  const gating = referencing.length > 0 ? referencing : opaqueGated;
+  if (gating.length === 0) {
     return { gated: false, allowed: true };
   }
 
@@ -192,8 +328,8 @@ async function resolveMediaAccessDecision(
     sessionToken: readRawCookie(req, MEMBER_SESSION_COOKIE),
     nowIso: new Date().toISOString(),
   });
-  const allowed = referencingPosts.some(
-    (post) => resolver.decide({ access: resolvePostMemberAccess(post.memberAccessJson), context }).allowed
+  const allowed = gating.some(
+    (entry) => resolver.decide({ access: resolvePostMemberAccess(entry.memberAccessJson), context }).allowed
   );
   return { gated: true, allowed };
 }
@@ -265,10 +401,17 @@ async function sendMediaRenditionResult(
     }
 
     if (result.outcome === "not-found") {
-      // Not-yet-generated-and-not-generatable-anonymously (or a wholly
-      // unknown assetId/transform) -> short-TTL 404, never the long-lived
-      // immutable cache header.
-      res.status(404).set("Cache-Control", "public, max-age=60").json({ error: "rendition not found" });
+      // Not-yet-generated-and-not-generatable-anonymously (or a wholly unknown assetId/transform).
+      //
+      // `private, no-store`, matching the gate-denied 404 above BYTE FOR BYTE (2026-09-05 fix).
+      // This branch used to send `public, max-age=60`, which made the two 404s trivially
+      // distinguishable on a header alone: any caller could ask "does this assetId exist and is it
+      // gated?" and read the answer off `Cache-Control`, defeating the indistinguishability the
+      // gate branch's own comment says it is there to provide. The two headers can only be
+      // reconciled downwards — the gate's outcome depends on the caller's session cookie, so it can
+      // never be given a shared-cacheable header. The cost is the 60s negative cache on a
+      // not-found rendition, which is the correct thing to trade for closing the oracle.
+      res.status(404).set("Cache-Control", "private, no-store").json({ error: "rendition not found" });
       return;
     }
 
@@ -383,7 +526,10 @@ export const registerMediaOriginalVideoRoute: MediaRenditionRouteRegistrar = (ap
       if (!sniffed.startsWith("video/")) {
         // Not a video asset (or an unrecognized/corrupt one) — this route only ever serves video;
         // everything else's public URL is `registerMediaRenditionRoute`'s transform-backed one.
-        res.status(404).set("Cache-Control", "public, max-age=60").json({ error: "video rendition not found" });
+        // `private, no-store` for the same reason the rendition route's not-found branch uses it
+        // (2026-09-05): it must be byte-identical to this route's own gate-denied 404 just above,
+        // or the header alone tells an anonymous caller which of the two they hit.
+        res.status(404).set("Cache-Control", "private, no-store").json({ error: "video rendition not found" });
         return;
       }
 
