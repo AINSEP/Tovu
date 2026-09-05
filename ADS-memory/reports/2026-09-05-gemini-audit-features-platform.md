@@ -27,7 +27,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
 - [x] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 - [x] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
-- [ ] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
+- [x] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
 - [ ] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
 - [ ] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
 - [ ] 15. Migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
@@ -244,5 +244,20 @@ Gemini raised 6 findings, ALL discarded — this chunk is entirely path-scoping 
 All 5 "missing file" claims are the same recurring class as chunks 1, 6, 7, 9, 10 (path-scoped diff omits `server/**`); the 6th is a false premise about a function's own declared signature.
 
 ### Chunk 12 — "/" root-slug feature cluster: 710b6cf4, ae4fecdc, a99576d4, 06f3ea87, d4a10b35
+
+Gemini raised 5 findings. 3 confirmed real (2 with corrected severity), 1 discarded (false positive — the type this claim needs doesn't allow the null it depends on), 1 confirmed but downgraded to low-reachability.
+
+**MEDIUM — CONFIRMED, severity corrected down from HIGH.** `apps/website/src/features/seo/sitemap.ts:116-124`, `computeSitemapEntries`. `loc: meta.canonical` is used directly with no same-origin filter, and `apps/website/src/features/seo/absolute-url.ts`'s own doc explicitly documents that an "author's cross-domain canonical override (EC-10)" is returned UNCHANGED by `toAbsoluteUrl` (i.e. this is a deliberate, already-considered behavior for canonical/og:url generally, just not reasoned through for the sitemap-specific same-origin requirement). A post syndicated elsewhere with an external canonical override would list that external URL as its sitemap `<loc>`. Downgraded from Gemini's HIGH ("Google discards the entire sitemap"): the sitemap protocol's same-origin rule causes validators/crawlers to skip or flag the one non-conforming `<loc>` entry, not reject the whole file — and arguably the "correct" fix here is closer to excluding an externally-canonical'd post from the sitemap entirely (since the whole point of that override is "the authoritative copy lives elsewhere"), which nothing in `computeIndexableEntries`'s filter chain currently does either.
+
+**MEDIUM — CONFIRMED.** `apps/website/src/features/seo/absolute-url.ts:66-70`, `toAbsoluteUrl`. `isAbsoluteUrl` only recognizes a URL scheme or `//`-prefix as "already absolute" — a relative canonical override missing its leading slash (e.g. an author typing `canonical: "pricing"` instead of `"/pricing"`) is treated as non-absolute and concatenated directly onto the bare origin with no separator: `${originBaseUrl(origin)}${path}` = `"https://example.testpricing"`. Confirmed no write-side validation catches this either — `write-service.ts`'s canonical validation (line 97-99) only rejects unsafe URL schemes (`javascript:`, `data:`), not a missing leading slash on an otherwise-relative value.
+
+**MEDIUM — CONFIRMED.** `apps/website/src/features/theme/static-render.ts:421-426`, `clampPostPreviewsLimit`. For a fractional `configuredLimit` in `(0, 1)` (e.g. `0.5`), the guard `configuredLimit <= 0` is false, so it proceeds to `Math.min(Math.floor(0.5), MAX)` = `0` — returned as-is, violating the function's own documented `[1, MAX]` clamp invariant and causing `previews.slice(0, 0)` to render the authored fallback content instead of real posts, for a configured limit that (while unusual) is not itself invalid input.
+
+**Discarded (1):**
+- Gemini claimed `injectPostPreviewsEmbeds`/`scanPostPreviewsLimit` crash with an unhandled `TypeError` when `marker.config` is `null`/missing, since `marker.config.limit` isn't optional-chained. Disproved: the shared marker parser (`contracts/core/embeds/marker.ts:50`) types `config: Readonly<Record<string, unknown>>` (never optional) and its own parsing contract (line 126) already excludes anything without a valid `config.type` from ever becoming a marker at all — `marker.config` is always a real object by the time code reaches `injectPostPreviewsEmbeds`, so `.limit` on it is always safe (evaluates to `undefined` for a missing key, which `clampPostPreviewsLimit` already handles via its `typeof !== "number"` branch, not a throw).
+
+**LOW — CONFIRMED, but low practical reachability.** `PostRepoPort.listPublishedPreviews`'s `limit: number` parameter isn't clamped by the port/repo layer itself (`SqlitePostRepo` passes a negative limit straight to SQLite's `LIMIT`, which then removes the upper bound entirely, per SQLite's own documented negative-LIMIT semantics) — a real defense-in-depth gap at the repo boundary. Traced the one production call path (`listPublishedPostPreviews` <- `injectPostPreviewsEmbeds`/`scanPostPreviewsLimit` <- `clampPostPreviewsLimit`): `clampPostPreviewsLimit`'s `configuredLimit <= 0` branch already prevents a genuinely negative limit from reaching the repo through that path (only the fractional-`(0,1)` case above slips through, and that produces `0`, not negative) — did not find another real caller that could supply a negative limit today.
+
+### Chunk 13 — widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
 
 (running)
