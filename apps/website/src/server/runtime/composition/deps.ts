@@ -113,6 +113,7 @@ import type { RouteDeps } from "../../routes/types.js";
 import type { NewsletterRouteDeps } from "../../inbound/admin-http/routes/newsletter/deps.js";
 import { createVerifiedOrigin, OriginRegistry } from "#src/features/origin/index";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "#src/platform/db/sqlite/origin-repo.sqlite";
+import { deriveDevScheme, resolveDevTls, resolveDevTlsCertPaths } from "../boot/dev-tls.js";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
@@ -920,16 +921,27 @@ export function createSqliteRouteDeps(
   // a re-run of this seed. Read-only adapter/port by design; see `origin-repo.sqlite.ts`'s file
   // header for the disclosed "no real production-origin verification flow exists yet" gap this
   // durability slice does not itself close.
+  //
+  // `devCapabilityScheme` is DERIVED, not the `"https"` literal this used to hardcode (2026-09-05
+  // audit finding, Chunk D finding 3): the dev API server only terminates TLS when `resolveDevTls`
+  // (`server/runtime/boot/dev-tls.ts`) says so, same as `index.ts`'s own real boot path computes —
+  // this composition root calls it independently rather than threading `index.ts`'s result through,
+  // mirroring how `isAdminAssistantEnabled()` above is also called directly here rather than passed
+  // in. Two real, disclosed cases fall to plain HTTP: a fresh clone with no `.certs/`, and
+  // `TOVU_DISABLE_DEV_TLS`, which every hermetic Playwright `webServer` under
+  // `development/*.config.ts` sets. A hardcoded `https` in either case silently shipped broken
+  // `https://` links (redirects' canonicalOrigin, newsletter confirmation/unsubscribe, site
+  // evidence) for a server that only ever answers on `http://`. `REPO_ROOT` here mirrors this same
+  // directory's own `app.ts` (`distDir` fallbacks a few hundred lines down) — six `..` from
+  // `runtime/composition/` back to the repo root, not counting segments independently per file.
+  const REPO_ROOT = resolve(import.meta.dirname, "..", "..", "..", "..", "..", "..");
+  const devCapabilityScheme = deriveDevScheme(resolveDevTls(resolveDevTlsCertPaths(REPO_ROOT)).active);
   seedDevCapabilityOrigin({
     db,
     seed: {
       workspaceId: workspaceId,
       origin: createVerifiedOrigin({
-        // The dev API server terminates TLS too as of 51c59f5c ("feat(dev): terminate TLS on the
-        // API dev server too") — both dev servers now agree on https, so this placeholder origin
-        // (fed into canonicalOrigin, and from there into redirects/newsletter links/site
-        // evidence) must match, the same drift class `site-url.ts`'s dev fallback had.
-        scheme: "https",
+        scheme: devCapabilityScheme,
         host: "localhost",
         port: 3000,
         verifiedAt: clock.nowIso(),
