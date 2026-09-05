@@ -163,7 +163,10 @@ function optionalString(raw: unknown, field: string): string | undefined {
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new PublishCredentialValidationError(`'${field}' must be a non-empty string when provided`);
   }
-  return raw;
+  // Persist the TRIMMED value, not the raw one the truthiness check above validated — a leading or
+  // trailing space pasted alongside a real value (e.g. an endpoint URL) is never meaningful, and
+  // returning it unmodified used to let it survive into storage, then into every reader downstream.
+  return raw.trim();
 }
 
 /** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested" (the same

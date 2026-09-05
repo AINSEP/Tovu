@@ -313,6 +313,32 @@ test("verifyPublishCredential: s3-compatible uses an explicit, non-blank endpoin
   assert.equal(seenUrl, "https://abc123.r2.cloudflarestorage.com/my-bucket");
 });
 
+/** The truthiness guard tests `.trim()`, but the OLD code used the raw, untrimmed endpoint in the
+ *  signed URL — a stray leading/trailing space (a paste artifact `publish-credentials/store.ts`'s own
+ *  `optionalString` no longer persists going forward, but this file must not depend on that) would
+ *  survive into `client.sign()`, which throws on the resulting invalid URL and folds into a misleading
+ *  "unreachable" instead of a clear "there's a space in your endpoint." */
+test("verifyPublishCredential: s3-compatible trims a leading/trailing-whitespace endpoint before signing, instead of failing to sign an invalid URL", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let seenUrl = "";
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    seenUrl = input instanceof Request ? input.url : String(input);
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  await verifyPublishCredential(
+    {
+      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "  https://abc123.r2.cloudflarestorage.com/  " }),
+      cache,
+      clock,
+      fetchFn,
+    },
+    { workspaceId: WORKSPACE, target: "s3-compatible" }
+  );
+
+  assert.equal(seenUrl, "https://abc123.r2.cloudflarestorage.com/my-bucket");
+});
+
 test("verifyPublishCredential: s3-compatible signing failure (a malformed derived URL) folds into status:'unreachable', never throws", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   let fetchCalls = 0;

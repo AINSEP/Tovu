@@ -234,7 +234,13 @@ async function verifyS3CompatibleCredential(
   credential: { accessKeyId: string; secretAccessKey: string; bucket: string; region: string; endpoint?: string }
 ): Promise<ProviderCredentialCheckResult> {
   const client = new AwsClient({ accessKeyId: credential.accessKeyId, secretAccessKey: credential.secretAccessKey, service: "s3", region: credential.region });
-  const host = (credential.endpoint?.trim() ? credential.endpoint : deriveS3Endpoint(credential.region)).replace(/\/+$/, "");
+  // Use the TRIMMED endpoint, not the raw one the truthiness check tested — `publish-credentials/
+  // store.ts`'s own `optionalString` now persists a trimmed value going forward, but this defends
+  // against whatever is already stored: a stray trailing space here survives `/\/+$/` (that strips
+  // slashes, not whitespace) straight into `client.sign(url, ...)`, where it makes `new URL(...)`
+  // throw and the human sees a misleading "could not reach" instead of "there's a space in your URL."
+  const trimmedEndpoint = credential.endpoint?.trim();
+  const host = (trimmedEndpoint ? trimmedEndpoint : deriveS3Endpoint(credential.region)).replace(/\/+$/, "");
   const url = `${host}/${encodeURIComponent(credential.bucket)}`;
 
   let signed: Request;

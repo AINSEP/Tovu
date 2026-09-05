@@ -543,6 +543,17 @@ test("createPublishCredential rejects s3-compatible with a blank endpoint when o
   );
 });
 
+test("createPublishCredential trims a leading/trailing-whitespace endpoint before persisting it — a stray paste-space must not survive into storage", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: { ...VALID_S3_CONNECTION, endpoint: "  https://s3.us-east-1.amazonaws.com  " },
+  });
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.deepEqual(resolved?.connection, { ...VALID_S3_CONNECTION, endpoint: "https://s3.us-east-1.amazonaws.com" }, "the persisted endpoint must be trimmed, not the raw pasted value with its surrounding whitespace intact");
+});
+
 // ---------------------------------------------------------------------------
 // account_label (migration 0044, 2026-08-16) — see this file's own header for why create/update
 // never populate this with a real value themselves (the s3-compatible custom-provider agent tool
