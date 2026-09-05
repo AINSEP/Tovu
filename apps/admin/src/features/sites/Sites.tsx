@@ -97,14 +97,24 @@ function SiteDirOverrideNotice({ t }: { t: Translate }) {
 }
 
 /** The "a choice is saved but nothing has happened yet" line — see this file's header, point 2.
- *  Renders nothing when no choice is pending, so the caller has no conditional of its own. */
+ *  Renders nothing when no choice is pending, so the caller has no conditional of its own.
+ *
+ *  This is the ONLY place a pending choice is reported. An earlier revision also rendered the
+ *  activate response as its own separate notice below the card, which put the same sentence on
+ *  screen twice the moment an operator clicked Activate; the response's one genuinely unique
+ *  contribution is `restartInstructions` (the route's own prose, so the wording lives in one
+ *  place), and that is threaded in here as `instructions` instead. It is `null` after a reload —
+ *  the response is gone but the pending state is not, which is exactly the split `persistedSiteName`
+ *  exists to cover. */
 function PendingActivationNotice({
   outlook,
   currentName,
+  instructions,
   t,
 }: {
   outlook: ActivationOutlook;
   currentName: string;
+  instructions: string | null;
   t: Translate;
 }) {
   if (outlook.kind === "none") return null;
@@ -116,12 +126,15 @@ function PendingActivationNotice({
         label: "Which site is queued for the next restart, and whether that restart will honor it",
       })}
     >
-      <strong>{outlook.name}</strong>{" "}
-      {outlook.kind === "pending"
-        ? t("is saved as the next site to serve. Nothing has switched yet — this server and its agent daemon are both still on")
-        : t("is saved, but TOVU_SITE_DIR takes priority over it, so a restart will not pick it up. This server and its agent daemon are both still on")}{" "}
-      <strong>{currentName}</strong>
-      {t(". Restart the dev server to apply it.")}
+      <p>
+        <strong>{outlook.name}</strong>{" "}
+        {outlook.kind === "pending"
+          ? t("is saved as the next site to serve. Nothing has switched yet — this server and its agent daemon are both still on")
+          : t("is saved, but TOVU_SITE_DIR takes priority over it, so a restart will not pick it up. This server and its agent daemon are both still on")}{" "}
+        <strong>{currentName}</strong>
+        {t(".")}
+      </p>
+      {instructions === null ? <p>{t("Restart the dev server to apply it.")}</p> : <p>{instructions}</p>}
     </div>
   );
 }
@@ -131,10 +144,14 @@ function PendingActivationNotice({
 function NowServingCard({
   snapshot,
   outlook,
+  instructions,
   t,
 }: {
   snapshot: AdminSitesSnapshot;
   outlook: ActivationOutlook;
+  /** The last activate response's own restart prose, or `null` when there has not been one this
+   *  page load — see {@link PendingActivationNotice}. */
+  instructions: string | null;
   t: Translate;
 }) {
   return (
@@ -155,7 +172,7 @@ function NowServingCard({
       </div>
       {snapshot.currentSite.listed ? null : <UnlistedSiteNotice t={t} />}
       {snapshot.currentSite.dirOverridden ? <SiteDirOverrideNotice t={t} /> : null}
-      <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} t={t} />
+      <PendingActivationNotice outlook={outlook} currentName={snapshot.currentSite.name} instructions={instructions} t={t} />
     </div>
   );
 }
@@ -221,25 +238,6 @@ function CreateSiteForm({ controller }: CreateSiteFormProps) {
   );
 }
 
-/** The server's own activate response, rendered verbatim next to an explicit statement that nothing
- *  restarted. `restartInstructions` comes from the route so the wording lives in one place. */
-function ActivationResultNotice({ instructions, name, t }: { instructions: string; name: string; t: Translate }) {
-  return (
-    <div
-      className="notice warning"
-      {...agentHandle("sites-activation-result", {
-        role: "status",
-        label: "Confirmation that an activate choice was saved, and the restart it still needs",
-      })}
-    >
-      <p>
-        <strong>{name}</strong> {t("was saved as the next site to serve. Nothing was restarted, and nothing has switched.")}
-      </p>
-      <p>{instructions}</p>
-    </div>
-  );
-}
-
 /** Why Create and Activate are inert on this deployment. Rendered instead of a button that would
  *  403 — the capability is a deployment fact, not a permission the operator can fix here. */
 function SwitchingDisabledNotice({ t }: { t: Translate }) {
@@ -256,15 +254,62 @@ function SwitchingDisabledNotice({ t }: { t: Translate }) {
   );
 }
 
+/** One row's Activate control. Its own component rather than an inline `cell` body so the four
+ *  conditions that decide its disabled state and label are counted against this function's own
+ *  complexity budget rather than `Sites`'s — the same reason `deployment-visuals.tsx` splits its
+ *  own row renderers out. Disabled for the site already being served: activating what is already
+ *  live would write a `.env` line that changes nothing and imply a restart is needed. */
+function ActivateButton({
+  site,
+  snapshot,
+  handle,
+  switchingEnabled,
+  activatingName,
+  onActivate,
+  t,
+}: {
+  site: AdminSiteListEntry;
+  snapshot: AdminSitesSnapshot;
+  handle: string;
+  switchingEnabled: boolean;
+  activatingName: string | null;
+  onActivate: (name: string) => void;
+  t: Translate;
+}) {
+  return (
+    <button
+      type="button"
+      className="btn-secondary"
+      disabled={!switchingEnabled || activatingName !== null || siteRowState(site, snapshot) === "serving"}
+      onClick={() => onActivate(site.name)}
+      {...agentHandle(handle, {
+        role: "button",
+        label: `Save ${site.name} as the site to serve after the next restart`,
+      })}
+    >
+      {activatingName === site.name ? t("Saving…") : t("Serve after restart")}
+    </button>
+  );
+}
+
 export interface SitesProps {
   /** Dependency injection seam for tests — same convention as every other wired-hook prop in this
    *  app. See `PostsProps.usePostsHook` for the full rationale. */
   useSitesHook?: typeof useWiredSites;
 }
 
-export function Sites({ useSitesHook = useWiredSites }: SitesProps = {}) {
-  const controller = useSitesHook();
-  const { snapshot, sites, listStatus, listError, writeError, switchingEnabled, outlook, activate, activatingName, activation, t } =
+/** Resolves {@link SitesProps.useSitesHook} to the real hook when a caller passes none — a call out
+ *  to a separately-scoped resolver rather than a destructuring default plus a `= {}` parameter
+ *  default keeps `Sites`'s own ESLint cyclomatic-complexity count from counting a second branch for
+ *  the empty-props case (same reasoning `OverviewTab.tsx`'s `resolveDeploymentOverviewHook`
+ *  documents for its own props). */
+function resolveSitesHook(override: typeof useWiredSites | undefined): typeof useWiredSites {
+  return override ?? useWiredSites;
+}
+
+export function Sites(props: SitesProps = {}) {
+  const controller = resolveSitesHook(props.useSitesHook)();
+  const { snapshot, sites, listStatus, listError, writeError, switchingEnabled, outlook, activate, activatingName, restartInstructions, t } =
     controller;
 
   if (listStatus === "error" && !snapshot) {
@@ -294,9 +339,7 @@ export function Sites({ useSitesHook = useWiredSites }: SitesProps = {}) {
       {writeError ? <div className="notice error">{writeError}</div> : null}
       {switchingEnabled ? null : <SwitchingDisabledNotice t={t} />}
 
-      <NowServingCard snapshot={snapshot} outlook={outlook} t={t} />
-
-      {activation ? <ActivationResultNotice instructions={activation.restartInstructions} name={activation.activeSiteName} t={t} /> : null}
+      <NowServingCard snapshot={snapshot} outlook={outlook} instructions={restartInstructions} t={t} />
 
       <CreateSiteForm controller={controller} />
 
@@ -330,18 +373,15 @@ export function Sites({ useSitesHook = useWiredSites }: SitesProps = {}) {
             key: "actions",
             header: t("Activate"),
             cell: (site: AdminSiteListEntry, index: number) => (
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={!switchingEnabled || activatingName !== null || siteRowState(site, snapshot) === "serving"}
-                onClick={() => activate(site.name)}
-                {...agentHandle(`${rowHandles[index]}-activate`, {
-                  role: "button",
-                  label: `Save ${site.name} as the site to serve after the next restart`,
-                })}
-              >
-                {activatingName === site.name ? t("Saving…") : t("Serve after restart")}
-              </button>
+              <ActivateButton
+                site={site}
+                snapshot={snapshot}
+                handle={`${rowHandles[index]}-activate`}
+                switchingEnabled={switchingEnabled}
+                activatingName={activatingName}
+                onActivate={activate}
+                t={t}
+              />
             ),
           },
         ]}

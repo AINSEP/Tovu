@@ -33,6 +33,7 @@ import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor
 import { Workspace } from "../../features/workspace";
 import { AiAssistant } from "../../features/ai-assistant";
 import { Playground } from "../../features/playground";
+import { Sites } from "../../features/sites";
 
 /**
  * @file Coverage for `panels.tsx`'s `ADMIN_PANELS` (4/45 funcs — one `render` thunk per panel).
@@ -64,9 +65,9 @@ function ctx(overrides: Partial<PanelRouteContext> = {}): PanelRouteContext {
 }
 
 describe("ADMIN_PANELS — manifest shape", () => {
-  it("has exactly 45 panels, and every id is unique", () => {
-    expect(ADMIN_PANELS).toHaveLength(45);
-    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(45);
+  it("has exactly 46 panels, and every id is unique", () => {
+    expect(ADMIN_PANELS).toHaveLength(46);
+    expect(new Set(ADMIN_PANELS.map((p) => p.id)).size).toBe(46);
   });
 });
 
@@ -74,6 +75,7 @@ describe("ADMIN_PANELS — manifest shape", () => {
  *  (+ optionally fixed extra props) — the two-thirds majority the team-lead's framing predicted. */
 const SIMPLE_PANELS: ReadonlyArray<{ id: string; component: unknown; extraProps?: Record<string, unknown> }> = [
   { id: "dashboard", component: Dashboard },
+  { id: "sites", component: Sites },
   { id: "taxonomy", component: Taxonomy },
   { id: "users", component: Users },
   { id: "authentication", component: Authentication },

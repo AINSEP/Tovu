@@ -6,15 +6,7 @@ import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
 import { useContentRefreshSubscription } from "@/hooks/use-content-refresh-subscription.hooks";
 import type { Translate } from "@/lib/dictionary-translator";
 import { t as defaultT } from "../sites-i18n";
-import {
-  KEYS,
-  SITES_RESOURCE,
-  activationOutlook,
-  siteNameErrorKey,
-  siteWriteErrorKey,
-  sitesInDisplayOrder,
-  type ActivationOutlook,
-} from "../rules";
+import { KEYS, SITES_RESOURCE, readSnapshot, siteNameErrorKey, siteWriteErrorKey, type ActivationOutlook } from "../rules";
 import { defaultSitesPort } from "./sites-dependencies.hooks";
 import type { SitesPort } from "./sites-port.hooks";
 
@@ -86,6 +78,11 @@ export interface SitesController {
   activatingName: string | null;
   /** The server's own activate response, including the restart instructions to render verbatim. */
   activation: AdminSiteActivation | null;
+  /** {@link SitesController.activation}'s restart prose, or `null` when there has been no activate
+   *  this page load. Derived here rather than in the view so `Sites.tsx` stays free of the optional
+   *  chain — a pending choice outlives the response that produced it (`persistedSiteName`), so the
+   *  view has to render the pending state with and without this. */
+  restartInstructions: string | null;
 
   /** Bound translator — see this file's header. */
   t: Translate;
@@ -145,42 +142,59 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     [activateMutation],
   );
 
-  const rawWriteError = createMutation.error ?? activateMutation.error;
-  const writeErrorKey = rawWriteError === null ? null : siteWriteErrorKey(rawWriteError);
+  const view = readSnapshot(list.data);
 
   return {
     snapshot: list.data,
-    sites: list.data === undefined ? [] : sitesInDisplayOrder(list.data),
+    sites: view.sites,
     listStatus: list.status,
     listError: list.error,
-    writeError: resolveWriteError(rawWriteError, writeErrorKey, t),
-    switchingEnabled: list.data?.switchingEnabled ?? false,
-    outlook: list.data === undefined ? { kind: "none" } : activationOutlook(list.data),
+    writeError: resolveWriteError(createMutation.error ?? activateMutation.error, t),
+    switchingEnabled: view.switchingEnabled,
+    outlook: view.outlook,
     createName,
     setCreateName,
-    createNameError: nameErrorKey === null || createName.length === 0 ? null : t(nameErrorKey),
+    createNameError: resolveCreateNameError(createName, nameErrorKey, t),
     createSite,
     creating: createMutation.status === "pending",
     createdName,
     activate,
     activatingName,
     activation,
+    restartInstructions: activation?.restartInstructions ?? null,
     t,
   };
 }
 
 /**
- * The banner copy for a write failure: this feature's own per-code translation when it has one,
- * otherwise `lib/api.ts`'s shared fallback (which already carries the server's own message).
+ * The banner copy for a write failure: this feature's own per-code translation when it has one
+ * (`siteWriteErrorKey`), otherwise `lib/api.ts`'s shared fallback, which already carries the
+ * server's own message — the "check my own codes first, fall through for the rest" precedence
+ * `describeApiError`'s own doc prescribes.
  *
- * Extracted rather than inlined into the returned object so `useSites` itself keeps one branch
- * instead of three, and so the precedence is directly testable.
+ * Extracted rather than inlined into the returned object so the precedence is directly testable and
+ * so `useSites` does not carry its branches.
  *
  * @complexity Time/space: O(1).
  */
-function resolveWriteError(error: Error | null, key: string | null, t: Translate): string | null {
+function resolveWriteError(error: Error | null, t: Translate): string | null {
   if (error === null) return null;
+  const key = siteWriteErrorKey(error);
   return key === null ? describeApiError(error, t("That request failed.")) : t(key);
+}
+
+/**
+ * The create field's inline error, or `null` when there is nothing to say.
+ *
+ * An EMPTY field reports nothing rather than "Enter a folder name." — that is the field's initial
+ * state, and greeting an operator with a validation error on a form they have not touched is noise,
+ * not help. The submit button is disabled in that state instead.
+ *
+ * @complexity Time/space: O(1).
+ */
+function resolveCreateNameError(raw: string, key: string | null, t: Translate): string | null {
+  if (key === null || raw.length === 0) return null;
+  return t(key);
 }
 
 /**

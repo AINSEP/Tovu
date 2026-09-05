@@ -150,3 +150,33 @@ export function sitesInDisplayOrder(snapshot: AdminSitesSnapshot): AdminSiteList
     return a.name.localeCompare(b.name);
   });
 }
+
+/** The three snapshot-derived values the Sites screen renders from — see {@link readSnapshot}. */
+export interface SnapshotView {
+  /** Rows in render order, empty before the first load. */
+  sites: AdminSiteListEntry[];
+  /** The deployment capability flag; `false` before the first load, so nothing offers a write it
+   *  cannot yet know is permitted. */
+  switchingEnabled: boolean;
+  outlook: ActivationOutlook;
+}
+
+/**
+ * Collapse an in-flight-or-loaded snapshot into everything the view needs from it, with the
+ * "not loaded yet" case answered ONCE here rather than re-tested per field.
+ *
+ * Exists as much for the pre-load defaults as for the tidiness: three separate
+ * `data === undefined ? fallback : derive(data)` expressions in the hook is three chances to pick a
+ * different, and wrong, default — `switchingEnabled` in particular must fall back to `false`, not
+ * `true`, so a screen mid-load never renders an enabled Activate.
+ *
+ * @complexity Dominated by `sitesInDisplayOrder`'s O(n log n); O(1) otherwise.
+ */
+export function readSnapshot(snapshot: AdminSitesSnapshot | undefined): SnapshotView {
+  if (snapshot === undefined) return { sites: [], switchingEnabled: false, outlook: { kind: "none" } };
+  return {
+    sites: sitesInDisplayOrder(snapshot),
+    switchingEnabled: snapshot.switchingEnabled,
+    outlook: activationOutlook(snapshot),
+  };
+}
