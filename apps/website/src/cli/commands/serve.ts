@@ -11,6 +11,7 @@ import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbo
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { isAdminAssistantEnabled } from "../../server/runtime/composition/admin-assistant-enabled.js";
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
+import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ensureAgentDaemonToken } from "../../assistant/index.js";
 
 /**
@@ -51,6 +52,23 @@ import { ensureAgentDaemonToken } from "../../assistant/index.js";
  * `startAssistantDaemon()` spawns the daemon child below (the child inherits this process's env at
  * spawn time), and — like in `index.ts` — placing it first costs nothing, since it is a single
  * synchronous env assignment with no dependency on any boot step before it.
+ *
+ * Plugin SDK resolver (2026-09-05 dispatch, CIC U-002/ADR-005, ESCALATE_SECURITY): this command
+ * never called `registerPluginSdkResolver()` either — only `src/index.ts`'s `main()` did. CIC
+ * U-002-B1/ORD1 requires it registered synchronously, before any route is registered and before any
+ * code path that could reach `loadPlugin()`'s dynamic `import()` — `createApp()` below unconditionally
+ * mounts the `plugins` module (`PLUGIN_SET_ENABLED`), and `createSqliteRouteDeps()` above always wires
+ * a real `installDir`, so a site-installed plugin enabled through this command's own admin route (or
+ * the equivalent `plugins_set_enabled` agent tool) reached a real `import()` with the resolution hook
+ * never registered — ordinary Node resolution then governs, which a plugin can defeat by planting its
+ * own `node_modules/@tovu/sdk` (defeating ADR-005 rule 1's deep-import blocking). Reproduced directly:
+ * `cli/__tests__/integration/serve-command-plugin-sdk-resolver.integration.test.ts` planted exactly
+ * such a shadow package next to a site-installed plugin and, pre-fix, observed the plugin's
+ * `@tovu/sdk` import resolve to the planted copy. Fixed by calling `registerPluginSdkResolver()` here
+ * too, mirroring `index.ts`'s exact placement: immediately after `ensureAgentDaemonToken()`, before
+ * `warnIfLegacyEnvVarsIgnored()` and every boot step after it — there is no `await` point ahead of it
+ * in this function either, so the same "no window exists for a plugin import to become reachable
+ * first" guarantee `index.ts`'s own comment describes holds here too.
  */
 
 export interface RunServeCommandInput {
@@ -131,6 +149,12 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to
   // the daemon child through the inherited env. See this file's header for the full incident.
   ensureAgentDaemonToken();
+
+  // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Must precede `createApp()`
+  // below (and therefore every route it mounts, including the `plugins` module's
+  // `PLUGIN_SET_ENABLED`) and every boot step that could lead there; placed here, with no `await`
+  // ahead of it, for the same reason `index.ts`'s own call site gives.
+  registerPluginSdkResolver();
 
   warnIfLegacyEnvVarsIgnored();
 
