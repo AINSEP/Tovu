@@ -11,6 +11,7 @@ import { startAssistantDaemon, shutdownAssistantDaemon } from "../../server/inbo
 import { ensureAgentDaemonPortResolved } from "../../server/runtime/lifecycle/agent-daemon-port.js";
 import { isAdminAssistantEnabled } from "../../server/runtime/composition/admin-assistant-enabled.js";
 import { installUnhandledRejectionGuard } from "../../server/runtime/boot/process-error-guards.js";
+import { ensureAgentDaemonToken } from "../../assistant/index.js";
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to
@@ -39,6 +40,17 @@ import { installUnhandledRejectionGuard } from "../../server/runtime/boot/proces
  * than letting `daemon-supervisor.ts` register its own signal handlers here — see
  * `startAssistantDaemon`'s `registerProcessSignalHandlers` option doc for why a second SIGINT/SIGTERM
  * listener calling `process.exit(0)` would race this command's own BR-07 graceful drain below.
+ *
+ * Daemon token (2026-09-05 dispatch): this command never minted `TOVU_AGENT_DAEMON_TOKEN` either —
+ * only `src/index.ts`'s `main()` did, as its own first statement (see `daemon-auth.ts`'s module
+ * doc). So a `tovu serve`-booted daemon always ran with the token env var unset, and
+ * `requireAgentDaemonToken`'s fail-closed gate (`daemon-auth.ts`) answered every request — including
+ * this same process's own assistant proxy — with 503 `AGENT_DAEMON_UNCONFIGURED`, silently. Fixed by
+ * calling `ensureAgentDaemonToken()` here too, immediately after the unhandled-rejection guard and
+ * before anything else, mirroring `index.ts`'s exact ordering: it must run before
+ * `startAssistantDaemon()` spawns the daemon child below (the child inherits this process's env at
+ * spawn time), and — like in `index.ts` — placing it first costs nothing, since it is a single
+ * synchronous env assignment with no dependency on any boot step before it.
  */
 
 export interface RunServeCommandInput {
@@ -114,6 +126,11 @@ export async function runServeCommand(input: RunServeCommandInput): Promise<void
   // the guard module's own header prescribes: fixed structurally, once, here, rather than chasing
   // down every individual forked promise that lacks a `.catch()` today or might tomorrow.
   installUnhandledRejectionGuard();
+
+  // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
+  // so `startAssistantDaemon()` — called later, from inside `app.listen()`'s callback — hands it to
+  // the daemon child through the inherited env. See this file's header for the full incident.
+  ensureAgentDaemonToken();
 
   warnIfLegacyEnvVarsIgnored();
 

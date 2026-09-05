@@ -564,3 +564,41 @@ test("Constitution Article VIII proof: a request against a REALLY SPAWNED `tovu 
     fs.rmSync(parent, { recursive: true, force: true });
   }
 });
+
+test("2026-09-05 dispatch: tovu serve mints TOVU_AGENT_DAEMON_TOKEN before spawning the agent daemon — `src/index.ts`'s `main()` calls `ensureAgentDaemonToken()` as its first statement (see `daemon-auth.ts`), but `serve.ts` never did, so every `tovu serve`-booted daemon answered fail-closed 503 to its own proxy. An unauthenticated request straight against the daemon's own port must get 401 (a real token is configured), never 503 (AGENT_DAEMON_UNCONFIGURED)", async () => {
+  const { parent, dir } = initFixture();
+  const port = await getFreePort();
+  const daemonPort = await getFreePort();
+  // Deliberately does NOT set TOVU_AGENT_DAEMON_TOKEN in the child's env — proving `serve.ts`
+  // itself mints one, rather than merely forwarding an operator-supplied value.
+  const child = spawnServe([dir, "--port", String(port)], { JINI_AGENT_DAEMON_PORT: String(daemonPort) });
+  try {
+    await waitForHttpReady(port, child);
+
+    // The daemon child spawns asynchronously, only after `identityReady`/`settingsReady`/etc.
+    // settle (see `serve.ts`'s own `app.listen()` callback) — poll until it actually answers
+    // rather than assuming it is up the instant the main app is.
+    const factor = loadFactor();
+    const deadline = Date.now() + 20_000 * factor;
+    let res: Response | undefined;
+    while (Date.now() < deadline) {
+      try {
+        res = await fetch(`http://127.0.0.1:${daemonPort}/api/runs`);
+        break;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, 150));
+      }
+    }
+    if (!res) {
+      throw new Error(`timed out waiting for the agent daemon to answer on 127.0.0.1:${daemonPort}`);
+    }
+
+    assert.notEqual(res.status, 503, "503 (AGENT_DAEMON_UNCONFIGURED) means TOVU_AGENT_DAEMON_TOKEN was never minted — serve.ts skipped ensureAgentDaemonToken()");
+    assert.equal(res.status, 401, "an unauthenticated request against a CONFIGURED daemon must be 401 UNAUTHENTICATED, not any other status");
+    const body = (await res.json()) as { code?: string };
+    assert.equal(body.code, "UNAUTHENTICATED");
+  } finally {
+    await stopGracefully(child);
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
