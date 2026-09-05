@@ -138,20 +138,44 @@ describe("useAccessTokens: setExistingField", () => {
     expect(row?.name).toBe("Production");
   });
 
-  it("seeds a blank name/username when the edited row id has no persisted row to fall back to (a stale or since-removed row id)", async () => {
-    const port = createFakeAccessTokensPort();
+  it("seeds a blank name/username when the edited row id has no persisted row to fall back to (a stale or since-removed row id), proven via replaceToken's own write payload", async () => {
+    const update = vi.fn().mockResolvedValue(customCredential({ id: "no-such-row" }));
+    const port = createFakeAccessTokensPort({ custom: { update } });
     const { result } = renderHook(() => useAccessTokens(port, T, "en"), { wrapper });
     await waitFor(() => expect(result.current.groups).toBeDefined());
 
-    act(() => result.current.setExistingField("no-such-row", { token: "tok" }));
-
-    // Not visible through any provider group (this id belongs to no real row) — read the raw draft
-    // effect indirectly via a second edit that would only see it if it were seeded correctly.
+    // "no-such-row" belongs to no real row, so `persistedRow` (`rows?.find(...)`) comes back
+    // undefined and the fallback must seed BOTH name and username blank rather than throw or leak
+    // some other value. This first patch also supplies a real name so the ready-to-save gate below
+    // can pass — name is not the field under test here; username is, since neither `act()` call ever
+    // touches it, so whatever `replaceToken` reads for it came entirely from the fallback.
+    act(() => result.current.setExistingField("no-such-row", { name: "Recovered Name", token: "tok" }));
+    // A second edit merges onto the already-created draft (not the persistedRow fallback again) — the
+    // same guarantee the "SECOND edit" test above pins for a real row.
     act(() => result.current.setExistingField("no-such-row", { accountId: "acct" }));
-    // No assertion beyond "did not throw" is possible from the public controller surface for an id
-    // with no persisted row — this test's job is exercising `persistedRow?.name ?? ""` /
-    // `persistedRow?.username ?? ""` when `rows.find(...)` comes back empty, not observing the
-    // result (nothing renders a row that was never saved).
+
+    // Not visible through any provider group (this id belongs to no real row — nothing renders it),
+    // so probe the seeded draft indirectly through replaceToken, which reads `existingDrafts` by id
+    // regardless of whether the row is real — the same hand-built-row idiom used two tests above.
+    const handBuiltRow: AccessTokenRow = {
+      kind: "custom",
+      providerId: "no-such-row",
+      id: "no-such-row",
+      name: "Some Other Name",
+      rawLabel: "Some Other Name",
+      isDefault: false,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+      username: "some-other-username",
+    };
+    await act(() => result.current.replaceToken(handBuiltRow));
+
+    // The seeded draft's username must be "" (the blank fallback) — never handBuiltRow's OWN
+    // "some-other-username", and never `undefined` (which would throw inside
+    // buildCustomCredentialUpdatePatch's own `.trim()` call before this assertion could even run).
+    // "" differs from handBuiltRow.username, so the update patch clears it via the server's `null`
+    // sentinel — this exact patch shape is only reachable if the fallback actually produced "".
+    expect(update).toHaveBeenCalledWith("no-such-row", { label: "Recovered Name", connection: { token: "tok" }, username: null });
   });
 });
 
