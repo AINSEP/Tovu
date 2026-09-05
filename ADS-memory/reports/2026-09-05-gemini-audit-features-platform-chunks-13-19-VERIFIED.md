@@ -686,3 +686,131 @@ register. **LOW.**
 claimed severity LOW** (15.5). Two of Gemini's supporting factual claims were outright wrong — that
 the in-memory repo sets `.code` (it does not) and that the delete path promotes a sibling (it does
 not) — and both wrong claims were load-bearing for a HIGH.
+
+---
+
+## Chunk 16 — `383befbc` `deployments/static-publish/verify.ts`
+
+### 16.1 — HIGH (production bug): an S3 `HEAD` 404 is classified `"unreachable"` → **CONFIRMED as fact, REFRAMED (HIGH → LOW)**
+
+Code fact CONFIRMED end to end. `classifyProviderResponse:96-98` maps only 401/403 to `"rejected"`
+and everything else non-ok to `"unreachable"`; `verifyS3CompatibleCredential:256` returns it
+verbatim; `computeVerificationResult:386` turns that into `status: "unreachable"`; and
+`buildVerificationMessage:311` renders "Could not reach {provider} to verify this credential
+(HTTP 404) — this does not necessarily mean the credential is bad." So a typo'd bucket produces a
+message that points the human at a retry rather than at the bucket name. Real.
+
+**But "unreachable" is not the wrong bucket of the three available.** A 404 on `HEAD /{bucket}`
+genuinely does not prove the credential is bad — S3 answers 404 for a bucket that does not exist
+*and* (in some configurations) for one this key may not see, precisely to avoid leaking existence.
+Classifying it `"invalid"` would be the worse error. The credential-validity signal itself works:
+bad keys yield 403 `SignatureDoesNotMatch`/`InvalidAccessKeyId` → correctly `"rejected"`.
+
+What the finding actually shows is that the three-way contract (`valid`/`invalid`/`unreachable`,
+which `:314-320` says must stay three-way "all the way out to the agent-facing capabilities tool")
+has no way to express "reached and authenticated, but the named bucket does not exist" — so the
+message misleads. Gemini's supporting claim that `classifyProviderResponse` "was written for
+token-only endpoints where 404 can't occur and was reused without adjustment" is inference, not
+something the file says; `:88-94` presents it as a deliberately shared classifier.
+
+**Corrected severity: LOW** — diagnostic-message accuracy, no security or data dimension.
+
+### 16.2 — MEDIUM (production bug): the endpoint truthiness check trims but the value used does not → **CONFIRMED at MEDIUM; the "test pins the bug" sub-claim REFRAMED**
+
+Code fact CONFIRMED, `verify.ts:237`:
+`(credential.endpoint?.trim() ? credential.endpoint : deriveS3Endpoint(credential.region)).replace(/\/+$/, "")`
+— the guard tests the trimmed value, the ternary yields the raw one, and `/\/+$/` strips slashes,
+not whitespace.
+
+**And I confirmed it is reachable, which the claim did not establish.** The same trim-check-but-
+return-raw shape exists one layer up in the store: `publish-credentials/store.ts:161-167`
+`optionalString` validates `raw.trim() === ""` and then `return raw;`. So an endpoint pasted with
+trailing whitespace is *persisted* untrimmed and arrives here intact. Downstream, any trailing
+whitespace makes `client.sign(url, …)` construct an invalid URL — `new URL("https://host /bucket")`
+throws — which `:243-247` folds into `reason: "unreachable"`. The human sees "could not reach" for
+what is really a stray space in their own input, with no way to see it.
+
+**The sub-claim about the test does not hold.** The test at `verify.unit.test.ts:295-314` supplies
+`endpoint: "https://abc123.r2.cloudflarestorage.com/"` — a plain trailing slash, no whitespace — and
+asserts `seenUrl === "https://abc123.r2.cloudflarestorage.com/my-bucket"`. That is correct behavior
+correctly pinned. The test does not "pin the buggy behavior"; it simply never exercises whitespace.
+
+**Severity MEDIUM stands** (two sites, user-reachable input, actively misleading diagnostic), with
+the fix belonging in `optionalString` as much as here.
+
+### 16.3 — MEDIUM (test quality): `undefined as unknown as string` is dropped by `JSON.stringify` → **CONFIRMED, REFRAMED (MEDIUM → LOW)**
+
+CONFIRMED. `verify.unit.test.ts:727` builds
+`rawGitHubRepo({ default_branch: undefined as unknown as string })`, and `:728` serializes it through
+`JSON.stringify` — which omits `undefined`-valued keys entirely. The parsed body therefore carries a
+**missing** `default_branch`, never a wrong-typed one, so an implementation that coerced a
+wrong-typed value (`String(raw.default_branch)`) would still pass.
+
+Two mitigations Gemini did not note: the same test's *first* entry
+(`rawGitHubRepo({ private: "yes" })`) is genuinely wrong-typed and does survive serialization, so
+half the test's title is honestly earned; and the assertion still passes for the right reason on
+that entry. **LOW** — a fixture-precision gap on one of two entries.
+
+### 16.4 — MEDIUM (test quality): the under-full page makes the count fallback agree → **CONFIRMED as fact, REFRAMED (MEDIUM → LOW)**
+
+`hasMoreGitHubRepoPages:595-599` is
+`if (link !== null) return /rel="next"/.test(link); return fetchedCount >= GITHUB_REPOS_PER_PAGE;`
+with `GITHUB_REPOS_PER_PAGE = 100` (`:547`). The test at `:693-706` supplies a Link header with only
+`rel="prev"`/`rel="last"` and **one** repo, so deleting the entire header branch would leave
+`1 >= 100` → `false` and the test would still pass. That specific mutant does survive, as claimed.
+
+**But the test delivers exactly what its own title claims.** The title says it "proves the regex is
+checked, not merely header presence" — and an implementation of `if (link !== null) return true;`
+*would* fail it. Gemini scored the test against a different mutation than the one it advertises.
+Gemini's proposed strengthening (a full 100-entry page plus a no-`next` Link header) is right and
+would close the remaining mutant. **LOW.**
+
+### 16.5 — MEDIUM (production inconsistency): unparseable-200 handling contradicts `probe` and its own comment → **CONFIRMED, REFRAMED (MEDIUM → LOW)**
+
+CONFIRMED on both halves, and it is the cleanest false-comment item in the chunk.
+- `fetchGitHubRepos:631-638`: a 200 whose body fails `resp.json()` returns
+  `{ status: "unreachable", message: "GitHub's response could not be read." }`.
+- `probe:176-181`: the identical situation returns `{ ok: true }`, which
+  `computeVerificationResult:386` turns into `status: "valid"`.
+- A 200 with valid non-array JSON returns `status: "valid"` (`:639-642`), pinned by the test at
+  `:680-691` with the rationale "an authenticated 2xx with an unexpected body shape is still a valid
+  credential."
+
+So an unreadable body is treated as *worse* than an unexpected-but-readable one, which is backwards,
+and the comment at `:635-636` asserts this follows "the same … posture `probe`'s own doc states" —
+citing a function that does the opposite, in service of a posture ("this module's own contract to
+enforce stops at HTTP status") that a 200-to-`unreachable` mapping itself contradicts. Doubly wrong
+comment.
+
+**Corrected severity: LOW** — a behavioral inconsistency between two sibling paths plus a false
+cross-reference; either choice is defensible, having both is not.
+
+### 16.6 — LOW: test 7's name says "derived URL" but it supplies an explicit endpoint → **CONFIRMED**
+
+CONFIRMED. `:316` is titled "s3-compatible signing failure (a malformed **derived** URL)", but its
+fixture at `:329` passes `endpoint: "not-a-valid-url"`, so `:237`'s truthiness guard takes the
+explicit-endpoint branch and `deriveS3Endpoint` is never called. The test's own inline comment
+(`:326-328`) describes the mechanism accurately; only the title's word "derived" is wrong. **LOW**
+(naming).
+
+### 16.7 — LOW: test 12 under-asserts the message versus its sibling → **CONFIRMED**
+
+CONFIRMED. `:676` asserts `assert.match(result!.message ?? "", /GitHub/)`, while the sibling at
+`:261` pins the full `/Could not reach Vercel to verify this credential \(HTTP 503\)/`. A regression
+dropping `statusCodeSuffix` from the message would pass `:676` and fail `:261`. Under this repo's
+own "assert exact error text" rule, the weaker assertion is the outlier. **LOW.**
+
+### 16.8 — LOW: tests 15/16 never mix a valid entry with malformed ones → **CONFIRMED**
+
+CONFIRMED. `:708-722` and `:724-734` both feed lists in which *every* entry is malformed and assert
+`repos === []`, so neither shows that a valid sibling survives alongside dropped ones. One mixed
+fixture (one good repo plus the bad ones, asserting the good one comes back) covers what both
+currently miss. **LOW.**
+
+### Chunk 16 counts
+
+8 claims: **1 CONFIRMED at claimed severity** (16.2 MEDIUM, and I established the reachability the
+claim omitted), **4 CONFIRMED but REFRAMED down** (16.1 HIGH→LOW, 16.3/16.4/16.5 MEDIUM→LOW),
+**3 CONFIRMED at claimed severity LOW** (16.6, 16.7, 16.8). Nothing discarded and nothing fabricated
+— this was the most accurate chunk in the batch, with severity inflation as the only systematic
+error.
