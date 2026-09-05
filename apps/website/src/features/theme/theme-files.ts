@@ -4,6 +4,7 @@ import {
   constants as fsConstants,
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -341,13 +342,15 @@ export function resolveThemeFilePath(
  */
 function visitThemeDirEntry(dir: string, name: string, depth: number, base: string, found: string[]): void {
   const full = join(dir, name);
-  // `lstat` semantics via `statSync(..., {throwIfNoEntry})` would follow the
-  // link; read the link status explicitly instead so a symlink is neither
-  // descended nor reported as a file.
-  const stat = statSync(full, { throwIfNoEntry: false });
+  // lstatSync, NEVER statSync — statSync follows the link, so a circular symlink (a -> b -> a) made
+  // it throw ELOOP straight out of `listThemeFiles`' own "throws only ThemePathError" contract (this
+  // file's JSDoc on that function). lstatSync reports the link itself, never its target, so
+  // `isSymbolicLink()` below catches every shape uniformly — normal, broken, or circular — before any
+  // call that would follow it, so a symlink is neither descended nor reported as a file. Matches the
+  // identical fix in `validation/structure.ts`'s `visitPackageEntry`.
+  const stat = lstatSync(full, { throwIfNoEntry: false });
   if (!stat) return;
-  const isLink = realpathSync(full) !== full;
-  if (isLink) return;
+  if (stat.isSymbolicLink()) return;
   if (stat.isDirectory()) walkThemeDir(full, depth + 1, base, found);
   else if (stat.isFile()) found.push(relative(base, full).split(sep).join("/"));
 }

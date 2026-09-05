@@ -174,6 +174,29 @@ test("listThemeFiles does not follow or report symlinks out of the theme folder"
   assert.equal(files.some((f) => f.includes("secret")), false);
 });
 
+test("listThemeFiles returns cleanly (never throws ELOOP) when the theme folder contains a CIRCULAR symlink (a -> b -> a)", () => {
+  // `statSync` (not `lstatSync`) follows a symlink to build the entry's stat, and a symlink cycle
+  // makes it throw `ELOOP` — straight out of this function's own "throws only ThemePathError"
+  // contract (its own JSDoc). A theme installed from a fixture/package that preserves a circular
+  // symlink (Node's `cpSync` default is `dereference: false`, i.e. it preserves symlinks as-is) hits
+  // this on the very next listing — an agent-tool call or the Explore admin route, both real callers
+  // of `listThemeFiles` (`tool-registrations.ts`, `server/inbound/admin-http/routes/themes/explore.ts`).
+  const { root, themeDir } = makeThemesRoot();
+  const a = path.join(themeDir, "a");
+  const b = path.join(themeDir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  try {
+    const files = listThemeFiles({ themeDir, themesRoot: root });
+    assert.deepEqual(files, ["templates/home.json", "theme.json"]);
+    assert.equal(files.some((f) => f === "a" || f === "b"), false, "a circular symlink must be neither descended nor reported as a file");
+  } finally {
+    fs.unlinkSync(a);
+    fs.unlinkSync(b);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // 4. Ordinary read/write/list behavior.
 // ---------------------------------------------------------------------------
