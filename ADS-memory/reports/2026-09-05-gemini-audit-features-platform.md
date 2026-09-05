@@ -26,7 +26,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 8c. refactor(complexity) batch F c62c95a4
 - [x] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
 - [x] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
-- [ ] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
+- [x] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 - [ ] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
 - [ ] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
 - [ ] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
@@ -231,5 +231,18 @@ Verification: read `resolveAgainstTheme` (line 800-805) and the alias map direct
 - Gemini's HIGH claim that commit `20112f69`'s new drift-prevention gate script (`development/scripts/check-menu-href-allowlist-sync.ts`) and its test were never actually committed. Disproved: `git show 20112f69 --stat` (unfiltered) shows both genuinely committed (304 and 164 lines respectively), plus a `package.json` script entry — outside this chunk's features/platform path filter. Same recurring false-positive class as chunks 1, 6, 7, 9.
 
 ### Chunk 11 — comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
+
+Gemini raised 6 findings, ALL discarded — this chunk is entirely path-scoping false positives plus one false premise, no real defects found. Notable because it's the cleanest demonstration this session of the systemic risk: every "missing file/route/test" claim below is disproved by the commit's own unfiltered `--stat`.
+
+- CRITICAL "the seeded-owner reset-password route handler was never committed, so a non-owner admin can overwrite the owner's password" — disproved: `git show 1ae2ac19 --stat` shows `server/inbound/admin-http/routes/users/reset-password.ts` (+13) and a new `routes/users/__tests__/reset-password.test.ts` (74 lines) genuinely committed, both outside features/platform.
+- HIGH "no route-level 409 OWNER_REQUIRED test was added, only two pre-existing unit tests were patched" — disproved: that exact test exists verbatim — `routes/users/__tests__/reset-password.test.ts:192`, `test("SECURITY REQ-13: RESET_USER_PASSWORD route: 409 OWNER_REQUIRED when a THIRD-PARTY caller with only user.manage targets the seeded owner", ...)`, asserting `res.status === 409` and `body.code === "OWNER_REQUIRED"`.
+- HIGH "the restore-points idempotency-key route handler was never committed, so duplicate submissions still create duplicate backups" — disproved: `git show 1738b578 --stat` shows `server/inbound/admin-http/routes/database/restore-points.ts` (+72) and a new route test genuinely committed.
+- LOW "`RestorePointIdempotencyLookupPort` is exported but never referenced anywhere — dead code" — disproved: it's referenced in `server/routes/types.ts:79,597`, widening `RouteDeps.restorePointsRepo`'s type — outside features/platform, not dead.
+- LOW "`routes/workspace/delete.ts`'s doc-comment fix the commit message claims was never actually committed" — disproved: `git show 1738b578 --stat` shows that exact file modified (+13).
+- LOW "`installCommentsDataModule({db,dbPath}, {})`'s second argument doesn't match the function's 1-argument signature, a TS2554 compile error" — disproved: the function's actual signature (`data-module-install.ts:13-16`) explicitly declares a second, defaulted parameter `_optional: Record<string, never> = {}` — this is a real, valid, already-established two-argument shape used elsewhere in this codebase (e.g. `resolveTemplate` in chunk 10), not a mismatch.
+
+All 5 "missing file" claims are the same recurring class as chunks 1, 6, 7, 9, 10 (path-scoped diff omits `server/**`); the 6th is a false premise about a function's own declared signature.
+
+### Chunk 12 — "/" root-slug feature cluster: 710b6cf4, ae4fecdc, a99576d4, 06f3ea87, d4a10b35
 
 (running)
