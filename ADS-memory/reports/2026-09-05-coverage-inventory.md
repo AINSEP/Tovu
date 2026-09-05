@@ -45,7 +45,7 @@ surface first per Leona's ask, pending Phase 2 overrides.
 | Dir | Files | Lines | Internal tests | Candidate external suites (count) | Measured coverage |
 |---|---|---|---|---|---|
 | theme | 26 | 9474 | 82 | 54 (incl. admin ThemeExplore/pages hooks) | UNMEASURED — Phase 2 pending |
-| deployments | 32 | 8557 | 19 | 15 | UNMEASURED — Phase 2 pending |
+| deployments | 32 | 8557 | 19 | 15 | **99.0% lines (7793/7868), 94.5% fn (310/328), 95.3% br (1056/1108)** — see Phase 2 log; well-covered overall, one real gap: `repo.sqlite.ts` 61.0% (83/136 lines, 2/13 fn) |
 | widgets | 26 | 5378 | 19 | 14 | UNMEASURED — Phase 2 pending |
 | plugins | 17 | 4190 | 19 | 14 | UNMEASURED — Phase 2 pending |
 | newsletter | 18 | 4151 | 13 | 11 | UNMEASURED — Phase 2 pending |
@@ -133,7 +133,11 @@ before any measured override — is:
 2. `apps/website/src/features/theme` (9474 lines — known cross-directory
    exerciser pattern per prior findings; needs the external-suite run, not
    just internal, to avoid a false "zero coverage" claim)
-3. `apps/website/src/features/deployments` (8557 lines)
+3. ~~`apps/website/src/features/deployments` (8557 lines)~~ — **MEASURED,
+   dropped from this list**: 99.0% lines, 94.5% functions, 95.3% branches.
+   Not an unmeasured surface. One real gap inside it: `repo.sqlite.ts` at
+   61.0% lines / 2 of 13 functions — worth a targeted look, but the
+   directory as a whole is not what Leona is asking about.
 4. `apps/admin/src/components` (7602 lines)
 5. `apps/admin/src/features/deployment` (7095 lines)
 6. `apps/website/src/features/widgets` (5378 lines)
@@ -150,4 +154,52 @@ many lines but strong external suite coverage may drop, and vice versa.
 (Appended incrementally as runs complete. Format: command, file set, uptime
 before/after, lcov path, result.)
 
-_None yet — machine load at Phase 1 completion: see first log entry below._
+### `apps/website/src/features/deployments` — MEASURED
+
+- **uptime before**: `15:42  load averages: 6.32 6.77 7.30`
+- **uptime after**: `15:47  load averages: 35.57 34.81 21.17` — **1-min load spiked
+  to 35 during/immediately after this run.** Per the load-spike-voids-a-number
+  rule, this is flagged for reconfirmation once the box is calm, but the
+  numbers show no internal inconsistency (no decreasing hit count vs. a prior
+  superset run — there is no prior run to compare against) so they are
+  reported as a first measurement, not discarded, with this caveat attached.
+  **The spike appears to have started only at/after test completion** (34
+  files ran clean with dot-reporter output and no slowdown symptoms during
+  execution) — plausibly other agents on this shared box launching work
+  concurrently, not this run's own cost. Flagging to team-lead regardless.
+- **Command**:
+  `env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json node --import tsx --test --experimental-test-module-mocks --experimental-test-coverage --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" --test-reporter=lcov --test-reporter-destination=<scratch>/lcov/deployments.lcov.info --test-reporter=dot --test-reporter-destination=stdout <34 files>`
+  (repo-root cwd, per website's node-test-from-root convention)
+- **Note**: first attempt with `TOVU_ADMIN_PASSWORD` inherited from shell
+  environment failed every authenticated-route test with 401 (expected 200).
+  Re-ran with `env -u TOVU_ADMIN_PASSWORD` per the known trap and it went
+  fully green — same failure mode as the documented admin/vitest trap,
+  confirmed here for website's own `node --test` auth helper too.
+- **File set**: 19 internal test files (`apps/website/src/features/deployments/**/__tests__/*.test.ts`)
+  + 15 external candidate suites (route tests, tool-registration tests, sqlite
+  repo tests, CLI integration test) identified via the import-grep candidate
+  map. 34 files total, all passed (30 top-level test blocks, all green, no
+  failures/skips).
+- **lcov retained at**: `<scratch>/lcov/deployments.lcov.info` (this session's
+  scratchpad — not committed; regenerate with the command above if needed)
+- **Result, source files only** (excludes the 19 internal test files
+  themselves from the numerator/denominator — 28 source files):
+  - Lines: 99.0% (7793/7868)
+  - Functions: 94.5% (310/328)
+  - Branches: 95.3% (1056/1108)
+  - Below-100% files: `repo.sqlite.ts` 61.0% lines (83/136), 2/13 functions,
+    3/4 branches — the one real gap in this directory.
+    `deploy-config.ts` 98.2%, `dockerfile.ts` 98.8%, `publish-credentials/store.ts`
+    99.0%, `publish-agent-tools.ts` 99.6%, `static-publish/publish-run.ts` 99.6%
+    — all near-ceiling, not worklist material by the 100%-bar standard but not
+    the "no coverage yet" gap Leona asked about either.
+- **Conclusion**: `deployments` is NOT an unmeasured/uncovered surface. Removed
+  from the ranked-priority list above.
+
+**Phase 2 paused after this one measurement.** Immediately after this run,
+1-minute load climbed to 19–35 across three checks (15:47–15:48) — well past
+the ~8 go/no-go threshold in the dispatch brief. Per instruction ("if the
+1-minute load average is above ~8, wait rather than launching" / "ONE test
+invocation at a time, always"), no further test invocations were started.
+Reported to team-lead; remaining directories stay `UNMEASURED — Phase 2
+pending` until load recovers and measurement resumes, or team-lead redirects.
