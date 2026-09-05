@@ -737,3 +737,79 @@ a "what would settle each row" section with exact node/vitest commands, so Phase
 re-deriving the suite map.
 
 **→ Resume Phase 2 in a FRESH agent when 1-min load is genuinely under ~8.**
+
+---
+
+## A8 DONE — CIC U-002 security gap CONFIRMED and fixed in TWO places (`c713a518`, `fe14089d`)
+
+**Verified, not inherited.** `registerPluginSdkResolver` has 4 real call sites repo-wide; scoped to
+`apps/website/src/cli/` it returns **zero**, with a control proving the pattern matches — so the zero
+is real.
+
+**Reachability chain, file:line:**
+- `serve.ts:116` `runServeCommand()` — the packaged `tovu serve <dir>` path, **and what Tovu-Runner
+  spawns per project** — never called the resolver.
+- → `createSqliteRouteDeps()` (`deps.ts:696-704`) unconditionally builds
+  `composePluginRuntime({..., installDir: pluginsInstallDir()})` — a real installDir, so
+  site-installed plugin discovery is **live**.
+- → `createApp(deps)` (`serve.ts:157`) unconditionally mounts `createPluginsModule(routeDeps)`
+  (`app.ts:1098`) → `PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
+  (`routes/plugins/set-enabled.ts:95`). Same route also reachable via the `plugins_set_enabled` Jini
+  tool (`features/plugin-runtime/tool-registrations.ts:203`) — same composition, not a separate process.
+- → `setPluginEnabled()` → `onPluginEnabled` (`plugin-runtime.ts:169-245`): for a site-sourced plugin
+  it **omits `importModule`**, so `loadPlugin()` (`loader.ts:195`) uses its real default `import()`.
+
+**CIC U-002-B1 read directly**: requires the hook "called exactly once, synchronously, during
+`src/index.ts`'s boot sequence, before any route is registered and before any code path that could
+reach `loadPlugin()` is wired into the running process" — **literally naming `index.ts` because that
+was the only boot path when the CIC was written (2026-07-28)**. `serve.ts` and `export.ts` were added
+later and never got the same wiring.
+
+**Exploit, and honest severity — HIGH, not Critical.** A site-installed plugin
+(`<installDir>/plugins/<id>/<version>/`) bundling its own `node_modules/@tovu/sdk` shadows the real
+SDK via ordinary Node ESM resolution once `import()` runs with no `module.register()` hook active; a
+fake `@tovu/sdk` can re-export `@tovu/core` internals freely, **defeating ADR-005's deep-import
+block**. It does NOT require prior compromise — it is exactly the plugin trust model's own threat.
+But Milestone 2's own note says plugin install/update is **unbuilt**, so no HTTP route plants a
+plugin remotely today; today's actor is whoever can place files under `installDir` plus an admin who
+enables it. **Becomes Critical the moment an install route ships.**
+
+**Proven, not reasoned.** The regression test spawns a real `tovu serve`, plants a site plugin with a
+shadow `node_modules/@tovu/sdk`, logs in as the real seeded admin, PATCHes the real
+`PLUGIN_SET_ENABLED` route, and asserts the import never resolves to the planted copy. **RED observed
+(`"planted"`), GREEN after — then the fix was flipped off and on again to confirm RED↔GREEN was not a
+fluke.** Both reproduced cleanly. `serve-command.integration.test.ts` 15/17, the 2 failures being the
+pre-disclosed load flakes (BR-07, CR-R04/CR-R01).
+
+**Second sink found unprompted — `export.ts` (`fe14089d`).** `tovu export` builds the identical
+`createSqliteRouteDeps()` composition and its `exportSite()` boots the `createApp()` equivalent
+internally (`site-exporter.ts:823-824`, `createServer(routeDeps.createSiteApp()).listen(0)`), and
+also never called the resolver. Fixed identically; its test proves registration by asserting a second
+`registerPluginSdkResolver()` throws `PluginSdkResolverAlreadyRegisteredError`.
+`export-command.integration.test.ts` 4/4.
+
+**All other sinks audited, clean**: every non-test caller of `createApp(` repo-wide —
+`site-exporter.ts`, `features/deployments/{tool-registrations,export-run}.ts`,
+`lifecycle/{agent-daemon-port,daemon-supervisor}.ts`, `observability-middleware.ts`,
+`server/routes/types.ts`. All but `index.ts`/`serve.ts`/`export.ts` only reference it in comments, or
+(the admin `export-site` route, `app.ts:802/850`) call `exportSite()` at **request time inside an
+already-booted, already-fixed process** — not a separate boot path.
+
+### A17 — SEPARATE pre-existing bug: plugin loading is broken END TO END. Dispatched read-only.
+`resolveDefaultSdkModulePath()` in `plugin-sdk-resolver.ts` computes the wrong relative path to
+`packages/sdk/dist/index.js`. Verified nonexistent under **both** layouts: tsx/dev resolves to
+`apps/website/src/packages/sdk/dist/index.js`, compiled resolves to
+`dist/src/packages/sdk/dist/index.js`. **So even with the resolver correctly registered, a real
+plugin's `@tovu/sdk` import fails with ENOENT.**
+
+**This is FAIL-CLOSED, NOT a security regression** — the planted package still never gets reached
+because `shortCircuit: true` prevents fallthrough. **Do not let it be re-escalated as a
+vulnerability.** It is a functionality bug: no plugin can load.
+
+**Why nothing caught it: no certified test has ever exercised the true default path — every existing
+test overrides `sdkModulePath`.** So there is no regression risk either way, and also nothing telling
+anyone it is broken.
+
+Dispatched to `sdk-path-investigation` (read-only, software-architect persona): the right fix depends
+on **the intended packaged-distributable topology for `packages/sdk`**, which is a design question.
+**C14 — Leona's call**, once the options are costed.
