@@ -13,6 +13,14 @@ import type { AdminPost } from "@/lib/api";
  *   `deletePage`) — unreachable through `usePageEditor` itself (it only ever calls these with the
  *   loaded page's own id), so they're exercised here by direct invocation with a mismatched id,
  *   the fake's own defensive contract.
+ * - `getPresentation()`'s `activeThemeTemplates ?? []` default and `templatePreviewUrl`'s
+ *   `templateChoice ?? ""` default — mutation-swept SURVIVED against the full existing suite:
+ *   `use-page-editor.unit.test.ts`'s own `fakeDeps()` omits `activeThemeTemplates` in three tests
+ *   (exercising the default) but never asserts `availableTemplates`, a gap that file's own header
+ *   comment already names ("`availableTemplates` simply ends up `undefined` rather than `[]`,
+ *   which nothing in these hook-level [tests] checks"); nothing calls the fake's
+ *   `templatePreviewUrl` at all. Both closed here directly rather than by adding an assertion to
+ *   that file's existing tests.
  */
 
 const { deletePage } = vi.hoisted(() => ({ deletePage: vi.fn() }));
@@ -79,5 +87,24 @@ describe("createFakePageEditorPort — .current and id-mismatch guards", () => {
       "fake page editor port: unknown page id wrong-id",
     );
     expect(port.deleteCalled).toBe(false);
+  });
+});
+
+describe("createFakePageEditorPort — getPresentation and templatePreviewUrl defaults", () => {
+  it("getPresentation defaults activeThemeTemplates to [] when not seeded", async () => {
+    const port = createFakePageEditorPort({ page: PAGE });
+    await expect(port.getPresentation()).resolves.toMatchObject({ activeThemeTemplates: [] });
+  });
+
+  it("templatePreviewUrl defaults templateChoice to '' when null", () => {
+    const port = createFakePageEditorPort({ page: PAGE });
+    expect(port.templatePreviewUrl("page-1", null)).toBe("fake://template-preview/page-1?templateChoice=");
+  });
+
+  it("templatePreviewUrl includes an explicit templateChoice", () => {
+    const port = createFakePageEditorPort({ page: PAGE });
+    expect(port.templatePreviewUrl("page-1", "blog-post.html")).toBe(
+      "fake://template-preview/page-1?templateChoice=blog-post.html",
+    );
   });
 });
