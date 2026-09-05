@@ -148,7 +148,7 @@ test("media rendition route: slug/ext are cosmetic — different slug/ext on the
   });
 });
 
-test("media rendition route: an older, never-generated transform version is a short-TTL 404 (not lazily materialized), while the latest version generates on first request", async () => {
+test("media rendition route: an older, never-generated transform version is an uncacheable 404 (not lazily materialized), while the latest version generates on first request", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "versioned-bytes", "v.png");
     const { definition: v1 } = await registerOne(deps, "banner", { format: "jpeg" });
@@ -156,7 +156,13 @@ test("media rendition route: an older, never-generated transform version is a sh
 
     const oldVersionRes = await fetch(`${baseUrl}/m/${media.id}/${v1.name}.v${v1.version}/b.jpg`);
     assert.equal(oldVersionRes.status, 404);
-    assert.equal(oldVersionRes.headers.get("cache-control"), "public, max-age=60");
+    // Was `public, max-age=60` until the 2026-09-05 fix. That short TTL was the entire tell in a
+    // header-only existence oracle: a gate-denied 404 sends `private, no-store` (it depends on the
+    // caller's session cookie and can never be shared-cacheable), so any caller could read "this
+    // assetId exists and is gated" vs "does not exist" straight off `Cache-Control`. The two can
+    // only be reconciled downwards. What this test pins — an older version is NOT lazily
+    // materialized — is unchanged; only the negative-caching half moved.
+    assert.equal(oldVersionRes.headers.get("cache-control"), "private, no-store");
 
     const latestVersionRes = await fetch(`${baseUrl}/m/${media.id}/${v2.name}.v${v2.version}/b.webp`);
     assert.equal(latestVersionRes.status, 200);
@@ -273,20 +279,42 @@ test("media rendition route: an unrelated or malformed cookie header does not gr
   });
 });
 
-test("media rendition route: an asset referenced only by a DRAFT (unpublished) post remains unrestricted for an anonymous caller — a draft's own content is never public either way", async () => {
+/**
+ * Split in two by the 2026-09-05 takedown fix. The property this test was written to pin — a draft
+ * does not RESTRICT an asset that would otherwise be freely servable — is unchanged and is the
+ * first half below. The second half is the behavior that moved: this test used to seed a draft
+ * carrying `visibility: "members"` and assert 200, which is exactly the hole finding 2 named —
+ * reverting a live members-only post to draft as a takedown released its media to the public web,
+ * with `public, max-age=31536000, immutable` stamped on it. A GATED draft now still gates.
+ */
+test("media rendition route: a PUBLIC draft's reference leaves its asset unrestricted, while a GATED draft still gates it — unpublishing is a takedown, not a release", async () => {
   await withServer(async (baseUrl, deps) => {
-    const { media } = await uploadOne(deps, "draft-only-bytes", "draft.png");
     const { definition } = await registerOne(deps, "public", { format: "webp" });
+
+    const { media: publicDraftAsset } = await uploadOne(deps, "draft-only-bytes", "draft.png");
+    await deps.postRepo.save(
+      makePost({ id: "p-draft", slug: "draft-post", status: "draft", bodyJson: imageBody(publicDraftAsset.id) }, deps.workspaceId)
+    );
+    const publicDraftRes = await fetch(`${baseUrl}/m/${publicDraftAsset.id}/${definition.name}.v${definition.version}/d.webp`);
+    assert.equal(publicDraftRes.status, 200, "a public draft-only reference must not gate the asset");
+    assert.equal(publicDraftRes.headers.get("cache-control"), "public, max-age=31536000, immutable");
+
+    const { media: gatedDraftAsset } = await uploadOne(deps, "gated-draft-bytes", "gated-draft.png");
     await deps.postRepo.save(
       makePost(
-        { id: "p-draft", slug: "draft-post", status: "draft", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        {
+          id: "p-draft-gated",
+          slug: "draft-post-gated",
+          status: "draft",
+          memberAccessJson: JSON.stringify({ visibility: "members" }),
+          bodyJson: imageBody(gatedDraftAsset.id),
+        },
         deps.workspaceId
       )
     );
-
-    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/d.webp`);
-    assert.equal(res.status, 200, "a draft-only reference must not gate the asset");
-    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+    const gatedDraftRes = await fetch(`${baseUrl}/m/${gatedDraftAsset.id}/${definition.name}.v${definition.version}/gd.webp`);
+    assert.equal(gatedDraftRes.status, 404, "a members-only draft's media must not be anonymously fetchable");
+    assert.equal(gatedDraftRes.headers.get("cache-control"), "private, no-store");
   });
 });
 

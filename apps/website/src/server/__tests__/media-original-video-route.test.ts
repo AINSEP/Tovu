@@ -183,19 +183,33 @@ test("media original video route: an anonymous caller is 404'd for a video whose
   });
 });
 
-test("media original video route: an asset referenced only by a DRAFT post remains unrestricted for an anonymous caller", async () => {
+/** Same split, and the same reasoning, as `media-rendition-route.test.ts`'s own draft test — see
+ *  that test's doc for why a GATED draft stopped releasing its media on 2026-09-05. */
+test("media original video route: a PUBLIC draft's reference leaves its video unrestricted, while a GATED draft still gates it", async () => {
   await withServer(async (baseUrl, deps) => {
-    const bytes = mp4Bytes("draft-only-clip");
-    const { media } = await uploadOne(deps, bytes, "draft.mp4", "video/mp4");
+    const { media: publicDraftAsset } = await uploadOne(deps, mp4Bytes("draft-only-clip"), "draft.mp4", "video/mp4");
+    await deps.postRepo.save(
+      makePost({ id: "p-draft-video", slug: "draft-video-post", status: "draft", bodyJson: imageBody(publicDraftAsset.id) }, deps.workspaceId)
+    );
+    const publicDraftRes = await fetch(`${baseUrl}/m/${publicDraftAsset.id}/original`);
+    assert.equal(publicDraftRes.status, 200);
+
+    const { media: gatedDraftAsset } = await uploadOne(deps, mp4Bytes("gated-draft-clip"), "gated-draft.mp4", "video/mp4");
     await deps.postRepo.save(
       makePost(
-        { id: "p-draft-video", slug: "draft-video-post", status: "draft", memberAccessJson: JSON.stringify({ visibility: "members" }), bodyJson: imageBody(media.id) },
+        {
+          id: "p-draft-video-gated",
+          slug: "draft-video-post-gated",
+          status: "draft",
+          memberAccessJson: JSON.stringify({ visibility: "members" }),
+          bodyJson: imageBody(gatedDraftAsset.id),
+        },
         deps.workspaceId
       )
     );
-
-    const res = await fetch(`${baseUrl}/m/${media.id}/original`);
-    assert.equal(res.status, 200);
+    const gatedDraftRes = await fetch(`${baseUrl}/m/${gatedDraftAsset.id}/original`);
+    assert.equal(gatedDraftRes.status, 404, "a members-only draft's video must not be anonymously fetchable");
+    assert.equal(gatedDraftRes.headers.get("cache-control"), "private, no-store");
   });
 });
 
