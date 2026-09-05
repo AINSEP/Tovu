@@ -227,6 +227,21 @@ function checkPath(path: HbsPath | undefined, violations: string[]): void {
   }
 }
 
+/**
+ * Depth guard shared by the two independent recursion paths through this walker: block bodies
+ * (`walkHandlebarsNodes`, `{{#each}}`/`{{#if}}`/… nesting) and subexpressions
+ * (`walkExpression`'s `SubExpression` arm, `(helper (helper …))` nesting). Neither path is a
+ * counter-example against the other's depth cap without this — a template can only be proven
+ * bounded if EVERY recursive descent checks the same ceiling before going one level deeper.
+ * Extracted so each call site stays a single guard-and-return rather than duplicating the
+ * over-limit branch (and its violation message) inline.
+ */
+function exceedsNestingDepth(depth: number, violations: string[]): boolean {
+  if (depth <= MAX_BLOCK_NESTING_DEPTH) return false;
+  violations.push(`template nesting exceeds the maximum allowed depth of ${MAX_BLOCK_NESTING_DEPTH}`);
+  return true;
+}
+
 /** Walk a node's `params[]` and `hash.pairs[].value` as expressions — the argument-checking half
  * shared by `BlockStatement`, `MustacheStatement`, and `SubExpression` handling below. */
 function walkParamsAndHash(node: HbsNode, depth: number, violations: string[]): void {
@@ -320,10 +335,7 @@ const STATEMENT_HANDLERS: Readonly<Record<string, (node: HbsNode, depth: number,
  * re-visiting of a node.
  */
 function walkHandlebarsNodes(nodes: HbsNode[], depth: number, violations: string[]): void {
-  if (depth > MAX_BLOCK_NESTING_DEPTH) {
-    violations.push(`template nesting exceeds the maximum allowed depth of ${MAX_BLOCK_NESTING_DEPTH}`);
-    return;
-  }
+  if (exceedsNestingDepth(depth, violations)) return;
 
   for (const node of nodes) {
     const handler = node.type !== undefined ? STATEMENT_HANDLERS[node.type] : undefined;
@@ -340,9 +352,14 @@ function walkHandlebarsNodes(nodes: HbsNode[], depth: number, violations: string
  */
 function walkExpression(node: HbsNode, depth: number, violations: string[]): void {
   if (node.type === "SubExpression") {
+    if (exceedsNestingDepth(depth, violations)) return;
     const name = pathText(node.path);
     if (!ALLOWED_HANDLEBARS_HELPERS.has(name)) violations.push(`disallowed helper "${name}"`);
-    walkParamsAndHash(node, depth, violations);
+    // One nesting level deeper for THIS subexpression's own arguments — `(helper (helper …))`
+    // recurses right back into `walkParamsAndHash` → `walkExpression`, the same unbounded path
+    // `MAX_BLOCK_NESTING_DEPTH` exists to close, just reached through arguments instead of a block
+    // body.
+    walkParamsAndHash(node, depth + 1, violations);
     return;
   }
   if (node.type === "PathExpression") checkPath(node as HbsPath, violations);
@@ -381,8 +398,21 @@ export function lintHandlebarsTemplate(source: string): string[] {
     return [`Handlebars syntax error: ${(err as Error).message}`];
   }
 
+  // Deliberately a SECOND try/catch, not one widened to cover both `parse()` and the walk: parse
+  // failures are theme-author syntax mistakes (message stays "Handlebars syntax error"), while
+  // anything escaping the walk below is a bug in this file's own traversal — worth a distinct
+  // message so a human reading `errors` can tell which side broke. The depth guard threaded through
+  // both `walkHandlebarsNodes` and `walkExpression`/`walkParamsAndHash` (see
+  // `exceedsNestingDepth`) is what actually stops runaway recursion; this catch is belt-and-
+  // suspenders so a walker bug this guard doesn't anticipate still fails CLOSED — the template is
+  // rejected — rather than throwing past this function's documented "total, non-throwing predicate"
+  // contract and crashing `loadTheme()`'s caller, which wraps nothing in try/catch of its own.
   const violations: string[] = [];
-  walkHandlebarsNodes(program.body ?? [], 0, violations);
+  try {
+    walkHandlebarsNodes(program.body ?? [], 0, violations);
+  } catch (err) {
+    return [`Handlebars template failed lint: ${(err as Error).message}`];
+  }
   // De-duplicated because a template can reach the same violation through several branches (a
   // depth overrun trips once for a block's `program` and again for its `inverse`; the same
   // disallowed helper repeated in a loop body trips per occurrence). The caller folds these into a
