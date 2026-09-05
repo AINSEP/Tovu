@@ -2520,10 +2520,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * settings sidebar → panel, nothing else. */
 .settings-ui-section { display: flex; flex-direction: column; min-height: 0; height: 100%; }
 .settings-ui-section > .jini-tabbed-dialog { flex: 1 1 auto; min-height: 0; }
-.settings-ui-load-error { margin: 0 0 0.75rem; color: var(--danger, #9c2a25); font-size: 0.85rem; }
+.settings-ui-load-error { margin: 0 0 0.75rem; color: var(--danger); font-size: 0.85rem; }
 .settings-ui-save { font-size: 0.75rem; color: var(--faint); align-self: center; }
-.settings-ui-save.is-error { color: var(--danger, #9c2a25); }
-.settings-ui-save.is-saved { color: var(--ok, #1f7a3a); }
+.settings-ui-save.is-error { color: var(--danger); }
+.settings-ui-save.is-saved { color: var(--ok); }
 .settings-ui-dialog-btn {
   font: inherit; font-size: 0.75rem; padding: 0.25rem 0.6rem; cursor: pointer;
   color: var(--jini-text-muted); background: var(--jini-bg-panel);

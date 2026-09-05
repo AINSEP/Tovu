@@ -73,7 +73,7 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.2rem;
-  border: 1px solid var(--border, #e2e0dc);
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted, #f6f5f3);
 }
@@ -89,7 +89,7 @@
 }
 
 .segmented button.is-active {
-  background: var(--surface, #fff);
+  background: var(--surface);
   color: var(--text-strong, #1b1b1b);
   box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
 }
@@ -159,7 +159,7 @@
 .page-preview-frame {
   position: relative;
   overflow: hidden;
-  border: 1px solid var(--border, #e2e0dc);
+  border: 1px solid var(--border);
   border-radius: 10px;
   background: #fff;
 }
@@ -189,9 +189,9 @@
   width: 100%;
   min-height: 32rem;
   padding: 1rem;
-  border: 1px solid var(--border, #e2e0dc);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: var(--surface, #fff);
+  background: var(--surface);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.82rem;
   line-height: 1.6;
@@ -207,7 +207,7 @@
  */
 .interactive-html-editor {
   height: 32rem;
-  border: 1px solid var(--border, #e2e0dc);
+  border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
 }

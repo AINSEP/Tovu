@@ -69,7 +69,7 @@
 /* The "Add custom provider" dialog's required-field marker — Name/API base URL/Access token only
    (Username stays unmarked; Category always carries a value). Same `--danger` token `assistant.css`
    already uses for error/destructive states, with its own hardcoded fallback for parity. */
-.access-tokens-field-required { color: var(--danger, #b3261e); }
+.access-tokens-field-required { color: var(--danger); }
 
 .access-tokens-tier { display: flex; flex-direction: column; gap: var(--space-5); }
 
