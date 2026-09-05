@@ -2,7 +2,7 @@ import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldK
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { agentHandle } from "@jini-ai/agentic";
 import { buildAgentListHandles } from "../../lib/agent-list-handles";
-import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
+import { contentTypeMenuItems, type DraftField, type LifecycleConfirmOp } from "./rules";
 import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
@@ -35,6 +35,106 @@ import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.
  * `hooks/use-escape-to-cancel.hooks.ts`. Validation, draft-field-list transforms, error-message
  * formatting, and the row-menu builder all moved to `rules.ts`.
  */
+
+// ---------------------------------------------------------------------------
+// One draft field's fieldset — shared by the New content type modal and the Edit fields modal,
+// which differ only in their id/agent-handle prefix, whether the Remove button always shows (Edit)
+// or only past the first field (New), and that button's own agentHandle label text.
+// ---------------------------------------------------------------------------
+
+interface ContentTypeFieldFieldsetProps {
+  field: DraftField;
+  index: number;
+  /** e.g. "ct-field" (New) or "ct-edit-field" (Edit) — prefixes every input `id` on this row. */
+  idPrefix: string;
+  /** This row's own agentHandle base, from the caller's `buildAgentListHandles` list. */
+  agentHandleBase: string;
+  onUpdateField: (rowId: number, patch: Partial<DraftField>) => void;
+  onRemoveField: (rowId: number) => void;
+  showRemoveButton: boolean;
+  removeButtonLabel: string;
+  t: (key: string) => string;
+}
+
+function ContentTypeFieldFieldset({
+  field: f,
+  index,
+  idPrefix,
+  agentHandleBase: base,
+  onUpdateField,
+  onRemoveField,
+  showRemoveButton,
+  removeButtonLabel,
+  t,
+}: ContentTypeFieldFieldsetProps) {
+  return (
+    <fieldset className="collections-field-row">
+      <legend>{t("Field")} {index + 1}</legend>
+      <div className="field">
+        <label className="field-label" htmlFor={`${idPrefix}-name-${f._rowId}`}>{t("Name")}</label>
+        <input
+          id={`${idPrefix}-name-${f._rowId}`}
+          value={f.name}
+          onChange={(e) => onUpdateField(f._rowId, { name: e.target.value })}
+          placeholder="e.g. prep_time"
+          {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
+        />
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor={`${idPrefix}-kind-${f._rowId}`}>{t("Kind")}</label>
+        <select
+          id={`${idPrefix}-kind-${f._rowId}`}
+          value={f.kind}
+          onChange={(e) => onUpdateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
+          {...agentHandle(`${base}-kind`, {
+            role: "field",
+            label: "This field's data type — set with page.select_option, not click",
+          })}
+        >
+          {CONTENT_TYPE_FIELD_KINDS.map((k) => (
+            <option key={k} value={k}>
+              {k}
+            </option>
+          ))}
+        </select>
+      </div>
+      <label className="form-checkbox-field">
+        <input
+          type="checkbox"
+          checked={f.required}
+          onChange={(e) => onUpdateField(f._rowId, { required: e.target.checked })}
+          {...agentHandle(`${base}-required`, {
+            role: "checkbox",
+            label: "Whether every entry of this content type must set this field",
+          })}
+        />
+        {t("Required")}
+      </label>
+      <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
+        <input
+          type="checkbox"
+          checked={f.queryable}
+          onChange={(e) => onUpdateField(f._rowId, { queryable: e.target.checked })}
+          {...agentHandle(`${base}-queryable`, {
+            role: "checkbox",
+            label: "Whether this field gets a database index so entries can be filtered/sorted by it",
+          })}
+        />
+        {t("Queryable (adds a database index; keep this list small)")}
+      </label>
+      {showRemoveButton ? (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onRemoveField(f._rowId)}
+          {...agentHandle(`${base}-remove`, { role: "button", label: removeButtonLabel })}
+        >
+          {t("Remove field")}
+        </button>
+      ) : null}
+    </fieldset>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // New content type modal (design-spec.md §1.3 — recommended modal, applied here per §6)
@@ -106,76 +206,20 @@ function NewContentTypeDialog({
 
         <div>
           <p>{t("Fields")}</p>
-          {fields.map((f, index) => {
-            const base = fieldHandles[index];
-            return (
-              <fieldset key={f._rowId} className="collections-field-row">
-                <legend>{t("Field")} {index + 1}</legend>
-                <div className="field">
-                  <label className="field-label" htmlFor={`ct-field-name-${f._rowId}`}>{t("Name")}</label>
-                  <input
-                    id={`ct-field-name-${f._rowId}`}
-                    value={f.name}
-                    onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                    placeholder="e.g. prep_time"
-                    {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
-                  />
-                </div>
-                <div className="field">
-                  <label className="field-label" htmlFor={`ct-field-kind-${f._rowId}`}>{t("Kind")}</label>
-                  <select
-                    id={`ct-field-kind-${f._rowId}`}
-                    value={f.kind}
-                    onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-                    {...agentHandle(`${base}-kind`, {
-                      role: "field",
-                      label: "This field's data type — set with page.select_option, not click",
-                    })}
-                  >
-                    {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <label className="form-checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={f.required}
-                    onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
-                    {...agentHandle(`${base}-required`, {
-                      role: "checkbox",
-                      label: "Whether every entry of this content type must set this field",
-                    })}
-                  />
-                  {t("Required")}
-                </label>
-                <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
-                  <input
-                    type="checkbox"
-                    checked={f.queryable}
-                    onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
-                    {...agentHandle(`${base}-queryable`, {
-                      role: "checkbox",
-                      label: "Whether this field gets a database index so entries can be filtered/sorted by it",
-                    })}
-                  />
-                  {t("Queryable (adds a database index; keep this list small)")}
-                </label>
-                {fields.length > 1 ? (
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => removeField(f._rowId)}
-                    {...agentHandle(`${base}-remove`, { role: "button", label: "Remove this field from the new content type" })}
-                  >
-                    {t("Remove field")}
-                  </button>
-                ) : null}
-              </fieldset>
-            );
-          })}
+          {fields.map((f, index) => (
+            <ContentTypeFieldFieldset
+              key={f._rowId}
+              field={f}
+              index={index}
+              idPrefix="ct-field"
+              agentHandleBase={fieldHandles[index]}
+              onUpdateField={updateField}
+              onRemoveField={removeField}
+              showRemoveButton={fields.length > 1}
+              removeButtonLabel="Remove this field from the new content type"
+              t={t}
+            />
+          ))}
           <button
             type="button"
             className="btn-secondary"
@@ -262,74 +306,20 @@ function EditFieldsDialog({
         <h2 id="edit-fields-title">{t("Edit fields —")} {contentType.label}</h2>
 
         <div>
-          {fields.map((f, index) => {
-            const base = fieldHandles[index];
-            return (
-              <fieldset key={f._rowId} className="collections-field-row">
-                <legend>{t("Field")} {index + 1}</legend>
-                <div className="field">
-                  <label className="field-label" htmlFor={`ct-edit-field-name-${f._rowId}`}>{t("Name")}</label>
-                  <input
-                    id={`ct-edit-field-name-${f._rowId}`}
-                    value={f.name}
-                    onChange={(e) => updateField(f._rowId, { name: e.target.value })}
-                    placeholder="e.g. prep_time"
-                    {...agentHandle(`${base}-name`, { role: "field", label: "This field's name" })}
-                  />
-                </div>
-                <div className="field">
-                  <label className="field-label" htmlFor={`ct-edit-field-kind-${f._rowId}`}>{t("Kind")}</label>
-                  <select
-                    id={`ct-edit-field-kind-${f._rowId}`}
-                    value={f.kind}
-                    onChange={(e) => updateField(f._rowId, { kind: e.target.value as ContentTypeFieldKind })}
-                    {...agentHandle(`${base}-kind`, {
-                      role: "field",
-                      label: "This field's data type — set with page.select_option, not click",
-                    })}
-                  >
-                    {CONTENT_TYPE_FIELD_KINDS.map((k) => (
-                      <option key={k} value={k}>
-                        {k}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <label className="form-checkbox-field">
-                  <input
-                    type="checkbox"
-                    checked={f.required}
-                    onChange={(e) => updateField(f._rowId, { required: e.target.checked })}
-                    {...agentHandle(`${base}-required`, {
-                      role: "checkbox",
-                      label: "Whether every entry of this content type must set this field",
-                    })}
-                  />
-                  {t("Required")}
-                </label>
-                <label className="form-checkbox-field" title="Adds a database index; keep this list small.">
-                  <input
-                    type="checkbox"
-                    checked={f.queryable}
-                    onChange={(e) => updateField(f._rowId, { queryable: e.target.checked })}
-                    {...agentHandle(`${base}-queryable`, {
-                      role: "checkbox",
-                      label: "Whether this field gets a database index so entries can be filtered/sorted by it",
-                    })}
-                  />
-                  {t("Queryable (adds a database index; keep this list small)")}
-                </label>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => removeField(f._rowId)}
-                  {...agentHandle(`${base}-remove`, { role: "button", label: "Remove this field from this content type" })}
-                >
-                  {t("Remove field")}
-                </button>
-              </fieldset>
-            );
-          })}
+          {fields.map((f, index) => (
+            <ContentTypeFieldFieldset
+              key={f._rowId}
+              field={f}
+              index={index}
+              idPrefix="ct-edit-field"
+              agentHandleBase={fieldHandles[index]}
+              onUpdateField={updateField}
+              onRemoveField={removeField}
+              showRemoveButton={true}
+              removeButtonLabel="Remove this field from this content type"
+              t={t}
+            />
+          ))}
           <button
             type="button"
             className="btn-secondary"
