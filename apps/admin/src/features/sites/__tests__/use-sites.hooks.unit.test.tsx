@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import { ApiError, type AdminSitesSnapshot } from "@/lib/api";
+import { ApiError, type AdminSiteActivation, type AdminSitesSnapshot } from "@/lib/api";
 import { FetchQueryProvider } from "@/lib/fetch-query";
 import { createFakeSitesPort } from "../hooks/sites-dependencies.hooks";
 import { useSites } from "../hooks/use-sites.hooks";
@@ -131,6 +131,38 @@ describe("useSites — create", () => {
 
     await waitFor(() => expect(result.current.writeError).toBe("internal error"));
   });
+
+  it("ignores a second createSite call while the first is still in flight — a genuine no-op, not a second request", async () => {
+    let resolveCreate!: (value: { site: { name: string; dir: string; siteId: string } }) => void;
+    const createSite = vi.fn(
+      () =>
+        new Promise<{ site: { name: string; dir: string; siteId: string } }>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    const port = createFakeSitesPort(snapshotFixture(), { createSite });
+
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setCreateName("gamma"));
+    // Two clicks before the first request ever resolves — the doc comment on `createSite` already
+    // claims this is a no-op; this test is what actually proves it. Both clicks are synchronous
+    // (same tick) — `mutateAsync` only reaches the port on a later microtask, so the guard has to be
+    // a synchronous check-then-set, not a wait for `creating`/`status` to reflect the first click.
+    act(() => result.current.createSite());
+    act(() => result.current.createSite());
+
+    // The port call itself is a microtask away — wait for it, then confirm there is only ever one.
+    await waitFor(() => expect(createSite).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      resolveCreate({ site: { name: "gamma", dir: "/repo/sites/gamma", siteId: "id-1" } });
+    });
+    await waitFor(() => expect(result.current.createdName).toBe("gamma"));
+    // Still just the one request — the second click never reached the port at all.
+    expect(createSite).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("useSites — activate does NOT switch anything", () => {
@@ -194,5 +226,78 @@ describe("useSites — activate does NOT switch anything", () => {
     await waitFor(() => expect(result.current.writeError).toBe("Site switching is turned off on this deployment."));
     expect(result.current.activation).toBeNull();
     expect(result.current.outlook).toEqual({ kind: "none" });
+  });
+});
+
+describe("useSites — activate race safety", () => {
+  it("the LAST-clicked activate wins even when an earlier click's response arrives after it", async () => {
+    const deferred: Record<string, { promise: Promise<AdminSiteActivation>; resolve: (value: AdminSiteActivation) => void }> = {};
+    const activateSite = vi.fn((name: string) => {
+      let resolve!: (value: AdminSiteActivation) => void;
+      const promise = new Promise<AdminSiteActivation>((r) => {
+        resolve = r;
+      });
+      deferred[name] = { promise, resolve };
+      return promise;
+    });
+    const port = createFakeSitesPort(snapshotFixture(), { activateSite });
+
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    // Two rapid clicks on different rows: alpha first, beta second — beta is the operator's actual,
+    // final choice.
+    act(() => result.current.activate("alpha"));
+    act(() => result.current.activate("beta"));
+    // `mutateAsync` invokes the mutation function on a microtask, not synchronously inside `act`'s
+    // callback — wait for both to actually reach the port before either is resolved.
+    await waitFor(() => expect(activateSite).toHaveBeenCalledTimes(2));
+
+    // Network settles OUT of click order: beta (clicked LAST) resolves first; alpha (clicked first)
+    // resolves after it.
+    await act(async () => {
+      deferred.beta.resolve({ ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart beta." });
+      await deferred.beta.promise;
+    });
+    await waitFor(() => expect(result.current.activation?.activeSiteName).toBe("beta"));
+
+    await act(async () => {
+      deferred.alpha.resolve({ ok: true, activeSiteName: "alpha", restartRequired: true, restartInstructions: "Restart alpha." });
+      await deferred.alpha.promise;
+    });
+    // Give alpha's now-stale settlement a chance to land before asserting nothing changed.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The operator's LAST click (beta) must still be what is shown — alpha's late-arriving response
+    // must not overwrite it just because it settled second.
+    expect(result.current.activation?.activeSiteName).toBe("beta");
+    expect(result.current.activatingName).toBeNull();
+  });
+});
+
+describe("useSites — write error precedence", () => {
+  it("does not let a stale Create failure mask a later, successful Activate", async () => {
+    const createSite = vi.fn().mockRejectedValue(new ApiError("dir not empty", 409, "SITE_ALREADY_EXISTS"));
+    const activateSite = vi
+      .fn()
+      .mockResolvedValue({ ok: true, activeSiteName: "beta", restartRequired: true, restartInstructions: "Restart beta." });
+    const port = createFakeSitesPort(snapshotFixture(), { createSite, activateSite });
+
+    const { result } = renderHook(() => useSites(port, fakeT), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setCreateName("alpha"));
+    await act(async () => {
+      result.current.createSite();
+    });
+    await waitFor(() => expect(result.current.writeError).not.toBeNull());
+
+    await act(async () => {
+      result.current.activate("beta");
+    });
+
+    await waitFor(() => expect(result.current.activation?.activeSiteName).toBe("beta"));
+    // The earlier Create failure must not still be latched over this later, successful Activate.
+    expect(result.current.writeError).toBeNull();
   });
 });

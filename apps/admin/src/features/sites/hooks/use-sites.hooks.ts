@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { describeApiError, type AdminSiteActivation, type AdminSiteListEntry, type AdminSitesSnapshot } from "@/lib/api";
 import { useFetchMutation, useFetchQuery, useInvalidate, type QueryStatus } from "@/lib/fetch-query";
@@ -111,11 +111,31 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
     invalidates: [KEYS.list],
   });
 
+  // Check-then-set in-flight guard for Create — same shape and same reason
+  // `use-static-publish.hooks.ts`'s `publishingRef` documents: this is a plain `useRef`, not
+  // `createMutation.status`, because the read-then-write has to be synchronous to be safe against a
+  // second click landing in the SAME tick, before React has re-rendered with `creating` reflecting
+  // the first click yet. Cleared in `finally` so a later attempt (after this one settles, success or
+  // failure) is never refused.
+  const creatingRef = useRef(false);
+
+  // Monotonic per-call id (same shape as `use-access-tokens.hooks.ts`'s `reloadGenerationRef`): two
+  // rapid Activate clicks on different rows race two independent requests, and network completion
+  // order does not have to match click order. Minted synchronously at the top of each call so two
+  // activates started back to back always mint in the order they started even though both are async.
+  const activateGenerationRef = useRef(0);
+
   const nameErrorKey = siteNameErrorKey(createName);
 
   const createSite = useCallback(() => {
     const name = createName.trim();
     if (siteNameErrorKey(name) !== null) return;
+    if (creatingRef.current) return;
+    creatingRef.current = true;
+    // Clears a stale Activate failure so it cannot mask THIS write's own outcome below — mirrors
+    // `use-redirects.hooks.ts`'s `clearOtherWriteErrors`; `mutate` already clears `createMutation`'s
+    // own prior error, so only the sibling mutation needs the explicit reset.
+    activateMutation.reset();
     setCreatedName(null);
     // `.catch` is required even though `mutate` itself never raises `unhandledrejection` (see
     // `MutationResult.mutate`'s own doc): `.then` above it produces a NEW promise, and that one
@@ -126,20 +146,36 @@ export function useSites(port: SitesPort, t: Translate): SitesController {
         setCreatedName(result.site.name);
         setCreateName("");
       })
-      .catch(() => {});
-  }, [createMutation, createName]);
+      .catch(() => {})
+      .finally(() => {
+        creatingRef.current = false;
+      });
+  }, [activateMutation, createMutation, createName]);
 
   const activate = useCallback(
     (name: string) => {
+      const generation = ++activateGenerationRef.current;
+      // Clears a stale Create failure so it cannot mask THIS write's own outcome below — see
+      // `createSite`'s identical reset of `activateMutation` above.
+      createMutation.reset();
       setActivatingName(name);
       setActivation(null);
       activateMutation
         .mutate(name)
-        .then(setActivation)
+        .then((result) => {
+          // Superseded by a newer activate call started after this one — that later call owns
+          // `activation`/`activatingName` now, and applying this stale result would let whichever
+          // request happens to settle LAST win regardless of which row was actually clicked last.
+          if (activateGenerationRef.current !== generation) return;
+          setActivation(result);
+        })
         .catch(() => {})
-        .finally(() => setActivatingName(null));
+        .finally(() => {
+          if (activateGenerationRef.current !== generation) return;
+          setActivatingName(null);
+        });
     },
-    [activateMutation],
+    [activateMutation, createMutation],
   );
 
   const view = readSnapshot(list.data);
