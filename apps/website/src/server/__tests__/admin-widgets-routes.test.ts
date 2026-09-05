@@ -815,6 +815,203 @@ test("admin widgets agent tools: widgets.remove removes a region placement (regi
   assert.equal(wrongWsDiagnose.status, 404);
 });
 
+test("admin widgets agent tools: widgets.remove denied 403 FORBIDDEN without widgets.place grant — registerRemoveTool's own denial path, distinct from widgets.place's and region-mutate's already-tested denials (all three share the same underlying widgets.place permission check, but AC-28's test above never calls the remove tool route at all)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie: ownerCookie } = await bootAuthenticated(app, t);
+  const bareCookie = await loginWithPermissions(deps, baseUrl, []);
+
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ regionKey: "remove-denial-region" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+
+  const created = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ widgetType: "text", title: "Remove-denial widget", config: { body: "x" } }),
+  });
+  const { widget } = (await created.json()) as { widget: { id: string } };
+
+  const placed = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: ownerCookie },
+    body: JSON.stringify({ widgetInstanceId: widget.id, target: { kind: "region", regionKey: "remove-denial-region", baseVersion: area.version } }),
+  });
+  assert.equal(placed.status, 200, await placed.clone().text());
+  const regionAfterPlace = await fetch(`${baseUrl}${BASE}/widgets/regions/remove-denial-region`, { headers: { cookie: ownerCookie } });
+  const { area: areaAfterPlace, placements } = (await regionAfterPlace.json()) as {
+    area: { version: number };
+    placements: Array<{ placementId: string }>;
+  };
+
+  const denied = await fetch(`${baseUrl}${BASE}/widgets/tools/remove`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: bareCookie },
+    body: JSON.stringify({
+      placementId: placements[0].placementId,
+      target: { kind: "region", regionKey: "remove-denial-region", baseVersion: areaAfterPlace.version },
+    }),
+  });
+  assert.equal(denied.status, 403);
+  const deniedBody = (await denied.json()) as { code: string; details: { permission: string } };
+  assert.equal(deniedBody.code, "FORBIDDEN");
+  assert.equal(deniedBody.details.permission, "widgets.place");
+
+  // The denied attempt left the placement untouched.
+  const regionAfterDenial = await fetch(`${baseUrl}${BASE}/widgets/regions/remove-denial-region`, { headers: { cookie: ownerCookie } });
+  const { placements: placementsAfterDenial } = (await regionAfterDenial.json()) as { placements: unknown[] };
+  assert.equal(placementsAfterDenial.length, 1, "the denied removal must not have applied");
+});
+
+test("admin widgets agent tools: widgets.place against a binding whose area entry no longer exists is 404 WIDGETS_AREA_NOT_FOUND — placeIntoRegion's own `!areaEntry` branch, same orphan-binding technique the regions-list/region-get test above uses, never exercised by any agent-tools route until now", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  await deps.widgetBindingRepo.upsert({
+    workspaceId: deps.workspaceId,
+    regionKey: "orphan-binding-place",
+    areaEntryId: "does-not-exist-area-place",
+    updatedAt: deps.clock.nowIso(),
+  });
+
+  const created = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Orphan-binding target", config: { body: "x" } }),
+  });
+  const { widget } = (await created.json()) as { widget: { id: string } };
+
+  const res = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetInstanceId: widget.id, target: { kind: "region", regionKey: "orphan-binding-place", baseVersion: 1 } }),
+  });
+  assert.equal(res.status, 404);
+  assert.equal(((await res.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+});
+
+test("admin widgets agent tools: widgets.place against an unbound region is 404 WIDGETS_AREA_NOT_FOUND — placeIntoRegion's own `!binding` branch, distinct from removeRegionPlacement's already-tested equivalent (widgets.remove's own unbound-region test above never calls placeIntoRegion at all)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const created = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Unbound-region target", config: { body: "x" } }),
+  });
+  const { widget } = (await created.json()) as { widget: { id: string } };
+
+  const res = await fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetInstanceId: widget.id, target: { kind: "region", regionKey: "never-bound-place", baseVersion: 1 } }),
+  });
+  assert.equal(res.status, 404);
+  assert.equal(((await res.json()) as { code: string }).code, "WIDGETS_AREA_NOT_FOUND");
+});
+
+test("admin widgets agent tools: widgets.place rejects an unrecognized target.kind, a region target missing regionKey, an embed target missing hostEntryId, and a target missing baseVersion, each with 400 VALIDATION_ERROR — readTarget's own fall-through branches, never exercised by widgets.remove's malformed-target test above (which only covers a target key entirely absent)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const created = await fetch(`${baseUrl}${BASE}/widgets`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Place target validation", config: { body: "x" } }),
+  });
+  const { widget } = (await created.json()) as { widget: { id: string } };
+
+  async function placeWithTarget(target: unknown): Promise<Response> {
+    return fetch(`${baseUrl}${BASE}/widgets/tools/place`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie },
+      body: JSON.stringify({ widgetInstanceId: widget.id, target }),
+    });
+  }
+
+  const unknownKind = await placeWithTarget({ kind: "bogus", regionKey: "sidebar", hostEntryId: "h1", baseVersion: 1 });
+  assert.equal(unknownKind.status, 400);
+  assert.equal(((await unknownKind.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const missingRegionKey = await placeWithTarget({ kind: "region", baseVersion: 1 });
+  assert.equal(missingRegionKey.status, 400);
+  assert.equal(((await missingRegionKey.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const missingHostEntryId = await placeWithTarget({ kind: "embed", baseVersion: 1 });
+  assert.equal(missingHostEntryId.status, 400);
+  assert.equal(((await missingHostEntryId.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const missingBaseVersion = await placeWithTarget({ kind: "region", regionKey: "sidebar" });
+  assert.equal(missingBaseVersion.status, 400);
+  assert.equal(((await missingBaseVersion.json()) as { code: string }).code, "VALIDATION_ERROR");
+});
+
+test("admin widgets agent tools: widgets.create rejects a missing widgetType and a missing title (parseCreateToolInput's own validation, distinct from the target validation above), and defaults an absent or null config to {} rather than rejecting it", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await deps.identityReady;
+
+  const bindRes = await fetch(`${baseUrl}${BASE}/widgets/regions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ regionKey: "create-validation-region" }),
+  });
+  const { area } = (await bindRes.json()) as { area: { version: number } };
+  const target = { kind: "region", regionKey: "create-validation-region", baseVersion: area.version };
+
+  const missingWidgetType = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: "No type", config: {}, target }),
+  });
+  assert.equal(missingWidgetType.status, 400);
+  assert.equal(((await missingWidgetType.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  const missingTitle = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", config: {}, target }),
+  });
+  assert.equal(missingTitle.status, 400);
+  assert.equal(((await missingTitle.json()) as { code: string }).code, "VALIDATION_ERROR");
+
+  // Every registered widget type requires at least one config field (`registry.ts`), so there is
+  // no type this defaulted `{}` can satisfy — the proof has to be in WHICH schema error comes
+  // back, not a 201. `config` entirely absent takes the `typeof body.config === "object" ===
+  // false` (typeof undefined !== "object") arm of the default, producing `{}`; the validator then
+  // reports the field-level `config.body` error below. If the default had NOT applied (config
+  // stayed `undefined`), `config-validation.ts`'s own `isPlainObject` guard would instead report
+  // the coarser `{ field: "config", reason: "expected an object" }` — a distinguishable, different
+  // shape this assertion would catch.
+  const noConfigRes = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "No config field", target }),
+  });
+  assert.equal(noConfigRes.status, 400);
+  const noConfigBody = (await noConfigRes.json()) as { code: string; details: { fieldErrors: unknown } };
+  assert.equal(noConfigBody.code, "WIDGETS_CONFIG_VALIDATION_ERROR");
+  assert.deepEqual(noConfigBody.details.fieldErrors, [{ field: "config.body", reason: "required field is missing" }]);
+
+  // `config: null` -> `typeof null === "object"` is true in JS, so this exercises the DISTINCT
+  // `body.config !== null` half of the same guard, not the `typeof` half above; same {}-default
+  // outcome, same field-level error, proven the same way.
+  const nullConfigRes = await fetch(`${baseUrl}${BASE}/widgets/tools/create`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ widgetType: "text", title: "Null config", config: null, target }),
+  });
+  assert.equal(nullConfigRes.status, 400);
+  const nullConfigBody = (await nullConfigRes.json()) as { code: string; details: { fieldErrors: unknown } };
+  assert.equal(nullConfigBody.code, "WIDGETS_CONFIG_VALIDATION_ERROR");
+  assert.deepEqual(nullConfigBody.details.fieldErrors, [{ field: "config.body", reason: "required field is missing" }]);
+});
+
 test("admin widgets embed-remove route: rejects wrong workspace and a missing baseVersion, and maps a stale baseVersion to a version-conflict error instead of a raw 500", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
