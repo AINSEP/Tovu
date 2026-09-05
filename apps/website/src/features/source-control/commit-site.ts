@@ -1,16 +1,13 @@
 import { rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
-import type { ExportFailureSummary, ExportReport } from "#src/platform/export/index";
+import { firstExportFailure, type ExportReport } from "#src/platform/export/index";
 
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
-
-const require = createRequire(import.meta.url);
 
 /**
  * @file The `source-control` domain's "business" layer — everything `source_control_execute_commit`
@@ -275,26 +272,37 @@ function cleanupCommitRunDir(outputDir: string): void {
   }
 }
 
-/**
- * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
- * `static-publish/adapter.ts`'s identical helper. A static `import { firstExportFailure } from
- * "#src/platform/export/index"` at this file's top would close a circular import the moment anything
- * reachable from `src/assistant` imports THIS module (`assistant/tool-registrations.ts ->
- * features/source-control/tool-registrations.ts -> commit-site.ts -> #src/platform/export/index -> ... ->
- * server/app.ts -> ... assistant`), the same class of `ReferenceError: Cannot access '...' before
- * initialization` `adapter.ts`'s own header documents having actually observed for the sibling
- * domain. `exportSite` itself no longer needs this treatment here (2026-08-20 RouteDeps-narrowing
- * fix): this file never calls it directly anymore — {@link CommitSiteInput.exportSiteBound} is
- * already the composition root's own lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so
- * threading a second lazy `require` for the same function here would be redundant, not merely
- * stylistic. `firstExportFailure` still needs its own lazy resolution, since it is a SEPARATE named
- * export of the same `#src/platform/export/index` module and importing it eagerly would reopen the identical
- * cycle regardless of `exportSite`'s own fix.
+/*
+ * `firstExportFailure` used to be resolved at CALL time here, via
+ * `require("#src/platform/export/index")` inside a `firstExportFailureLazily` helper, to break a
+ * circular import: `assistant/tool-registrations.ts -> features/source-control/tool-registrations.ts
+ * -> commit-site.ts -> #src/platform/export/index -> ... -> server/app.ts -> ... assistant`. It is a
+ * plain static import again as of 2026-09-05, for two measured reasons.
+ *
+ * 1. That cycle is gone. `platform/export/site-exporter.ts` dropped its `server/app.ts` back-edge in
+ *    the 2026-08-16 rework (see that file's own "No import of `server/app.ts` here, static OR lazy"
+ *    note), and a dependency-cruiser reachability pass over the export barrel's 67-module runtime
+ *    closure — type-only edges excluded — found NOTHING under `apps/website/src/server/**`,
+ *    `apps/website/src/assistant/**`, `features/source-control/**` or `features/deployments/**` in
+ *    it. There is no path back to this file for a cycle to close on. The same pass showed the static
+ *    import adds ZERO modules to this file's own runtime closure: every module in the barrel's
+ *    closure is already reachable from this file's other imports, so nothing loads that did not
+ *    already load.
+ * 2. Under `tsx`, `require()` of a first-party `.ts` module is served by tsx's CJS hook, which
+ *    transpiles that module and its whole import graph a SECOND time in esbuild's CommonJS format.
+ *    Both instantiations report V8 coverage under one `SF:` path, so their `FN:` tables concatenate
+ *    and the never-exercised CJS copy clobbers `DA:` line hits. Measured: this one `require()` was
+ *    responsible for 45 contaminated first-party blocks (28 SEVERE) in a run of this domain's own
+ *    unit test alone — see
+ *    `ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md` ("Route A") and
+ *    the pin in `__tests__/commit-site-export-resolution.unit.test.ts`.
+ *
+ * `exportSite` needs no treatment here either: this file never calls it directly —
+ * {@link CommitSiteInput.exportSiteBound} is the composition root's own binding.
+ * `features/deployments/static-publish/adapter.ts` still carries the lazy `require` version of this
+ * helper; it is a separate call, with a much smaller eager-import graph of its own, and is left as
+ * an owner decision rather than changed by association.
  */
-function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
-  return (require("#src/platform/export/index") as typeof import("#src/platform/export/index")).firstExportFailure(report);
-}
 
 type CommitCredentialResult =
   | { ok: true; credential: ResolvedSourceControlCredential }
@@ -370,7 +378,7 @@ async function exportForCommit(input: CommitSiteInput): Promise<CommitExportResu
   // while its own stylesheet or hero image 404s and the commit would still go through. See
   // `firstExportFailure`'s own doc (`#src/platform/export/index`) for the shared check both this function
   // and `static-publish/adapter.ts`'s `publishStaticSite` now use.
-  const failure = firstExportFailureLazily(report);
+  const failure = firstExportFailure(report);
   if (failure) {
     return {
       ok: false,
