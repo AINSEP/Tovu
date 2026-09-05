@@ -36,11 +36,18 @@
  *
  * ## Safety
  *
- * Dry-run by default; `--apply` is required to write. A whole-file online-backup restore point
- * (`@jini-ai/infra`'s `SqliteDbOpsAdapter`, the same mechanism the admin Database panel uses) is
- * captured immediately before the first write in an `--apply` run, and its artifact ref is printed.
- * Idempotent: `ensureHtmlFormat` no-ops (content untouched) on a row already `bodyFormat: "html"`,
- * so a second run over already-converted rows changes nothing.
+ * Dry-run by default; `--apply` is required to write. A `--db` that does not resolve to a real,
+ * already-existing file (the default included) fails loudly via `resolveExistingDbPath` before
+ * anything is opened — `openContentDb` creates-and-migrates on open, so a typo'd path used to open
+ * (and migrate) a brand-new empty database and report every allowlisted slug as "NOT FOUND" instead
+ * of the real problem. A dry run itself opens strictly read-only (`openContentDbReadOnly`), so
+ * unlike an ordinary `openContentDb` open it never migrates the schema either — only `--apply` does.
+ *
+ * A whole-file online-backup restore point (`@jini-ai/infra`'s `SqliteDbOpsAdapter`, the same
+ * mechanism the admin Database panel uses) is captured immediately before the first write in an
+ * `--apply` run, and its artifact ref is printed. Idempotent: `ensureHtmlFormat` no-ops (content
+ * untouched) on a row already `bodyFormat: "html"`, so a second run over already-converted rows
+ * changes nothing.
  *
  * A row is SKIPPED (not converted) if it is not `kind: "page"`, not `bodyFormat: "doc"`, or not in
  * the explicit slug allowlist below — this script never guesses which rows are "legacy Pages" by
@@ -58,11 +65,12 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../src/platform/db/sqlite/content-db.js";
-import { SqliteDbOpsAdapter } from "../../src/platform/db/sqlite/db-ops.js";
-import { SqliteEntryRefsRepo } from "../../src/contracts/core/entry-refs/repo.sqlite.js";
-import { PagesHtmlDocumentStore } from "../../src/features/pages/html-document-store.js";
-import { renderDocNode } from "../../src/server/inbound/public-http/http/site/render.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
+import { SqliteEntryRefsRepo } from "../../apps/website/src/platform/db/sqlite/entry-refs-repo.sqlite.js";
+import { PagesHtmlDocumentStore } from "../../apps/website/src/features/pages/html-document-store.sqlite.js";
+import { renderDocNode } from "../../apps/website/src/server/inbound/public-http/http/site/render.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
@@ -122,7 +130,13 @@ function loadTargetRows(db: ContentDb): PostRow[] {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report every allowlisted slug as "NOT FOUND" instead of the real problem — no such database.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
+  // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   const clock = { nowIso: () => new Date().toISOString() };
   const entryRefsRepo = new SqliteEntryRefsRepo(db);
 
@@ -161,7 +175,7 @@ async function main(): Promise<void> {
     }
 
     if (!restorePointCaptured) {
-      const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+      const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
       const restorePoint = await dbOps.captureRestorePoint({ scopeId: "convert-legacy-doc-pages-to-html" });
       console.log(
         `RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`
