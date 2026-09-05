@@ -1373,27 +1373,27 @@ test("NETWORK_UNREACHABLE: a thrown AbortError (not merely a TimeoutError) is bu
   }
 });
 
-/** `fetchBranchTip`'s `typeof object?.sha === "string" ? object.sha : undefined` — every OTHER
- *  success test supplies a real `object.sha`; this proves the fallback for a 200, valid-JSON response
- *  that simply doesn't carry one (distinct from the already-tested 404 "branch does not exist" case —
- *  here GitHub DID find the ref, just with a response this file cannot read a tip sha out of, which
- *  this file still treats as "no parent," same downstream effect as brand-new). */
-test("commit: a branch-tip lookup response with no object.sha field is treated as having no parent, same as a brand-new branch", async () => {
+/** `fetchBranchTip`'s `typeof object?.sha === "string" ? object.sha : ""` — every OTHER success test
+ *  supplies a real `object.sha`; this proves the guard for a 200, valid-JSON response that simply
+ *  doesn't carry one. This is a REAL ref GitHub already found (distinct from the already-tested 404
+ *  "branch does not exist" case, which legitimately returns `tipSha: undefined`), so treating it as
+ *  "no parent" would send the write down the CREATE path against an existing ref — GitHub 422s that,
+ *  after wasting blob/tree/commit creations. `fetchParentTree`/`createBlob`/`createTreeObject`/
+ *  `createCommitObject` all reject this identical 200-but-missing-field shape as `provider-error`;
+ *  `fetchBranchTip` must match them instead of being the one step that swallows it. */
+test("PROVIDER_ERROR: a branch-tip lookup's 200 response is missing its own object.sha field", async () => {
   const mock = installMockFetch([
     { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
     { match: /\/git\/ref\/heads\/main$/, method: "GET", status: 200, json: { ref: "refs/heads/main" /* no object.sha */ } },
-    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
-    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
-    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
-    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
-    // branchCreated derives from `parentSha === undefined` — an unreadable tip sha means the ref
-    // write goes through CREATE (POST /git/refs), never UPDATE (PATCH), the same as a real 404.
-    { match: /\/git\/refs$/, method: "POST", status: 201, json: { ref: "refs/heads/main" } },
   ]);
   try {
     const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "main", commitMessage: "x", files: ONE_FILE });
-    assert.equal(result.ok, true, `expected success, got: ${JSON.stringify(result)}`);
-    if (result.ok) assert.equal(result.branchCreated, true, "no readable tip sha must be treated exactly like a genuinely brand-new branch");
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.code, "provider-error");
+      assert.equal(result.message, "GitHub branch lookup response did not include a sha");
+    }
+    assert.equal(mock.remaining(), 0, "no blob/tree/commit creation may be attempted once the branch tip can't be read");
   } finally {
     mock.restore();
   }

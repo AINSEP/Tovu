@@ -307,7 +307,8 @@ async function fetchBranchTip(token: string, owner: string, repo: string, branch
   const body = await readJsonBody(response);
   if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
   const object = body.json.object as Record<string, unknown> | undefined;
-  const sha = typeof object?.sha === "string" ? object.sha : undefined;
+  const sha = typeof object?.sha === "string" ? object.sha : "";
+  if (!sha) return { ok: false, code: "provider-error", message: "GitHub branch lookup response did not include a sha" };
   return { ok: true, tipSha: sha };
 }
 
