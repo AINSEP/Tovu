@@ -8,6 +8,7 @@ import {
   findEmptyGlobs,
   globMatchesAnyFile,
   globToRegExp,
+  missingIndexNotice,
   parseAdrIndexTable,
   type AdrIndexRow,
 } from "../check-governance-adr-scope-drift.js";
@@ -191,11 +192,50 @@ test("historical: the pre-2026-09-03 src/... globs no longer match anything in t
 });
 
 // ---------------------------------------------------------------------------
+// missingIndexNotice — the total-skip case (ADS-memory/governance/ is untracked by design, so this
+// gate cannot verify anything on a fresh clone or in CI)
+// ---------------------------------------------------------------------------
+
+test("missingIndexNotice: reads as SKIPPED/unverified, never as a passing check", () => {
+  const notice = missingIndexNotice("ADS-memory/governance/adrs/ADR-INDEX.md");
+
+  // The 2026-09-05 governance audit's finding: a bare "ok" here is indistinguishable from "checked,
+  // all clear" — this pins the wording so a future regression back to that form fails loudly instead
+  // of silently reintroducing the vacuous-everywhere-but-one-machine gate.
+  assert.ok(notice.includes("SKIPPED"), "must say SKIPPED, not read as a pass");
+  assert.ok(notice.includes("UNVERIFIED"), "must say what was NOT checked");
+  assert.ok(notice.includes("ADS-memory/governance/adrs/ADR-INDEX.md"), "must name the missing path");
+  assert.ok(!/— ok —/.test(notice), "must not use this script's own 'ok' phrasing for a total skip");
+});
+
+test("missingIndexNotice: the real script actually reaches this path via console.warn, not console.log — proven by reading the source", () => {
+  // A direct behavioral test would require spawning the script as a subprocess against a repo root
+  // with no ADS-memory/governance/, which this file's sibling tests avoid (see the module-level
+  // guard in check-governance-adr-scope-drift.ts). Reading the source is the seam this repo uses
+  // elsewhere for the same constraint (e.g. dead-path-sweep.test.ts's own `shouldScanStringsIn` test
+  // reads real files rather than spawning). This asserts main() is wired to the pure function above,
+  // not a hand-rolled duplicate string that could drift from it.
+  const source = fs.readFileSync(path.join(REPO_ROOT, "development/scripts/check-governance-adr-scope-drift.ts"), "utf8");
+  assert.ok(
+    /console\.warn\(missingIndexNotice\(/.test(source),
+    "main() must print missingIndexNotice()'s own text via console.warn, not a separate inline string"
+  );
+});
+
+// ---------------------------------------------------------------------------
 // Live regression: the real ADR-INDEX.md, today, on this checkout.
 // ---------------------------------------------------------------------------
 
-test("live: every ACCEPTED row in the real ADR-INDEX.md matches at least one real file", () => {
+test("live: every ACCEPTED row in the real ADR-INDEX.md matches at least one real file", (t) => {
   const indexPath = path.join(REPO_ROOT, "ADS-memory", "governance", "adrs", "ADR-INDEX.md");
+  if (!fs.existsSync(indexPath)) {
+    // ADS-memory/governance/ is untracked by design (see missingIndexNotice's own tests above) — on
+    // any checkout without this developer's local copy, this is the expected state, not a failure.
+    // Skipping explicitly here (rather than letting fs.readFileSync throw ENOENT) mirrors the real
+    // script's own no-op behavior instead of reporting an unrelated crash for an expected condition.
+    t.skip(`no ${path.relative(REPO_ROOT, indexPath)} on this checkout — governance/ is untracked by design`);
+    return;
+  }
   const markdown = fs.readFileSync(indexPath, "utf8");
   const rows = parseAdrIndexTable(markdown);
   const files = collectRepoFiles(REPO_ROOT);

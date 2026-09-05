@@ -241,6 +241,28 @@ export function findEmptyGlobs(rows: readonly AdrIndexRow[], files: readonly str
   return violations;
 }
 
+/**
+ * The notice printed when `ADR-INDEX.md` is absent — this script's total-skip case, not its "ok"
+ * case. Pulled out as a pure function (rather than an inline `console.log` string) so a test can pin
+ * its wording: this exact message is what stops the gate from reading as "checked, all clear" on
+ * every machine except the one where `ADS-memory/governance/` happens to exist locally (see
+ * `main`'s own comment, and the file header's "Why this is a NEW script" section's governance audit
+ * reference). A silent `console.log("... ok ...")` here was the original, vacuous form — this
+ * function is what a future regression back to that wording would break.
+ *
+ * @param relIndexPath `ADR-INDEX.md`'s path, relative to the repo root, for the message
+ * @returns the full notice text
+ * @complexity O(1).
+ */
+export function missingIndexNotice(relIndexPath: string): string {
+  return (
+    `check:governance-adr-scope-drift — SKIPPED (nothing verified): no ${relIndexPath} on this checkout. ` +
+    "ADS-memory/governance/ is untracked by design (see .gitignore) - every governance ADR's scope glob is " +
+    "UNVERIFIED here, and will be on any fresh clone or CI runner too. This is an expected, healthy state, " +
+    "not a tooling failure - but do not read it as a passing check, because nothing was checked."
+  );
+}
+
 function main(): void {
   // Mirrors `skills/adr-governance/SKILL.md`'s own stated rule ("If the file does not exist or the
   // table is empty, no governance ADRs apply — skip"). Load-bearing here, not just symmetric: this
@@ -249,8 +271,15 @@ function main(): void {
   // clone or CI runner has no `ADS-memory/` at all until `ads-initialization.sh` seeds it from an
   // EMPTY template (`AI-Dev-Shop/project-knowledge-template/governance/adrs/ADR-INDEX.md` — zero
   // rows), so "the file is missing" is an expected, healthy state there, not a tooling failure.
+  //
+  // Exiting 0 here (rather than failing) is deliberate and unchanged: this script is not wired into
+  // `package.json`/`ci.yml` today (confirmed by the 2026-09-05 governance audit), and the missing-file
+  // case is the NORMAL case on every machine but this developer's, not an error condition — failing
+  // it would break the moment anyone DID wire this in. What changed is the message: `console.warn`
+  // (not `console.log`) and wording that says SKIPPED, not "ok", because a bare "ok" here reads as
+  // "checked, passed" when the honest status is "could not check anything on this machine."
   if (!fs.existsSync(ADR_INDEX_PATH)) {
-    console.log(`check:governance-adr-scope-drift — ok — no ${path.relative(REPO_ROOT, ADR_INDEX_PATH)} on this checkout, nothing to check.`);
+    console.warn(missingIndexNotice(path.relative(REPO_ROOT, ADR_INDEX_PATH)));
     return;
   }
   const markdown = fs.readFileSync(ADR_INDEX_PATH, "utf8");
