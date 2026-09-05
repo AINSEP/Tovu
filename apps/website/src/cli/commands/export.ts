@@ -4,6 +4,7 @@ import { createSqliteRouteDeps } from "../../server/runtime/composition/deps.js"
 import { exportSite, type ExportReport } from "../../platform/export/index.js";
 import { bootSiteDir } from "../../platform/site-dir/boot-site-dir.js";
 import { resolveInstallDirTarget } from "../../platform/site-dir/resolve-install-dir-target.js";
+import { registerPluginSdkResolver } from "../../server/runtime/boot/plugin-sdk-resolver.js";
 import { ExportIncompleteError } from "../errors.js";
 
 /**
@@ -21,6 +22,18 @@ import { ExportIncompleteError } from "../errors.js";
  * `cli` layer. Never maps errors to exit codes itself (`cli/errors.ts`'s job) — lets `bootSiteDir`
  * errors, `ExportOutputNotEmptyError`, and this file's own `ExportIncompleteError` propagate
  * uncaught to `cli/main.ts`.
+ *
+ * Plugin SDK resolver (2026-09-05 dispatch, CIC U-002/ADR-005, ESCALATE_SECURITY): same gap as
+ * `serve.ts` had, same fix — this command builds the SAME `createSqliteRouteDeps()` composition
+ * root (always wiring a real plugin installDir) and `exportSite()`'s own internal listener runs the
+ * SAME `createApp()`-equivalent (`routeDeps.createSiteApp()`), so its crawl is served by a process
+ * that mounts the `plugins` module with `registerPluginSdkResolver()` never registered. `tovu export`
+ * doesn't itself call the `PLUGIN_SET_ENABLED` route, but the resolver hook is a process-wide,
+ * one-time registration (CIC U-002-B1: "before any code path that could reach `loadPlugin()` is
+ * wired into the running process") — this process is one such path the instant `createSqliteRouteDeps()`
+ * wires a real `installDir`, independent of whether this specific command happens to exercise it.
+ * Fixed the same way as `serve.ts`: `registerPluginSdkResolver()` called first, before any other
+ * boot step, with no `await` ahead of it.
  */
 
 export interface RunExportCommandInput {
@@ -97,6 +110,10 @@ function printExportReport(report: ExportReport): void {
  * @complexity O(1) beyond `bootSiteDir`'s and `exportSite`'s own bounded costs.
  */
 export async function runExportCommand(input: RunExportCommandInput): Promise<void> {
+  // CIC U-002/ADR-005 (ESCALATE_SECURITY) — see this file's header. Placed first, before any other
+  // boot step and with no `await` ahead of it, mirroring `index.ts`'s and `serve.ts`'s own ordering.
+  registerPluginSdkResolver();
+
   const target = resolveInstallDirTarget(input.dir);
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
 
