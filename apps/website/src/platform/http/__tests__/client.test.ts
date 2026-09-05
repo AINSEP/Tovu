@@ -239,6 +239,48 @@ test("permits a public IPv6-literal target once the URL's bracketed hostname is 
   assert.equal(transport.calls[0].peer.ip, "2001:4860:4860::8888");
 });
 
+// -------------------------------------------------------------------------------------------
+// TLS SNI must never name an IP literal (RFC 6066 §3: the `server_name` extension's HostName
+// type is "not permitted to be an IP address"). A bracketed IPv6 literal is doubly wrong: it is
+// both an IP literal AND carries syntax (`[`/`]`) no real certificate SAN ever contains.
+// -------------------------------------------------------------------------------------------
+
+test("TLS SNI is omitted for a public IPv6-literal target, not sent as the bracketed hostname", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(makeRequest({ url: "https://[2001:4860:4860::8888]/" }));
+
+  assert.equal(transport.calls.length, 1);
+  assert.equal(
+    transport.calls[0].peer.tlsServerName,
+    undefined,
+    "an IP-literal target must never be forwarded as the TLS SNI servername"
+  );
+});
+
+test("TLS SNI is also omitted for a public IPv4-literal target, not just IPv6", async () => {
+  const transport = new ScriptedTransport([
+    { status: 302, headers: { location: "https://8.8.8.8/next" }, bodyText: "" },
+    { status: 200, headers: {}, bodyText: "final" },
+  ]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(makeRequest({ url: "https://example.com/" }));
+
+  assert.equal(transport.calls.length, 2);
+  assert.equal(transport.calls[1].peer.tlsServerName, undefined);
+});
+
+test("TLS SNI is still set to the target hostname for an ordinary (non-IP) hostname target", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await client.send(makeRequest({ url: "https://example.com/" }));
+
+  assert.equal(transport.calls[0].peer.tlsServerName, "example.com");
+});
+
 test("devHostAllowlist permits an otherwise-private target for that exact host", async () => {
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
   const client = createHttpClient({
@@ -247,6 +289,21 @@ test("devHostAllowlist permits an otherwise-private target for that exact host",
   });
 
   const response = await client.send(makeRequest({ url: "https://127.0.0.1/" }));
+  assert.equal(response.bodyText, "ok");
+  assert.equal(transport.calls.length, 1);
+});
+
+test("devHostAllowlist matches an IPv6-literal target by its unbracketed form (the bracket is a URL-syntax artifact, not part of the host)", async () => {
+  // WHATWG URL brackets a literal IPv6 hostname (`url.hostname === "[fd00::1]"`), but an allowlist
+  // entry is written the way a human/operator would type the address: unbracketed. Comparing the
+  // raw bracketed hostname against an unbracketed allowlist entry can never match.
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({
+    transport,
+    policy: makePolicy({ devHostAllowlist: ["fd00::1"] }),
+  });
+
+  const response = await client.send(makeRequest({ url: "https://[fd00::1]/" }));
   assert.equal(response.bodyText, "ok");
   assert.equal(transport.calls.length, 1);
 });
