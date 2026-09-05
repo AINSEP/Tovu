@@ -7,6 +7,7 @@ import { createPublishCredential, type PublishCredentialWriteDeps } from "../../
 import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
 import type { PublishCredentialSource } from "../types.js";
 import {
+  canYieldAccountLabel,
   InMemoryPublishCredentialVerificationCache,
   listGitHubReposByCredentialId,
   verifyPublishCredential,
@@ -232,6 +233,120 @@ test("verifyPublishCredential: s3-compatible signs a HEAD against the bucket (vi
   assert.equal(JSON.stringify(result).includes("s3-secret-should-never-leak"), false);
 });
 
+test("verifyPublishCredential: GitHub rejects with 403 (not just 401) — status:'invalid', the other half of classifyProviderResponse's rejected check", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  const fetchFn = (async () => new Response("", { status: 403 })) as typeof fetch;
+
+  const result = await verifyPublishCredential(
+    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn },
+    { workspaceId: WORKSPACE, target: "github-pages" }
+  );
+
+  assert.ok(result);
+  assert.equal(result!.status, "invalid");
+  assert.match(result!.message, /GitHub rejected this credential \(HTTP 403\)/);
+});
+
+test("verifyPublishCredential: an HTTP-level provider failure (5xx, not a network throw) is status:'unreachable' WITH the status code in the message", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  const fetchFn = (async () => new Response("", { status: 503 })) as typeof fetch;
+
+  const result = await verifyPublishCredential(
+    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn },
+    { workspaceId: WORKSPACE, target: "vercel" }
+  );
+
+  assert.ok(result);
+  assert.equal(result!.status, "unreachable");
+  assert.match(result!.message, /Could not reach Vercel to verify this credential \(HTTP 503\)/, "an HTTP-level unreachable must carry the status code, unlike a network throw's message");
+});
+
+test("verifyPublishCredential: a valid JSON body that is not an object (extractGitHubLogin's own type guard) yields no accountLabel, never throws", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  for (const literal of ['"just a string"', "42", "null"]) {
+    const fetchFn = (async () => new Response(literal, { status: 200 })) as typeof fetch;
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn }, { workspaceId: WORKSPACE, target: "github-pages" });
+    assert.ok(result, literal);
+    assert.equal(result!.status, "valid", literal);
+    assert.equal(result!.accountLabel, undefined, `a non-object JSON body (${literal}) must never crash extractGitHubLogin or fabricate a label`);
+  }
+});
+
+test("verifyPublishCredential: GitHub accepts but the body carries no usable login (missing, empty, or non-string) — accountLabel stays undefined", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  for (const body of [{}, { login: "" }, { login: 12345 }]) {
+    const fetchFn = (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn }, { workspaceId: WORKSPACE, target: "github-pages" });
+    assert.ok(result, JSON.stringify(body));
+    assert.equal(result!.accountLabel, undefined, JSON.stringify(body));
+  }
+});
+
+test("verifyPublishCredential: Vercel accepts but the body's `user` is missing/not-an-object, or `username` is missing/empty/non-string — accountLabel stays undefined", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  for (const body of [{}, { user: "not-an-object" }, { user: null }, { user: {} }, { user: { username: "" } }, { user: { username: 7 } }]) {
+    const fetchFn = (async () => new Response(JSON.stringify(body), { status: 200 })) as typeof fetch;
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn }, { workspaceId: WORKSPACE, target: "vercel" });
+    assert.ok(result, JSON.stringify(body));
+    assert.equal(result!.accountLabel, undefined, JSON.stringify(body));
+  }
+});
+
+test("verifyPublishCredential: s3-compatible uses an explicit, non-blank endpoint verbatim (trailing slash stripped) instead of deriving one from region", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let seenUrl = "";
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    seenUrl = input instanceof Request ? input.url : String(input);
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  await verifyPublishCredential(
+    {
+      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com/" }),
+      cache,
+      clock,
+      fetchFn,
+    },
+    { workspaceId: WORKSPACE, target: "s3-compatible" }
+  );
+
+  assert.equal(seenUrl, "https://abc123.r2.cloudflarestorage.com/my-bucket");
+});
+
+test("verifyPublishCredential: s3-compatible signing failure (a malformed derived URL) folds into status:'unreachable', never throws", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let fetchCalls = 0;
+  const fetchFn = (async () => {
+    fetchCalls += 1;
+    throw new Error("must not be called — signing must fail before any network call");
+  }) as typeof fetch;
+
+  const result = await verifyPublishCredential(
+    {
+      // Not a valid absolute URL once `/${bucket}` is appended — `aws4fetch`'s own `sign()` throws a
+      // `TypeError: Invalid URL` for this, before ever touching the network (verified directly against
+      // `aws4fetch` — signing is pure local computation, no I/O).
+      credentialSource: fakeSource({ ok: true, token: "secret", accessKeyId: "AKIA", bucket: "my-bucket", region: "auto", endpoint: "not-a-valid-url" }),
+      cache,
+      clock,
+      fetchFn,
+    },
+    { workspaceId: WORKSPACE, target: "s3-compatible" }
+  );
+
+  assert.equal(fetchCalls, 0, "a signing failure must never reach the network");
+  assert.ok(result);
+  assert.equal(result!.status, "unreachable");
+});
+
+test("canYieldAccountLabel: true only for the providers with a reviewed account-identity field (github-pages, vercel)", () => {
+  assert.equal(canYieldAccountLabel("github-pages"), true);
+  assert.equal(canYieldAccountLabel("vercel"), true);
+  assert.equal(canYieldAccountLabel("netlify"), false);
+  assert.equal(canYieldAccountLabel("cloudflare-pages"), false);
+  assert.equal(canYieldAccountLabel("s3-compatible"), false);
+});
+
 // ---------------------------------------------------------------------------
 // PublishCredentialVerificationCache
 // ---------------------------------------------------------------------------
@@ -317,6 +432,87 @@ test("verifyPublishCredentialById: a NON-default row's own result is returned bu
     "default row is fine",
     "checking a non-default row must never change what a real publish (which always uses the default) would report as ready"
   );
+});
+
+test("verifyPublishCredentialById: an s3-compatible row is mapped through toCheckableCredential's s3-compatible branch (token carries secretAccessKey, endpoint forwarded)", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "bucket",
+    connection: {
+      providerId: "s3-compatible",
+      accessKeyId: "AKIA",
+      secretAccessKey: "s3cr3t-must-not-leak",
+      bucket: "my-bucket",
+      region: "auto",
+      endpoint: "https://r2.example.com",
+      publicUrl: "https://cdn.example.com",
+    },
+  });
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let seenUrl = "";
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    seenUrl = input instanceof Request ? input.url : String(input);
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  const result = await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.equal(result!.status, "valid");
+  assert.equal(seenUrl, "https://r2.example.com/my-bucket");
+  assert.equal(JSON.stringify(result).includes("s3cr3t-must-not-leak"), false);
+});
+
+test("verifyPublishCredentialById: an s3-compatible row with no endpoint configured derives the plain-AWS-S3 host from region", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "bucket",
+    connection: { providerId: "s3-compatible", accessKeyId: "AKIA", secretAccessKey: "s3cr3t", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://cdn.example.com" },
+  });
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let seenUrl = "";
+  const fetchFn = (async (input: RequestInfo | URL) => {
+    seenUrl = input instanceof Request ? input.url : String(input);
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+
+  await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.equal(seenUrl, "https://s3.us-east-1.amazonaws.com/my-bucket");
+});
+
+test("verifyPublishCredentialById: a row deleted between the two concurrent reads (findById vs resolveForPublish's own findById) returns null rather than throwing", async () => {
+  // `verifyPublishCredentialById` runs `deps.repo.findById(input)` directly AND
+  // `resolveForPublish(...)` (which does its OWN internal `findById`) concurrently via
+  // `Promise.all` — two independent reads of the same row, not one atomic snapshot. This wraps a
+  // real repo to make its SECOND `findById` call (the one inside `resolveForPublish`) observe the
+  // row as already gone, simulating a real delete landing in the gap between the two reads —
+  // the one `!record || !resolved` combination the happy-path tests above cannot produce, since an
+  // in-memory repo answers both reads from the same unchanging snapshot otherwise.
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  let findByIdCalls = 0;
+  const racyRepo: typeof writeDeps.repo = {
+    ...writeDeps.repo,
+    findById: async (input) => {
+      findByIdCalls += 1;
+      if (findByIdCalls === 1) return writeDeps.repo.findById(input);
+      return null; // the row is "gone" by the time resolveForPublish's own read lands
+    },
+  };
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  let fetchCalls = 0;
+  const fetchFn = (async () => {
+    fetchCalls += 1;
+    throw new Error("must not be called");
+  }) as typeof fetch;
+
+  const result = await verifyPublishCredentialById({ repo: racyRepo, sealer: writeDeps.sealer, cache, clock, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.equal(result, null);
+  assert.equal(fetchCalls, 0);
 });
 
 // ---------------------------------------------------------------------------
@@ -466,4 +662,73 @@ test("listGitHubReposByCredentialId: an authenticated 200 with an unparseable bo
   assert.ok(result);
   assert.equal(result!.status, "unreachable");
   assert.deepEqual(result!.repos, []);
+});
+
+test("listGitHubReposByCredentialId: an HTTP-level failure that is neither 401 nor 403 (e.g. 500) is status:'unreachable', not 'invalid'", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  const fetchFn = (async () => new Response("", { status: 500 })) as typeof fetch;
+
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.equal(result!.status, "unreachable");
+  assert.match(result!.message ?? "", /GitHub/);
+  assert.deepEqual(result!.repos, []);
+});
+
+test("listGitHubReposByCredentialId: a 200 body that parses but is not an array (Array.isArray's own false arm) yields an empty, non-truncated repo list rather than throwing", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  const fetchFn = (async () => new Response(JSON.stringify({ message: "not the array shape this endpoint documents" }), { status: 200 })) as typeof fetch;
+
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.equal(result!.status, "valid", "an authenticated 2xx with an unexpected body shape is still a valid credential — the shape mismatch degrades to an empty list, not a failure");
+  assert.deepEqual(result!.repos, []);
+  assert.equal(result!.truncated, false);
+});
+
+test("listGitHubReposByCredentialId: a Link header present but naming no rel=\"next\" page reports truncated:false even on an under-full page — proves the regex is checked, not merely header presence", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  const fetchFn = (async () =>
+    new Response(JSON.stringify([rawGitHubRepo()]), {
+      status: 200,
+      headers: { link: '<https://api.github.com/user/repos?page=1>; rel="prev", <https://api.github.com/user/repos?page=1>; rel="last"' },
+    })) as typeof fetch;
+
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.equal(result!.truncated, false);
+});
+
+test("listGitHubReposByCredentialId: a repo entry with a non-object, null, or wrong-typed owner is dropped, never crashes the whole listing", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  const badOwnerEntries = [
+    { ...rawGitHubRepo(), owner: null },
+    { ...rawGitHubRepo(), owner: "not-an-object" },
+    { ...rawGitHubRepo(), owner: {} },
+  ];
+  const fetchFn = (async () => new Response(JSON.stringify(badOwnerEntries), { status: 200 })) as typeof fetch;
+
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.deepEqual(result!.repos, [], "every entry with an unreadable owner.login must be dropped, not defaulted or half-populated");
+});
+
+test("listGitHubReposByCredentialId: an entry with a wrong-typed private flag or default_branch is dropped even though name/full_name/owner are all valid", async () => {
+  const writeDeps = makeWriteDeps();
+  const summary = await createPublishCredential(writeDeps, { workspaceId: WORKSPACE, label: "work", connection: { providerId: "github-pages", token: "tok" } });
+  const entries = [rawGitHubRepo({ private: "yes" as unknown as boolean }), rawGitHubRepo({ default_branch: undefined as unknown as string })];
+  const fetchFn = (async () => new Response(JSON.stringify(entries), { status: 200 })) as typeof fetch;
+
+  const result = await listGitHubReposByCredentialId({ repo: writeDeps.repo, sealer: writeDeps.sealer, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
+
+  assert.ok(result);
+  assert.deepEqual(result!.repos, [], "a wrong-typed private/default_branch field must drop the whole entry, never coerce or default it");
 });
