@@ -36,7 +36,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 - [x] 13. `1378c7e4` — test(theme): direct-invoke coverage for structure.ts fs-bounds/containment branches
 - [x] 14. `239a90a5` — test(deployments): S3-compatible publish target coverage
 - [x] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
-- [ ] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
+- [x] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
 - [ ] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
 - [ ] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
 - [ ] 19. `438ada6a` — test(export): direct unit proof for redirectOutcomeFor's >=400 arm
@@ -231,7 +231,75 @@ contradicting both comments.
 
 Gemini raised 5 findings in this chunk, all recorded above as UNVERIFIED.
 
-### Chunk 16 — pending
+### Chunk 16 — `383befbc` test(deployments): credential-verification (static-publish/verify.ts) coverage
+
+**Context given to Gemini:** diff (`verify.unit.test.ts` new hunk, 265 new lines) + FULL current
+production file `apps/website/src/features/deployments/static-publish/verify.ts` (693 lines) +
+FULL current test file (734 lines, post-commit). Full-file context.
+
+**UNVERIFIED — HIGH (production bug).** `verify.ts:95-99` (`classifyProviderResponse`), also
+referenced at 256/308-312/386. Claim: a S3 `HEAD` bucket-check that comes back `404` (bucket
+genuinely does not exist / typo'd name) is classified as `reason: "unreachable"` (only 401/403 map
+to `"rejected"`/invalid-credential), producing a user-facing message that says "this does not
+necessarily mean the credential is bad" and implies retry-later — when the real fix needed is to
+correct the bucket name. Claim: `classifyProviderResponse` was written for token-only endpoints
+where 404 can't occur and was reused for the S3 bucket-path case without adjustment.
+
+**UNVERIFIED — MEDIUM (production bug).** `verify.ts:237`. Claim: `(credential.endpoint?.trim() ?
+credential.endpoint : deriveS3Endpoint(...)).replace(/\/+$/, "")` truthiness-checks the TRIMMED
+value but then uses the RAW (untrimmed) `credential.endpoint` in the ternary's true branch — so an
+endpoint with trailing whitespace after the final slash (e.g. `"https://r2.example.com/ "`) is
+claimed to pass the truthy check, keep its trailing space untouched by the trailing-slash regex
+(which only strips `/`, not whitespace), and produce a malformed URL (`".../  /bucket"`) once the
+bucket path is appended — claimed to break `aws4fetch`'s URL signing. Claims the new test at
+line ~295 explicitly pins the buggy "verbatim, trailing slash stripped" behavior rather than
+catching it.
+
+**UNVERIFIED — MEDIUM (test quality).** `verify.unit.test.ts:724-734`, test 16 ("a wrong-typed
+private/default_branch field must drop the whole entry, never coerce or default it"). Claim: the
+fixture builds `default_branch: undefined as unknown as string`, but `JSON.stringify` drops
+`undefined`-valued keys entirely before the mock `Response` body is constructed — so the parsed
+JSON never actually contains a wrong-TYPED `default_branch`, only a MISSING one; claims an
+implementation that coerced non-string types (e.g. `String(raw.default_branch)` for a number)
+would still pass this test, since it never exercises that path.
+
+**UNVERIFIED — MEDIUM (test quality).** `verify.unit.test.ts:693-706`, test 14 ("...reports
+truncated:false even on an under-full page — proves the regex is checked, not merely header
+presence"). Claim: the fixture uses 1 repo (`fetchedCount=1`, under `GITHUB_REPOS_PER_PAGE`), so
+the count-based fallback in `hasMoreGitHubRepoPages` would ALSO independently return `false` —
+claimed a completely broken implementation that skips the Link-header regex entirely and only
+checks count would still pass this specific test; argues the test needed a FULL page (>=100 repos)
+with a Link header lacking `rel="next"` to actually prove the header check takes precedence over
+the count fallback.
+
+**UNVERIFIED — MEDIUM (production inconsistency, possible bug).** `verify.ts:631-642` vs. `probe`
+at lines ~176-181. Claim: an authenticated HTTP 200 whose body is valid JSON but not an array
+(e.g. a GitHub rate-limit error object) is treated as `status: "valid"` with `repos: []` — while a
+200 whose body fails to parse as JSON at all is treated as `status: "unreachable"` — and the code's
+own comment at line ~635 claims both cases follow "the same posture as `probe`," but `probe` itself
+is claimed to treat an unparseable-body 200 as `status: "valid"` (`{ok: true}`), the opposite of
+what line 637 does — i.e. the comment's cross-reference claim is claimed to be internally
+inconsistent with the behavior it's citing.
+
+**UNVERIFIED — LOW (test/commit-message mismatch).** `verify.unit.test.ts:316-340`, test 7. Claim:
+named/described as exercising "a malformed DERIVED url," but the fixture supplies an explicit
+(if malformed) `endpoint` string, so the code path claimed to actually run is the explicit-endpoint
+branch, never `deriveS3Endpoint` — the test's own name/commit-message description is claimed to
+misrepresent which branch it exercises.
+
+**UNVERIFIED — LOW (test quality).** `verify.unit.test.ts:676`, test 12 (500 failure in
+`listGitHubReposByCredentialId`). Claim: asserts only `/GitHub/` against the message, unlike a
+sibling test (line ~261) that pins the exact `(HTTP 503)` status-code suffix — claimed insufficient
+to catch a regression that dropped the status code from the message.
+
+**UNVERIFIED — LOW (test quality).** `verify.unit.test.ts:708-734`, tests 15/16. Claim: both feed
+an all-malformed repo-entry list and assert the result is `[]` — claimed not to prove that a VALID
+sibling entry survives alongside dropped malformed ones (e.g. a bug that aborts the whole loop on
+the first malformed entry would also produce `[]` here and pass).
+
+Gemini raised 8 findings in this chunk, all recorded above as UNVERIFIED (2 production-bug claims,
+1 production-inconsistency claim, 5 test-quality claims).
+
 ### Chunk 17 — pending
 ### Chunk 18 — pending
 ### Chunk 19 — pending
