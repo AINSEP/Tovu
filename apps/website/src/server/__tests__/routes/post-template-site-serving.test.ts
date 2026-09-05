@@ -53,6 +53,13 @@ function staticThemeWithPostTemplate(
       tier: "static",
       engine: 1,
       templates: overrides.templates ?? ["blog-post.html"],
+      // `extraPages` are this fixture's stand-in for a theme's own marketing pages (the
+      // slug-collision-override tests below need `isMarketingPageSlug` to see them as real,
+      // routable theme pages). Since `c8e54ddd` (2026-08-31) `isStandaloneThemePage` treats an
+      // absent `publishedPages` as "nothing published" — every page here needs an explicit entry
+      // or the collision check this fixture exists for never runs and the post wins by default
+      // regardless of `overridesThemePage`, silently invalidating the "false" and ROUND TRIP cases.
+      publishedPages: Object.keys(overrides.extraPages ?? {}),
     },
     dir: "/nonexistent/test-theme",
     tokens: {},
