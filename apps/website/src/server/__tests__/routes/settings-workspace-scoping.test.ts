@@ -5,6 +5,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
+import { ForbiddenError } from "#src/features/settings/index";
 import { createRouteDeps } from "../../runtime/composition/app.js";
 import { registerAuthRoutes, requireAdminSession } from "../../inbound/admin-http/dev-auth.js";
 import { registerAdminSettingsClearRoute } from "../../inbound/admin-http/routes/settings/clear.js";
@@ -191,4 +192,202 @@ test("SETTINGS_SET: a workspace-scoped write with NO body workspaceId defaults t
     written.every((r) => r.workspaceId === deps.workspaceId),
     "an omitted workspaceId must resolve to the route's workspace, not null"
   );
+});
+
+test("SETTINGS_SET: mismatched workspaceId in URL returns 404", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-ws/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "theme",
+      scope: "workspace",
+      valueJson: "dark",
+    }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("SETTINGS_SET: invalid body missing fields returns 400 VALIDATION_ERROR", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "theme",
+      // missing scope and valueJson
+    }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VALIDATION_ERROR");
+});
+
+test("SETTINGS_SET: definition not found returns 404 DEFINITION_NOT_FOUND", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "non-existent-key",
+      scope: "workspace",
+      valueJson: "val",
+    }),
+  });
+  assert.equal(res.status, 404);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "DEFINITION_NOT_FOUND");
+});
+
+test("SETTINGS_SET: scope not allowed returns 400 SCOPE_NOT_ALLOWED", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  // Seed definition with scopes: 2 (workspace only)
+  const resDef = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/definitions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      definitions: [
+        {
+          ownerKind: "site",
+          namespace: "site.scoping",
+          key: "workspaceOnlyKey",
+          schemaJson: { type: "string" },
+          defaultJson: "default",
+          scopes: 2, // workspace only
+        },
+      ],
+    }),
+  });
+  assert.equal(resDef.status, 200);
+
+  // Attempting scope "user" on a workspace-only definition must fail with 400 SCOPE_NOT_ALLOWED.
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "workspaceOnlyKey",
+      scope: "user",
+      valueJson: "val",
+    }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "SCOPE_NOT_ALLOWED");
+});
+
+test("SETTINGS_SET: schema validation failure returns 400 VALUE_VALIDATION_FAILED", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedDefinition(baseUrl, deps, cookie, "stringKey");
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "stringKey",
+      scope: "workspace",
+      valueJson: 12345,
+    }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "VALUE_VALIDATION_FAILED");
+});
+
+test("SETTINGS_SET: tombstoned definition returns 409 DEFINITION_TOMBSTONED", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedDefinition(baseUrl, deps, cookie, "tombstonedKey");
+
+  // Seed via the real route so the row matches the port shape (`schema`/`defaultValue`, not the
+  // wire's `schemaJson`/`defaultJson`), then read it back and flip it to tombstone directly against
+  // the repo — there is no HTTP route to tombstone a definition.
+  const active = await deps.settingsRepo.findActiveDefinition({
+    namespace: "site.scoping",
+    key: "tombstonedKey",
+    workspaceId: deps.workspaceId,
+  });
+  assert.ok(active, "seedDefinition must have produced a readable definition");
+  await deps.settingsRepo.saveDefinition({
+    ...active,
+    status: "tombstone",
+    updatedAt: deps.clock.nowIso(),
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "tombstonedKey",
+      scope: "workspace",
+      valueJson: "new-val",
+    }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "DEFINITION_TOMBSTONED");
+});
+
+test("SETTINGS_SET: unauthorized caller returns 403 FORBIDDEN", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  deps.authorize = async () => ({ allowed: false, reason: "custom deny" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "anyKey",
+      scope: "workspace",
+      valueJson: "val",
+    }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FORBIDDEN");
+});
+
+test("SETTINGS_SET: returns 403 FORBIDDEN when inner write throws ForbiddenError", async (t) => {
+  const { app, deps } = buildTestApp();
+  await deps.settingsReady;
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  await seedDefinition(baseUrl, deps, cookie, "forbiddenKey");
+  deps.settingsRepo.saveWorkspaceValue = async () => {
+    throw new ForbiddenError("unauthorized by chokepoint");
+  };
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/settings/value`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({
+      namespace: "site.scoping",
+      key: "forbiddenKey",
+      scope: "workspace",
+      valueJson: "val",
+    }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "FORBIDDEN");
 });

@@ -209,6 +209,38 @@ test("subscriptions: create -> list -> import (partial success, 207) -> remove -
   assert.equal(createdSub.data.status, "pending");
   assert.equal(createdSub.data.subscriberId, memberId);
 
+  // 404 for wrong workspace on create subscription
+  const wrongWsSubRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/other-ws/newsletter/lists/${list.id}/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ subscriberId: memberId }),
+  });
+  assert.equal(wrongWsSubRes.status, 404);
+
+  // 400 for non-string subscriberId
+  const badSubRes = await fetch(`${baseUrl}${base}/lists/${list.id}/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ subscriberId: 12345 }),
+  });
+  assert.equal(badSubRes.status, 400);
+
+  // 400 for invalid source
+  const badSourceSubRes = await fetch(`${baseUrl}${base}/lists/${list.id}/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ subscriberId: memberId, source: "unsupported-source" }),
+  });
+  assert.equal(badSourceSubRes.status, 400);
+
+  // 404 domain error for non-existent list
+  const missingListSubRes = await fetch(`${baseUrl}${base}/lists/missing-list-id/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ subscriberId: memberId }),
+  });
+  assert.equal(missingListSubRes.status, 404);
+
   const listSubsRes = await fetch(`${baseUrl}${base}/lists/${list.id}/subscriptions`, { headers: { cookie } });
   assert.equal(listSubsRes.status, 200);
   const listedSubs = (await listSubsRes.json()) as { data: Array<{ id: string }> };
