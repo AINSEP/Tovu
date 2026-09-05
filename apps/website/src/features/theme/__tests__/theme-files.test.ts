@@ -163,6 +163,27 @@ test("a symlinked FILE inside the theme folder cannot be read through", () => {
   );
 });
 
+test("readThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the target itself", () => {
+  // `resolveThemeFilePath`'s own containment check does not resolve THIS case: its walk-up to find an
+  // existing ancestor stops at the theme folder itself, because a self-referential symlink never
+  // "exists" by `existsSync`'s own ELOOP-swallowing definition — so it never realpaths the cycle and
+  // never throws. The bare `statSync(target, {throwIfNoEntry:false})` that used to run right after it
+  // does follow the link, and `throwIfNoEntry:false` only suppresses ENOENT, not ELOOP — so the raw
+  // filesystem error escaped this function's own documented "throws only ThemePathError" contract.
+  const { root, themeDir } = makeThemesRoot();
+  const a = path.join(themeDir, "a");
+  const b = path.join(themeDir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  try {
+    assert.throws(() => readThemeFile({ themeDir, themesRoot: root, relativePath: "a" }), ThemePathError);
+  } finally {
+    fs.unlinkSync(a);
+    fs.unlinkSync(b);
+  }
+});
+
 test("listThemeFiles does not follow or report symlinks out of the theme folder", () => {
   const { root, themeDir } = makeThemesRoot();
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-outside-"));

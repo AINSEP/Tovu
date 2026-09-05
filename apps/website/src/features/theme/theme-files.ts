@@ -400,6 +400,26 @@ export function listThemeFiles(
 }
 
 /**
+ * `statSync(target, { throwIfNoEntry: false })`, but converts any OTHER thrown error into this
+ * module's own {@link ThemePathError} instead of letting it escape raw. `throwIfNoEntry: false` only
+ * suppresses `ENOENT`; the realistic other case is `ELOOP` from `target` itself being a circular
+ * symlink (`a -> b -> a`) — {@link resolveThemeFilePath}'s own containment check does not resolve this
+ * case: its walk-up to find an EXISTING ancestor stops at the theme folder itself, because a
+ * self-referential symlink never "exists" by `existsSync`'s own ELOOP-swallowing definition, so it
+ * never realpaths the cycle and never throws. Following the link here (rather than `lstat`ing it, the
+ * way {@link visitThemeDirEntry}'s listing walk does) is deliberate: a symlink pointing to a real file
+ * INSIDE the theme is meant to read through, which `resolveThemeFilePath`'s realpath-based containment
+ * check already allows — only the cyclic case needs converting.
+ */
+function statOrThemePathError(target: string, relativePath: string): ReturnType<typeof statSync> | undefined {
+  try {
+    return statSync(target, { throwIfNoEntry: false });
+  } catch (err) {
+    throw new ThemePathError(`path '${relativePath}' could not be read: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
  * Read one file inside a theme's folder as UTF-8 text.
  *
  * @throws {ThemePathError} On any containment failure, or when the path is not a regular file.
@@ -411,7 +431,7 @@ export function readThemeFile(
   _optional: Record<string, never> = {}
 ): string {
   const target = resolveThemeFilePath(required);
-  const stat = statSync(target, { throwIfNoEntry: false });
+  const stat = statOrThemePathError(target, required.relativePath);
   if (!stat) throw new ThemePathError(`file '${required.relativePath}' does not exist in this theme`);
   if (!stat.isFile()) throw new ThemePathError(`path '${required.relativePath}' is not a regular file`);
   if (stat.size > MAX_THEME_FILE_BYTES) {
