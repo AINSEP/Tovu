@@ -160,7 +160,7 @@ test.describe("admin composer — Agent Plugin chip pin/remove/send wiring", () 
 
     await captured;
     expect(capturedContextRef).not.toBeNull();
-    expect((capturedContextRef as Record<string, unknown>)["pluginRefIds"]).toEqual([AGENT_PLUGIN_REF_ID]);
+    expect((capturedContextRef as unknown as Record<string, unknown>)["pluginRefIds"]).toEqual([AGENT_PLUGIN_REF_ID]);
   });
 
   test("selecting the Agent Plugin row via the SLASH trigger pins the chip and leaves the draft empty", async ({
