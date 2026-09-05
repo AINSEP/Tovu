@@ -75,12 +75,13 @@ test("classifyAddress: RFC1918 172.16/12 boundaries are exact, not off-by-one", 
   assert.equal(classifyAddress("172.32.0.0"), "public"); // just above the private block
 });
 
-test("classifyAddress: CGNAT (RFC 6598 100.64.0.0/10) is currently classified public — pinning current behavior, not endorsing it", () => {
-  // This function has no special case for shared address space today. If that changes, this
-  // test is expected to change with it — it exists so the change is deliberate, not incidental.
-  assert.equal(classifyAddress("100.64.0.0"), "public");
-  assert.equal(classifyAddress("100.100.0.1"), "public");
-  assert.equal(classifyAddress("100.127.255.255"), "public");
+test("classifyAddress: CGNAT (RFC 6598 100.64.0.0/10) is treated as private, exact boundaries", () => {
+  // Shared/carrier-grade-NAT space is not globally routable — blocked like the RFC1918 ranges.
+  assert.equal(classifyAddress("100.63.255.255"), "public"); // just below the CGNAT block
+  assert.equal(classifyAddress("100.64.0.0"), "private"); // first CGNAT address
+  assert.equal(classifyAddress("100.100.0.1"), "private");
+  assert.equal(classifyAddress("100.127.255.255"), "private"); // last CGNAT address
+  assert.equal(classifyAddress("100.128.0.0"), "public"); // just above the CGNAT block
 });
 
 test("classifyAddress: reserved and multicast IPv4 ranges fail closed", () => {
@@ -136,25 +137,40 @@ test("classifyAddress: IPv4-mapped IPv6 (dotted-decimal form) is normalized befo
   assert.equal(classifyAddress("::ffff:8.8.8.8"), "public");
 });
 
-test("classifyAddress: IPv4-mapped IPv6 written in HEX form (not dotted-decimal) bypasses the mapped-address normalization — pinning current behavior, not endorsing it", () => {
-  // `::ffff:a00:1` and `::ffff:10.0.0.1` name the SAME address (10.0.0.1 mapped into IPv6), but only
-  // the dotted-decimal spelling matches the mapped-address regex in `classifyAddress`. The hex
-  // spelling falls through to `classifyIpv6` directly, which has no case for the ::ffff:0:0/96
-  // prefix and returns "public" for what is, decimally, a private RFC1918 address. A URL target of
-  // `https://[::ffff:a00:1]/` reaches this exact path (the hostname is a literal IPv6 address, so
-  // `resolveHostAddresses` never touches DNS). This is a real gap, analogous to the IPv4 CGNAT one
-  // above — it is NOT fixed here; see the refactor report for this file.
-  assert.equal(classifyAddress("::ffff:a00:1"), "public");
-  assert.equal(classifyAddress("::ffff:7f00:1"), "public"); // hex form of 127.0.0.1 (loopback), also bypassed
+test("classifyAddress: IPv4-mapped IPv6 written in HEX form (not dotted-decimal) is normalized the same as the dotted spelling", () => {
+  // `::ffff:a00:1` and `::ffff:10.0.0.1` name the SAME address (10.0.0.1 mapped into IPv6) — both
+  // must classify identically. A URL target of `https://[::ffff:a00:1]/` reaches this exact path
+  // (the hostname is a literal IPv6 address, so `resolveHostAddresses` never touches DNS), so the
+  // hex spelling must not be a bypass of the dotted-decimal one.
+  assert.equal(classifyAddress("::ffff:a00:1"), "private"); // hex form of 10.0.0.1
+  assert.equal(classifyAddress("::ffff:7f00:1"), "loopback"); // hex form of 127.0.0.1
+  assert.equal(classifyAddress("::ffff:c0a8:1"), "private"); // hex form of 192.168.0.1
+  assert.equal(classifyAddress("::ffff:808:808"), "public"); // hex form of 8.8.8.8
 });
 
-test("classifyAddress: IPv6 multicast ff00::/8 has no dedicated case and reads as public — pinning current behavior, not endorsing it", () => {
-  // Mirrors the IPv4 CGNAT gap: `classifyIpv6` has no branch for the multicast prefix, so it falls
-  // through to the default "public" return. If a case is added for this range, this test is
-  // expected to change with it — it exists so the change is deliberate, not incidental.
-  assert.equal(classifyAddress("ff00::1"), "public");
-  assert.equal(classifyAddress("ff02::1"), "public"); // all-nodes link-local multicast
-  assert.equal(classifyAddress("ffff::1"), "public");
+test("classifyAddress: IPv4-mapped IPv6 normalizes regardless of ::-compression, not just the two documented spellings", () => {
+  // Same value (127.0.0.1 mapped), three different valid ways to write it: fully expanded with no
+  // compression at all, fully expanded but with the low 32 bits still in dotted form, and the
+  // ordinary compressed hex form already covered above. All three must agree.
+  assert.equal(classifyAddress("0:0:0:0:0:ffff:7f00:1"), "loopback"); // fully expanded, hex tail
+  assert.equal(classifyAddress("0:0:0:0:0:ffff:127.0.0.1"), "loopback"); // fully expanded, dotted tail
+});
+
+test("classifyAddress: a near-miss IPv6 literal that merely resembles a mapped address is NOT force-mapped", () => {
+  // `::ffff:0:7f00:1` looks superficially like another spelling of `::ffff:7f00:1` (127.0.0.1
+  // mapped), but per RFC 4291 group expansion it is a genuinely different 128-bit value: the
+  // explicit "0" group after "ffff" pushes "ffff" itself to group index 4, not the index-5 position
+  // the ::ffff:0:0/96 prefix requires. Blindly pattern-matching on the "::ffff:" substring would
+  // wrongly force-map this to 127.0.0.1; the group-based parser must reject it and fall through to
+  // ordinary (non-special) classification instead.
+  assert.equal(classifyAddress("::ffff:0:7f00:1"), "public");
+});
+
+test("classifyAddress: IPv6 multicast ff00::/8 is treated as reserved (blocked), mirroring IPv4 multicast, exact boundaries", () => {
+  assert.equal(classifyAddress("feff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"), "public"); // just below the block
+  assert.equal(classifyAddress("ff00::1"), "reserved"); // first address of the block
+  assert.equal(classifyAddress("ff02::1"), "reserved"); // all-nodes link-local multicast
+  assert.equal(classifyAddress("ffff::1"), "reserved"); // last address of the block
 });
 
 test("classifyAddress: malformed IPv6-shaped input fails closed to reserved, never public", () => {
@@ -164,13 +180,13 @@ test("classifyAddress: malformed IPv6-shaped input fails closed to reserved, nev
 });
 
 test("rejects/permits egress consistently with classifyAddress for a raw-IP CGNAT target", async () => {
-  // End-to-end through resolvePinnedPeer (not just the classifier), pinned before its refactor.
+  // End-to-end through resolvePinnedPeer (not just the classifier). CGNAT is private, so this must
+  // be rejected pre-connect, same as any other private-range target below.
   const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
   const client = createHttpClient({ transport, policy: makePolicy() });
 
-  const response = await client.send(makeRequest({ url: "https://100.64.0.1/" }));
-  assert.equal(response.bodyText, "ok");
-  assert.equal(transport.calls.length, 1);
+  await assert.rejects(() => client.send(makeRequest({ url: "https://100.64.0.1/" })));
+  assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
 });
 
 test("rejects a private/loopback/link-local target pre-connect for each address family", async () => {
