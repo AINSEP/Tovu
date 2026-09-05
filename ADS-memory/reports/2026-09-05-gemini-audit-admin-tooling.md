@@ -117,6 +117,118 @@ Chunk tally: Gemini raised 8 numbered findings; 5 CONFIRMED as stated, 3 CONFIRM
 findings 2 and 3 above), 3 fully discarded on verification (self-verification rollback claim, WAL-corruption
 speculation, `extractUsername` null claim).
 
+### Chunk: CI gate scripts (development/scripts/check-*.ts, lib/dead-path-sweep.ts, route-coverage-lib.ts)
+
+**8. [HIGH] `development/scripts/check-governance-adr-scope-drift.ts` (new file) can never actually run its
+check outside this one local machine.** `main()` (line 252) does `if (!fs.existsSync(ADR_INDEX_PATH)) { ...
+log "ok"...; return; }` before reading `ADS-memory/governance/adrs/ADR-INDEX.md`. Confirmed by reading
+`.gitignore:117-124`: `ADS-memory/*` is ignored except `reports/`, `specs/`, `specs_as_built/` — `governance/`
+is NOT tracked (`git ls-files ADS-memory/governance/` returns 0 files), so this file only exists on whichever
+machine happens to have created it locally. On any other checkout — a fresh clone, CI, another agent's
+sandbox — this gate always takes the "nothing to check" branch and exits 0, regardless of what the real
+governance ADRs (GOV-ADR-001/002/003, the exact three MANDATORY ADRs this script's own header says drifted)
+say. The script's own code comment (lines 245-251) frames this as an intentional mirror of the
+`adr-governance` skill's own "if the file is missing, no ADRs apply" rule — so it is not a silent/undisclosed
+bypass, but it does mean the entire gate is currently vacuous everywhere except this one machine. Not
+presently wired into `.github/workflows/ci.yml` (grepped, no match) or `package.json`'s CI-invoked scripts, so
+it isn't causing an active false-green in CI today, but would need `ADS-memory/governance/adrs/ADR-INDEX.md`
+to become tracked (or the script fed a path some other way) before it protects anyone but this developer.
+
+**9. [MEDIUM] Same file, `parseAdrIndexTable`** — every cell is passed through `unbacktick()` EXCEPT
+`status` (line 116-126: `id`/`scopeGlobsCell`/`file` are unbacktick'd, `status` and `enforcement` are not).
+`findEmptyGlobs` (line 234) checks `row.status !== "ACCEPTED"` verbatim. A future ADR-INDEX row that
+backtick-wraps its Status cell (plausible — the `file` and `id` columns in the real, current index ARE
+backtick-wrapped, e.g. `` `GOV-ADR-001-gated-mutation-gateway-and-watermark-chokepoint.md` ``, so a contributor
+following that convention could easily do the same for Status) would silently skip that row's enforcement
+entirely. Not currently triggered — verified the real `ADS-memory/governance/adrs/ADR-INDEX.md` today has
+plain, unbackticked Status cells — but a real, easy-to-introduce gap.
+
+**10. [MEDIUM] Same file, `globToRegExp`/`nextGlobToken`** — a glob ending in `**/` (the file's own docstring
+claims `**` is supported "with or without a trailing `/`") compiles to a regex ending in `(?:.*/)?$`, which
+requires the matched STRING to end in `/`. `collectRepoFiles` only ever returns file paths (`entry.isFile()`),
+which never end in `/`. So a glob written with the documented trailing-`/` form can never match any file —
+contradicting the script's own claimed feature support. Not currently triggered (every glob in the real index
+today ends in `**` with no trailing slash), but a real doc/behavior mismatch a future contributor following
+the docstring's own advice would hit as a false CI failure.
+
+**11. [LOW] Same file, `unbacktick` applied to the WHOLE `Scope Globs` cell, not per-glob** — if a cell
+individually backtick-wraps each `;`-separated glob (e.g. `` `glob1`; `glob2` ``) rather than wrapping the
+whole cell once, only the outermost backticks are stripped, leaving a stray backtick on each split token;
+`globToRegExp` then requires a literal backtick in the path, which never matches, causing a false CI failure
+on a validly-intended glob. Not currently triggered — the real index wraps the whole cell once, matching the
+convention this code expects.
+
+**12. [LOW] `check-governance-adr-scope-drift.ts:283` and `check-admin-complexity-drift.ts:149`** both do
+`pathToFileURL(process.argv[1]).href` with no guard for `argv[1]` being undefined, unlike the third new script
+in this window (`check-menu-href-allowlist-sync.ts:302`, which guards with `process.argv[1] ?? ""`). A call
+context where `argv[1]` is unset would throw a raw `TypeError` at import time instead of a friendly message.
+Low practical risk — both files are only ever run as real Node entry points or imported by their own unit
+test, where `argv[1]` is always set in practice.
+
+**13. [HIGH, confirmed with a live current victim — goes beyond what Gemini claimed] `development/scripts/lib/dead-path-sweep.ts:748`
+(`if (meaningful.length < 2) continue;`) has a disclosed, deliberate blind spot for a SINGLE trailing literal
+segment in a `path.join`/`path.resolve` call** (e.g. `path.join(REPO_ROOT, "src")`) — confirmed by the script's
+own test file, `development/scripts/__tests__/dead-path-sweep.test.ts:436-444`, which states outright: *"This
+IS a real gap this task's fix did not close... a sweep re-run today would NOT have caught the pre-fix
+single-segment shape."* That specific historical instance (`check-outbox-bridge.ts`'s old `SRC_DIR`) is
+already fixed and was verified by other means, so the disclosed gap itself is not a new finding. However,
+independently grepping the current tree for the same call shape turned up a LIVE, PRESENT-DAY, currently
+unfixed victim of exactly this blind spot: **`development/scripts/rewrite-deep-imports.ts:50`** —
+`const SRC_ROOT = path.join(REPO_ROOT, "src");` — `src/` at repo root no longer exists (moved to
+`apps/website/src/` in the 2026-09 restructure), so this is a genuinely dead reference in a real, checked-in
+script, sitting undetected next to the very sweep that exists to catch this exact class of bug. Confirmed this
+script isn't wired into `package.json`/CI (grepped, no reference), so the practical blast radius is "a stale,
+currently-broken manual codemod tool," not a live production or CI risk — rated High rather than Critical for
+that reason, and because the blind spot itself is disclosed rather than silent.
+
+**14. [MEDIUM, plausible, not confirmed as currently live] Same file, `extractPathJoinSegments` (lines
+363-369)** — only ever captures a TRAILING run of literal arguments, scanning backward from the last
+argument; if the LAST argument to `path.join`/`path.resolve` is a variable (e.g.
+`path.join(REPO_ROOT, "src", "server", fileName)` — a plausible, common shape for building a full file path
+from a literal directory prefix plus a dynamic filename), zero trailing literals are captured and the entire
+call — literal "src"/"server" segments included — is skipped. This is architecturally consistent with the
+file's own documented "only the trailing run" design choice, so it isn't a bug relative to that design, but it
+does mean a `path.join(BASE, ...literalDirs, dynamicFilename)` call is invisible to class 3 even though its
+literal directory segments are exactly the restructure-sensitive content this sweep exists to catch. Did not
+find a live current instance of this exact shape in the time available — flagging as a real, plausible gap in
+the mechanism, not a confirmed live miss.
+
+**15. [MEDIUM, plausible, not confirmed as currently live] Same file, `dropLeadingParentSegments` +
+`sweepOneFile`'s class-3 handling** — leading `".."` segments are unconditionally dropped and the remainder is
+checked against `repoRoot` directly, which is only correct when the number of dropped `".."` segments exactly
+equals the importing file's real nesting depth below repo root. The sweep's own target set
+(`collectSweepTargets`) includes files at different depths (`development/scripts/*.ts`,
+`development/scripts/lib/*.ts`, `apps/website/src/platform/db/*.config.ts`), so a multi-`".."`
+`path.resolve(import.meta.dirname, "..", ..., "literalSeg")` call from a file whose depth doesn't match the
+`".."` count could resolve to the wrong real target while still being checked against `repoRoot` — a
+theoretical false-positive/false-negative source. Consistent with the mechanism's own documented "only the
+literal segments are restructure-sensitive, the base doesn't matter" simplification, so this is an inherited
+imprecision of the design rather than a coding slip; did not find (or have budget to search for) a live
+instance where this produces a wrong verdict today.
+
+**Discarded (disproved on verification):**
+- Gemini's claim that `not-a-known-repo-segment` rejects `"src/server"` because `"src"` no longer exists at
+  repo root — **false**. `collectRepoSegments` (`dead-path-sweep.ts:595-614`) recursively walks the tree to
+  `maxDepth=4` collecting every directory's OWN BASENAME, not just repo-root children — confirmed `apps/website/src`
+  exists (`ls -d apps/website/src`) at depth 3, well within the walk, so `"src"` IS a known segment via that
+  path even though it's no longer a top-level one. The script's own doc comment (lines 469-476) explicitly
+  describes this exact mechanism as the deliberate fix for exactly the scenario Gemini described.
+- Gemini's claim that `route-coverage-lib.ts`'s `isMeasurableRouteFile` fails to exclude `types.ts` — **false**;
+  line 113 explicitly excludes `base === "types.ts"` (along with `deps.ts`/`execution-deps.ts`). Gemini appears
+  to have only seen a truncated slice of the function in its diff context and missed the very next lines.
+- Gemini's "no defects identified" verdicts on `check-architecture.ts`, `check-capability-inventory.ts`,
+  `check-embed-marker-drift.ts`, `check-outbox-bridge.ts`, `lib/tovu-test-server.ts` — spot-checked as
+  comment-only/path-repoint-only diffs, consistent with Gemini's assessment; not independently re-derived line
+  by line given time budget.
+- `check-coverage-integrity.ts`, `check-menu-href-allowlist-sync.ts` — Gemini reported no defects. Not
+  independently re-audited beyond a structural read, given the size of this chunk and time budget; flagged
+  below as an area of lighter coverage.
+
+Chunk tally: 2a raised 8 numbered findings (4 CONFIRMED as reframed above at findings 8-12, one factually
+disproven); 2b raised 5 numbered findings (1 confirmed-and-substantially-extended with a live victim [finding
+13], 2 confirmed-as-plausible-but-unverified-live [14-15], 1 factually disproven [types.ts], and 1 [the
+`route-coverage-lib.ts` claim reused for the same file] folded into the disproven types.ts item).
+
 ## Areas not covered / caveats
 
 TBD at completion.
