@@ -1,6 +1,12 @@
 # Route coverage — ground truth — 2026-09-05
 
-**Status: IN PROGRESS — skeleton committed early per standing incremental-commit rule.**
+**Status: IN PROGRESS — second measurement pass (TestRunner agent). The previous pass's coverage
+number is DISCARDED per dispatch: it was measured while machine load spiked to 27.20 (peak observed
+in that pass, §2 below) against a documented crash threshold of 721 — not itself over the threshold,
+but the dispatching owner separately reported the machine hit 620 from three concurrent runs earlier
+the same day, so this pass re-measures rather than trusting a number produced during any elevated-load
+window. Everything else in this file (§1, §5-8) is that prior pass's own committed, non-coverage work
+and is retained unless flagged otherwise below.**
 
 Dispatch: produce a trustworthy `apps/website/src/server/routes/**`-equivalent (now
 `inbound/{admin-http,public-http}/routes/**`) coverage number, distinguish real gaps from
@@ -68,9 +74,29 @@ materially longer than its file/test count would suggest on an idle machine as a
 capacity problem, not a correctness problem — see §1 for why a full unscoped `test:cov` is additionally
 forbidden regardless of load.
 
+## 2a. Re-verification before re-measuring (this pass)
+
+- **MEASURED**: load average at start of this pass was quiet — `2.64 21.85 95.19` (1/5/15-min),
+  i.e. the 15-min average was still elevated from the earlier-today contention but the 1-min figure
+  (what matters for "is anything running right now") was near-idle. Re-checked repeatedly through
+  the run; 1-min stayed under 6 throughout.
+- **MEASURED**: the 170-file scope recomputed fresh (`find` over the same three path globs) still
+  totals 170 (72 + 80 + 18), all verified to exist on disk before running.
+- **MEASURED**: the environment blocker this report's §"Environment blocker" (in the dual-
+  instantiation report) flagged at 10:35 today — `Jini/packages/infra/node_modules/better-sqlite3`
+  symlinked to a removed `11.10.0` store path — is **resolved**. The symlink now points to
+  `better-sqlite3@13.0.3` consistently in both Tovu's and Jini's `node_modules`, and
+  `require('better-sqlite3')` loads and executes a real query on this machine right now. Tests that
+  died with `ERR_MODULE_NOT_FOUND` earlier today (`site-exporter.test.ts`, `tool-registrations.unit.test.ts`,
+  `adapter.unit.test.ts`, `commit-site.unit.test.ts`) are not expected to hit that failure in this pass.
+- **MEASURED**: `apps/website/src/server/inbound/admin-http/routes/system/sites.ts` still has zero
+  test references anywhere in the tree (`grep -rl "registerAdminSitesRoutes\|routes/system/sites"`
+  returns nothing) — the #1 gap-list item from the prior pass is unchanged and re-confirmed live in
+  `app.ts`'s composition root.
+
 ## 3. The real coverage number
 
-TBD.
+TBD — run in progress.
 
 ## 4. Genuinely uncovered vs. artifact-uncovered
 
