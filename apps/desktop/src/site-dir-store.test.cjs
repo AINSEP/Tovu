@@ -162,6 +162,59 @@ test("resolveSiteDir ignores a dev fallback that is not actually a site — the 
   assert.equal(dir, picked);
 });
 
+test("resolveSiteDir tells pickDir which dev fallback it rejected and why — absent dir", async () => {
+  const fallback = path.join(tempDir(), "no-such-sites-dir");
+  let received;
+  await assert.rejects(
+    resolveSiteDir({
+      statePath: tempStatePath(),
+      devFallbackDir: fallback,
+      repoRoot: fakeRepoRoot(),
+      pickDir: (rejectedDefault) => {
+        received = rejectedDefault;
+        return null;
+      },
+    }),
+    SiteDirSelectionCancelled,
+  );
+  assert.deepEqual(received, { dir: fallback, kind: "empty" });
+});
+
+test("resolveSiteDir tells pickDir which dev fallback it rejected and why — real folder, no config.json", async () => {
+  const fallback = tempDir();
+  fs.writeFileSync(path.join(fallback, "content.db"), "");
+  let received;
+  await assert.rejects(
+    resolveSiteDir({
+      statePath: tempStatePath(),
+      devFallbackDir: fallback,
+      repoRoot: fakeRepoRoot(),
+      pickDir: (rejectedDefault) => {
+        received = rejectedDefault;
+        return null;
+      },
+    }),
+    SiteDirSelectionCancelled,
+  );
+  assert.deepEqual(received, { dir: fallback, kind: "occupied" });
+});
+
+test("resolveSiteDir passes null to pickDir when there is nothing to reject (no devFallbackDir)", async () => {
+  let received = "not called";
+  await assert.rejects(
+    resolveSiteDir({
+      statePath: tempStatePath(),
+      repoRoot: fakeRepoRoot(),
+      pickDir: (rejectedDefault) => {
+        received = rejectedDefault;
+        return null;
+      },
+    }),
+    SiteDirSelectionCancelled,
+  );
+  assert.equal(received, null);
+});
+
 test("resolveSiteDir remembers what the user picked, so the next launch does not ask", async () => {
   const statePath = tempStatePath();
   const picked = fakeSiteDir();

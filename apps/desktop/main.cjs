@@ -40,7 +40,7 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog, shell } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
-const { resolveSiteDir, stateFilePath, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
+const { resolveSiteDir, stateFilePath, SiteDirSelectionCancelled, SITE_MARKER_FILE } = require("./src/site-dir-store.cjs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
@@ -51,16 +51,33 @@ const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
  * Only ever reached on a first run with no remembered folder and no `sites/` dir in a checkout —
  * `resolveSiteDir` exhausts every cheaper answer first. `createDirectory` is on because the natural
  * gesture for a new site is to make a folder from inside the dialog; an empty one gets `tovu init`.
+ *
+ * No `BrowserWindow` exists yet at this point (`resolveTarget` is awaited before `createWindow` —
+ * see `main.cjs`'s own boot sequence below), so this dialog's `message` is the ONLY thing on screen
+ * explaining what is being asked. `rejectedDefault` (from `resolveSiteDir`, non-null exactly when
+ * `devFallbackDir` was tried and turned down) is folded into that message so a real candidate —
+ * `<repo>/sites/tovu-com` missing its `config.json`, say — is named instead of leaving the user to
+ * read a bare native folder picker with no context at all (measured failure: 2026-09-05).
+ *
+ * @param rejectedDefault `{ dir, kind }` from `resolveSiteDir`, or `null` when there was nothing to
+ *   try before asking.
  */
-async function promptForSiteDir() {
+async function promptForSiteDir(rejectedDefault) {
   // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
   // the reason instead, so an unattended run reports rather than hangs.
   if (SELFTEST) {
     throw new Error("no site dir resolved and TOVU_DESKTOP_SELFTEST=1 cannot show a folder picker — set TOVU_DESKTOP_SITE_DIR.");
   }
+  const askMessage = "Pick a folder that already holds a site, or an empty folder to start a new one.";
+  const message =
+    rejectedDefault === null
+      ? askMessage
+      : `${rejectedDefault.dir} was tried first but ${
+          rejectedDefault.kind === "occupied" ? `is not a Tovu site (no ${SITE_MARKER_FILE})` : "has no site in it yet"
+        }. ${askMessage}`;
   const result = await dialog.showOpenDialog({
     title: "Choose a folder for your Tovu site",
-    message: "Pick a folder that already holds a site, or an empty folder to start a new one.",
+    message,
     buttonLabel: "Use this folder",
     properties: ["openDirectory", "createDirectory"],
   });
@@ -108,11 +125,23 @@ async function resolveTarget() {
  * Report a boot failure where the user can actually see it.
  *
  * A packaged `.app` launched from Finder has no terminal attached, so `console.error` alone means
- * the app vanishes with no explanation. Cancelling the folder picker is not a failure — it is the
- * user declining to start — so it exits 0 and says nothing.
+ * the app vanishes with no explanation. Cancelling the folder picker is still not a failure — it is
+ * the user declining to start, so this still exits 0 — but it no longer says NOTHING: the picker
+ * itself has no window behind it (see `promptForSiteDir`), so a silent quit after it is
+ * indistinguishable from the app being broken (measured: a real user watched exactly this and
+ * reported "I just saw a folder, nothing else"). A short info dialog closes that gap without turning
+ * a legitimate decline into an error.
  */
-function reportBootFailure(error) {
+async function reportBootFailure(error) {
   if (error instanceof SiteDirSelectionCancelled) {
+    if (!SELFTEST) {
+      await dialog.showMessageBox({
+        type: "info",
+        title: "Tovu",
+        message: "No site folder was chosen.",
+        detail: "Tovu needs a folder to store your site before it can start. Launch again to choose one.",
+      });
+    }
     app.quit();
     return;
   }

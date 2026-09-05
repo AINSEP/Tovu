@@ -170,7 +170,11 @@ async function adoptSiteDir(input) {
  *    developer, absent in a packaged app, which is why it cannot be the only answer.
  * 4. Ask, via `pickDir`. An empty folder becomes a new site; a folder of unrelated files is refused.
  *
- * @param input.pickDir async `() => string | null`; `null` means the user cancelled.
+ * @param input.pickDir async `(rejectedDefault) => string | null`; `null` means the user
+ *   cancelled. `rejectedDefault` is `null` when there was nothing to try (no `devFallbackDir`, or a
+ *   packaged app that never sets one), else `{ dir, kind }` naming the candidate step 3 just turned
+ *   down and `classifySiteDir`'s verdict on it (`"empty"` or `"occupied"`) — so the picker can say
+ *   *why* it's asking instead of just asking.
  * @throws {SiteDirSelectionCancelled} when the user dismisses the picker.
  * @complexity O(n) stat calls over the MRU, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
@@ -181,11 +185,14 @@ async function resolveSiteDir(input) {
   const [mostRecent] = existingRecentSiteDirs(input.statePath);
   if (mostRecent !== undefined) return mostRecent;
 
-  if (input.devFallbackDir && classifySiteDir(input.devFallbackDir) === "site") {
-    return input.devFallbackDir;
+  let rejectedDefault = null;
+  if (input.devFallbackDir) {
+    const kind = classifySiteDir(input.devFallbackDir);
+    if (kind === "site") return input.devFallbackDir;
+    rejectedDefault = { dir: input.devFallbackDir, kind };
   }
 
-  const picked = await input.pickDir();
+  const picked = await input.pickDir(rejectedDefault);
   if (picked === null || picked === undefined) {
     throw new SiteDirSelectionCancelled("No site folder was chosen.");
   }
