@@ -12,45 +12,16 @@ name: CI
 # including everything else in this file. Fixed below: `push` now watches every branch (so no
 # future branch is silently unwatched the same way), and `pull_request` explicitly names both
 # long-lived integration branches this repo actually uses.
-# 2026-08-17: the sibling-Jini checkout mechanism was RESOLVED. History, because the disproof is
-# worth more than the fix:
 #
-# `push: branches: ["**"]` was enabled briefly on 2026-08-16 and produced the first CI run this
-# branch has ever had (`31995253883`). It failed in 37s:
-#
-#     ##[error]Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
-#              '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
-#
-# **`actions/checkout` refuses to write outside $GITHUB_WORKSPACE**, so `path: ../Jini` is illegal
-# and that action can NEVER place Jini as a true sibling. Neither predicted blocker was real: the
-# predicted private-repo token does not exist (AINSEP/Jini is public), and the `pnpm -r run build`
-# Jini step was never even reached, so it remained unproven for weeks.
-#
-# Both jobs below now use a plain `git clone` in a `run:` step instead. `run:` steps have no
-# workspace-containment restriction and need no credentials for a public repo. Option 2 (check Tovu
-# into a named subdir + `working-directory:` on every later step) was rejected: it touches every
-# step instead of one, for the same result.
-#
-# The 13 `file:../Jini/packages/*` specifiers in package.json are deliberately NOT rewritten to dodge
-# this — the owner keeps them as `file:` on purpose (no npm publish per local change, much faster to
-# iterate), and rewriting them would diverge this repo from the working local setup. Deploy-time
-# packaging is a separate, later decision.
-#
-# Triggers watch EVERY branch on push, not just `main`. That is the fix for the other half of the
-# 2026-08-16 finding: this workflow sat dormant through 38+ commits on `general-work` because it only
-# named `main`, so no future branch is silently unwatched the same way. `pull_request` explicitly
-# names both long-lived integration branches this repo actually uses.
-#
-# 2026-08-17 (later same evening): `af5af566`'s git-clone fix got the run past the checkout blocker,
-# but it was never proven against a real run and had a second bug: `pnpm/action-setup@v4` (no
-# `version:` input) defaults to reading the `packageManager` field from `$GITHUB_WORKSPACE/package.json`
-# -- Tovu's OWN root package.json, since Tovu is the primary checkout here, not Jini's. Tovu's root
-# uses npm, not pnpm, so that file has no `packageManager` field, and the action throws "No pnpm
-# version is specified" and fails the step. Traced through pnpm/action-setup@v4's own dist/index.js
-# (`readTarget()`): the `package_json_file` input is resolved as a plain `path.join($GITHUB_WORKSPACE,
-# <value>)` + `readFileSync`, with none of `actions/checkout`'s workspace-containment restriction --
-# so pointing it at `../Jini/package.json` is legal and correct. Both `pnpm/action-setup@v4` steps
-# below now set that explicitly. See each step's own comment.
+# 2026-08-31 (`daa74a65`): the `@jini-ai/*` dependencies in package.json, apps/admin/package.json,
+# and apps/site-chat/package.json moved from `file:../Jini/packages/*` sibling-checkout links to
+# published npm registry semver ranges (verified: zero `file:` specifiers remain in any of the
+# three manifests or lockfiles). Every job below now installs them exactly like any other
+# dependency, via `npm ci` against the registry -- no sibling Jini checkout, no `pnpm`, no separate
+# build step. This workflow used to clone and build a sibling `Jini/` checkout before every
+# `npm ci` to satisfy the old `file:` links; that machinery (and the `pnpm/action-setup@v4` step it
+# required, since Jini alone used pnpm) is gone as of this commit. See this file's git history from
+# before 2026-09 if the old sibling-checkout mechanics are ever needed for reference.
 on:
   push:
     branches: ["**"]
