@@ -1,4 +1,4 @@
-import { readdirSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
 import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files.js";
@@ -105,12 +105,16 @@ function visitPackageEntry(
   issues: ThemeValidationIssue[]
 ): { recurseInto: string } | undefined {
   const full = join(dir, name);
-  const stat = statSync(full, { throwIfNoEntry: false });
+  // lstatSync, NEVER statSync — statSync follows the link, so a circular symlink (a -> b -> a) makes
+  // it throw ELOOP straight out of this "never throws" validator, and a broken (dangling-target) link
+  // makes it return `undefined` here, silently skipping the very entry `structure-symlink-forbidden`
+  // exists to catch. lstatSync reports the link itself, never its target, so `isSymbolicLink()` below
+  // catches every shape uniformly — normal, broken, or circular — before any call that would follow it.
+  const stat = lstatSync(full, { throwIfNoEntry: false });
   if (!stat) return undefined;
 
-  const isLink = realpathSync(full) !== full;
   const relPath = relative(base, full).split(sep).join("/");
-  if (isLink) {
+  if (stat.isSymbolicLink()) {
     issues.push({ ruleId: "structure-symlink-forbidden", message: `'${relPath}' is a symlink, which a theme package must not contain`, path: relPath });
     return undefined;
   }

@@ -44,19 +44,37 @@ test("walkThemePackage: a real symlink inside the package is refused (structure-
   assert.equal(result.files.some((f) => f.relativePath === "linked.txt"), false);
 });
 
-test("walkThemePackage: a broken (dangling-target) symlink is silently skipped, not flagged — pinning current behavior, not endorsing it", () => {
-  // `statSync(full, { throwIfNoEntry: false })` follows the link and returns `undefined` for a
-  // dangling target BEFORE `visitPackageEntry` ever reaches the `realpathSync`-based symlink check
-  // below it, so a broken symlink escapes `structure-symlink-forbidden` entirely — neither reported
-  // as an issue nor listed as a file. Trigger: any theme package containing a symlink whose target has
-  // been deleted or never existed. Blast radius: low — the entry is dropped rather than validated, so
-  // a theme author cannot use a broken symlink to smuggle content past this check; the file is just
-  // invisible to it.
+test("walkThemePackage: a broken (dangling-target) symlink is refused (structure-symlink-forbidden), same as a real one", () => {
+  // `lstatSync` (not `statSync`) never follows the link, so `isSymbolicLink()` catches this entry
+  // BEFORE anything would need to resolve its (missing) target — a broken symlink is flagged the
+  // exact same way a working one is, rather than silently dropped. (Previously: `statSync` followed
+  // the link, got nothing back for the dangling target, and returned `undefined` before the symlink
+  // check ever ran — the entry was neither reported nor listed, letting a theme author's broken
+  // symlink slip past this check invisibly.)
   const dir = tmpDir("tovu-structure-broken-symlink-");
   fs.symlinkSync(path.join(dir, "does-not-exist.txt"), path.join(dir, "broken.txt"));
 
   const result = walkThemePackage({ themeDir: dir });
-  assert.deepEqual(result.issues, []);
+  const issue = result.issues.find((i) => i.ruleId === "structure-symlink-forbidden");
+  assert.ok(issue, JSON.stringify(result.issues));
+  assert.match(issue!.message, /'broken\.txt' is a symlink/);
+  assert.deepEqual(result.files, []);
+});
+
+test("walkThemePackage: a CIRCULAR symlink (a -> b -> a) is refused (structure-symlink-forbidden), never throws ELOOP", () => {
+  // `statSync` follows the link, and a symlink cycle makes it throw `ELOOP` — straight out of this
+  // validator's own documented 'never throws on a bad theme' contract (this file's header doc,
+  // `validate-theme-package.ts`'s own 'Never throws' note). `lstatSync` reports the link itself,
+  // never chasing the cycle, so `isSymbolicLink()` catches it exactly like any other symlink.
+  const dir = tmpDir("tovu-structure-circular-symlink-");
+  const a = path.join(dir, "a");
+  const b = path.join(dir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  const result = walkThemePackage({ themeDir: dir });
+  const ruleIds = result.issues.map((i) => i.ruleId).sort();
+  assert.deepEqual(ruleIds, ["structure-symlink-forbidden", "structure-symlink-forbidden"], JSON.stringify(result.issues));
   assert.deepEqual(result.files, []);
 });
 
