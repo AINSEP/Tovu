@@ -309,7 +309,25 @@ export function collectPageStructure(limits: PageStructureLimits): PageStructure
   }
 
   /** Computes one contrast sample for an element already known to be sampleable and visible, or
-   *  `null` when its colours cannot be parsed. */
+   *  `null` when its colours cannot be parsed.
+   *
+   *  INVARIANT: `bg` can never actually be null, only `fg` can. `background` comes from
+   *  `effectiveBackground`, which has exactly two return paths: an ancestor's `backgroundColor`
+   *  that `parseColor` has ALREADY parsed successfully (that is what `parsed[3] > 0` requires), or
+   *  the hardcoded fallback literal `"rgb(255, 255, 255)"`, which trivially matches `parseColor`'s
+   *  own regex. So `parseColor(effectiveBackground(element))` is guaranteed non-null. `fg`, by
+   *  contrast, comes straight from the browser's own `style.color` serialization, which is not
+   *  guaranteed to be `rgb()`/`rgba()` syntax (e.g. newer CSS Color 4 syntaxes some engines may
+   *  report) — that is the one this guard exists to catch.
+   *
+   *  Kept as `!fg || !bg` (not narrowed to `!fg`) deliberately: this file's header forbids hoisting
+   *  helpers out of `collectPageStructure`'s closure for serialization across the Playwright
+   *  `page.evaluate` boundary (see file header), so there is no seam here that would let a test
+   *  inject an unparseable `effectiveBackground` result without changing `effectiveBackground`'s own
+   *  behavior. Removing the `!bg` half would encode "we are certain this never happens" as an
+   *  assumption baked into the return type instead of a runtime check — if `effectiveBackground`'s
+   *  fallback literal is ever changed to something not always parseable, this guard is what keeps a
+   *  malformed sample from reaching `relativeLuminance` instead of failing loudly. */
   function contrastSampleFor(element: Element, style: CSSStyleDeclaration): ContrastSample | null {
     const foreground = style.color;
     const background = effectiveBackground(element);
