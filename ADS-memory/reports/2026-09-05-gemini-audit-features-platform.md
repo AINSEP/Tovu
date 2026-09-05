@@ -25,7 +25,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 8b. refactor(complexity) batch E 753b3eba
 - [x] 8c. refactor(complexity) batch F c62c95a4
 - [x] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
-- [ ] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
+- [x] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 - [ ] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 - [ ] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
 - [ ] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
@@ -219,5 +219,17 @@ Gemini raised 3 findings. 1 discarded (path-scoping false positive, same recurri
 - Gemini claimed `parseMediaEmbedRef`'s `assetId === null` guard (widgets/resolver-service.ts:546) misses `undefined`, causing either a crash or a bad DB query. Disproved: `PageHtmlEmbedRef.id` (`html-embeds.ts:102`) is typed `string | null` — never `undefined` — so the strict-equality `null` check is exactly sufficient for the type it actually receives.
 
 ### Chunk 10 — theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
+
+Gemini raised 3 findings. 1 discarded (path-scoping false positive, same recurring class), 1 confirmed as a real, well-reasoned HIGH finding that directly disproves the commit's own stated invariant, 1 confirmed as a real test-specificity gap.
+
+**HIGH — CONFIRMED. The commit's own stated invariant is false in one direction.** `apps/website/src/features/theme/static-render.ts:730-734`, `LEGACY_TEMPLATE_FILENAME_ALIASES` (38e022fc): `{"blog-post": "posts-default", "blog-sidebar-template": "posts-sidebar", "page-shell": "pages-default"}` — keyed OLD-name -> NEW-name only, consumed by `resolveTemplate`'s `resolveAgainstTheme` (line 804) as a fallback in exactly that one direction. The file's own doc explicitly claims "this alias map is the only direction that stays correct in both timelines" and the commit message claims it "keeps every stored `template_choice` (old or new filename) resolving to the same file across a future theme switch" — but a Post/Page saved with a NEW filename (`posts-default`, e.g. authored while the renamed `basic` theme was active) that is later viewed under a theme still shipping only the OLD filename (`blog-post` — five of six installed static themes, per the same doc) has no reverse entry to fall back through: `theme.pages["posts-default"]` misses, `LEGACY_TEMPLATE_FILENAME_ALIASES["posts-default"]` also misses (map has no such key), and the page silently falls through to generic chrome instead of the theme's actual equivalent template — exactly the class of regression (silent fallback to diagnostic/generic rendering) this same file's history says it exists to prevent.
+Verification: read `resolveAgainstTheme` (line 800-805) and the alias map directly — confirmed the map has no NEW->OLD entries and no other reverse-lookup mechanism exists anywhere else in the file.
+
+**MEDIUM — CONFIRMED (test specificity, not proven to currently false-pass).** `apps/website/src/features/theme/__tests__/menu-tree-render.test.ts:297-306`, the malicious-href-scheme test. Its two assertions — `html?.includes('<a href="#"')` and `!html?.includes('href="${hostileHref}"')` — both check the FULL rendered page's HTML as an unscoped substring search, never confirming the collapsed `href="#"` belongs to the specific menu item ("X") under test. If the theme's own chrome happens to contain any other `<a href="#">` (a skip-nav link, a "back to top" link, a mobile-menu toggle), the first assertion would pass regardless of what actually happened to the tested link, and a regression that left the hostile href reaching the page under a DIFFERENT literal form (e.g. re-escaped) could still slip past the second. Did not verify whether `flatTheme()`'s actual fixture HTML currently contains such a stray link (would need to read the full theme fixture) — recording the specificity gap as confirmed, the "currently gives a false pass" claim as unverified.
+
+**Discarded (1):**
+- Gemini's HIGH claim that commit `20112f69`'s new drift-prevention gate script (`development/scripts/check-menu-href-allowlist-sync.ts`) and its test were never actually committed. Disproved: `git show 20112f69 --stat` (unfiltered) shows both genuinely committed (304 and 164 lines respectively), plus a `package.json` script entry — outside this chunk's features/platform path filter. Same recurring false-positive class as chunks 1, 6, 7, 9.
+
+### Chunk 11 — comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 
 (running)
