@@ -3,6 +3,47 @@
    preview), matching every other Tovu theme's convention. This file is mode-agnostic
    on purpose: it reads var(--x) only, so the same stylesheet serves both modes. */
 
+/* Self-hosted Geist — deliberately vendored, never fetched from a CDN, the same rationale
+   NOTICE.md already records for the kUInetic bundle. This site's published Privacy Policy
+   states plainly that no third-party resource loads and no visitor data reaches any CDN; a
+   `fonts.googleapis.com` stylesheet link here would falsify that document, so the faces are
+   declared against files this theme ships itself (`assets/fonts/`, SIL OFL 1.1, licence text
+   vendored beside them — see NOTICE.md, "Self-hosted Geist").
+
+   Until this block existed, `tokens.json` named 'Geist'/'Geist Mono' as the display, body and
+   mono faces and nothing ever fetched them: the manifest's `fonts` array is read only by
+   `fontLink()` inside `pageShell()`, the declarative document shell, which a static-tier theme
+   never reaches because it ships its own head. Every page silently rendered in the fallback
+   stack.
+
+   These url()s are RELATIVE on purpose. This stylesheet is served at
+   `/theme-assets/basic/css/theme.css`, so `../assets/fonts/` resolves to
+   `/theme-assets/basic/assets/fonts/` with no path rewriting anywhere — the same
+   self-resolving arrangement `apps/site-chat/public/remixicon.css` uses for its own woff2.
+   Relative is also the only form that survives a base-path static export:
+   `platform/export/site-exporter.ts` follows one hop into a fetched stylesheet's own url()
+   references, so these files ARE discovered and exported, but it deliberately does not rewrite
+   them, so an absolute `/theme-assets/...` url would 404 under any non-root base path.
+
+   One VARIABLE file per family (wght 100-900) rather than the static 400/500 instances the
+   manifest used to name: the rules below use 400, 500 and 600, and static 400/500 files would
+   have left every 600 rule synthesising a faux bold. `font-display: swap` keeps first paint on
+   the fallback stack the tokens already declare instead of blocking on the font. */
+@font-face {
+  font-family: 'Geist';
+  src: url('../assets/fonts/geist-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../assets/fonts/geist-mono-var.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 /* Classic (non-`position: fixed`) sticky footer: on a page shorter than the viewport the footer
