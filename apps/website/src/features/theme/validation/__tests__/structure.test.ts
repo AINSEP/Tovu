@@ -240,14 +240,8 @@ test("checkSourceDirContainment: a v2 sourceDir naming no reserved root and no g
   assert.deepEqual(issues, []);
 });
 
-test("checkSourceDirContainment: schemaVersion 1 skips the v2-only root-conflict rule even when sourceDir names a v2 reserved root — pinning current behavior, not endorsing it", () => {
-  // `checkSourceDirRootConflict` is v2-strict-only by the function's own doc comment, and in
-  // production `validate-theme-package.ts`'s `checkV2BuildContainment` hardcodes `schemaVersion: 2`
-  // on every call — there is no real caller that ever passes `schemaVersion: 1`, so this exact branch
-  // is exercised only through this direct call, not through any production code path today.
-  const issues = checkSourceDirContainment({
-    build: { source: "compiled", sourceDir: "css" },
-    schemaVersion: 1,
-  });
-  assert.deepEqual(issues, []);
-});
+// A "schemaVersion: 1 skips the v2-only root-conflict rule" case used to be pinned here, direct-invoke
+// only, because no real caller ever passed `schemaVersion: 1` — confirmed by exhaustively tracing
+// every call site (`checkSourceDirContainment`'s own doc comment). `schemaVersion` is now typed as the
+// literal `2`, so that case is no longer constructible at all; removed along with the type value it
+// existed only to pin.

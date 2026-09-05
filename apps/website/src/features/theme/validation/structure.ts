@@ -243,8 +243,21 @@ function checkSourceDirRootConflict(sourceDir: string, normalized: string): Them
   };
 }
 
+/**
+ * `build.source: "compiled"`'s `sourceDir` containment rule: the generated-dir-conflict check
+ * (`isSourceDirGeneratedConflict`) always runs; `checkSourceDirRootConflict` is v2-strict only.
+ *
+ * `schemaVersion` is typed as the literal `2`, not `1 | 2`, even though `ValidateThemePackageResult`
+ * elsewhere in this feature carries a genuine `1 | 2` (a v1-shaped package is real and validated —
+ * see `validate-theme-package.ts`'s `runV1FallbackCheck`). Traced exhaustively: every real call site
+ * in this repo, including `migrate-theme.ts`'s staging-verification pass (which validates the
+ * MIGRATED v2 output, not the v1 source), reaches this function only through
+ * `checkV2BuildContainment`, which hardcodes `2`. A v1 package's `build.sourceDir` is never routed
+ * through this check at all — `runV1FallbackCheck` defers entirely to `loadTheme()`'s own build
+ * validation instead. So `schemaVersion: 1` was never reachable here, and the type now says so.
+ */
 export function checkSourceDirContainment(
-  required: { build: Pick<ThemeBuildInfo, "source" | "sourceDir">; schemaVersion: 1 | 2 },
+  required: { build: Pick<ThemeBuildInfo, "source" | "sourceDir">; schemaVersion: 2 },
   _optional: Record<string, never> = {}
 ): ThemeValidationIssue[] {
   const { build, schemaVersion } = required;
