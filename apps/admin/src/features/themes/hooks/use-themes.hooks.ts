@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { type PresentationSettings, type ThemeTier } from "@/lib/api";
 import { useAdminLocale } from "@/hooks/use-admin-locale.hooks";
@@ -102,6 +102,17 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   const [marketplaceLoading, setMarketplaceLoading] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
 
+  // Monotonic per-call ids (same shape as `use-sites.hooks.ts`'s `activateGenerationRef`, itself
+  // matching `use-access-tokens.hooks.ts`'s `reloadGenerationRef`): `activate`/`download` each take
+  // a theme id and race an independent request per call, and network completion order does not have
+  // to match click order. Minted synchronously at the top of each call so two calls started back to
+  // back always mint in the order they started even though both are async — a stale settlement
+  // (checked before every state write below, not just the success path, since an out-of-order
+  // FAILURE would otherwise resurrect a stale error over a newer call's real outcome) is dropped
+  // instead of overwriting whatever the latest call already produced.
+  const activateGenerationRef = useRef(0);
+  const downloadGenerationRef = useRef(0);
+
   useEffect(() => {
     port
       .getPresentation()
@@ -140,14 +151,21 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
   }
 
   async function activate(themeId: string) {
+    const generation = ++activateGenerationRef.current;
     setBusyTheme(themeId);
     setError(null);
     try {
       const r = await port.setActiveTheme(themeId);
+      // Superseded by a newer activate call started after this one — that later call owns
+      // `settings`/`busyTheme` now, and applying this stale result would let whichever request
+      // happens to settle LAST win regardless of which theme was actually clicked last.
+      if (activateGenerationRef.current !== generation) return;
       setSettings(r.settings);
     } catch (e) {
+      if (activateGenerationRef.current !== generation) return;
       setError(e instanceof Error ? e.message : "failed to switch theme");
     } finally {
+      if (activateGenerationRef.current !== generation) return;
       setBusyTheme(null);
     }
   }
@@ -172,24 +190,31 @@ export function useThemes({ port, t }: ThemesDependencies): ThemesController {
    * refresh would leave a freshly-taken id still advertising itself as free.
    */
   async function download(themeId: string) {
+    const generation = ++downloadGenerationRef.current;
     setDownloading(themeId);
     setError(null);
     setRescanNotice(null);
     try {
       const r = await port.downloadMarketplaceTheme(themeId);
       const fresh = await port.getPresentation();
+      // Same stale-settlement guard as `activate` above — see `activateGenerationRef`'s doc comment
+      // for why every branch (not just this success path) has to check before writing state.
+      if (downloadGenerationRef.current !== generation) return;
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
       await loadMarketplace();
+      if (downloadGenerationRef.current !== generation) return;
       setRescanNotice(
         r.suffixed
           ? `Installed as “${r.id}” — “${themeId}” was already taken, so it was renamed.`
           : `Installed “${r.id}”.`
       );
     } catch (e) {
+      if (downloadGenerationRef.current !== generation) return;
       setError(e instanceof Error ? e.message : "failed to download theme");
     } finally {
+      if (downloadGenerationRef.current !== generation) return;
       setDownloading(null);
     }
   }
