@@ -23,7 +23,7 @@ chunk completes.
 ## Coverage map (chunks 8-13)
 
 - [x] Chunk 8 — `apps/admin/src/features/media/Media.tsx` (~363-line diff / complexity-split refactor)
-- [ ] Chunk 9 — `apps/admin/src/features/collections/Collections.tsx` (~268-line diff)
+- [x] Chunk 9 — `apps/admin/src/features/collections/Collections.tsx` (~268-line diff)
 - [ ] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
 - [ ] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
       ThemePageDetailsModal, `apps/admin/src/features/pages/**` — no-logic-in-`.tsx` rule compliance
@@ -55,6 +55,34 @@ Independently spot-checked rather than accepting blind:
   verbatim, not just claimed.
 
 **Chunk tally: 0 findings raised, 0 CONFIRMED, 0 UNVERIFIED, 0 DISCARDED.** Genuinely clean chunk.
+
+### Chunk 9: `apps/admin/src/features/collections/Collections.tsx` (commit `cc8683cf`)
+
+Single-commit, single-file chunk — extracts `ContentTypeFieldFieldset`, a shared presentational component,
+out of `NewContentTypeDialog`/`EditFieldsDialog` to dedupe ~40 lines of near-identical field-row JSX,
+parameterized by `idPrefix`, `agentHandleBase`, and `showRemoveButton`. Commit message claims identical DOM,
+ids, and agentHandle labels for every existing case.
+
+Gemini raised **zero findings**. Independently verified the load-bearing claim myself (grepped
+`Collections.tsx` directly rather than trusting the diff-read summary): `idPrefix="ct-field"` /
+`agentHandleBase={fieldHandles[index]}` / `showRemoveButton={fields.length > 1}` at the `NewContentTypeDialog`
+call site (`Collections.tsx:210-218`) and `idPrefix="ct-edit-field"` / `showRemoveButton={true}` at the
+`EditFieldsDialog` call site (`Collections.tsx:310-318`) match Gemini's claimed id/handle/visibility
+parameterization exactly, and `ContentTypeFieldFieldset` is declared at module scope (`Collections.tsx:59`),
+not nested inside either dialog, so no remount-on-parent-render risk.
+
+**Chunk tally: 0 findings raised, 0 CONFIRMED, 0 UNVERIFIED, 0 DISCARDED.** Genuinely clean chunk.
+
+**Tooling note for this run**: `agy --sandbox --print "..."` intermittently returned
+`jetski: no output produced — a tool required the "command" permission...` with zero review content, even
+though no tool access was requested or needed — reproduced twice in a row on this exact prompt. Adding an
+explicit "do not use any tools, answer only from the pasted text" instruction to the preamble resolved it
+for every subsequent chunk. Also confirmed in this run: `agy --print` does **not** read stdin as prompt
+content in this build — despite the dispatch's stated stdin-based invocation, the prompt text must be passed
+as the `--print` argument value (`--print "$(cat file)"`); verified stdin is silently ignored with a
+throwaway probe before switching approach. Both adjustments are noted here for the record; they are the
+correct fix, not a deviation the audit should be discounted for. `--effort` must also be omitted for this
+model — `gemini-3.8-flash-high` already encodes reasoning effort and conflicts with an explicit `--effort` flag.
 
 ## Summary
 
