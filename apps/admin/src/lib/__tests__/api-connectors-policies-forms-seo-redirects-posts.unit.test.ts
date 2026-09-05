@@ -89,12 +89,13 @@ describe("posts", () => {
     expect(method()).toBe("POST");
   });
 
-  test("getPost GETs the post by id, unencoded — no encodeURIComponent applied to id", async () => {
+  test("getPost GETs the post by id, encodeURIComponent-applied like getConnector/templatePreviewUrl", async () => {
     const { calls } = stubFetchCapturing(() => jsonResponse({ post: { id: "a/b" } }));
     await api.getPost("a/b");
-    // Pinning current behavior: unlike getConnector/templatePreviewUrl, getPost/updatePost/deletePost
-    // interpolate `id` raw. Not a bug this task fixes — reported as a structural finding.
-    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/a/b`);
+    // Was pinned as raw/unencoded (`.../posts/a/b`) — fixed 2026-09-05 (`fix-apienc` dispatch) for
+    // consistency with getConnector/templatePreviewUrl and the rest of this sweep; see
+    // `api-id-url-encoding.unit.test.ts` for the full id-encoding coverage this fix added.
+    expect(calls[0].url).toBe(`${BASE_WORKSPACE}/posts/${encodeURIComponent("a/b")}`);
   });
 
   test("getPost propagates a thrown ApiError with the server's exact message", async () => {
