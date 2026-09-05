@@ -35,7 +35,7 @@ function runCli(args: string[]): { status: number | null; stdout: string; stderr
 test("tovu deploy config --target fly --region <r>: exits 0 and prints fly.toml to stdout", () => {
   const result = runCli(["deploy", "config", "--target", "fly", "--region", "iad"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.match(result.stdout, /^app = "tovu-ai-cms"$/m);
+  assert.match(result.stdout, /^app = "tovu"$/m);
   assert.match(result.stdout, /primary_region = "iad"/);
   assert.match(result.stdout, /path = "\/readyz"/);
   // Follow-up notes go to stderr, never mixed into the file contents on stdout.
@@ -46,7 +46,7 @@ test("tovu deploy config --target fly --region <r>: exits 0 and prints fly.toml 
 test("tovu deploy config --target render --region <r>: exits 0 and prints render.yaml to stdout", () => {
   const result = runCli(["deploy", "config", "--target", "render", "--region", "oregon"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
-  assert.match(result.stdout, /name: tovu-ai-cms/);
+  assert.match(result.stdout, /name: tovu/);
   assert.match(result.stdout, /region: oregon/);
   assert.match(result.stdout, /healthCheckPath: \/readyz/);
 });
@@ -89,7 +89,7 @@ test("tovu deploy config --target fly --region <r> --out <file>: writes the file
   assert.doesNotMatch(result.stdout, /^app = /m, "the file's own contents must not ALSO print to stdout");
 
   const written = fs.readFileSync(outFile, "utf8");
-  assert.match(written, /^app = "tovu-ai-cms"$/m);
+  assert.match(written, /^app = "tovu"$/m);
 
   fs.rmSync(dir, { recursive: true, force: true });
 });
