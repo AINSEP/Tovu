@@ -9,7 +9,20 @@ import { openContentDb } from "#src/platform/db/sqlite/content-db";
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the
 // package does not publish that module as its own subpath; loading the barrel loads it.
-import "@jini-ai/cms/identity";
+import {
+  type IdentityRepos,
+  InMemoryPolicyPermissionRepo,
+  InMemoryPolicyRepo,
+  InMemoryPrincipalPolicyRepo,
+  InMemoryPrincipalRepo,
+  InMemoryPrincipalRoleRepo,
+  InMemoryRolePolicyRepo,
+  InMemoryRoleRepo,
+  InMemorySessionRepo,
+  InMemoryUserRepo,
+  migrateDeprecatedPermissionGrants,
+  seedIdentity,
+} from "@jini-ai/cms/identity";
 // Side-effect import, same shape as the line above and for the same reason: loading the Pages
 // barrel is what registers this repo's OWN permission-migration pair (theme.edit ->
 // pages.edit_html, `features/pages/permissions.ts`). Registered by a host rather than by the
@@ -243,18 +256,21 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to a
 });
 
 /**
- * The boot seam for the SECOND grant path, and the one the test above cannot stand in for.
+ * The boot seam for the SECOND grant path, run over a FRESHLY-seeded workspace.
  *
- * The `theme.edit -> pages.edit_html` case above hands the fan-out a policy that already holds
- * `theme.edit`, so it certifies the fan-out and nothing about a workspace where no policy holds it.
- * `sites/tovu-com/content.db` IS such a workspace: seeded before `theme.edit` joined
- * `BUILTIN_ADMIN_PERMISSIONS`, and unable to gain it because `seedIdentity` early-returns once an
- * owner user exists. Against that workspace the fan-out matches nothing, and before
- * `applyBuiltinRoleGrants` was wired in here, `identityReady` left `pages.edit_html` on no policy
- * at all — a silent fail-CLOSED that refuses `admin`, the role the permission was written for.
+ * **This test does NOT, by itself, prove the backfill is load-bearing.** A fresh workspace's
+ * `admin-builtin-policy` already holds `theme.edit` (it is on the current `BUILTIN_ADMIN_PERMISSIONS`
+ * list), so `migrateDeprecatedPermissionGrants`' fan-out — already exercised by the sibling test above
+ * — grants `pages.edit_html` to `admin-builtin-policy` on its own, with no help from
+ * `applyBuiltinRoleGrants` at all. An earlier version of this comment claimed this test "fails if the
+ * backfill is ever dropped from the boot chain"; that was false, and was never actually exercised —
+ * deleting `applyBuiltinRoleGrants` from `identityReady`'s chain would leave this assertion GREEN.
  *
- * This test runs `identityReady` over a workspace seeded by that same `seedIdentity` and asserts
- * the built-in policies directly, so it fails if the backfill is ever dropped from the boot chain.
+ * What this test DOES certify: `identityReady`'s composed chain still reaches admin and only admin,
+ * end to end, in the vintage every fresh install boots into. The vintage where the backfill is the
+ * ONLY path — `sites/tovu-com/content.db`'s own vintage, seeded before `theme.edit` joined
+ * `BUILTIN_ADMIN_PERMISSIONS` — is certified separately below, where removing `applyBuiltinRoleGrants`
+ * from the sequence provably turns this same assertion red.
  */
 test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to the built-in admin policy and to no other built-in policy (SPEC-047 REQ-9)", async () => {
   const workspaceId = "workspace-builtin-role-grant";
@@ -291,6 +307,115 @@ test("createInMemoryIdentityRouteDeps: identityReady grants pages.edit_html to t
 
   // The owner policy holds only `*`; `authorize()` short-circuits on it, so a row here would mean
   // the backfill had started writing onto the wildcard policy.
+  assert.deepEqual(
+    await permissionsOfPolicyNamed("owner-builtin-policy"),
+    ["*"],
+    "the owner policy stays exactly its seeded wildcard"
+  );
+});
+
+/**
+ * Rewind the seeded `admin` policy to its pre-`theme.edit` vintage by removing that one row. Same
+ * technique as `features/pages/__tests__/edit-html-permission.test.ts`'s `dropAdminThemeEdit` (the
+ * anchor fix for this exact gap at a different sink, `db83fdaf`) — duplicated here rather than
+ * imported, matching that file's own choice to keep each certification self-contained (see its
+ * `dropAdminThemeEdit` comment).
+ *
+ * Asserts the row was there before removing it, deliberately: if `theme.edit` ever leaves
+ * `BUILTIN_ADMIN_PERMISSIONS`, this fixture would otherwise silently stop simulating anything and
+ * the pre-`theme.edit` case below would start passing for the wrong reason.
+ */
+async function dropAdminThemeEdit(repos: IdentityRepos, workspaceId: string): Promise<void> {
+  const policy = await repos.policies.findByName({ workspaceId, name: "admin-builtin-policy" });
+  assert.ok(policy, "seedIdentity must have created the built-in admin policy");
+
+  const grants = await repos.policyPermissions.listByPolicyId({ workspaceId, policyId: policy.id });
+  const themeEdit = grants.find((row) => row.permission === "theme.edit");
+  assert.ok(themeEdit, "the current admin seed list must still contain theme.edit for this rewind to mean anything");
+
+  await repos.policyPermissions.delete({ workspaceId, id: themeEdit.id });
+}
+
+/**
+ * The vintage that actually ships, at the boot seam. `sites/tovu-com/content.db`'s own
+ * `admin-builtin-policy` has no `theme.edit` row — seeded before that permission joined
+ * `BUILTIN_ADMIN_PERMISSIONS`, and unable to gain it because `seedIdentity` early-returns once an
+ * owner user exists — so `migrateDeprecatedPermissionGrants`' fan-out matches nothing there.
+ * `applyBuiltinRoleGrants` is the ONLY thing that reaches `admin` in this vintage.
+ *
+ * This does not call `createInMemoryIdentityRouteDeps`/`identityReady` directly: that promise chain
+ * kicks off `seedIdentity` immediately and fires `migrateDeprecatedPermissionGrants` off its
+ * resolution internally, with no exposed seam to rewind the admin policy in between the two without
+ * racing that chain's own microtask ordering — which is exactly the kind of timing-dependent fixture
+ * this repo's tests are written not to rely on. Instead this runs the identical three calls
+ * `features/identity/wiring.ts`'s `buildIdentityRouteDeps` makes, in the same order, over the same
+ * real `@jini-ai/cms/identity` functions and the same `applyBuiltinRoleGrants` this file already
+ * imports — so a change to that composition's ORDER or to which functions run would need a matching
+ * change here to stay green.
+ *
+ * Delete the `applyBuiltinRoleGrants` call below and this test goes red immediately: proof this
+ * assertion — unlike the fresh-vintage one above — actually depends on the backfill.
+ */
+test("createInMemoryIdentityRouteDeps' own boot sequence grants pages.edit_html to admin in a pre-theme.edit (already-deployed) workspace, where the fan-out alone grants nothing (SPEC-047 REQ-9)", async () => {
+  const workspaceId = "workspace-pre-theme-edit-builtin-role-grant";
+  const repos: IdentityRepos = {
+    principals: new InMemoryPrincipalRepo(),
+    users: new InMemoryUserRepo(),
+    sessions: new InMemorySessionRepo(),
+    roles: new InMemoryRoleRepo(),
+    policies: new InMemoryPolicyRepo(),
+    policyPermissions: new InMemoryPolicyPermissionRepo(),
+    rolePolicies: new InMemoryRolePolicyRepo(),
+    principalRoles: new InMemoryPrincipalRoleRepo(),
+    principalPolicies: new InMemoryPrincipalPolicyRepo(),
+  };
+  const fakeHasher = { hash: async (p: string) => `hashed:${p}`, verify: async (h: string, p: string) => h === `hashed:${p}` };
+
+  await seedIdentity({
+    deps: { repos, hasher: fakeHasher, clock: fixedClock, idGen: counterIdGen() },
+    input: { workspaceId, ownerUsername: "owner-under-test", ownerPassword: "irrelevant" },
+  });
+
+  await dropAdminThemeEdit(repos, workspaceId);
+
+  await migrateDeprecatedPermissionGrants({
+    policyPermissions: repos.policyPermissions,
+    policies: repos.policies,
+    idGen: counterIdGen(),
+    workspaceId,
+  });
+
+  await applyBuiltinRoleGrants({
+    roles: repos.roles,
+    rolePolicies: repos.rolePolicies,
+    policies: repos.policies,
+    policyPermissions: repos.policyPermissions,
+    idGen: counterIdGen(),
+    workspaceId,
+  });
+
+  const permissionsOfPolicyNamed = async (name: string) => {
+    const policy = await repos.policies.findByName({ workspaceId, name });
+    assert.ok(policy, `seedIdentity must have created '${name}'`);
+    return (await repos.policyPermissions.listByPolicyId({ workspaceId, policyId: policy.id })).map(
+      (row) => row.permission
+    );
+  };
+
+  assert.ok(
+    (await permissionsOfPolicyNamed("admin-builtin-policy")).includes(PAGES_EDIT_HTML_PERMISSION),
+    "admin must hold pages.edit_html in an already-seeded workspace too — the grant cannot depend on a seed row that workspace never got"
+  );
+
+  // The refusals are the assertions that matter, same as the fresh-vintage case: a backfill that
+  // reached these would BE the SPEC-047 REQ-9 vulnerability, not a wiring bug.
+  for (const name of ["editor-builtin-policy", "viewer-builtin-policy"] as const) {
+    assert.ok(
+      !(await permissionsOfPolicyNamed(name)).includes(PAGES_EDIT_HTML_PERMISSION),
+      `${name} must NOT gain raw-page-HTML authoring`
+    );
+  }
+
   assert.deepEqual(
     await permissionsOfPolicyNamed("owner-builtin-policy"),
     ["*"],
