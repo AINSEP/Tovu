@@ -1,0 +1,746 @@
+<!--
+  tovu.dev homepage — "press" direction (sample #1 of the owner's five).
+
+  PAGE BODY ONLY. The theme shell (render/pages/pages-default.html) supplies
+  <html>/<head>/<body>, `.site-header` and `.site-footer`. Deliberately no
+  doctype, no <html>, no <head>, no <body>, no <script>.
+
+  ---------------------------------------------------------------------------
+  WHY THIS DIRECTION
+  ---------------------------------------------------------------------------
+  It is the third of five slots and it is built to be UNLIKE the two that
+  already exist, on the three axes the brief named:
+
+    axis          landing-xai            landing-gold         THIS PAGE
+    typography    grotesque sans         grotesque sans       oldstyle SERIF
+    density       airy, one idea/band    medium, ledger       dense, 2-col, ruled
+    temperature   warm cream, achromatic warm gold            COOL pine green
+
+  On temperature the brief assumed "xAI reads cool/dark/technical". Its own file
+  says otherwise — its canonical mode is a warm cream ground with an achromatic
+  grey ramp ("warm cream laboratory with a black pill"), and landing-gold is warm
+  too. So warm is the LEAST differentiated choice available, and the axis that
+  actually separates this page from the shipped pair is cool. Hence pine green.
+
+  The object being imitated is a bound technical annual: a title page, running
+  heads, roman-numbered sections set against a margin column, hairline rules,
+  and a rubric colour used the way red is used in a printed reference — for
+  marks, numbers and the one action. No cards anywhere on the page.
+
+  ---------------------------------------------------------------------------
+  NO MOTION LIBRARY. NOT ONE `data-kui` ATTRIBUTE.
+  ---------------------------------------------------------------------------
+  kUInetic's deferred presets compile to `animation-fill-mode: both` +
+  `animation-play-state: paused`, which makes the `from` frame the element's
+  RESTING style until an IntersectionObserver fires. `on:enter` therefore does
+  not fail open: an observer that never fires leaves content permanently
+  invisible, which is what blanked every long page on the live site. This page
+  opts out of that failure mode entirely rather than mitigating it — there is
+  no observer to fire, so there is no state in which the page is blank. Verify
+  with: grep -c 'data-kui=' on this file  ->  0. (Bare `data-kui` matches twice,
+  both of them inside this comment, which is why the check carries the `=`.)
+
+  The only motion here is a 0.15s colour transition on hover, switched off under
+  prefers-reduced-motion. Nothing on this page is carried by motion.
+
+  ---------------------------------------------------------------------------
+  COLOUR CONTRACT (sRGB contrast ratios, WCAG 2.x relative luminance)
+  ---------------------------------------------------------------------------
+  LIGHT (canonical)                        DARK (theme default: no attribute)
+    --pr-ink    #12211a on paper  14.57:1    #e8efe9 on ground  16.08:1
+    --pr-body   #3f5148 on paper   7.39:1    #a7b5ad on ground   8.83:1
+    --pr-rubric #0f5c3c on paper   7.01:1    #5fd8a4 on ground  10.61:1
+    --pr-edge   #72847a on paper   3.46:1    #586b61 on ground   3.31:1
+    on-rubric   #eef0ee on rubric  7.01:1    #0c1310 on rubric  10.61:1
+
+  Text floor 4.5:1, UI/focus floor 3:1 — every pair above clears its floor.
+  --pr-edge draws EVERY rule and border on this page; there is no decorative
+  hairline token, because the sub-2:1 hairline is exactly the defect class that
+  had to be fixed three times in the live theme (border 1.46:1, gold-as-text
+  1.76:1, focus ring 1.59:1). One rule token, always >= 3:1, no exceptions.
+
+  ---------------------------------------------------------------------------
+  EVERY FACTUAL CLAIM, AND WHERE IT COMES FROM
+  ---------------------------------------------------------------------------
+  tool names               apps/website/src/features/*/agent-tools.ts
+  "NEVER agent-callable"   features/database/agent-tools.ts:186
+                           features/redirects/agent-tools.ts:217   (literal text)
+  publish is human-gated   features/deployments/publish-agent-tools.ts:336
+  post delete -> trash     features/post/agent-tools.ts:475-478
+  members: no delete tool  absent from every catalog (verified by enumeration)
+  five theme tiers         features/theme/theme.ts:40
+  four shipped engines     features/theme/theme.ts:1209 (ENGINE_SUBFOLDERS)
+  liquid allowlist         features/theme/liquid-allowlist.ts:4
+  handlebars allowlist     features/theme/handlebars-allowlist.ts
+  worker_threads sandbox   features/theme/agent-tools.ts:28-29
+  same permission check    features/comments/tool-registrations.ts:8-13
+  CLI commands             apps/website/src/cli/commands/
+  tovu introspect          apps/website/src/cli/introspect.ts:5-16
+  docker build line        Dockerfile:7
+  clone URL                git remote -v
+  NOT on npm               package.json:2-4  ("name":"tovu", "private":true)
+
+  There is no `npx tovu` and no `npm install tovu` on this page, in either
+  direction, because the package is private and neither command works.
+-->
+<style>
+/* ===========================================================================
+   0. SHELL RESET
+   pages-default.html drops this fragment inside
+   <article class="wrap post-detail"><div><div class="post-detail-body">,
+   which is a 720px / 66ch reading column with its own block padding. Correct
+   for prose, wrong for a landing page, so all three caps are cleared — on this
+   page only, since this <style> is page content and ships with nothing else.
+
+   .post-detail-header is the shell's own <h1> + dateline. On a homepage that is
+   a duplicate <h1> (WCAG 1.3.1) plus a stray publish date, so it leaves the
+   layout AND the accessibility tree, keeping exactly one <h1> — the hero's.
+   =========================================================================== */
+.post-detail { max-width: none; padding: 0; margin: 0; }
+.post-detail-body { max-width: none; font-size: inherit; line-height: inherit; }
+.post-detail-header { display: none; }
+
+/* ===========================================================================
+   1. TOKENS
+
+   Specificity is deliberate. The rendered <head> already carries an inline
+   `:root` (0,1,0) and `:root[data-theme="light"]` (0,2,0) built from
+   tokens.json / tokens.light.json. Both blocks below are pinned at (0,2,0) and
+   land later in document order, which is what lets them win in BOTH directions;
+   a bare `:root` here would silently lose the light case.
+
+   `:root:not([data-theme="light"])` — not `[data-theme="dark"]` — because
+   theme-toggle.js only ever WRITES data-theme="light", so "no attribute at all"
+   is the shipped default state. Dark is not the afterthought here; it is what
+   the owner sees first.
+   =========================================================================== */
+:root:not([data-theme="light"]) {
+  --pr-paper:   #0c1310;   /* ground */
+  --pr-band:    #121b17;   /* alternate band + code panel */
+  --pr-ink:     #e8efe9;   /* 16.08:1 */
+  --pr-body:    #a7b5ad;   /*  8.83:1 */
+  --pr-rubric:  #5fd8a4;   /* 10.61:1 */
+  --pr-edge:    #586b61;   /*  3.31:1 — every rule on the page */
+  --pr-on-rub:  #0c1310;   /* 10.61:1 against the rubric fill */
+
+  /* Chrome remap. The inherited header/footer read these four, so restyling
+     them here reaches .site-header / .site-footer / .btn without duplicating a
+     single theme rule. */
+  --bg: #0c1310;
+  --fg: #e8efe9;
+  --muted: #a7b5ad;
+  --surface: #121b17;
+  --surface-2: #121b17;
+  --border: #586b61;
+  --border-strong: #586b61;
+  --accent: #5fd8a4;
+  --accent-fg: #0c1310;
+  --accent-text: #5fd8a4;
+}
+:root[data-theme="light"] {
+  --pr-paper:   #eef0ee;   /* cool oyster — the page is a sheet, not a screen */
+  --pr-band:    #e3e8e3;
+  --pr-ink:     #12211a;   /* 14.57:1 */
+  --pr-body:    #3f5148;   /*  7.39:1 */
+  --pr-rubric:  #0f5c3c;   /*  7.01:1 */
+  --pr-edge:    #72847a;   /*  3.46:1 */
+  --pr-on-rub:  #eef0ee;   /*  7.01:1 against the rubric fill */
+
+  --bg: #eef0ee;
+  --fg: #12211a;
+  --muted: #3f5148;
+  --surface: #e3e8e3;
+  --surface-2: #e3e8e3;
+  --border: #72847a;
+  --border-strong: #72847a;
+  --accent: #0f5c3c;
+  --accent-fg: #eef0ee;
+  --accent-text: #0f5c3c;
+}
+
+/* ===========================================================================
+   2. INHERITED CHROME
+   =========================================================================== */
+body { background: var(--pr-paper); }
+.site-header.scrolled { border-bottom-color: var(--pr-edge); }
+.btn { border-radius: 0; }            /* the whole page is square. no radius anywhere. */
+.site-header .btn-solid { background: var(--pr-rubric); color: var(--pr-on-rub); border-color: transparent; }
+.site-header .btn-solid:hover { background: var(--pr-rubric); opacity: 0.86; }
+.site-header .btn-ghost { border-color: var(--pr-edge); color: var(--pr-ink); }
+.main-nav .menu-item > a { color: var(--pr-body); }
+.main-nav .menu-item > a:hover,
+.main-nav .menu-item > a[aria-current="page"] { color: var(--pr-ink); }
+.site-footer { border-top: 1px solid var(--pr-edge); }
+.site-footer .footer-col a,
+.site-footer .footer-col p { color: var(--pr-body); }
+.site-footer .footer-col a:hover { color: var(--pr-ink); }
+.site-footer .footer-bottom { border-top: 1px solid var(--pr-edge); color: var(--pr-body); }
+
+/* One focus treatment for the whole page, authored in plain CSS so it cannot
+   depend on anything loading. The rubric is 7.01:1 / 10.61:1 against its ground
+   — WCAG 2.4.11 wants 3:1, so this clears it more than twice over. Inside the
+   rubric-filled colophon the ring would vanish into its own panel, so it flips
+   to the panel's ink there. */
+.pr a:focus-visible,
+.pr button:focus-visible,
+.pr summary:focus-visible,
+.site-header a:focus-visible,
+.site-header button:focus-visible,
+.site-footer a:focus-visible {
+  outline: 2px solid var(--pr-rubric);
+  outline-offset: 3px;
+  border-radius: 0;
+}
+.pr-colophon a:focus-visible { outline-color: var(--pr-on-rub); }
+
+/* ===========================================================================
+   3. PAGE FRAME
+
+   Two typefaces, no more. The display/body face is a system oldstyle serif —
+   the theme fetches no webfont at all (the rendered <head> makes zero font
+   requests and theme.css has no @font-face), so naming a webfont here would
+   either add a third-party request to a page selling self-hosting, or resolve
+   to nothing. Iowan Old Style / Palatino ship with macOS; Georgia is the
+   universal floor. Every fallback in the stack is a serif, so the page never
+   silently degrades into the sans it is defined against.
+
+   Labels, numerals and tool names use the theme's own mono token.
+   =========================================================================== */
+.pr {
+  --pr-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Charter, Georgia, 'Times New Roman', serif;
+  --pr-gutter: 24px;
+  --pr-max: 1120px;
+  background: var(--pr-paper);
+  color: var(--pr-ink);
+  font-family: var(--pr-serif);
+  font-size: 16px;
+  line-height: 1.52;
+}
+.pr *, .pr *::before, .pr *::after { box-sizing: border-box; }
+
+/* --- PROSE RESET. Not optional, and not cosmetic. -------------------------
+   theme.css styles `.post-detail-body`'s descendants at element specificity
+   (0,1,1) — and several of those rules are actively destructive to a landing
+   page, not merely different:
+
+     .post-detail-body table  { display: block; overflow-x: auto; }  <- kills
+        width:100% and turns every table into its own scroll box
+     .post-detail-body th, td { border: 1px solid var(--border); }   <- draws
+        a full four-sided grid; overriding only `border-bottom` leaves three
+        sides of it behind
+     .post-detail-body ul, ol { margin: 0 0 18px 22px; }             <- indents
+        every list off the page's own grid
+     .post-detail-body pre    { background; border; border-radius: 10px; }
+     .post-detail-body code   { background; border; border-radius: 4px; }
+
+   Each selector below is (0,1,1) too, so it TIES rather than wins on
+   specificity — and resolves in this sheet's favour purely because a <style>
+   in the page body is later in document order than the linked theme.css.
+   That is why these are plain `.pr <element>` selectors and not `:where()`:
+   `:where()` contributes zero specificity, which would drop them to (0,1,0)
+   and lose to theme.css outright. ---------------------------------------- */
+.pr p, .pr h1, .pr h2, .pr h3, .pr ul, .pr ol, .pr li, .pr pre, .pr table { margin: 0; }
+.pr ul, .pr ol { padding-left: 0; list-style: none; }
+.pr table { display: table; width: 100%; border-collapse: collapse; }
+.pr th, .pr td { border: 0; background: transparent; padding: 0; font-weight: inherit; }
+.pr pre { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.pr code { background: transparent; border: 0; border-radius: 0; padding: 0; font: inherit; }
+
+.pr-in { max-width: var(--pr-max); margin: 0 auto; padding: 0 var(--pr-gutter); }
+.pr p { color: var(--pr-body); }
+.pr p + p { margin-top: 0.9em; }
+
+/* NOTE: deliberately no `.pr a { color: inherit }`. theme.css already declares
+   `a { color: inherit }` at element specificity (0,0,1); a class-scoped copy
+   would be (0,1,1) and would beat every (0,1,0) button-colour rule below —
+   which is precisely how a previous sample ended up drawing near-white text on
+   its own accent fill at 1.7:1. */
+
+/* Running head. A printed reference names itself on every spread; here it does
+   it once, above the title, and once again at the foot. */
+.pr-runhead {
+  border-bottom: 1px solid var(--pr-edge);
+}
+.pr .pr-runhead-in {
+  display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: baseline;
+  padding-top: 16px; padding-bottom: 14px;
+  font: 500 11px/1.4 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-body);
+  margin: 0;
+}
+.pr-runhead-in b { color: var(--pr-rubric); font-weight: 500; }
+.pr-runhead-in .sp { margin-left: auto; }
+
+/* ===========================================================================
+   4. TITLE PAGE
+   =========================================================================== */
+.pr-title { padding-block: 76px 0; }
+.pr h1 {
+  font-family: var(--pr-serif);
+  font-size: clamp(40px, 7.2vw, 92px);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  font-weight: 400;
+  margin: 0 0 30px;
+  max-width: 15ch;
+  color: var(--pr-ink);
+}
+/* The rubric word. Green on paper at 7.01:1 and green on ground at 10.61:1 —
+   the colour carries meaning here, so it has to clear the TEXT floor, not the
+   3:1 graphical one. */
+.pr-rub { color: var(--pr-rubric); font-style: italic; }
+.pr .pr-lede {
+  font-size: clamp(18px, 2.1vw, 21px);
+  line-height: 1.45;
+  color: var(--pr-ink);
+  max-width: 44ch;
+  margin: 0 0 32px;
+}
+.pr-acts { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.pr-btn {
+  display: inline-flex; align-items: center; gap: 9px;
+  height: 44px; padding: 0 20px;
+  border: 1px solid transparent; border-radius: 0;
+  font: 500 14px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+  cursor: pointer; white-space: nowrap; text-decoration: none;
+  transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+}
+.pr-btn-fill { background: var(--pr-rubric); color: var(--pr-on-rub); }
+.pr-btn-fill:hover { background: var(--pr-rubric); opacity: 0.86; }
+.pr-btn-line { border-color: var(--pr-edge); color: var(--pr-ink); background: transparent; }
+.pr-btn-line:hover { border-color: var(--pr-rubric); color: var(--pr-rubric); }
+.pr .pr-fine {
+  font: 12px/1.5 var(--font-mono);
+  color: var(--pr-body);
+  margin-top: 20px;
+  max-width: 52ch;
+}
+.pr-fine a { color: var(--pr-ink); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Title-page verso: three facts, set as a ruled strip rather than three cards.
+   Cards are the default this whole direction is defined against. */
+.pr-verso {
+  display: grid; grid-template-columns: repeat(3, minmax(0,1fr));
+  gap: 0; margin-top: 68px;
+  border-top: 1px solid var(--pr-edge);
+  border-bottom: 1px solid var(--pr-edge);
+}
+.pr-verso > div { padding: 22px 26px 24px; border-left: 1px solid var(--pr-edge); }
+.pr-verso > div:first-child { padding-left: 0; border-left: 0; }
+.pr-verso h2 {
+  font: 500 11px/1.4 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-rubric); margin: 0 0 9px; font-weight: 500;
+}
+.pr-verso p { font-size: 15px; line-height: 1.45; max-width: 30ch; }
+
+/* ===========================================================================
+   5. SECTION RHYTHM — the margin column.
+
+   Every band is [margin | text]: a roman numeral and a label sit in a narrow
+   left column, the content runs beside it. This is the page's one repeating
+   ornament and the source of its density; there are no icon tiles, no card
+   triptychs and no centred headings anywhere below.
+   =========================================================================== */
+.pr-band { border-top: 1px solid var(--pr-edge); }
+.pr-band:first-of-type { border-top: 0; }
+.pr-band > .pr-in {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  gap: 0 44px;
+  padding-top: 72px; padding-bottom: 76px;
+}
+.pr-marg { position: sticky; top: 96px; align-self: start; }
+.pr .pr-marg-n {
+  font: 500 12px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: var(--pr-rubric);
+  margin: 0 0 10px;
+}
+.pr .pr-marg-l {
+  font: 500 11px/1.5 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-body); margin: 0;
+}
+.pr-band h2 {
+  font-family: var(--pr-serif);
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.018em;
+  font-weight: 400;
+  color: var(--pr-ink);
+  margin: -6px 0 24px;
+  max-width: 20ch;
+}
+.pr-two { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 34px; max-width: 720px; }
+.pr-two p { font-size: 16px; }
+.pr .pr-cap {
+  font: 11.5px/1.5 var(--font-mono);
+  color: var(--pr-body);
+  margin-top: 18px;
+  max-width: 60ch;
+}
+.pr-cap code { font-family: var(--font-mono); color: var(--pr-ink); }
+
+/* ===========================================================================
+   6. RULED TABLES — the page's workhorse. Two of them, same skin.
+   =========================================================================== */
+.pr-tbl { width: 100%; border-collapse: collapse; text-align: left; }
+.pr-tbl th {
+  font: 500 10.5px/1.4 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-body); font-weight: 500;
+  padding: 0 16px 10px 0;
+  border-bottom: 1px solid var(--pr-edge);
+  vertical-align: bottom;
+}
+.pr-tbl td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--pr-edge);
+  vertical-align: top;
+  font-size: 15.5px;
+  color: var(--pr-ink);
+}
+.pr-tbl tr:last-child td { border-bottom: 0; }
+.pr-tbl td:last-child, .pr-tbl th:last-child { padding-right: 0; }
+/* The tool-name column. Mono, rubric, and allowed to wrap on a narrow screen
+   rather than forcing the table into a horizontal scroll. */
+.pr-tool { font: 13px/1.5 var(--font-mono); color: var(--pr-rubric); word-break: break-word; }
+.pr-tbl td em { font-style: italic; color: var(--pr-body); }
+.pr-verdict { font: 500 12.5px/1.5 var(--font-mono); letter-spacing: 0.02em; color: var(--pr-ink); }
+.pr-verdict span { display: block; font-weight: 400; color: var(--pr-body); letter-spacing: 0; margin-top: 3px; }
+
+/* ===========================================================================
+   7. TIER LIST — numbered, ruled, no cards.
+   =========================================================================== */
+.pr-tiers { list-style: none; margin: 0; padding: 0; counter-reset: t; max-width: 760px; }
+.pr-tiers li {
+  counter-increment: t;
+  display: grid; grid-template-columns: 30px 132px minmax(0,1fr);
+  gap: 16px; align-items: baseline;
+  padding: 15px 0;
+  border-bottom: 1px solid var(--pr-edge);
+}
+.pr-tiers li:first-child { border-top: 1px solid var(--pr-edge); }
+.pr-tiers li::before {
+  content: counter(t);
+  font: 500 12px/1.6 var(--font-mono);
+  color: var(--pr-rubric);
+  font-variant-numeric: tabular-nums;
+}
+.pr-tiers b { font: 500 13.5px/1.5 var(--font-mono); color: var(--pr-ink); }
+.pr-tiers span { font-size: 15px; color: var(--pr-body); line-height: 1.45; }
+
+/* ===========================================================================
+   8. CODE PANEL
+   =========================================================================== */
+.pr-code { border: 1px solid var(--pr-edge); background: var(--pr-band); max-width: 760px; }
+.pr .pr-code-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 16px; border-bottom: 1px solid var(--pr-edge);
+  font: 500 10.5px/1.4 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-body); margin: 0;
+}
+.pr-code pre {
+  margin: 0; padding: 18px 16px; overflow-x: auto;
+  font: 13px/1.95 var(--font-mono);
+  color: var(--pr-ink);
+}
+.pr-code .c { color: var(--pr-rubric); }              /* the command itself */
+.pr-code .r { color: var(--pr-body); }                /* trailing comment */
+.pr-code .p { color: var(--pr-body); user-select: none; }
+.pr-code + .pr-code { margin-top: 14px; }
+
+/* ===========================================================================
+   9. COLOPHON — the one flooded band, and the only place the rubric is a fill
+      large enough to set type on. Everything inside it draws in --pr-on-rub,
+      which is 7.01:1 (light) / 10.61:1 (dark) against that fill. No exceptions:
+      the generic .pr-fine link colour would resolve to the page ink here and
+      land at roughly 1.5:1 on the green, so it is restated below.
+   =========================================================================== */
+.pr-colophon { background: var(--pr-rubric); border-top: 0; }
+.pr-colophon > .pr-in { padding-top: 76px; padding-bottom: 80px; }
+.pr-colophon h2 { color: var(--pr-on-rub); margin-top: 0; max-width: 17ch; }
+.pr-colophon p, .pr-colophon .pr-fine { color: var(--pr-on-rub); }
+.pr-colophon .pr-marg-n, .pr-colophon .pr-marg-l { color: var(--pr-on-rub); }
+.pr-colophon .pr-lede { color: var(--pr-on-rub); }
+.pr-btn-inv { background: var(--pr-on-rub); color: var(--pr-rubric); }
+.pr-btn-inv:hover { background: var(--pr-on-rub); opacity: 0.86; }
+.pr-btn-oninv { border-color: var(--pr-on-rub); color: var(--pr-on-rub); background: transparent; }
+.pr-btn-oninv:hover { border-color: var(--pr-on-rub); color: var(--pr-on-rub); background: transparent; text-decoration: underline; }
+.pr-colophon .pr-fine a { color: var(--pr-on-rub); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Foot rule — the running head, repeated at the bottom of the volume. */
+.pr-footrule { border-top: 1px solid var(--pr-edge); }
+.pr .pr-footrule-in {
+  display: flex; flex-wrap: wrap; gap: 6px 20px; align-items: baseline;
+  padding-top: 15px; padding-bottom: 17px;
+  font: 500 11px/1.4 var(--font-mono);
+  letter-spacing: 0.13em; text-transform: uppercase;
+  color: var(--pr-body); margin: 0;
+}
+.pr-footrule-in .sp { margin-left: auto; }
+
+/* ===========================================================================
+   10. RESPONSIVE
+   The margin column is the first thing to go: below 900px the roman numeral and
+   its label become a single inline run above the heading, which keeps the
+   labelling without spending 172px of a phone's width on it.
+   =========================================================================== */
+@media (max-width: 900px) {
+  .pr-band > .pr-in { grid-template-columns: 1fr; gap: 0; padding-top: 56px; padding-bottom: 58px; }
+  .pr-marg { position: static; display: flex; gap: 12px; align-items: baseline; margin-bottom: 16px; }
+  .pr .pr-marg-n { margin: 0; }
+  .pr-band h2 { margin-top: 0; max-width: 24ch; }
+  .pr-verso { grid-template-columns: 1fr; }
+  .pr-verso > div { padding: 18px 0; border-left: 0; border-top: 1px solid var(--pr-edge); }
+  .pr-verso > div:first-child { border-top: 0; padding-top: 20px; }
+  .pr-two { grid-template-columns: 1fr; gap: 20px; }
+  .pr-title { padding-block: 46px 0; }
+}
+@media (max-width: 620px) {
+  .pr h1 { max-width: 100%; }
+  .pr-btn { width: 100%; justify-content: center; }
+  .pr-tiers li { grid-template-columns: 24px minmax(0,1fr); row-gap: 4px; }
+  .pr-tiers span { grid-column: 2; }
+  .pr-tbl th:first-child, .pr-tbl td:first-child { padding-right: 12px; }
+  .pr-tbl { font-size: 14px; }
+}
+
+/* No animation on this page carries information, and the only transitions are
+   the two hover colour fades declared above. */
+@media (prefers-reduced-motion: reduce) {
+  .pr-btn { transition: none; }
+  .pr-marg { position: static; }
+}
+</style>
+
+<div class="pr">
+
+  <!-- ============ RUNNING HEAD ============ -->
+  <div class="pr-runhead">
+    <p class="pr-in pr-runhead-in">
+      <b>Tovu</b>
+      <span>Self-hosted content platform</span>
+      <span class="sp">Edition 0.1.0</span>
+    </p>
+  </div>
+
+  <!-- ============ TITLE PAGE ============ -->
+  <section class="pr-title">
+    <div class="pr-in">
+      <h1>Every admin capability is <span class="pr-rub">also a tool</span>.</h1>
+      <p class="pr-lede">
+        A self-hosted content platform. The screen a person opens and the tool an agent
+        calls run the same operation, behind the same permission check.
+      </p>
+      <div class="pr-acts">
+        <a class="pr-btn pr-btn-fill" href="https://github.com/leonaburime-ucla/Tovu">Clone the repository</a>
+        <a class="pr-btn pr-btn-line" href="/docs">Documentation</a>
+      </div>
+      <p class="pr-fine">
+        Not published to npm. Clone the repository, or build the container from it.
+      </p>
+
+      <div class="pr-verso">
+        <div>
+          <h2>Self-hosted</h2>
+          <p>Your machine, your database, your files.</p>
+        </div>
+        <div>
+          <h2>One site directory</h2>
+          <p>Point <code>tovu serve</code> at a folder and it is the whole install.</p>
+        </div>
+        <div>
+          <h2>Five theme tiers</h2>
+          <p>From closed JSON blocks to plain HTML.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ I ============ -->
+  <section class="pr-band">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">I</p>
+        <p class="pr-marg-l">The premise</p>
+      </div>
+      <div>
+        <h2>Most platforms bolt a chatbot onto the admin. This one hands the admin over.</h2>
+        <div class="pr-two">
+          <p>
+            Not screen-reading, and not a second API written to imitate the first. The tool
+            and the button reach the same operation.
+          </p>
+          <p>
+            So <em>can it do that?</em> stops being a roadmap question. If the admin does it,
+            the toolset does it.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ II ============ -->
+  <section class="pr-band">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">II</p>
+        <p class="pr-marg-l">Two doors</p>
+      </div>
+      <div>
+        <h2>One capability, two callers.</h2>
+        <table class="pr-tbl">
+          <thead>
+            <tr>
+              <th scope="col">A person opens</th>
+              <th scope="col">An agent calls</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>Pages &rsaquo; Edit HTML</td>        <td class="pr-tool">pages_write_html</td></tr>
+            <tr><td>Comments &rsaquo; Queue</td>          <td class="pr-tool">comments_list_moderation_queue</td></tr>
+            <tr><td>Forms &rsaquo; Submissions</td>       <td class="pr-tool">forms_list_submissions</td></tr>
+            <tr><td>SEO &rsaquo; Sitemap</td>             <td class="pr-tool">seo_regenerate_sitemap</td></tr>
+            <tr><td>Themes &rsaquo; Files</td>            <td class="pr-tool">theme_read_file</td></tr>
+            <tr><td>Newsletter &rsaquo; Campaigns</td>    <td class="pr-tool">newsletter_list_campaigns</td></tr>
+            <tr><td>Deployment &rsaquo; Static Site</td>  <td class="pr-tool">deployment_get_static_publish_capabilities</td></tr>
+          </tbody>
+        </table>
+        <p class="pr-cap">
+          Names copied, unedited, from <code>features/*/agent-tools.ts</code>.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ III — the section this direction exists for ============ -->
+  <section class="pr-band">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">III</p>
+        <p class="pr-marg-l">Deliberate absences</p>
+      </div>
+      <div>
+        <h2>What it will not do unasked.</h2>
+        <table class="pr-tbl">
+          <thead>
+            <tr>
+              <th scope="col">Operation</th>
+              <th scope="col">Standing</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="pr-tool">database_execute_migrate_forward</td>
+              <td class="pr-verdict">NEVER agent-callable<span>Never published to the model at all.</span></td>
+            </tr>
+            <tr>
+              <td class="pr-tool">redirects_import</td>
+              <td class="pr-verdict">NEVER agent-callable<span>500 routing rules is not an autonomous call.</span></td>
+            </tr>
+            <tr>
+              <td class="pr-tool">deployment_execute_static_publish</td>
+              <td class="pr-verdict">Human-gated<span>Raises a dialog and waits for an answer.</span></td>
+            </tr>
+            <tr>
+              <td class="pr-tool">content_post_delete</td>
+              <td class="pr-verdict">Human-gated<span>Moves to the trash. Never erases.</span></td>
+            </tr>
+            <tr>
+              <td class="pr-tool">members_disable</td>
+              <td class="pr-verdict">Soft only<span>The catalog ships no delete.</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="pr-cap">
+          The capitalisation is the catalog's, not ours &mdash; <code>NEVER agent-callable</code> is
+          the literal description string on those two tools.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ IV ============ -->
+  <section class="pr-band">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">IV</p>
+        <p class="pr-marg-l">Themes</p>
+      </div>
+      <div>
+        <h2>Five tiers. Pick by how much power the author needs.</h2>
+        <ol class="pr-tiers">
+          <li><b>declarative</b><span>JSON blocks. A closed vocabulary the renderer will not step outside of.</span></li>
+          <li><b>templated</b><span>LiquidJS, against an AST-walked tag and filter allowlist.</span></li>
+          <li><b>handlebars</b><span>Helper allowlist. No partials, no decorators.</span></li>
+          <li><b>static</b><span>Plain HTML, CSS and JavaScript. This page is one.</span></li>
+          <li><b>code</b><span>Reserved. Nothing ships on it yet.</span></li>
+        </ol>
+        <p class="pr-cap">
+          Whichever tier, rendering happens inside a <code>worker_threads</code> sandbox with a
+          wall-clock timeout and heap caps, falling back to a built-in body on any failure.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ V ============ -->
+  <section class="pr-band">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">V</p>
+        <p class="pr-marg-l">Running it</p>
+      </div>
+      <div>
+        <h2>Clone it, or build the image.</h2>
+        <div class="pr-code">
+          <p class="pr-code-bar"><span>Source</span><span>bash</span></p>
+          <pre><code><span class="p" aria-hidden="true">$ </span><span class="c">git clone</span> https://github.com/leonaburime-ucla/Tovu.git
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu serve</span> my-site        <span class="r"># site and admin, one port</span>
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu export</span> my-site       <span class="r"># static export</span>
+<span class="p" aria-hidden="true">$ </span><span class="c">tovu introspect</span>           <span class="r"># the CLI's own manifest, as JSON</span></code></pre>
+        </div>
+        <div class="pr-code">
+          <p class="pr-code-bar"><span>Container</span><span>bash</span></p>
+          <pre><code><span class="p" aria-hidden="true">$ </span><span class="c">docker build</span> -t tovu:local .</code></pre>
+        </div>
+        <p class="pr-cap">
+          <code>tovu introspect</code> prints the command surface an agent reads &mdash; generated from
+          the CLI itself, so it cannot describe a flag that does not exist.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ COLOPHON ============ -->
+  <section class="pr-band pr-colophon">
+    <div class="pr-in">
+      <div class="pr-marg">
+        <p class="pr-marg-n">VI</p>
+        <p class="pr-marg-l">Colophon</p>
+      </div>
+      <div>
+        <h2>Clone it. Then ask it what it can do.</h2>
+        <p class="pr-lede">Not a figure of speech. The manifest ships populated.</p>
+        <div class="pr-acts">
+          <a class="pr-btn pr-btn-inv" href="https://github.com/leonaburime-ucla/Tovu">Clone the repository</a>
+          <a class="pr-btn pr-btn-oninv" href="/docs">Documentation</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOT RULE ============ -->
+  <div class="pr-footrule">
+    <p class="pr-in pr-footrule-in">
+      <span>Tovu &mdash; self-hosted content platform</span>
+      <span class="sp">Set in a system oldstyle serif</span>
+    </p>
+  </div>
+
+</div>
