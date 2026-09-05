@@ -139,7 +139,46 @@ function spawnSandboxWorker(workerBasename: string, workerData: SandboxRenderInp
   const workerFile = path.join(import.meta.dirname, `${workerBasename}.ts`);
   const tsxApiPath = require.resolve("tsx/cjs/api");
   const bootstrap = `require(${JSON.stringify(tsxApiPath)}).register();\nrequire(${JSON.stringify(workerFile)});\n`;
-  return new Worker(bootstrap, { eval: true, workerData, resourceLimits });
+  return new Worker(bootstrap, { eval: true, workerData, resourceLimits, env: tsxWorkerEnv() });
+}
+
+/**
+ * The `env` a `tsx`-mode sandbox worker is given: `process.env` with `NODE_V8_COVERAGE` removed, or
+ * `undefined` (Node's default — an ordinary copy of `process.env`) when that variable isn't set,
+ * which is every run except a coverage run.
+ *
+ * Why this exists, and why it is scoped to the `tsx` branch above and nowhere else: a
+ * `worker_threads` Worker writes its OWN V8 coverage profile into whatever directory its env's
+ * `NODE_V8_COVERAGE` names — verified directly, one `coverage-<pid>-<ts>-<threadId>.json` per thread.
+ * `--experimental-test-coverage` points that variable at the runner's aggregation directory and
+ * merges every profile it finds there, so an inheriting worker's profile is unioned into the same
+ * lcov block as the main thread's. Under the `tsx` bootstrap directly above, the worker's entry is
+ * eval'd CommonJS, so everything it loads — `liquid-worker.ts`/`handlebars-worker.ts`, `render.ts`,
+ * `#src/features/theme/index` and their whole transitive graph — is transpiled by esbuild in CJS
+ * format, esbuild's `__toCommonJS`/`__copyProps`/`__export` interop helpers included. Merging that
+ * CJS image over the main thread's ESM image of the same files concatenates their `FN:` tables and
+ * lets the worker's never-exercised copy clobber `DA:` line hits: the dual-instantiation corruption
+ * `development/scripts/check-coverage-integrity.ts` exists to catch, and measured on 2026-09-05 to
+ * account for 62 of the 71 contaminated first-party blocks in a real `test:cov` lcov
+ * (`ADS-memory/reports/2026-09-05-coverage-dual-instantiation-routes-W-and-A.md`).
+ *
+ * Dropping the variable makes the worker emit no profile at all, so the merge has nothing to
+ * corrupt. That is deliberately narrower than redirecting it to a scratch directory (equivalent for
+ * the lcov, but leaves a temp directory for someone to clean up) and it costs exactly one thing: the
+ * two worker-entry files, which run in no other thread, no longer appear in coverage output. Their
+ * only previous coverage was the CJS image this removes.
+ *
+ * The compiled (`dist/`, non-`tsx`) branch is left alone on purpose: there the worker loads plain
+ * ESM `.js`, identical in shape to the main thread's, so a merge of the two is meaningful rather
+ * than corrupting, and nothing about production behaviour should depend on a coverage variable.
+ *
+ * @complexity O(n) in the number of environment variables — one shallow copy, only under coverage.
+ */
+function tsxWorkerEnv(): NodeJS.ProcessEnv | undefined {
+  if (process.env.NODE_V8_COVERAGE === undefined) return undefined;
+  const env = { ...process.env };
+  delete env.NODE_V8_COVERAGE;
+  return env;
 }
 
 /**
