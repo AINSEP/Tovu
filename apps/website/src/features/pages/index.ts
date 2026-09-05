@@ -25,3 +25,10 @@ export {
 } from "./html-document-store.sqlite.js";
 export { InMemoryPagesHtmlDocumentStore } from "./html-document-store.memory.js";
 export { DEFAULT_PAGE_SKELETON, PAGE_SKELETON_REGIONS, type PageSkeletonRegion } from "./skeleton.js";
+/**
+ * SPEC-047 REQ-9. Importing this name is also what registers the permission-migration pair that
+ * grants it — see `permissions.ts`'s "Ordering" note. Anything that gates on raw-HTML authoring must
+ * reach for this constant rather than spelling the string, so the gate and the refusal body cannot
+ * drift apart.
+ */
+export { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";

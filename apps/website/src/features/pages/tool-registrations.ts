@@ -16,6 +16,7 @@ import type { AuthorizeFn } from "../../contracts/core/commands/index.js";
 import type { PostRepoPort } from "../post/index.js";
 import { pagesAgentToolCatalog, type AgentToolDefinition as PagesAgentToolDefinition } from "./agent-tools.js";
 import { PageKindMismatchError, PageNotFoundError, type PagesHtmlDocumentStoreFactory } from "./html-document-store.sqlite.js";
+import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 
 /**
  * @file Maps the Pages catalog onto `PagesHtmlDocumentStore`, as `ToolRegistration`s.
@@ -24,13 +25,17 @@ import { PageKindMismatchError, PageNotFoundError, type PagesHtmlDocumentStoreFa
  * perform the same inline permission check the admin routes perform themselves — the pattern
  * `content_post_list`/`content_post_get` already follow for the same reason.
  *
- * **Permission note, stated plainly because it is a gap and not a decision.** Both tools check
- * `content.read`/`content.write`, the same permissions ordinary entry editing uses. SPEC-047 REQ-9
- * calls for a distinct `pages.edit_html` granted to `admin` but not `editor`, on the reasoning that
- * a malformed generated page is a broken-artifact risk closer to `theme.edit` than to a content
- * edit. That permission does not exist in the seed yet, so wiring these tools to it would make them
- * uncallable by anyone. Using the content permissions is the honest interim: it means an `editor`
- * can drive page generation today, which REQ-9 intends to stop.
+ * **Permission note.** `pages_write_html` checks `pages.edit_html` (SPEC-047 REQ-9) as of
+ * 2026-09-05, matching the HTTP route to the same store (`routes/pages/update-html.ts`). This file
+ * previously recorded the permission as a gap — both tools checked `content.read`/`content.write`,
+ * which the built-in `editor` role holds, so an `editor` could drive page generation and thereby
+ * write unsanitized script into the public site. It also recorded the fix as impossible here,
+ * because no seeded row spelled `pages.edit_html`. `features/pages/permissions.ts` now creates that
+ * row from this repo, via the host-facing `registerPermissionMigration` seam; see its header.
+ *
+ * `pages_read_html` deliberately still checks `content.read`. REQ-9 is about who may AUTHOR raw
+ * markup, and reading a page's own stored body is not the injection capability — narrowing the read
+ * too would cost `editor` a capability REQ-9 never asked to take, for no security gain.
  */
 
 const pagesDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
@@ -94,7 +99,7 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
       const input = requireInputRecord(ctx.input);
       await requireToolPermission(routeDeps, {
         principalId: ctx.principal.id,
-        permission: "content.write",
+        permission: PAGES_EDIT_HTML_PERMISSION,
         entityType: "post",
       });
 

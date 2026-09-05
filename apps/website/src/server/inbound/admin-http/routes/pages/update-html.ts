@@ -2,6 +2,7 @@ import type { Response } from "express";
 
 import {
   DEFAULT_PAGE_SKELETON,
+  PAGES_EDIT_HTML_PERMISSION,
   PageConcurrentEditError,
   PageKindMismatchError,
   PageNotFoundError,
@@ -16,16 +17,14 @@ import { getAuthedPrincipal } from "#src/server/inbound/admin-http/dev-auth";
 import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 
 /**
- * The permission this route checks. Named once so the gate, the 403 body, and the test that asserts
- * the exact string all read from the same place.
+ * The permission this route checks. Named once so the gate, the 403 body, and the agent-tool path to
+ * the same store all read from the same place.
  *
- * **Not `pages.edit_html`, and that is deliberate — see this file's header.** `authorize()`
- * (`@jini-ai/cms`'s `identity/authorize.ts`) matches literal `policy_permissions` rows and never
- * consults the permission catalog, and no row anywhere spells `pages.edit_html`. Gating on it would
- * leave only `owner` able to edit a Page's HTML and break the feature for `admin` — a functional
- * regression wearing a security fix's clothes.
+ * `pages.edit_html` (SPEC-047 REQ-9) as of 2026-09-05, replacing the interim `content.write` — see
+ * this file's Authorization section and `features/pages/permissions.ts` for the grant that makes it
+ * a real, held permission rather than a string no policy row spells.
  */
-const REQUIRED_PERMISSION = "content.write";
+const REQUIRED_PERMISSION = PAGES_EDIT_HTML_PERMISSION;
 
 /**
  * Run the permission gate, sending the 403 itself when it fails.
@@ -94,24 +93,30 @@ function sendStoreError(res: Response, err: unknown): void {
  *
  * ## Authorization
  *
- * Gated on `content.write`, matching what the agent-tool path (`features/pages/tool-registrations.ts`'s
- * `pages_write_html`) has always checked. Until 2026-08-10 this route checked NOTHING: it was
- * authenticated like every other admin route but carried no per-action authz, so any principal who
- * could reach the admin could write raw unsanitized HTML that renders into the public site. The two
- * paths to the same store now agree.
+ * Gated on `pages.edit_html` (SPEC-047 REQ-9), matching what the agent-tool path
+ * (`features/pages/tool-registrations.ts`'s `pages_write_html`) checks. The two writers of
+ * `"html"`-format rows are the only two, and they agree.
  *
- * **`pages.edit_html` (SPEC-047 REQ-9) remains the intended end state and is NOT what this checks.**
- * REQ-9 wants a distinct permission granted to `admin` but not `editor`, on the reasoning that a
- * malformed generated page is a broken-artifact risk closer to `theme.edit` than to a content edit.
- * It is blocked on something outside this repository: `authorize()` is purely DB-driven, matching
- * literal `policy_permissions` rows without ever consulting the permission catalog, and the seed that
- * would create such a row lives in `@jini-ai/cms`. Switching the gate ahead of that seed would leave
- * only `owner` able to edit Page HTML and break the feature for `admin`.
+ * History, because two earlier states of this comment are still quoted elsewhere. Until 2026-08-10
+ * this route checked NOTHING — authenticated like every other admin route, but with no per-action
+ * authz, so any principal who could reach the admin could write raw unsanitized HTML into the public
+ * site. From 2026-08-10 it checked `content.write`, which closed that but not REQ-9's actual intent:
+ * the built-in `editor` role holds `content.write`, so an `editor` could still author script into
+ * every visitor's browser. This file said so plainly and recorded the gap as blocked on the
+ * `@jini-ai/cms` repo, since `authorize()` matches literal `policy_permissions` rows and the built-in
+ * role seed lives there.
  *
- * So what the interim gate buys is exactly one thing: a principal without `content.write` can no
- * longer write a Page's HTML. What it does NOT buy is REQ-9's actual intent — an `editor` still can,
- * because `editor` holds `content.write`. That is a strictly smaller hole than before, not a closed
- * one.
+ * **That blocker was not real, and the gap is now closed.** `registerPermissionMigration` is exported
+ * to hosts for exactly this, and the boot-time fan-out that consumes it (`migrateDeprecatedPermission
+ * Grants`, called from `features/identity/wiring.ts`) already lives in this repo. `features/pages/
+ * permissions.ts` registers `theme.edit -> pages.edit_html`, so every principal already trusted with
+ * raw theme source inherits raw-page-HTML authoring: `admin` and `owner` yes, `editor` and `viewer`
+ * no. No library change was needed.
+ *
+ * **Capability removed, deliberately:** an `editor` can no longer write a Page's HTML through this
+ * route or through `pages_write_html`. That is REQ-9's whole intent, and it is a real behavior
+ * change — an editor keeps `content.write` and every ordinary content operation, and loses only
+ * raw-HTML page authoring. `features/pages/__tests__/edit-html-permission.test.ts` pins both halves.
  *
  * ## Not yet done, deliberately, and tracked
  *
@@ -119,10 +124,13 @@ function sendStoreError(res: Response, err: unknown): void {
  *   endpoint rather than a human typing in a textarea.
  * - **No command-gateway/change-set record**, unlike `pages/update.ts`. Body writes are therefore
  *   absent from the mutation audit trail and are not revertible through `change-sets/revert`.
- * - **No HTML sanitization.** The stored markup is rendered into the public site. The editor's own
- *   preview is safe by construction (opaque-origin `srcdoc`, no `allow-same-origin`), but the
- *   published page is not sandboxed — this is the same trust level the theme layer already has, and
- *   it needs a real decision before Pages ships to anyone but the site's own admins.
+ * - **No HTML sanitization, and that is now a decision rather than a gap.** The stored markup is
+ *   rendered into the public site unmodified. Sanitizing it would delete the feature — authoring
+ *   arbitrary markup is what a Page IS — so the exposure is bounded by WHO may write it instead:
+ *   the same principals already trusted with raw theme source, which is the same trust level the
+ *   theme layer has always had. The authoring preview is separately safe by construction
+ *   (opaque-origin `srcdoc`, no `allow-same-origin`); the published page is not sandboxed. A holder
+ *   of `pages.edit_html` can still put script on the public site, and that is intended.
  */
 export const registerAdminPageUpdateHtmlRoute: ContentRouteRegistrar = (app, deps) => {
   app.put(

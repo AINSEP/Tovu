@@ -1,3 +1,4 @@
+import { PAGES_EDIT_HTML_PERMISSION } from "./permissions.js";
 import { PAGE_SKELETON_REGIONS } from "./skeleton.js";
 
 /**
@@ -87,7 +88,11 @@ export const pagesAgentToolCatalog: AgentToolDefinition[] = [
       "of an existing page, read it first with pages_read_html and include the parts you are keeping.\n\n" +
       PAGE_HTML_CONTRACT,
     sideEffects: "mutates-durable-state",
-    authorization: { permission: "content.write" },
+    // Declaration only — `buildDomainRegistrations` sets every registration's `policy.authorize` to a
+    // pass-through so each permission is evaluated exactly once, by the handler's own
+    // `requireToolPermission` call. Kept in lockstep with that call anyway: this is the entry an
+    // audit of "what does this tool require" reads, and a stale value here would be a false answer.
+    authorization: { permission: PAGES_EDIT_HTML_PERMISSION },
     inputSchema: {
       type: "object",
       additionalProperties: false,
