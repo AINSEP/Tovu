@@ -285,6 +285,88 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
   assert.deepEqual(listAfterDelete.credentials, []);
 });
 
+// -------------------------------------------------------------------------------------------------
+// PUT's own three optional-field ternaries (`body.label`/`body.connection`/`body.isDefault` each
+// spread in only `!== undefined`) — every PUT test above this point only ever renames (`label` alone),
+// so `connection`/`isDefault` on PUT had never been exercised at the ROUTE level at all: the store's
+// own connection-change/default-promotion algorithms are already covered by `store.unit.test.ts`'s 33
+// cases (this file's own header), but nothing proved this ROUTE actually forwards those two fields
+// from the request body into `updatePublishCredential`'s input, or that a changed `connection`
+// re-triggers `verifyAfterSave` the same way a `POST` does. Found by reading the route's control flow
+// against this file's own test bodies, not from a coverage tool: `2026-08-17`'s mutation sweep only
+// scoped `--all-ifs`/`??` guard clauses, never these ternaries.
+// -------------------------------------------------------------------------------------------------
+
+test("publish-credentials: PUT with a NEW connection re-verifies it (unlike a label-only rename, which does not)", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl, 401);
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "Rotating", connection: { providerId: "netlify", token: "old-token" } }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { credential } = await created.json();
+
+  // Rotate the token via PUT's `connection` field, no label change — the mirror image of the
+  // existing "label only" PUT test, which asserts `renameVerification` is `undefined`. A changed
+  // connection must NOT silently keep trusting whatever was checked at create time.
+  const updated = await fetch(`${base}/${credential.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ connection: { providerId: "netlify", token: "rotated-token" } }),
+  });
+  assert.equal(updated.status, 200, await updated.clone().text());
+  const { credential: rotated, verification } = await updated.json();
+  assert.equal(rotated.id, credential.id);
+  assert.notEqual(verification, undefined);
+  assert.equal(verification.status, "invalid");
+  // The new token must never leak onto the wire, same guarantee every other verify response asserts.
+  assert.equal(JSON.stringify(verification).includes("rotated-token"), false);
+});
+
+test("publish-credentials: PUT with isDefault: true promotes this row and demotes the previous default for the same provider", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl);
+
+  const first = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "First Netlify", connection: { providerId: "netlify", token: "token-a" } }),
+  });
+  const { credential: firstCredential } = await first.json();
+  assert.equal(firstCredential.isDefault, true); // first row for its provider auto-defaults
+
+  const second = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "Second Netlify", connection: { providerId: "netlify", token: "token-b" } }),
+  });
+  const { credential: secondCredential } = await second.json();
+  assert.equal(secondCredential.isDefault, false); // not requested, and a default already exists
+
+  // Promote the second row via PUT's `isDefault` field alone — no label, no connection change.
+  const promoted = await fetch(`${base}/${secondCredential.id}`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ isDefault: true }),
+  });
+  assert.equal(promoted.status, 200, await promoted.clone().text());
+  assert.equal((await promoted.json()).credential.isDefault, true);
+
+  const list = await (await fetch(base, { headers: { cookie } })).json();
+  const byId = (id: string) => list.credentials.find((c: { id: string }) => c.id === id);
+  assert.equal(byId(secondCredential.id).isDefault, true);
+  assert.equal(byId(firstCredential.id).isDefault, false);
+});
+
 test("publish-credentials: DELETE on a never-existed id is idempotent (204, not 404)", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
