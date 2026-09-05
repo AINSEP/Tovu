@@ -8,8 +8,24 @@
       "rule": "complexity",
       "file": "apps/website/src/features/external-mcp/save-form.ts",
       "reason": "Function 'mergeExternalMcpSavePrefill' has a complexity of 18. Maximum allowed is 9."
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/website/src/features/theme/static-render.ts",
+      "reason": "Function 'renderStaticPage' has a complexity of 10. Maximum allowed is 9."
+    },
+    {
+      "rule": "complexity",
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+      "reason": "Async arrow function has a complexity of 11. Maximum allowed is 9."
+    },
+    {
+      "rule": "sonarjs/cognitive-complexity",
+      "file": "apps/website/src/server/inbound/admin-http/routes/system/sites.ts",
+      "reason": "Refactor this function to reduce its Cognitive Complexity from 10 to the 9 allowed."
     }
   ],
+  "_comment_2026-09-05_baseline": "Baselined two functions as accepted debt, owner-approved 2026-09-05, per the 2026-09-04 complexity refactor sweep that deliberately left both alone: (1) apps/website/src/features/theme/static-render.ts's renderStaticPage (cyclomatic 10/9) is a long flat `??`/`||` fallback chain with zero nesting -- splitting it would mean inventing artificial groupings across unrelated fallback fields, purely to satisfy the metric. (2) apps/website/src/server/inbound/admin-http/routes/system/sites.ts's async arrow route handler (cyclomatic 11/9, cognitive 10/9 -- two violations, one function) is a flat guard ladder, same shape. In both cases the owner judged refactoring working, already-shipped code to satisfy a metric to be higher bug risk than the metric gain, and chose to baseline as accepted debt rather than refactor -- consistent with the 'no bugs' goal stated for this pass. Verified this baseline is per-violation (keyed on rule+file+exact ESLint message text, per check-src-complexity-drift.ts's multiset diff), not per-file: it does not relax the ceiling for any other function in either file.",
   "_comment_2026-09-03_cleared": "Cleared 10 admin-http/routes entries on 2026-09-03 after commits 503d2fb0 (cognitive: site/profile.ts, plugins/uninstall.ts, pages/create.ts, posts/create.ts) and 6d6ac28a (cyclomatic: assistant/detect-agents.ts, forms/delete-submission.ts, forms/get-submission.ts, system/custom-credentials.ts) refactored all of them under the 9/9 ceiling. Verified by this script's own findViolations() reporting them as no-longer-reproducing.",
   "_comment_2026-09-03_handleCreateAnswer": "Cleared the two apps/website/src/features/custom-credentials/tool-registrations.ts entries (handleCreateAnswer: cyclomatic 16, cognitive 18) on 2026-09-03 after a real refactor, not a rebaseline -- those numbers were already stale in the WRONG direction (the function had drifted to 17/19 under f0783b49 the same day before this pass started). Split into readRawCreateCredentialFields (shape-narrowing), deriveCreateCredentialSubmission (defaulting decisions), buildCreateFailureOutcome + mapCreateCredentialError (failure-shape construction, mirroring the existing sendPageCreateError/sendPostCreateError/sendPluginUninstallError one-function-per-error-type-table pattern) -- handleCreateAnswer itself now only sequences these. Live measurement after the split: handleCreateAnswer itself is now complexity 6 / cognitive 5 (readRawCreateCredentialFields 6/5, deriveCreateCredentialSubmission 4/3, mapCreateCredentialError 4/3, buildCreateFailureOutcome 1/0), well under the 9/9 ceiling. All 160 existing tests in this feature (including create-agent-tool.unit.test.ts's own characterization coverage of blank-token, duplicate-label, invalid-category, cancel, and expired paths) still pass unchanged -- no behavior change, and no bug found in the audited logic (see commit message for the full audit)."
 }
