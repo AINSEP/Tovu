@@ -20,7 +20,12 @@
  * Dry-run by default; `--apply` is required to write, and even then only after a restore point is
  * captured (`SqliteDbOpsAdapter`, the same online-backup mechanism
  * `backfill-slug-collision-defaults.ts` already uses) — skipped entirely when there is nothing
- * pending, same as that script's own posture.
+ * pending, same as that script's own posture. A `--db` that does not resolve to a real,
+ * already-existing file (the default included) fails loudly via `resolveExistingDbPath` before
+ * anything is opened — `openContentDb` creates-and-migrates on open, so a typo'd path used to open
+ * (and migrate) a brand-new empty database and report "nothing to migrate" instead of the real
+ * problem. A dry run itself opens strictly read-only (`openContentDbReadOnly`), so unlike an
+ * ordinary `openContentDb` open it never migrates the schema either — only `--apply` does.
  *
  * `publish_credential_sets`/`source_control_credential_sets` are NEVER written to by this script —
  * only read. Every existing route/tool/store keeps reading and writing them exactly as before; the
@@ -103,9 +108,10 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets } from "../../apps/website/src/platform/db/schema.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 import { AesGcmSecretSealer } from "../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../apps/website/src/features/webhooks/keyring.env.js";
 import type { KeyringPort, SecretSealerPort } from "../../apps/website/src/features/webhooks/ports.js";
@@ -369,7 +375,13 @@ function countPending(db: ContentDb): number {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report a false "nothing to migrate" instead of the real problem — no such database.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
+  // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
   // Constructed unconditionally but touches no env var until `sealer.open`/`sealer.seal` is actually
   // called (`EnvOrFileKeyring`'s own doc) — a dry run below never calls either, so a dry run needs no
   // `TOVU_INTEGRATIONS_ROOT_KEY` at all.
@@ -390,7 +402,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-vendor-credentials" });
   console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 

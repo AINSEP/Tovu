@@ -6,7 +6,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { missingDbPathMessage } from "../backfill-db-path.js";
 import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../apps/website/src/platform/db/schema.js";
 import { AesGcmSecretSealer } from "../../../apps/website/src/features/webhooks/secret-sealer.aesgcm.js";
 import { EnvOrFileKeyring } from "../../../apps/website/src/features/webhooks/keyring.env.js";
@@ -43,6 +46,18 @@ const WORKSPACE = "workspace-1";
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+/** Counts real tables in a SQLite file via a fresh read-only connection — never through the
+ *  content-db helpers under test, so this stays an independent witness of the file's actual state. */
+function countTables(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const row = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'").get() as { n: number };
+    return row.n;
+  } finally {
+    db.close();
+  }
 }
 
 function runScript(dbPath: string, rootKeyHex: string | undefined, extraArgs: string[] = []): string {
@@ -336,6 +351,49 @@ test("backfill-vendor-credentials: a corrupted source row aborts the run without
   assert.equal(rows.length, 1, "the row processed before the corrupt one must survive — this script never rolls back prior successful inserts");
   assert.equal(rows[0]!.id, goodId);
   db.$client.close();
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-vendor-credentials: a dry run against a not-yet-migrated content.db must not migrate it — asserted on the actual file, not a log line", () => {
+  const scratch = tmpDir("backfill-vendor-credentials-nomigrate-");
+  const dbPath = path.join(scratch, "content.db");
+
+  // A bare SQLite file with zero tables. Nothing has ever opened this through `openContentDb`, so if
+  // the dry-run path calls it unconditionally (the defect), the ENTIRE schema gets created — not a
+  // subtle diff, a jump from 0 tables to the full migrated set.
+  new Database(dbPath).close();
+  assert.equal(countTables(dbPath), 0, "fixture must start with zero tables");
+  const bytesBefore = fs.readFileSync(dbPath);
+
+  assert.throws(
+    () => runScript(dbPath, undefined),
+    /Command failed/,
+    "a dry run against an unmigrated db must fail loudly (no such table), not silently succeed"
+  );
+
+  assert.equal(countTables(dbPath), 0, "dry run must not have created any tables — it must never call migrate()");
+  assert.deepEqual(fs.readFileSync(dbPath), bytesBefore, "dry run must not modify the database file at all");
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-vendor-credentials: a mistyped --db path fails loudly and creates nothing, instead of silently opening an empty database", () => {
+  const scratch = tmpDir("backfill-vendor-credentials-missingdb-");
+  const missing = path.join(scratch, "content.db"); // deliberately never created
+
+  let stderr = "";
+  try {
+    runScript(missing, undefined);
+    assert.fail("expected the script to throw");
+  } catch (err) {
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(stderr.includes(missingDbPathMessage(path.resolve(missing))), true, `expected the exact missing-db message. Got:\n${stderr}`);
+  // The defect this guards: a typo'd path used to open (and migrate) a brand-new empty db and report
+  // a false "nothing to migrate" instead of the real problem — no such database.
+  assert.doesNotMatch(stderr, /DRY RUN: 0 row/);
+  assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });
