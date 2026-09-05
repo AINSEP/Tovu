@@ -13,7 +13,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 
 ## Chunk plan (20 chunks, all 99 commits)
 
-- [ ] 1. Architecture fixes/revert: 5d90b1b5, 978aab02, af4b365d, c57f3791
+- [x] 1. Architecture fixes/revert: 5d90b1b5, 978aab02, af4b365d, c57f3791
 - [ ] 2. Security/architecture fixes: 226fbbd7, 8ef2f6a2, cfd48066
 - [ ] 3. Coverage-padding tests batch 1 (14 commits, 09-03 morning)
 - [ ] 4a. Custom-credentials fixes (small): a4fe6766, 86df1179, 922f2ef6, 6f9f4add, f0783b49
@@ -46,4 +46,21 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 
 ## Findings
 
-(appended below as chunks complete, ordered by severity within each batch; final report re-sorts globally)
+### Chunk 1 — architecture fixes/revert (5d90b1b5, 978aab02, af4b365d, c57f3791)
+
+Gemini raised 5 findings. 3 discarded (all false positives caused by this chunk's own path-scoping — the diff handed to Gemini was filtered to `features/**`+`platform/**`, and each discarded finding claimed something was "missing" that was actually present in the same commit, just in a file outside that filter, e.g. `server/runtime/composition/{app,deps}.ts` or `development/scripts/src-complexity-debt.json`). 2 confirmed.
+
+**MEDIUM — CONFIRMED.** `apps/website/src/features/external-mcp/__tests__/unit/save-form.unit.test.ts` test `"neither env nor secret fields ever carry a value key, regardless of input"`. `ExternalMcpSaveInput` (save-form.ts:38-55) has no `env`/`oauthClientSecret` fields at all, so nothing in this test's input can ever flow into `fieldValue(input.env)`-style code — `buildEnvField`/the `oauthClientSecret` entry in `buildOAuthCoreFields` don't even call `fieldValue()`, they just never emit `value`. A mutant that changed either builder to leak a stored secret into `value` would not be caught by this test, because the type system (not the assertion) is what prevents `input.env`/`input.oauthClientSecret` from ever being defined here. The test reads as a regression guard on a security-sensitive property but can't actually fail against a broken implementation — false confidence.
+Verification: read `save-form.ts` — confirmed `ExternalMcpSaveInput` has no `env`/`oauthClientSecret` property, and `buildEnvField`/`buildOAuthCoreFields`'s secret field hardcode omission rather than deriving it from input.
+
+**LOW — CONFIRMED (corrected: field is `postRepo`, not `presentationRepo` as Gemini first named it).** `apps/website/src/platform/export/route-manifest.ts:81` (`RouteManifestDeps.postRepo: PostRepoPort`) is dead within this file after 5d90b1b5: the only prior read (`listPublishedPosts({ deps: { repo: deps.postRepo }, ... })`) moved to the composition roots, which now bind `listPublishedPosts` as a nullary closure over their own `routeDeps.postRepo` — nothing in `route-manifest.ts` reads `deps.postRepo` anymore (verified via grep, one hit: the declaration itself). `presentationRepo` is NOT dead (Gemini's original claim) — it's still read, just not by name: `resolveActiveTheme(deps, activeThemeId)` (route-manifest.ts:280) takes the whole `deps` object and structurally needs `presentationRepo`/`workspaceId`/`themes`, per this file's own header doc. Real-world impact of the genuine `postRepo` dead field is low: nobody hand-builds a `RouteManifestDeps`, the real `RouteDeps` object satisfies it structurally and already carries `postRepo` for unrelated reasons, so no caller feels an extra burden — this is a documentation/hygiene nit (an interface field with no reader in its own file), not a functional defect.
+Verification: `git show 5d90b1b5 -- route-manifest.ts` — confirmed `postRepo`'s only consumer was the removed direct call; grep confirms no other read in the file.
+
+**Discarded (3), all false positives from this chunk's path-scoped diff, not from the code itself:**
+- Gemini claimed `RouteManifestDeps`'s new `resolveActiveThemeId`/`listPublishedPosts` fields (5d90b1b5) were never bound at the composition roots, calling it CRITICAL (`TypeError: ... is not a function`). Disproved: `git show 5d90b1b5 -- server/runtime/composition/app.ts deps.ts` shows both roots bind them (`resolveActiveThemeId: () => resolveActiveThemeId(routeDeps)`, `listPublishedPosts: () => listPublishedPosts({...})`) in the *same* commit — those files just aren't under `features/**`/`platform/**` so weren't in the chunk Gemini saw.
+- Gemini claimed `command: input.command ?? existing.command` (save-form.ts, c57f3791) leaks `null` into a `string`-typed field because `existing.command` mirrors `existing.url`'s nullability. Disproved: `ExternalMcpServerView.command` is typed `string` (not `string | null`) in `external-mcp-store.ts:293` — only `url` is nullable. No leak possible.
+- Gemini claimed the c57f3791 commit message's claim of recording a complexity exception in `src-complexity-debt.json` was false because that file wasn't in the diff. Disproved: `git show c57f3791 --stat` (unfiltered) shows `development/scripts/src-complexity-debt.json` genuinely updated in the same commit — outside the features/platform path filter, not missing.
+
+### Chunk 2 — security/architecture fixes (226fbbd7, 8ef2f6a2, cfd48066)
+
+(running)
