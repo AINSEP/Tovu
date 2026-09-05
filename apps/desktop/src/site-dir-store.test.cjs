@@ -30,10 +30,11 @@ function tempDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "tovu-desktop-sitedir-"));
 }
 
-/** A directory that looks like a booted Tovu site to `classifySiteDir`. */
+/** A directory that looks like a booted Tovu site to `classifySiteDir` — both marker files present. */
 function fakeSiteDir() {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "fixture" }));
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "fixture", schemaVersion: 1 }));
   return dir;
 }
 
@@ -75,6 +76,20 @@ test("classifySiteDir calls a folder of unrelated files occupied", () => {
   const dir = tempDir();
   fs.writeFileSync(path.join(dir, "taxes.pdf"), "");
   assert.equal(classifySiteDir(dir), "occupied");
+});
+
+test("classifySiteDir calls a folder with only config.json incomplete, not a site", () => {
+  const dir = tempDir();
+  fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ name: "fixture" }));
+  // Real, populated data (like `sites/tovu-com`) — non-empty, but still missing `.site-meta.json`.
+  fs.writeFileSync(path.join(dir, "content.db"), "");
+  assert.equal(classifySiteDir(dir), "incomplete");
+});
+
+test("classifySiteDir calls a folder with only .site-meta.json incomplete too", () => {
+  const dir = tempDir();
+  fs.writeFileSync(path.join(dir, ".site-meta.json"), JSON.stringify({ siteId: "fixture" }));
+  assert.equal(classifySiteDir(dir), "incomplete");
 });
 
 test("readDesktopState treats a missing or corrupt state file as empty rather than failing", () => {
@@ -180,7 +195,7 @@ test("resolveSiteDir tells pickDir which dev fallback it rejected and why — ab
   assert.deepEqual(received, { dir: fallback, kind: "empty" });
 });
 
-test("resolveSiteDir tells pickDir which dev fallback it rejected and why — real folder, no config.json", async () => {
+test("resolveSiteDir tells pickDir which dev fallback it rejected and why — real folder, no marker files at all (sites/tovu-com's actual shape)", async () => {
   const fallback = tempDir();
   fs.writeFileSync(path.join(fallback, "content.db"), "");
   let received;
@@ -196,7 +211,27 @@ test("resolveSiteDir tells pickDir which dev fallback it rejected and why — re
     }),
     SiteDirSelectionCancelled,
   );
-  assert.deepEqual(received, { dir: fallback, kind: "occupied" });
+  assert.deepEqual(received, { dir: fallback, kind: "occupied", missing: ["config.json", ".site-meta.json"] });
+});
+
+test("resolveSiteDir tells pickDir which single marker file is missing — the half-initialized case", async () => {
+  const fallback = tempDir();
+  fs.writeFileSync(path.join(fallback, "config.json"), JSON.stringify({ name: "fixture" }));
+  fs.writeFileSync(path.join(fallback, "content.db"), "");
+  let received;
+  await assert.rejects(
+    resolveSiteDir({
+      statePath: tempStatePath(),
+      devFallbackDir: fallback,
+      repoRoot: fakeRepoRoot(),
+      pickDir: (rejectedDefault) => {
+        received = rejectedDefault;
+        return null;
+      },
+    }),
+    SiteDirSelectionCancelled,
+  );
+  assert.deepEqual(received, { dir: fallback, kind: "incomplete", missing: [".site-meta.json"] });
 });
 
 test("resolveSiteDir passes null to pickDir when there is nothing to reject (no devFallbackDir)", async () => {
@@ -235,6 +270,16 @@ test("adoptSiteDir refuses a folder of unrelated files instead of writing a data
   await assert.rejects(
     adoptSiteDir({ dir: occupied, statePath: tempStatePath(), repoRoot: fakeRepoRoot() }),
     /is not a Tovu site and is not empty/,
+  );
+});
+
+test("adoptSiteDir refuses a half-initialized folder instead of silently accepting it", async () => {
+  const incomplete = tempDir();
+  fs.writeFileSync(path.join(incomplete, "config.json"), JSON.stringify({ name: "fixture" }));
+  fs.writeFileSync(path.join(incomplete, "content.db"), "");
+  await assert.rejects(
+    adoptSiteDir({ dir: incomplete, statePath: tempStatePath(), repoRoot: fakeRepoRoot() }),
+    /is missing \.site-meta\.json — it looks like a half-initialized site/,
   );
 });
 

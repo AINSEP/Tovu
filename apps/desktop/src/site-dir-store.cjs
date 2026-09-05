@@ -30,8 +30,17 @@ const MAX_RECENT_SITE_DIRS = 10;
 
 const STATE_FILE_NAME = "desktop-state.json";
 
-/** Every Tovu site dir has one; `bootSiteDir` refuses a dir without it. */
+/**
+ * Every Tovu site dir has both. `read-site-dir.ts:81-86` refuses a dir missing either one
+ * unconditionally — `errors.ts`'s `SITE_DIR_INVALID` doc lists the two as alternatives ("config.json
+ * or .site-meta.json"), but that names which file a given failure blames, not that either alone is
+ * enough. `classifySiteDir` below used to check only `SITE_MARKER_FILE`, which was looser than the
+ * server: a dir with `config.json` but no `.site-meta.json` classified as `"site"`, sailed past the
+ * picker, and only died once `tovu serve` actually spawned — late, not silent, but later than it
+ * needed to be. Fixed 2026-09-05.
+ */
 const SITE_MARKER_FILE = "config.json";
+const SITE_META_FILE = ".site-meta.json";
 
 /** Raised when the user dismisses the folder picker — a cancellation, not a failure to diagnose. */
 class SiteDirSelectionCancelled extends Error {}
@@ -91,16 +100,35 @@ function existingRecentSiteDirs(statePath) {
 }
 
 /**
+ * Which of the two required marker files are absent from `dir`. Only meaningful when `dir` exists
+ * — callers check that first — and empty when both are present.
+ *
+ * @returns a subset of `[SITE_MARKER_FILE, SITE_META_FILE]`, in that fixed order.
+ * @complexity O(1) — two `fs.existsSync` calls.
+ */
+function missingSiteMarkers(dir) {
+  const missing = [];
+  if (!fs.existsSync(path.join(dir, SITE_MARKER_FILE))) missing.push(SITE_MARKER_FILE);
+  if (!fs.existsSync(path.join(dir, SITE_META_FILE))) missing.push(SITE_META_FILE);
+  return missing;
+}
+
+/**
  * Decide what a chosen folder is, in `bootSiteDir`'s terms.
  *
- * @returns `"site"` (has a `config.json`, serve it), `"empty"` (absent or empty, `tovu init` can
- *   create a site here), or `"occupied"` (someone's real folder full of unrelated files — refuse,
- *   since `initSite` would throw `INIT_DIR_NOT_EMPTY` and serving would throw `SITE_DIR_INVALID`).
- * @complexity O(n) in the directory's entry count, and only for a non-site dir.
+ * @returns `"site"` (has both `config.json` and `.site-meta.json` — `read-site-dir.ts:81-86`'s exact
+ *   contract, serve it), `"incomplete"` (has exactly one of the two — a half-initialized or
+ *   half-corrupted site, distinct from both a fresh folder and a real site), `"empty"` (absent or
+ *   empty, `tovu init` can create a site here), or `"occupied"` (someone's real folder full of
+ *   unrelated files — refuse, since `initSite` would throw `INIT_DIR_NOT_EMPTY` and serving would
+ *   throw `SITE_DIR_INVALID`).
+ * @complexity O(n) in the directory's entry count, and only for a non-site, non-incomplete dir.
  */
 function classifySiteDir(dir) {
   if (!fs.existsSync(dir)) return "empty";
-  if (fs.existsSync(path.join(dir, SITE_MARKER_FILE))) return "site";
+  const missing = missingSiteMarkers(dir);
+  if (missing.length === 0) return "site";
+  if (missing.length === 1) return "incomplete";
   return fs.readdirSync(dir).length === 0 ? "empty" : "occupied";
 }
 
@@ -143,15 +171,22 @@ function initSiteDir(input) {
 /**
  * Turn a folder the user just picked into a servable site dir, creating one if the folder is empty.
  *
- * @throws {Error} when the folder holds unrelated files — refusing is the safe half of the
- *   `"occupied"` classification, since the alternative is writing a database into someone's
- *   Documents folder.
+ * @throws {Error} when the folder holds unrelated files (`"occupied"`) — refusing is the safe half
+ *   of that classification, since the alternative is writing a database into someone's Documents
+ *   folder — or when it is a half-initialized site (`"incomplete"`): naming it here rather than
+ *   letting it through is the same reasoning that fixed `classifySiteDir`'s own gap (see that
+ *   constant's doc) — a folder this function silently accepted as-is would only fail once the
+ *   spawned `tovu serve` child died, not here where the reason is still in hand.
  * @complexity O(1) beyond `classifySiteDir` and, for an empty folder, `tovu init`.
  */
 async function adoptSiteDir(input) {
   const kind = classifySiteDir(input.dir);
   if (kind === "occupied") {
-    throw new Error(`${input.dir} is not a Tovu site and is not empty. Choose an empty folder to create a new site, or a folder that already contains a site (one with a ${SITE_MARKER_FILE}).`);
+    throw new Error(`${input.dir} is not a Tovu site and is not empty. Choose an empty folder to create a new site, or a folder that already contains a site (one with a ${SITE_MARKER_FILE} and a ${SITE_META_FILE}).`);
+  }
+  if (kind === "incomplete") {
+    const missing = missingSiteMarkers(input.dir).join(" and ");
+    throw new Error(`${input.dir} is missing ${missing} — it looks like a half-initialized site, not a complete one. Choose a different folder.`);
   }
   if (kind === "empty") {
     await initSiteDir({ repoRoot: input.repoRoot, dir: input.dir, name: input.name, baseEnv: input.baseEnv, spawnFn: input.spawnFn });
@@ -172,9 +207,10 @@ async function adoptSiteDir(input) {
  *
  * @param input.pickDir async `(rejectedDefault) => string | null`; `null` means the user
  *   cancelled. `rejectedDefault` is `null` when there was nothing to try (no `devFallbackDir`, or a
- *   packaged app that never sets one), else `{ dir, kind }` naming the candidate step 3 just turned
- *   down and `classifySiteDir`'s verdict on it (`"empty"` or `"occupied"`) — so the picker can say
- *   *why* it's asking instead of just asking.
+ *   packaged app that never sets one), else `{ dir, kind, missing? }` naming the candidate step 3
+ *   just turned down, `classifySiteDir`'s verdict on it (`"empty"`, `"incomplete"`, or `"occupied"`),
+ *   and — for `"incomplete"`/`"occupied"` — exactly which marker file(s) it lacks, so the picker can
+ *   say *why* it's asking instead of just asking.
  * @throws {SiteDirSelectionCancelled} when the user dismisses the picker.
  * @complexity O(n) stat calls over the MRU, bounded by {@link MAX_RECENT_SITE_DIRS}.
  */
@@ -190,6 +226,9 @@ async function resolveSiteDir(input) {
     const kind = classifySiteDir(input.devFallbackDir);
     if (kind === "site") return input.devFallbackDir;
     rejectedDefault = { dir: input.devFallbackDir, kind };
+    if (kind === "incomplete" || kind === "occupied") {
+      rejectedDefault.missing = missingSiteMarkers(input.devFallbackDir);
+    }
   }
 
   const picked = await input.pickDir(rejectedDefault);
@@ -209,6 +248,7 @@ async function resolveSiteDir(input) {
 module.exports = {
   MAX_RECENT_SITE_DIRS,
   SITE_MARKER_FILE,
+  SITE_META_FILE,
   STATE_FILE_NAME,
   SiteDirSelectionCancelled,
   stateFilePath,

@@ -40,7 +40,7 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog, shell } = require("electron");
 
 const { startTovuServer } = require("./src/tovu-server.cjs");
-const { resolveSiteDir, stateFilePath, SiteDirSelectionCancelled, SITE_MARKER_FILE } = require("./src/site-dir-store.cjs");
+const { resolveSiteDir, stateFilePath, SiteDirSelectionCancelled } = require("./src/site-dir-store.cjs");
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
@@ -59,9 +59,19 @@ const SELFTEST = process.env.TOVU_DESKTOP_SELFTEST === "1";
  * `<repo>/sites/tovu-com` missing its `config.json`, say — is named instead of leaving the user to
  * read a bare native folder picker with no context at all (measured failure: 2026-09-05).
  *
- * @param rejectedDefault `{ dir, kind }` from `resolveSiteDir`, or `null` when there was nothing to
- *   try before asking.
+ * @param rejectedDefault `{ dir, kind, missing? }` from `resolveSiteDir`, or `null` when there was
+ *   nothing to try before asking.
  */
+function describeRejectedDefault(rejectedDefault) {
+  if (rejectedDefault.kind === "empty") return "has no site in it yet";
+  // "incomplete" and "occupied" both carry `missing` — the exact marker file name(s) `resolveSiteDir`
+  // found absent — so the message names the actual reason instead of a generic "not a Tovu site".
+  const missing = rejectedDefault.missing.join(" and ");
+  return rejectedDefault.kind === "incomplete"
+    ? `is missing ${missing} — it looks like a half-initialized site`
+    : `is not a Tovu site (missing ${missing})`;
+}
+
 async function promptForSiteDir(rejectedDefault) {
   // A modal dialog in a headless self-test would block forever with nothing to click it. Fail with
   // the reason instead, so an unattended run reports rather than hangs.
@@ -72,9 +82,7 @@ async function promptForSiteDir(rejectedDefault) {
   const message =
     rejectedDefault === null
       ? askMessage
-      : `${rejectedDefault.dir} was tried first but ${
-          rejectedDefault.kind === "occupied" ? `is not a Tovu site (no ${SITE_MARKER_FILE})` : "has no site in it yet"
-        }. ${askMessage}`;
+      : `${rejectedDefault.dir} was tried first but ${describeRejectedDefault(rejectedDefault)}. ${askMessage}`;
   const result = await dialog.showOpenDialog({
     title: "Choose a folder for your Tovu site",
     message,
@@ -100,9 +108,12 @@ async function resolveTarget() {
     statePath: stateFilePath(app.getPath("userData")),
     // Correct for a developer, absent in a packaged app — which is exactly why it is one tier of a
     // precedence chain rather than the hardcoded default it used to be. In THIS checkout it is not
-    // even valid: `sites/tovu-com` holds a `content.db` but no `config.json`, so `tovu serve` exits
-    // 3 with `SITE_DIR_INVALID` (measured). The old hardcoded default was a dead path; the chain
-    // classifies the dir and moves on instead of failing on it.
+    // even valid: `sites/tovu-com` holds a `content.db` but neither `config.json` nor
+    // `.site-meta.json`, so `tovu serve` exits 3 with `SITE_DIR_INVALID` (measured) — it was only
+    // ever booted through `index.ts`'s non-CLI path, which applies neither marker-file check
+    // (`apps/website/src/server/runtime/composition/deps.ts:200,436-445` vs
+    // `apps/website/src/platform/site-dir/read-site-dir.ts:81-86`). The old hardcoded default was a
+    // dead path; the chain classifies the dir and moves on instead of failing on it.
     devFallbackDir: path.join(REPO_ROOT, "sites", "tovu-com"),
     repoRoot: REPO_ROOT,
     // No `name`: `initSite` defaults it to the chosen folder's basename (BR-03), which is what the
