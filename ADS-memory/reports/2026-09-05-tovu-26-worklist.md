@@ -813,3 +813,51 @@ anyone it is broken.
 Dispatched to `sdk-path-investigation` (read-only, software-architect persona): the right fix depends
 on **the intended packaged-distributable topology for `packages/sdk`**, which is a design question.
 **C14 — Leona's call**, once the options are costed.
+
+---
+
+## A17 VERDICT — SDK resolver path (`ec41b428`), fix dispatched
+Report: `ADS-memory/reports/2026-09-05-plugin-sdk-path-verdict.md`.
+
+**Confirmed, and worse than framed — the two layouts are off by DIFFERENT margins.** Dev/tsx is 6
+levels below repo root (`apps/website/src/server/runtime/boot`); compiled is 5
+(`dist/src/server/runtime/boot`, because root `tsconfig.json`'s `rootDir="apps/website"` collapses
+that prefix). The code always does `../../../` — 3 ups. **Both computed paths verified missing.**
+
+**Intended topology, cited**: ADR-005's own "SDK Resolution Mechanism" sub-decision (`adr.md:103-114`)
+says `@tovu/sdk` lives in "the runtime binary's own `node_modules`" — **ordinary Node package
+resolution, never hand-computed relative paths.** `node_modules/@tovu/sdk` is a real npm-workspace
+symlink to `packages/sdk`, and the Dockerfile's production image resolves it that way too. **The
+current code fights the ADR's own stated mechanism.**
+
+**It never worked.** Correct only at authorship (`f23bbd63`, 3 levels deep, 3 ups). Silently broken by
+`f9b42698` (added `runtime/`) then `708e81b2` (added `apps/website/`) — neither touched the path
+string. **Never-finished, not a regression from a working state.**
+
+**Why nothing caught it**: all three real call sites (`index.ts`, `serve.ts`, `export.ts`) pass zero
+args; **only the certified test overrides the path.** The true default was never exercised.
+
+**Pattern shape — NOT the "correct primitive, unwired call site" family.** Here the call sites are all
+correctly wired; the primitive itself was right once and **rotted silently across two unrelated
+renames** because nothing certified the default. Related root cause (untested default), different
+mechanism.
+
+**Approved: Option A** — `createRequire(import.meta.url).resolve("@tovu/sdk")`. Layout-invariant,
+matches ADR intent, one function's blast radius, and **already idiomatic here**: `admin-static.ts`,
+`deps.ts`, `otel.ts`, `mcp-injection.ts`, the SMTP adapter, `worker-sandbox.ts`.
+Option B (patch the `..` count) rejected as fragile — **this failure class has already bitten twice.**
+Option C (relocate build output) contradicts ADR-005's own rejected "shim directory" alternative.
+Dispatched to `fix-sdk-resolver-path`.
+
+### C15 — needs Leona: the root build never produces `packages/sdk/dist`
+Confirmed: root `tsconfig.json` includes only `apps/website/src/**`; `emit-dist-package-json.mjs` has
+no awareness of `packages/sdk`; `dev.mjs` never builds it; `packages/sdk/dist` is gitignored/untracked.
+**Only `Dockerfile:57` builds it.** The copy on disk is a manual build — **a fresh clone has no SDK
+dist at all outside Docker.** So even with the path fix, plugin loading stays broken on a fresh
+clone until dev tooling builds the SDK. Build-pipeline change, distinct owner, **reported not
+implemented.**
+
+### Cross-cutting: `708e81b2` has THREE known victims
+The `src/` -> `apps/website/src/` rename silently broke (1) two migration scripts entirely, (2) 43
+more files' imports, (3) the SDK resolver path. **Root cause: `tsc` only includes `apps/website/src/**`,
+so nothing outside it is checked.** Saved to memory with the sweep command.
