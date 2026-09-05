@@ -23,7 +23,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 7. Menu/deployments/oauth/http fixes: 92494e7c, 9dbfa0e7, bb18a3cb, 045fca55
 - [x] 8a. refactor(identity,members,credentials) 05b9713c
 - [x] 8b. refactor(complexity) batch E 753b3eba
-- [ ] 8c. refactor(complexity) batch F c62c95a4
+- [x] 8c. refactor(complexity) batch F c62c95a4
 - [ ] 9. Docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
 - [ ] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 - [ ] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
@@ -205,5 +205,9 @@ Gemini raised 6 findings on this "behavior-preserving" origin/path-validator and
 - Gemini's finding that `accessibleNameOf` reallocates a 5-element strategy array on every call (GC pressure during page scraping) has no demonstrated wrong observable behavior or measured impact — pure performance opinion, per this audit's own instruction to omit those. (Also worth noting for future reference: this file is `.toString()`-serialized and injected into a browser page per [[reference_jsdoc_star_slash_in_prose_crashes_api.md]]'s sibling note on serialized files — but moving the array to `collectPageStructure`'s own outer scope, as suggested, would stay inside the serialization boundary and would not itself be unsafe.)
 
 ### Chunk 8c — refactor(complexity) batch F c62c95a4
+
+Gemini raised **no findings** — reported the refactor (agent-plugins, comments/ingress, deploy-config, plugin-runtime/manifest, redirects) as behavior-preserving, and called out two in-scope deliberate bug fixes bundled into the same commit as correct: `resolveParentContext`'s `parent.entryId !== submission.entryId` cross-entry-thread-grafting guard, and `plugin-runtime/manifest.ts`'s `typeof decl.queryable !== "boolean"` gate. Spot-verified the comments one directly: `apps/website/src/features/comments/ingress.ts:122` reads exactly `if (!parent || parent.entryId !== submission.entryId) return { ok: false, reason: "parent-not-found" };` — matches. Given a clean report plus a direct spot-check, not doing a full line-by-line pass on the other 5 modules in this chunk.
+
+### Chunk 9 — docs/site-evidence/batch G/media gating: 33cd80b3, 08bfa88f, a60c86b6, 67b93b80
 
 (running)
