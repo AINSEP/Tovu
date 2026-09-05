@@ -117,7 +117,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | components | 39 | 7602 | 39 | 2 | **MEASURED — 95.0% lines, 91.4% functions, 89.5% branches. Two confirmed zero-coverage files: `TabBar.tsx`, `AssistantDock/SelectedAgentPluginTray.tsx`. See Phase 2 log.** |
 | deployment | 25 | 7095 | 12 | 2 | **MEASURED — 95.6% lines, 92.9% functions, 88.1% branches. No zero-coverage files; partial gaps only. See Phase 2 log.** |
 | pages | 25 | 5250 | 11 | 4 (+5 website) | **MEASURED — 95.5% lines, 94.8% functions, 83.4% branches. Branch gap is the softest measured this pass; no zero-coverage files. See Phase 2 log.** |
-| posts | 16 | 4709 | 9 | 4 (+1 website) | UNMEASURED |
+| posts | 16 | 4709 | 9 | 4 (+1 website) | **MEASURED — 85.7% lines, 76.8% functions, 81.3% branches. Real gap: `PostEditor.tsx` 60.0% lines. See Phase 2 log.** |
 | themes | 14 | 4551 | 6 | 1 | UNMEASURED |
 | collections | 26 | 4207 | 14 | 2 | UNMEASURED |
 | security | 15 | 3955 | 10 | 2 | UNMEASURED |
@@ -501,23 +501,62 @@ correction (dual-instantiation lcov trap, caught and fixed mid-parse)
   most of the directory's hook files rather than concentrated in one or two
   components.
 
+## Measured: `apps/admin/src/features/posts`
+
+- **uptime before**: `16:23, load averages 5.33 13.24 20.53`. **During/after**:
+  `16:24, load averages 7.38 13.23 20.35`, then `6.82`. Lightest run yet
+  (team-lead's memory-based signal: swap was 1939MB/3072MB before this run,
+  well under the ~2.6GB danger line). Exit 0, no failing tests.
+- **Command** (cwd `apps/admin`):
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/posts-admin-coverage \
+    <9 internal test files under src/features/posts/**/__tests__/> \
+    src/__tests__/unit/panels-render.unit.test.tsx \
+    src/features/pages/__tests__/Pages.unit.test.tsx \
+    src/features/pages/__tests__/rules.unit.test.ts \
+    src/hooks/__tests__/content-refresh-coverage.unit.test.ts
+  ```
+  (4 admin-side external files — the full candidate list from the appendix;
+  the appendix's 1 website-side hit doesn't apply here.)
+- **lcov retained at**: `.../scratchpad/posts-admin-coverage/lcov.info`.
+- **Result** (13 of 16 source files in lcov; missing 3 —
+  `post-editor-port.hooks.ts`, `post-template-port.hooks.ts`,
+  `posts-list-port.hooks.ts` — are the same pure-interface pattern, not a
+  gap):
+  - Lines: 85.7% (426/497)
+  - Functions: 76.8% (192/250)
+  - Branches: 81.3% (292/359)
+  - **Real, concrete gap: `PostEditor.tsx` 60.0% lines (96/160), 55.4%
+    functions (62/112), 73.2% branches (93/127)** — the directory's largest
+    file and by far its weakest. The vitest text reporter's uncovered-line
+    ranges for it include a large contiguous block (`...-683,1146-1157` —
+    truncated in the terminal table; the tail end alone is ~230 lines) not
+    reached by any of the 13 test files in this run.
+  - Everything else in the directory is 87.5-100% lines; `Posts.tsx`,
+    `rules.ts`, `PostTemplateModal.tsx`, `post-template-dependencies.hooks.ts`,
+    `posts-list-dependencies.hooks.ts` are all 100% lines.
+- **Reading**: a real, specific gap — unlike `pages` (spread thin across many
+  files), this one is concentrated almost entirely in one file,
+  `PostEditor.tsx`. Worth a direct look: a large contiguous uncovered block in
+  the biggest component in the directory is a concrete, actionable target.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
 not what is least covered. `deployments`, `apps/admin/src/lib`,
 `apps/admin/src/components`, `apps/admin/src/features/deployment`,
-`apps/website/src/features/widgets`, and `apps/admin/src/features/pages` are
-removed from this list because they are no longer unknown (see their
-measured sections above/below).
+`apps/website/src/features/widgets`, `apps/admin/src/features/pages`, and
+`apps/admin/src/features/posts` are removed from this list because they are
+no longer unknown (see their measured sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-2. `apps/admin/src/features/posts` — 4709 lines
-3. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
+2. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
    suite — thin external signal)
-4. `apps/admin/src/features/collections` — 4207 lines
-5. `apps/website/src/features/plugins` — 4190 lines
+3. `apps/admin/src/features/collections` — 4207 lines
+4. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
