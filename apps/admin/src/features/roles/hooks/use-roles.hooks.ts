@@ -144,7 +144,16 @@ export interface RolesController {
  *  though each is individually small under ESLint's own per-function view — `onDeletePolicy` had no
  *  test at all before the extraction pass that introduced this helper; characterisation tests were
  *  added first (`use-roles.unit.test.ts`) so this extraction has coverage to prove it behavior-
- *  preserving against. */
+ *  preserving against.
+ *
+ *  `setRowSavingId`'s `finally` reset (2026-09-05 fix, same bug class as `use-sites.hooks.ts`'s
+ *  `activate`/`use-themes.hooks.ts`'s `activate`/`download`/`use-theme-explore.hooks.ts`'s rename)
+ *  is a functional update keyed on THIS call's own `id`, not a blind `setRowSavingId(null)`: nothing
+ *  gated a second delete (on a DIFFERENT row) from starting before this one settles, so an
+ *  unconditional reset would clear the busy indicator out from under a still-in-flight newer
+ *  delete. `clearPending` is the caller's own responsibility to guard the same way (see
+ *  `onDeleteRole`/`onDeletePolicy` below) since only the caller knows which pending-selection state
+ *  it owns. */
 async function runRowDelete(
   id: string,
   mutate: (id: string) => Promise<unknown>,
@@ -160,7 +169,7 @@ async function runRowDelete(
   } catch (e) {
     setRowError(describeError(e));
   } finally {
-    setRowSavingId(null);
+    setRowSavingId((current) => (current === id ? null : current));
     clearPending();
   }
 }
@@ -298,16 +307,24 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setEditingRoleName(role.name);
   }
 
+  /** `setEditingRoleId`/`setRowSavingId`'s settle-time writes (2026-09-05 fix, same bug class as
+   *  `use-sites.hooks.ts`'s `activate`/`use-themes.hooks.ts`'s `activate`/`download`/
+   *  `use-theme-explore.hooks.ts`'s rename) are functional updates keyed on THIS call's own
+   *  `roleId`, not a blind `setEditingRoleId(null)`/`setRowSavingId(null)`: nothing gates a second
+   *  `onSaveRole` (for a DIFFERENT role) from starting before this one settles — the operator can
+   *  freely click "Edit" on another row at any time, no modal blocks it — so an unconditional reset
+   *  would close a DIFFERENT, still-open and unsaved row's inline edit UI out from under the
+   *  operator the moment this stale call finally settles. */
   async function onSaveRole(roleId: string) {
     setRowSavingId(roleId);
     setRowError(null);
     try {
       await saveRoleMutation.mutate({ roleId, name: editingRoleName });
-      setEditingRoleId(null);
+      setEditingRoleId((current) => (current === roleId ? null : current));
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to rename role")));
     } finally {
-      setRowSavingId(null);
+      setRowSavingId((current) => (current === roleId ? null : current));
     }
   }
 
@@ -316,7 +333,12 @@ export function useRoles(deps: RolesDependencies): RolesController {
    *  `ConfirmButton` control (MSG-03 rollout) because a `RowMenu` item fires once and the menu
    *  closes immediately (`selectItem` in `RowMenu.tsx`), so there is no "stay open for a second
    *  confirm click" state for `ConfirmButton` to hold; `ConfirmDialog` is the mechanism that
-   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete. */
+   *  survives the menu closing, same as `Posts.tsx`/`Pages.tsx`'s own Delete.
+   *
+   *  `clearPending` (2026-09-05 fix, same reasoning as `onSaveRole`'s comment above) only clears
+   *  `pendingRoleDelete` when it still names THIS call's own `role` — otherwise a stale delete
+   *  settling after the operator has already opened a DIFFERENT row's delete confirmation would
+   *  silently dismiss that dialog with no decision made. */
   async function onDeleteRole() {
     if (!pendingRoleDelete) return;
     const role = pendingRoleDelete;
@@ -325,7 +347,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       deleteRoleMutation.mutate,
       setRowSavingId,
       setRowError,
-      () => setPendingRoleDelete(null),
+      () => setPendingRoleDelete((current) => (current?.id === role.id ? null : current)),
       (e) => describeApiError(e, t(locale, "failed to delete role")),
     );
   }
@@ -337,20 +359,23 @@ export function useRoles(deps: RolesDependencies): RolesController {
     setEditingPolicyDescription(policy.description ?? "");
   }
 
+  /** Same settle-time guard as `onSaveRole` above, keyed on `policyId` instead of `roleId` — see
+   *  that function's comment for why. */
   async function onSavePolicy(policyId: string) {
     setRowSavingId(policyId);
     setRowError(null);
     try {
       await savePolicyMutation.mutate({ policyId, name: editingPolicyName, description: editingPolicyDescription });
-      setEditingPolicyId(null);
+      setEditingPolicyId((current) => (current === policyId ? null : current));
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to update policy")));
     } finally {
-      setRowSavingId(null);
+      setRowSavingId((current) => (current === policyId ? null : current));
     }
   }
 
-  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above — see that function's comment. */
+  /** Same `ConfirmDialog`-via-`RowMenu` swap as `onDeleteRole` above, plus the same `clearPending`
+   *  settle-time guard — see that function's comments for both. */
   async function onDeletePolicy() {
     if (!pendingPolicyDelete) return;
     const policy = pendingPolicyDelete;
@@ -359,7 +384,7 @@ export function useRoles(deps: RolesDependencies): RolesController {
       deletePolicyMutation.mutate,
       setRowSavingId,
       setRowError,
-      () => setPendingPolicyDelete(null),
+      () => setPendingPolicyDelete((current) => (current?.id === policy.id ? null : current)),
       (e) => describeApiError(e, t(locale, "failed to delete policy")),
     );
   }

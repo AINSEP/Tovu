@@ -574,4 +574,93 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
     expect(result.current.permissionRows).toHaveLength(1);
     expect(result.current.permissionRows[0]!.policyId).toBe(otherPolicy.id);
   });
+
+  // `onSaveRole` had no guard against its settle-time `editingRoleId`/`rowSavingId` writes closing a
+  // DIFFERENT, still-open row's edit UI — nothing gates a second `onSaveRole` (on a different role)
+  // from starting before the first settles, unlike a confirm-dialog-gated action. Same bug class as
+  // `loadPermissions` above; see `onSaveRole`'s own doc comment.
+  it("onSaveRole: a stale save settling after the operator moved to editing a DIFFERENT role must not close that row's edit UI", async () => {
+    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
+    let resolveA!: (v: { role: typeof ROLE }) => void;
+    const port = createFakeRolesPort({ roles: [ROLE, roleB], policies: [POLICY] });
+    port.updateRole = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.startEditRole(ROLE));
+    act(() => {
+      void result.current.onSaveRole(ROLE.id);
+    });
+    await waitFor(() => expect(port.updateRole).toHaveBeenCalledTimes(1));
+
+    // Before ROLE's save settles, the operator moves on to editing a DIFFERENT, unsaved role.
+    act(() => result.current.startEditRole(roleB));
+    expect(result.current.editingRoleId).toBe(roleB.id);
+
+    await act(async () => {
+      resolveA({ role: ROLE });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.editingRoleId).toBe(roleB.id);
+  });
+
+  // Same bug, the policy-editing counterpart — see `onSavePolicy`'s own doc comment.
+  it("onSavePolicy: a stale save settling after the operator moved to editing a DIFFERENT policy must not close that row's edit UI", async () => {
+    const policyB = { id: "pB", workspaceId: "w1", name: "Other", description: "", isBuiltin: false, isFrozen: false };
+    let resolveA!: (v: { policy: typeof POLICY }) => void;
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY, policyB] });
+    port.updatePolicy = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.startEditPolicy(POLICY));
+    act(() => {
+      void result.current.onSavePolicy(POLICY.id);
+    });
+    await waitFor(() => expect(port.updatePolicy).toHaveBeenCalledTimes(1));
+
+    act(() => result.current.startEditPolicy(policyB));
+    expect(result.current.editingPolicyId).toBe(policyB.id);
+
+    await act(async () => {
+      resolveA({ policy: POLICY });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.editingPolicyId).toBe(policyB.id);
+  });
+
+  // `runRowDelete`'s `clearPending` had no guard against a stale delete's settlement silently
+  // dismissing a DIFFERENT row's delete confirmation the operator has since opened — nothing gates
+  // opening a new confirmation while an earlier delete is still in flight at the hook level. See
+  // `runRowDelete`'s own doc comment.
+  it("onDeleteRole: a stale delete settling after the operator opened a DIFFERENT row's delete confirmation must not silently close it", async () => {
+    const roleB = { id: "rB", workspaceId: "w1", name: "Beta", isBuiltin: false };
+    let resolveA!: () => void;
+    const port = createFakeRolesPort({ roles: [ROLE, roleB], policies: [POLICY] });
+    port.deleteRole = vi.fn(() => new Promise<void>((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.setPendingRoleDelete(ROLE));
+    act(() => {
+      void result.current.onDeleteRole();
+    });
+    await waitFor(() => expect(port.deleteRole).toHaveBeenCalledTimes(1));
+
+    // Before ROLE's delete settles, the operator opens a delete confirmation for a DIFFERENT role.
+    act(() => result.current.setPendingRoleDelete(roleB));
+    expect(result.current.pendingRoleDelete).toEqual(roleB);
+
+    await act(async () => {
+      resolveA();
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.pendingRoleDelete).toEqual(roleB);
+  });
 });
