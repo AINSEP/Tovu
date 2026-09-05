@@ -455,3 +455,121 @@ test("executeRestore POSTs { confirmationToken, restorePointId } to /recovery/re
   expect(calls[0].init?.method).toBe("POST");
   expect(body()).toEqual({ confirmationToken: "tok1", restorePointId: "rp1" });
 });
+
+// --- Presentation -----------------------------------------------------------------
+//
+// Genuinely untested before this file: `use-themes.hooks.unit.test.ts`'s own header says
+// `Themes.unit.test.tsx` drives the component through a full-controller fake (never the real
+// hook), and its own injected-port describe block explicitly asserts
+// `expect(getPresentationSpy/setActiveSpy).not.toHaveBeenCalled()` — proving the real `api.*`
+// implementations below never ran anywhere in the suite.
+
+test("getPresentation hits GET /presentation", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getPresentation();
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
+  expect(calls[0].init?.method).toBeUndefined();
+});
+
+test("setActiveTheme PATCHes { activeThemeId } to /presentation", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.setActiveTheme("quartz");
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/presentation`);
+  expect(calls[0].init?.method).toBe("PATCH");
+  expect(body()).toEqual({ activeThemeId: "quartz" });
+});
+
+// --- Members -----------------------------------------------------------------
+//
+// `listMembers`/`disableMember` already get real-fetch assertions from `Members.unit.test.tsx`
+// (initial list render, and a `/disable` URL-substring check). `getMember` does not: every test
+// that reaches it (`use-members.hooks.unit.test.ts`, `members-dependencies.unit.test.ts`) goes
+// through `createFakeMembersPort` or a fully `vi.mock`'d `api` module instead.
+
+test("getMember hits GET /members/:id", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getMember("m1");
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/members/m1`);
+  expect(calls[0].init?.method).toBeUndefined();
+});
+
+// --- External MCP servers -----------------------------------------------------------------
+//
+// `use-external-mcp.unit.test.ts`'s own header says the hook calls `api.*` directly and this file
+// therefore mocks all four of `lib/api`'s external-MCP bindings wholesale — proving the hook wires
+// through to `api.*`, but never running the real implementations below. `getExternalMcpAdmissions`
+// (untested anywhere) is covered further up this file.
+
+test("listExternalMcpServers hits GET /mcp-servers", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.listExternalMcpServers();
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers`);
+});
+
+test("saveExternalMcpServer PUTs the body verbatim to /mcp-servers/:id", async () => {
+  const { calls, body } = stubFetchCapturing();
+  await api.saveExternalMcpServer("local-fs", {
+    label: "Local filesystem",
+    transport: "stdio",
+    enabled: true,
+    command: "npx",
+    args: "-y @modelcontextprotocol/server-filesystem",
+    allowedToolNames: "read_file,write_file",
+    writeAllowedToolNames: "write_file",
+  });
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs`);
+  expect(calls[0].init?.method).toBe("PUT");
+  expect(body()).toEqual({
+    label: "Local filesystem",
+    transport: "stdio",
+    enabled: true,
+    command: "npx",
+    args: "-y @modelcontextprotocol/server-filesystem",
+    allowedToolNames: "read_file,write_file",
+    writeAllowedToolNames: "write_file",
+  });
+});
+
+test("saveExternalMcpServer encodes the serverId into the URL", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.saveExternalMcpServer("weird id/slash", {
+    transport: "stdio",
+    enabled: true,
+    command: "npx",
+    args: "",
+    allowedToolNames: "",
+    writeAllowedToolNames: "",
+  });
+  expect(calls[0].url).toBe(
+    `/api/admin/v1/workspaces/workspace-local/mcp-servers/${encodeURIComponent("weird id/slash")}`
+  );
+});
+
+test("deleteExternalMcpServer DELETEs /mcp-servers/:id", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.deleteExternalMcpServer("local-fs");
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs`);
+  expect(calls[0].init?.method).toBe("DELETE");
+});
+
+test("probeExternalMcpServer POSTs (no body) to /mcp-servers/:id/probe", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.probeExternalMcpServer("local-fs");
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/mcp-servers/local-fs/probe`);
+  expect(calls[0].init?.method).toBe("POST");
+  expect(calls[0].init?.body).toBeUndefined();
+});
+
+// --- Comments settings -----------------------------------------------------------------
+//
+// `use-comment-settings.unit.test.tsx`'s injected-port describe block explicitly asserts
+// `expect(fetchMock).not.toHaveBeenCalled()` — proving the real `getCommentsSettings` binding is
+// never exercised anywhere in that suite or `SettingsSection.unit.test.tsx`'s controller-fake
+// tests. `putCommentsSettings` already gets a real assertion in
+// `api-endpoint-option-branches.unit.test.ts`.
+
+test("getCommentsSettings hits GET /comments/settings", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getCommentsSettings();
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/comments/settings`);
+});
