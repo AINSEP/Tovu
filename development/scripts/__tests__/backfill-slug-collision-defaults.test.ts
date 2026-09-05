@@ -5,7 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import Database from "better-sqlite3";
+
 import { openContentDb } from "../../../apps/website/src/platform/db/sqlite/content-db.js";
+import { missingDbPathMessage } from "../backfill-db-path.js";
 
 /**
  * @file Adversarial coverage for `backfill-slug-collision-defaults.ts` — the cross-record
@@ -35,6 +38,18 @@ const SCRIPT = path.join("development", "scripts", "backfill-slug-collision-defa
 
 function tmpDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+}
+
+/** Counts real tables in a SQLite file via a fresh read-only connection — never through the
+ *  content-db helpers under test, so this stays an independent witness of the file's actual state. */
+function countTables(dbPath: string): number {
+  const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+  try {
+    const row = db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table'").get() as { n: number };
+    return row.n;
+  } finally {
+    db.close();
+  }
 }
 
 /** A minimal on-disk static theme with exactly one non-index page, "pricing" — the smallest fixture
@@ -153,6 +168,53 @@ test("backfill-slug-collision-defaults: leaves a genuine collision candidate at 
   const secondApplyOutput = runScript(dbPath, themesRoot, ["--apply"]);
   assert.match(secondApplyOutput, /Nothing to reclassify|0 row\(s\) reclassified/);
   assert.deepEqual(readOverrides(dbPath), afterApply, "a second --apply run must be a complete no-op");
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-slug-collision-defaults: a dry run against a not-yet-migrated content.db must not migrate it — asserted on the actual file, not a log line", () => {
+  const scratch = tmpDir("backfill-slug-collision-nomigrate-");
+  const themesRoot = path.join(scratch, "themes");
+  fs.mkdirSync(themesRoot, { recursive: true });
+  const dbPath = path.join(scratch, "content.db");
+
+  // A bare SQLite file with zero tables. Nothing has ever opened this through `openContentDb`, so if
+  // the dry-run path calls it unconditionally (the defect), the ENTIRE schema gets created — not a
+  // subtle diff, a jump from 0 tables to the full migrated set.
+  new Database(dbPath).close();
+  assert.equal(countTables(dbPath), 0, "fixture must start with zero tables");
+  const bytesBefore = fs.readFileSync(dbPath);
+
+  assert.throws(
+    () => runScript(dbPath, themesRoot),
+    /Command failed/,
+    "a dry run against an unmigrated db must fail loudly (no such table: posts), not silently succeed"
+  );
+
+  assert.equal(countTables(dbPath), 0, "dry run must not have created any tables — it must never call migrate()");
+  assert.deepEqual(fs.readFileSync(dbPath), bytesBefore, "dry run must not modify the database file at all");
+
+  fs.rmSync(scratch, { recursive: true, force: true });
+});
+
+test("backfill-slug-collision-defaults: a mistyped --db path fails loudly and creates nothing, instead of silently opening an empty database", () => {
+  const scratch = tmpDir("backfill-slug-collision-missingdb-");
+  const themesRoot = path.join(scratch, "themes");
+  fs.mkdirSync(themesRoot, { recursive: true });
+  const missing = path.join(scratch, "content.db"); // deliberately never created
+
+  let stderr = "";
+  try {
+    runScript(missing, themesRoot);
+    assert.fail("expected the script to throw");
+  } catch (err) {
+    stderr = `${(err as { stderr?: string }).stderr ?? ""}`;
+  }
+  assert.equal(stderr.includes(missingDbPathMessage(path.resolve(missing))), true, `expected the exact missing-db message. Got:\n${stderr}`);
+  // The defect this guards: a typo'd path used to open (and migrate) a brand-new empty db and report
+  // a false "nothing to reclassify" instead of the real problem — no such database.
+  assert.doesNotMatch(stderr, /Nothing to reclassify/);
+  assert.equal(fs.existsSync(missing), false, "the script must not have created a database at the missing path");
 
   fs.rmSync(scratch, { recursive: true, force: true });
 });

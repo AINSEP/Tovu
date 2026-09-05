@@ -46,9 +46,16 @@
  *
  * ## Safety
  *
- * Dry-run by default; `--apply` is required to write. A whole-file online-backup restore point
- * (`@jini-ai/infra`'s `SqliteDbOpsAdapter`, same mechanism `convert-legacy-doc-pages-to-html.ts`
- * already uses) is captured immediately before the first write in an `--apply` run.
+ * Dry-run by default; `--apply` is required to write. A `--db` that does not resolve to a real,
+ * already-existing file (the default included) fails loudly via `resolveExistingDbPath` before
+ * anything is opened — `openContentDb` creates-and-migrates on open, so a typo'd path used to open
+ * (and migrate) a brand-new empty database and report "0 row(s) would be reclassified" instead of
+ * the real problem. A dry run itself opens strictly read-only (`openContentDbReadOnly`), so unlike
+ * an ordinary `openContentDb` open it never migrates the schema either — only `--apply` does.
+ *
+ * A whole-file online-backup restore point (`@jini-ai/infra`'s `SqliteDbOpsAdapter`, same mechanism
+ * `convert-legacy-doc-pages-to-html.ts` already uses) is captured immediately before the first write
+ * in an `--apply` run.
  *
  * Idempotent: only rows currently `overrides_theme_page = 0` (SQL false) are ever selected. A row
  * this script reclassifies becomes `NULL` and is excluded from every later run's own `WHERE` clause;
@@ -67,10 +74,11 @@
  */
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
+import { openContentDb, openContentDbReadOnly, type ContentDb } from "../../apps/website/src/platform/db/sqlite/content-db.js";
 import { SqliteDbOpsAdapter } from "../../apps/website/src/platform/db/sqlite/db-ops.js";
 import { builtInThemesDir } from "../../apps/website/src/server/runtime/composition/deps.js";
 import { discoverAllBuiltInThemes } from "../../apps/website/src/features/theme/index.js";
+import { resolveExistingDbPath } from "./backfill-db-path.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
@@ -138,7 +146,13 @@ function loadFalseRows(db: ContentDb): CandidateRow[] {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const db = openContentDb(args.dbPath);
+  // Prove the database is really there BEFORE opening it: `openContentDb` creates-and-migrates on
+  // open, so a mistyped path would otherwise open (and migrate) a brand-new empty database and
+  // report a false "nothing to reclassify" instead of the real problem — no such database.
+  const dbPath = resolveExistingDbPath(args.dbPath);
+  // A dry run must never migrate the schema — which `openContentDb` does unconditionally. Only
+  // `--apply` gets the read-write, migrating open; every dry run opens strictly read-only.
+  const db = args.apply ? openContentDb(dbPath) : openContentDbReadOnly(dbPath);
 
   const possiblyCollidingSlugs = collectPossiblyCollidingSlugs(builtInThemesDir());
   console.log(
@@ -170,7 +184,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const dbOps = new SqliteDbOpsAdapter({ db, filePath: args.dbPath });
+  const dbOps = new SqliteDbOpsAdapter({ db, filePath: dbPath });
   const restorePoint = await dbOps.captureRestorePoint({ scopeId: "backfill-slug-collision-defaults" });
   console.log(`RESTORE POINT CAPTURED: artifactRef='${restorePoint.artifactRef}' watermarkAtCapture=${restorePoint.watermarkAtCapture}`);
 
