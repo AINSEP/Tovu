@@ -114,7 +114,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | Dir | Files | Lines | Internal tests | Candidate ext. suites (admin-app only) | Coverage |
 |---|---|---|---|---|---|
 | lib | 35 | 10004 | 49 | n/a (not a `features/` dir; not scanned by this method) | **MEASURED (internal suite only) — 96.7% lines, 97.3% functions, 95.2% branches. See Phase 2 log.** |
-| components | 39 | 7602 | 39 | n/a | UNMEASURED |
+| components | 39 | 7602 | 39 | 2 | **MEASURED — 95.0% lines, 91.4% functions, 89.5% branches. Two confirmed zero-coverage files: `TabBar.tsx`, `AssistantDock/SelectedAgentPluginTray.tsx`. See Phase 2 log.** |
 | deployment | 25 | 7095 | 12 | 2 | UNMEASURED |
 | pages | 25 | 5250 | 11 | 4 (+5 website) | UNMEASURED |
 | posts | 16 | 4709 | 9 | 4 (+1 website) | UNMEASURED |
@@ -302,26 +302,86 @@ suites" is a lead for where to look next, not a coverage number.**
   (`post-title-extension.ts`, `admin-nav-i18n.ts`) and are worth a direct
   look; the rest of the directory needs no further test-writing attention.
 
+## Measured: `apps/admin/src/components`
+
+- **uptime before**: `16:11, load averages 9.57 30.40 28.93`. **During/after**:
+  `16:12, load averages 66.03 42.06 33.35`, settling to `25.52` by `16:13`.
+  Same spike-then-settle pattern. Exit 0, vitest's own summary reports no
+  failing tests.
+- **Command** (cwd `apps/admin`):
+  ```
+  env -u TOVU_ADMIN_PASSWORD npx vitest run --coverage \
+    --coverage.reportsDirectory=<scratch>/components-coverage \
+    <39 internal test files under src/components/**/__tests__/> \
+    src/__tests__/unit/panels-render.unit.test.tsx \
+    src/features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts
+  ```
+  The two external files are the **entire** external-suite candidate list for
+  `components/` (found by the same import-grep method as the inventory's
+  `features/` appendix, applied fresh to `components/` since it isn't a
+  `features/` dir).
+- **lcov retained at**: `.../scratchpad/components-coverage/lcov.info`.
+- **Result** (35 of 39 source files appear in the lcov — the 4 that don't are
+  explained below):
+  - Lines: 95.0% (841/885)
+  - Functions: 91.4% (330/361)
+  - Branches: 89.5% (638/713)
+  - **Two files at a confirmed, real 0%**: `TabBar.tsx` (0/7 lines, 0/6
+    functions, 0/20 branches) and `AssistantDock/SelectedAgentPluginTray.tsx`
+    (0/4 lines, 0/3 functions, 0/2 branches). Checked for a possible
+    cross-directory exerciser the way `deployments`/`theme` have one: both
+    names *do* appear in other admin test files (`Database.unit.test.tsx`,
+    `Security.unit.test.tsx`, `SourceControl.unit.test.tsx`,
+    `StaticSiteTab.unit.test.tsx`, `use-theme-pages.unit.test.ts` for
+    `TabBar`; `composer-slash-plugin-pin.unit.test.tsx` for
+    `SelectedAgentPluginTray`) — but on inspection every one of those hits is
+    a **prose mention in a comment**, not an import or render call. These are
+    genuine gaps, not an artifact of this run's file selection.
+  - **One file not instrumented at all and confirmed untested app-wide**:
+    `PlaceholderTabs.tsx` (87 lines) does not appear in the lcov (not even as
+    0%), and a grep for `PlaceholderTabs` across every `*.test.ts(x)` file in
+    `apps/admin/src` — not just this run's 41 — returns zero hits. This is a
+    real, fully-unexercised component.
+  - **Three files not instrumented but not a gap**: `media-picker-port.hooks.ts`,
+    `widget-config-fields-port.hooks.ts`, `widget-picker-port.hooks.ts` are
+    pure TypeScript interface files (an exported `interface` and nothing
+    else — confirmed by reading `widget-config-fields-port.hooks.ts`) with
+    zero executable statements, so V8 never instruments them. Absence from
+    the lcov here is expected and not a coverage gap.
+  - Other below-100% files, all real but partial (not zero): `AssistantDock.tsx`
+    91.7% lines but only 2/6 functions (33%); `assistant-dock-i18n.ts` 62.5%
+    lines; `EmbedInsertControl.tsx` 78.6% lines; `WidgetPickerDialog.tsx` 75.0%
+    lines; `SeeMore.hooks.tsx` 85.7% lines; `MessageOverflowModal.hooks.tsx`
+    (both the top-level and `AssistantDock/` copies) 77.8% lines each;
+    `media-picker-dependencies.hooks.ts` 83.3% lines.
+- **Reading**: `apps/admin/src/components` is a **real, moderate gap** —
+  not in the same near-ceiling shape as `deployments`/`admin/lib`. Branches
+  at 89.5% sit just under the 90% bar this repo's own testrunner skill uses
+  for integration suites. The two confirmed-zero components (`TabBar.tsx`,
+  `SelectedAgentPluginTray.tsx`) plus the confirmed-untested
+  `PlaceholderTabs.tsx` are the concrete, actionable findings — small
+  components, cheap to close.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
-not what is least covered. `deployments` and `apps/admin/src/lib` are removed
-from this list because they are no longer unknown (see their measured
+not what is least covered. `deployments`, `apps/admin/src/lib`, and
+`apps/admin/src/components` are removed from this list because they are no
+longer unknown (see their measured
 sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
    internal tests, to answer honestly)
-2. `apps/admin/src/components` — 7602 lines
-3. `apps/admin/src/features/deployment` — 7095 lines (only 2 candidate
+2. `apps/admin/src/features/deployment` — 7095 lines (only 2 candidate
    external suites found — thin external signal, worth prioritizing)
-4. `apps/website/src/features/widgets` — 5378 lines
-5. `apps/admin/src/features/pages` — 5250 lines
-6. `apps/admin/src/features/posts` — 4709 lines
-7. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
+3. `apps/website/src/features/widgets` — 5378 lines
+4. `apps/admin/src/features/pages` — 5250 lines
+5. `apps/admin/src/features/posts` — 4709 lines
+6. `apps/admin/src/features/themes` — 4551 lines (only 1 candidate external
    suite — thin external signal)
-8. `apps/admin/src/features/collections` — 4207 lines
-9. `apps/website/src/features/plugins` — 4190 lines
+7. `apps/admin/src/features/collections` — 4207 lines
+8. `apps/website/src/features/plugins` — 4190 lines
 
 ## What would settle each row — for whoever resumes Phase 2
 
