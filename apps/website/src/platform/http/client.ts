@@ -215,10 +215,21 @@ function assertAllowedTarget(url: URL, policy: EgressPolicy): void {
   }
 }
 
+/** WHATWG URL wraps a literal IPv6 hostname in brackets (`new URL("https://[::1]/").hostname ===
+ *  "[::1]"`) so the host/port separator stays unambiguous — but `isIP` and `dns.lookup` both
+ *  expect the bare address (`isIP("[::1]")` is `0`; `isIP("::1")` is `6`). A hostname never
+ *  carries brackets otherwise, so stripping one matching pair is a no-op for an ordinary hostname
+ *  or an IPv4 literal. */
+function stripIpv6Brackets(hostname: string): string {
+  if (hostname.startsWith("[") && hostname.endsWith("]")) return hostname.slice(1, -1);
+  return hostname;
+}
+
 /** A literal IP address resolves to itself; a hostname goes through DNS. Order preserved from the
  *  pre-extraction version: a literal IP never touches `lookup`. */
 async function resolveHostAddresses(hostname: string): Promise<string[]> {
-  if (isIP(hostname) !== 0) return [hostname];
+  const literal = stripIpv6Brackets(hostname);
+  if (isIP(literal) !== 0) return [literal];
   const resolved = await lookup(hostname, { all: true, verbatim: true });
   return resolved.map((entry) => entry.address);
 }
