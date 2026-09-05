@@ -28,7 +28,7 @@ IN PROGRESS — chunk plan below, filled in as each chunk completes.
 - [x] 10. Theme menu-href security cluster: a47a23e0, a69f5892, 20112f69, 38e022fc
 - [x] 11. Comments/users/database fixes: 9b67d4c6, 1ae2ac19, 1738b578, 96caeb7d
 - [x] 12. "/" root-slug feature cluster: 710b6cf4, ae4fecda, a99576d4, 06f3ea87, d4a10b35
-- [ ] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
+- [x] 13. Widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
 - [ ] 14. Seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
 - [ ] 15. Migration-manifest + platform http/oauth/connectors refactor chain (17 commits, 09-04)
 - [ ] 16a. Coverage-padding tests batch 2a: 9e5ec771, a0f3aba4, 7b931128, c00ae566
@@ -259,5 +259,20 @@ Gemini raised 5 findings. 3 confirmed real (2 with corrected severity), 1 discar
 **LOW — CONFIRMED, but low practical reachability.** `PostRepoPort.listPublishedPreviews`'s `limit: number` parameter isn't clamped by the port/repo layer itself (`SqlitePostRepo` passes a negative limit straight to SQLite's `LIMIT`, which then removes the upper bound entirely, per SQLite's own documented negative-LIMIT semantics) — a real defense-in-depth gap at the repo boundary. Traced the one production call path (`listPublishedPostPreviews` <- `injectPostPreviewsEmbeds`/`scanPostPreviewsLimit` <- `clampPostPreviewsLimit`): `clampPostPreviewsLimit`'s `configuredLimit <= 0` branch already prevents a genuinely negative limit from reaching the repo through that path (only the fractional-`(0,1)` case above slips through, and that produces `0`, not negative) — did not find another real caller that could supply a negative limit today.
 
 ### Chunk 13 — widgets header-opt-out + SEO robots/sitemap: c74fcb3b, 0dd4baab, 58d61280, 6aaa0e15, 1ce20715, b7328239
+
+Gemini raised 5 findings. 1 confirmed HIGH (a genuine architectural collision, verified against the resolver's own documented map-key shape), 1 confirmed but downgraded to LOW (real but no wrong-behavior consequence, pure interface-purity complaint), 2 discarded (path-scoping false positives, same recurring class), 1 discussed below (the export-base-path finding — did not have budget to fully verify, noted as plausible).
+
+**HIGH — CONFIRMED.** `apps/website/src/features/widgets/resolver-service.ts` (c74fcb3b/0dd4baab), `resolveContentTypeEmbeds` and the shared result map. Two `"content"` embeds on the same page referencing the SAME post id but configured with DIFFERENT `header` opt-outs (e.g. one teaser card with `header:false`, one full-article embed with no override) collide: the library's own doc (line 1068-1069) states the result is "keyed by embed type then by the referenced id" — there is no per-marker/per-occurrence key, only `(type, id)`. Since `ref.header` is written into `props.header` inside the per-id map entry (lines 919-926, 952-960) and both markers read back the SAME `resolved.get(ref.id)` entry during substitution, whichever ref's concurrent `Promise.all` resolution (or simply the single stored entry) wins determines the header visibility for BOTH markers — the second marker's independently-configured opt-out is silently ignored. Directly verified via the code's own explicit documentation of the map's key shape; this is exactly the use case `header` was added to support (the same post embedded two different ways on one page).
+
+**LOW — CONFIRMED, downgraded from Gemini's MEDIUM (real, but no wrong-behavior consequence).** `apps/website/src/features/widgets/html-embeds.ts:107-121`, `PageHtmlEmbedRef.header: boolean` is a mandatory field on the type-agnostic scanner's universal ref shape, even though its own doc says it's "Not read by `widget`/`media`/the legacy `post` type — this is a `content`-marker-specific concern, not a general marker attribute" (and forced test updates across unrelated embed-type tests to add `header: true`). A real leaked-abstraction/interface-purity point (could have been `header?: boolean`), but the documented `true`-by-default is explicitly reasoned as backward-compat-preserving and produces no incorrect behavior for any embed type — omitting the "this could have been designed better" framing per this audit's own instructions, keeping only the concrete observation.
+
+**Discarded (2), same recurring path-scoping class as chunks 1/6/7/9/10/11:**
+- Gemini's CRITICAL claim that 6aaa0e15's `registerSeoRobotsRoute` route file (needing `deps.originRegistry`) was never actually updated, crashing every `/robots.txt` request. Disproved: `git show 6aaa0e15 --stat` shows `server/inbound/public-http/routes/site/robots.ts` genuinely modified in the same commit — outside features/platform.
+- Gemini's HIGH claim that b7328239's commit message describes fixing `seo-site-serving.test.ts` but the diff never touches it. Disproved: `git show b7328239 --stat` shows that exact file modified (+14/-lines) in the same commit — outside features/platform.
+
+**Not fully verified (time budget):**
+- Gemini's HIGH claim that 1ce20715 "fixed" a site-exporter test by changing its assertions to match now-broken absolute URLs, rather than fixing the exporter to join `--base-path` with the verified origin — i.e. sitemap.xml/robots.txt in a `--base-path`-exported site would point at the wrong (non-subpath) URLs. Plausible on its face (making canonical/og:url/sitemap absolute, per d4a10b35, and the export pipeline's own base-path-prefixing logic are two features that would need explicit reconciliation) but I did not trace `prefixRootRelativePath`/the exporter's base-path-joining logic to confirm. Flagging as worth a follow-up look rather than confirming or discarding.
+
+### Chunk 14 — seed/Sites-screen/llms.txt cluster: cf0df979, 115687af, 3815496b, caa11611
 
 (running)
