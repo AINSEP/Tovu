@@ -755,6 +755,12 @@ test("redirectOutcomeFor: a non-3xx status is not a redirect", () => {
   assert.deepEqual(redirectOutcomeFor(200, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 200" });
 });
 
+/** Branch-coverage fill (2026-09-04): `status < 300 || status >= 400` — the test above only ever
+ *  proves the LOW side of this OR (200). This proves the HIGH side independently. */
+test("redirectOutcomeFor: a status of 400 or above is ALSO not a redirect, independent of the below-300 case", () => {
+  assert.deepEqual(redirectOutcomeFor(500, null, undefined), { kind: "failed", reason: "expected a 3xx redirect response, got 500" });
+});
+
 test("redirectOutcomeFor: a 3xx with a Location header redirects to it, even when a manifest fallback is also present", () => {
   assert.deepEqual(redirectOutcomeFor(302, "/from-header", "/fallback-target"), { kind: "redirect-to", location: "/from-header" });
 });
