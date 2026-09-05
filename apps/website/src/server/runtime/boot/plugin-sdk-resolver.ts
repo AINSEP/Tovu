@@ -32,9 +32,13 @@
  * `__tests__/integration/plugin-sdk-resolver.integration.test.ts`.
  */
 
-import { register } from "node:module";
-import path from "node:path";
+import { createRequire, register } from "node:module";
 import { pathToFileURL } from "node:url";
+
+/** Used only by `resolveDefaultSdkModulePath()` below to reach real Node package resolution for
+ * the `@tovu/sdk` bare specifier — same idiom as `admin-static.ts`, `composition/deps.ts`,
+ * `platform/observability/otel.ts`, and `worker-sandbox.ts` elsewhere in this codebase. */
+const require = createRequire(import.meta.url);
 
 /**
  * The hook module's own source, registered via a `data:` URL rather than a separate file on disk.
@@ -60,11 +64,17 @@ export async function resolve(specifier, context, nextResolve) {
 let registered = false;
 
 /** The runtime's own bundled `@tovu/sdk` build, used when the caller doesn't override
- * `sdkModulePath` (real boot). Resolved relative to this file's own location so it is correct both
- * under `tsx` (running from `src/`) and the compiled `dist/` output (mirrors `packages/sdk`'s
- * sibling position to `src/` in both layouts). */
-function resolveDefaultSdkModulePath(): string {
-  return path.join(import.meta.dirname, "../../../packages/sdk/dist/index.js");
+ * `sdkModulePath` (real boot). Resolved via real Node package resolution for the bare specifier
+ * `"@tovu/sdk"` — the same `node_modules/@tovu/sdk` npm-workspace symlink to `packages/sdk` that
+ * ordinary `import`/`require` resolution reaches — rather than a hand-computed relative path from
+ * this file's own location. Layout-invariant by construction: it does not encode this file's
+ * directory depth, so it can't be silently invalidated by a future directory rename the way the
+ * previous `path.join(import.meta.dirname, "../../../...")` arithmetic was (twice: `f9b42698`,
+ * `708e81b2`) — see `ADS-memory/reports/2026-09-05-plugin-sdk-path-verdict.md`. Exported so a test
+ * can assert on the real default return value directly, since every other test in this module
+ * exercises the `sdkModulePath` override instead. */
+export function resolveDefaultSdkModulePath(): string {
+  return require.resolve("@tovu/sdk");
 }
 
 /** Thrown by a second `registerPluginSdkResolver()` call in the same process — distinguishes the
