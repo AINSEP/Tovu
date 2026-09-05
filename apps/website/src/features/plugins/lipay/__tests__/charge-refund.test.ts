@@ -714,6 +714,396 @@ test("refund: a provider-pending refund does not advance amount_refunded_minor u
   cleanup(db, dir);
 });
 
+// The tests below target `providers/lipay-gateway.ts`'s own response-shape validation directly —
+// every malformed-gateway-response branch `buildChargeResult`/`buildRefundResult`/`toNextAction`
+// can take, exercised through the real gateway (never a stub of the gateway itself).
+
+test("charge: a decline surfaced only via the provider's error code (not HTTP 402) is still typed DECLINED", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      { status: 400, headers: {}, bodyText: JSON.stringify({ error: { code: "insufficient_funds", message: "no funds" } }) },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "DECLINED");
+    assert.equal(result.error.providerStatus, 400);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a decline with no error body at all falls back to a generic declined message", async () => {
+  const { api, db, dir } = await makeLipay({ responses: [{ status: 402, headers: {}, bodyText: "" }] });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "DECLINED");
+    assert.equal(result.error.message, "lipay declined the charge (402)");
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a 429 is retryable, the same as a 5xx", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [{ status: 429, headers: {}, bodyText: JSON.stringify({ error: { code: "rate_limited", message: "slow down" } }) }],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.equal(result.error.retryable, true);
+    assert.equal(result.error.providerStatus, 429);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a non-JSON response body from the provider fails closed as a malformed response, never a throw", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [{ status: 200, headers: {}, bodyText: "not json at all" }],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /no charge id/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a 2xx response with no charge id is a malformed-response PROVIDER_ERROR", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [{ status: 200, headers: {}, bodyText: JSON.stringify({ status: "succeeded" }) }],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /no charge id/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: an unrecognized charge status is a malformed-response PROVIDER_ERROR", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [{ status: 200, headers: {}, bodyText: JSON.stringify({ id: "ch_1", status: "processing" }) }],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /unrecognized charge status 'processing'/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: an out_of_band next_action with instructions is passed through verbatim", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      {
+        status: 200,
+        headers: {},
+        bodyText: JSON.stringify({
+          id: "ch_1",
+          status: "pending",
+          next_action: { type: "out_of_band", instructions: "Dial *123# and enter code 456" },
+        }),
+      },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.deepEqual(result.next, { kind: "out_of_band", instructions: "Dial *123# and enter code 456" });
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: an out_of_band next_action without instructions omits the field rather than inventing one", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      { status: 200, headers: {}, bodyText: JSON.stringify({ id: "ch_1", status: "pending", next_action: { type: "out_of_band" } }) },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.next, { kind: "out_of_band" });
+
+  cleanup(db, dir);
+});
+
+test("charge: a redirect next_action with an empty url is a malformed-response PROVIDER_ERROR", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      { status: 200, headers: {}, bodyText: JSON.stringify({ id: "ch_1", status: "pending", next_action: { type: "redirect", url: "" } }) },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /malformed next_action/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a response that omits next_action entirely defaults to none rather than failing", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [{ status: 200, headers: {}, bodyText: JSON.stringify({ id: "ch_1", status: "succeeded" }) }],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.next, { kind: "none" });
+
+  cleanup(db, dir);
+});
+
+test("charge: a next_action whose type field is present but not a string defaults to none", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      { status: 200, headers: {}, bodyText: JSON.stringify({ id: "ch_1", status: "succeeded", next_action: { type: 7 } }) },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) assert.deepEqual(result.next, { kind: "none" });
+
+  cleanup(db, dir);
+});
+
+test("charge: a next_action of a type the gateway doesn't recognize is a malformed-response PROVIDER_ERROR", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      {
+        status: 200,
+        headers: {},
+        bodyText: JSON.stringify({ id: "ch_1", status: "pending", next_action: { type: "client_action" } }),
+      },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /malformed next_action/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("charge: a thrown non-Error transport failure is still typed as a retryable TRANSPORT_ERROR", async () => {
+  const { api, db, dir } = await makeLipay({
+    responses: [
+      () => {
+        // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: proving the
+        // `err instanceof Error ? err.message : String(err)` fallback actually stringifies a
+        // non-Error throw rather than crashing on `.message` of something that lacks it.
+        throw "socket hang up";
+      },
+    ],
+  });
+
+  const result = await api.charge({
+    workspaceId: WORKSPACE_ID,
+    providerId: "lipay",
+    amount: USD(2500),
+    idempotencyKey: "order-1",
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "TRANSPORT_ERROR");
+    assert.equal(result.error.message, "socket hang up");
+    assert.equal(result.error.retryable, true);
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: a 2xx response with no refund id is a malformed-response PROVIDER_ERROR", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    { status: 200, headers: {}, bodyText: JSON.stringify({ status: "succeeded" }) },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "PROVIDER_ERROR");
+    assert.match(result.error.message, /no refund id/);
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: a decline surfaced only via the provider's error code (not HTTP 402) is still typed DECLINED", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    { status: 400, headers: {}, bodyText: JSON.stringify({ error: { code: "card_declined", message: "cannot reverse" } }) },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, "DECLINED");
+
+  cleanup(db, dir);
+});
+
+test("refund: a thrown Error during the provider call is a retryable TRANSPORT_ERROR", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    () => {
+      throw new Error("egress refused: private address");
+    },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "TRANSPORT_ERROR");
+    assert.equal(result.error.message, "egress refused: private address");
+    assert.equal(result.error.retryable, true);
+  }
+
+  cleanup(db, dir);
+});
+
+test("refund: a thrown non-Error value during the provider call is still typed as a retryable TRANSPORT_ERROR", async () => {
+  const { api, db, dir, payment } = await succeededPayment([
+    chargeOk("ch_1", "succeeded"),
+    () => {
+      // eslint-disable-next-line @typescript-eslint/no-throw-literal -- deliberate: same as the
+      // charge-side case above, proving the refund catch's own `String(err)` fallback runs.
+      throw "socket hang up";
+    },
+  ]);
+
+  const result = await api.refund({
+    workspaceId: WORKSPACE_ID,
+    paymentId: payment.id,
+    idempotencyKey: "r1",
+    amount: USD(400),
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.equal(result.error.code, "TRANSPORT_ERROR");
+    assert.equal(result.error.message, "socket hang up");
+  }
+
+  cleanup(db, dir);
+});
+
 test("refund: two concurrent refunds racing the same idempotency key resolve to one refund, not a crash", async () => {
   const { api, db, dir, http, payment } = await succeededPayment([chargeOk("ch_1", "succeeded"), refundOk("re_1")]);
   const request = {

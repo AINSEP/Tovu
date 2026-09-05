@@ -123,7 +123,15 @@ test("webhook: a missing or malformed signature header is rejected", async () =>
   await pendingPayment(harness);
   const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: 1, charge: { id: "ch_1" } });
 
-  for (const headers of [{}, { "x-lipay-signature": "garbage" }, { "x-lipay-signature": "t=abc,v1=zz" }]) {
+  for (const headers of [
+    {},
+    { "x-lipay-signature": "garbage" },
+    { "x-lipay-signature": "t=abc,v1=zz" },
+    // A well-formed `key=value` pair whose key is neither `t` nor `v1` — distinct from `garbage`
+    // (no `=` at all) and from `t=abc`/`v1=zz` (recognized key, malformed value): this exercises
+    // parseSignaturePart's final "names neither" fallback.
+    { "x-lipay-signature": "foo=bar" },
+  ]) {
     const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: signed.rawBody, headers });
     assert.equal(ack.error?.code, "SIGNATURE_INVALID");
   }
@@ -392,6 +400,180 @@ test("webhook: an unconfigured provider is refused before any verification is at
 
   assert.equal(ack.accepted, false);
   assert.equal(ack.error?.code, "NO_CREDENTIALS_CONFIGURED");
+
+  cleanup(harness.db, harness.dir);
+});
+
+// The tests below target the gateway's own signature and body parsing directly — every remaining
+// branch `verifySignature`/`parseWebhook`/`buildWebhookResult`/`resolveChargeAmount` can take.
+
+test("webhook: a signature header sent in uppercase is still recognized", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } });
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    rawBody: signed.rawBody,
+    headers: { "X-LIPAY-SIGNATURE": signed.headers["x-lipay-signature"] },
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+  assert.equal(harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id })?.status, "succeeded");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a well-formed but wrong-length signature value is rejected, never compared byte-for-byte", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const signed = delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } });
+
+  // "ab" is valid hex (passes the /^[0-9a-f]+$/i shape check) but decodes to 1 byte, never the 32
+  // bytes a real SHA-256 HMAC produces — `timingSafeEqual` would throw on this if length weren't
+  // checked first.
+  const shortened = { ...signed.headers, "x-lipay-signature": `t=${nowSeconds},v1=ab` };
+  const ack = await harness.api.handleWebhook({ providerId: "lipay", rawBody: signed.rawBody, headers: shortened });
+
+  assert.equal(ack.error?.code, "SIGNATURE_INVALID");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a validly signed body that isn't valid JSON fails closed rather than crashing", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const rawBody = Buffer.from("not json at all", "utf8");
+  const signature = signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: nowSeconds });
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    rawBody,
+    headers: { "x-lipay-signature": signature },
+  });
+
+  assert.equal(ack.accepted, false);
+  assert.equal(ack.error?.code, "PROVIDER_ERROR");
+  assert.match(ack.error?.message ?? "", /not a recognizable event/);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a validly signed body missing its type field is rejected as unrecognizable", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const rawBody = Buffer.from(JSON.stringify({ id: "evt_1", data: { id: "ch_1" } }), "utf8");
+  const signature = signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: nowSeconds });
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    rawBody,
+    headers: { "x-lipay-signature": signature },
+  });
+
+  assert.equal(ack.error?.code, "PROVIDER_ERROR");
+  assert.match(ack.error?.message ?? "", /not a recognizable event/);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a validly signed body missing its id field is rejected as unrecognizable", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  const rawBody = Buffer.from(JSON.stringify({ type: "charge.succeeded", data: { id: "ch_1" } }), "utf8");
+  const signature = signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: nowSeconds });
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    rawBody,
+    headers: { "x-lipay-signature": signature },
+  });
+
+  assert.equal(ack.error?.code, "PROVIDER_ERROR");
+  assert.match(ack.error?.message ?? "", /not a recognizable event/);
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a refund event whose amount is not a safe integer is treated as a full refund, the field ignored", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_2",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 1,
+      charge: { id: "ch_1", amount: 400.5, currency: "USD" },
+    }),
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 1000, "a non-integer amount is not usable money, so the full charge is inferred");
+  assert.equal(after?.status, "refunded");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a refund event whose currency is not a string is treated as a full refund, the field ignored", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_2",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 1,
+      // `currency` is numeric here, an intentionally malformed shape a strict-string check must reject.
+      charge: { id: "ch_1", amount: 400, currency: 840 as unknown as string },
+    }),
+  });
+
+  assert.deepEqual(ack, { accepted: true, processed: 1, duplicates: 0 });
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 1000, "a non-string currency is not usable money, so the full charge is inferred");
+  assert.equal(after?.status, "refunded");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: an event carrying no charge data at all is a typed PROVIDER_ERROR, not a crash", async () => {
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  await pendingPayment(harness);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+  // Valid top-level `id`/`type` (passes parseWebhook's own shape check) but no `data` object at
+  // all — a materially different malformed shape from "data.id is missing", which is covered
+  // separately.
+  const rawBody = Buffer.from(JSON.stringify({ id: "evt_1", type: "charge.succeeded" }), "utf8");
+  const signature = signLipayWebhook({ secret: WEBHOOK_SECRET, rawBody, timestampSeconds: nowSeconds });
+
+  const ack = await harness.api.handleWebhook({
+    providerId: "lipay",
+    rawBody,
+    headers: { "x-lipay-signature": signature },
+  });
+
+  assert.equal(ack.accepted, false);
+  assert.equal(ack.error?.code, "PROVIDER_ERROR");
+  assert.match(ack.error?.message ?? "", /carries no charge id/);
 
   cleanup(harness.db, harness.dir);
 });
