@@ -1,4 +1,4 @@
-import { forwardRef, useRef, type RefObject } from "react";
+import { forwardRef, useRef } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -7,6 +7,7 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./rules";
 import { removeDialogBody, removeDialogTitle } from "./security-i18n";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import { useOtherCredentialRemoveDialog } from "./OtherCredentialsSection.hooks";
 
 /**
  * `agentHandle()` throws on anything that isn't lowercase words joined by single hyphens
@@ -270,13 +271,7 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
 const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCredentialRowState; controller: OtherCredentialsController; t: Translate }>(
   function OtherCredentialRemoveDialog({ row, controller, t: translate }, ref) {
     const locale = useAdminLocale();
-    function close() {
-      (ref as RefObject<HTMLDialogElement>).current?.close();
-    }
-    function confirm() {
-      close();
-      void controller.remove(row);
-    }
+    const { close, confirm } = useOtherCredentialRemoveDialog(ref, row, controller);
     return (
       <dialog ref={ref} className="confirm-dialog">
         <h2>{removeDialogTitle(locale, row.name)}</h2>
