@@ -1441,6 +1441,41 @@ test("PROVIDER_ERROR: a branch-tip lookup's 200 response is missing its own obje
   }
 });
 
+/** Real git branch names routinely contain `/` (a hierarchical namespace, e.g. `feature/update-copy`)
+ *  — `commit-site.ts`'s own `BRANCH_PATTERN` explicitly permits it. Both `fetchBranchTip`'s GET and
+ *  `writeRef`'s update-mode PATCH build a multi-segment ref URL (`heads/{branch}`) from the branch
+ *  name; `enc()` alone would turn the branch's own `/` into `%2F`, breaking the path into the wrong
+ *  shape, exactly the failure mode `encPath()` exists to prevent (this file's own `fetchLiveBlobSha`
+ *  already uses it for the identical reason, one path shape over). */
+test("a branch name containing '/' reaches GitHub's ref URLs with the '/' preserved as a real path separator, not percent-encoded", async () => {
+  const mock = installMockFetch([
+    { match: /\/repos\/octo\/demo$/, method: "GET", status: 200, json: { default_branch: "main" } },
+    { match: /\/git\/ref\/heads\/feature\/update-copy$/, method: "GET", status: 200, json: { object: { sha: "parent-sha" } } },
+    { match: /\/git\/commits\/parent-sha$/, method: "GET", status: 200, json: { tree: { sha: "parent-tree-sha" } } },
+    { match: /\/contents\/\.tovu\/managed-files\.json/, method: "GET", status: 404, json: {} },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "blob-sha-1" } },
+    { match: /\/git\/blobs$/, method: "POST", status: 201, json: { sha: "manifest-blob-sha" } },
+    { match: /\/git\/trees$/, method: "POST", status: 201, json: { sha: "new-tree-sha" } },
+    { match: /\/git\/commits$/, method: "POST", status: 201, json: { sha: "new-commit-sha" } },
+    { match: /\/git\/refs\/heads\/feature\/update-copy$/, method: "PATCH", status: 200, json: {} },
+  ]);
+  try {
+    const result = await createGitHubCommitAdapter().commit({ token: TOKEN, owner: "octo", repo: "demo", branch: "feature/update-copy", commitMessage: "x", files: ONE_FILE });
+    assert.equal(result.ok, true, `expected success, got: ${JSON.stringify(result)}`);
+    assert.equal(mock.remaining(), 0, "every queued step, including the exact-match ref URLs, must have been consumed");
+    assert.ok(
+      mock.callLog.some((c) => c.url.includes("/git/ref/heads/feature/update-copy") && !c.url.includes("%2F")),
+      "the branch-tip lookup must preserve the branch's real '/' path separator, not percent-encode it"
+    );
+    assert.ok(
+      mock.callLog.some((c) => c.url.includes("/git/refs/heads/feature/update-copy") && !c.url.includes("%2F")),
+      "the ref-write URL must preserve the branch's real '/' path separator, not percent-encode it"
+    );
+  } finally {
+    mock.restore();
+  }
+});
+
 test("a candidate deletion's live-verification GET receiving a 2xx response that fails to parse as JSON is unverifiable, never crashes, and is reported via divergedPaths", async () => {
   const FLAKY_SHA = "aaaa1111bbbb2222cccc3333dddd4444eeee5555";
   const MANIFEST = { version: 2, files: [{ path: "weird.html", sha: FLAKY_SHA }] };

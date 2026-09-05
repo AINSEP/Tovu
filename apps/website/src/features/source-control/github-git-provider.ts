@@ -166,10 +166,12 @@ function enc(value: string): string {
 }
 
 /** Percent-encodes a repo-relative PATH one segment at a time, preserving `/` as a real path separator
- *  — {@link enc} alone would turn `/` into `%2F`, which breaks GitHub's Contents API path routing (it
- *  splits on literal `/` before decoding each segment). Mirrors `static-publish/s3-compatible-target.ts`
- *  `objectUrl`'s identical per-segment encoding for the same reason, one path shape lower (a Contents
- *  API path here, not a full object URL there). */
+ *  — {@link enc} alone would turn `/` into `%2F`, which breaks GitHub's own URL routing for any
+ *  multi-segment path (it splits on literal `/` before decoding each segment): both the Contents API
+ *  (a file path) and the Git Refs API (`heads/{branch}` — real git branch names routinely contain
+ *  `/`, e.g. `feature/update-copy`, per `commit-site.ts`'s own `BRANCH_PATTERN`). Mirrors
+ *  `static-publish/s3-compatible-target.ts` `objectUrl`'s identical per-segment encoding for the same
+ *  reason, one path shape lower (a REST path here, not a full object URL there). */
 function encPath(path: string): string {
   return path.split("/").map(enc).join("/");
 }
@@ -299,7 +301,7 @@ async function fetchRepo(token: string, owner: string, repo: string): Promise<{ 
  * @complexity One `fetch()`.
  */
 async function fetchBranchTip(token: string, owner: string, repo: string, branch: string): Promise<{ ok: true; tipSha: string | undefined } | StepFailure> {
-  const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/ref/heads/${enc(branch)}`, { headers: githubHeaders(token) });
+  const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/ref/heads/${encPath(branch)}`, { headers: githubHeaders(token) });
   if (result.kind !== "response") return nonResponseFailure(result);
   const { response } = result;
   if (response.status === 404) return { ok: true, tipSha: undefined };
@@ -710,7 +712,7 @@ async function createCommitObject(
  * @complexity One `fetch()`.
  */
 async function writeRef(token: string, owner: string, repo: string, branch: string, sha: string, mode: "create" | "update"): Promise<{ ok: true } | { ok: false; code: "diverged" | "network-unreachable" | "provider-error"; message: string }> {
-  const url = mode === "create" ? `${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/refs` : `${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/refs/heads/${enc(branch)}`;
+  const url = mode === "create" ? `${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/refs` : `${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/refs/heads/${encPath(branch)}`;
   const init: RequestInit =
     mode === "create"
       ? { method: "POST", headers: githubHeaders(token, { "Content-Type": "application/json" }), body: JSON.stringify({ ref: `refs/heads/${branch}`, sha }) }
