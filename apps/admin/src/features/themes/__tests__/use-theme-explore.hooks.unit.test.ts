@@ -579,6 +579,67 @@ describe("useThemeExplore — startRename's client-side lock mirrors the server'
 });
 
 /**
+ * `commitRename` funnels into `performRename` with no guard against a second rename (on a
+ * different file) starting before the first settles — network completion order does not have to
+ * match click/start order. Same bug class `use-sites.hooks.ts`'s `activate` and
+ * `use-themes.hooks.ts`'s `activate`/`download` were fixed for; see `performRename`'s
+ * `renameGenerationRef` doc comment.
+ */
+describe("useThemeExplore — rename race safety", () => {
+  const FILES = [
+    { path: "pages/index.html", group: "page" as const, readable: true, editable: true, resettable: true },
+    { path: "css/a.css", group: "style" as const, readable: true, editable: true, resettable: true },
+    { path: "css/b.css", group: "style" as const, readable: true, editable: true, resettable: true },
+  ];
+
+  it("the LAST-started rename wins even when an earlier rename's response arrives after it", async () => {
+    const deferred: Record<string, { resolve: (value: { path: string }) => void }> = {};
+    const port = createFakeThemeExplorePort({
+      files: FILES,
+      contents: { "pages/index.html": "<html></html>" },
+    });
+    port.renameThemeFile = vi.fn((_themeId: string, _sourcePath: string, name: string) => {
+      return new Promise<{ path: string }>((resolve) => {
+        deferred[name] = { resolve };
+      });
+    });
+
+    const { result } = renderHook(() => useThemeExplore("t", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(3));
+
+    // Two renames started back to back, before the first settles: a.css -> a2.css first,
+    // b.css -> b2.css second — b2 is the operator's actual, final action.
+    act(() => result.current.startRename("css/a.css"));
+    act(() => result.current.setRenameDraft("a2.css"));
+    act(() => result.current.commitRename());
+
+    act(() => result.current.startRename("css/b.css"));
+    act(() => result.current.setRenameDraft("b2.css"));
+    act(() => result.current.commitRename());
+
+    await waitFor(() => expect(port.renameThemeFile).toHaveBeenCalledTimes(2));
+
+    // Network settles OUT of start order: b2 (started LAST) resolves first; a2 (started first)
+    // resolves after it.
+    await act(async () => {
+      deferred["b2.css"].resolve({ path: "css/b2.css" });
+    });
+    await waitFor(() => expect(result.current.notice).toBe("Renamed to css/b2.css"));
+
+    await act(async () => {
+      deferred["a2.css"].resolve({ path: "css/a2.css" });
+    });
+    // Give a2.css's now-stale settlement a chance to land before asserting nothing changed.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The operator's LAST-started rename (b2) must still be what is shown — a2's late-arriving
+    // response must not overwrite it just because it settled second.
+    expect(result.current.notice).toBe("Renamed to css/b2.css");
+    expect(result.current.renaming).toBe(false);
+  });
+});
+
+/**
  * Delete (2026-08-29 owner ask, alongside Copy/Rename). `openDeleteConfirm` mirrors `startRename`'s
  * own client-side pre-check shape almost exactly — same `lockedIdentityPaths`/`IDENTITY_LOCKED_GROUPS`
  * gate, same "refuse inline with a toast instead of opening the UI" behavior for a locked file — so

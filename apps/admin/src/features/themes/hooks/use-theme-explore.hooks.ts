@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { resolveThemeLayout } from "@tovu/theme-layout";
 
@@ -523,6 +523,18 @@ export function useThemeExplore(
   const [renameDraft, setRenameDraft] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [pageRenameWarning, setPageRenameWarning] = useState<{ path: string; name: string } | null>(null);
+  // Monotonic per-call id (same shape as `use-themes.hooks.ts`'s `activateGenerationRef`/
+  // `downloadGenerationRef`, itself matching `use-sites.hooks.ts`'s `activateGenerationRef` and
+  // `use-access-tokens.hooks.ts`'s `reloadGenerationRef`): `commitRename`/`confirmPageRename` both
+  // funnel into `performRename` with no guard against a SECOND rename starting (on a different file)
+  // before the first settles, and network completion order does not have to match click order.
+  // Minted synchronously at the top of `performRename` so two renames started back to back always
+  // mint in the order they started even though both are async — a stale settlement (checked before
+  // every state write below, not just the success path, since an out-of-order FAILURE would
+  // otherwise resurrect a stale error over a newer rename's real outcome — `error` here is one shared
+  // field across every action in this hook, the same shape `use-themes.hooks.ts`'s fix documents) is
+  // dropped instead of overwriting whatever the latest rename already produced.
+  const renameGenerationRef = useRef(0);
   const [copyingPath, setCopyingPath] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -651,18 +663,25 @@ export function useThemeExplore(
    */
   const performRename = useCallback(
     async (sourcePath: string, name: string) => {
+      const generation = ++renameGenerationRef.current;
       setRenaming(true);
       setError(null);
       try {
         const r = await port.renameThemeFile(themeId, sourcePath, name);
         const nextSelected = selected === sourcePath ? r.path : selected;
         const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
+        // Superseded by a newer rename call started after this one — that later call owns
+        // `detail`/`files`/`selected`/`notice` now, and applying this stale result would let
+        // whichever rename happens to settle LAST win regardless of which file was actually
+        // renamed last. See `renameGenerationRef`'s doc comment above.
+        if (renameGenerationRef.current !== generation) return;
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(nextSelected);
         setNotice(`Renamed to ${r.path}`);
         setPreviewNonce((n) => n + 1);
       } catch (e) {
+        if (renameGenerationRef.current !== generation) return;
         setError(
           e instanceof ApiError && e.code === "NAME_TAKEN"
             ? `'${name}' already exists in this theme`
@@ -671,6 +690,7 @@ export function useThemeExplore(
               : "failed to rename file"
         );
       } finally {
+        if (renameGenerationRef.current !== generation) return;
         setRenaming(false);
         setRenamingPath(null);
         setRenameDraft("");
