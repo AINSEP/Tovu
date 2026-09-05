@@ -38,7 +38,7 @@ Remaining-scope commits (all test-only, no production-code diff, in
 - [x] 15. `54c65bc6` — test(source-control): store.ts branch-coverage fill
 - [x] 16. `383befbc` — test(deployments): credential-verification (static-publish/verify.ts) coverage
 - [x] 17. `4b35a008` — test(source-control): github-git-provider.ts branch-coverage fill
-- [ ] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
+- [x] 18. `991217ab` — test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
 - [ ] 19. `438ada6a` — test(export): direct unit proof for redirectOutcomeFor's >=400 arm
 
 ## Findings
@@ -373,5 +373,77 @@ prioritize checking these two first, including whether the commit-time state of 
 `resolveDeletionCandidates` differs from current HEAD before treating them as pre-existing vs.
 newly introduced.
 
-### Chunk 18 — pending
+### Chunk 18 — `991217ab` test(theme): handlebars-allowlist.test.ts fixture fix + 2 branches
+
+**Context given to Gemini:** diff (`handlebars-allowlist.test.ts` new hunk, 88 new lines) + FULL
+current production file `apps/website/src/features/theme/handlebars-allowlist.ts` (392 lines) +
+FULL current test file (337 lines, post-commit). Full-file context. This production file is a
+security-relevant AST allowlist/sandbox for theme-authored Handlebars templates (per its own
+`ADR-020`/prototype-pollution framing cited by Gemini below), so a real finding here is
+higher-stakes than the other coverage-padding chunks.
+
+**UNVERIFIED — CRITICAL (production security bug).** `handlebars-allowlist.ts:215-221`
+(`checkPath`). Claim: for a `@`-data path (`path.data === true`), the function checks only the
+FIRST segment (`parts[0]`) against `ALLOWED_HANDLEBARS_DATA_VARS` and then unconditionally
+`return`s — so it claims the loop that checks every segment against `FORBIDDEN_PATH_SEGMENTS`
+(the prototype-pollution guard: `constructor`/`__proto__`/`prototype`) is never reached for a
+`@`-prefixed path. Claimed exploit: a template like `{{@index.constructor}}` or
+`{{@key.__proto__.polluted}}` — `@index`/`@key` are allowlisted loop variables, so the check
+short-circuits before ever inspecting the `.constructor`/`.__proto__` suffix, claimed to fully
+bypass the static prototype-pollution barrier for any allowlisted data-variable prefix.
+
+**UNVERIFIED — HIGH (production bug + tautological test).** `handlebars-allowlist.ts:265-269`;
+`handlebars-allowlist.test.ts:148-150` (the new `{{render_block}}` test added by this commit).
+Claim: a Handlebars built-in helper invoked with NO arguments (e.g. `{{log}}`) parses to a
+`MustacheStatement` with `params: []`, making `isInvocation()` false — so the code's
+`isInvocation(node) || ALLOWED_HANDLEBARS_HELPERS.has(name)` check falls to the `else` branch
+(`checkPath`), which only checks forbidden PATH segments, not the helper allowlist — claimed to
+let any bare disallowed built-in helper (`{{log}}`, a console/IO side-effecting helper) through
+with zero violations, since the helper name itself isn't a forbidden path segment. Separately
+claims the NEW test this commit added for `{{render_block}}` (meant to prove the
+allowlisted-helper-name arm of the OR) is tautological: deleting `ALLOWED_HANDLEBARS_HELPERS.has(name)`
+entirely would still produce `[]` via the same `checkPath`-falls-through-clean path this finding
+describes, so the test cannot distinguish "the OR's second arm works" from "the OR's second arm is
+gone entirely."
+
+**UNVERIFIED — HIGH (production bug, DoS).** `handlebars-allowlist.ts:341-350` (also cites line
+232). Claim: `walkHandlebarsNodes` enforces `MAX_BLOCK_NESTING_DEPTH` (64, per the file's own
+documented stack-overflow-prevention rationale), but `walkExpression`/`walkParamsAndHash`'s mutual
+recursion over `SubExpression` params/hash values neither checks nor increments `depth` — so
+claims a deeply nested subexpression chain (e.g. `{{render_block x=(render_block x=(render_block
+...))}}`) can recurse past any node-count-based ceiling and crash with `RangeError: Maximum call
+stack size exceeded`, violating the function's own documented "total, non-throwing" contract.
+
+**UNVERIFIED — MEDIUM (test-fixture correctness, per the dispatch's own emphasis on this exact
+"was the fixture legitimately broken or papering over a bug" question).**
+`handlebars-allowlist.test.ts:257-299`. Claim: the commit's own message frames its fixture fix as
+correcting a "broken" mock, but Gemini claims the ORIGINAL fixture (empty `params: []`) actually
+matched real Handlebars' own AST shape for a no-argument helper call, and the "fix" (injecting an
+artificial non-empty `params` array to force `isInvocation()` true) papers over the Finding-2 bug
+above rather than correcting a genuinely wrong mock. Also claims the mocked `PathExpression`
+objects omit `parts`/`depth`/`data` fields real nodes carry, and that the assertions never check
+`depth`, so a regression that called `walkHandlebarsNodes` with `depth` instead of `depth + 1`
+would still pass.
+
+**UNVERIFIED — LOW (coverage-padding of dead defensive code).** `handlebars-allowlist.test.ts:316-336`;
+`handlebars-allowlist.ts:329`. Claim: a new test mocks an AST node with no `type` field at all,
+which the test's own title admits real `Handlebars.parse()` never produces — claims the production
+line it exercises (`node.type !== undefined ? STATEMENT_HANDLERS[node.type] : undefined`) is
+already redundant (`STATEMENT_HANDLERS[undefined]` evaluates to `undefined` without throwing even
+without the explicit check), so the test pads a branch-coverage number against an impossible input
+shape rather than proving anything.
+
+**UNVERIFIED — LOW (test-infra/flakiness risk).** `handlebars-allowlist.test.ts:260,304,319`.
+Claim: three tests mutate the shared `Handlebars` module singleton's `.parse` property directly
+(`(Handlebars as unknown as {...}).parse = ...`) rather than through a scoped mock — claimed to
+risk cross-test/cross-worker interference under any concurrent test execution mode, since the
+mutation is process-global, not test-local.
+
+Gemini raised 6 findings in this chunk (1 CRITICAL, 2 HIGH production-bug claims, 1 MEDIUM
+fixture-correctness claim, 2 LOW), all recorded above as UNVERIFIED. The CRITICAL claim
+(prototype-pollution bypass via `@`-data paths) and the HIGH DoS claim (unbounded subexpression
+recursion) both concern a security-boundary file — the verifier should prioritize these two
+first, given this file's stated purpose (ADR-020 prototype-pollution barrier, main-thread
+stack-overflow prevention during `loadTheme()`).
+
 ### Chunk 19 — pending
