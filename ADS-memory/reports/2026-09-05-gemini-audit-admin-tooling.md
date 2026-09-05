@@ -522,6 +522,99 @@ Chunk tally: 10 findings raised; 6 confirmed close to as-stated (26-30, 32 — n
 composio plaintext-retention claim disproven outright; the onTrustChange and Security.tsx tab-resolver claims
 reframed as pre-existing/precedented, not in-window findings).
 
+### Chunk: App.tsx/App.hooks.tsx + AssistantDock (including the MCP-UI same-origin security fix)
+
+This chunk includes a genuine security fix (`d3834ec2`, "stop granting MCP-UI surfaces this admin origin's
+authority") — switching the MCP-UI sandbox-proxy iframe from a same-origin HTTP route to an opaque `data:`
+URL, since `@mcp-ui/client`'s `AppFrame` hardcodes `allow-same-origin` with no way to turn it off. I read the
+actual `@jini-ai/ui` source this diff depends on (`node_modules/@jini-ai/ui/src/features/mcp-ui/sandbox-proxy.ts`,
+resolved via the local sibling-Jini symlink) to verify Gemini's security claims against the real
+implementation, not just the diff.
+
+**Gemini raised two "Critical"/"High" claims that the fix can be bypassed — both do not hold up under technical
+analysis, with one caveat (see below):**
+
+- **Gemini's Finding 1 (self-navigation bypass)**: claimed the guest, running inside the opaque `data:` frame
+  (which has `allow-scripts allow-same-origin`), can call `window.location.replace(hostOrigin +
+  "/mcp-ui/sandbox-proxy.html")` to load the OLD same-origin route into the same sandboxed iframe, which
+  (per `allow-same-origin`) would then get the ADMIN's real origin, "completely defeating the opaque data: URL
+  isolation." **Reasoned through this and believe it does not work as described**: navigating a browsing
+  context to a new document destroys the PREVIOUS document's running script entirely — the attacker's own
+  malicious code (running inside the `data:` document) cannot survive its own navigation call to keep
+  executing with the new document's authority. After the self-navigation, the iframe would be running the
+  ADMIN SERVER'S OWN fixed, non-attacker-controlled `SANDBOX_PROXY_HTML` script (confirmed by reading it,
+  `sandbox-proxy.ts:132-167`), which does nothing but wait for a `postMessage` from `window.parent` validated
+  against `event.source === host && event.origin === hostOrigin` before it will `document.write` anything —
+  and the real admin app's own `AppFrame` would still be targeting the ORIGINAL data:-URL's opaque origin for
+  its own `postMessage` calls, so delivery to the hijacked frame would fail on the target-origin mismatch
+  regardless. Net: the attacker can make their own guest content disappear (replaced by the admin's own inert
+  page) but gains no new capability by doing so. **Not counted as confirmed, but marked UNVERIFIED-LEANING-DISPROVEN**
+  rather than a clean discard, since I cannot run an actual browser to empirically confirm browser-engine
+  behavior for this specific case, and the stakes (auth-bypass) warrant that caveat rather than false
+  confidence either way.
+- **Gemini's Finding 2 (postMessage handshake origin mismatch)**: claimed that because a `data:` document's
+  origin serializes to the string `"null"`, `@mcp-ui/client`'s own PARENT-SIDE listener (validating messages
+  FROM the guest) would either reject every message (if it strictly compares against a real origin) or accept
+  messages from any `data:`/sandboxed frame on the page (if relaxed) — either breaking the fix or reopening a
+  different hole. **Could not fully verify**: `@mcp-ui/client`'s actual bundle is not present in this
+  checkout's `node_modules` in an inspectable form (the nested `@jini-ai/ui/node_modules/@mcp-ui/client`
+  directory resolves to empty), so I could not read its real origin-check logic to confirm or refute this.
+  The `@jini-ai/ui` code THIS diff owns is internally consistent (the child-side `hostOrigin` check correctly
+  uses the injected literal, never `window.location.origin`, and posts to the parent using that same real,
+  non-opaque `hostOrigin` as the `postMessage` target — which is what makes DELIVERY TO the parent succeed).
+  Whether the PARENT's own incoming-message validation (third-party code) correctly special-cases an opaque
+  `"null"` sender origin for this specific channel is a real open question the diff's own doc comments claim
+  was "verified live against a real Chromium build, 2026-08-18" and via tracing the built bundle — I have no
+  way to independently confirm or refute that claim without running a browser. Recommend the owner treat this
+  as needing an ACTUAL manual smoke test (open an MCP-UI surface in the real admin app) rather than trusting
+  either Gemini's claim or the code's own comment blindly.
+
+**33. [MEDIUM, confirmed as a real code-smell; downstream consequence unverified]
+`apps/admin/src/components/AssistantDock/AssistantDock.tsx:128-138`** — `buildAssistantMcpUiSandboxProxyUrl(...)`
+is called INSIDE the registered ext-event renderer function body (not memoized), so a new `URL` object (and a
+freshly re-encoded, freshly re-`encodeURIComponent`'d HTML string) is constructed every time this renderer is
+invoked — plausibly on every transcript re-render while a run streams. If `@mcp-ui/client`'s `AppFrame`
+internally keys a `useEffect` (that sets `iframe.src`) off this prop's REFERENCE rather than its string value
+(`sandboxProxyUrl.href`), this would reload the guest iframe repeatedly during streaming, destroying its
+state. Confirmed the object IS recreated every invocation (an objectively verifiable fact from reading the
+code); could NOT confirm whether `AppFrame` actually keys off reference identity in a way that manifests this
+as visible churn, since its source isn't inspectable in this checkout.
+
+**34. [HIGH, confirmed] `apps/admin/src/components/AssistantDock/SlowRunNoticeCard.tsx:41`** —
+`SlowRunNoticeCard({ events })` destructures ONLY `events`, completely ignoring `runStreaming`/`runSucceeded`
+— both of which ARE real fields on `ExtEventRenderProps` (confirmed by reading the type definition,
+`@jini-ai/chat/src/react/ext-event-renderer-registry.ts:23-32`). So the "Still working — this is taking
+longer than usual" notice is rendered unconditionally whenever this card is invoked, with no check for
+whether the run has actually finished — a completed turn that ever triggered the 45s slow-run watchdog keeps
+showing an active "still working" status permanently in the transcript.
+
+**35. [MEDIUM, confirmed — an objective doc/code contradiction] `apps/admin/src/App.tsx:250`,
+`AssistantChrome`** — calls `resolveChatFabClearance({...})` directly in the component body. This directly
+contradicts the SAME function's own doc comment two lines above (`App.tsx:210-211`): *"The FAB clearance math
+(`resolveChatFabClearance`, `App.hooks.tsx`) is pure derived state, not JSX — kept out of this component's own
+body..."* — the comment describes intended behavior the code does not follow. Also a standing-rule violation
+(derived logic in a `.tsx` file).
+
+**36. [LOW, confirmed, same pattern already proven problematic elsewhere in this exact audit]
+`apps/admin/src/App.tsx:463`** — `const dockT = (key: string): string => translateAssistantDockLabel(navLocale,
+key);`, a plain unmemoized arrow function recreated every render of `App`, passed down as a prop. This is the
+IDENTICAL pattern to `useWiredAccessTokens`'s `boundT` (finding 29 above), which I confirmed causes a real
+cascading re-subscription bug via an unstable `useCallback` dependency. Did not trace far enough to confirm
+`dockT` specifically feeds a `useCallback`/`useEffect` dependency downstream (time budget), so flagging as a
+confirmed code smell with an unconfirmed downstream consequence, not a fully-proven duplicate of finding 29.
+
+**37. [LOW, confirmed] `apps/admin/src/components/AssistantDock/SlowRunNoticeCard.tsx:36-38`** —
+`resolveSlowRunDetail` is a plain, non-component, non-precedented data-extraction helper function living
+directly in the `.tsx` file; unlike the `resolveXHook`-style DI resolvers seen elsewhere in this audit (which
+have an established, repeated, precedented shape across many screens), this is a genuine one-off violation of
+the standing rule.
+
+**No defects identified:** `apps/admin/src/panels.tsx` (new "sites" panel entry, schema-conformant).
+
+Chunk tally: 8 findings raised; 2 confirmed (34, 35), 2 confirmed-as-code-smell-with-unverified-downstream-effect
+(33, 36), 1 confirmed-low (37), 2 security claims neither cleanly confirmed nor discarded — recommend a real
+browser smoke test rather than trusting either the audit or the code's own claims blindly.
+
 ## Areas not covered / caveats
 
 TBD at completion.
