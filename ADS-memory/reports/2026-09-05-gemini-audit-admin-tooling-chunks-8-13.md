@@ -24,7 +24,7 @@ chunk completes.
 
 - [x] Chunk 8 — `apps/admin/src/features/media/Media.tsx` (~363-line diff / complexity-split refactor)
 - [x] Chunk 9 — `apps/admin/src/features/collections/Collections.tsx` (~268-line diff)
-- [ ] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
+- [x] Chunk 10 — `apps/admin/src/features/menus/MenuEditor.tsx` (~114-line diff) + its own unit-test changes
 - [ ] Chunk 11 — hooks-extraction refactor sweep: Pages, Posts, ThemeExplore, AiAssistant,
       ThemePageDetailsModal, `apps/admin/src/features/pages/**` — no-logic-in-`.tsx` rule compliance
 - [ ] Chunk 12 — `apps/admin/vite.config.ts` + `development/scripts/dev.mjs` (dev-server TLS plumbing), plus
@@ -83,6 +83,45 @@ as the `--print` argument value (`--print "$(cat file)"`); verified stdin is sil
 throwaway probe before switching approach. Both adjustments are noted here for the record; they are the
 correct fix, not a deviation the audit should be discounted for. `--effort` must also be omitted for this
 model — `gemini-3.8-flash-high` already encodes reasoning effort and conflicts with an explicit `--effort` flag.
+
+### Chunk 10: `apps/admin/src/features/menus/MenuEditor.tsx` + its unit test (commits `92494e7c`, `1425da68`)
+
+Two commits touch this file in-window: `92494e7c` (feat — expose `NavItemAttrs`'s five fields
+cssClass/icon/description/rel/openInNewTab via a per-item "Advanced" disclosure, +89/-11 on MenuEditor.tsx,
++69 on its test) and `1425da68` (complexity-only split of `MenuItemAttrsFields`'s inline fallbacks into
+`orEmpty`/`orFalse`/`attrsOrDefaults`, cognitive 11 to 6, +37 on MenuEditor.tsx). Fed both diffs plus the
+small `api.ts` `AdminMenuItem.attrs` type addition (read-only, for context — did not touch `api.ts`) plus full
+current `MenuEditor.tsx` and `MenuEditor.unit.test.tsx` to Gemini.
+
+Gemini raised **zero behavioral findings** — traced the undefined/partial/populated `attrs` state
+transitions, the `{ ...undefined }` spread safety, the native `<details>` disclosure not resetting on
+re-render, and accessibility labeling, all clean.
+
+**One architecture-rule observation Gemini raised that I'm recording as a real, confirmed compliance
+finding** (not a bug — Dimension 2, Architecture Adherence): `countDescendants` (`MenuEditor.tsx:39`),
+`orEmpty` (`:53`), `orFalse` (`:58`), `attrsOrDefaults` (`:69`), and `targetForKind` (`:80`) are plain
+derived-logic functions living directly in this `.tsx` file — none carry the "STAYS LOCAL — owner-ratified"
+comment that exempts the three files named in this dispatch, so per the dispatch's own instruction ("if you
+don't see that comment on a file, the rule fully applies") this is a literal violation of the standing
+no-logic-in-`.tsx` rule. **Important context, verified by reading the file's own header
+(`MenuEditor.tsx:9-31`)**: this is not an oversight — the file explicitly documents WHY these five helpers
+stay here ("pure helpers... presentation concerns invoked directly from `ItemRow`'s own markup, not part of
+the hook's state transitions") and each helper's own doc comment explains it exists purely to move an ESLint
+complexity count out of its caller's scope (e.g. `orEmpty`'s comment: naming a `?? ""` fallback "removes the
+count from each switch's own scope without changing what either function produces"). All five are pure
+(no state, no side effects, no API calls) and `targetForKind` is `export`ed for reuse. This reads as a
+considered, disclosed design choice in the same spirit as the three owner-ratified exemptions, just not
+formally one of them — flagging so the owner can decide whether to ratify it explicitly (add the same
+"STAYS LOCAL" marker) or extract it, not because it's causing any observed defect.
+
+**Test quality (own read, not just Gemini's)**: read the 69-line test diff directly. The two new
+`describe("attrs — advanced per-item fields")` tests are genuinely strong — the round-trip test opens the
+Advanced disclosure, types into all five fields, clicks Save, and asserts the actual `PUT` request body's
+`items[].attrs` equals the typed values (not a mock-call-count or presence check), and the pre-fill test
+asserts real rendered input values against the persisted state. No "asserts nothing meaningful" pattern here.
+
+**Chunk tally: 1 architecture-compliance observation raised, 1 CONFIRMED (real, but documented/justified —
+recorded as a Recommended-severity note for the owner, not a defect), 0 UNVERIFIED, 0 DISCARDED.**
 
 ## Summary
 
