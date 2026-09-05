@@ -151,22 +151,29 @@ function validateLabel(raw: unknown): string {
   return raw;
 }
 
-function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
+/** Shared check-then-trim step for {@link requireNonEmptyString}/{@link optionalString} — the two
+ *  differ only in whether `undefined` is acceptable, never in what counts as "non-empty" or what gets
+ *  persisted. Always returns the TRIMMED value, never the raw one just validated: a leading or trailing
+ *  space pasted alongside a real value (an endpoint URL, an access key, a bearer token) is never
+ *  meaningful, and returning it unmodified lets it survive into storage, then into every reader
+ *  downstream — for a secret field, that surfaces later as a misleading "wrong credentials" far from
+ *  where the stray space was typed. Extracted (2026-09-05) after `optionalString` was fixed alone once
+ *  already and `requireNonEmptyString` was found carrying the identical untrimmed-return bug days
+ *  later — a single shared step is what keeps the two from drifting apart a second time. */
+function assertNonEmptyTrimmed(raw: unknown, message: string): string {
   if (typeof raw !== "string" || raw.trim() === "") {
-    throw new PublishCredentialValidationError(`'${field}' (non-empty string) is required for provider '${providerId}'`);
+    throw new PublishCredentialValidationError(message);
   }
-  return raw;
+  return raw.trim();
+}
+
+function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
+  return assertNonEmptyTrimmed(raw, `'${field}' (non-empty string) is required for provider '${providerId}'`);
 }
 
 function optionalString(raw: unknown, field: string): string | undefined {
   if (raw === undefined) return undefined;
-  if (typeof raw !== "string" || raw.trim() === "") {
-    throw new PublishCredentialValidationError(`'${field}' must be a non-empty string when provided`);
-  }
-  // Persist the TRIMMED value, not the raw one the truthiness check above validated — a leading or
-  // trailing space pasted alongside a real value (e.g. an endpoint URL) is never meaningful, and
-  // returning it unmodified used to let it survive into storage, then into every reader downstream.
-  return raw.trim();
+  return assertNonEmptyTrimmed(raw, `'${field}' must be a non-empty string when provided`);
 }
 
 /** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested" (the same

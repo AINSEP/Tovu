@@ -554,6 +554,39 @@ test("createPublishCredential trims a leading/trailing-whitespace endpoint befor
   assert.deepEqual(resolved?.connection, { ...VALID_S3_CONNECTION, endpoint: "https://s3.us-east-1.amazonaws.com" }, "the persisted endpoint must be trimmed, not the raw pasted value with its surrounding whitespace intact");
 });
 
+// `requireNonEmptyString` backs every s3-compatible hard-required field — including the two
+// SECRET-bearing ones, `secretAccessKey` and (for the token-bearing providers) `token`. Pin all five
+// s3-compatible fields together so the fix cannot land in the arm that doesn't matter (`region`) while
+// leaving the arm that does (`secretAccessKey`) untrimmed — an untrimmed pasted secret persists, then
+// fails signing later, surfacing as a misleading "wrong credentials" far from where the space was typed.
+for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl"] as const) {
+  test(`createPublishCredential trims a leading/trailing-whitespace '${field}' before persisting it (s3-compatible)`, async () => {
+    const deps = makeDeps();
+    const summary = await createPublishCredential(deps, {
+      workspaceId: WORKSPACE,
+      label: "x",
+      connection: { ...VALID_S3_CONNECTION, [field]: `  ${VALID_S3_CONNECTION[field]}  ` },
+    });
+    const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+    assert.equal(
+      (resolved?.connection as Record<string, unknown> | undefined)?.[field],
+      VALID_S3_CONNECTION[field],
+      `'${field}' must be persisted trimmed, not the raw pasted value with its surrounding whitespace intact`
+    );
+  });
+}
+
+test("createPublishCredential trims a leading/trailing-whitespace 'token' before persisting it (github-pages) — the other secret-bearing field requireNonEmptyString validates", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: { providerId: "github-pages", token: "  ghp_example  " },
+  });
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.equal(resolved?.connection.token, "ghp_example", "'token' must be persisted trimmed, not the raw pasted value with its surrounding whitespace intact");
+});
+
 // ---------------------------------------------------------------------------
 // account_label (migration 0044, 2026-08-16) — see this file's own header for why create/update
 // never populate this with a real value themselves (the s3-compatible custom-provider agent tool
