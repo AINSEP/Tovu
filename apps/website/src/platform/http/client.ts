@@ -124,7 +124,7 @@ function expandIpv6Groups(ip: string): number[] {
   if (halves.length === 1) return left;
 
   const right = halves[1] ? toHexGroups(halves[1].split(":")) : [];
-  const zeros = new Array(Math.max(0, 8 - left.length - right.length)).fill(0);
+  const zeros = Array.from({ length: Math.max(0, 8 - left.length - right.length) }, () => 0);
   return [...left, ...zeros, ...right];
 }
 
