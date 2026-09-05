@@ -814,3 +814,254 @@ claim omitted), **4 CONFIRMED but REFRAMED down** (16.1 HIGH→LOW, 16.3/16.4/16
 **3 CONFIRMED at claimed severity LOW** (16.6, 16.7, 16.8). Nothing discarded and nothing fabricated
 — this was the most accurate chunk in the batch, with severity inflation as the only systematic
 error.
+
+---
+
+## Chunk 14 — `239a90a5` `deployments/static-publish/s3-compatible-target.ts`
+
+### 14.1 — HIGH (production bug): the retry ceiling is skipped for repeated `"unsupported"` outcomes → **CONFIRMED, REFRAMED (HIGH → MEDIUM)**
+
+Code fact CONFIRMED, `s3-compatible-target.ts:798-819`. The loop header is
+`for (let attempt = 1; ; attempt++)` — no bound of its own. The `"unsupported"` arm at `:803-809`
+sets `concurrencyGuardActive = false` and `continue`s, and the
+`attempt >= MAX_MANIFEST_WRITE_ATTEMPTS` throw at `:813-818` sits **after** that `continue`, so it
+governs only the `"conflict"` path. A provider that answers `"unsupported"` again on the now-
+unconditional write (`attemptManifestSync:719-720` builds the precondition from
+`concurrencyGuardActive`, so the retry really is unconditional) re-enters the same arm and the loop
+never terminates. Each request has its own `AbortSignal.timeout`, so this is an unbounded request
+flood rather than a single hang.
+
+**Independent corroboration from the suite itself:** the test at `:998-1021` only terminates because
+its mock returns 400 *solely* when `if-none-match === "*"`. Remove that condition and that test hangs
+— which is the bug, demonstrated by the file's own fixture.
+
+**Corrected severity: MEDIUM.** The trigger needs a provider that reports "unsupported" for a plain
+unconditional PUT, which is unusual (such a provider cannot serve a publish at all), but the failure
+mode chosen for it — spin forever — is strictly worse than the loud `DeployError` the conflict path
+gets. One-line fix: move the ceiling check above the outcome dispatch.
+
+### 14.2 — MEDIUM (production bug): the 400-classifier regex covers one phrase spaced and the other only unspaced → **CONFIRMED as fact, REFRAMED (MEDIUM → LOW)**
+
+CONFIRMED, `:509`: `/notimplemented|not implemented|unsupportedoperation/i` — `"not implemented"` is
+matched with and without the space, `"unsupported operation"` only without. A body saying
+"Unsupported operation" in prose would fall through to the hard `DeployError` at `:510` instead of
+degrading like a 501.
+
+**Severity down to LOW** because the realistic input does match: S3-compatible providers put the
+machine-readable token in `<Code>UnsupportedOperation</Code>`, unspaced, and `safeErrorBody` returns
+the whole body, so the `<Code>` element satisfies the regex regardless of the prose in `<Message>`.
+The asymmetry is a real inconsistency worth a two-character fix; it is not a likely
+misclassification.
+
+### 14.3 — MEDIUM (test quality): the first-error assertion matches either file → **CONFIRMED, REFRAMED (MEDIUM → LOW)**
+
+CONFIRMED. The test at `:934-953` is titled "only the FIRST recorded failure propagates (never
+overwritten by a second)" and asserts `assert.match(err.message, /a\.html|b\.html/)`. The alternation
+passes under a last-error-wins implementation, i.e. under the exact negation of the property the
+title names. With a synchronous mock the ordering is deterministic, so `/a\.html/` is assertable —
+this repo's own "assert exact error text" rule points at the same fix. **LOW** (a title that
+outruns its assertion, not a live defect).
+
+### 14.4 — HIGH (test quality): blank-etag normalization is not distinguishable by this test → **CONFIRMED, REFRAMED (HIGH → MEDIUM)**
+
+CONFIRMED, and the test is weaker still than the claim says. At `:822-840` the assertion is
+`assert.equal(bucket.has("blank-etag.html"), true)` — but nothing in the mock ever removes anything
+from `bucket` (`DELETE` throws, `PUT` writes nothing back), so that assertion is **vacuously true**
+on every code path. The only real guard is the throwing `DELETE` handler at `:830`, which turns an
+unwanted delete into a rejected `publish()`.
+
+Given that, Gemini's point holds: if `""` were not normalized to "no recorded provenance", the entry
+would go to a live `HEAD`, the mock's catch-all at `:831` would answer 200 **with no `etag`
+header**, the key would be unverifiable, and it would be skipped — no `DELETE`, test still green. The
+test cannot separate "normalized" from "compared and unverifiable."
+
+**Corrected severity: MEDIUM.** A real mutation-survivable test whose title names a mechanism it does
+not exercise; fixing it means asserting on `statusMessage`'s diverged-keys disclosure, or making the
+mock's `HEAD` return a *matching* etag so only normalization can prevent the delete.
+
+### 14.5 — LOW (test quality): the "not diverged" half is unasserted → **CONFIRMED**
+
+CONFIRMED. `:742-769` asserts `result.status === "ready"` and `bucket.has("no-etag.html") === true`
+(again vacuous — nothing mutates the map) and never inspects `result.statusMessage`, which is the
+only place a diverged classification would surface (`buildStatusMessage:724-732`). A regression
+recording this key as diverged rather than skipped passes. **LOW.**
+
+### 14.6 — MEDIUM (test-infra): 5xx tests omit the `setTimeout` stub their sibling documents → **CONFIRMED at MEDIUM**
+
+CONFIRMED, and I verified the mechanism in the dependency rather than taking the claim's word.
+`aws4fetch.cjs.js:68-78`:
+
+```js
+for (let i = 0; i <= this.retries; i++) {
+  const fetched = fetch(await this.sign(input, init));
+  if (i === this.retries) return fetched;
+  const res = await fetched;
+  if (res.status < 500 && res.status !== 429) return res;
+  await new Promise(resolve => setTimeout(resolve, Math.random() * this.initRetryMs * Math.pow(2, i)));
+}
+```
+
+with `retries = retries != null ? retries : 10`. `S3CompatibleDeployTarget`'s constructor
+(`:746-751`) passes no `retries`, so the default 10 applies. Expected total backoff for one failing
+request is `Σ(i=0..9) 25·2^i ≈ 25.6 s`.
+
+The file's own 501 test at `:628-661` documents exactly this and stubs `globalThis.setTimeout`
+(`:636-640`), and the 400 test at `:999-1003` copies the stub. The tests at `:675-691` (500),
+`:934-953` (500), and `:1047-1066` (503) do not. **CONFIRMED at MEDIUM** — three tests paying ~25 s
+each for no coverage benefit, with the fix already written twice in the same file.
+
+### 14.7 — LOW (test quality): the 400-degrade test under-asserts versus its 501 sibling → **DISCARDED**
+
+The comparison is accurate — `:998-1021` asserts only `status === "ready"` and
+`manifestPuts.length >= 2`, while the 501 sibling at `:628-661` additionally pins
+`manifestPuts.at(-1)!.headers.get("if-none-match") === null` (`:655`) and matches `statusMessage`
+against `/conditional|concurrency|precondition/i` (`:656`).
+
+**But the conclusion is wrong.** Gemini claims the weaker test cannot "catch a broken implementation
+that still retried conditionally or never flipped `concurrencyGuardActive`." Against this test's own
+mock — which returns 400 *only* when `if-none-match === "*"` — such an implementation re-enters the
+`"unsupported"` arm every iteration and, per finding 14.1, **never terminates**. The test does not
+pass; it hangs. It discriminates, just by non-termination rather than by assertion.
+
+Adding the 501 sibling's two assertions is still worth doing (a failing assertion beats a hung
+runner), but there is no finding here. **DISCARDED.**
+
+### 14.8 — claim-audit: "`toDeployLinkStatus` is not exported" → **DISCARDED (the author was right; Gemini read the wrong revision)**
+
+Settled directly against history, which is the check the RAW file itself flagged as needed:
+
+```
+$ git show 239a90a5:...s3-compatible-target.ts | grep toDeployLinkStatus
+593:function toDeployLinkStatus(check: DeploymentUrlCheck): DeployLinkStatus {
+```
+
+Not exported at commit time — the commit message's "not exported, so there is no seam to
+direct-invoke-test it" was **true when written**. The export and the direct tests (including the
+`"protected"` case at `:227-230` that Gemini cites) arrived later, in
+`ef5c158a refactor(deployments): export toDeployLinkStatus as a direct-invoke test seam`.
+
+This is precisely the now-vs-then trap the RAW file predicted, and it is the batch's one genuinely
+misattributed claim. **DISCARDED.**
+
+### 14.9 — Gemini's agreement on the `"Not yet reachable."` unreachable branch → **no action**
+
+Not a finding, and I record it only so it is not mistaken for one. The invariant is documented in
+place at `:826-836` with a stated reason for keeping the branch rather than deleting it (a future
+`reachability.ts` change should fail loudly). Gemini concurring with an author's own reasoned keep
+is agreement, not a finding.
+
+### Chunk 14 counts
+
+8 items (7 findings + 1 claim-audit): **2 CONFIRMED at claimed severity** (14.5 LOW, 14.6 MEDIUM),
+**4 CONFIRMED but REFRAMED** (14.1 HIGH→MEDIUM, 14.2 MEDIUM→LOW, 14.3 MEDIUM→LOW, 14.4 HIGH→MEDIUM),
+**2 DISCARDED** (14.7's conclusion is contradicted by 14.1; 14.8 was refuted by the commit-time
+source). Plus one non-finding recorded for completeness.
+
+---
+
+# Overall verdict
+
+## Totals across chunks 13-19
+
+| | Count |
+|---|---|
+| Claims verified | **41** |
+| Confirmed on the facts | **36** |
+| Discarded | **5** |
+| Of the confirmed: held at the stated severity | **11** |
+| Of the confirmed: **REFRAMED** (severity/framing corrected) | **25** |
+
+Per chunk (claims / confirmed / discarded / reframed):
+13 → 6 / 5 / 1 / 5 · 14 → 8 / 6 / 2 / 4 · 15 → 5 / 4 / 1 / 3 · 16 → 8 / 8 / 0 / 4 ·
+17 → 5 / 5 / 0 / 3 · 18 → 6 / 5 / 1 / 4 · 19 → 3 / 3 / 0 / 2
+
+**Precision signal:** citation accuracy was essentially perfect — I found no fabricated line number,
+symbol, or code excerpt in 41 claims. The dominant failure was exactly the one the dispatch
+predicted: real code read correctly, then framed as something it does not prove. Severity was
+overstated in 25 of 36 confirmed claims and understated in none. Not one claim rose in severity.
+
+**Five discards, by cause** — three rest on a *supporting premise that is factually false*, which is
+the residual risk worth carrying into the next audit:
+- 15.2 — "real `fetch` sends no `User-Agent`". Measured: undici sends `user-agent: node`.
+- 15.1 (supporting half) — "the in-memory repo always sets `.code`". It throws a plain `Error`.
+- 15.3 (supporting half) — "the delete path promotes a sibling". `delete` is a bare `repo.delete`.
+- 14.8 — reasoned about current HEAD against a commit message about the past; `git show` refutes it.
+- 13.6 / 14.7 / 18.4 — correct facts, conclusion does not follow.
+
+## Confirmed findings, ranked
+
+**HIGH — 1**
+1. **`handlebars-allowlist.ts` — unbounded subexpression recursion (18.3).** `walkExpression`/
+   `walkParamsAndHash` never check or increment `depth`, so `MAX_BLOCK_NESTING_DEPTH` does not
+   constrain them. Reproduced: at 5,000 nesting levels (85 KB, 8% of the size cap)
+   `Handlebars.parse()` succeeds and `lintHandlebarsTemplate` throws `RangeError` past its own
+   `try/catch`, escaping into `loadTheme()` on the main thread and taking down discovery for every
+   theme in the root. Violates the function's documented total, non-throwing contract.
+
+**MEDIUM — 7**
+2. `github-git-provider.ts:309-311` — `fetchBranchTip` alone among five step functions swallows a
+   200-with-missing-`sha`, in the unsafe direction (17.1).
+3. `github-git-provider.ts:573-579` — an unverifiable deletion candidate drops out of the manifest
+   permanently *and* is never surfaced in `divergedPaths`, which the human does see (17.2).
+4. `github-git-provider.ts:302,687` — ref URLs use `enc` where the file's own `encPath` exists for
+   this exact reason; `BRANCH_PATTERN` permits `/` (17.4; the GitHub-side consequence is unverified).
+5. `verify.ts:237` + `publish-credentials/store.ts:161-167` — the same trim-check-return-raw shape at
+   two layers persists and then uses an untrimmed endpoint (16.2).
+6. `s3-compatible-target.ts:798-819` — the retry ceiling is skipped for repeated `"unsupported"`
+   outcomes; unbounded loop (14.1).
+7. `structure.ts:108` — `statSync` lets a symlink cycle throw `ELOOP` out of a validator documented
+   twice as never throwing (13.2).
+8. `site-exporter.ts:595` — the 404 probe accepts any status `>= 400`, writing a 500 body as the
+   site's `404.html` and reporting success (19.1).
+
+**Test-quality findings worth acting on — 3**
+9. `s3-compatible-target.unit.test.ts:822-840` — blank-etag test cannot fail for the reason it names;
+   its `bucket.has` assertion is vacuous (14.4).
+10. `s3-compatible-target.unit.test.ts:675, 934, 1047` — missing `setTimeout` stub, ~25 s each, fix
+    already written twice in the same file (14.6).
+11. `handlebars-allowlist.test.ts:148-150` — the `{{render_block}}` test's title names the OR arm it
+    cannot distinguish; deleting that arm keeps it green (18.2).
+
+**False comments found (for the register)**
+- `github-git-provider.unit.test.ts:1120-1127` — JSDoc says the candidate is "reported as diverged";
+  it is not, and asserting it would fail (17.2).
+- `verify.ts:635-636` — cites `probe`'s posture while doing the opposite of `probe` (16.5).
+- `store.ts:17-23` and `store.unit.test.ts:45-46` — both assert a decrypt path "does not exist";
+  `decryptRecord:429` and `resolveDefaultForSourceControl:464` do (15.5).
+- `structure.test.ts:98-99` — attributes its passing assertion to a guard that is provably dead
+  (13.1).
+
+## Every reframe, with the corrected framing
+
+| # | Claimed | Corrected | Why the framing failed |
+|---|---|---|---|
+| 18.1 | CRITICAL prototype-pollution bypass | **LOW** lint-completeness gap | No write primitive exists, and the runtime half (verified in handlebars 4.7.9) blocks the read |
+| 18.2 | HIGH "any bare built-in helper gets through" | **LOW** prod / **MEDIUM** test | `knownHelpersOnly` compiles a bare `{{log}}` as a path, never a call |
+| 18.5 | LOW dead defensive code | **INFO** | The branch is compile-time required; the test discloses it |
+| 18.6 | LOW flakiness risk | **INFO** | `node:test` isolates by file; each mutation is `finally`-restored |
+| 17.1 | HIGH orphan-commit/history loss | **MEDIUM** | GitHub 422s a create against an existing ref — the suite's own `:1100` says so |
+| 17.2 | HIGH, "inconsistent with the codebase's stated standard" | **MEDIUM**, and the standard says the opposite | The soft-degrade is documented twice as deliberate; the real gap is manifest retention + operator visibility |
+| 17.3 | MEDIUM "any JSON primitive throws" | **LOW** | Only a literal `null` body throws; primitives box harmlessly |
+| 13.1 | HIGH | **LOW** | Dead guard + duplicate messages; the ceiling still holds |
+| 13.2 | HIGH | **MEDIUM** | No untrusted upload path reaches this validator |
+| 13.3 | HIGH | **LOW** | Same; and already self-disclosed as a pin |
+| 13.4 | MEDIUM | **LOW** | Validator-completeness, first-party inputs; the `""` half is correct behavior |
+| 13.5 | MEDIUM undisclosed padding | **LOW**, and fully disclosed | The test file states the entire situation at `:243-249` |
+| 16.1 | HIGH | **LOW** | `"unreachable"` is the least-wrong of three buckets; the gap is that no fourth exists |
+| 16.3 | MEDIUM | **LOW** | Half the fixture is genuinely wrong-typed and survives serialization |
+| 16.4 | MEDIUM | **LOW** | The test does deliver its stated claim; a *different* mutant survives |
+| 16.5 | MEDIUM | **LOW** | Inconsistency + false cross-reference; either choice defensible |
+| 14.1 | HIGH | **MEDIUM** | Needs a provider that 501s an unconditional PUT |
+| 14.2 | MEDIUM | **LOW** | The machine-readable `<Code>` token matches; only prose would not |
+| 14.3 | MEDIUM | **LOW** | Title outruns assertion; no live defect |
+| 14.4 | HIGH | **MEDIUM** | Real surviving mutant, but test-quality only |
+| 15.1 | HIGH untested arm | **LOW** missing direct pin | The arm is covered through the in-memory repo |
+| 15.3 | HIGH invariant violation | **LOW** | Matches its own field-level contract; delete does not promote |
+| 15.4 | MEDIUM | **LOW** | The property holds; only the pin is missing |
+| 19.1 | HIGH | **MEDIUM** | Export correctness; the quoted invariant is about a different thing |
+| 19.2 | MEDIUM | **INFO** | A commit-message accuracy claim, not a code defect |
+
+**Note on process.** Two verdicts turned on evidence that reading alone could not produce: a direct
+invocation of `lintHandlebarsTemplate` (which promoted 18.3 to a confirmed HIGH and demoted 18.1),
+and a one-request measurement of Node's default `fetch` headers (which discarded 15.2). Both were
+single, bounded probes — no test suite, no `tsc`, no coverage was run at any point in this pass.
