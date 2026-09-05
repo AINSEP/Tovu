@@ -290,6 +290,33 @@ test("media rendition route: an asset referenced only by a DRAFT (unpublished) p
   });
 });
 
+test("media rendition route: an asset referenced only by a TRASHED post is not gated by that post — softDelete (post.ts) never clears `status`, so the trashed post still reads `status: \"published\"` and would otherwise still count as a live referrer (same defect pattern `caa116115c103630ba5253f9bbe3bceb234347d8` fixed for sitemap.xml/llms.txt)", async () => {
+  await withServer(async (baseUrl, deps) => {
+    const { media } = await uploadOne(deps, "trashed-referrer-bytes", "trashed-ref.png");
+    const { definition } = await registerOne(deps, "public", { format: "webp" });
+    await deps.postRepo.save(
+      makePost(
+        {
+          id: "p-trashed-gated",
+          slug: "trashed-gated-post",
+          memberAccessJson: JSON.stringify({ visibility: "members" }),
+          bodyJson: imageBody(media.id),
+          deletedAt: "2026-09-05T00:00:00.000Z",
+        },
+        deps.workspaceId
+      )
+    );
+
+    const res = await fetch(`${baseUrl}/m/${media.id}/${definition.name}.v${definition.version}/t.webp`);
+    assert.equal(
+      res.status,
+      200,
+      "a trashed post's stale reference must not gate the asset — no LIVE post references it, so it must be treated the same as an unreferenced asset"
+    );
+    assert.equal(res.headers.get("cache-control"), "public, max-age=31536000, immutable");
+  });
+});
+
 test("media rendition route: an asset embedded in BOTH a public post and a members-only post is still servable to an anonymous caller (most-permissive-of-referrers — the bytes are already public through the public post)", async () => {
   await withServer(async (baseUrl, deps) => {
     const { media } = await uploadOne(deps, "shared-asset-bytes", "shared.png");
