@@ -84,6 +84,23 @@ test("a fetch rejection that is neither AbortError, TimeoutError, nor TypeError 
   expect(error).not.toBeInstanceOf(ApiError);
 });
 
+// Pinned 2026-09-05 (`fix-apienc` dispatch, coverage-gap-fill TASK 2) — `errorName`'s own ternary
+// has a false arm (returns `undefined`) for a rejection cause that is not an object with a string
+// `.name` at all. The `RangeError` case above still has a string `.name` ("RangeError"), so it only
+// exercises the ternary's TRUE arm with a non-matching value; a bare string cause has no `.name`
+// property (`"name" in value` requires `value` to be an object — `typeof "boom" === "string"`, not
+// `"object"`), so it is the one that reaches the false arm.
+test("a fetch rejection with no .name at all (errorName's undefined-fallback arm) is rethrown untouched", async () => {
+  stubFetch(async () => {
+    throw "boom";
+  });
+
+  const error = await api.login({ username: "a", password: "b" }).catch((e: unknown) => e);
+
+  expect(error).toBe("boom");
+  expect(error).not.toBeInstanceOf(ApiError);
+});
+
 test("a caller-cancelled request is NOT reported as unreachable", async () => {
   const abort = new Error("The operation was aborted.");
   abort.name = "AbortError";

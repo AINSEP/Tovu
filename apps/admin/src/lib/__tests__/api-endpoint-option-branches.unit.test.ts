@@ -298,6 +298,15 @@ test("getSettingsEffective adds principalId to the query only when the caller pa
   expect(calls[0].url).toContain("principalId=p1");
 });
 
+// Pinned 2026-09-05 (`fix-apienc` dispatch, coverage-gap-fill TASK 2) — the false arm of
+// `if (options.principalId)`: every existing call in the verified-clean scope supplied one.
+test("getSettingsEffective omits principalId from the query when the caller passes no options", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getSettingsEffective({ namespace: "core" });
+  expect(calls[0].url).toBe(`/api/admin/v1/workspaces/workspace-local/settings/effective?namespace=core`);
+  expect(calls[0].url).not.toContain("principalId");
+});
+
 test("setSetting sends only the input fields when the caller passes no options", async () => {
   const { body } = stubFetchCapturing();
   await api.setSetting({ namespace: "core", key: "k", scope: "workspace", valueJson: 1 });
@@ -466,6 +475,34 @@ test("getDatabaseTimeline sets limit in the query when given", async () => {
   const { calls } = stubFetchCapturing();
   await api.getDatabaseTimeline({ limit: 25 });
   expect(calls[0].url).toContain("limit=25");
+});
+
+// Pinned 2026-09-05 (`fix-apienc` dispatch, coverage-gap-fill TASK 2) — every existing call in the
+// verified-clean scope passed `limit` and nothing else, so the five OTHER filter options' true arms,
+// `limit`'s own false arm, and the empty-querystring ternary arm were all untested.
+test("getDatabaseTimeline sets every other filter option in the query when given (and omits limit)", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getDatabaseTimeline({
+    kind: "migration",
+    outcome: "success",
+    fromDate: "2026-01-01",
+    toDate: "2026-01-31",
+    cursor: "cur1",
+  });
+  const url = new URL(calls[0].url, "http://localhost");
+  expect(url.searchParams.get("kind")).toBe("migration");
+  expect(url.searchParams.get("outcome")).toBe("success");
+  expect(url.searchParams.get("fromDate")).toBe("2026-01-01");
+  expect(url.searchParams.get("toDate")).toBe("2026-01-31");
+  expect(url.searchParams.get("cursor")).toBe("cur1");
+  // `limit` was omitted — its false arm — and the querystring is non-empty from the other filters.
+  expect(url.searchParams.has("limit")).toBe(false);
+});
+
+test("getDatabaseTimeline builds a bare, query-less URL when every filter option is omitted", async () => {
+  const { calls } = stubFetchCapturing();
+  await api.getDatabaseTimeline();
+  expect(calls[0].url).toBe(`/api/admin/v1/database/timeline`);
 });
 
 test("confirmMigrateForward sends the same request whether or not the unused options arg is passed", async () => {
