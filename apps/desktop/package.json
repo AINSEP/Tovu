@@ -1,0 +1,14 @@
+{
+  "name": "tovu-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Electron shell around the same Tovu the web mode serves. Additive: nothing outside this directory knows it exists.",
+  "main": "main.cjs",
+  "scripts": {
+    "dev": "electron .",
+    "attach": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^43.2.0"
+  }
+}
