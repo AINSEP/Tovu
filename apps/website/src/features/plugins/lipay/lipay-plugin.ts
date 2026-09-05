@@ -478,16 +478,51 @@ function incomingRefundAmount(event: NormalizedPaymentEvent, paymentRow: Payment
 }
 
 /**
- * Pure decision: given an already-persisted event, should it actually move the payment forward?
- * `apply: false` covers every reason it should not (stale ordering, a terminal payment, or a
- * transition the state machine itself rejects) — `applyEvent()` treats all three identically
- * (`"recorded"`), so this collapses them into one result shape instead of one branch each.
+ * The status half of an inbound event's decision, kept separate from its monetary half — the same
+ * split `executeRefundAttempt` already makes on the direct `refund()` path.
+ *
+ * `"unchanged"` is what makes the split necessary: the event names the status the payment already
+ * holds (a second partial refund that still does not complete the charge), so `canTransition`
+ * correctly refuses the step even though the money behind the event did move. Collapsing that into
+ * the `null` case is what let a webhook-reported partial refund vanish from the ledger.
+ *
+ * `null` is a genuine refusal: the event kind carries no status claim at all, or it names a status
+ * the machine forbids from here (a refund reported against a still-`pending` charge).
+ *
+ * @complexity O(1) — the state machine's own fixed-size lookup, nothing else.
+ */
+function nextStatusForEvent(
+  current: PaymentStatus,
+  kind: NormalizedPaymentEvent["kind"],
+  refund: { readonly refundedMinor: number; readonly totalMinor: number }
+): PaymentStatus | "unchanged" | null {
+  const next = statusForEventKind(kind, refund);
+  if (next === null) return null;
+  if (next === current) return "unchanged";
+  return canTransition(current, next) ? next : null;
+}
+
+/**
+ * Pure decision: given an already-persisted event, should it actually move the payment, and how?
+ *
+ * `apply: false` covers every reason it should not (stale ordering, a terminal payment, a
+ * transition the state machine rejects, or an event that names the current status without moving
+ * any money) — `applyEvent()` treats them identically (`"recorded"`), so this collapses them into
+ * one result shape instead of one branch each.
+ *
+ * `next: null` on an applied transition means "write the refunded total, leave the status alone".
+ * That is the same-status partial refund, and it mirrors `executeRefundAttempt`'s `else` arm
+ * exactly: the two write paths must agree on the ledger even where they disagree on the status.
+ * A non-refund event can never reach it — `refundedTotal` is copied straight from the row for
+ * every other kind, so the "did the money move?" test fails and the event stays merely recorded.
+ *
+ * @complexity O(1) — arithmetic and fixed-size state-machine lookups; no iteration.
  */
 function computeEventTransition(
   paymentRow: PaymentRow,
   event: NormalizedPaymentEvent,
   lastAppliedAt: number | null
-): { apply: false } | { apply: true; next: PaymentStatus; refundedTotal: number } {
+): { apply: false } | { apply: true; next: PaymentStatus | null; refundedTotal: number } {
   if (lastAppliedAt !== null && event.occurredAt < lastAppliedAt) return { apply: false };
 
   const current = paymentRow.status as PaymentStatus;
@@ -498,10 +533,28 @@ function computeEventTransition(
       ? Math.min(paymentRow.amount_refunded_minor + incomingRefundAmount(event, paymentRow), paymentRow.amount_minor)
       : paymentRow.amount_refunded_minor;
 
-  const next = statusForEventKind(event.kind, { refundedMinor: refundedTotal, totalMinor: paymentRow.amount_minor });
-  if (next === null || !canTransition(current, next)) return { apply: false };
+  const next = nextStatusForEvent(current, event.kind, {
+    refundedMinor: refundedTotal,
+    totalMinor: paymentRow.amount_minor,
+  });
+  if (next === null) return { apply: false };
+  if (next !== "unchanged") return { apply: true, next, refundedTotal };
+  return moneyOnlyTransition(paymentRow, refundedTotal);
+}
 
-  return { apply: true, next, refundedTotal };
+/**
+ * The same-status outcome: apply the event for its money alone when the refunded total actually
+ * advanced, and refuse it otherwise so an event that changes nothing is never marked applied
+ * (which would also drag the out-of-order watermark forward for free).
+ *
+ * @complexity O(1).
+ */
+function moneyOnlyTransition(
+  paymentRow: PaymentRow,
+  refundedTotal: number
+): { apply: false } | { apply: true; next: null; refundedTotal: number } {
+  if (refundedTotal === paymentRow.amount_refunded_minor) return { apply: false };
+  return { apply: true, next: null, refundedTotal };
 }
 
 /**
@@ -893,9 +946,23 @@ export async function activateLipay(
       const transition = computeEventTransition(paymentRow, event, lastApplied.at);
       if (!transition.apply) return "recorded";
 
-      db.prepare(
-        `UPDATE "${PAYMENTS}" SET status = ?, amount_refunded_minor = ?, updated_at = ? WHERE id = ?`
-      ).run(transition.next, transition.refundedTotal, inserted.receivedAt, paymentRow.id);
+      // Two statements rather than one that restates the current status: this is the same pair
+      // `executeRefundAttempt` writes on the direct `refund()` path, and the whole point of
+      // `next: null` is that the status column is not part of this event's effect.
+      if (transition.next === null) {
+        db.prepare(`UPDATE "${PAYMENTS}" SET amount_refunded_minor = ?, updated_at = ? WHERE id = ?`).run(
+          transition.refundedTotal,
+          inserted.receivedAt,
+          paymentRow.id
+        );
+      } else {
+        db.prepare(`UPDATE "${PAYMENTS}" SET status = ?, amount_refunded_minor = ?, updated_at = ? WHERE id = ?`).run(
+          transition.next,
+          transition.refundedTotal,
+          inserted.receivedAt,
+          paymentRow.id
+        );
+      }
       db.prepare(`UPDATE "${EVENTS}" SET applied = 1 WHERE id = ?`).run(inserted.eventId);
       return "applied";
     })();

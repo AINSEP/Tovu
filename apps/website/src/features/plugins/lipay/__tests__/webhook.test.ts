@@ -612,6 +612,48 @@ test("webhook: a second distinct partial-refund event that doesn't complete the 
   cleanup(harness.db, harness.dir);
 });
 
+test("webhook: a second partial-refund event that lands exactly on the charged amount completes the refund", async () => {
+  // The boundary between the two arms of the accumulation fix: 300 + 700 against a 1000 charge
+  // reaches the total exactly, so `statusForEventKind` names `refunded` rather than the current
+  // `partially_refunded`, `canTransition` allows that step, and the event must take the ordinary
+  // status-moving path — not the money-only one. Distinct from the capping test above, where the
+  // second event overshoots and would reach `refunded` even without an exact hit.
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_2",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 1,
+      charge: { id: "ch_1", amount: 300, currency: "USD" },
+    }),
+  });
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({
+      id: "evt_3",
+      type: "charge.refunded",
+      createdSeconds: nowSeconds + 2,
+      charge: { id: "ch_1", amount: 700, currency: "USD" },
+    }),
+  });
+
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.amountRefundedMinor, 1000, "300 + 700 lands exactly on the charged amount");
+  assert.equal(after?.status, "refunded", "an exact hit completes the refund rather than staying partial");
+  const rows = eventRows(harness.db);
+  assert.equal(rows.find((r) => r.provider_event_id === "evt_3")?.applied, 1);
+
+  cleanup(harness.db, harness.dir);
+});
+
 test("webhook: a second distinct succeeded event for an already-succeeded payment is recorded, never re-applied", async () => {
   // The same-status case for a kind that carries no money at all: `statusForEventKind("succeeded")`
   // names the status the payment already holds and nothing about the ledger moves, so — unlike a
