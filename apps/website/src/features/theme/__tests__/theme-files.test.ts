@@ -485,3 +485,24 @@ test("deleteThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR s
     fs.unlinkSync(b);
   }
 });
+
+test("copyThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the copy SOURCE", () => {
+  // Exercises resolveCopyOrRenameTargets' source-side statSync (shared by copyThemeFile and
+  // renameThemeFile) rather than duplicating the same case again for renameThemeFile — both call
+  // through the identical shared helper.
+  const { root, themeDir } = makeThemesRoot();
+  const a = path.join(themeDir, "a");
+  const b = path.join(themeDir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  try {
+    assert.throws(
+      () => copyThemeFile({ themeDir, themesRoot: root, sourcePath: "a", destPath: "a-copy" }),
+      ThemePathError
+    );
+  } finally {
+    fs.unlinkSync(a);
+    fs.unlinkSync(b);
+  }
+});

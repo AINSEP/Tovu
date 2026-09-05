@@ -534,7 +534,13 @@ function resolveCopyOrRenameTargets(
 ): { source: string; dest: string } {
   const { themeDir, themesRoot, sourcePath, destPath } = required;
   const source = resolveThemeFilePath({ themeDir, themesRoot, relativePath: sourcePath });
-  const sourceStat = statSync(source, { throwIfNoEntry: false });
+  // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
+  // post-resolve stat calls in this file were fixed for (see statOrThemePathError's own doc):
+  // `resolveThemeFilePath` does not resolve a `source` that is ITSELF a self-referential symlink, so
+  // this is the first call that can observe the cycle. Still follows a symlink pointing at a real
+  // file inside the theme — `copyFileSync`/`renameSync` below already read/move through such a link
+  // the same way `open()` does, so this check must match that, not refuse it.
+  const sourceStat = statOrThemePathError(source, sourcePath);
   if (!sourceStat) throw new ThemePathError(`file '${sourcePath}' does not exist in this theme`);
   if (!sourceStat.isFile()) throw new ThemePathError(`path '${sourcePath}' is not a regular file`);
   if (sourceStat.size > MAX_THEME_FILE_BYTES) {
