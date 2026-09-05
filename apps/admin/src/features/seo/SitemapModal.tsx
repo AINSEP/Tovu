@@ -5,6 +5,7 @@ import { buildAgentListHandles } from "../../lib/agent-list-handles";
 import { siteUrl } from "../../lib/site-url";
 import { actionLabel } from "./rules";
 import { useWiredSitemapModal, type SitemapModalController } from "./hooks/use-sitemap-modal.hooks";
+import { useSitemapModalRegenerate } from "./SitemapModal.hooks";
 import { t } from "./seo-i18n";
 
 /**
@@ -27,8 +28,9 @@ import { t } from "./seo-i18n";
  * overflow-y: auto` shape those two already established.
  *
  * State (fetch, parse, filter, view toggle, Escape-to-close) lives in `hooks/use-sitemap-modal
- * .hooks.ts`; this file is markup plus the one bit of sequencing that belongs to neither hook on
- * its own — refetching after a successful regenerate (see `handleRegenerate` below).
+ * .hooks.ts`; this file is markup only — the one bit of sequencing that belongs to neither that
+ * hook nor the outer `useSeo()` (refetching after a successful regenerate) lives in its own
+ * colocated `SitemapModal.hooks.tsx`, see that file's header for why it isn't folded into either.
  *
  * ## Agent handles
  * Every interactive element carries its own `agentHandle` (grep `agentHandle(` in `Seo.tsx` for
@@ -214,14 +216,7 @@ export function SitemapModal({
 }: SitemapModalProps) {
   const titleId = useId();
   const modal = useModal({ enabled: sitemapEnabled, onClose });
-
-  /** Only refetches on a successful regenerate (REQ 7) — `onRegenerate` already resolves `false`
-   *  on a caught failure (`useSeo`'s own `regenerateSitemap`), so a failed attempt leaves the
-   *  currently-shown sitemap exactly as it was rather than re-fetching the same stale content. */
-  async function handleRegenerate() {
-    const succeeded = await onRegenerate();
-    if (succeeded) modal.refetch();
-  }
+  const { handleRegenerate } = useSitemapModalRegenerate(onRegenerate, modal.refetch);
 
   return (
     <div className="settings-dialog-backdrop" onClick={onClose}>
