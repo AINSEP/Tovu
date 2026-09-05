@@ -4,18 +4,17 @@
 #   docker compose build
 #   docker compose up -d
 #
-# Note `context: ..` — the build context is the PARENT of this repo, because
-# Tovu declares 22 dependencies as `file:` paths into a sibling `Jini/`
-# checkout. See the header of `Dockerfile` for why, and
-# `Dockerfile.dockerignore` for how the rest of the parent directory is kept
-# out of the context. A `Jini` checkout must sit beside this one, named exactly
-# `Jini`.
+# Build context is this repo's own root — `@jini-ai/*` packages are consumed
+# from the npm registry (see `package.json`), so there is no sibling `Jini`
+# checkout to stage in and no parent-directory context gymnastics. See the
+# header of `Dockerfile` for the build stages and `Dockerfile.dockerignore`
+# for what is excluded from this context.
 
 services:
   tovu:
     build:
-      context: ..
-      dockerfile: Tovu/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     image: tovu:local
     restart: unless-stopped
 
