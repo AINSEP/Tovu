@@ -33,9 +33,9 @@
  * Run: `npx tsx development/evals/tool-search-heldout-v2.eval.ts`
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
-import type { RouteDeps } from "../../src/server/routes/types.js";
+import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
 

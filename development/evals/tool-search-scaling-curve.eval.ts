@@ -47,12 +47,12 @@
  * Free and deterministic: no model calls, no network, at scoring time.
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
-import type { RouteDeps } from "../../src/server/routes/types.js";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
 import { HELD_OUT_V2 } from "./tool-search-heldout-v2.js";
 import { HYDE_PROMPT_EXPANSIONS_V2 } from "./tool-search-hyde-prompt-expansions-v2.js";
-import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query.js";
-import { indexedDescriptionFor, stripSearchKeywords } from "../../src/assistant/tool-search-keywords.js";
+import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
+import { indexedDescriptionFor, stripSearchKeywords } from "../../apps/website/src/assistant/tool-search-keywords.js";
 import { MASTER_DISTRACTOR_DOC2QUERY, distractorsForSize, type DistractorTool } from "./tool-search-distractors.js";
 import { CALIBRATION_DOC2QUERY_250 } from "./tool-search-distractors-doc2query-calibration-250.js";
 import Database from "better-sqlite3";

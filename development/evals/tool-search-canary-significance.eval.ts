@@ -18,10 +18,10 @@
  * Run: `npx tsx development/evals/tool-search-canary-significance.eval.ts`
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
-import type { RouteDeps } from "../../src/server/routes/types.js";
-import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query.js";
+import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query.js";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
+import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 import { HYDE_PROMPT_EXPANSIONS } from "./tool-search-hyde-prompt-expansions.js";
 import Database from "better-sqlite3";

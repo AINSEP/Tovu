@@ -1,7 +1,7 @@
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../../src/assistant/tool-catalog-query";
-import { buildAssistantToolRegistrations } from "../../../src/assistant/tool-registrations";
-import type { RouteDeps } from "../../../src/server/routes/types";
+import { buildToolCatalogQuery } from "../../apps/website/src/assistant/tool-catalog-query";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations";
+import type { RouteDeps } from "../../apps/website/src/server/routes/types";
 import { CALLER2_COMPLIANCE_CAPTURES_20260805 } from "../../../development/evals/tool-search-caller2-compliance-captures-2026-08-05";
 import { HELD_OUT_V2 } from "../../../development/evals/tool-search-heldout-v2";
 

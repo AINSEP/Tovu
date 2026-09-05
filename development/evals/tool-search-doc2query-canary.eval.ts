@@ -26,9 +26,9 @@
 import Database from "better-sqlite3";
 import { createToolRegistry } from "@jini-ai/core";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
-import type { RouteDeps } from "../../src/server/routes/types.js";
-import { DOC2QUERY } from "../../src/assistant/tool-search-doc2query.js";
+import { buildAssistantToolRegistrations } from "../../apps/website/src/assistant/tool-registrations.js";
+import type { RouteDeps } from "../../apps/website/src/server/routes/types.js";
+import { DOC2QUERY } from "../../apps/website/src/assistant/tool-search-doc2query.js";
 
 interface EvalCase {
   readonly query: string;
