@@ -70,7 +70,7 @@ suites" is a lead for where to look next, not a coverage number.**
 | theme | 26 | 9474 | 82 | 52 (+2 from admin — cross-app reference, see appendix) | UNMEASURED |
 | deployments | 32 | 8557 | 19 | 15 | **MEASURED — see Phase 2 log** |
 | widgets | 26 | 5378 | 19 | 12 (+2 admin) | **MEASURED — 99.6% lines, 99.6% functions, 92.9% branches (merged-lcov figure — see dual-instantiation note in Phase 2 log). Near-ceiling; no zero-coverage files.** |
-| plugins | 17 | 4190 | 19 | 11 (+3 admin) | UNMEASURED |
+| plugins | 17 | 4190 | 19 | 11 (+3 admin) | **MEASURED — 99.2% lines, 96.8% functions, 94.9% branches. Near-ceiling. See Phase 2 log.** |
 | newsletter | 18 | 4151 | 13 | 11 | UNMEASURED |
 | post | 11 | 3662 | 12 | 61 (+1 admin) | UNMEASURED |
 | custom-credentials | 14 | 3433 | 10 | 7 (+1 admin) | UNMEASURED |
@@ -619,20 +619,74 @@ correction (dual-instantiation lcov trap, caught and fixed mid-parse)
   low-coverage surface — near-ceiling on every metric, in the same shape as
   `deployments`, `admin/lib`, and `widgets`.
 
+## Measured: `apps/website/src/features/plugins`
+
+- **uptime before**: `16:29, load averages 4.04 7.69 15.70`. **During/after**:
+  `16:29, load averages 19.75 11.30 16.78`, then `14.48`. Exit 0; log has
+  zero non-dot lines other than `EXIT:0` (no failures across 29 files).
+- **Command** (repo-root cwd):
+  ```
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+    node --import tsx --test --experimental-test-module-mocks \
+    --experimental-test-coverage \
+    --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" \
+    --test-reporter=lcov --test-reporter-destination=<scratch>/plugins.lcov.info \
+    --test-reporter=dot --test-reporter-destination=stdout \
+    <18 internal files under features/plugins/**/__tests__/> \
+    <11 external files from the inventory appendix's `features/plugins` [W] list>
+  ```
+  Checked for duplicate `SF:` records first (the `widgets` trap) — none found
+  this time; parsed with the merge-aware script anyway as a matter of course.
+- **lcov retained at**: `.../scratchpad/lcov/plugins.lcov.info`.
+- **Result** (16 of 17 source files present; the missing one, `lipay/ports.ts`
+  — 256 lines of `PaymentProviderId`/`PaymentProvider` interface/type
+  declarations, confirmed by reading it — is the same pure-interface pattern
+  as every `*-port.hooks.ts` file found on the admin side, not a gap):
+  - Lines: 99.2% (3904/3934)
+  - Functions: 96.8% (183/189)
+  - Branches: 94.9% (646/681)
+  - Below-100% files, all near-ceiling: `deploy-plugin.ts` 95.7% lines
+    (286/299); `lipay-plugin.ts` 99.2% lines (1053/1062), 174/184 branches;
+    `store-plugin.ts` 96.2% lines (153/159); `data-module.ts` 99.8% lines
+    (978/980). Nothing near zero.
+- **Reading**: `apps/website/src/features/plugins` is **not** a low-coverage
+  surface — near-ceiling on every metric, matching the `deployments`/
+  `admin/lib`/`widgets`/`admin/collections` shape.
+
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
 Everything here is `UNMEASURED` — this ranks what is biggest and least known,
 not what is least covered. `deployments`, `apps/admin/src/lib`,
 `apps/admin/src/components`, `apps/admin/src/features/deployment`,
 `apps/website/src/features/widgets`, `apps/admin/src/features/pages`,
-`apps/admin/src/features/posts`, `apps/admin/src/features/themes`, and
-`apps/admin/src/features/collections` are removed from this list because
-they are no longer unknown (see their measured sections above/below).
+`apps/admin/src/features/posts`, `apps/admin/src/features/themes`,
+`apps/admin/src/features/collections`, and `apps/website/src/features/plugins`
+are removed from this list because they are no longer unknown (see their
+measured sections above/below).
 
 1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
    exerciser pattern; needs the 54-suite external run, not just the 82
-   internal tests, to answer honestly)
-2. `apps/website/src/features/plugins` — 4190 lines
+   internal tests, to answer honestly). **The only entry left on this list —
+   see the dedicated note below before attempting it.**
+
+## `theme` — the one directory intentionally deferred this pass
+
+Every other directory on the original top-10-by-size ranked list has now
+been measured (9 of 10; only `theme` remains). `theme` is a **136-file**
+invocation (82 internal + 52 website-external + 2 admin-external, per the
+appendix) — roughly 4x the file count of any run attempted this pass, and
+this repo crashed once today at load 721 from concurrent test invocations.
+Every run this pass, even the lightest, produced a load spike (typically 3-8x
+the pre-run number); a 136-file run's spike is an unknown multiple of that,
+not a linear extrapolation, since node's `--experimental-test-coverage`
+instruments the full transitive module graph reached by every file in one
+process. This was deliberately not attempted without a fresh go/no-go check
+(uptime **and** swap/free-memory, per team-lead's revised guidance) taken
+immediately before the attempt, and, given the size, probably deserves being
+run alone rather than alongside other directory work. The exact command and
+full 136-file list are already in the "What would settle each row" section
+and the appendix below — nothing further needs to be derived, only executed
+under a clean environment.
 
 ## What would settle each row — for whoever resumes Phase 2
 
