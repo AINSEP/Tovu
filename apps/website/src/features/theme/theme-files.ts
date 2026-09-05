@@ -502,7 +502,13 @@ export function writeThemeFile(
   if (Buffer.byteLength(required.content, "utf8") > MAX_THEME_FILE_BYTES) {
     throw new ThemePathError(`content exceeds the ${MAX_THEME_FILE_BYTES}-byte per-file limit`);
   }
-  const existing = statSync(target, { throwIfNoEntry: false });
+  // statOrThemePathError, NEVER a bare statSync — same circular-symlink (a -> b -> a) ELOOP escape
+  // `readThemeFile` was fixed for (see that wrapper's own doc): `resolveThemeFilePath` does not
+  // resolve a `target` that is ITSELF a self-referential symlink, so this is the first call that can
+  // observe the cycle. Following the link (rather than `lstat`ing it) is deliberate here too: a
+  // symlink pointing to a real file inside the theme is meant to be overwritten through, exactly like
+  // any other existing target.
+  const existing = statOrThemePathError(target, required.relativePath);
   if (existing && !existing.isFile()) {
     throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
   }

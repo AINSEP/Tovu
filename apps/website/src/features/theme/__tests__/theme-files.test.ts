@@ -443,3 +443,30 @@ test("deleteThemeFile reuses resolveThemeFilePath's containment — a traversal 
     /resolves outside the theme folder/
   );
 });
+
+// ---------------------------------------------------------------------------
+// Circular-symlink ELOOP conversion — the same class of bug `readThemeFile` was fixed for
+// (statOrThemePathError, see its own doc), swept across the file's other bare `statSync` call sites.
+// ---------------------------------------------------------------------------
+
+test("writeThemeFile raises ThemePathError (never a raw ELOOP) for a CIRCULAR symlink (a -> b -> a) as the write target", () => {
+  // Mirrors readThemeFile's own circular-symlink test: `resolveThemeFilePath` returns `target`
+  // without throwing (its ancestor walk never reaches a self-referential symlink — see that
+  // function's own doc), so `writeThemeFile`'s first post-resolve `statSync` call is what must
+  // convert the ELOOP.
+  const { root, themeDir } = makeThemesRoot();
+  const a = path.join(themeDir, "a");
+  const b = path.join(themeDir, "b");
+  fs.symlinkSync(b, a);
+  fs.symlinkSync(a, b);
+
+  try {
+    assert.throws(
+      () => writeThemeFile({ themeDir, themesRoot: root, relativePath: "a", content: "x" }),
+      ThemePathError
+    );
+  } finally {
+    fs.unlinkSync(a);
+    fs.unlinkSync(b);
+  }
+});
