@@ -7,19 +7,20 @@ Method: open each cited file:line, confirm the code says what was claimed, then 
 decide whether the claimed failure is genuinely reachable. Verdicts: CONFIRMED / REFRAMED /
 UNVERIFIED / DISCARDED. No tests, no tsc, no coverage were run (box OOMs).
 
-## Status: IN PROGRESS
+## Status: COMPLETE — all 41 claims verified (36 confirmed on the facts, 5 discarded, 25 reframed)
 
 - [x] Chunk 18 (`991217ab`, handlebars-allowlist.ts) — CRITICAL + HIGH, priority 1
-- [ ] Chunk 17 (`4b35a008`, github-git-provider.ts) — 2 HIGH, priority 2
-- [ ] Chunk 13 (`1378c7e4`, structure.ts)
-- [ ] Chunk 14 (`239a90a5`, s3-compatible-target.ts)
-- [ ] Chunk 15 (`54c65bc6`, store.ts)
-- [ ] Chunk 16 (`383befbc`, verify.ts)
-- [ ] Chunk 19 (`438ada6a`, site-exporter.ts)
+- [x] Chunk 17 (`4b35a008`, github-git-provider.ts) — 2 HIGH, priority 2
+- [x] Chunk 13 (`1378c7e4`, structure.ts)
+- [x] Chunk 14 (`239a90a5`, s3-compatible-target.ts)
+- [x] Chunk 15 (`54c65bc6`, store.ts)
+- [x] Chunk 16 (`383befbc`, verify.ts)
+- [x] Chunk 19 (`438ada6a`, site-exporter.ts)
 
 ## Findings
 
-_(appended per chunk)_
+Verified in priority order: 18, 17, 13, 19, 15, 16, 14. Overall verdict and full
+reframe table are at the end of this file.
 
 ---
 
