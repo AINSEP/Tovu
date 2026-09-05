@@ -34,14 +34,14 @@ name: Deploy to Fly.io
 #
 # 2. Volume: `fly.toml`'s `[[mounts]] source = "tovu_sites"` must exist before the first deploy,
 #    or the app boots with no persistent storage for site content, uploads, and themes:
-#        flyctl volumes create tovu_sites --region <region> -a tovu-ai-cms
+#        flyctl volumes create tovu_sites --region <region> -a tovu
 #    The name must match `fly.toml`'s `source` exactly.
 #
 # 3. Region: `fly.toml`'s `primary_region = "iad"` is an UNVERIFIED PLACEHOLDER (see that file's
 #    own header comment). Pick a real region before relying on this for anything beyond testing,
 #    and match it in the volume's `--region` above.
 #
-# 4. App secrets — set with `flyctl secrets set -a tovu-ai-cms KEY=value`, never in this file or
+# 4. App secrets — set with `flyctl secrets set -a tovu KEY=value`, never in this file or
 #    in `fly.toml`'s committed `[env]` block. Verified directly against this repo's boot-gate
 #    code, not assumed:
 #      - TOVU_ADMIN_PASSWORD        — BOOT-BLOCKING. In production mode (fly.toml sets

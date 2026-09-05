@@ -41,7 +41,7 @@
 # (`tovu-ai-cms`). Everything else — region, volume name/size, machine
 # sizing — is inferred from the Dockerfile's own documented runtime
 # requirements (EXPOSE 3000, VOLUME /workspace/Tovu/sites) or left as an
-# explicit placeholder. Confirm against `flyctl config show -a tovu-ai-cms`
+# explicit placeholder. Confirm against `flyctl config show -a tovu`
 # if an app by that name already exists on Fly before trusting this file, and
 # update the placeholders below rather than assuming they're right.
 
@@ -63,7 +63,7 @@ primary_region = "iad" # PLACEHOLDER — confirm the intended region.
 # themes/, ops state — everything else in the image is disposable. A missing
 # or misconfigured mount here is silent data loss on next deploy, not a
 # startup error. PLACEHOLDER volume name/size — create it first with
-# `fly volumes create tovu_sites --region <region> -a tovu-ai-cms` and match
+# `fly volumes create tovu_sites --region <region> -a tovu` and match
 # the name here.
 [[mounts]]
   source = "tovu_sites"
