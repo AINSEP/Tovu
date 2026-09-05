@@ -196,8 +196,47 @@ test("rejects a private/loopback/link-local target pre-connect for each address 
   await assert.rejects(() => client.send(makeRequest({ url: "https://127.0.0.1/" })));
   await assert.rejects(() => client.send(makeRequest({ url: "https://10.0.0.1/" })));
   await assert.rejects(() => client.send(makeRequest({ url: "https://169.254.169.254/" })));
-  await assert.rejects(() => client.send(makeRequest({ url: "https://[::1]/" })));
+  // WHATWG URL brackets a literal IPv6 hostname (`new URL("https://[::1]/").hostname === "[::1]"`).
+  // Assert the EXACT classification message, not just "something threw" — before
+  // `resolveHostAddresses` strips the brackets, `isIP("[::1]")` is 0, so this falls through to
+  // `dns.lookup("[::1]", ...)` and rejects with ENOTFOUND, which `assert.rejects()` alone cannot
+  // distinguish from a correctly-classified-and-blocked loopback address.
+  await assert.rejects(
+    () => client.send(makeRequest({ url: "https://[::1]/" })),
+    { message: "egress to '[::1]' (::1) rejected: resolved address is loopback" }
+  );
   assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
+});
+
+test("rejects bracketed IPv6-literal link-local/private/multicast targets, correctly classified despite the URL's bracketed hostname", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  await assert.rejects(
+    () => client.send(makeRequest({ url: "https://[fe80::1]/" })),
+    { message: "egress to '[fe80::1]' (fe80::1) rejected: resolved address is link-local" }
+  );
+  await assert.rejects(
+    () => client.send(makeRequest({ url: "https://[fd00::1]/" })),
+    { message: "egress to '[fd00::1]' (fd00::1) rejected: resolved address is private" }
+  );
+  await assert.rejects(
+    () => client.send(makeRequest({ url: "https://[ff00::1]/" })),
+    { message: "egress to '[ff00::1]' (ff00::1) rejected: resolved address is reserved" }
+  );
+  assert.equal(transport.calls.length, 0, "transport must never be reached for a rejected target");
+});
+
+test("permits a public IPv6-literal target once the URL's bracketed hostname is stripped for classification (regression: every literal-IPv6 target, public or private, previously threw ENOTFOUND)", async () => {
+  const transport = new ScriptedTransport([{ status: 200, headers: {}, bodyText: "ok" }]);
+  const client = createHttpClient({ transport, policy: makePolicy() });
+
+  const response = await client.send(makeRequest({ url: "https://[2001:4860:4860::8888]/" }));
+  assert.equal(response.bodyText, "ok");
+  assert.equal(transport.calls.length, 1);
+  // The pinned IP handed to the transport must be unbracketed — `net`/`tls` connect options
+  // reject a bracket-wrapped literal.
+  assert.equal(transport.calls[0].peer.ip, "2001:4860:4860::8888");
 });
 
 test("devHostAllowlist permits an otherwise-private target for that exact host", async () => {
