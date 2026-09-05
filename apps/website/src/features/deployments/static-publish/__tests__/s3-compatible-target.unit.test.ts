@@ -62,6 +62,20 @@ function okResponse(): Response {
   return new Response("", { status: 200 });
 }
 
+/** A response whose `.ok`/`.status` are readable but whose body read itself fails — proves
+ *  `safeErrorBody`'s own `catch { return ""; }` never lets a body-read failure mask the original
+ *  HTTP error. Duck-typed rather than a real `Response` subclass: every call site only ever reads
+ *  `.ok`, `.status`, `.headers.get(...)`, and `.text()` off it. */
+function brokenBodyResponse(status: number): Response {
+  return { ok: false, status, headers: new Headers(), text: () => Promise.reject(new Error("body read exploded")) } as unknown as Response;
+}
+
+/** This target's own retry bound for the manifest read-verify-delete-write cycle — a literal here
+ *  (not imported), matching this file's own `MANAGED_MANIFEST_KEY` literal above and its stated
+ *  reasoning: a test importing the real constant could silently stop proving what it claims to if
+ *  the production value ever changed without the test noticing. */
+const MAX_MANIFEST_WRITE_ATTEMPTS = 3;
+
 /** The dedicated-prefix manifest key this target must maintain — a literal here (not imported) so a
  *  test that changes the real constant's value is forced to also re-examine this file's own
  *  assumptions about it, the same reasoning `CONFIG`/`FILES` above are plain literals rather than
@@ -620,6 +634,456 @@ test("CRITICAL (concurrency defect): a provider that does NOT support conditiona
   } finally {
     fake.restore();
     globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test("publish: an endpoint that is present but blank/whitespace-only falls back to deriving the plain-AWS-S3 host from region", async () => {
+  const fake = installFakeFetch(respondIgnoringManifest);
+  try {
+    const target = new S3CompatibleDeployTarget({ ...CONFIG, endpoint: "   " });
+    await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    const uploadCall = fake.calls.find((c) => c.method === "PUT" && c.url.endsWith("/index.html"));
+    assert.equal(uploadCall!.url, "https://s3.us-east-1.amazonaws.com/my-bucket/index.html");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: an upload failure whose error body cannot even be read still throws a bounded DeployError (safeErrorBody never masks the original failure)", async () => {
+  const fake = installFakeFetch((call) => (call.method === "PUT" && !call.url.endsWith(MANAGED_MANIFEST_KEY) ? brokenBodyResponse(500) : okResponse()));
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /index\.html/);
+        assert.match(err.message, /HTTP 500/);
+        return true;
+      }
+    );
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a stale key's DELETE returning 404 (already gone) is treated as success, not a failure", async () => {
+  const STALE_ETAG = '"stale-etag"';
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
+      return new Response(JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] }), { status: 200 });
+    }
+    if (call.method === "HEAD" && call.url.endsWith("/stale.html")) return new Response("", { status: 200, headers: { etag: STALE_ETAG } });
+    if (call.method === "DELETE" && call.url.endsWith("/stale.html")) return new Response("Not Found", { status: 404 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready", "a 404 on an already-gone stale key must not fail the publish");
+    const manifestPut = fake.calls.find((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.ok(manifestPut, "the manifest must still be written after a 404-on-delete (treated as success)");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a stale key's DELETE that throws at the transport layer surfaces as a bounded DeployError naming the key", async () => {
+  const STALE_ETAG = '"stale-etag"';
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    if (method === "GET" && url.endsWith(MANAGED_MANIFEST_KEY)) {
+      return new Response(JSON.stringify({ version: 2, keys: [{ key: "stale.html", etag: STALE_ETAG }] }), { status: 200 });
+    }
+    if (method === "HEAD" && url.endsWith("/stale.html")) return new Response("", { status: 200, headers: { etag: STALE_ETAG } });
+    if (method === "DELETE" && url.endsWith("/stale.html")) throw new TypeError("ECONNRESET");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /stale\.html/);
+        assert.match(err.message, /ECONNRESET/);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a candidate deletion whose live HEAD succeeds but reports no ETag is skipped, not deleted (unverifiable, not diverged)", async () => {
+  const ETAG = '"stable-etag"';
+  const bucket = new Map<string, string>([
+    ["no-etag.html", "content"],
+    [MANAGED_MANIFEST_KEY, JSON.stringify({ version: 2, keys: [{ key: "no-etag.html", etag: ETAG }] })],
+  ]);
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      const body = bucket.get(MANAGED_MANIFEST_KEY);
+      return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "HEAD" && key === "no-etag.html") return new Response("", { status: 200 }); // no etag header at all
+    if (method === "PUT") return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    if (method === "DELETE") throw new Error("must never be called for an unverifiable key");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+    assert.equal(bucket.has("no-etag.html"), true, "a HEAD with no etag header must never authorize deletion");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a candidate deletion whose live HEAD returns a non-throwing 404 is skipped, not deleted", async () => {
+  const ETAG = '"stable-etag"';
+  const bucket = new Map<string, string>([[MANAGED_MANIFEST_KEY, JSON.stringify({ version: 2, keys: [{ key: "already-gone.html", etag: ETAG }] })]]);
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) {
+      const body = bucket.get(MANAGED_MANIFEST_KEY);
+      return body !== undefined ? new Response(body, { status: 200 }) : new Response("Not Found", { status: 404 });
+    }
+    if (method === "HEAD" && key === "already-gone.html") return new Response("Not Found", { status: 404 });
+    if (method === "PUT") return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    if (method === "DELETE") throw new Error("must never be called for a key already confirmed gone");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a manifest whose v2 keys[] contains a malformed (non-object) entry is treated as an unrecognized shape — fails the whole publish", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 2, keys: ["not-an-object"] }), { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a manifest whose v2 entry has a non-string key is treated as an unrecognized shape", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 2, keys: [{ key: 123, etag: "x" }] }), { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a v2 manifest entry with a blank etag is normalized to 'no recorded provenance' — never auto-deleted", async () => {
+  const bucket = new Map<string, string>([["blank-etag.html", "content"]]);
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    const key = decodeURIComponent(new URL(url).pathname.replace(`/${CONFIG.bucket}/`, ""));
+    if (method === "GET" && key === MANAGED_MANIFEST_KEY) return new Response(JSON.stringify({ version: 2, keys: [{ key: "blank-etag.html", etag: "" }] }), { status: 200 });
+    if (method === "PUT") return new Response("", { status: 200, headers: { etag: '"new-etag"' } });
+    if (method === "DELETE") throw new Error("must never be called for an unverifiable (blank-etag) key");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(bucket.has("blank-etag.html"), true);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("a v1 manifest whose keys field is not an array is treated as an unrecognized shape", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 1, keys: "not-an-array" }), { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a v1 manifest whose keys array contains a non-string entry is treated as an unrecognized shape", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 1, keys: ["ok.html", 42] }), { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a manifest body that parses to a JSON null is treated as an unrecognized shape, not a verified 404", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("null", { status: 200 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(() => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }), (err: unknown) => err instanceof DeployError);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a previously-managed key that is STILL part of the current export is skipped without any HEAD or DELETE call", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 2, keys: [{ key: "index.html", etag: '"whatever"' }] }), { status: 200 });
+    if (call.method === "HEAD") throw new Error("must never verify a key that is still part of the current export");
+    if (call.method === "DELETE") throw new Error("must never delete a key that is still part of the current export");
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("a manifest that (defensively) lists its own key is skipped without any HEAD or DELETE call", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
+      return new Response(JSON.stringify({ version: 2, keys: [{ key: MANAGED_MANIFEST_KEY, etag: '"whatever"' }] }), { status: 200 });
+    }
+    if (call.method === "HEAD") throw new Error("must never verify the manifest's own key against itself");
+    if (call.method === "DELETE") throw new Error("must never delete the manifest key via the stale-key path");
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: an empty file set uploads nothing but still runs the manifest cleanup pass", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response(JSON.stringify({ version: 2, keys: [{ key: "old.html", etag: '"old-etag"' }] }), { status: 200 });
+    if (call.method === "HEAD" && call.url.endsWith("/old.html")) return new Response("", { status: 200, headers: { etag: '"old-etag"' } });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [], projectName: "demo" });
+    assert.equal(result.status, "ready");
+    const uploadCalls = fake.calls.filter((c) => c.method === "PUT" && !c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.equal(uploadCalls.length, 0, "an empty file set must upload nothing");
+    const deleteCalls = fake.calls.filter((c) => c.method === "DELETE");
+    assert.deepEqual(deleteCalls.map((c) => c.url.endsWith("/old.html")), [true], "with no current keys, every previously-managed, verified key becomes stale");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: when two uploads fail concurrently, only the FIRST recorded failure propagates (never overwritten by a second)", async () => {
+  const files: DeployFile[] = [
+    { file: "a.html", data: "a" },
+    { file: "b.html", data: "b" },
+  ];
+  const fake = installFakeFetch((call) => (call.method === "PUT" ? new Response("nope", { status: 500 }) : okResponse()));
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files, projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /a\.html|b\.html/);
+        return true;
+      }
+    );
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: exhausts MAX_MANIFEST_WRITE_ATTEMPTS retries and throws a bounded DeployError when the manifest write keeps conflicting", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("", { status: 412 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /Concurrent publish detected/);
+        return true;
+      }
+    );
+    const manifestPuts = fake.calls.filter((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.equal(manifestPuts.length, MAX_MANIFEST_WRITE_ATTEMPTS, "must retry exactly MAX_MANIFEST_WRITE_ATTEMPTS times before giving up loudly");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a 409 manifest-write response is treated as a conflict, identically to 412", async () => {
+  let putCount = 0;
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY)) {
+      putCount += 1;
+      return putCount === 1 ? new Response("", { status: 409 }) : okResponse();
+    }
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready", "a 409 must retry and eventually succeed, just like a 412");
+    assert.equal(putCount, 2);
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a 400 manifest-write response naming an unsupported operation degrades to an unconditional write, just like a 501", async () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((fn: (...args: unknown[]) => void) => {
+    fn();
+    return 0 as unknown as ReturnType<typeof setTimeout>;
+  }) as typeof setTimeout;
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY) && call.headers.get("if-none-match") === "*") {
+      return new Response("UnsupportedOperation: conditional writes are not implemented", { status: 400 });
+    }
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    const result = await target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" });
+    assert.equal(result.status, "ready");
+    const manifestPuts = fake.calls.filter((c) => c.method === "PUT" && c.url.endsWith(MANAGED_MANIFEST_KEY));
+    assert.ok(manifestPuts.length >= 2, "expected a conditional attempt plus an unconditional fallback write");
+  } finally {
+    fake.restore();
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+test("publish: a genuine 400 manifest-write response (not naming an unsupported operation) throws rather than degrading", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY) && call.headers.get("if-none-match") === "*") {
+      return new Response("Malformed request body", { status: 400 });
+    }
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /HTTP 400/);
+        assert.match(err.message, /Malformed request body/);
+        return true;
+      }
+    );
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a 5xx manifest-write failure throws a bounded DeployError", async () => {
+  const fake = installFakeFetch((call) => {
+    if (call.method === "GET" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (call.method === "PUT" && call.url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("boom", { status: 503 });
+    return okResponse();
+  });
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /HTTP 503/);
+        return true;
+      }
+    );
+  } finally {
+    fake.restore();
+  }
+});
+
+test("publish: a manifest write that throws at the transport layer surfaces as a bounded DeployError", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    if (method === "GET" && url.endsWith(MANAGED_MANIFEST_KEY)) return new Response("Not Found", { status: 404 });
+    if (method === "PUT" && url.endsWith(MANAGED_MANIFEST_KEY)) throw new TypeError("network down");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /network down/);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("publish: a manifest read that throws at the transport layer fails the whole publish with a bounded DeployError", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const { url, method } = requestUrlAndMethod(input);
+    if (method === "GET" && url.endsWith(MANAGED_MANIFEST_KEY)) throw new TypeError("DNS failure");
+    return new Response("", { status: 200 });
+  }) as typeof fetch;
+  try {
+    const target = new S3CompatibleDeployTarget(CONFIG);
+    await assert.rejects(
+      () => target.publish({ files: [{ file: "index.html", data: "x" }], projectName: "demo" }),
+      (err: unknown) => {
+        assert.ok(err instanceof DeployError);
+        assert.match(err.message, /DNS failure/);
+        return true;
+      }
+    );
+  } finally {
+    globalThis.fetch = original;
   }
 });
 
