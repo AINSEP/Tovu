@@ -463,12 +463,21 @@ export function readThemeFile(
  * existing mode before the rename, so replacing a file does not silently change its permissions.
  *
  * @throws whatever the underlying `accessSync`/`writeFileSync`/`chmodSync`/`renameSync` call
- * throws. The temp file is removed before the error propagates, so a failed write leaves no
- * artifact behind in the theme folder.
+ * throws, or {@link ThemePathError} if the pre-write stat on `target` hits anything other than
+ * ENOENT (see {@link statOrThemePathError}). The temp file is removed before the error propagates,
+ * so a failed write leaves no artifact behind in the theme folder.
  * @complexity O(s) in the content size.
  */
-function writeFileAtomically(target: string, content: string): void {
-  const existing = statSync(target, { throwIfNoEntry: false });
+function writeFileAtomically(target: string, content: string, relativePathForError: string): void {
+  // statOrThemePathError, NEVER a bare statSync — same circular-symlink ELOOP escape the other
+  // post-resolve stat calls in this file were fixed for (see that wrapper's own doc). In practice
+  // `writeThemeFile` — this function's only caller — already runs an identical stat on the same
+  // `target` one line earlier and throws first for a circular symlink, so this call is shadowed
+  // under ordinary single-process execution; it still guards a genuine TOCTOU window (an external
+  // process replacing `target` with a symlink cycle between the two calls) and any future caller
+  // that skips that earlier check. Still follows a symlink pointing at a real file inside the theme,
+  // matching `renameSync` below, which replaces that symlink's own directory entry.
+  const existing = statOrThemePathError(target, relativePathForError);
   if (existing) {
     accessSync(target, fsConstants.W_OK);
   }
@@ -513,7 +522,7 @@ export function writeThemeFile(
     throw new ThemePathError(`path '${required.relativePath}' exists and is not a regular file`);
   }
   mkdirSync(dirname(target), { recursive: true });
-  writeFileAtomically(target, required.content);
+  writeFileAtomically(target, required.content, required.relativePath);
   return target;
 }
 
