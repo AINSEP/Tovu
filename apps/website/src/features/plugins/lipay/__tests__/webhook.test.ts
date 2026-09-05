@@ -556,19 +556,18 @@ test("webhook: a refund event whose currency is not a string is treated as a ful
   cleanup(harness.db, harness.dir);
 });
 
-test("webhook: BUG — pinning current behavior, not endorsing it — a second distinct partial-refund event that doesn't complete the refund is silently dropped rather than accumulated", async () => {
+test("webhook: a second distinct partial-refund event that doesn't complete the refund accumulates into the refunded total", async () => {
   // `canTransition(from, to)` is deliberately `false` when `from === to` (state-machine.ts: a
-  // same-status "transition" is not a state change). `computeEventTransition` treats that `false`
-  // identically to a genuinely-rejected transition (stale ordering, a terminal payment) and skips
-  // applying the event ENTIRELY — including the amount update. That is asymmetric with the direct
-  // `refund()` API path (`executeRefundAttempt`), which has its own separate branch that still
-  // moves `amount_refunded_minor` even when the status doesn't change (see the charge-refund.test.ts
-  // case with the same 300+300 shape). The trigger: a provider that reports "refunded" via
-  // per-partial-refund webhook events, where an intermediate event doesn't itself reach the full
-  // charge amount. Blast radius: the webhook-driven refunded total silently stops accumulating and
-  // the dropped event is left in `p_lipay__events` with `applied = 0` forever, with no error
-  // returned to the provider (the webhook still 2xxs) — a merchant's ledger would under-report how
-  // much was actually refunded.
+  // same-status "transition" is not a state change), so the STATUS correctly stays
+  // `partially_refunded` across both events. The MONEY is a separate question, and the two write
+  // paths must answer it the same way: the direct `refund()` API (`executeRefundAttempt`) has
+  // always written `amount_refunded_minor` even when the status does not move (see the
+  // charge-refund.test.ts case with this same 300+300 shape), and `computeEventTransition` now
+  // does too. The divergence this pins against: a provider that reports "refunded" as a stream of
+  // per-partial-refund webhook events, where an intermediate event does not itself reach the full
+  // charge amount — that event used to be dropped entirely, left in `p_lipay__events` with
+  // `applied = 0` forever and with no error returned to the provider (the webhook still 2xxs), so
+  // a merchant's ledger silently under-reported how much was actually refunded.
   const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
   const payment = await pendingPayment(harness, 1000);
   const nowSeconds = Math.floor(harness.clock.now() / 1000);
@@ -601,14 +600,43 @@ test("webhook: BUG — pinning current behavior, not endorsing it — a second d
     }),
   });
 
-  // `processed` counts every non-duplicate event, whether or not it was actually APPLIED to the
-  // payment — so `processed: 1` here does not mean the refund total moved. It didn't:
+  // `processed` counts every non-duplicate event whether or not it moved the payment, so the ack
+  // alone proves nothing either way — the ledger does:
   assert.deepEqual(secondRefund, { accepted: true, processed: 1, duplicates: 0 });
   const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
-  assert.equal(after?.amountRefundedMinor, 300, "CURRENT (buggy) behavior: the second partial refund's amount is dropped");
-  assert.equal(after?.status, "partially_refunded");
+  assert.equal(after?.amountRefundedMinor, 600, "300 + 300 against a 1000 charge accumulates to 600");
+  assert.equal(after?.status, "partially_refunded", "status is unchanged, not reset or cleared: 600 is still short of 1000");
   const rows = eventRows(harness.db);
-  assert.equal(rows.find((r) => r.provider_event_id === "evt_3")?.applied, 0, "the event is recorded but marked unapplied, forever");
+  assert.equal(rows.find((r) => r.provider_event_id === "evt_3")?.applied, 1, "the event moved the ledger, so it is marked applied");
+
+  cleanup(harness.db, harness.dir);
+});
+
+test("webhook: a second distinct succeeded event for an already-succeeded payment is recorded, never re-applied", async () => {
+  // The same-status case for a kind that carries no money at all: `statusForEventKind("succeeded")`
+  // names the status the payment already holds and nothing about the ledger moves, so — unlike a
+  // same-status refund — this event stays `applied = 0`. This is the boundary on
+  // `computeEventTransition`'s money-only branch: it must fire for a refund whose total actually
+  // advances, and for nothing else.
+  const harness = await makeLipay({ responses: [chargeOk("ch_1", "pending")] });
+  const payment = await pendingPayment(harness, 1000);
+  const nowSeconds = Math.floor(harness.clock.now() / 1000);
+
+  await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_1", type: "charge.succeeded", createdSeconds: nowSeconds, charge: { id: "ch_1" } }),
+  });
+  const second = await harness.api.handleWebhook({
+    providerId: "lipay",
+    ...delivery({ id: "evt_2", type: "charge.succeeded", createdSeconds: nowSeconds + 1, charge: { id: "ch_1" } }),
+  });
+
+  assert.deepEqual(second, { accepted: true, processed: 1, duplicates: 0 });
+  const after = harness.api.getPayment({ workspaceId: WORKSPACE_ID, id: payment.id });
+  assert.equal(after?.status, "succeeded");
+  assert.equal(after?.amountRefundedMinor, 0, "a succeeded event moves no money");
+  const rows = eventRows(harness.db);
+  assert.equal(rows.find((r) => r.provider_event_id === "evt_2")?.applied, 0, "no state moved, so the event is recorded and left unapplied");
 
   cleanup(harness.db, harness.dir);
 });
