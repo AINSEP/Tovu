@@ -850,12 +850,23 @@ export interface MakeCredentialedRequestInput {
  * listing it explicitly, an endpoint that echoes just the bare payload back would slip past both
  * {@link redactResponseHeaders} and {@link resolveRedactedResponseBody} undetected.
  *
- * Gated on the RESOLVED scheme being `basic` rather than the looser `connection.username`
- * truthiness check, so this list only ever contains a payload that was actually sent — a credential
- * carrying both a self-describing token AND a leftover saved username never sends Basic, so there
- * is no such payload to leak or to list. See this file's header, "The token never reaches the
- * model", and {@link buildBasicAuthPayload}'s own doc for why this is derived rather than
- * duplicated.
+ * A self-describing scheme (e.g. fly.io's `FlyV1<macaroon>`) has the identical shape of gap, for the
+ * identical reason: `connection.token` is the WHOLE stored string, scheme word and all (that is what
+ * "self-describing" means — see this file's header, "Self-describing token schemes"), so it is
+ * exactly as prefixed as `authorizationHeader` and never matches a response that reflects only the
+ * bare value with no scheme word. {@link resolveAuthorizationScheme}'s own `value` field — the same
+ * bare value {@link buildAuthorizationHeader} appends the scheme word to — is the one form this list
+ * was missing (2026-09-05 fix; caught because a reflecting endpoint that hands back only the bare
+ * macaroon is a completely ordinary error-body shape, not a hypothetical).
+ *
+ * Both additions are gated on the RESOLVED scheme (`basic`/`self-describing`), never on
+ * `connection.username`'s truthiness or `connection.token`'s own content, so this list only ever
+ * contains a form that was actually sent — a credential carrying both a self-describing token AND a
+ * leftover saved username never sends Basic, so there is no Basic payload to leak or to list. See
+ * this file's header, "The token never reaches the model", and {@link buildBasicAuthPayload}'s own
+ * doc for why the Basic payload is derived rather than duplicated; the self-describing `value` is
+ * read straight off {@link resolveAuthorizationScheme}'s own result for the same reason — never
+ * re-parsed or string-sliced out of `connection.token` a second time.
  *
  * Extracted from {@link makeCredentialedRequest} (2026-09-03) so that function stays under the
  * repo's 9/9 complexity ceiling — the Basic-payload branch was its tenth.
@@ -863,12 +874,18 @@ export interface MakeCredentialedRequestInput {
  * Every entry is matched as a SUBSTRING (see {@link redactResponseHeaders}), never by exact
  * equality.
  *
+ * Written as an exhaustive three-way match on `resolvedScheme.kind`, not the earlier `!== "basic"`
+ * shortcut: that shortcut is exactly what let the self-describing case silently fall through with
+ * `bearer`'s (wrong) two-secret list for over a day — grouping two kinds under "not this one kind"
+ * reads as "nothing extra needed" even when only one of the two actually has nothing extra to add.
+ *
  * @complexity O(1).
  */
 function buildResponseSecrets(connection: CustomProviderConnectionInput, authorizationHeader: string): readonly string[] {
   const resolvedScheme = resolveAuthorizationScheme(connection);
-  if (resolvedScheme.kind !== "basic") return [authorizationHeader, connection.token];
-  return [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)];
+  if (resolvedScheme.kind === "self-describing") return [authorizationHeader, connection.token, resolvedScheme.value];
+  if (resolvedScheme.kind === "basic") return [authorizationHeader, connection.token, buildBasicAuthPayload(resolvedScheme.username, resolvedScheme.token)];
+  return [authorizationHeader, connection.token];
 }
 
 export async function makeCredentialedRequest(deps: CredentialedRequestDeps, input: MakeCredentialedRequestInput): Promise<CredentialedRequestExecutedResult> {
