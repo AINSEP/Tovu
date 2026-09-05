@@ -13,6 +13,12 @@ Full evidence for every item below is in `2026-09-03-complexity-swarm-findings.m
 - **Complexity campaign closed.** 68 violations / 43 files → **1** (the documented
   `mergeExternalMcpSavePrefill` exemption). Gate green: `0 new complexity violations (1 total,
   1 in baseline)`. 11 batches, each commit independently re-measured, baseline ratcheted DOWN.
+  **[Corrected 2026-09-05]** This "1 total, 1 in baseline" figure was overtaken within the hour —
+  more debt was baselined afterward and the gate briefly went RED again (2 new violations at
+  11:34 on 2026-09-05) before a same-morning refactor (`ab051e61`, 11:40) closed it. MEASURED
+  current state (re-run just now): `0 new complexity violations (4 total, 4 in baseline)`, gate
+  green. See `ADS-memory/reports/2026-09-05-complexity-ground-truth.md` for the full
+  reconciliation.
 - **`apps/admin` complexity: 11 → 0** (`1425da68`). Gate green against its 8 grandfathered entries.
 - **Privilege escalation fixed** — Jini `32c58888` + Tovu `1ae2ac19`. `resetUserPassword` now takes
   `seededOwnerPrincipalId` and refuses a mismatched caller. Deliberately NOT the unconditional
@@ -71,11 +77,11 @@ Full evidence for every item below is in `2026-09-03-complexity-swarm-findings.m
 
 | # | Item | Notes |
 |---|---|---|
-| 3 | `media/update.ts` stores literal `"null"` for `alt`/`caption`/`credit`/`title` | Owner ruled: "do the responsible thing." Sibling fields on the SAME endpoint treat null as clear. Alt text is an a11y surface — a screen reader announces "null". Must also: verify `updateMediaMetadata`'s contract can express "clear", **count existing poisoned rows**, keep omitted-means-unchanged, fix the doc comment that calls the bug deliberate. |
+| 3 | `media/update.ts` stores literal `"null"` for `alt`/`caption`/`credit`/`title` | **DONE same day** — MEASURED via `git show`: `cadcd409` (2026-09-03 17:12) stops storing the literal string for `alt`/`caption`/`credit`. `title` was deliberately handled differently, not left broken: it now rejects `title: null` with an exact 400 message (`media.title cannot be cleared to null...`) because title has no empty-string representation and a "keep existing" fallback would have silently no-op'd the caller's intent. |
 | 7/21 | Three untracked test files — **DONE** (peer `tovu-f7`) | `1ca7e2e8` redirects/list (6/6 as-is) · `96caeb7d` comments/data-module-install (**test bug**: asserted a `p_comments__settings` table that exists nowhere in production — `COMMENTS_DATA_MODULE` declares only `comments`+`moderation_log`; settings live in the ADR-028 ledger) · `65c311a2` newsletter/import-subscriptions (**three** test bugs, each surfacing only after the prior fix: nonexistent `deps.newsletterSubscriberRepo`, treating `save`'s `Promise<void>` as the saved row, asserting `failed[].subscriberId` when the shape is `{index,code,message}`). 14/14 green, nothing red committed. **Both reds were test bugs, not production bugs.** |
 | 14 | RBAC chokepoint divergence | Tovu routes pass `entityType`, Jini chokepoints don't → spurious 403 for `resourceType: "entry"`-scoped principals. **Assigned to R, in flight.** |
 | 15 | `update-campaign` scheduled-edit | Spec says draft OR scheduled; code permits draft only → 409. Spec-vs-code ruling needed. |
-| 16 | Entries outbox never drained | `processOutbox` never called from entries/content-types routes. **Assigned to R, in flight.** |
+| 16 | Entries outbox never drained | **DONE same day** — MEASURED: `6c499cf0` (2026-09-03 17:13, "drain the outbox after entries/content-types lifecycle writes") calls `processOutbox` from `entries/{create,update,lifecycle}.ts` and `content-types/lifecycle.ts`, matching every other write path in the composition root. |
 | 17 | 7 Jini packages published ahead of HEAD — CONFIRMED | protocol 0.3.0/0.3.1 · agent-runtime 0.3.0/0.3.2 · daemon 0.3.1/0.3.2 · http-kit 0.3.0/0.3.3 · chat 0.3.2/0.3.4 · integrations 0.3.4/0.3.5 · cms 0.3.1/0.3.5 (committed/published). **Moving target** — `jini-publish` is bumping and publishing concurrently. Owner call on retroactive commits. |
 | 18b | `better-sqlite3` lockfile drift — CONFIRMED, not fixed | `packages/integrations/package.json` wants `^13.0.0`; lockfile resolves `11.10.0`; **13.0.3 is what's actually on disk**. `pnpm install --frozen-lockfile` would not deliver what's been tested against. Lockfile NOT regenerated — owner call. |
 | 18c | The CRASH watchdog has the identical gap | Same `emit()`-only reset and same `resume()` miss as the slow-run one just fixed — but it **terminates** runs. Dormant today (no production caller sets `inactivityTimeoutMs`), so a latent bug, not a live one. |

@@ -1,3 +1,14 @@
+> **SUPERSEDED 2026-09-05.** The "70 violations across 41 files" claim below is no longer true —
+> MEASURED (2026-09-05, this pass) by re-running the exact command this file names:
+> `npx tsx development/scripts/check-src-complexity-drift.ts` now exits 0 —
+> `0 new complexity violations (4 total, 4 in baseline)`. A complexity campaign landed across
+> 2026-09-03/05 (11 batches, each independently re-measured, per
+> `ADS-memory/reports/2026-09-03-OUTSTANDING-WORKLIST.md`) that this file's own "handed off as
+> tech debt" framing did not anticipate.
+> Current truth: gate green, 4 baselined violations. See
+> `ADS-memory/reports/2026-09-05-complexity-ground-truth.md` for the reconciliation of this
+> file's number against the worklist's.
+
 # Remaining complexity-gate findings — 2026-09-03
 
 Fresh `npx tsx development/scripts/check-src-complexity-drift.ts` run after fixing the 3 worst

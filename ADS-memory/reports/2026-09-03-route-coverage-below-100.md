@@ -1,3 +1,11 @@
+> **SUPERSEDED 2026-09-05.** Every one of this report's worst-10 files was fixed the same afternoon
+> it was captured (commits between 15:03-17:13 on 2026-09-03, e.g. `69157f8c`/`a63534b5`,
+> `9e416602`/`7e1cea7e`/`6c499cf0`, `419bd266`, `9ab21f17`) — MEASURED via `git log` on each file
+> (source or paired test file) plus direct commit inspection. The table below is a snapshot of a
+> state that stopped being true within hours; do not cite these numbers as current.
+> Current truth: route coverage ground truth (in progress at supersession time) —
+> see `ADS-memory/reports/2026-09-05-route-coverage-ground-truth.md`.
+
 # Route files below 100% coverage — 2026-09-03
 
 Source: development/coverage/lcov.info, captured ~12:48 PDT after the public-http scope fix (628ce826/8f8d3e8d).
