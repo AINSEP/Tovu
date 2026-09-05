@@ -24,17 +24,23 @@ Related: `ADS-memory/reports/2026-09-05-coverage-task-list.md` (owner-directed
 task list, 100%-is-the-bar standing rule, trap register).
 
 **Status**: Phase 1 (static enumeration) complete. Phase 2 (measured lcov) is
-now **underway** in this pass — `deployments` has been re-run and is
-**CONFIRMED** (see below; the re-run reproduced the original numbers exactly
-despite load spiking again during the run, which is itself the evidence the
-numbers are trustworthy — see the reproduction note). This box spikes hard
-(peaks 60-80+ on the 1-min average) during essentially any `node --test
---experimental-test-coverage` or `vitest --coverage` invocation right now,
-with two other agents running tests concurrently — that is the new baseline
-behavior to expect, not a sign any individual run is invalid, provided the
-run itself still exits 0 with zero failure markers. Runs continue strictly
-serially, one invocation at a time, with `uptime` recorded before and after
-each.
+now **complete for the original top-10-by-size ranked list** — all 10 of the
+largest UNMEASURED directories from Phase 1 have been measured this pass,
+plus `deployments` (re-confirmed). Result in one line: **9 of the 11
+measured directories are near-ceiling (95%+ lines); two — `admin/themes` and
+`admin/posts` — carry real, concrete gaps.** Many more smaller directories
+remain `UNMEASURED` below the top 10 and are legitimate next targets; the
+appendix's per-directory external-suite maps are ready for whoever measures
+them. This box spikes hard (peaks 40-80+ on the 1-min average) during
+essentially any `node --test --experimental-test-coverage` or `vitest
+--coverage` invocation, with other agents running tests concurrently — that
+is the baseline behavior to expect, not a sign any individual run is
+invalid, provided the run itself still exits 0 with zero failure markers.
+One run this pass (`theme`, the largest) pushed swap to 2614.5MB/3072MB,
+right at the danger line team-lead named — flagged live, and the run had
+already completed cleanly by the time it was checked. Runs continued
+strictly serially, one invocation at a time, with `uptime` (and, from
+mid-pass on, swap/free-memory) recorded before and after each.
 
 ## Method
 
@@ -67,7 +73,7 @@ suites" is a lead for where to look next, not a coverage number.**
 
 | Dir | Files | Lines | Internal tests | Candidate ext. suites (website-app only) | Coverage |
 |---|---|---|---|---|---|
-| theme | 26 | 9474 | 82 | 52 (+2 from admin — cross-app reference, see appendix) | UNMEASURED |
+| theme | 26 | 9474 | 82 | 52 (+2 from admin — cross-app reference, see appendix) | **MEASURED — 99.7% lines, 98.8% functions, 95.4% branches. Near-ceiling; all 26 source files accounted for. See Phase 2 log.** |
 | deployments | 32 | 8557 | 19 | 15 | **MEASURED — see Phase 2 log** |
 | widgets | 26 | 5378 | 19 | 12 (+2 admin) | **MEASURED — 99.6% lines, 99.6% functions, 92.9% branches (merged-lcov figure — see dual-instantiation note in Phase 2 log). Near-ceiling; no zero-coverage files.** |
 | plugins | 17 | 4190 | 19 | 11 (+3 admin) | **MEASURED — 99.2% lines, 96.8% functions, 94.9% branches. Near-ceiling. See Phase 2 log.** |
@@ -655,38 +661,73 @@ correction (dual-instantiation lcov trap, caught and fixed mid-parse)
 
 ## Ranked by size of the unmeasured surface ("largest unknown", not "largest gap")
 
-Everything here is `UNMEASURED` — this ranks what is biggest and least known,
-not what is least covered. `deployments`, `apps/admin/src/lib`,
-`apps/admin/src/components`, `apps/admin/src/features/deployment`,
-`apps/website/src/features/widgets`, `apps/admin/src/features/pages`,
-`apps/admin/src/features/posts`, `apps/admin/src/features/themes`,
-`apps/admin/src/features/collections`, and `apps/website/src/features/plugins`
-are removed from this list because they are no longer unknown (see their
-measured sections above/below).
+**This list is now empty.** All 10 of the original top-10-by-size directories
+have been measured this pass, `theme` last (see below). Nothing remains
+`UNMEASURED` from the original ranked list; the appendix's per-directory
+external-suite maps for smaller directories not covered by this pass remain
+useful for whoever measures those next.
 
-1. `apps/website/src/features/theme` — 9474 lines (known cross-directory
-   exerciser pattern; needs the 54-suite external run, not just the 82
-   internal tests, to answer honestly). **The only entry left on this list —
-   see the dedicated note below before attempting it.**
+## Measured: `apps/website/src/features/theme` — the last, largest, and final directory this pass
 
-## `theme` — the one directory intentionally deferred this pass
-
-Every other directory on the original top-10-by-size ranked list has now
-been measured (9 of 10; only `theme` remains). `theme` is a **136-file**
-invocation (82 internal + 52 website-external + 2 admin-external, per the
-appendix) — roughly 4x the file count of any run attempted this pass, and
-this repo crashed once today at load 721 from concurrent test invocations.
-Every run this pass, even the lightest, produced a load spike (typically 3-8x
-the pre-run number); a 136-file run's spike is an unknown multiple of that,
-not a linear extrapolation, since node's `--experimental-test-coverage`
-instruments the full transitive module graph reached by every file in one
-process. This was deliberately not attempted without a fresh go/no-go check
-(uptime **and** swap/free-memory, per team-lead's revised guidance) taken
-immediately before the attempt, and, given the size, probably deserves being
-run alone rather than alongside other directory work. The exact command and
-full 136-file list are already in the "What would settle each row" section
-and the appendix below — nothing further needs to be derived, only executed
-under a clean environment.
+- **Correction to the file-count estimate above**: the "82 internal tests"
+  figure in the website table (and the "136-file" estimate this section
+  originally carried) counted every file under `__tests__/`, including
+  fixtures — actual runnable `*.test.ts` files number **47**, not 82 (the
+  other 35 are `.js`/`.json`/`.map`/`.mjs`/`.html`/`.astro`/`.d.ts` fixture
+  assets for build-conformance tests, confirmed by listing extensions
+  directly). Combined with the 52 website-external candidates, the real
+  invocation was **99 files**, not 136.
+- **uptime before**: `16:31, load averages 5.06 8.52 14.89`; swap
+  `1875.0MB/3072MB` (checked immediately before, per the revised
+  memory/swap-based gating). **During/after**: `16:34, load averages 77.22
+  61.55 37.47`; **swap climbed to 2614.5MB/3072MB, free memory down to
+  457.5MB** — right at the ~2.6GB line team-lead named as the danger
+  threshold. Flagged to team-lead immediately per their explicit instruction.
+  The run had already completed (exit 0) by the time this was checked. Load
+  fell back to `47.72` shortly after with no further swap growth observed;
+  no further test invocations were run until confirming the number was not
+  still climbing. **Treat this as the one run this pass that came closest to
+  the danger line — the next agent should not chain another large invocation
+  immediately after a `theme`-sized one without re-checking swap first.**
+- **Command** (repo-root cwd):
+  ```
+  env -u TOVU_ADMIN_PASSWORD TSX_TSCONFIG_PATH=apps/site-chat/tsconfig.json \
+    node --import tsx --test --experimental-test-module-mocks \
+    --experimental-test-coverage \
+    --test-coverage-exclude="**/__no_route_coverage_gate_exclusions__/**" \
+    --test-reporter=lcov --test-reporter-destination=<scratch>/lcov/theme.lcov.info \
+    --test-reporter=dot --test-reporter-destination=stdout \
+    <47 internal *.test.ts files under features/theme/**/__tests__/> \
+    <52 external files from the inventory appendix's `features/theme` [W] list>
+  ```
+  Exit 0; log has zero non-dot lines other than the `EXIT:0` marker — all
+  tests passed. Checked for the dual-instantiation trap first: no duplicate
+  `SF:` records this time (`grep -c` matched `sort -u | wc -l` exactly:
+  1426 = 1426).
+- **lcov retained at**: `.../scratchpad/lcov/theme.lcov.info`.
+- **Result** (all 26 of 26 source files present — nothing missing, no
+  pure-interface files in this directory):
+  - Lines: **99.7%** (9444/9474)
+  - Functions: 98.8% (410/415)
+  - Branches: 95.4% (1422/1490)
+  - No file below 98.7% lines. Softest: `static-render.ts` 98.7% lines
+    (1054/1068), 211/215 branches; `build-conformance.ts` 99.1% lines
+    (556/561); `validation/markup.ts` 99.1% lines (110/111);
+    `theme-files.ts` 99.5% lines (761/765); `theme.ts` 99.9% lines
+    (1448/1449); `tool-registrations.ts` 99.3% lines (696/701).
+- **Reading**: `apps/website/src/features/theme` — the largest and, at the
+  start of this pass, the most uncertain directory in the whole inventory
+  (9474 raw lines, only 82 files under `__tests__/` — most of which turned
+  out to be fixtures, not tests) — is **not** a low-coverage surface. It is
+  in the same near-ceiling shape as `deployments`, `admin/lib`, `widgets`,
+  `admin/collections`, and `website/plugins`. This closes the last entry on
+  the original top-10-by-size ranked list — every one of the 10 largest
+  UNMEASURED directories from Phase 1 has now been measured, and 9 of the 10
+  turned out to be near-ceiling or moderately-gapped rather than genuinely
+  uncovered. Only `admin/themes` (69.6% branches) and `admin/posts`
+  (`PostEditor.tsx` at 60% lines) surfaced as real, concrete gaps; `admin/pages`,
+  `admin/components`, and `admin/deployment` had smaller, real but partial
+  gaps concentrated in branches.
 
 ## What would settle each row — for whoever resumes Phase 2
 
