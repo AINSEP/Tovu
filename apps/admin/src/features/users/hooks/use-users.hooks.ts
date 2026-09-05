@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
 import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "@/lib/api";
 import { useFetchMutation, useFetchQuery } from "@/lib/fetch-query";
@@ -152,8 +152,23 @@ export interface UsersController {
  *  since it tracks its OWN `emailSaving`). Reproducing the shared-state shape as a local top-level
  *  helper — rather than importing the generic primitive — collapses the two call sites without
  *  forcing that mismatch onto them. `mutate` itself `invalidates: [KEYS.list]`, replacing the
- *  pre-migration `reload()` call this helper used to make explicitly. */
+ *  pre-migration `reload()` call this helper used to make explicitly.
+ *
+ *  `onSuccess` (2026-09-05 fix, same bug class as `use-roles.hooks.ts`'s `onSaveRole`/
+ *  `onWritePermission`): nothing gates opening a DIFFERENT user's Manage panel
+ *  (`toggleExpanded`) while a grant for the previously expanded one is still in flight, and
+ *  `onSuccess` clears `pendingRoleId`/`pendingPolicyId` — a shared field, not keyed by principal.
+ *  `toggleGenerationRef` (bumped once per `toggleExpanded` call, regardless of which panel — see
+ *  that function) lets a stale grant tell whether the operator switched panels at ALL while it was
+ *  in flight, independent of which principal is currently expanded: comparing against the panel's
+ *  OWN identity would wrongly refuse a grant issued before any panel was ever expanded (a
+ *  legitimate, already-certified call shape), where `expandedId` never gets set to begin with.
+ *  `onSuccess` is skipped only when a switch actually happened since this call started — otherwise
+ *  a stale grant's success would erase a NEW, unrelated selection the operator has since made for
+ *  the panel they actually have open now. */
 async function runGrantMutation(
+  generationAtStart: number,
+  toggleGenerationRef: { current: number },
   mutate: () => Promise<unknown>,
   onSuccess: () => void,
   setGrantSaving: Dispatch<SetStateAction<boolean>>,
@@ -164,7 +179,7 @@ async function runGrantMutation(
   setGrantError(null);
   try {
     await mutate();
-    onSuccess();
+    if (toggleGenerationRef.current === generationAtStart) onSuccess();
   } catch (e) {
     setGrantError(describeError(e));
   } finally {
@@ -214,6 +229,11 @@ export function useUsers(deps: UsersDependencies): UsersController {
   });
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // Bumped once per `toggleExpanded` call, regardless of which panel — `runGrantMutation` (a
+  // top-level function, outside this closure's re-render cycle) reads this to tell whether the
+  // operator switched panels AT ALL while its own grant was in flight. See that function's own doc
+  // comment for why this counts switches rather than comparing against `expandedId`'s value.
+  const toggleGenerationRef = useRef(0);
   const [pendingRoleId, setPendingRoleId] = useState("");
   const [pendingPolicyId, setPendingPolicyId] = useState("");
   const [grantSaving, setGrantSaving] = useState(false);
@@ -274,12 +294,15 @@ export function useUsers(deps: UsersDependencies): UsersController {
     setPendingRoleId("");
     setPendingPolicyId("");
     setEditEmail(user.email ?? "");
+    toggleGenerationRef.current += 1;
     setExpandedId((current) => (current === user.principalId ? null : user.principalId));
   }
 
   async function onAssignRole(principalId: string) {
     if (!pendingRoleId) return;
     await runGrantMutation(
+      toggleGenerationRef.current,
+      toggleGenerationRef,
       () => assignRoleMutation.mutate({ principalId, roleId: pendingRoleId }),
       () => setPendingRoleId(""),
       setGrantSaving,
@@ -291,6 +314,8 @@ export function useUsers(deps: UsersDependencies): UsersController {
   async function onAttachPolicy(principalId: string) {
     if (!pendingPolicyId) return;
     await runGrantMutation(
+      toggleGenerationRef.current,
+      toggleGenerationRef,
       () => attachPolicyMutation.mutate({ principalId, policyId: pendingPolicyId }),
       () => setPendingPolicyId(""),
       setGrantSaving,
@@ -339,6 +364,12 @@ export function useUsers(deps: UsersDependencies): UsersController {
     }, (e) => describeApiError(e, t(locale, "failed to reset password")));
   }
 
+  /** `setToggleSavingId`'s `finally` reset (2026-09-05 fix, same bug class as
+   *  `use-roles.hooks.ts`'s `onSaveRole`/`runRowDelete`) is a functional update keyed on THIS call's
+   *  own `principalId`: Enable fires with no confirmation gate, so two calls — on different users —
+   *  can genuinely overlap, and an unconditional reset would clear the busy indicator (which
+   *  `openResetPassword` below reads to refuse opening while a toggle is in flight) out from under a
+   *  still-in-flight, unrelated toggle. */
   async function onToggleStatus(user: AdminIdentityUser) {
     setToggleSavingId(user.principalId);
     setToggleError(null);
@@ -347,7 +378,7 @@ export function useUsers(deps: UsersDependencies): UsersController {
     } catch (e) {
       setToggleError(describeApiError(e, t(locale, "failed to change status")));
     } finally {
-      setToggleSavingId(null);
+      setToggleSavingId((current) => (current === user.principalId ? null : current));
     }
   }
 
@@ -361,11 +392,18 @@ export function useUsers(deps: UsersDependencies): UsersController {
 
   /** Confirms the Disable that `RowMenu`'s "Disable" item asked about. Closes the dialog either
    *  way (matching Posts.tsx/Redirects.tsx's own Disable/Delete `ConfirmDialog` convention) — a
-   *  failure surfaces via `toggleError` above the table, not by leaving the modal open. */
+   *  failure surfaces via `toggleError` above the table, not by leaving the modal open.
+   *
+   *  2026-09-05 fix, same bug class as `use-roles.hooks.ts`'s `runRowDelete`: `setConfirmingDisable`
+   *  is exposed directly on the controller, so nothing at the hook level stops the operator opening
+   *  a DIFFERENT user's Disable confirmation while this one's toggle is still in flight. The close
+   *  below only clears it when it still names the SAME user this call started for — otherwise a
+   *  stale toggle's settlement would silently dismiss a newer, still-undecided confirmation. */
   async function confirmDisable() {
     if (!confirmingDisable) return;
-    await onToggleStatus(confirmingDisable);
-    setConfirmingDisable(null);
+    const user = confirmingDisable;
+    await onToggleStatus(user);
+    setConfirmingDisable((current) => (current?.principalId === user.principalId ? null : current));
   }
 
   return {

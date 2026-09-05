@@ -53,6 +53,16 @@ const USER_A = {
   roleIds: [] as string[],
   policyIds: [] as string[],
 };
+const USER_B = {
+  principalId: "u2",
+  workspaceId: "w1",
+  username: "bob",
+  email: "bob@example.com",
+  status: "active" as const,
+  createdAt: "2026-08-01T00:00:00.000Z",
+  roleIds: [] as string[],
+  policyIds: [] as string[],
+};
 const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false };
 const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false };
 
@@ -550,5 +560,67 @@ describe("injected port (useX(dependencies) / useWiredX() conversion coverage)",
 
     expect(result.current.grantError).toBe("boom");
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  // `onAssignRole`/`onAttachPolicy` (via the shared `runGrantMutation` helper) cleared
+  // `pendingRoleId` unconditionally on success — nothing gates opening a DIFFERENT user's Manage
+  // panel while a grant for the previously expanded one is still in flight. See
+  // `runGrantMutation`'s own doc comment.
+  it("onAssignRole: a stale success settling after the operator switched panels and picked a NEW role must not clear it", async () => {
+    let resolveA!: (v: { assignment: unknown }) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.assignRole = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.toggleExpanded(USER_A));
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    act(() => {
+      void result.current.onAssignRole(USER_A.principalId);
+    });
+    await waitFor(() => expect(port.assignRole).toHaveBeenCalledTimes(1));
+
+    // Before A's assign settles, the operator switches to B's panel and picks a NEW role there.
+    act(() => result.current.toggleExpanded(USER_B));
+    act(() => result.current.setPendingRoleId("some-other-role"));
+    expect(result.current.pendingRoleId).toBe("some-other-role");
+
+    await act(async () => {
+      resolveA({ assignment: {} });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.pendingRoleId).toBe("some-other-role");
+  });
+
+  // `confirmDisable` closed `confirmingDisable` unconditionally after `onToggleStatus` settled —
+  // `setConfirmingDisable` is exposed directly on the controller, so nothing at the hook level
+  // stops opening a DIFFERENT user's Disable confirmation while this one's toggle is in flight.
+  // See `confirmDisable`'s own doc comment.
+  it("confirmDisable: a stale settlement after the operator opened a DIFFERENT user's confirm dialog must not silently close it", async () => {
+    let resolveA!: (v: { user: typeof USER_A }) => void;
+    const port = createFakeUsersPort({ users: [USER_A, USER_B], roles: [ROLE], policies: [POLICY] });
+    port.disableUser = vi.fn(() => new Promise((resolve) => { resolveA = resolve; }));
+
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.requestDisable(USER_A));
+    act(() => {
+      void result.current.confirmDisable();
+    });
+    await waitFor(() => expect(port.disableUser).toHaveBeenCalledTimes(1));
+
+    // Before A's disable settles, the operator opens a confirm dialog for a DIFFERENT user.
+    act(() => result.current.requestDisable(USER_B));
+    expect(result.current.confirmingDisable).toEqual(USER_B);
+
+    await act(async () => {
+      resolveA({ user: { ...USER_A, status: "disabled" as const } });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current.confirmingDisable).toEqual(USER_B);
   });
 });
