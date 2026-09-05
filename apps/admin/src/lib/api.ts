@@ -1812,8 +1812,8 @@ export function onUnauthenticated(listener: UnauthenticatedListener): () => void
 export function buildFetchInit(init: RequestInit = {}): RequestInit {
   return {
     credentials: "same-origin",
-    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     ...init,
+    headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
   };
 }
 
