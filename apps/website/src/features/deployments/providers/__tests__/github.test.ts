@@ -44,6 +44,37 @@ function jsonResponse(status: number, body: unknown): HttpResponse {
   return { status, headers: {}, bodyText: JSON.stringify(body) };
 }
 
+function rawResponse(status: number, bodyText: string): HttpResponse {
+  return { status, headers: {}, bodyText };
+}
+
+/** Always throws — proves the `try/catch` around each `sendPinned` call site (mint, create,
+ * poll) surfaces a network failure as a typed, retryable `TRANSPORT_ERROR` instead of an
+ * unhandled rejection. */
+class ThrowingHttpClient implements HttpClientPort {
+  constructor(private readonly message: string) {}
+  async send(): Promise<HttpResponse> {
+    throw new Error(this.message);
+  }
+}
+
+/** Like `FakeHttpClient`, but a step may be a thunk that throws instead of a canned response —
+ * lets a test succeed on the token mint (call 1) and fail the transport on the second call
+ * (deployment create / status poll) without a second class per call site. */
+class ScriptedHttpClient implements HttpClientPort {
+  readonly calls: HttpRequest[] = [];
+  private cursor = 0;
+  constructor(private readonly steps: ReadonlyArray<HttpResponse | (() => never)>) {}
+
+  async send(request: HttpRequest): Promise<HttpResponse> {
+    this.calls.push(request);
+    const step = this.steps[Math.min(this.cursor, this.steps.length - 1)];
+    this.cursor += 1;
+    if (typeof step === "function") return step();
+    return step;
+  }
+}
+
 function makeTarget(overrides: Partial<DeploymentTargetRecord["config"]> = {}): DeploymentTargetRecord {
   return {
     workspaceId: "ws-1",
@@ -215,4 +246,274 @@ test("startRun surfaces a non-2xx token exchange as a typed PROVIDER_ERROR, neve
   assert.equal(result.ok, false);
   assert.equal(!result.ok && result.error.code, "PROVIDER_ERROR");
   assert.equal(!result.ok && result.error.providerStatus, 403);
+  assert.equal(!result.ok && result.error.retryable, false, "a 4xx token-exchange failure is not retryable");
+});
+
+test("startRun marks a 5xx token-exchange failure as retryable", async () => {
+  const http = new FakeHttpClient([jsonResponse(502, { message: "bad gateway" })]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_ERROR");
+  assert.equal(!result.ok && result.error.message, "GitHub installation token exchange failed: 502");
+  assert.equal(!result.ok && result.error.providerStatus, 502);
+  assert.equal(!result.ok && result.error.retryable, true);
+});
+
+test("startRun and pollRun report INVALID_TARGET_CONFIG for each missing or malformed github field", async () => {
+  const invalidConfigs: Array<[string, Record<string, unknown>]> = [
+    ["owner not a string", { owner: 42 }],
+    ["owner empty", { owner: "" }],
+    ["repo not a string", { repo: 42 }],
+    ["repo empty", { repo: "" }],
+    ["environmentName not a string", { environmentName: 42 }],
+    ["environmentName empty", { environmentName: "" }],
+  ];
+
+  for (const [label, overrides] of invalidConfigs) {
+    const http = new FakeHttpClient([jsonResponse(200, {})]);
+    const provider = createGitHubDeploymentProvider();
+    const target = makeTarget(overrides);
+
+    const startResult = await provider.startRun({ target, release: makeRelease() }, makeContext(http));
+    assert.equal(startResult.ok, false, `startRun should reject ${label}`);
+    assert.equal(!startResult.ok && startResult.error.code, "INVALID_TARGET_CONFIG", label);
+    assert.equal(
+      !startResult.ok && startResult.error.message,
+      "github target is missing owner/repo/environmentName",
+      label
+    );
+
+    const pollResult = await provider.pollRun({ target, providerRunRef: "42" }, makeContext(http));
+    assert.equal(pollResult.ok, false, `pollRun should reject ${label}`);
+    assert.equal(!pollResult.ok && pollResult.error.code, "INVALID_TARGET_CONFIG", label);
+
+    assert.equal(http.calls.length, 0, `${label}: no network call should be made`);
+  }
+});
+
+test("pollRun reports INVALID_TARGET_CONFIG for a providerRunRef that is not a positive github deployment id", async () => {
+  for (const bad of ["0", "-1", "abc", "1.5", "", "007"]) {
+    const http = new FakeHttpClient([jsonResponse(200, {})]);
+    const provider = createGitHubDeploymentProvider();
+
+    const result = await provider.pollRun({ target: makeTarget(), providerRunRef: bad }, makeContext(http));
+
+    assert.equal(result.ok, false, `providerRunRef '${bad}' should be rejected`);
+    assert.equal(!result.ok && result.error.code, "INVALID_TARGET_CONFIG", bad);
+    assert.equal(!result.ok && result.error.message, "providerRunRef is not a github deployment id", bad);
+    assert.equal(http.calls.length, 0, bad);
+  }
+});
+
+test("pollRun reports NO_CREDENTIALS_CONFIGURED without ever calling the network", async () => {
+  const http = new FakeHttpClient([jsonResponse(200, {})]);
+  const provider = createGitHubDeploymentProvider();
+  const ctx: DeploymentProviderContext = { ...makeContext(http), credentials: {} };
+
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, ctx);
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.equal(http.calls.length, 0);
+});
+
+test("startRun reports NO_CREDENTIALS_CONFIGURED for each partially-configured credential set", async () => {
+  const partialSets: Array<[string, Record<string, string>]> = [
+    ["appId only", { appId: "1" }],
+    ["appId and installationId, no privateKeyPem", { appId: "1", installationId: "2" }],
+  ];
+
+  for (const [label, credentials] of partialSets) {
+    const http = new FakeHttpClient([jsonResponse(200, {})]);
+    const provider = createGitHubDeploymentProvider();
+    const ctx: DeploymentProviderContext = { ...makeContext(http), credentials };
+
+    const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, ctx);
+
+    assert.equal(result.ok, false, label);
+    assert.equal(!result.ok && result.error.code, "NO_CREDENTIALS_CONFIGURED", label);
+    assert.equal(http.calls.length, 0, label);
+  }
+});
+
+test("startRun surfaces a token-mint transport failure as a typed, retryable TRANSPORT_ERROR", async () => {
+  const provider = createGitHubDeploymentProvider();
+  const ctx = makeContext(new ThrowingHttpClient("socket hang up"));
+
+  const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, ctx);
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "TRANSPORT_ERROR");
+  assert.equal(!result.ok && result.error.message, "socket hang up");
+  assert.equal(!result.ok && result.error.retryable, true);
+});
+
+test("startRun surfaces a malformed token-exchange body as PROVIDER_RESPONSE_INVALID", async () => {
+  const http = new FakeHttpClient([rawResponse(201, "not json")]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID");
+  assert.equal(!result.ok && result.error.message, "GitHub returned invalid JSON minting an installation token");
+});
+
+test("startRun surfaces an empty or malformed installation token as PROVIDER_RESPONSE_INVALID", async () => {
+  for (const body of [{}, { token: "" }, { token: 123 }]) {
+    const http = new FakeHttpClient([jsonResponse(201, body)]);
+    const provider = createGitHubDeploymentProvider();
+
+    const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+    const label = JSON.stringify(body);
+    assert.equal(result.ok, false, label);
+    assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID", label);
+    assert.equal(!result.ok && result.error.message, "GitHub returned an empty installation token", label);
+  }
+});
+
+test("startRun surfaces a deployment-create transport failure as a typed, retryable TRANSPORT_ERROR", async () => {
+  const http = new ScriptedHttpClient([
+    jsonResponse(201, { token: "ghs_opaque" }),
+    () => {
+      throw new Error("connection reset");
+    },
+  ]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "TRANSPORT_ERROR");
+  assert.equal(!result.ok && result.error.message, "connection reset");
+  assert.equal(!result.ok && result.error.retryable, true);
+});
+
+test("startRun surfaces a non-2xx deployment-create response as PROVIDER_ERROR with correct retryability", async () => {
+  const cases: Array<[number, boolean]> = [
+    [422, false],
+    [503, true],
+  ];
+  for (const [status, retryable] of cases) {
+    const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), jsonResponse(status, { message: "nope" })]);
+    const provider = createGitHubDeploymentProvider();
+
+    const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+    assert.equal(result.ok, false, String(status));
+    assert.equal(!result.ok && result.error.code, "PROVIDER_ERROR", String(status));
+    assert.equal(!result.ok && result.error.message, `GitHub deployment create failed: ${status}`, String(status));
+    assert.equal(!result.ok && result.error.providerStatus, status, String(status));
+    assert.equal(!result.ok && result.error.retryable, retryable, String(status));
+  }
+});
+
+test("startRun surfaces a malformed deployment-create body as PROVIDER_RESPONSE_INVALID", async () => {
+  const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), rawResponse(201, "not json")]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID");
+  assert.equal(!result.ok && result.error.message, "GitHub returned invalid JSON creating a deployment");
+});
+
+test("startRun surfaces an invalid deployment id as PROVIDER_RESPONSE_INVALID", async () => {
+  for (const body of [{}, { id: "91" }, { id: -1 }, { id: 0 }, { id: 1.5 }]) {
+    const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), jsonResponse(201, body)]);
+    const provider = createGitHubDeploymentProvider();
+
+    const result = await provider.startRun({ target: makeTarget(), release: makeRelease() }, makeContext(http));
+
+    const label = JSON.stringify(body);
+    assert.equal(result.ok, false, label);
+    assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID", label);
+    assert.equal(!result.ok && result.error.message, "GitHub returned an invalid deployment id", label);
+  }
+});
+
+test("pollRun returns the token-mint error without polling statuses when minting fails", async () => {
+  const http = new FakeHttpClient([jsonResponse(403, { message: "bad app" })]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_ERROR");
+  assert.equal(!result.ok && result.error.message, "GitHub installation token exchange failed: 403");
+  assert.equal(http.calls.length, 1, "must not proceed to poll statuses after a failed mint");
+});
+
+test("pollRun surfaces a status-poll transport failure as a typed, retryable TRANSPORT_ERROR", async () => {
+  const http = new ScriptedHttpClient([
+    jsonResponse(201, { token: "ghs_opaque" }),
+    () => {
+      throw new Error("dns failure");
+    },
+  ]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "TRANSPORT_ERROR");
+  assert.equal(!result.ok && result.error.message, "dns failure");
+  assert.equal(!result.ok && result.error.retryable, true);
+});
+
+test("pollRun surfaces a non-2xx status-poll response as PROVIDER_ERROR with correct retryability", async () => {
+  const cases: Array<[number, boolean]> = [
+    [404, false],
+    [500, true],
+  ];
+  for (const [status, retryable] of cases) {
+    const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), jsonResponse(status, { message: "nope" })]);
+    const provider = createGitHubDeploymentProvider();
+
+    const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+
+    assert.equal(result.ok, false, String(status));
+    assert.equal(!result.ok && result.error.code, "PROVIDER_ERROR", String(status));
+    assert.equal(!result.ok && result.error.message, `GitHub deployment status poll failed: ${status}`, String(status));
+    assert.equal(!result.ok && result.error.providerStatus, status, String(status));
+    assert.equal(!result.ok && result.error.retryable, retryable, String(status));
+  }
+});
+
+test("pollRun surfaces a malformed status-poll body as PROVIDER_RESPONSE_INVALID", async () => {
+  const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), rawResponse(200, "not json")]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID");
+  assert.equal(!result.ok && result.error.message, "GitHub returned a malformed statuses response");
+});
+
+test("pollRun surfaces a non-array status-poll body as PROVIDER_RESPONSE_INVALID", async () => {
+  const http = new ScriptedHttpClient([jsonResponse(201, { token: "ghs_opaque" }), jsonResponse(200, { not: "an array" })]);
+  const provider = createGitHubDeploymentProvider();
+
+  const result = await provider.pollRun({ target: makeTarget(), providerRunRef: "42" }, makeContext(http));
+
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.error.code, "PROVIDER_RESPONSE_INVALID");
+  assert.equal(!result.ok && result.error.message, "GitHub returned a malformed statuses response");
+});
+
+test("mapGitHubDeploymentStatus sanitizes CR/LF/NUL out of a status description", () => {
+  const result = mapGitHubDeploymentStatus({ id: 7, state: "success", description: "line1\r\nline2\x00tail" });
+  assert.equal(result.message, "line1  line2 tail");
+});
+
+test("mapGitHubDeploymentStatus truncates a status description to 500 characters", () => {
+  const long = "x".repeat(600);
+  const result = mapGitHubDeploymentStatus({ id: 7, state: "success", description: long });
+  assert.equal(result.message, "x".repeat(500));
 });
