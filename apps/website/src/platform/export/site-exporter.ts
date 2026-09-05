@@ -199,45 +199,17 @@ export interface ExportReport {
 }
 
 /**
- * Named-field summary of the FIRST failure across BOTH `report.routes.failed` and
- * `report.assets.failed`, in that order. `identifier` normalizes the two collections' disagreeing
- * field name (`FailedRoute.path` vs `FailedAsset.url`) to one name callers can interpolate without
- * a branch. See {@link firstExportFailure}'s own doc for why a caller must check both collections.
- */
-export interface ExportFailureSummary {
-  /** Which collection the first failure came from. */
-  kind: "route" | "asset";
-  /** `FailedRoute.path` for a route, `FailedAsset.url` for an asset. */
-  identifier: string;
-  reason: string;
-  /** Total failures in `kind`'s own collection — NOT combined with the other collection's count —
-   *  enough for a caller's "N failed" message without re-deriving it from the report. */
-  count: number;
-}
-
-/**
- * Returns the first failure in `report` (routes checked before assets), or `undefined` when
- * neither collection has one. The one shared "does this export block publishing" check, so every
- * caller of `exportSite` treats a failed asset exactly like a failed route — both are missing
- * bytes a published/committed site would otherwise silently ship without (HIGH audit finding,
- * 2026-08-19 Codex sol bug/architecture audit: `static-publish/adapter.ts`'s `publishStaticSite`
- * and `source-control/commit-site.ts`'s `commitSiteToSourceControl` used to check only
- * `routes.failed`, so a page could export fine while its own stylesheet or hero image 404s, and
- * publishing/committing would still report success).
+ * Re-exported from `./export-failure-summary.js`, where both symbols now live so that a caller
+ * wanting only this check does not have to load this file's 65-module runtime graph (`express`,
+ * `#src/features/theme/index`, and through it better-sqlite3/drizzle/handlebars/liquidjs) to run
+ * ten lines of array reads. See that file's header for the full reasoning and the measurement.
  *
- * @complexity O(1) — reads only `.length` and the first array element of each collection.
+ * Deliberately re-exported rather than left for callers to import from the leaf: this module's
+ * public surface predates the split, the barrel (`./index.ts`) re-exports both names from HERE,
+ * and `__tests__/index.test.ts` asserts the barrel's `firstExportFailure` is reference-identical
+ * to this module's. Dropping the re-export would break that identity and the barrel at once.
  */
-export function firstExportFailure(report: ExportReport): ExportFailureSummary | undefined {
-  if (report.routes.failed.length > 0) {
-    const first = report.routes.failed[0]!;
-    return { kind: "route", identifier: first.path, reason: first.reason, count: report.routes.failed.length };
-  }
-  if (report.assets.failed.length > 0) {
-    const first = report.assets.failed[0]!;
-    return { kind: "asset", identifier: first.url, reason: first.reason, count: report.assets.failed.length };
-  }
-  return undefined;
-}
+export { firstExportFailure, type ExportFailureSummary } from "./export-failure-summary.js";
 
 /**
  * Everything {@link exportSite} needs, declared locally rather than importing `server/routes/

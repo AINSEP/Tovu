@@ -1,5 +1,4 @@
 import { rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 
 import {
@@ -13,9 +12,29 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import type { ExportFailureSummary, ExportReport } from "#src/platform/export/index";
-
-const require = createRequire(import.meta.url);
+import type { ExportReport } from "#src/platform/export/index";
+/**
+ * Imported from the LEAF `export-failure-summary.ts`, not from `#src/platform/export/index`.
+ *
+ * This is a runtime import, and that is the point: it adds exactly ONE module to this file's eager
+ * graph. Importing the same function through the barrel would add 65 (`express`, better-sqlite3,
+ * drizzle, handlebars, liquidjs and the whole theme/post/db graph, via `site-exporter.ts`), on a
+ * module reached from `assistant/tool-registrations.ts`. Avoiding that cost — not a cycle — is why
+ * this function was previously resolved by a call-time `require("#src/platform/export/index")`.
+ *
+ * The `require()` is gone because it was corrupting coverage: under `tsx` it loaded the barrel and
+ * its whole graph a second time through the CJS hook, and the two images merged into one broken
+ * lcov block per file. Measured 2026-09-05 at 45 contaminated first-party blocks, 28 SEVERE, from
+ * this one call site. Pinned by `features/source-control/__tests__/commit-site-export-resolution.unit.test.ts`.
+ *
+ * On the cycle the old comment here described (`adapter.ts -> export/index.ts ->
+ * site-exporter.ts -> server/app.ts -> ... -> src/assistant`): that back-edge no longer exists.
+ * `site-exporter.ts` dropped its `server/app.ts` import in the 2026-08-16 rework, and its current
+ * runtime imports are `node:*`, an `express` TYPE, `#src/contracts/core/index` and
+ * `#src/features/theme/index` — nothing under `server/` or `assistant/`. The leaf module imports
+ * nothing at runtime at all, so it cannot participate in a cycle regardless.
+ */
+import { firstExportFailure, type ExportFailureSummary } from "#src/platform/export/export-failure-summary";
 
 import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
 import type {
@@ -353,30 +372,6 @@ export interface StaticPublishInput {
   readonly projectName: string;
 }
 
-/**
- * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
- * `commit-site.ts`'s identical helper. A static `import { firstExportFailure } from
- * "#src/platform/export/index"` at the top of THIS file would close a cycle the moment anything reachable
- * from `src/assistant` imports this module:
- *
- *     assistant/tool-registrations.ts -> features/deployments/publish-agent-tools.ts ->
- *     static-publish/index.ts -> static-publish/adapter.ts -> export/index.ts ->
- *     export/site-exporter.ts -> server/app.ts -> ... (back into `src/assistant`)
- *
- * the same class of `ReferenceError: Cannot access 'staticPublishDerivedRisk' before initialization`
- * this file previously observed for its own now-removed `exportSiteLazily`. `exportSite` itself no
- * longer needs this treatment here (2026-08-20 RouteDeps-narrowing fix): this file never calls it
- * directly anymore — {@link StaticPublishInput.exportSiteBound} is already the composition root's own
- * lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so threading a second lazy `require` for
- * the same function here would be redundant, not merely stylistic. `firstExportFailure` still needs
- * its own lazy resolution, since it is a SEPARATE named export of the same `#src/platform/export/index` module
- * and importing it eagerly would reopen the identical cycle regardless of `exportSite`'s own fix.
- */
-function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  return (require("#src/platform/export/index") as typeof import("#src/platform/export/index")).firstExportFailure(report);
-}
-
 /** The `{ok:true, ...}` member of `PublishCredentialSource["resolve"]`'s return union — the shape
  *  {@link resolvePublishCredentialForSite} hands back once it has already ruled out both a thrown
  *  decrypt failure and an `{ok:false}` "not configured" result. */
@@ -432,8 +427,8 @@ async function resolvePublishCredentialForSite(
  * Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
  * architecture audit) — this used to check only `routes.failed`, so a page could export fine while
  * its own stylesheet or hero image 404s and publishing would still report success. See
- * `firstExportFailure`'s own doc (`#src/platform/export/index`) for the shared check both this function and
- * `commit-site.ts`'s `commitSiteToSourceControl` now use.
+ * `firstExportFailure`'s own doc (`#src/platform/export/export-failure-summary`) for the shared check both this
+ * function and `commit-site.ts`'s `commitSiteToSourceControl` now use.
  */
 async function runExportForPublish(
   input: StaticPublishInput,
@@ -456,7 +451,7 @@ async function runExportForPublish(
   }
   cleanupPublishRunDir(outputDir);
 
-  const failure = firstExportFailureLazily(report);
+  const failure = firstExportFailure(report);
   if (failure) {
     return {
       ok: false,

@@ -34,16 +34,33 @@ import test from "node:test";
  * property under test IS a property of the source. A behavioural probe would have to perform the
  * very `require()` this test forbids, recreating the defect inside the coverage run it protects.
  *
- * `features/deployments/static-publish/adapter.ts` carries the identical helper and is deliberately
- * NOT listed below: making its import static would pull 65 modules (better-sqlite3, drizzle,
- * handlebars, liquidjs and the whole theme/post/db graph) into its currently 7-module eager load
- * graph, which is an owner decision, not a mechanical one. It is known-open, not overlooked.
+ * `features/deployments/static-publish/adapter.ts` carried the identical helper and was previously
+ * excluded here, because importing `#src/platform/export/index` statically would have pulled 65
+ * modules (better-sqlite3, drizzle, handlebars, liquidjs and the whole theme/post/db graph) into
+ * its 7-module eager load graph — a real cost on a module reached from
+ * `assistant/tool-registrations.ts`, and an owner decision rather than a mechanical one.
+ *
+ * Resolved 2026-09-05 by removing the cost instead of paying it: `firstExportFailure` and its
+ * `ExportFailureSummary` result type now live in the leaf module
+ * `platform/export/export-failure-summary.ts`, which imports nothing at runtime (its only
+ * dependency, `ExportReport`, is an `import type` and therefore erased). `site-exporter.ts`
+ * re-exports both, so the barrel's public surface and `platform/export/__tests__/index.test.ts`'s
+ * identity assertion are unchanged. `adapter.ts` imports the leaf directly, which adds ONE module
+ * to its eager graph rather than 65. Both call sites are therefore listed below.
+ *
+ * Note for anyone extending this: `platform/export` is NOT in `.dependency-cruiser.mjs`'s
+ * `GUARDED_MODULES`, so there is no `no-deep-imports:export` rule and the leaf import needs no
+ * exemption. The 2026-09-05 report predicted one would be required; that prediction was wrong,
+ * verified by reading the config's module list.
  */
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../../../..");
 
 /** Files that must resolve first-party modules through `import`, never a call-time `require()`. */
-const NO_FIRST_PARTY_REQUIRE_FILES = ["apps/website/src/features/source-control/commit-site.ts"];
+const NO_FIRST_PARTY_REQUIRE_FILES = [
+  "apps/website/src/features/source-control/commit-site.ts",
+  "apps/website/src/features/deployments/static-publish/adapter.ts",
+];
 
 /** Any `require("#src/...")` / `require("../…")`-shaped call naming a first-party specifier. Node
  *  builtins (`require("node:sea")`) and real npm packages are out of scope — they carry no second
