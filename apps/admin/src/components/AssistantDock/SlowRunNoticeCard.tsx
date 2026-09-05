@@ -38,8 +38,32 @@ export function resolveSlowRunDetail(events: readonly unknown[]): string | undef
   return typeof latest?.detail === "string" && latest.detail.length > 0 ? latest.detail : undefined;
 }
 
-export function SlowRunNoticeCard({ events }: ExtEventRenderProps) {
+/**
+ * Whether the "still working" notice is still an accurate thing to say.
+ *
+ * The daemon's watchdog fires once and is never retracted (see this file's own doc), so nothing
+ * upstream ever tells this card to stop rendering — it has to decide for itself. `runSucceeded`'s
+ * own contract is "ignored while `runStreaming` is true" (it is only meaningful once the run is
+ * already terminal), so a naive `!runStreaming` check alone would already cover both terminal
+ * outcomes (success and failure alike) correctly. This checks `runSucceeded` too, rather than
+ * relying on that contract being honored upstream: if a caller ever reports `runSucceeded: true`
+ * before `runStreaming` catches up to `false`, this still hides immediately instead of parroting a
+ * stale "still working" for one more render.
+ *
+ * @param runStreaming - {@link ExtEventRenderProps.runStreaming}.
+ * @param runSucceeded - {@link ExtEventRenderProps.runSucceeded}.
+ * @returns `true` while the notice should still render; `false` once the run has reached any
+ *   terminal outcome (succeeded, failed, or aborted).
+ *
+ * @complexity Time/space: O(1).
+ */
+export function isSlowRunNoticeVisible(runStreaming: boolean, runSucceeded: boolean): boolean {
+  return runStreaming && !runSucceeded;
+}
+
+export function SlowRunNoticeCard({ events, runStreaming, runSucceeded }: ExtEventRenderProps) {
   const t = useT();
+  if (!isSlowRunNoticeVisible(runStreaming, runSucceeded)) return null;
   return (
     <div className="jini-chat-pane__status" role="status">
       {resolveSlowRunDetail(events) ?? t("Still working — this is taking longer than usual.")}

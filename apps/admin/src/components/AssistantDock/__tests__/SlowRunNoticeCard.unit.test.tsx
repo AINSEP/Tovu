@@ -14,7 +14,7 @@ vi.mock("@jini-ai/chat/react", () => ({
   useT: () => (key: string) => key,
 }));
 
-import { resolveSlowRunDetail, SlowRunNoticeCard } from "../SlowRunNoticeCard";
+import { isSlowRunNoticeVisible, resolveSlowRunDetail, SlowRunNoticeCard } from "../SlowRunNoticeCard";
 
 afterEach(() => {
   cleanup();
@@ -46,6 +46,24 @@ describe("resolveSlowRunDetail", () => {
   });
 });
 
+describe("isSlowRunNoticeVisible", () => {
+  it("is visible while the run is still streaming and has not (yet) succeeded", () => {
+    expect(isSlowRunNoticeVisible(true, false)).toBe(true);
+  });
+
+  it("hides once the run has finished successfully — 'still working' is no longer true", () => {
+    expect(isSlowRunNoticeVisible(false, true)).toBe(false);
+  });
+
+  it("hides once the run has ended without succeeding (failed or aborted), not only on success", () => {
+    expect(isSlowRunNoticeVisible(false, false)).toBe(false);
+  });
+
+  it("hides even mid-stream if runSucceeded is (incorrectly) reported true — never trusts one flag alone", () => {
+    expect(isSlowRunNoticeVisible(true, true)).toBe(false);
+  });
+});
+
 describe("SlowRunNoticeCard", () => {
   const baseProps = { name: "slow_running", runStreaming: true, runSucceeded: false, runId: "run-1" };
 
@@ -64,5 +82,22 @@ describe("SlowRunNoticeCard", () => {
     render(<SlowRunNoticeCard {...baseProps} events={[{ type: "slow_running" }]} />);
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Still working — this is taking longer than usual.");
+  });
+
+  it("renders nothing once the run has completed successfully, even with a stall event still in the transcript", () => {
+    render(
+      <SlowRunNoticeCard
+        {...baseProps}
+        runStreaming={false}
+        runSucceeded={true}
+        events={[{ type: "slow_running", detail: "Still working — this turn is taking longer than usual." }]}
+      />,
+    );
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  it("renders nothing once the run has ended without succeeding — a finished run is never 'still working'", () => {
+    render(<SlowRunNoticeCard {...baseProps} runStreaming={false} runSucceeded={false} events={[{ type: "slow_running" }]} />);
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
