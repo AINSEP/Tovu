@@ -164,7 +164,15 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     } catch {
       // already surfaced through trashMutation.error -> error below
     } finally {
-      setRowSavingId(null);
+      // Self-referential: only clear THIS call's own id. `trash` has no confirm step, so it can
+      // start on a different row at any time — including while a `purge` confirmation (see below)
+      // is genuinely still in flight on ANOTHER item. `rowSavingId` is the ONE field both actions
+      // share; an unconditional reset here would clobber that unrelated purge's busy signal the
+      // instant this trash happens to settle, flipping `MediaPurgeDialog`'s `pending` prop to
+      // `false` mid-request and re-enabling Confirm/Escape/backdrop dismissal for a destructive
+      // delete that has not actually finished. Same shape as `use-widgets-library.hooks.ts`'s
+      // `purge`'s `pendingForcePurge` reset.
+      setRowSavingId((current) => (current === item.id ? null : current));
     }
   }
 
@@ -178,8 +186,14 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
     } catch {
       // already surfaced through purgeMutation.error -> error below
     } finally {
-      setRowSavingId(null);
-      setPendingPurge(null);
+      // Self-referential for the same reason `trash`'s own finally now is — see its comment above.
+      // `pendingPurge` itself cannot be reassigned to a different item while THIS purge is in
+      // flight (opening a new purge confirmation requires the native `<dialog>`'s modal focus trap
+      // to release first, and `pending` blocks Escape/backdrop dismissal), so its own reset stays
+      // guarded here purely for symmetry with `rowSavingId` and to stay correct if that invariant
+      // ever changes.
+      setRowSavingId((current) => (current === item.id ? null : current));
+      setPendingPurge((current) => (current?.id === item.id ? null : current));
     }
   }
 

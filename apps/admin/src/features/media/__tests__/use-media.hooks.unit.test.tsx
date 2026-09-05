@@ -107,6 +107,75 @@ describe("useMedia — injected port (no fetch stub)", () => {
   });
 });
 
+/**
+ * `trash` and `purge` share ONE `rowSavingId` field with no per-call guard. `purge` only runs while
+ * `pendingPurge` is set (the confirm dialog is open, and `ConfirmDialog`'s own `pending` prop —
+ * `rowSavingId === pendingPurge.id` — blocks Escape/backdrop dismissal for exactly as long as that
+ * holds), but `trash` has NO confirm step at all and is reachable on a DIFFERENT row at any time. An
+ * unrelated `trash` call that happens to settle WHILE a purge confirmation is genuinely still
+ * in-flight unconditionally resets `rowSavingId` to `null` in its own `finally` — which flips the
+ * open purge dialog's `pending` prop to `false` mid-request, re-enabling Confirm/Cancel and
+ * Escape/backdrop dismissal for a destructive delete that has not actually settled yet.
+ */
+describe("useMedia — trash/purge shared rowSavingId race safety", () => {
+  it("an unrelated trash settling mid-flight must not clear rowSavingId for an in-flight purge on a different item", async () => {
+    const ITEM_B = fakeMedia({ id: "mB", title: "B", status: "active" });
+    const ITEM_C = fakeMedia({ id: "mC", title: "C", status: "trashed" });
+    const port = createFakeMediaPort({ media: [ITEM_B, ITEM_C] });
+
+    const deferredTrash: { resolve?: (v: { media: AdminMedia }) => void } = {};
+    port.trashMedia = vi.fn(
+      (_id: string) =>
+        new Promise((resolve) => {
+          deferredTrash.resolve = resolve;
+        })
+    );
+    const deferredPurge: { resolve?: (v: { purged: true }) => void } = {};
+    port.deleteMedia = vi.fn(
+      (_id: string) =>
+        new Promise((resolve) => {
+          deferredPurge.resolve = resolve;
+        })
+    );
+
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
+    await waitFor(() => expect(result.current.media).toHaveLength(2));
+
+    // Trash B (no confirm step — reachable at any time, in flight, slow).
+    act(() => {
+      void result.current.trash(ITEM_B);
+    });
+    await waitFor(() => expect(port.trashMedia).toHaveBeenCalledTimes(1));
+
+    // Independently, open and confirm the purge dialog for C — genuinely in flight now too.
+    act(() => result.current.setPendingPurge(ITEM_C));
+    act(() => {
+      void result.current.purge();
+    });
+    await waitFor(() => expect(port.deleteMedia).toHaveBeenCalledTimes(1));
+    expect(result.current.rowSavingId).toBe(ITEM_C.id);
+
+    // B's unrelated trash settles first — must NOT touch C's still-in-flight purge state.
+    await act(async () => {
+      deferredTrash.resolve!({ media: { ...ITEM_B, status: "trashed" } });
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // C's purge dialog must still read as pending (rowSavingId still names C) — otherwise
+    // `ConfirmDialog`'s `pending` prop flips false mid-request, unlocking a second confirm click or
+    // an Escape/backdrop dismissal while the destructive delete is still in flight.
+    expect(result.current.rowSavingId).toBe(ITEM_C.id);
+    expect(result.current.pendingPurge?.id).toBe(ITEM_C.id);
+
+    // Let C's purge settle too, and confirm it cleans up correctly on its own.
+    await act(async () => {
+      deferredPurge.resolve!({ purged: true });
+    });
+    await waitFor(() => expect(result.current.rowSavingId).toBeNull());
+    expect(result.current.pendingPurge).toBeNull();
+  });
+});
+
 function fakeMedia(overrides: Partial<AdminMedia> = {}): AdminMedia {
   return {
     id: "m1",
