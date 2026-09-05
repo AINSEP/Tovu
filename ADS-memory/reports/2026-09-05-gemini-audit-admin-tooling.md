@@ -229,6 +229,53 @@ disproven); 2b raised 5 numbered findings (1 confirmed-and-substantially-extende
 13], 2 confirmed-as-plausible-but-unverified-live [14-15], 1 factually disproven [types.ts], and 1 [the
 `route-coverage-lib.ts` claim reused for the same file] folded into the disproven types.ts item).
 
+### Chunk: CI workflow + root config (.github/workflows/ci.yml, fly-deploy.yml, eslint.config.mjs, package.json, fly.toml, packages/sdk + apps/admin + apps/site-chat package.json)
+
+Gemini raised 3 numbered findings for this chunk. **All three were disproven or substantially reframed on
+verification** — this chunk has the highest discard rate of the audit so far, worth flagging as a signal about
+this particular kind of claim (cross-file "is X wired to Y" claims Gemini can't fully check without seeing
+every referenced file).
+
+**Discarded (disproved on verification):**
+- **Gemini claimed `check:seal-aad` and `check:default-credential` (referenced by new blocking CI gate steps
+  at `ci.yml:263,273`) don't exist in `package.json`, so every CI run would fail once unblocked.** **False** —
+  both scripts exist: `package.json:50` (`"check:seal-aad": "tsx apps/website/src/features/webhooks/seal-aad-invariant.ts"`)
+  and `package.json:83` (`"check:default-credential": "tsx apps/website/src/features/identity/default-credential-exposure.ts"`).
+  Gemini's diff view apparently didn't include these pre-existing, untouched lines of `package.json` (they
+  weren't part of this window's diff hunks) and it inferred absence from that gap rather than from the real
+  file. This would have been the single most severe finding in the whole audit if true (every commit failing
+  CI) — glad to have caught it disproven.
+- **Gemini claimed `fly.toml` still targets app `tovu-ai-cms` while `fly-deploy.yml`'s comments/instructions
+  reference `-a tovu`, a mismatch that would crash production on deploy.** **False** — `fly.toml:48` reads
+  `app = "tovu"`, matching `fly-deploy.yml`'s references exactly. `fly.toml:41`'s comment mentioning
+  `tovu-ai-cms` is leftover text describing the OLD (already-corrected) value; the file's own top-of-file
+  header block (`fly.toml:1-20`, dated "Verified 2026-09-02") explicitly documents that `tovu-ai-cms` "resolves
+  to nothing" and was corrected to `tovu`. That correction predates this audit's window (2026-09-03/04) — it
+  isn't something this window's commits touched at all, so even the stale-comment nit isn't attributable to
+  this audit's scope.
+- **Gemini claimed `apps/site-chat/package.json`'s `@jini-ai/*` versions were left behind while root/admin
+  were bumped in this window, causing npm-workspace dual-instantiation.** Partially real, but misframed and
+  out of this audit's date window. Reframed finding: `apps/site-chat` is NOT an npm workspace member at all
+  (root `package.json:8-10` declares `"workspaces": ["packages/*"]` only — `apps/*` isn't included), so it has
+  its own independent `package-lock.json`, and there IS a real, confirmed drift there: `apps/site-chat/package.json`
+  declares `@jini-ai/chat`/`@jini-ai/ui` at `^0.3.3`, but `apps/site-chat/package-lock.json` still resolves
+  both to `0.3.2` (its root entry's own recorded requirement is `^0.3.2`) — a lockfile that would fail `npm ci`
+  against its own package.json. However, `git log` shows the `^0.3.3` bump landed 2026-09-02 (`70a8b4e8`) and
+  the lockfile was last committed 2026-09-02 (`9bde885d`) — BOTH before this audit's 2026-09-03/04 window. The
+  only commit touching `apps/site-chat/package.json` in-window (`beae0086`, 2026-09-04) added only the
+  `"license": "Apache-2.0"` field, confirmed by reading its diff. **Not counted as an in-window finding** since
+  it predates the audited range, but flagged here as a real, pre-existing, still-live integrity issue the
+  owner may want to know about regardless.
+
+**No defects identified, spot-checked and consistent:**
+- `eslint.config.mjs` — confirmed it reads `admin-complexity-debt.json`'s new per-violation schema correctly
+  (`.violations.map((entry) => entry.file)` at line 24), matching `check-admin-complexity-drift.ts`'s header
+  claim about the schema change.
+- `packages/sdk/package.json` — license-only addition, no logic.
+
+Chunk tally: 3 findings raised, 0 confirmed as originally stated, 2 fully disproven, 1 reframed into a real
+but out-of-window observation.
+
 ## Areas not covered / caveats
 
 TBD at completion.
