@@ -64,3 +64,40 @@ test("deriveDevScheme: true -> https, false -> http", () => {
   assert.equal(deriveDevScheme(true), "https");
   assert.equal(deriveDevScheme(false), "http");
 });
+
+test("REGRESSION (2026-09-05 audit finding): resolveDevTls stays active when TOVU_DISABLE_DEV_TLS=\"false\" — the operator's explicit intent is to KEEP TLS on, and a bare JS truthy check on the string got that backwards", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  const result = resolveDevTls(paths, {
+    existsSync: () => true,
+    readFileSync: (p) => Buffer.from(`content of ${p}`),
+    env: { TOVU_DISABLE_DEV_TLS: "false" },
+  });
+  assert.equal(result.active, true);
+  assert.equal(result.credentials?.cert.toString(), "content of /repo/.certs/localhost.pem");
+});
+
+test("REGRESSION (2026-09-05 audit finding): resolveDevTls stays active when TOVU_DISABLE_DEV_TLS=\"0\" — same truthy-string bug, the other common false-ish spelling", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  const result = resolveDevTls(paths, {
+    existsSync: () => true,
+    readFileSync: (p) => Buffer.from(`content of ${p}`),
+    env: { TOVU_DISABLE_DEV_TLS: "0" },
+  });
+  assert.equal(result.active, true);
+});
+
+test("resolveDevTls: inactive when TOVU_DISABLE_DEV_TLS=\"TRUE\" (case-insensitive) or \"1\", matching site-switcher-enabled.ts's parser convention", () => {
+  const paths = { certPath: "/repo/.certs/localhost.pem", keyPath: "/repo/.certs/localhost-key.pem" };
+  const upper = resolveDevTls(paths, {
+    existsSync: () => true,
+    readFileSync: () => assert.fail("must not read a PEM file when TLS is explicitly disabled"),
+    env: { TOVU_DISABLE_DEV_TLS: "TRUE" },
+  });
+  assert.deepEqual(upper, { active: false });
+  const numeric = resolveDevTls(paths, {
+    existsSync: () => true,
+    readFileSync: () => assert.fail("must not read a PEM file when TLS is explicitly disabled"),
+    env: { TOVU_DISABLE_DEV_TLS: "1" },
+  });
+  assert.deepEqual(numeric, { active: false });
+});
